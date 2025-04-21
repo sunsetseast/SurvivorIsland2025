@@ -3,8 +3,9 @@
  * Manages the camp phase screen in the game
  */
 
-import { getElement, clearChildren, createElement } from '../utils/DOMUtils.js';
-import eventManager, { GameEvents } from '../core/EventManager.js';
+import { getElement, clearChildren, createElement } from '../utils/index.js';
+import { eventManager } from '../core/index.js';
+import { GameEvents } from '../core/EventManager.js';
 
 export const CampScreen = {
   initialize() {

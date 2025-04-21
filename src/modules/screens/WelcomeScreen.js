@@ -3,9 +3,9 @@
  * Welcome screen for the game
  */
 
-import { getElement, createElement, clearChildren } from '../utils/DOMUtils.js';
-import { gameManager } from '../core/GameManager.js';
-import eventManager, { GameEvents } from '../core/EventManager.js';
+import { getElement, createElement, clearChildren } from '../utils/index.js';
+import { gameManager, eventManager } from '../core/index.js';
+import { GameEvents } from '../core/EventManager.js';
 
 export const WelcomeScreen = {
   /**

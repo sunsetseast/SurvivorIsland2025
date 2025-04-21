@@ -3,10 +3,9 @@
  * Screen for dividing survivors into tribes
  */
 
-import { getElement, createElement, clearChildren } from '../utils/DOMUtils.js';
-import { shuffleArray } from '../utils/CommonUtils.js';
-import { GameManager } from '../core/GameManager.js';
-import eventManager, { GameEvents } from '../core/EventManager.js';
+import { getElement, createElement, clearChildren, shuffleArray } from '../utils/index.js';
+import { gameManager, eventManager } from '../core/index.js';
+import { GameEvents } from '../core/EventManager.js';
 import { GameData } from '../data/index.js';
 
 const TribeDivisionScreen = {
