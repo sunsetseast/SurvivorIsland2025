@@ -1,15 +1,8 @@
 {
-  "name": "nodejs",
+  "name": "survivor-island",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "main": "server.js",
   "dependencies": {
-    "@types/node": "^22.13.11"
+    "express": "^4.18.2"
   }
 }
