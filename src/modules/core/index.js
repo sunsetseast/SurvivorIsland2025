@@ -1,4 +1,3 @@
-
 import { GameManager } from './GameManager.js';
 import { ScreenManager } from './ScreenManager.js';
 import { EventManager, GameEvents } from './EventManager.js';

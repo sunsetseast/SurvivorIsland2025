@@ -318,5 +318,5 @@ class ScreenManager {
 }
 
 // Create and export singleton instance
-const screenManager = new ScreenManager();
-export default screenManager;
+
+export class ScreenManager { ... } // Keep your class as-is
