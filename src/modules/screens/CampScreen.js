@@ -7,10 +7,10 @@ import { getElement, clearChildren, createElement } from '../utils/index.js';
 import { eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
 
-export const CampScreen = {
+class CampScreen {
   initialize() {
     console.log('CampScreen initialized');
-  },
+  }
 
   setup(data = {}) {
     console.log('CampScreen setup running...');
@@ -20,20 +20,26 @@ export const CampScreen = {
       return;
     }
 
-    // Basic example of clearing and showing the screen
     clearChildren(screen);
     screen.classList.add('active');
-    screen.innerHTML = '<h2>Camp Phase</h2><p>Welcome to camp!</p>';
+
+    // Placeholder content — you can replace with your dynamic content later
+    const header = createElement('h2', {}, 'Camp Phase');
+    const message = createElement('p', {}, 'Welcome to camp!');
+    screen.appendChild(header);
+    screen.appendChild(message);
 
     eventManager.publish(GameEvents.SCREEN_CHANGED, {
       screenId: 'camp',
       data
     });
-  },
+  }
 
   teardown() {
     const screen = getElement('camp-screen');
     if (screen) screen.classList.remove('active');
     console.log('CampScreen torn down');
   }
-};
+}
+
+export default new CampScreen();

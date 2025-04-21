@@ -7,18 +7,11 @@ import { getElement, createElement, clearChildren } from '../utils/index.js';
 import { gameManager, eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
 
-export const WelcomeScreen = {
-  /**
-   * Initialize the screen
-   */
+export class WelcomeScreen {
   initialize() {
     console.log('WelcomeScreen initialized');
-  },
+  }
 
-  /**
-   * Set up the screen when it's shown
-   * @param {Object} data - Additional data passed to the screen
-   */
   setup(data = {}) {
     console.log('WelcomeScreen.setup() is running');
     const welcomeScreen = getElement('welcome-screen');
@@ -87,9 +80,7 @@ export const WelcomeScreen = {
       },
       onmouseover: (e) => { e.target.style.backgroundColor = '#e68a00'; },
       onmouseout: (e) => { e.target.style.backgroundColor = '#ff9800'; },
-      onclick: () => {
-        gameManager.startNewGame();
-      }
+      onclick: () => gameManager.startNewGame()
     }, 'New Game');
 
     const continueButton = createElement('button', {
@@ -109,9 +100,7 @@ export const WelcomeScreen = {
       },
       onmouseover: (e) => { e.target.style.backgroundColor = '#43a047'; },
       onmouseout: (e) => { e.target.style.backgroundColor = '#4caf50'; },
-      onclick: () => {
-        gameManager.loadGame();
-      }
+      onclick: () => gameManager.loadGame()
     }, 'Continue');
 
     const settingsButton = createElement('button', {
@@ -190,12 +179,9 @@ export const WelcomeScreen = {
       screenId: 'welcome',
       data
     });
-  },
+  }
 
-  /**
-   * Cleanup method (optional)
-   */
   teardown() {
     console.log('WelcomeScreen teardown');
   }
-};
+}

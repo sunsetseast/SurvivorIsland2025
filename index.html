@@ -1,226 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Survivor Island</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Survivor Island</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <div id="game-container">
-        <!-- Hamburger Menu -->
-        <div id="hamburger-icon">
-            <div class="bar1"></div>
-            <div class="bar2"></div>
-            <div class="bar3"></div>
-        </div>
-        
-        <!-- Game Menu -->
-        <div id="game-menu" class="hidden">
-            <div class="menu-header">
-                <h3>Survivor Island Menu</h3>
-                <span id="close-menu">&times;</span>
-            </div>
-            <div class="menu-content">
-                <div id="player-stats-section" class="menu-section">
-                    <h4>Player Stats</h4>
-                    <div id="player-stats"></div>
-                </div>
-                <div id="game-info-section" class="menu-section">
-                    <h4>Game Information</h4>
-                    <div id="game-info"></div>
-                </div>
-                <div id="tribe-info-section" class="menu-section">
-                    <h4>Tribe Information</h4>
-                    <div id="tribe-info"></div>
-                </div>
-                <div id="inventory-section" class="menu-section">
-                    <h4>Inventory</h4>
-                    <div id="inventory">
-                        <p id="idol-status">Hidden Immunity Idol: No</p>
-                        <p id="idols-in-play">Idols in Play: 0</p>
-                        <p id="immunity-status">Immunity: No</p>
-                    </div>
-                </div>
-                <div class="menu-buttons">
-                    <button id="save-game-button" class="menu-button">Save Game</button>
-                    <button id="load-game-button" class="menu-button">Load Game</button>
-                    <button id="restart-game-button" class="menu-button">Restart Game</button>
-                    <button id="help-button" class="menu-button">Help</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Welcome Screen -->
-        <div id="welcome-screen" class="game-screen active"></div>
-
-        <!-- Character Selection Screen -->
-        <div id="character-selection-screen" class="game-screen">
-            <h2>Choose Your Survivor</h2>
-            <div id="survivor-grid"></div>
-            <div id="survivor-details" class="hidden">
-                <h3 id="survivor-name"></h3>
-                <p id="survivor-description"></p>
-                <div class="stats-container">
-                    <div class="stat">
-                        <label>Physical:</label>
-                        <div class="progress-bar">
-                            <div id="physical-bar" class="progress-fill"></div>
-                        </div>
-                        <span id="physical-value"></span>
-                    </div>
-                    <div class="stat">
-                        <label>Mental:</label>
-                        <div class="progress-bar">
-                            <div id="mental-bar" class="progress-fill"></div>
-                        </div>
-                        <span id="mental-value"></span>
-                    </div>
-                    <div class="stat">
-                        <label>Personality:</label>
-                        <div class="progress-bar">
-                            <div id="personality-bar" class="progress-fill"></div>
-                        </div>
-                        <span id="personality-value"></span>
-                    </div>
-                </div>
-                <button id="select-survivor-button" class="big-button">Select</button>
-                <button id="back-button" class="small-button">Back</button>
-            </div>
-        </div>
-
-        <!-- Tribe Division Screen -->
-        <div id="tribe-division-screen" class="game-screen">
-            <h2>Tribe Division</h2>
-            <div id="tribes-container"></div>
-            <button id="continue-to-challenge-button" class="big-button">Continue to Challenge</button>
-        </div>
-
-        <!-- Challenge Screen -->
-        <div id="challenge-screen" class="game-screen">
-            <h2 id="challenge-title">Immunity Challenge</h2>
-            <p id="challenge-description"></p>
-            <div class="challenge-container">
-                <div class="challenge-progress">
-                    <div class="progress-bar">
-                        <div id="challenge-progress-bar" class="progress-fill"></div>
-                    </div>
-                </div>
-                <button id="challenge-button" class="big-button">Start Challenge</button>
-            </div>
-            <div id="competitors-container"></div>
-        </div>
-
-        <!-- Camp Screen -->
-        <div id="camp-screen" class="game-screen">
-            <div class="camp-header">
-                <h2 id="tribe-name"></h2>
-                <div class="day-display">Day <span id="day-number">1</span></div>
-                <div class="energy-display">
-                    Energy: <span id="energy-value">3</span>/<span id="max-energy">3</span>
-                </div>
-            </div>
-            <div class="resources-container">
-                <div class="resource">
-                    <label>Fire:</label>
-                    <div class="progress-bar">
-                        <div id="fire-bar" class="progress-fill"></div>
-                    </div>
-                    <span id="fire-value">50</span>
-                </div>
-                <div class="resource">
-                    <label>Water:</label>
-                    <div class="progress-bar">
-                        <div id="water-bar" class="progress-fill"></div>
-                    </div>
-                    <span id="water-value">50</span>
-                </div>
-                <div class="resource">
-                    <label>Food:</label>
-                    <div class="progress-bar">
-                        <div id="food-bar" class="progress-fill"></div>
-                    </div>
-                    <span id="food-value">50</span>
-                </div>
-                <!-- Health Meters -->
-                <div class="resource">
-                    <label>Tribe Health:</label>
-                    <div class="progress-bar">
-                        <div id="tribe-health-bar" class="progress-fill"></div>
-                    </div>
-                    <span id="tribe-health-value">100</span>
-                </div>
-                <div class="resource">
-                    <label>Your Health:</label>
-                    <div class="progress-bar">
-                        <div id="player-health-bar" class="progress-fill"></div>
-                    </div>
-                    <span id="player-health-value">100</span>
-                </div>
-            </div>
-            
-            <!-- Personal Health Actions -->
-            <div class="health-actions">
-                <h3>Personal Health</h3>
-                <div class="health-actions-buttons">
-                    <button id="eat-button" class="action-button">Eat (-10 Tribe Food)</button>
-                    <button id="drink-button" class="action-button">Drink (-10 Tribe Water)</button>
-                    <button id="personal-rest-button" class="action-button">Rest (Uses Fire)</button>
-                </div>
-            </div>
-            <div class="camp-locations">
-                <h3>Locations</h3>
-                <div id="location-buttons"></div>
-            </div>
-            <div id="location-actions" class="hidden">
-                <h3 id="location-name"></h3>
-                <p id="location-description"></p>
-                <div id="action-buttons"></div>
-                <button id="back-to-locations-button" class="small-button">Back</button>
-            </div>
-            <div class="camp-menu">
-                <button id="view-relationships-button" class="menu-button">Relationships</button>
-                <button id="view-alliances-button" class="menu-button">Alliances</button>
-                <button id="proceed-to-challenge-button" class="menu-button">Next Phase</button>
-            </div>
-        </div>
-
-        <!-- Tribal Council Screen -->
-        <div id="tribal-council-screen" class="game-screen">
-            <h2>Tribal Council</h2>
-            <p id="tribal-instruction">Vote for a tribe member to eliminate:</p>
-            <div id="voting-grid"></div>
-            <button id="cast-vote-button" class="big-button" disabled>Cast Vote</button>
-            <div id="idol-play-container">
-                <button id="play-idol-button" class="menu-button hidden">Play Hidden Immunity Idol</button>
-            </div>
-            <div id="vote-results" class="hidden">
-                <h3>Vote Results</h3>
-                <div id="votes-container"></div>
-                <p id="elimination-text"></p>
-                <button id="continue-after-vote-button" class="big-button">Continue</button>
-            </div>
-        </div>
-        
-        <!-- Fire Making Challenge Screen -->
-        <div id="fire-making-challenge-screen" class="game-screen">
-            <!-- Fire making challenge content will be dynamically populated -->
-        </div>
-
-        <!-- Dialogue System -->
-        <div id="dialogue-container" class="hidden">
-            <div class="dialogue-box">
-                <div class="dialogue-header">
-                    <div class="speaker-portrait"></div>
-                    <h3 id="speaker-name"></h3>
-                </div>
-                <p id="dialogue-text"></p>
-                <div id="dialogue-choices"></div>
-            </div>
-        </div>
+  <div id="game-container">
+    <!-- Hamburger Menu -->
+    <div id="hamburger-icon">
+      <div class="bar1"></div>
+      <div class="bar2"></div>
+      <div class="bar3"></div>
     </div>
 
-    <!-- Scripts -->
-    <script type="module" src="src/main.js"></script>
+    <!-- Game Menu -->
+    <div id="game-menu" class="hidden">
+      <div class="menu-header">
+        <h3>Survivor Island Menu</h3>
+        <span id="close-menu">&times;</span>
+      </div>
+      <div class="menu-content">
+        <div id="player-stats-section" class="menu-section">
+          <h4>Player Stats</h4>
+          <div id="player-stats"></div>
+        </div>
+        <div id="game-info-section" class="menu-section">
+          <h4>Game Information</h4>
+          <div id="game-info"></div>
+        </div>
+        <div id="tribe-info-section" class="menu-section">
+          <h4>Tribe Information</h4>
+          <div id="tribe-info"></div>
+        </div>
+        <div id="inventory-section" class="menu-section">
+          <h4>Inventory</h4>
+          <div id="inventory">
+            <p id="idol-status">Hidden Immunity Idol: No</p>
+            <p id="idols-in-play">Idols in Play: 0</p>
+            <p id="immunity-status">Immunity: No</p>
+          </div>
+        </div>
+        <div class="menu-buttons">
+          <button id="save-game-button" class="menu-button">Save Game</button>
+          <button id="load-game-button" class="menu-button">Load Game</button>
+          <button id="restart-game-button" class="menu-button">Restart Game</button>
+          <button id="help-button" class="menu-button">Help</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Welcome Screen -->
+    <div id="welcome-screen" class="game-screen active"></div>
+
+    <!-- Character Selection Screen -->
+    <div id="character-selection-screen" class="game-screen">
+      <h2>Choose Your Survivor</h2>
+      <div id="survivor-grid"></div>
+      <div id="survivor-details" class="hidden">
+        <h3 id="survivor-name"></h3>
+        <p id="survivor-description"></p>
+        <div class="stats-container">
+          <div class="stat">
+            <label>Physical:</label>
+            <div class="progress-bar">
+              <div id="physical-bar" class="progress-fill"></div>
+            </div>
+            <span id="physical-value"></span>
+          </div>
+          <div class="stat">
+            <label>Mental:</label>
+            <div class="progress-bar">
+              <div id="mental-bar" class="progress-fill"></div>
+            </div>
+            <span id="mental-value"></span>
+          </div>
+          <div class="stat">
+            <label>Personality:</label>
+            <div class="progress-bar">
+              <div id="personality-bar" class="progress-fill"></div>
+            </div>
+            <span id="personality-value"></span>
+          </div>
+        </div>
+        <button id="select-survivor-button" class="big-button">Select</button>
+        <button id="back-button" class="small-button">Back</button>
+      </div>
+    </div>
+
+    <!-- Tribe Division Screen -->
+    <div id="tribe-division-screen" class="game-screen">
+      <h2>Tribe Division</h2>
+      <div id="tribes-container"></div>
+      <button id="continue-to-challenge-button" class="big-button">Continue to Challenge</button>
+    </div>
+
+    <!-- Challenge Screen -->
+    <div id="challenge-screen" class="game-screen">
+      <h2 id="challenge-title">Immunity Challenge</h2>
+      <p id="challenge-description"></p>
+      <div class="challenge-container">
+        <div class="challenge-progress">
+          <div class="progress-bar">
+            <div id="challenge-progress-bar" class="progress-fill"></div>
+          </div>
+        </div>
+        <button id="challenge-button" class="big-button">Start Challenge</button>
+      </div>
+      <div id="competitors-container"></div>
+    </div>
+
+    <!-- Camp Screen -->
+    <div id="camp-screen" class="game-screen">
+      <div class="camp-header">
+        <h2 id="tribe-name"></h2>
+        <div class="day-display">Day <span id="day-number">1</span></div>
+        <div class="energy-display">
+          Energy: <span id="energy-value">3</span>/<span id="max-energy">3</span>
+        </div>
+      </div>
+      <div class="resources-container">
+        <div class="resource">
+          <label>Fire:</label>
+          <div class="progress-bar">
+            <div id="fire-bar" class="progress-fill"></div>
+          </div>
+          <span id="fire-value">50</span>
+        </div>
+        <div class="resource">
+          <label>Water:</label>
+          <div class="progress-bar">
+            <div id="water-bar" class="progress-fill"></div>
+          </div>
+          <span id="water-value">50</span>
+        </div>
+        <div class="resource">
+          <label>Food:</label>
+          <div class="progress-bar">
+            <div id="food-bar" class="progress-fill"></div>
+          </div>
+          <span id="food-value">50</span>
+        </div>
+        <div class="resource">
+          <label>Tribe Health:</label>
+          <div class="progress-bar">
+            <div id="tribe-health-bar" class="progress-fill"></div>
+          </div>
+          <span id="tribe-health-value">100</span>
+        </div>
+        <div class="resource">
+          <label>Your Health:</label>
+          <div class="progress-bar">
+            <div id="player-health-bar" class="progress-fill"></div>
+          </div>
+          <span id="player-health-value">100</span>
+        </div>
+      </div>
+
+      <div class="health-actions">
+        <h3>Personal Health</h3>
+        <div class="health-actions-buttons">
+          <button id="eat-button" class="action-button">Eat (-10 Tribe Food)</button>
+          <button id="drink-button" class="action-button">Drink (-10 Tribe Water)</button>
+          <button id="personal-rest-button" class="action-button">Rest (Uses Fire)</button>
+        </div>
+      </div>
+
+      <div class="camp-locations">
+        <h3>Locations</h3>
+        <div id="location-buttons"></div>
+      </div>
+      <div id="location-actions" class="hidden">
+        <h3 id="location-name"></h3>
+        <p id="location-description"></p>
+        <div id="action-buttons"></div>
+        <button id="back-to-locations-button" class="small-button">Back</button>
+      </div>
+
+      <div class="camp-menu">
+        <button id="view-relationships-button" class="menu-button">Relationships</button>
+        <button id="view-alliances-button" class="menu-button">Alliances</button>
+        <button id="proceed-to-challenge-button" class="menu-button">Next Phase</button>
+      </div>
+    </div>
+
+    <!-- Tribal Council Screen -->
+    <div id="tribal-council-screen" class="game-screen">
+      <h2>Tribal Council</h2>
+      <p id="tribal-instruction">Vote for a tribe member to eliminate:</p>
+      <div id="voting-grid"></div>
+      <button id="cast-vote-button" class="big-button" disabled>Cast Vote</button>
+      <div id="idol-play-container">
+        <button id="play-idol-button" class="menu-button hidden">Play Hidden Immunity Idol</button>
+      </div>
+      <div id="vote-results" class="hidden">
+        <h3>Vote Results</h3>
+        <div id="votes-container"></div>
+        <p id="elimination-text"></p>
+        <button id="continue-after-vote-button" class="big-button">Continue</button>
+      </div>
+    </div>
+
+    <!-- Fire Making Challenge Screen -->
+    <div id="fire-making-challenge-screen" class="game-screen">
+      <!-- Content populated dynamically -->
+    </div>
+
+    <!-- Dialogue System -->
+    <div id="dialogue-container" class="hidden">
+      <div class="dialogue-box">
+        <div class="dialogue-header">
+          <div class="speaker-portrait"></div>
+          <h3 id="speaker-name"></h3>
+        </div>
+        <p id="dialogue-text"></p>
+        <div id="dialogue-choices"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import('./src/main.js')
+      .then(() => {
+        console.log('✅ main.js loaded successfully');
+      })
+      .catch(err => {
+        console.error('❌ Error loading main.js:', err);
+        const errorBanner = document.createElement('div');
+        errorBanner.style.position = 'fixed';
+        errorBanner.style.bottom = '10px';
+        errorBanner.style.left = '10px';
+        errorBanner.style.padding = '10px';
+        errorBanner.style.background = 'red';
+        errorBanner.style.color = 'white';
+        errorBanner.innerText = 'main.js failed to load';
+        document.body.appendChild(errorBanner);
+      });
+  </script>
 </body>
 </html>

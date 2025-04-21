@@ -4,7 +4,12 @@
  */
 
 import { gameManager, screenManager, eventManager, GameEvents } from './modules/core/index.js';
-import { WelcomeScreen, CharacterSelectionScreen, TribeDivisionScreen, CampScreen } from './modules/screens/index.js';
+import {
+  WelcomeScreen,
+  CharacterSelectionScreen,
+  TribeDivisionScreen,
+  CampScreen
+} from './modules/screens/index.js';
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
 
@@ -12,20 +17,31 @@ import timerManager from './modules/utils/TimerManager.js';
 const GAME_TITLE = 'Survivor Island';
 const GAME_VERSION = '1.0.0';
 
+const debugBanner = document.createElement('div');
+debugBanner.textContent = 'main.js is running!';
+debugBanner.style.position = 'fixed';
+debugBanner.style.top = '0';
+debugBanner.style.left = '0';
+debugBanner.style.backgroundColor = 'red';
+debugBanner.style.color = 'white';
+debugBanner.style.padding = '5px 10px';
+debugBanner.style.zIndex = '9999';
+document.body.appendChild(debugBanner);
+
 /**
  * Initialize the game when the DOM is loaded
  */
 function init() {
   console.log(`Initializing ${GAME_TITLE} v${GAME_VERSION}`);
 
-  // Register screens with screen manager
+  // Register screens with screen manager (as class instances)
   screenManager.registerScreen('welcome', new WelcomeScreen());
   screenManager.registerScreen('characterSelection', new CharacterSelectionScreen());
   screenManager.registerScreen('tribeDivision', new TribeDivisionScreen());
   screenManager.registerScreen('camp', new CampScreen());
+  screenManager.initialize();
+  // Show the welcome screen
   console.log('Trying to show welcome screen...');
-  screenManager.showScreen('welcome');
-  // Show the welcome screen as the initial screen
   screenManager.showScreen('welcome');
 
   // Register systems with game manager
@@ -58,7 +74,6 @@ function init() {
 
 /**
  * Handle game initialized event
- * @param {Object} data - Event data
  */
 function handleGameInitialized(data) {
   console.log('Game initialized');
@@ -66,7 +81,6 @@ function handleGameInitialized(data) {
 
 /**
  * Handle game started event
- * @param {Object} data - Event data
  */
 function handleGameStarted(data) {
   console.log('Game started with settings:', data.settings);
