@@ -221,23 +221,6 @@
   </div>
 
   <!-- Scripts -->
-  <script type="module">
-    import('./src/main.js')
-      .then(() => {
-        console.log('✅ main.js loaded successfully');
-      })
-      .catch(err => {
-        console.error('❌ Error loading main.js:', err);
-        const errorBanner = document.createElement('div');
-        errorBanner.style.position = 'fixed';
-        errorBanner.style.bottom = '10px';
-        errorBanner.style.left = '10px';
-        errorBanner.style.padding = '10px';
-        errorBanner.style.background = 'red';
-        errorBanner.style.color = 'white';
-        errorBanner.innerText = 'main.js failed to load';
-        document.body.appendChild(errorBanner);
-      });
-  </script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
