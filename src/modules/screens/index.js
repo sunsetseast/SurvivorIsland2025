@@ -3,24 +3,9 @@
  * Consolidates and re-exports all game screens
  */
 
-// Import screen modules as default exports
-import WelcomeScreen from './WelcomeScreen.js';
-import CharacterSelectionScreen from './CharacterSelectionScreen.js';
-import TribeDivisionScreen from './TribeDivisionScreen.js';
-import CampScreen from './CampScreen.js';
+// Import statements are removed as they are now handled by named exports.
 
-// Re-export for named imports
-export {
-  WelcomeScreen,
-  CharacterSelectionScreen,
-  TribeDivisionScreen,
-  CampScreen
-};
-
-// Default export for grouped usage
-export default {
-  WelcomeScreen,
-  CharacterSelectionScreen,
-  TribeDivisionScreen,
-  CampScreen
-};
+export { WelcomeScreen } from './WelcomeScreen.js';
+export { CharacterSelectionScreen } from './CharacterSelectionScreen.js';
+export { TribeDivisionScreen } from './TribeDivisionScreen.js';
+export { CampScreen } from './CampScreen.js';
