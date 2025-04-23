@@ -7,7 +7,7 @@ import { getElement, createElement, clearChildren } from '../utils/index.js';
 import { gameManager, eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
 
-class TribeDivisionScreen {
+export default class TribeDivisionScreen {
   initialize() {
     console.log('TribeDivisionScreen initialized');
   }
@@ -148,5 +148,3 @@ class TribeDivisionScreen {
     console.log('TribeDivisionScreen teardown');
   }
 }
-
-export default new TribeDivisionScreen();

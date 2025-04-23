@@ -220,7 +220,28 @@
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script type="module" src="./src/main.js"></script>
+  <!-- Show red banner if main.js fails -->
+  <script>
+    setTimeout(() => {
+      if (!window.mainJsLoaded) {
+        const errorBanner = document.createElement('div');
+        errorBanner.textContent = 'ERROR: main.js failed to load.';
+        errorBanner.style.position = 'fixed';
+        errorBanner.style.top = '0';
+        errorBanner.style.left = '0';
+        errorBanner.style.width = '100%';
+        errorBanner.style.backgroundColor = 'darkred';
+        errorBanner.style.color = 'white';
+        errorBanner.style.padding = '10px';
+        errorBanner.style.fontWeight = 'bold';
+        errorBanner.style.textAlign = 'center';
+        errorBanner.style.zIndex = '9999';
+        document.body.appendChild(errorBanner);
+      }
+    }, 2000);
+  </script>
+
+  <!-- Main Game Script -->
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

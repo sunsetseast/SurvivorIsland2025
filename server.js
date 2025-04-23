@@ -3,17 +3,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // ES module fix
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve all static files in current directory
-app.use(express.static(__dirname));
+// Serve folders for main.js and its imports
+app.use('/src', express.static(path.join(__dirname, 'src')));
+app.use(express.static(__dirname)); // For index.html, styles.css, etc.
 
-// Serve index.html on root
-app.get('/', (req, res) => {
+// Fallback for client-side routing
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 

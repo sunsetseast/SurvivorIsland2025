@@ -57,98 +57,29 @@ export class WelcomeScreen {
     const twoTribeButton = createElement('button', {
       style: { padding: '1rem 2rem', fontSize: '1.2rem', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '200px' },
       onclick: () => {
-        gameManager.setGameMode(2);
-        eventManager.publish(GameEvents.SCREEN_CHANGED, { screenId: 'characterSelection' });
+        gameManager.startNewGame({ tribeMode: 2 });
       }
     }, '2 Tribe Mode');
 
     const threeTribeButton = createElement('button', {
       style: { padding: '1rem 2rem', fontSize: '1.2rem', backgroundColor: '#2196f3', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '200px' },
       onclick: () => {
-        gameManager.setGameMode(3);
-        eventManager.publish(GameEvents.SCREEN_CHANGED, { screenId: 'characterSelection' });
+        gameManager.startNewGame({ tribeMode: 3 });
       }
     }, '3 Tribe Mode');
-
-    const closePopupButton = createElement('button', {
-      style: { padding: '0.6rem 1.5rem', fontSize: '1rem', backgroundColor: '#f44336', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '120px' },
-      onclick: () => {
-        tribePopup.style.display = 'none';
-      }
-    }, 'Cancel');
 
     tribePopup.appendChild(tribeModeTitle);
     tribePopup.appendChild(twoTribeButton);
     tribePopup.appendChild(threeTribeButton);
-    tribePopup.appendChild(closePopupButton);
 
-    const continueButton = createElement('button', {
-      id: 'continue-game-button',
-      className: 'secondary-button',
-      style: {
-        padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px', display: gameManager.hasSavedGame() ? 'block' : 'none'
-      },
-      onmouseover: (e) => { e.target.style.backgroundColor = '#43a047'; },
-      onmouseout: (e) => { e.target.style.backgroundColor = '#4caf50'; },
-      onclick: () => gameManager.loadGame()
-    }, 'Continue');
-
-    const settingsButton = createElement('button', {
-      id: 'settings-button',
-      className: 'tertiary-button',
-      style: {
-        padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#2196f3', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px'
-      },
-      onmouseover: (e) => { e.target.style.backgroundColor = '#1e88e5'; },
-      onmouseout: (e) => { e.target.style.backgroundColor = '#2196f3'; },
-      onclick: () => {
-        const settingsDialog = getElement('settings-dialog');
-        if (settingsDialog) {
-          settingsDialog.style.display = 'block';
-        } else {
-          console.warn('Settings dialog not found');
-        }
-      }
-    }, 'Settings');
-
-    const infoButton = createElement('button', {
-      id: 'info-button',
-      className: 'tertiary-button',
-      style: {
-        padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#9c27b0', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px'
-      },
-      onmouseover: (e) => { e.target.style.backgroundColor = '#8e24aa'; },
-      onmouseout: (e) => { e.target.style.backgroundColor = '#9c27b0'; },
-      onclick: () => {
-        const infoDialog = getElement('info-dialog');
-        if (infoDialog) {
-          infoDialog.style.display = 'block';
-        } else {
-          console.warn('Info dialog not found');
-        }
-      }
-    }, 'Game Info');
+    const continueButton = createElement('button', { id: 'continue-game-button', className: 'secondary-button', style: { padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px', display: gameManager.hasSavedGame() ? 'block' : 'none' }, onmouseover: (e) => { e.target.style.backgroundColor = '#43a047'; }, onmouseout: (e) => { e.target.style.backgroundColor = '#4caf50'; }, onclick: () => gameManager.loadGame() }, 'Continue');
 
     menuContainer.appendChild(newGameButton);
     menuContainer.appendChild(continueButton);
-    menuContainer.appendChild(settingsButton);
-    menuContainer.appendChild(infoButton);
-
-    const versionInfo = createElement('div', {
-      className: 'version-info',
-      style: {
-        position: 'absolute',
-        bottom: '1rem',
-        right: '1rem',
-        fontSize: '0.8rem',
-        color: '#aaa'
-      }
-    }, 'v1.0.0');
 
     welcomeScreen.appendChild(titleContainer);
     welcomeScreen.appendChild(menuContainer);
     welcomeScreen.appendChild(tribePopup);
-    welcomeScreen.appendChild(versionInfo);
 
     eventManager.publish(GameEvents.SCREEN_CHANGED, { screenId: 'welcome', data });
   }

@@ -6,7 +6,6 @@ runButton = "Run Server"
 
 [[workflows.workflow]]
 name = "Run Server"
-author = 32394852
 mode = "sequential"
 
 [[workflows.workflow.tasks]]

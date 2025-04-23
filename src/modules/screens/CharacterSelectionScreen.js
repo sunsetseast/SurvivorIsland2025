@@ -8,7 +8,7 @@ import { gameManager, eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
 import { GameData } from '../data/index.js';
 
-class CharacterSelectionScreen {
+export default class CharacterSelectionScreen {
   constructor() {
     this.selectedCharacter = null;
     this.availableSurvivors = [];
@@ -116,10 +116,6 @@ class CharacterSelectionScreen {
     }
   }
 
-  _updateCharacterDetails(survivor) {
-    // Optional: implement detailed character preview
-  }
-
   _filterSurvivors(searchTerm, filter) {
     const cards = document.querySelectorAll('.character-card');
 
@@ -167,5 +163,3 @@ class CharacterSelectionScreen {
     this.selectedCharacter = null;
   }
 }
-
-export default new CharacterSelectionScreen();

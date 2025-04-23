@@ -2,7 +2,7 @@
  * Main entry point for the Survivor Island game
  * Initializes game systems and starts the game
  */
-
+window.mainJsLoaded = true;
 import { gameManager, screenManager, eventManager, GameEvents } from './modules/core/index.js';
 import {
   WelcomeScreen,

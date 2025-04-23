@@ -7,7 +7,7 @@ import { getElement, clearChildren, createElement } from '../utils/index.js';
 import { eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
 
-class CampScreen {
+export default class CampScreen {
   initialize() {
     console.log('CampScreen initialized');
   }
@@ -41,5 +41,3 @@ class CampScreen {
     console.log('CampScreen torn down');
   }
 }
-
-export default new CampScreen();

@@ -62,6 +62,10 @@ class GameManager {
     };
     this.systems = {}; // Will hold references to game systems
   }
+  setGameMode(mode) {
+    this.tribeCount = mode;
+    console.log(`Game mode set to ${mode} Tribe.`);
+  }
   
   /**
    * Initialize the game manager and all systems
