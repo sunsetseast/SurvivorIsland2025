@@ -3,13 +3,10 @@
  * Consolidates and re-exports all game data
  */
 
-// Export all data modules
-export { default as GameData } from './GameData.js';
+import GameDataInstance from './GameData.js';
 
-// Import all data for convenient usage via the default export
-import GameData from './GameData.js';
+// Named export: use with `import { GameData } from '../data/index.js'`
+export const GameData = GameDataInstance;
 
-// Default export for convenient importing
-export default {
-  GameData
-};
+// Default export: use with `import data from '../data/index.js'`
+export default GameDataInstance;

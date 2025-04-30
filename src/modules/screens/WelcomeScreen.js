@@ -55,18 +55,36 @@ export class WelcomeScreen {
     const tribeModeTitle = createElement('h2', { style: { color: '#fff', marginBottom: '1rem' } }, 'Select Tribe Mode');
 
     const twoTribeButton = createElement('button', {
-      style: { padding: '1rem 2rem', fontSize: '1.2rem', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '200px' },
+      style: {
+        padding: '1rem 2rem',
+        fontSize: '1.2rem',
+        backgroundColor: '#4caf50',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        width: '200px'
+      },
       onclick: () => {
-        gameManager.setGameMode(2);
-        eventManager.publish(GameEvents.SCREEN_CHANGED, { screenId: 'characterSelection' });
+        gameManager.startNewGame({ tribeCount: 2 });
+        getElement('tribe-popup').style.display = 'none';
       }
     }, '2 Tribe Mode');
 
     const threeTribeButton = createElement('button', {
-      style: { padding: '1rem 2rem', fontSize: '1.2rem', backgroundColor: '#2196f3', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '200px' },
+      style: {
+        padding: '1rem 2rem',
+        fontSize: '1.2rem',
+        backgroundColor: '#2196f3',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        width: '200px'
+      },
       onclick: () => {
-        gameManager.setGameMode(3);
-        eventManager.publish(GameEvents.SCREEN_CHANGED, { screenId: 'characterSelection' });
+        gameManager.startNewGame({ tribeCount: 3 });
+        getElement('tribe-popup').style.display = 'none';
       }
     }, '3 Tribe Mode');
 

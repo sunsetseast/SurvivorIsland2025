@@ -166,10 +166,10 @@ class ScreenManager {
   }
 
   _fadeTransition(element, callback) {
+    showElement(element); // Ensure it's visible before setup
     element.style.opacity = '0';
     element.style.transition = 'opacity 0.3s ease';
-    showElement(element);
-    element.offsetHeight;
+    element.offsetHeight; // force reflow
     element.style.opacity = '1';
     setTimeout(() => {
       element.style.transition = '';
@@ -178,10 +178,10 @@ class ScreenManager {
   }
 
   _slideTransition(element, callback) {
+    showElement(element); // Ensure it's visible before setup
     element.style.transform = 'translateX(100%)';
     element.style.transition = 'transform 0.3s ease';
-    showElement(element);
-    element.offsetHeight;
+    element.offsetHeight; // force reflow
     element.style.transform = 'translateX(0)';
     setTimeout(() => {
       element.style.transition = '';

@@ -20,7 +20,8 @@ const GAME_VERSION = '1.0.0';
 const debugBanner = document.createElement('div');
 debugBanner.textContent = 'main.js is running!';
 debugBanner.style.position = 'fixed';
-debugBanner.style.top = '0';
+debugBanner.style.top = '0px';
+debugBanner.style.marginBottom = '50px';
 debugBanner.style.left = '0';
 debugBanner.style.backgroundColor = 'red';
 debugBanner.style.color = 'white';
@@ -36,10 +37,11 @@ function init() {
 
   // Register screens with screen manager (as class instances)
   screenManager.registerScreen('welcome', new WelcomeScreen());
-  screenManager.registerScreen('characterSelection', new CharacterSelectionScreen());
-  screenManager.registerScreen('tribeDivision', new TribeDivisionScreen());
+  screenManager.registerScreen('character-selection', new CharacterSelectionScreen());
+  screenManager.registerScreen('tribe-division', new TribeDivisionScreen());
   screenManager.registerScreen('camp', new CampScreen());
   screenManager.initialize();
+
   // Show the welcome screen
   console.log('Trying to show welcome screen...');
   screenManager.showScreen('welcome');

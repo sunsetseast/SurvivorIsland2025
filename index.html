@@ -55,39 +55,7 @@
     <div id="welcome-screen" class="game-screen active"></div>
 
     <!-- Character Selection Screen -->
-    <div id="character-selection-screen" class="game-screen">
-      <h2>Choose Your Survivor</h2>
-      <div id="survivor-grid"></div>
-      <div id="survivor-details" class="hidden">
-        <h3 id="survivor-name"></h3>
-        <p id="survivor-description"></p>
-        <div class="stats-container">
-          <div class="stat">
-            <label>Physical:</label>
-            <div class="progress-bar">
-              <div id="physical-bar" class="progress-fill"></div>
-            </div>
-            <span id="physical-value"></span>
-          </div>
-          <div class="stat">
-            <label>Mental:</label>
-            <div class="progress-bar">
-              <div id="mental-bar" class="progress-fill"></div>
-            </div>
-            <span id="mental-value"></span>
-          </div>
-          <div class="stat">
-            <label>Personality:</label>
-            <div class="progress-bar">
-              <div id="personality-bar" class="progress-fill"></div>
-            </div>
-            <span id="personality-value"></span>
-          </div>
-        </div>
-        <button id="select-survivor-button" class="big-button">Select</button>
-        <button id="back-button" class="small-button">Back</button>
-      </div>
-    </div>
+    <div id="character-selection-screen" class="game-screen"></div>
 
     <!-- Tribe Division Screen -->
     <div id="tribe-division-screen" class="game-screen">
@@ -240,7 +208,6 @@
       }
     }, 2000);
   </script>
-
   <!-- Main Game Script -->
   <script type="module" src="src/main.js"></script>
 </body>

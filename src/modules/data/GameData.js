@@ -3,133 +3,142 @@
  * Central data store for game information
  */
 
-// Default survivor data if not provided elsewhere
 const DEFAULT_SURVIVORS = [
   {
     id: 1,
-    name: "Alex",
-    gender: "male",
-    age: 28,
-    occupation: "Firefighter",
-    archetype: "Physical Threat",
-    physical: 8,
-    mental: 6,
-    personality: 7,
-    health: 100,
-    avatarUrl: null
-  },
-  {
-    id: 2,
-    name: "Brooke",
+    name: "Sandra Diaz-Twine",
+    firstName: "Sandra",
     gender: "female",
-    age: 31,
-    occupation: "Attorney",
+    age: 45,
+    season: "Pearl Islands",
     archetype: "Strategist",
-    physical: 5,
+    physical: 4,
     mental: 9,
-    personality: 7,
-    health: 100,
-    avatarUrl: null
-  },
-  {
-    id: 3,
-    name: "Carlos",
-    gender: "male",
-    age: 26,
-    occupation: "Personal Trainer",
-    archetype: "Social Threat",
-    physical: 9,
-    mental: 5,
     personality: 8,
     health: 100,
     avatarUrl: null
   },
   {
-    id: 4,
-    name: "Diana",
-    gender: "female",
-    age: 24,
-    occupation: "Graduate Student",
-    archetype: "Underdog",
-    physical: 6,
-    mental: 8,
-    personality: 6,
-    health: 100,
-    avatarUrl: null
-  },
-  {
-    id: 5,
-    name: "Ethan",
+    id: 2,
+    name: "Russell Hantz",
+    firstName: "Russell",
     gender: "male",
-    age: 35,
-    occupation: "Fishing Guide",
-    archetype: "Outdoorsman",
-    physical: 8,
-    mental: 7,
-    personality: 5,
-    health: 100,
-    avatarUrl: null
-  },
-  {
-    id: 6,
-    name: "Fiona",
-    gender: "female",
-    age: 29,
-    occupation: "Nurse",
-    archetype: "Caretaker",
-    physical: 6,
-    mental: 7,
+    age: 47,
+    season: "Samoa",
+    archetype: "Villain",
+    physical: 5,
+    mental: 8,
     personality: 9,
     health: 100,
     avatarUrl: null
   },
   {
-    id: 7,
-    name: "Greg",
-    gender: "male",
-    age: 41,
-    occupation: "Construction Manager",
-    archetype: "Leader",
+    id: 3,
+    name: "Parvati Shallow",
+    firstName: "Parvati",
+    gender: "female",
+    age: 38,
+    season: "Cook Islands",
+    archetype: "Social Manipulator",
     physical: 7,
+    mental: 8,
+    personality: 10,
+    health: 100,
+    avatarUrl: null
+  },
+  {
+    id: 4,
+    name: "Tony Vlachos",
+    firstName: "Tony",
+    gender: "male",
+    age: 46,
+    season: "Cagayan",
+    archetype: "Wildcard",
+    physical: 8,
+    mental: 9,
+    personality: 8,
+    health: 100,
+    avatarUrl: null
+  },
+  {
+    id: 5,
+    name: "Cirie Fields",
+    firstName: "Cirie",
+    gender: "female",
+    age: 50,
+    season: "Panama",
+    archetype: "Underdog",
+    physical: 3,
+    mental: 10,
+    personality: 9,
+    health: 100,
+    avatarUrl: null
+  },
+  {
+    id: 6,
+    name: "Ozzy Lusth",
+    firstName: "Ozzy",
+    gender: "male",
+    age: 39,
+    season: "Cook Islands",
+    archetype: "Challenge Beast",
+    physical: 10,
     mental: 6,
+    personality: 7,
+    health: 100,
+    avatarUrl: null
+  },
+  {
+    id: 7,
+    name: "Natalie Anderson",
+    firstName: "Natalie",
+    gender: "female",
+    age: 32,
+    season: "San Juan del Sur",
+    archetype: "Physical Threat",
+    physical: 9,
+    mental: 7,
     personality: 8,
     health: 100,
     avatarUrl: null
   },
   {
     id: 8,
-    name: "Hannah",
-    gender: "female",
-    age: 33,
-    occupation: "Teacher",
-    archetype: "Social Butterfly",
-    physical: 5,
-    mental: 7,
-    personality: 9,
+    name: "Yul Kwon",
+    firstName: "Yul",
+    gender: "male",
+    age: 40,
+    season: "Cook Islands",
+    archetype: "Brains",
+    physical: 6,
+    mental: 10,
+    personality: 7,
     health: 100,
     avatarUrl: null
   },
   {
     id: 9,
-    name: "Ian",
+    name: "Boston Rob Mariano",
+    firstName: "Rob",
     gender: "male",
-    age: 27,
-    occupation: "Bartender",
-    archetype: "Wildcard",
-    physical: 7,
-    mental: 7,
-    personality: 8,
+    age: 44,
+    season: "Marquesas",
+    archetype: "Leader",
+    physical: 8,
+    mental: 8,
+    personality: 9,
     health: 100,
     avatarUrl: null
   },
   {
     id: 10,
-    name: "Jessica",
+    name: "Kim Spradlin",
+    firstName: "Kim",
     gender: "female",
-    age: 25,
-    occupation: "Marketing Executive",
-    archetype: "Social Manipulator",
-    physical: 4,
+    age: 36,
+    season: "One World",
+    archetype: "Strategist",
+    physical: 7,
     mental: 9,
     personality: 8,
     health: 100,
@@ -137,85 +146,118 @@ const DEFAULT_SURVIVORS = [
   },
   {
     id: 11,
-    name: "Kevin",
+    name: "Tyson Apostol",
+    firstName: "Tyson",
     gender: "male",
-    age: 38,
-    occupation: "Accountant",
-    archetype: "Under the Radar",
-    physical: 5,
-    mental: 8,
-    personality: 6,
+    age: 42,
+    season: "Tocantins",
+    archetype: "Free Spirit",
+    physical: 8,
+    mental: 7,
+    personality: 9,
     health: 100,
     avatarUrl: null
   },
   {
     id: 12,
-    name: "Lisa",
+    name: "Michele Fitzgerald",
+    firstName: "Michele",
     gender: "female",
-    age: 30,
-    occupation: "Fitness Instructor",
-    archetype: "Challenge Beast",
-    physical: 9,
-    mental: 6,
-    personality: 7,
+    age: 32,
+    season: "Kaôh Rōng",
+    archetype: "Social Threat",
+    physical: 6,
+    mental: 8,
+    personality: 9,
     health: 100,
     avatarUrl: null
   },
   {
     id: 13,
-    name: "Michael",
+    name: "Jeremy Collins",
+    firstName: "Jeremy",
     gender: "male",
-    age: 29,
-    occupation: "App Developer",
-    archetype: "Nerd",
-    physical: 4,
-    mental: 10,
-    personality: 5,
+    age: 40,
+    season: "San Juan del Sur",
+    archetype: "Protector",
+    physical: 8,
+    mental: 8,
+    personality: 8,
     health: 100,
     avatarUrl: null
   },
   {
     id: 14,
-    name: "Natalie",
+    name: "Aubry Bracco",
+    firstName: "Aubry",
     gender: "female",
-    age: 32,
-    occupation: "Professional Surfer",
-    archetype: "Free Spirit",
-    physical: 8,
-    mental: 6,
+    age: 35,
+    season: "Kaôh Rōng",
+    archetype: "Underdog",
+    physical: 5,
+    mental: 10,
     personality: 8,
     health: 100,
     avatarUrl: null
   },
   {
     id: 15,
-    name: "Oliver",
+    name: "Joe Anglim",
+    firstName: "Joe",
     gender: "male",
-    age: 42,
-    occupation: "Park Ranger",
-    archetype: "Survivalist",
-    physical: 7,
-    mental: 8,
-    personality: 6,
+    age: 31,
+    season: "Worlds Apart",
+    archetype: "Challenge Beast",
+    physical: 10,
+    mental: 6,
+    personality: 8,
     health: 100,
     avatarUrl: null
   },
   {
     id: 16,
-    name: "Paige",
+    name: "Denise Stapley",
+    firstName: "Denise",
     gender: "female",
-    age: 26,
-    occupation: "Yoga Instructor",
-    archetype: "Spiritual Guide",
+    age: 48,
+    season: "Philippines",
+    archetype: "Balanced",
     physical: 7,
-    mental: 6,
-    personality: 8,
+    mental: 8,
+    personality: 7,
+    health: 100,
+    avatarUrl: null
+  },
+  {
+    id: 17,
+    name: "J.T. Thomas",
+    firstName: "J.T.",
+    gender: "male",
+    age: 38,
+    season: "Tocantins",
+    archetype: "Hero",
+    physical: 9,
+    mental: 7,
+    personality: 9,
+    health: 100,
+    avatarUrl: null
+  },
+  {
+    id: 18,
+    name: "Andrea Boehlke",
+    firstName: "Andrea",
+    gender: "female",
+    age: 33,
+    season: "Redemption Island",
+    archetype: "Strategic Socialite",
+    physical: 7,
+    mental: 8,
+    personality: 9,
     health: 100,
     avatarUrl: null
   }
 ];
 
-// Default challenge data
 const DEFAULT_CHALLENGES = {
   immunity: [
     {
@@ -308,14 +350,27 @@ const DEFAULT_CHALLENGES = {
   ]
 };
 
-// Default tribe data
 const DEFAULT_TRIBE_NAMES = [
-  { name: "Tagi", color: "#5c6bc0" }, // Blue
-  { name: "Moto", color: "#66bb6a" }, // Green  
-  { name: "Fang", color: "#ef5350" }  // Red
+  { name: "Tagi", color: "#5c6bc0" },
+  { name: "Moto", color: "#66bb6a" },
+  { name: "Fang", color: "#ef5350" },
+  { name: "Bayon", color: "#f06292" },
+  { name: "Luvu", color: "#0288d1" },
+  { name: "Tika", color: "#7e57c2" },
+  { name: "Ratu", color: "#f57c00" },
+  { name: "Soka", color: "#4db6ac" },
+  { name: "Yanuya", color: "#d4e157" },
+  { name: "Galang", color: "#ff7043" },
+  { name: "Salani", color: "#26a69a" },
+  { name: "Nuku", color: "#9575cd" },
+  { name: "Manono", color: "#c2185b" },
+  { name: "Jabeni", color: "#8d6e63" },
+  { name: "Tandang", color: "#fbc02d" },
+  { name: "Zhan Hu", color: "#d84315" },
+  { name: "Ikabula", color: "#43a047" },
+  { name: "La Mina", color: "#90a4ae" }
 ];
 
-// Default location data
 const DEFAULT_LOCATIONS = {
   Beach: {
     description: "A long stretch of golden sand with crystal clear water. Perfect for swimming and finding seafood.",
@@ -349,94 +404,48 @@ class GameData {
     this.challenges = null;
     this.tribeNames = null;
     this.locations = null;
-    
-    // Initialize with default data
     this.initializeDefaultData();
   }
-  
-  /**
-   * Initialize with default data if not provided
-   */
+
   initializeDefaultData() {
     this.survivors = DEFAULT_SURVIVORS;
     this.challenges = DEFAULT_CHALLENGES;
     this.tribeNames = DEFAULT_TRIBE_NAMES;
     this.locations = DEFAULT_LOCATIONS;
   }
-  
-  /**
-   * Get all survivors
-   * @returns {Array} Array of survivor objects
-   */
+
   getSurvivors() {
     return this.survivors;
   }
-  
-  /**
-   * Set survivors data
-   * @param {Array} survivors - Array of survivor objects
-   */
+
   setSurvivors(survivors) {
     this.survivors = survivors;
   }
-  
-  /**
-   * Get challenges
-   * @param {string} type - Challenge type ('immunity' or 'reward')
-   * @returns {Array} Array of challenge objects
-   */
+
   getChallenges(type) {
-    if (type) {
-      return this.challenges[type] || [];
-    }
-    return this.challenges;
+    return type ? this.challenges[type] || [] : this.challenges;
   }
-  
-  /**
-   * Set challenges data
-   * @param {Object} challenges - Challenge data
-   */
+
   setChallenges(challenges) {
     this.challenges = challenges;
   }
-  
-  /**
-   * Get tribe names
-   * @returns {Array} Array of tribe name objects
-   */
+
   getTribeNames() {
     return this.tribeNames;
   }
-  
-  /**
-   * Set tribe names
-   * @param {Array} tribeNames - Array of tribe name objects
-   */
+
   setTribeNames(tribeNames) {
     this.tribeNames = tribeNames;
   }
-  
-  /**
-   * Get locations
-   * @param {string} locationName - Optional specific location name
-   * @returns {Object} Location data
-   */
+
   getLocations(locationName) {
-    if (locationName) {
-      return this.locations[locationName] || null;
-    }
-    return this.locations;
+    return locationName ? this.locations[locationName] || null : this.locations;
   }
-  
-  /**
-   * Set locations data
-   * @param {Object} locations - Locations data
-   */
+
   setLocations(locations) {
     this.locations = locations;
   }
 }
 
-// Create and export singleton instance
 const gameData = new GameData();
 export default gameData;
