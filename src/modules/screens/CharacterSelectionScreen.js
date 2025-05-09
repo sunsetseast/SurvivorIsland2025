@@ -22,7 +22,7 @@ export default class CharacterSelectionScreen {
     document.addEventListener('click', (e) => {
       const filterOptions = getElement('filter-options');
       const filterButton = getElement('filter-button');
-      if (!filterOptions || filterOptions.classList.contains('hidden')) return;
+      filterButton.classList.add('rect-button');
 
       // Delay checking for outside click until after button logic
       setTimeout(() => {
@@ -240,17 +240,18 @@ export default class CharacterSelectionScreen {
   }
 
   _applyFilter(type) {
-    if (type === 'all') {
-      this.genderFilter = null;
-      this.traitClassFilter = null;
-    } else if (['male', 'female'].includes(type)) {
-      this.genderFilter = type;
-    } else if (['physical', 'mental', 'social'].includes(type)) {
-      this.traitClassFilter = type;
-    }
-    
-    this._applyFilters();
-    
+      if (type === 'all') {
+        this.genderFilter = null;
+        this.traitClassFilter = null;
+              this._toggleFilterOptions(true); // Close popup when selecting "all"
+        } else if (['male', 'female'].includes(type)) {
+          this.genderFilter = type;
+        } else if (['physical', 'mental', 'social'].includes(type)) {
+          this.traitClassFilter = type;
+        }
+
+        this._applyFilters();
+
     // Update button states
     const filterOptions = document.querySelectorAll('#filter-options button');
     filterOptions.forEach(button => {
