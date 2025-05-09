@@ -240,26 +240,24 @@ export default class CharacterSelectionScreen {
   }
 
   _applyFilter(type) {
-    this.activeFilter = type;
-    const wrappers = document.querySelectorAll('.card-wrapper');
-
-    wrappers.forEach(wrapper => {
-      const card = wrapper.querySelector('.survivor-card');
-      const id = card?.dataset.id;
-      const survivor = this.availableSurvivors.find(s => s.id == id);
-      if (!survivor) return;
-
-      let matches = true;
-      if (type === 'male') matches = survivor.gender === 'male';
-      else if (type === 'female') matches = survivor.gender === 'female';
-      else if (['physical', 'mental', 'social'].includes(type)) {
-        matches = survivor.traitClass?.toLowerCase() === type;
-      }
-
-      wrapper.style.display = (type === 'all' || matches) ? 'block' : 'none';
+    if (type === 'all') {
+      this.genderFilter = null;
+      this.traitClassFilter = null;
+    } else if (['male', 'female'].includes(type)) {
+      this.genderFilter = type;
+    } else if (['physical', 'mental', 'social'].includes(type)) {
+      this.traitClassFilter = type;
+    }
+    
+    this._applyFilters();
+    
+    // Update button states
+    const filterOptions = document.querySelectorAll('#filter-options button');
+    filterOptions.forEach(button => {
+      const buttonType = button.textContent.toLowerCase();
+      const isActive = this._isFilterActive(buttonType);
+      button.classList.toggle('active', isActive);
     });
-
-    this._toggleFilterOptions(true);
   }
 
   _toggleFilterOptions(forceHide = false) {

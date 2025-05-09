@@ -2196,12 +2196,26 @@ body {
   border: 1px solid #a66b36;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
-  color: #2b1d00; /* base text color */
+  transition: all 0.2s ease;
+  color: #2b1d00;
 }
 
 #filter-options button:hover {
   background-color: #e0caa0;
+  transform: translateY(-1px);
+}
+
+#filter-options button.active {
+  background-color: gold;
+  color: black;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+#filter-button.active-filter {
+  background-color: #ffd700;
+  border-color: #b8860b;
+  box-shadow: 0 0 0 2px gold;
 }
 
 /* NEW: Highlight active filter buttons */
