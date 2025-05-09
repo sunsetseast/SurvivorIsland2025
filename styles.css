@@ -2227,7 +2227,7 @@ body {
 }
 
 #filter-button.active-filter {
-  outline: 2px solid gold;
+  box-shadow: 0 0 0 2px gold, 0 3px 6px rgba(0, 0, 0, 0.15);
 }
 
 #logo {

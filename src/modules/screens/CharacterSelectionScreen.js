@@ -239,18 +239,25 @@ export default class CharacterSelectionScreen {
     }, 200);
   }
 
-  _applyFilter(type) {
-      if (type === 'all') {
-        this.genderFilter = null;
-        this.traitClassFilter = null;
-              this._toggleFilterOptions(true); // Close popup when selecting "all"
-        } else if (['male', 'female'].includes(type)) {
-          this.genderFilter = type;
-        } else if (['physical', 'mental', 'social'].includes(type)) {
-          this.traitClassFilter = type;
-        }
+  _isFilterActive(type) {
+    if (type === 'all') {
+      return !this.genderFilter && !this.traitClassFilter;
+    }
+    return type === this.genderFilter || type === this.traitClassFilter;
+  }
 
-        this._applyFilters();
+  _applyFilter(type) {
+    if (type === 'all') {
+      this.genderFilter = null;
+      this.traitClassFilter = null;
+      this._toggleFilterOptions(true); // Close popup when selecting "all"
+    } else if (['male', 'female'].includes(type)) {
+      this.genderFilter = type;
+    } else if (['physical', 'mental', 'social'].includes(type)) {
+      this.traitClassFilter = type;
+    }
+
+    this._applyFilters();
 
     // Update button states
     const filterOptions = document.querySelectorAll('#filter-options button');
@@ -259,6 +266,18 @@ export default class CharacterSelectionScreen {
       const isActive = this._isFilterActive(buttonType);
       button.classList.toggle('active', isActive);
     });
+
+    // Update filter button state
+    const filterButton = document.getElementById('filter-button');
+    if (filterButton) {
+      const isAnyFilterActive = this.genderFilter || this.traitClassFilter;
+      filterButton.classList.toggle('active-filter', isAnyFilterActive);
+      if (isAnyFilterActive) {
+        filterButton.style.border = '2px solid gold';
+      } else {
+        filterButton.style.border = '';
+      }
+    }
   }
 
   _toggleFilterOptions(forceHide = false) {
