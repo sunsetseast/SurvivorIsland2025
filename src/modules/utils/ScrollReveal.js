@@ -1,16 +1,40 @@
-// src/utils/scrollReveal.js
 export function setupScrollReveal() {
-  const observer = new IntersectionObserver(entries => {
+  const cards = Array.from(document.querySelectorAll('.survivor-card'));
+  const container = document.querySelector('#survivor-stack');
+
+  // Reveal cards as they intersect
+  const revealObserver = new IntersectionObserver(entries => {
     entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('reveal');
-      }
+      entry.target.classList.toggle('reveal', entry.isIntersecting);
     });
   }, {
-    threshold: 0.3
+    threshold: 0.25
   });
 
-  document.querySelectorAll('.survivor-card').forEach(card => {
-    observer.observe(card);
+  cards.forEach(card => revealObserver.observe(card));
+
+  // Focus logic on scroll
+  container.addEventListener('scroll', () => {
+    const containerRect = container.getBoundingClientRect();
+    const containerCenter = containerRect.top + containerRect.height / 2;
+
+    let closestCard = null;
+    let minDistance = Infinity;
+
+    cards.forEach(card => {
+      const rect = card.getBoundingClientRect();
+      const cardCenter = rect.top + rect.height / 2;
+      const distance = Math.abs(containerCenter - cardCenter);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestCard = card;
+      }
+    });
+
+    cards.forEach(card => card.classList.remove('focused'));
+    if (closestCard) {
+      closestCard.classList.add('focused');
+    }
   });
 }

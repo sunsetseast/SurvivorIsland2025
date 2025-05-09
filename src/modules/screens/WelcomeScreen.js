@@ -22,121 +22,44 @@ export class WelcomeScreen {
 
     clearChildren(welcomeScreen);
 
-    const titleContainer = createElement('div', { className: 'title-container', style: { textAlign: 'center', marginBottom: '2rem' } });
+    // Logo
+    const logoImage = createElement('img', {
+      src: 'Assets/logo.png',
+      id: 'logo',
+      alt: 'Survivor Island Logo',
+      style: {
+        width: '90%',
+        maxWidth: '500px',
+        margin: '1rem auto',
+        display: 'block'
+      }
+    });
+    welcomeScreen.appendChild(logoImage);
 
-    const gameTitle = createElement('h1', { className: 'game-title', style: { fontSize: '3rem', color: '#fff', textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)', margin: '0.5rem 0' } }, 'Survivor Island');
+    // Main menu buttons
+    const menuContainer = createElement('div', {
+      className: 'menu-container'
+    });
 
-    const gameSubtitle = createElement('p', { className: 'game-subtitle', style: { fontSize: '1.2rem', color: '#ddd', fontStyle: 'italic', margin: '0.5rem 0' } }, 'Outwit, Outplay, Outlast');
-
-    titleContainer.appendChild(gameTitle);
-    titleContainer.appendChild(gameSubtitle);
-
-    const menuContainer = createElement('div', { className: 'menu-container', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', marginTop: '2rem' } });
-
-    const newGameButton = createElement('button', {
-      id: 'new-game-button',
-      className: 'primary-button',
-      style: { padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#ff9800', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px' },
-      onmouseover: (e) => { e.target.style.backgroundColor = '#e68a00'; },
-      onmouseout: (e) => { e.target.style.backgroundColor = '#ff9800'; },
+    const newGameButton = createElement('div', {
+      className: 'rect-button',
       onclick: () => {
         const tribePopup = getElement('tribe-popup');
         tribePopup.style.display = 'flex';
       }
     }, 'New Game');
 
-    const tribePopup = createElement('div', {
-      id: 'tribe-popup',
-      style: {
-        display: 'none', position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.8)', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem', zIndex: 999
-      }
-    });
-
-    const tribeModeTitle = createElement('h2', { style: { color: '#fff', marginBottom: '1rem' } }, 'Select Tribe Mode');
-
-    const twoTribeButton = createElement('button', {
-      style: {
-        padding: '1rem 2rem',
-        fontSize: '1.2rem',
-        backgroundColor: '#4caf50',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        width: '200px'
-      },
+    const loadGameButton = createElement('div', {
+      id: 'load-game-button',
+      className: 'rect-button',
       onclick: () => {
-        gameManager.startNewGame({ tribeCount: 2 });
-        getElement('tribe-popup').style.display = 'none';
+        console.log('Load Game button clicked');
       }
-    }, '2 Tribe Mode');
+    }, 'Load Game');
 
-    const threeTribeButton = createElement('button', {
-      style: {
-        padding: '1rem 2rem',
-        fontSize: '1.2rem',
-        backgroundColor: '#2196f3',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        width: '200px'
-      },
-      onclick: () => {
-        gameManager.startNewGame({ tribeCount: 3 });
-        getElement('tribe-popup').style.display = 'none';
-      }
-    }, '3 Tribe Mode');
-
-    const closePopupButton = createElement('button', {
-      style: { padding: '0.6rem 1.5rem', fontSize: '1rem', backgroundColor: '#f44336', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '120px' },
-      onclick: () => {
-        tribePopup.style.display = 'none';
-      }
-    }, 'Cancel');
-
-    tribePopup.appendChild(tribeModeTitle);
-    tribePopup.appendChild(twoTribeButton);
-    tribePopup.appendChild(threeTribeButton);
-    tribePopup.appendChild(closePopupButton);
-
-    const continueButton = createElement('button', {
-      id: 'continue-game-button',
-      className: 'secondary-button',
-      style: {
-        padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px', display: gameManager.hasSavedGame() ? 'block' : 'none'
-      },
-      onmouseover: (e) => { e.target.style.backgroundColor = '#43a047'; },
-      onmouseout: (e) => { e.target.style.backgroundColor = '#4caf50'; },
-      onclick: () => gameManager.loadGame()
-    }, 'Continue');
-
-    const settingsButton = createElement('button', {
-      id: 'settings-button',
-      className: 'tertiary-button',
-      style: {
-        padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#2196f3', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px'
-      },
-      onmouseover: (e) => { e.target.style.backgroundColor = '#1e88e5'; },
-      onmouseout: (e) => { e.target.style.backgroundColor = '#2196f3'; },
-      onclick: () => {
-        const settingsDialog = getElement('settings-dialog');
-        if (settingsDialog) {
-          settingsDialog.style.display = 'block';
-        } else {
-          console.warn('Settings dialog not found');
-        }
-      }
-    }, 'Settings');
-
-    const infoButton = createElement('button', {
+    const infoButton = createElement('div', {
       id: 'info-button',
-      className: 'tertiary-button',
-      style: {
-        padding: '0.8rem 2rem', fontSize: '1.2rem', backgroundColor: '#9c27b0', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s', width: '200px'
-      },
-      onmouseover: (e) => { e.target.style.backgroundColor = '#8e24aa'; },
-      onmouseout: (e) => { e.target.style.backgroundColor = '#9c27b0'; },
+      className: 'rect-button',
       onclick: () => {
         const infoDialog = getElement('info-dialog');
         if (infoDialog) {
@@ -148,9 +71,59 @@ export class WelcomeScreen {
     }, 'Game Info');
 
     menuContainer.appendChild(newGameButton);
-    menuContainer.appendChild(continueButton);
-    menuContainer.appendChild(settingsButton);
+    menuContainer.appendChild(loadGameButton);
     menuContainer.appendChild(infoButton);
+
+    // Tribe popup
+    const tribePopup = createElement('div', {
+      id: 'tribe-popup',
+      style: {
+        display: 'none',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: '1rem',
+        zIndex: 999
+      }
+    });
+
+    const tribeModeTitle = createElement('h2', {
+      style: { color: '#fff', marginBottom: '1rem' }
+    }, 'Select Tribe Mode');
+
+    const twoTribeButton = createElement('button', {
+      className: 'rect-button',
+      onclick: () => {
+        gameManager.startNewGame({ tribeCount: 2 });
+        tribePopup.style.display = 'none';
+      }
+    }, '2 Tribes');
+
+    const threeTribeButton = createElement('button', {
+      className: 'rect-button',
+      onclick: () => {
+        gameManager.startNewGame({ tribeCount: 3 });
+        tribePopup.style.display = 'none';
+      }
+    }, '3 Tribes');
+
+    const closePopupButton = createElement('button', {
+      className: 'rect-button small',
+      onclick: () => {
+        tribePopup.style.display = 'none';
+      }
+    }, 'Cancel');
+
+    tribePopup.appendChild(tribeModeTitle);
+    tribePopup.appendChild(twoTribeButton);
+    tribePopup.appendChild(threeTribeButton);
+    tribePopup.appendChild(closePopupButton);
 
     const versionInfo = createElement('div', {
       className: 'version-info',
@@ -163,7 +136,6 @@ export class WelcomeScreen {
       }
     }, 'v1.0.0');
 
-    welcomeScreen.appendChild(titleContainer);
     welcomeScreen.appendChild(menuContainer);
     welcomeScreen.appendChild(tribePopup);
     welcomeScreen.appendChild(versionInfo);
@@ -173,5 +145,26 @@ export class WelcomeScreen {
 
   teardown() {
     console.log('WelcomeScreen teardown');
+
+    const welcomeScreen = getElement('welcome-screen');
+    if (welcomeScreen) {
+      clearChildren(welcomeScreen);
+    }
+
+    // Optional: reset background if needed
+    const gameContainer = getElement('game-container');
+    if (gameContainer) {
+      gameContainer.style.backgroundImage = '';
+      gameContainer.style.backgroundSize = '';
+      gameContainer.style.backgroundPosition = '';
+      gameContainer.style.backgroundRepeat = '';
+    }
+
+    // Remove lingering UI from other screens if any (like button-row, filter-options)
+    const buttonRow = document.querySelector('.button-row');
+    if (buttonRow) buttonRow.remove();
+
+    const filterOptions = getElement('filter-options');
+    if (filterOptions) filterOptions.remove();
   }
 }

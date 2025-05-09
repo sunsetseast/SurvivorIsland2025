@@ -7,64 +7,80 @@ import { getElement, createElement, clearChildren } from '../utils/index.js';
 import { gameManager, eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
 import gameData from '../data/index.js';
-import { setupScrollReveal } from '../utils/ScrollReveal.js'; // Correct import at top
+import { setupScrollReveal } from '../utils/ScrollReveal.js';
 
 export default class CharacterSelectionScreen {
   constructor() {
     this.selectedCharacter = null;
     this.availableSurvivors = [];
-    this.activeFilter = 'all';
+    this.genderFilter = null;
+    this.traitClassFilter = null;
   }
 
   initialize() {
     console.log('CharacterSelectionScreen initialized');
+    document.addEventListener('click', (e) => {
+      const filterOptions = getElement('filter-options');
+      const filterButton = getElement('filter-button');
+      if (!filterOptions || filterOptions.classList.contains('hidden')) return;
+
+      // Delay checking for outside click until after button logic
+      setTimeout(() => {
+        if (!filterOptions.contains(e.target) && e.target !== filterButton) {
+          this._toggleFilterOptions(true);
+        }
+      }, 0);
+    });
   }
 
   setup(data = {}) {
-    this._addDebugBanner('CharacterSelectionScreen setup triggered!', 'blue', 40);
     const characterSelectionScreen = getElement('character-selection-screen');
-    this._addDebugBanner(characterSelectionScreen ? 'Element FOUND!' : 'Element NOT found!', characterSelectionScreen ? 'green' : 'red', 130);
-    if (!characterSelectionScreen) return;
+    const gameContainer = getElement('game-container');
+    if (!characterSelectionScreen || !gameContainer) return;
 
-    // --- Switch screens properly ---
+    gameContainer.style.backgroundImage = "url('Assets/jungle1.png')";
+    gameContainer.style.backgroundSize = 'cover';
+    gameContainer.style.backgroundPosition = 'center';
+    gameContainer.style.backgroundRepeat = 'no-repeat';
+
     document.querySelectorAll('.game-screen').forEach(screen => screen.classList.remove('active'));
     characterSelectionScreen.classList.add('active');
-    // --- End Switch ---
 
     clearChildren(characterSelectionScreen);
     this.selectedCharacter = null;
 
-    this._addDebugBanner('Attempting GameData.getSurvivors()...', 'orange', 70);
     try {
       const survivors = gameData.getSurvivors();
       this.availableSurvivors = Array.isArray(survivors) ? [...survivors] : [];
-      this._addDebugBanner(`Loaded ${this.availableSurvivors.length} survivors`, 'green', 100);
     } catch (e) {
-      this._addDebugBanner('Error accessing GameData: ' + e.message, 'red', 100);
       return;
     }
 
-    // --- Survivor scrollable area ---
     const survivorArea = createElement('div', { id: 'survivor-stack' });
-    const cardWrapper = createElement('div', { className: 'card-wrapper' });
-
     this.availableSurvivors.forEach((survivor, index) => {
       const card = this._createSurvivorCard(survivor, index);
-      cardWrapper.appendChild(card);
+      survivorArea.appendChild(card);
     });
 
-    survivorArea.appendChild(cardWrapper);
+    const filterOptions = createElement('div', { id: 'filter-options', className: 'hidden filter-options' });
+    ['all', 'male', 'female', 'physical', 'mental', 'social'].forEach(type => {
+      const optionBtn = createElement('button', {
+        onclick: () => this._applyFilter(type)
+      }, type.charAt(0).toUpperCase() + type.slice(1));
+      filterOptions.appendChild(optionBtn);
+    });
 
-    // --- Fixed button row ---
-    const buttonRow = createElement('div', { className: 'button-row' });
+    const buttonRow = createElement('div', { className: 'button-row', id: 'character-selection-buttons' });
 
     const backButton = createElement('button', {
       id: 'back-button',
+      className: 'rect-button',
       onclick: () => gameManager.setGameState('welcome')
     }, 'Back');
 
     const continueButton = createElement('button', {
       id: 'continue-button',
+      className: 'rect-button',
       disabled: true,
       onclick: () => {
         if (this.selectedCharacter) {
@@ -75,6 +91,7 @@ export default class CharacterSelectionScreen {
 
     const filterButton = createElement('button', {
       id: 'filter-button',
+      className: 'rect-button',
       onclick: () => this._toggleFilterOptions()
     }, 'Filter');
 
@@ -82,21 +99,11 @@ export default class CharacterSelectionScreen {
     buttonRow.appendChild(continueButton);
     buttonRow.appendChild(filterButton);
 
-    // --- Filter options ---
-    const filterOptions = createElement('div', { id: 'filter-options', className: 'hidden filter-options' });
-    ['all', 'male', 'female', 'physical', 'mental', 'social'].forEach(type => {
-      const optionBtn = createElement('button', {
-        onclick: () => this._applyFilter(type)
-      }, type.charAt(0).toUpperCase() + type.slice(1));
-      filterOptions.appendChild(optionBtn);
-    });
+    characterSelectionScreen.appendChild(survivorArea);
+    gameContainer.appendChild(filterOptions);
+    gameContainer.appendChild(buttonRow);
 
-    // --- Assemble ---
-    characterSelectionScreen.appendChild(survivorArea); // Scrollable cards
-    characterSelectionScreen.appendChild(buttonRow);    // Fixed buttons
-    characterSelectionScreen.appendChild(filterOptions);
-
-    setupScrollReveal(); // AFTER cards are inserted
+    setupScrollReveal();
 
     eventManager.publish(GameEvents.SCREEN_CHANGED, {
       screenId: 'characterSelection',
@@ -105,101 +112,151 @@ export default class CharacterSelectionScreen {
   }
 
   _createSurvivorCard(survivor, index) {
+    const cardWrapper = createElement('div', { className: 'card-wrapper' });
+
+    const avatarFrame = createElement('div', { className: 'avatar-frame' });
+    const avatarImg = createElement('img', {
+      src: survivor.avatarUrl || 'Assets/Avatars/default.jpeg',
+      alt: `${survivor.firstName}'s avatar`
+    });
+    avatarFrame.appendChild(avatarImg);
+    cardWrapper.appendChild(avatarFrame);
+
     const card = createElement('div', {
       className: 'survivor-card',
       dataset: { id: survivor.id }
     });
 
+    // FRONT
     const cardFront = createElement('div', { className: 'card-front' });
-    const name = createElement('h3', { className: 'survivor-header' }, survivor.name);
+    const name = createElement('h3', { className: 'survivor-header' });
+    name.innerHTML = `${survivor.firstName}<br>${survivor.lastName}`;
 
-    const stat = (label, value) => {
-      const statLine = createElement('div', { className: 'stat-line' });
-      const labelEl = createElement('span', {}, label);
-      const bar = createElement('div', { className: 'stat-bar' });
-      const fill = createElement('div', {
-        className: 'stat-bar-fill',
-        style: `width: ${Math.min(value * 10, 100)}%`
-      });
-      bar.appendChild(fill);
-      statLine.appendChild(labelEl);
-      statLine.appendChild(bar);
-      return statLine;
-    };
+    const moreInfoButton = createElement('button', { className: 'card-button' }, 'More Info');
+    const chooseButton = createElement('button', { className: 'card-button' }, 'Choose Survivor');
+    chooseButton.style.transition = 'opacity 0.3s ease';
 
-    const stats = [
-      stat('Health', survivor.health || 10),
-      stat('Strength', survivor.physical || 0),
-      stat('Mental', survivor.mental || 0),
-      stat('Social', survivor.personality || 0),
-      stat('Luck', survivor.luck || 0),
-    ];
-
-    const moreInfoBtn = createElement('button', { className: 'more-info-button' }, 'More Info');
-    const chooseBtn = createElement('button', { className: 'choose-button' }, 'Choose Survivor');
-
+    const buttonContainer = createElement('div', { className: 'card-buttons' });
+    buttonContainer.appendChild(moreInfoButton);
+    buttonContainer.appendChild(chooseButton);
     cardFront.appendChild(name);
-    stats.forEach(s => cardFront.appendChild(s));
-    cardFront.appendChild(moreInfoBtn);
-    cardFront.appendChild(chooseBtn);
+    cardFront.appendChild(buttonContainer);
 
-    const cardBack = createElement('div', { className: 'card-back' });
-    const infoText = createElement('p', {}, `Season: ${survivor.season || 'Unknown'}, Archetype: ${survivor.archetype || 'Unknown'}`);
-    const backBtn = createElement('button', { className: 'back-to-front' }, 'Back');
+    // BACK
+    const cardBack = createElement('div', {
+      className: 'card-back',
+      style: `background-image: url('Assets/card-back-${survivor.traitClass.toLowerCase()}.png');`
+    });
 
-    cardBack.appendChild(infoText);
-    cardBack.appendChild(backBtn);
+    const nameBox = createElement('div', { className: 'name-box' });
+    nameBox.innerHTML = `<strong>${survivor.firstName}<br>${survivor.lastName}</strong><br><small>${survivor.season || 'Unknown'}</small>`;
 
+    const gameplayStyleBox = createElement('div', {
+      className: `gameplay-style-box${['Lethal Charmer', 'Shadow Strategist'].includes(survivor.gameplayStyle) ? ' small-text' : ''}`
+    }, survivor.gameplayStyle || 'Unknown');
+
+    const traitBox = createElement('div', {
+      className: `trait-values ${survivor.traitClass.toLowerCase()}-layout`
+    });
+    traitBox.innerHTML = `
+      <div class="trait-row physical-value">${survivor.physical || 0}</div>
+      <div class="trait-row mental-value">${survivor.mental || 0}</div>
+      <div class="trait-row social-value">${survivor.social || 0}</div>
+    `;
+
+    const buttonWrap = createElement('div', { className: 'card-buttons-back' });
+
+    const backButton = createElement('button', {
+      className: 'rect-button',
+    }, 'Back');
+
+    const moreTraitsButton = createElement('button', {
+      className: 'rect-button'
+    }, 'Traits');
+
+    buttonWrap.appendChild(backButton);
+    buttonWrap.appendChild(moreTraitsButton);
+
+    cardBack.appendChild(nameBox);
+    cardBack.appendChild(gameplayStyleBox);
+    cardBack.appendChild(traitBox);
+    cardBack.appendChild(buttonWrap);
+
+    // Combine front/back
     card.appendChild(cardFront);
     card.appendChild(cardBack);
+    cardWrapper.appendChild(card);
 
-    moreInfoBtn.addEventListener('click', () => card.classList.add('flipped'));
-    backBtn.addEventListener('click', () => card.classList.remove('flipped'));
+    // Flip logic
+    moreInfoButton.addEventListener('click', () => cardWrapper.classList.toggle('flipped'));
+    backButton.addEventListener('click', () => cardWrapper.classList.remove('flipped'));
 
-    chooseBtn.addEventListener('click', () => {
+    // Choose logic
+    chooseButton.addEventListener('click', () => {
+      const isSelected = card.classList.contains('selected');
       const allCards = document.querySelectorAll('.survivor-card');
       allCards.forEach(c => c.classList.remove('selected'));
 
-      card.classList.add('selected');
-      this.selectedCharacter = survivor;
-
-      const continueButton = document.getElementById('continue-button');
-      if (continueButton) {
-        continueButton.disabled = false;
+      if (isSelected) {
+        this.selectedCharacter = null;
+        this._fadeButtonText(chooseButton, 'Choose Survivor');
+        document.getElementById('continue-button').disabled = true;
+      } else {
+        card.classList.add('selected');
+        this.selectedCharacter = survivor;
+        this._fadeButtonText(chooseButton, 'Unselect Survivor');
+        document.getElementById('continue-button').disabled = false;
       }
     });
 
-    return card;
+    // Placeholder for future More Traits functionality
+    moreTraitsButton.addEventListener('click', () => {
+      console.log(`Show more traits for ${survivor.firstName}`);
+    });
+
+    return cardWrapper;
   }
 
-  _selectCharacter(survivor, cardElement) {
-    this.selectedCharacter = survivor;
+  _stat(label, value) {
+    const statLine = createElement('div', { className: 'stat-line' });
+    const labelEl = createElement('span', {}, label);
+    const bar = createElement('div', { className: 'stat-bar' });
+    const fill = createElement('div', {
+      className: 'stat-bar-fill',
+      style: `width: ${Math.min(value * 10, 100)}%`
+    });
+    bar.appendChild(fill);
+    statLine.appendChild(labelEl);
+    statLine.appendChild(bar);
+    return statLine;
+  }
 
-    const allCards = document.querySelectorAll('.survivor-card');
-    allCards.forEach(card => card.classList.remove('selected'));
-
-    cardElement.classList.add('selected');
-
-    const continueButton = getElement('continue-button');
-    if (continueButton) continueButton.disabled = false;
+  _fadeButtonText(button, newText) {
+    button.style.opacity = '0';
+    setTimeout(() => {
+      button.textContent = newText;
+      button.style.opacity = '1';
+    }, 200);
   }
 
   _applyFilter(type) {
     this.activeFilter = type;
-    const survivors = document.querySelectorAll('.survivor-card');
+    const wrappers = document.querySelectorAll('.card-wrapper');
 
-    survivors.forEach(card => {
-      const survivor = this.availableSurvivors.find(s => s.id == card.dataset.id);
+    wrappers.forEach(wrapper => {
+      const card = wrapper.querySelector('.survivor-card');
+      const id = card?.dataset.id;
+      const survivor = this.availableSurvivors.find(s => s.id == id);
       if (!survivor) return;
 
       let matches = true;
       if (type === 'male') matches = survivor.gender === 'male';
       else if (type === 'female') matches = survivor.gender === 'female';
-      else if (type === 'physical') matches = survivor.physical >= 7;
-      else if (type === 'mental') matches = survivor.mental >= 7;
-      else if (type === 'social') matches = survivor.personality >= 7;
+      else if (['physical', 'mental', 'social'].includes(type)) {
+        matches = survivor.traitClass?.toLowerCase() === type;
+      }
 
-      card.style.display = (type === 'all' || matches) ? 'block' : 'none';
+      wrapper.style.display = (type === 'all' || matches) ? 'block' : 'none';
     });
 
     this._toggleFilterOptions(true);
@@ -207,29 +264,57 @@ export default class CharacterSelectionScreen {
 
   _toggleFilterOptions(forceHide = false) {
     const filterOptions = getElement('filter-options');
-    if (!filterOptions) return;
+    const filterButton = getElement('filter-button');
+    if (!filterOptions || !filterButton) return;
+
     if (forceHide) {
       filterOptions.classList.add('hidden');
+      filterButton.classList.remove('active-filter');
     } else {
-      filterOptions.classList.toggle('hidden');
+      const nowHidden = filterOptions.classList.toggle('hidden');
+      filterButton.classList.toggle('active-filter', !nowHidden);
     }
   }
 
-  _addDebugBanner(text, bgColor, top) {
-    const banner = document.createElement('div');
-    banner.textContent = text;
-    banner.style.position = 'fixed';
-    banner.style.top = `${top}px`;
-    banner.style.left = '0';
-    banner.style.backgroundColor = bgColor;
-    banner.style.color = 'white';
-    banner.style.padding = '5px 10px';
-    banner.style.zIndex = '9999';
-    document.body.appendChild(banner);
+
+  _applyFilters() {
+    const wrappers = document.querySelectorAll('.card-wrapper');
+    wrappers.forEach(wrapper => {
+      const card = wrapper.querySelector('.survivor-card');
+      const id = card?.dataset.id;
+      const survivor = this.availableSurvivors.find(s => s.id == id);
+      if (!survivor) return;
+
+      const matchesGender = !this.genderFilter || survivor.gender === this.genderFilter;
+      const matchesTrait = !this.traitClassFilter || survivor.traitClass?.toLowerCase() === this.traitClassFilter;
+
+      wrapper.style.display = matchesGender && matchesTrait ? 'block' : 'none';
+    });
+
+    // Keep Filter button highlighted if filters are active
+    const filterButton = getElement('filter-button');
+    if (filterButton) {
+      const isActive = this.genderFilter || this.traitClassFilter;
+      filterButton.classList.toggle('active-filter', !!isActive);
+    }
   }
 
   teardown() {
     console.log('CharacterSelectionScreen teardown');
     this.selectedCharacter = null;
+
+    const gameContainer = getElement('game-container');
+    if (gameContainer) {
+      gameContainer.style.backgroundImage = '';
+      gameContainer.style.backgroundSize = '';
+      gameContainer.style.backgroundPosition = '';
+      gameContainer.style.backgroundRepeat = '';
+    }
+
+    const buttonRow = getElement('character-selection-buttons');
+    if (buttonRow) buttonRow.remove();
+
+    const filterOptions = getElement('filter-options');
+    if (filterOptions) filterOptions.remove();
   }
 }

@@ -75,6 +75,15 @@ class ScreenManager {
     this._hideAllScreens();
 
     if (this.currentScreen) {
+      const prevScreen = this.screens[this.currentScreen];
+      if (prevScreen && typeof prevScreen.teardown === 'function') {
+        try {
+          prevScreen.teardown();
+        } catch (error) {
+          console.error(`Error in screen teardown for ${this.currentScreen}:`, error);
+        }
+      }
+
       this.previousScreen = this.currentScreen;
       this.history.push(this.currentScreen);
       if (this.history.length > this.maxHistoryLength) {

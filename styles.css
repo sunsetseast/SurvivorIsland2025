@@ -1,9 +1,56 @@
 /* Global Styles */
+@font-face {
+    font-family: 'Survivant';
+    src: url('Assets/Survivant.ttf') format('truetype');
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Survivant', sans-serif; /* updated */
+}
+
+.rect-button {
+  background-image: url('Assets/rect-button.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 250px;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Survivant', serif;
+  font-size: 1.5rem;
+  color: white;
+    box-shadow: 
+        0 3px 6px rgba(0, 0, 0, 0.15), /* regular button shadow */
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2), /* subtle inner shadow for depth */
+    inset 0 2px 6px rgba(255, 255, 255, 0.05);
+      text-shadow: 
+        0 1px 0 #000,
+        0 2px 0 #000,
+        0 3px 0 #000,
+        0 4px 4px rgba(0, 0, 0, 0.5); /* bold 3D stacked effect */
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s;
+    margin: 0 0 0.2rem 0;
+}
+
+.rect-button:hover {
+  transform: scale(1.05);
+}
+
+.rect-button.small {
+  width: 180px;
+  height: 50px;
+  font-size: 1.1rem;
+}
+
+button, .rect-button {
+  font-family: 'Survivant', sans-serif !important;
 }
 
 body {
@@ -22,14 +69,16 @@ body {
 
 #game-container {
     width: 100%;
-    max-width: 800px;
+    max-width: none;
     background-color: rgba(255, 255, 255, 0.9);
     background-image: url("data:image/svg+xml,%3Csvg width='70' height='70' viewBox='0 0 70 70' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h70v70H0V0zm70 70v-35H35v35h35zm0-70H35v35h35V0zM0 0h35v35H0V0zm0 70h35V35H0v35z' fill='%23e5bc88' fill-opacity='0.15' fill-rule='evenodd'/%3E%3C/svg%3E");
     border-radius: 15px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    overflow: auto;
+    flex: 1;
+    overflow: hidden;
     position: relative;
     min-height: 600px;
+    height: 100vh;
     border: 8px solid #8d5524;
     display: flex;
     flex-direction: column;
@@ -40,7 +89,7 @@ h1, h2, h3 {
     color: #8d5524; /* Wood brown */
     text-align: center;
     margin: 15px 0;
-    font-family: 'Georgia', serif;
+    font-family: 'Survivant', serif;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -135,68 +184,39 @@ button:disabled {
 
 /* Screens */
 .game-screen {
-    display: none;
-    padding: 20px;
-    height: 100%;
+  display: none;
+  padding: 10px;
+  height: 100%;
 }
 
 .game-screen.active {
     display: block;
 }
 
+.menu-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;         /* was 1rem */
+  margin-top: 1.5rem;   /* was 2rem */
+}
+
 /* Welcome Screen */
 #welcome-screen {
-    text-align: center;
-    background-color: #1a6f61; /* Tropical teal */
-    background-image: 
-        url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95l8.486 8.486-1.414 1.414-8.486-8.486 1.414-1.414z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),
-        url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E"),
-        linear-gradient(to bottom, #1a6f61, #0c4d42);
-    color: white;
-    padding: 50px 20px;
-    height: 600px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-    border: none;
-}
-
-#welcome-screen::before {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 200px;
-    background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' viewBox='0 0 1200 120' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' opacity='.25' fill='%238D5524'%3E%3C/path%3E%3Cpath d='M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z' opacity='.5' fill='%238D5524'%3E%3C/path%3E%3Cpath d='M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z' fill='%238D5524'%3E%3C/path%3E%3C/svg%3E");
-    background-size: cover;
-    background-position: center;
-    z-index: 1;
-}
-
-#welcome-screen h1 {
-    font-size: 3.5em;
-    text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.6);
-    margin-bottom: 20px;
-    color: white;
-    font-family: 'Georgia', serif;
-    position: relative;
-    z-index: 2;
-    letter-spacing: 2px;
-}
-
-#welcome-screen p {
-    font-size: 1.3em;
-    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.5);
-    margin-bottom: 40px;
-    color: #f5f5f5;
-    position: relative;
-    z-index: 2;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
+  text-align: center;
+  background-image: url('Assets/mobile-background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: white;
+  padding: 50px 20px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: none;
 }
 
 #play-button {
@@ -233,44 +253,55 @@ body {
 /* Card stack styling */
 
 #character-selection-screen {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  background: url('../Assets/parchment-bg.png'), #f6e4c4;
-  background-size: cover;
-  background-position: center;
-  border: 4px solid #a66b36;
-  border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+    overflow-x: visible;
+    overflow-y: hidden;
+    padding: 0 20px;
 }
 
 .survivor-card {
-  background: rgba(255, 248, 220, 0.95);
-  border: 2px solid #8b5e3c;
-  border-radius: 12px;
-  padding: 20px;
+  width: 100%;
+  max-width: 909px;
+  height: 625px;                     /* Fixed height for consistent snap */
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+
   font-size: 18px;
-  font-family: 'Papyrus', fantasy;
+  font-family: 'Survivant', fantasy;
+  color: #333;
+  border-radius: 12px;
+  padding: 0;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  width: 90%;
-  max-width: 400px;
-  margin: -60px auto 0;
+  margin: -100px auto 0;
   opacity: 0;
   position: relative;
   text-align: center;
   z-index: 1;
   transform: translateY(50px);
-  transition: all 0.6s ease;
-  scroll-snap-align: start;
+  transition: transform 0.6s ease, z-index 0.6s ease;
+  scroll-snap-align: center;
+  transform-style: preserve-3d;
+  perspective: 1000px;
 }
 
 /* When card enters viewport */
 .survivor-card.reveal {
   opacity: 1;
   transform: translateY(0);
-  z-index: 2;
+}
+
+.survivor-card.focused {
+  z-index: 10;
+  transform: scale(1.03);
 }
 
 .survivor-card:hover {
@@ -282,13 +313,6 @@ body {
   border: 3px solid #f4b942; /* Gold border for selected card */
   transform: scale(1.05);
   z-index: 10;
-}
-
-.survivor-header {
-  font-size: 20px;
-  font-weight: bold;
-  color: #4b2e1e;
-  margin-bottom: 10px;
 }
 
 .stat-line {
@@ -329,7 +353,8 @@ body {
   border-radius: 8px;
   cursor: pointer;
   color: #442a18;
-  transition: background 0.2s;
+  transition: opacity 0.3s ease;
+  ;
 }
 
 .choose-button:hover {
@@ -1746,148 +1771,349 @@ body {
     font-style: italic;
 }
 
-.card-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 50px 0;
-    gap: 0px;
-    min-height: 500px;
-    perspective: 1000px;
-  scroll-behavior: smooth;
-  background-color: transparent; /* Transparent to show the jungle background */
-    border: 2px solid red;
-}
+
 
 .card-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  position: relative;
   width: 100%;
+  margin-bottom: 0;
+  perspective: 1000px; /* Enables 3D transform for children */
+    height: 600px;
+    scroll-snap-align: center;
 }
 
+.card-wrapper .survivor-card,
+.card-wrapper .avatar-frame {
+  transition: transform 0.6s ease;
+  transform-style: preserve-3d;
+  position: relative;
+}
+
+/* Flip both card and avatar when wrapper is flipped */
+.card-wrapper.flipped .survivor-card,
+.card-wrapper.flipped .avatar-frame {
+  transform: rotateY(180deg);
+}
+
+/* FRONT & BACK SHARED */
 .card-front, .card-back {
   position: absolute;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
   backface-visibility: hidden;
-  transition: transform 0.6s ease;
   border-radius: 12px;
   padding: 15px;
-  background: rgba(255, 248, 220, 0.95);
-  border: 2px solid #8b5e3c;
+  background-size: cover;
+  background-position: center;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
 }
 
+/* FRONT OF THE CARD */
+.card-front {
+  position: relative;
+  z-index: 2;
+  background-image: url('Assets/card-front.png');
+  background-repeat: no-repeat;
+  background-size: contain; /* This is the key line */
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.card-front .survivor-header {
+  position: absolute;
+  top: 99px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  font-size: 32px;
+  font-weight: bold;
+  font-family: 'Survivant', fantasy;
+  color: #fff8e7;
+  text-align: center;
+     box-shadow: 
+        0 3px 6px rgba(0, 0, 0, 0.15), /* regular button shadow */
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2), /* subtle inner shadow for depth */
+    inset 0 2px 6px rgba(255, 255, 255, 0.05);
+      text-shadow: 
+        0 1px 0 #000,
+        0 2px 0 #000,
+        0 3px 0 #000,
+        0 4px 4px rgba(0, 0, 0, 0.5); /* bold 3D stacked effect */
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Avatar frame behind the card */
+.card-wrapper .avatar-frame {
+  position: absolute;
+  top: 119px; /* Adjust as needed */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 220px;
+  overflow: hidden;
+  border-radius: 12px;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backface-visibility: hidden;
+}
+
+.card-wrapper .avatar-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+}
+
+/* BACK OF THE CARD */
 .card-back {
   transform: rotateY(180deg);
-  background: rgba(245, 238, 210, 0.95); /* Slightly different shade for the back */
+  background-image: url('Assets/card-back.png');
+  background-repeat: no-repeat;
+  background-size: contain;      /* Match front */
+  background-position: center;   /* Match front */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
-.survivor-card.flipped .card-front {
-  transform: rotateY(180deg);
+.name-box {
+  position: absolute;
+  top: 130px; /* slightly higher */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  font-family: 'Survivant', fantasy;
+  color: #fff8e7;
+    box-shadow: 
+        0 3px 6px rgba(0, 0, 0, 0.15), /* regular button shadow */
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2), /* subtle inner shadow for depth */
+    inset 0 2px 6px rgba(255, 255, 255, 0.05);
+      text-shadow: 
+        0 1px 0 #000,
+        0 2px 0 #000,
+        0 3px 0 #000,
+        0 4px 4px rgba(0, 0, 0, 0.5); /* bold 3D stacked effect */
+  line-height: 1.2;
 }
 
-.survivor-card.flipped .card-back {
-  transform: rotateY(0deg);
+.name-box strong {
+  display: block;
+  font-size: 30px;
+  font-weight: bold;
+  margin-bottom: 0; /* no extra space */
+  
+}
+
+.name-box small {
+  display: block;
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: -19px; /* pull it closer */
+  
+}
+
+.gameplay-style-box {
+  position: absolute;
+  top: 265px; /* Adjust to center inside the orange box */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  font-family: 'Survivant', fantasy;
+  color: #fff8e7;
+  text-shadow: 2px 2px #000;
+}
+
+.gameplay-style-box.small-text {
+    top: 270px;
+    font-size: 15px;
+}
+
+/* === Default Styles Shared === */
+.trait-values {
+  position: absolute;
+  width: 100%;
+  font-family: 'Survivant', fantasy;
+  color: #fff8e7;
+  text-shadow: 2px 2px #000;
+}
+
+.trait-row {
+  font-size: 33px;
+  position: absolute;
+}
+
+/* === Physical Layout === */
+.physical-layout {
+  top: 325px;
+}
+
+.physical-layout .physical-value {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.physical-layout .mental-value {
+  top: 98px;
+  left: 101px;
+}
+
+.physical-layout .social-value {
+  top: 98px;
+  right: 101px;
+}
+
+/* === Mental Layout === */
+.mental-layout {
+  top: 325px;
+}
+
+.mental-layout .mental-value {
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.mental-layout .physical-value {
+    top: 98px;
+      left: 101px;
+}
+
+.mental-layout .social-value {
+    top: 98px;
+      right: 105px;
+}
+
+/* === Social Layout === */
+.social-layout {
+  top: 325px;
+}
+
+.social-layout .social-value {
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.social-layout .physical-value {
+    top: 101px;
+      left: 101px;
+}
+
+.social-layout .mental-value {
+    top: 101px;
+      right: 101px;
+}
+
+/* Make the centered trait value larger */
+.physical-layout .physical-value,
+.mental-layout .mental-value,
+.social-layout .social-value {
+  font-size: 60px;
 }
 
 .card-buttons {
   display: flex;
-  justify-content: space-between;
-  margin-top: 15px;
-  gap: 10px;
+  justify-content: center;
+  gap: 12px;
+  margin-top: auto;
+  margin-bottom: 109px;
 }
 
 .card-button {
-  flex: 1;
   padding: 10px;
-  background: linear-gradient(to bottom, #e67700, #b35900);
-  border: 2px solid #ff8c1a;
-  color: white;
-  border-radius: 8px;
+  background-image: url('Assets/rect-button.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: none;
+  color: #fff8e7; /* Warm white tone */
+  font-family: 'Survivant', fantasy;
+  font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s;
+  width: 120px;
+  height: 60px;
+  box-shadow: 
+    0 3px 6px rgba(0, 0, 0, 0.15), /* regular button shadow */
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2), /* subtle inner shadow for depth */
+    inset 0 2px 4px rgba(255, 255, 255, 0.4); /* top inner highlight for "bubbly" feel */
+  text-shadow: 
+    0 1px 0 #000,
+    0 2px 0 #000,
+    0 3px 0 #000,
+    0 4px 4px rgba(0, 0, 0, 0.5); /* bold 3D stacked effect */
+  transition: transform 0.3s;
 }
 
 .card-button:hover {
-  background: linear-gradient(to bottom, #ff8000, #cc6600);
   transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.card-buttons-back {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: auto;
+  padding-bottom: 92px;
+}
+
+.card-buttons-back .rect-button {
+  width: 100px;
+  height: 40px;
+  font-size: 14px;
+  line-height: 1.1;
+  padding-bottom: 15px;
 }
 
 .button-row {
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
   display: flex;
   justify-content: space-around;
   padding: 10px;
-  background-color: #a66b36;
-  border-top: 2px solid #8b5e3c;
+  background-image: url('Assets/button-row.jpeg');
+  background-size: 100% 100%;          /* Show full image */
+  background-position: center;       /* Center it */
+  background-repeat: no-repeat;      /* Don't repeat */
+  background-color: #a66b36;         /* Fallback color */
 }
 
-.button-row button {
-  background: linear-gradient(to bottom, #b7804e, #8d5524); /* Wood gradient */
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
-  border: 1px solid #d4a668;
+.button-row .rect-button {
+  width: 100px;
+  height: 40px;
+  font-size: 14px;
+  line-height: 1.1;
+  padding-bottom: 15px;
 }
 
-.button-row button:hover {
-  background: linear-gradient(to bottom, #c99059, #9e6331);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.button-row button:disabled {
-  background: linear-gradient(to bottom, #b7b7b7, #8f8f8f);
+.button-row .rect-button:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
-  border: 1px solid #cccccc;
   transform: none;
   box-shadow: none;
 }
 
-.filter-options {
-  position: absolute;
-  bottom: 60px; /* Above the button row */
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  padding: 10px;
-  background-color: rgba(233, 216, 193, 0.9);
-  border-top: 2px solid #8b5e3c;
-}
-
-.filter-options button {
-  background: linear-gradient(to bottom, #e67700, #b35900); /* Orange fire gradient */
-  border: 1px solid #ff8c1a;
-  color: white;
-  padding: 8px 15px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.filter-options button:hover {
-  background: linear-gradient(to bottom, #ff8000, #cc6600);
-  transform: translateY(-2px);
+.button-row .rect-button.active-filter {
+  border: 2px solid gold;
+  box-shadow: 0 0 8px gold;
 }
 
 .more-info-button, .back-to-front {
@@ -1927,15 +2153,21 @@ body {
 
 #survivor-stack {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding: 20px 0;
+  overflow-x: hidden;            /* prevent horizontal drag artifacts */
+  height: 100%;
+  padding-block: 50vh;           /* shorthand for top and bottom padding */
+  scroll-padding-block: 50vh;    /* tells snap where to align center */
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
-    max-height: 80vh;
-    position: relative;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
 }
 
 #filter-options {
@@ -1964,9 +2196,34 @@ body {
   border: 1px solid #a66b36;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
+  color: #2b1d00; /* base text color */
 }
 
 #filter-options button:hover {
   background-color: #e0caa0;
+}
+
+/* NEW: Highlight active filter buttons */
+#filter-options button.active {
+  background-color: gold;
+  color: black;
+  font-weight: bold;
+}
+
+#filter-button.active-filter {
+  outline: 2px solid gold;
+}
+
+#logo {
+  opacity: 0;
+  transform: scale(0.95);
+  animation: fadeInLogo 1.2s ease-out forwards;
+}
+
+@keyframes fadeInLogo {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
