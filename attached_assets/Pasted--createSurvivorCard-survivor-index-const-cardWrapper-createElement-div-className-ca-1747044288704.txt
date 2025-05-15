@@ -1,0 +1,129 @@
+_createSurvivorCard(survivor, index) {
+    const cardWrapper = createElement('div', { className: 'card-wrapper' });
+
+    const avatarFrame = createElement('div', { className: 'avatar-frame' });
+    const avatarImg = createElement('img', {
+      src: survivor.avatarUrl || 'Assets/Avatars/default.jpeg',
+      alt: `${survivor.firstName}'s avatar`
+    });
+    avatarFrame.appendChild(avatarImg);
+    cardWrapper.appendChild(avatarFrame);
+
+    const card = createElement('div', {
+      className: 'survivor-card',
+      dataset: { id: survivor.id }
+    });
+
+    // FRONT
+    const cardFront = createElement('div', { className: 'card-front' });
+    const name = createElement('h3', { className: 'survivor-header' });
+    name.innerHTML = `${survivor.firstName}<br>${survivor.lastName}`;
+
+    const moreInfoButton = createElement('button', { className: 'card-button' }, 'More Info');
+    const chooseButton = createElement('button', { className: 'card-button' }, 'Choose Survivor');
+    chooseButton.style.transition = 'opacity 0.3s ease';
+
+    const buttonContainer = createElement('div', { className: 'card-buttons' });
+    buttonContainer.appendChild(moreInfoButton);
+    buttonContainer.appendChild(chooseButton);
+    cardFront.appendChild(name);
+    cardFront.appendChild(buttonContainer);
+
+    // BACK
+    const cardBack = createElement('div', {
+      className: 'card-back',
+      style: `background-image: url('Assets/card-back-${survivor.traitClass.toLowerCase()}.png');`
+    });
+
+    const nameBox = createElement('div', { className: 'name-box' });
+    nameBox.innerHTML = `<strong>${survivor.firstName}<br>${survivor.lastName}</strong><br><small>${survivor.season || 'Unknown'}</small>`;
+
+    const gameplayStyleBox = createElement('div', {
+      className: `gameplay-style-box${['Lethal Charmer', 'Shadow Strategist'].includes(survivor.gameplayStyle) ? ' small-text' : ''}`
+    }, survivor.gameplayStyle || 'Unknown');
+
+    const traitBox = createElement('div', {
+      className: `trait-values ${survivor.traitClass.toLowerCase()}-layout`
+    });
+    traitBox.innerHTML = `
+      <div class="trait-row physical-value">${survivor.physical || 0}</div>
+      <div class="trait-row mental-value">${survivor.mental || 0}</div>
+      <div class="trait-row social-value">${survivor.social || 0}</div>
+    `;
+
+    const buttonWrap = createElement('div', { className: 'card-buttons-back' });
+
+    const backButton = createElement('button', {
+      className: 'rect-button',
+    }, 'Back');
+
+    const moreTraitsButton = createElement('button', {
+      className: 'rect-button'
+    }, 'Traits');
+
+    buttonWrap.appendChild(backButton);
+    buttonWrap.appendChild(moreTraitsButton);
+
+    cardBack.appendChild(nameBox);
+    cardBack.appendChild(gameplayStyleBox);
+    cardBack.appendChild(traitBox);
+    cardBack.appendChild(buttonWrap);
+
+    // TRAIT CARD OVERLAY (basic)
+    const traitCardOverlay = createElement('div', { className: 'trait-card-overlay hidden' });
+
+    const traitCardBg = createElement('img', {
+      src: 'Assets/card-back-traits.png',
+      className: 'trait-card-bg'
+    });
+    traitCardOverlay.appendChild(traitCardBg);
+
+    const closeTraitCardButton = createElement('button', {
+      className: 'rect-button small close-trait-card'
+    }, 'Back');
+
+    closeTraitCardButton.addEventListener('click', () => {
+      traitCardOverlay.classList.add('hidden');
+    });
+
+    traitCardOverlay.appendChild(closeTraitCardButton);
+    cardBack.appendChild(traitCardOverlay);
+
+    moreTraitsButton.addEventListener('click', () => {
+      traitCardOverlay.classList.remove('hidden');
+    });
+
+    // Combine front/back
+    card.appendChild(cardFront);
+    card.appendChild(cardBack);
+    cardWrapper.appendChild(card);
+
+    // Flip logic
+    moreInfoButton.addEventListener('click', () => cardWrapper.classList.toggle('flipped'));
+    backButton.addEventListener('click', () => cardWrapper.classList.remove('flipped'));
+
+    // Choose logic
+    chooseButton.addEventListener('click', () => {
+      const isSelected = card.classList.contains('selected');
+      const allCards = document.querySelectorAll('.survivor-card');
+      allCards.forEach(c => c.classList.remove('selected'));
+
+      if (isSelected) {
+        this.selectedCharacter = null;
+        this._fadeButtonText(chooseButton, 'Choose Survivor');
+        document.getElementById('continue-button').disabled = true;
+      } else {
+        card.classList.add('selected');
+        this.selectedCharacter = survivor;
+        this._fadeButtonText(chooseButton, 'Unselect Survivor');
+        document.getElementById('continue-button').disabled = false;
+      }
+    });
+
+    // 
+    moreTraitsButton.addEventListener('click', () => {
+      console.log(`Show more traits for ${survivor.firstName}`);
+    });
+
+    return cardWrapper;
+  }

@@ -1,11 +1,11 @@
 /**
  * @module TribeDivisionScreen
- * Screen for dividing survivors into tribes
+ * Combined Marooning + Tribe Division Screen
  */
 
 import { getElement, createElement, clearChildren } from '../utils/index.js';
-import { gameManager, eventManager } from '../core/index.js';
-import { GameEvents } from '../core/EventManager.js';
+import { gameManager } from '../core/index.js';
+import gameData from '../data/index.js';
 
 export default class TribeDivisionScreen {
   initialize() {
@@ -13,135 +13,201 @@ export default class TribeDivisionScreen {
   }
 
   setup(data = {}) {
-    const screen = getElement('tribe-division-screen');
-    if (!screen) {
-      console.error('Tribe division screen element not found');
-      return;
-    }
+    const container = getElement('game-container');
+    clearChildren(container);
 
-    clearChildren(screen);
+    container.style.backgroundImage = "url('Assets/marooning.jpeg')";
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundPosition = 'center';
+    container.style.backgroundRepeat = 'no-repeat';
 
-    const title = createElement('h1', { className: 'screen-title' }, 'Tribe Division');
-    const subtitle = createElement('p', { className: 'screen-subtitle' }, `Day 1: The tribes are being formed!`);
+    const startButton = createElement('button', {
+      className: 'rect-button alt',
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+      `
+    }, 'Start Game');
 
-    const tribesContainer = createElement('div', { className: 'tribes-container' });
-    const loadingMessage = createElement('p', { id: 'loading-message' }, 'Drawing tribes...');
-    tribesContainer.appendChild(loadingMessage);
-
-    const continueButton = createElement('button', {
-      id: 'continue-button',
-      style: { display: 'none' },
-      onclick: () => gameManager.setGameState('camp')
-    }, 'Go to Camp');
-
-    screen.appendChild(title);
-    screen.appendChild(subtitle);
-    screen.appendChild(tribesContainer);
-    screen.appendChild(continueButton);
-
-    setTimeout(() => this._displayTribes(tribesContainer), 1500);
-
-    eventManager.publish(GameEvents.SCREEN_CHANGED, {
-      screenId: 'tribeDivision',
-      data
-    });
+    startButton.addEventListener('click', () => this._showJeffIntro(container));
+    container.appendChild(startButton);
   }
 
-  _displayTribes(container) {
-    const loading = getElement('loading-message');
-    if (loading) loading.remove();
+  _showJeffIntro(container, stage = 0) {
+    clearChildren(container);
 
-    const tribes = gameManager.getTribes();
-    if (!tribes || tribes.length === 0) {
-      container.appendChild(createElement('p', {}, 'Error loading tribes'));
-      return;
-    }
+    container.style.backgroundImage = "url('Assets/jeff-screen.png')";
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundPosition = 'center';
+    container.style.backgroundRepeat = 'no-repeat';
 
-    tribes.forEach(tribe => {
-      const card = this._createTribeCard(tribe);
-      container.appendChild(card);
+    // Parchment wrapper
+    const parchmentWrapper = createElement('div', {
+      style: `
+        position: relative;
+        width: 100%;
+        max-width: 320px;
+        margin: 30px auto 0;
+      `
     });
 
-    const continueButton = getElement('continue-button');
-    if (continueButton) continueButton.style.display = 'block';
+    const parchment = createElement('img', {
+      src: 'Assets/parch-landscape.png',
+      style: `
+        width: 100%;
+        max-width: ${stage === 0 ? '320px' : '300px'};
+        max-height: ${stage === 0 ? '180px' : '140px'};
+        display: block;
+        margin: 0 auto;
+      `
+    });
 
-    setTimeout(() => {
-      const members = document.querySelectorAll('.tribe-member');
-      members.forEach((el, i) => {
-        setTimeout(() => {
-          el.style.opacity = '1';
-          el.style.transform = 'translateY(0)';
-        }, i * 100);
-      });
-    }, 500);
-  }
+    const text = createElement('div', {
+      className: 'parchment-text',
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        margin: ${stage === 0 ? '-160px auto 0' : '-80px auto 0'};
+        max-width: 260px;
+        font-size: ${stage === 0 ? '0.95rem' : '1.1rem'};
+        line-height: 1.3;
+        text-shadow:
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+      `
+    });
 
-  _createTribeCard(tribe) {
-    const card = createElement('div', {
-      className: 'tribe-card',
-      style: {
-        border: `3px solid ${tribe.tribeColor}`
+    text.innerHTML = stage === 0
+      ? `<div style="font-size: 1.2rem; margin-bottom: 0.4rem;">WELCOME TO SURVIVOR ISLAND!</div>
+         18 castaways will compete to outwit, outplay, and outlast each other to be crowned the Sole Survivor!`
+      : `LET’S DIVIDE INTO TRIBES!`;
+
+    parchmentWrapper.append(parchment, text);
+
+    // Always recreate the Next button
+    const nextButton = createElement('button', {
+      className: 'card-button',
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+      `
+    }, 'Next');
+
+    nextButton.addEventListener('click', () => {
+      if (stage === 0) {
+        this._showJeffIntro(container, 1);
+      } else {
+        this._divideTribes(container);
       }
     });
 
-    const name = createElement('h2', {
-      className: 'tribe-name'
-    }, tribe.tribeName);
+    container.append(parchmentWrapper, nextButton);
+  }
 
-    const info = createElement('div', { className: 'tribe-info' }, [
-      createElement('span', {}, `Members: ${tribe.members.length}`)
-    ]);
+  _advanceJeffIntro(container) {
+    // Update parchment and text styling only, do not recreate elements
+    this.parchment.style.maxWidth = '300px';
+    this.parchment.style.maxHeight = '140px';
+    this.text.style.margin = '-120px auto 0';
+    this.text.style.fontSize = '1.1rem';
+    this.text.innerHTML = `LET’S DIVIDE INTO TRIBES!`;
 
-    const membersList = createElement('div', { className: 'members-list' });
+    this.nextButton.textContent = 'Next';
+    const newHandler = () => this._divideTribes(container);
+    this.nextButton.replaceWith(this.nextButton.cloneNode(true));
+    this.nextButton = container.querySelector('.card-button');
+    this.nextButton.textContent = 'Next';
+    this.nextButton.addEventListener('click', newHandler);
+  }
 
-    tribe.members.forEach(member => {
-      const memberEl = createElement('div', {
-        className: 'tribe-member',
-        style: {
-          opacity: '0',
-          transform: 'translateY(10px)'
-        }
-      });
+  _divideTribes(container) {
+    clearChildren(container);
+    container.style.backgroundImage = "url('Assets/water-bg.png')";
 
-      const avatar = createElement('div', {
-        className: 'member-avatar',
-        style: {
-          backgroundImage: member.avatarUrl ? `url(${member.avatarUrl})` : '',
-          backgroundSize: 'cover'
-        }
-      });
+    const mode = gameManager.getTribeMode();
+    const allSurvivors = gameManager.getAllSurvivors();
+    const playerSurvivor = gameManager.getPlayerSurvivor();
 
-      const name = createElement('div', { className: 'member-name' },
-        member.name + (member.isPlayer ? ' (You)' : '')
-      );
+    const tribeCount = mode === '3tribe' ? 3 : 2;
+    const tribeSize = Math.floor(allSurvivors.length / tribeCount);
 
-      const archetype = createElement('div', { className: 'member-archetype' },
-        `${member.archetype || 'Survivor'}, ${member.age}`
-      );
+    const colorPool = ['red', 'orange', 'blue', 'purple', 'green'];
+    const namePool = [...gameData.DEFAULT_TRIBE_NAMES];
 
-      const info = createElement('div', { className: 'member-info' }, [name, archetype]);
-      memberEl.appendChild(avatar);
-      memberEl.appendChild(info);
-      membersList.appendChild(memberEl);
-    });
+    let chosenColors;
+    while (true) {
+      const shuffledColors = [...colorPool].sort(() => Math.random() - 0.5);
+      chosenColors = shuffledColors.slice(0, tribeCount);
+      if (!(chosenColors.includes('red') && chosenColors.includes('orange'))) break;
+    }
 
-    const attributes = createElement('div', { className: 'tribe-attributes' });
+    const shuffledNames = namePool.sort(() => Math.random() - 0.5).slice(0, tribeCount);
+    const shuffledSurvivors = [...allSurvivors].sort(() => Math.random() - 0.5);
 
-    if (tribe.attributes) {
-      Object.entries(tribe.attributes).forEach(([key, val]) => {
-        attributes.appendChild(createElement('div', { className: 'attribute-item' }, [
-          createElement('span', {}, key),
-          createElement('span', {}, val.toString())
-        ]));
+    const tribes = [];
+    for (let i = 0; i < tribeCount; i++) {
+      tribes.push({
+        color: chosenColors[i],
+        name: shuffledNames[i],
+        members: shuffledSurvivors.slice(i * tribeSize, (i + 1) * tribeSize)
       });
     }
 
-    card.appendChild(name);
-    card.appendChild(info);
-    card.appendChild(membersList);
-    if (tribe.attributes) card.appendChild(attributes);
+    const playerTribeIndex = tribes.findIndex(tribe =>
+      tribe.members.some(m => m.id === playerSurvivor.id)
+    );
+    const [playerTribe] = tribes.splice(playerTribeIndex, 1);
+    tribes.unshift(playerTribe);
 
-    return card;
+    tribes.forEach(tribe => {
+      const tribeImage = createElement('img', {
+        src: `Assets/Tribe/${tribe.color}-portrait.png`,
+        style: `
+          width: 100%;
+          max-width: 500px;
+          display: block;
+          margin: 30px auto 10px;
+        `
+      });
+
+      const nameLabel = createElement('div', {
+        style: `
+          text-align: center;
+          font-size: 22px;
+          font-weight: bold;
+          font-family: 'Survivant', sans-serif;
+          color: white;
+          margin-bottom: 10px;
+        `
+      }, tribe.name);
+
+      const nameList = createElement('div', {
+        style: `
+          text-align: center;
+          font-family: 'Survivant', sans-serif;
+          color: white;
+          font-size: 20px;
+          margin-bottom: 20px;
+        `
+      }, tribe.members.map(m => m.firstName).join(', '));
+
+      container.append(nameLabel, tribeImage, nameList);
+    });
+
+    const day1Button = createElement('button', {
+      className: 'rect-button',
+      style: 'margin: 40px auto 80px; display: block;'
+    }, 'Begin Day 1');
+
+    container.appendChild(day1Button);
   }
 
   teardown() {

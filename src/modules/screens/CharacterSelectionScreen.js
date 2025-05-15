@@ -122,10 +122,8 @@ export default class CharacterSelectionScreen {
     avatarFrame.appendChild(avatarImg);
     cardWrapper.appendChild(avatarFrame);
 
-    const card = createElement('div', {
-      className: 'survivor-card',
-      dataset: { id: survivor.id }
-    });
+    const card = createElement('div', { className: 'survivor-card' });
+    card.dataset.id = survivor.id;
 
     // FRONT
     const cardFront = createElement('div', { className: 'card-front' });
@@ -133,7 +131,9 @@ export default class CharacterSelectionScreen {
     name.innerHTML = `${survivor.firstName}<br>${survivor.lastName}`;
 
     const moreInfoButton = createElement('button', { className: 'card-button' }, 'More Info');
-    const chooseButton = createElement('button', { className: 'card-button' }, 'Choose Survivor');
+    const chooseButton = createElement('button', { className: 'card-button choose-button' });
+    const textSpan = createElement('span', { className: 'button-text' }, 'Choose Survivor');
+    chooseButton.appendChild(textSpan);
     chooseButton.style.transition = 'opacity 0.3s ease';
 
     const buttonContainer = createElement('div', { className: 'card-buttons' });
@@ -143,10 +143,8 @@ export default class CharacterSelectionScreen {
     cardFront.appendChild(buttonContainer);
 
     // BACK
-    const cardBack = createElement('div', {
-      className: 'card-back',
-      style: `background-image: url('Assets/card-back-${survivor.traitClass.toLowerCase()}.png');`
-    });
+    const cardBack = createElement('div', { className: 'card-back' });
+    cardBack.style.backgroundImage = `url('Assets/card-back-${survivor.traitClass.toLowerCase()}.png')`;
 
     const nameBox = createElement('div', { className: 'name-box' });
     nameBox.innerHTML = `<strong>${survivor.firstName}<br>${survivor.lastName}</strong><br><small>${survivor.season || 'Unknown'}</small>`;
@@ -159,21 +157,14 @@ export default class CharacterSelectionScreen {
       className: `trait-values ${survivor.traitClass.toLowerCase()}-layout`
     });
     traitBox.innerHTML = `
-      <div class="trait-row physical-value">${survivor.physical || 0}</div>
-      <div class="trait-row mental-value">${survivor.mental || 0}</div>
-      <div class="trait-row social-value">${survivor.social || 0}</div>
+      <div class="trait-row physical-value">${survivor.physical}</div>
+      <div class="trait-row mental-value">${survivor.mental}</div>
+      <div class="trait-row social-value">${survivor.social}</div>
     `;
 
     const buttonWrap = createElement('div', { className: 'card-buttons-back' });
-
-    const backButton = createElement('button', {
-      className: 'rect-button',
-    }, 'Back');
-
-    const moreTraitsButton = createElement('button', {
-      className: 'rect-button'
-    }, 'Traits');
-
+    const backButton = createElement('button', { className: 'rect-button' }, 'Back');
+    const moreTraitsButton = createElement('button', { className: 'rect-button' }, 'Traits');
     buttonWrap.appendChild(backButton);
     buttonWrap.appendChild(moreTraitsButton);
 
@@ -181,6 +172,65 @@ export default class CharacterSelectionScreen {
     cardBack.appendChild(gameplayStyleBox);
     cardBack.appendChild(traitBox);
     cardBack.appendChild(buttonWrap);
+
+    // TRAIT CARD OVERLAY
+    const traitCardOverlay = createElement('div', { className: 'trait-card-overlay hidden' });
+    const traitCardWrapper = createElement('div', { className: 'trait-card-wrapper' });
+    traitCardOverlay.appendChild(traitCardWrapper);
+
+    const traitCardBg = createElement('img', { className: 'trait-card-bg' });
+    traitCardBg.src = 'Assets/card-back-traits.png';
+    traitCardWrapper.appendChild(traitCardBg);
+
+    const traitCoordinates = {
+      physical: [75, 141],
+      mental: [168, 141],
+      social: [261, 141],
+      strength: [75, 201],
+      memory: [168, 201],
+      connections: [261, 201],
+      speed: [75, 266],
+      puzzles: [168, 266],
+      likeability: [261, 266],
+      endurance: [75, 328],
+      fortitude: [168, 328],
+      interrogation: [261, 328],
+      dexterity: [75, 392],
+      awareness: [168, 392],
+      deception: [261, 392],
+      balance: [75, 457],
+      focus: [168, 457],
+      alliances: [261, 457]
+    };
+
+    Object.entries(traitCoordinates).forEach(([key, [x, y]]) => {
+      const value = survivor[key];
+      const el = createElement('div', {
+        className: 'trait-element',
+        style: `left: ${x}px; top: ${y}px;`
+      }, value?.toString() ?? '?');
+      traitCardWrapper.appendChild(el);
+    });
+
+    const closeTraitCardButton = createElement('button', {
+      className: 'rect-button small close-trait-card'
+    }, 'Back');
+    closeTraitCardButton.style.position = 'absolute';
+    closeTraitCardButton.style.left = '50%';
+    closeTraitCardButton.style.bottom = '30px';
+    closeTraitCardButton.style.transform = 'translateX(-50%)';
+    closeTraitCardButton.style.zIndex = '5';
+
+    closeTraitCardButton.addEventListener('click', () => {
+      traitCardOverlay.classList.add('hidden');
+    });
+
+    traitCardWrapper.appendChild(closeTraitCardButton);
+    cardBack.appendChild(traitCardOverlay);
+
+    moreTraitsButton.addEventListener('click', () => {
+      traitCardOverlay.classList.remove('hidden');
+    });
 
     // Combine front/back
     card.appendChild(cardFront);
@@ -195,23 +245,34 @@ export default class CharacterSelectionScreen {
     chooseButton.addEventListener('click', () => {
       const isSelected = card.classList.contains('selected');
       const allCards = document.querySelectorAll('.survivor-card');
+      const allButtons = document.querySelectorAll('.choose-button');
+
       allCards.forEach(c => c.classList.remove('selected'));
+      allButtons.forEach(btn => btn.classList.remove('glow-gold'));
+
+      const textSpan = chooseButton.querySelector('.button-text');
 
       if (isSelected) {
         this.selectedCharacter = null;
-        this._fadeButtonText(chooseButton, 'Choose Survivor');
+        if (textSpan) {
+          textSpan.textContent = 'Choose Survivor';
+          // Explicitly reapply rect-button styles
+          chooseButton.style.backgroundImage = 'url(\'Assets/rect-button.png\')';
+          chooseButton.style.backgroundSize = '100% 100%';
+          chooseButton.style.backgroundRepeat = 'no-repeat';
+          chooseButton.style.backgroundPosition = 'center';
+        }
+        chooseButton.classList.remove('glow-gold');
         document.getElementById('continue-button').disabled = true;
       } else {
         card.classList.add('selected');
         this.selectedCharacter = survivor;
-        this._fadeButtonText(chooseButton, 'Unselect Survivor');
+        if (textSpan) {
+          textSpan.textContent = 'Unselect Survivor';
+        }
+        chooseButton.classList.add('glow-gold');
         document.getElementById('continue-button').disabled = false;
       }
-    });
-
-    // Placeholder for future More Traits functionality
-    moreTraitsButton.addEventListener('click', () => {
-      console.log(`Show more traits for ${survivor.firstName}`);
     });
 
     return cardWrapper;
@@ -232,10 +293,15 @@ export default class CharacterSelectionScreen {
   }
 
   _fadeButtonText(button, newText) {
-    button.style.opacity = '0';
+    const textSpan = button.querySelector('.button-text');
+    if (!textSpan) return;
+
+    textSpan.style.transition = 'opacity 0.2s ease';
+    textSpan.style.opacity = '0';
+
     setTimeout(() => {
-      button.textContent = newText;
-      button.style.opacity = '1';
+      textSpan.textContent = newText;
+      textSpan.style.opacity = '1';
     }, 200);
   }
 
@@ -252,9 +318,9 @@ export default class CharacterSelectionScreen {
       this.traitClassFilter = null;
       this._toggleFilterOptions(true); // Close popup when selecting "all"
     } else if (['male', 'female'].includes(type)) {
-      this.genderFilter = type;
+      this.genderFilter = this.genderFilter === type ? null : type;
     } else if (['physical', 'mental', 'social'].includes(type)) {
-      this.traitClassFilter = type;
+      this.traitClassFilter = this.traitClassFilter === type ? null : type;
     }
 
     this._applyFilters();
@@ -287,10 +353,15 @@ export default class CharacterSelectionScreen {
 
     if (forceHide) {
       filterOptions.classList.add('hidden');
-      filterButton.classList.remove('active-filter');
+
+      // Check if actual filters are active
+      const isAnyFilterActive = this.genderFilter || this.traitClassFilter;
+      filterButton.classList.toggle('active-filter', !!isAnyFilterActive);
     } else {
       const nowHidden = filterOptions.classList.toggle('hidden');
-      filterButton.classList.toggle('active-filter', !nowHidden);
+
+      // Make button look active while popup is visible, regardless of filters
+      filterButton.classList.add('active-filter');
     }
   }
 

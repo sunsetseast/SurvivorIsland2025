@@ -1,0 +1,62 @@
+const moreTraitsButton = createElement('button', {
+        className: 'rect-button'
+      }, 'Traits');
+
+      buttonWrap.appendChild(backButton);
+      buttonWrap.appendChild(moreTraitsButton);
+
+      cardBack.appendChild(nameBox);
+      cardBack.appendChild(gameplayStyleBox);
+      cardBack.appendChild(traitBox);
+      cardBack.appendChild(buttonWrap);
+    
+        // TRAIT CARD OVERLAY (extended to include traits)
+        const traitCardOverlay = createElement('div', { className: 'trait-card-overlay hidden' });
+
+        // Mapping of traits and their corresponding coordinates
+        const traitCoordinates = {
+            "Strength": { x: 100, y: 400 },
+            "Speed": { x: 100, y: 600 },
+            "Endurance": { x: 100, y: 800 },
+            "Dexterity": { x: 100, y: 1000 },
+            "Balance": { x: 100, y: 1200 },
+            "Memory": { x: 400, y: 400 },
+            "Puzzles": { x: 400, y: 600 },
+            "Fortitude": { x: 400, y: 800 },
+            "Awareness": { x: 400, y: 1000 },
+            "Focus": { x: 400, y: 1200 },
+            "Connections": { x: 700, y: 400 },
+            "Likeability": { x: 700, y: 600 },
+            "Interrogation": { x: 700, y: 800 },
+            "Deception": { x: 700, y: 1000 },
+            "Alliances": { x: 700, y: 1200 },
+        };
+
+        // Create divs for each trait based on survivor's traits
+        for (const trait in survivor.traits) {
+            if (traitCoordinates[trait]) {
+                const traitElement = createElement('div', { 
+                    className: 'trait-element', 
+                    style: `position: absolute; 
+                            left: ${traitCoordinates[trait].x}px; 
+                            top: ${traitCoordinates[trait].y}px;`
+                }, trait);
+                traitCardOverlay.appendChild(traitElement);
+            }
+        }
+
+        // Close button and other existing code for the overlay
+        const closeTraitCardButton = createElement('button', {
+            className: 'rect-button small close-trait-card'
+        }, 'Close');
+
+        closeTraitCardButton.addEventListener('click', () => {
+            traitCardOverlay.classList.add('hidden');
+        });
+
+        traitCardOverlay.appendChild(closeTraitCardButton);
+        cardBack.appendChild(traitCardOverlay);
+
+        moreTraitsButton.addEventListener('click', () => {
+            traitCardOverlay.classList.remove('hidden');
+        });
