@@ -36,80 +36,79 @@ export default class TribeDivisionScreen {
   }
 
   _showJeffIntro(container, stage = 0) {
-    clearChildren(container);
+    if (stage === 0) {
+      clearChildren(container);
 
-    container.style.backgroundImage = "url('Assets/jeff-screen.png')";
-    container.style.backgroundSize = 'cover';
-    container.style.backgroundPosition = 'center';
-    container.style.backgroundRepeat = 'no-repeat';
+      container.style.backgroundImage = "url('Assets/jeff-screen.png')";
+      container.style.backgroundSize = 'cover';
+      container.style.backgroundPosition = 'center';
+      container.style.backgroundRepeat = 'no-repeat';
 
-    // Parchment wrapper
-    const parchmentWrapper = createElement('div', {
-      style: `
-        position: relative;
-        width: 100%;
-        max-width: 320px;
-        margin: 30px auto 0;
-      `
-    });
+      // Parchment wrapper
+      const parchmentWrapper = createElement('div', {
+        style: `
+          position: relative;
+          width: 100%;
+          max-width: 320px;
+          margin: 30px auto 0;
+        `
+      });
 
-    const parchment = createElement('img', {
-      src: 'Assets/parch-landscape.png',
-      style: `
-        width: 100%;
-        max-width: ${stage === 0 ? '320px' : '300px'};
-        max-height: ${stage === 0 ? '180px' : '140px'};
-        display: block;
-        margin: 0 auto;
-      `
-    });
+      const parchment = createElement('img', {
+        src: 'Assets/parch-landscape.png',
+        style: `
+          width: 100%;
+          max-width: 320px;
+          max-height: 180px;
+          display: block;
+          margin: 0 auto;
+        `
+      });
 
-    const text = createElement('div', {
-      className: 'parchment-text',
-      style: `
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-weight: bold;
-        text-align: center;
-        margin: ${stage === 0 ? '-160px auto 0' : '-80px auto 0'};
-        max-width: 260px;
-        font-size: ${stage === 0 ? '0.95rem' : '1.1rem'};
-        line-height: 1.3;
-        text-shadow:
-          0 1px 0 #000,
-          0 2px 0 #000,
-          0 3px 0 #000,
-          0 4px 4px rgba(0, 0, 0, 0.5);
-      `
-    });
+      const text = createElement('div', {
+        className: 'parchment-text',
+        style: `
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-weight: bold;
+          text-align: center;
+          margin: -160px auto 0;
+          max-width: 260px;
+          font-size: 0.95rem;
+          line-height: 1.3;
+          text-shadow:
+            0 1px 0 #000,
+            0 2px 0 #000,
+            0 3px 0 #000,
+            0 4px 4px rgba(0, 0, 0, 0.5);
+        `
+      });
 
-    text.innerHTML = stage === 0
-      ? `<div style="font-size: 1.2rem; margin-bottom: 0.4rem;">WELCOME TO SURVIVOR ISLAND!</div>
-         18 castaways will compete to outwit, outplay, and outlast each other to be crowned the Sole Survivor!`
-      : `LET’S DIVIDE INTO TRIBES!`;
+      text.innerHTML = `<div style="font-size: 1.2rem; margin-bottom: 0.4rem;">WELCOME TO SURVIVOR ISLAND!</div>
+           18 castaways will compete to outwit, outplay, and outlast each other to be crowned the Sole Survivor!`;
 
-    parchmentWrapper.append(parchment, text);
+      const nextButton = createElement('button', {
+        className: 'rect-button',
+        style: `
+          position: absolute;
+          bottom: 40px;
+          left: 50%;
+          transform: translateX(-50%);
+        `
+      }, 'Next');
 
-    // Always recreate the Next button
-    const nextButton = createElement('button', {
-      className: 'card-button',
-      style: `
-        position: absolute;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-      `
-    }, 'Next');
-
-    nextButton.addEventListener('click', () => {
-      if (stage === 0) {
+      nextButton.addEventListener('click', () => {
+        const text = container.querySelector('.parchment-text');
+        text.innerHTML = `LET'S DIVIDE INTO TRIBES!`;
         this._showJeffIntro(container, 1);
-      } else {
-        this._divideTribes(container);
-      }
-    });
+      });
 
-    container.append(parchmentWrapper, nextButton);
+      parchmentWrapper.append(parchment, text);
+      container.append(parchmentWrapper, nextButton);
+    } else {
+      const nextButton = container.querySelector('button');
+      nextButton.addEventListener('click', () => this._divideTribes(container));
+    }
   }
 
   _advanceJeffIntro(container) {
