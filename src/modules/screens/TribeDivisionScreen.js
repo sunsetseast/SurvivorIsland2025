@@ -3,7 +3,7 @@
  * Combined Marooning + Tribe Division Screen
  */
 
-import { getElement, createElement, clearChildren } from '../utils/index.js';
+import { getElement, createElement, clearChildren, hideElement } from '../utils/index.js';
 import { gameManager, screenManager } from '../core/index.js';
 import gameData from '../data/index.js';
 

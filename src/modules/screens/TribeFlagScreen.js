@@ -12,7 +12,7 @@ export default class TribeFlagScreen {
   }
 
   setup(data = {}) {
-    const container = getElement('tribe-flag-screen');
+    const container = getElement('game-container');
     clearChildren(container);
 
     container.style.backgroundImage = "url('Assets/Screens/tribe-flag.png')";
