@@ -426,7 +426,7 @@ export default class TribeDivisionScreen {
     }, 'Begin Day 1');
 
     button.addEventListener('click', () => {
-      screenManager.showScreen('tribe-flag');
+      screenManager.showScreen('tribe-flag-screen');
     });
 
     scrollWrapper.appendChild(button);
