@@ -4,7 +4,7 @@
  */
 
 import { getElement, createElement, clearChildren } from '../utils/index.js';
-import { gameManager } from '../core/index.js';
+import { gameManager, screenManager } from '../core/index.js';
 import gameData from '../data/index.js';
 
 export default class TribeDivisionScreen {
@@ -31,8 +31,79 @@ export default class TribeDivisionScreen {
       `
     }, 'Start Game');
 
-    startButton.addEventListener('click', () => this._showJeffIntro(container));
+    startButton.addEventListener('click', () => this._showTribeModePopup(container));
     container.appendChild(startButton);
+  }
+
+  _showTribeModePopup(container) {
+    const tribePopup = createElement('div', {
+      id: 'tribe-popup',
+      style: {
+        display: 'flex',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: '1rem',
+        zIndex: 999
+      }
+    });
+
+    const title = createElement('h2', {
+      style: {
+        color: '#fff',
+        fontFamily: 'Survivant, sans-serif',
+        marginBottom: '1rem'
+      }
+    }, 'Choose Game Mode');
+
+    const twoTribeButton = createElement('button', {
+      className: 'rect-button',
+      onclick: () => {
+        gameManager.tribeCount = 2;
+        gameManager.gameMode = '2-tribe';
+        tribePopup.remove();
+        this._showJeffIntro(container);
+      }
+    }, '2 Tribes');
+
+    const threeTribeButton = createElement('button', {
+      className: 'rect-button',
+      onclick: () => {
+        gameManager.tribeCount = 3;
+        gameManager.gameMode = '3-tribe';
+        tribePopup.remove();
+        this._showJeffIntro(container);
+      }
+    }, '3 Tribes');
+
+    const bvbButton = createElement('button', {
+      className: 'rect-button',
+      onclick: () => {
+        gameManager.tribeCount = 3;
+        gameManager.gameMode = 'brains-brawn-beauty';
+        tribePopup.remove();
+        this._showJeffIntro(container);
+      }
+    }, 'Brains vs. Brawn vs. Beauty');
+
+    const sexesButton = createElement('button', {
+      className: 'rect-button',
+      onclick: () => {
+        gameManager.tribeCount = 2;
+        gameManager.gameMode = 'battle-sexes';
+        tribePopup.remove();
+        this._showJeffIntro(container);
+      }
+    }, 'Battle of the Sexes');
+
+    tribePopup.append(title, twoTribeButton, threeTribeButton, bvbButton, sexesButton);
+    container.appendChild(tribePopup);
   }
 
   _showJeffIntro(container, stage = 0) {
@@ -43,7 +114,6 @@ export default class TribeDivisionScreen {
     container.style.backgroundPosition = 'center';
     container.style.backgroundRepeat = 'no-repeat';
 
-    // Parchment wrapper
     const parchmentWrapper = createElement('div', {
       style: `
         position: relative;
@@ -90,55 +160,75 @@ export default class TribeDivisionScreen {
 
     parchmentWrapper.append(parchment, text);
 
-    // Always recreate the Next button
-    const nextButton = createElement('button', {
-      className: 'card-button',
-      style: `
-        position: absolute;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-      `
-    }, 'Next');
+    container.appendChild(parchmentWrapper);
 
-    nextButton.addEventListener('click', () => {
-      if (stage === 0) {
+    if (stage === 0) {
+      const nextButtonStage0 = createElement('button', {
+        className: 'card-button',
+        style: `
+          position: absolute;
+          bottom: 40px;
+          left: 50%;
+          transform: translateX(-50%);
+        `
+      }, 'Next');
+
+      nextButtonStage0.addEventListener('click', () => {
         this._showJeffIntro(container, 1);
-      } else {
+      });
+
+      container.appendChild(nextButtonStage0);
+    } else {
+      const nextButtonStage1 = createElement('button', {
+        className: 'card-button',
+        style: `
+          position: absolute;
+          bottom: 40px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 130px;
+          height: 60px;
+          background-image: url('Assets/rect-button.png');
+          background-size: contain;
+          background-repeat: no-repeat;
+          background-position: center;
+          border: none;
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 1.15rem;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px black;
+          padding: 0;
+        `
+      }, 'Next');
+
+      nextButtonStage1.addEventListener('click', () => {
         this._divideTribes(container);
-      }
-    });
+      });
 
-    container.append(parchmentWrapper, nextButton);
-  }
-
-  _advanceJeffIntro(container) {
-    // Update parchment and text styling only, do not recreate elements
-    this.parchment.style.maxWidth = '300px';
-    this.parchment.style.maxHeight = '140px';
-    this.text.style.margin = '-120px auto 0';
-    this.text.style.fontSize = '1.1rem';
-    this.text.innerHTML = `LET’S DIVIDE INTO TRIBES!`;
-
-    this.nextButton.textContent = 'Next';
-    const newHandler = () => this._divideTribes(container);
-    this.nextButton.replaceWith(this.nextButton.cloneNode(true));
-    this.nextButton = container.querySelector('.card-button');
-    this.nextButton.textContent = 'Next';
-    this.nextButton.addEventListener('click', newHandler);
+      container.appendChild(nextButtonStage1);
+    }
   }
 
   _divideTribes(container) {
     clearChildren(container);
     container.style.backgroundImage = "url('Assets/water-bg.png')";
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundPosition = 'center';
+    container.style.backgroundRepeat = 'no-repeat';
 
-    const mode = gameManager.getTribeMode();
-    const allSurvivors = gameManager.getAllSurvivors();
+    const scrollWrapper = createElement('div', {
+      style: `
+        max-height: 100vh;
+        overflow-y: auto;
+        padding: 20px;
+      `
+    });
+
+    const allSurvivors = gameManager.survivors;
     const playerSurvivor = gameManager.getPlayerSurvivor();
-
-    const tribeCount = mode === '3tribe' ? 3 : 2;
-    const tribeSize = Math.floor(allSurvivors.length / tribeCount);
-
+    const gameMode = gameManager.gameMode;
+    const tribeCount = gameManager.tribeCount;
     const colorPool = ['red', 'orange', 'blue', 'purple', 'green'];
     const namePool = [...gameData.DEFAULT_TRIBE_NAMES];
 
@@ -149,65 +239,198 @@ export default class TribeDivisionScreen {
       if (!(chosenColors.includes('red') && chosenColors.includes('orange'))) break;
     }
 
-    const shuffledNames = namePool.sort(() => Math.random() - 0.5).slice(0, tribeCount);
-    const shuffledSurvivors = [...allSurvivors].sort(() => Math.random() - 0.5);
-
-    const tribes = [];
-    for (let i = 0; i < tribeCount; i++) {
-      tribes.push({
-        color: chosenColors[i],
-        name: shuffledNames[i],
-        members: shuffledSurvivors.slice(i * tribeSize, (i + 1) * tribeSize)
-      });
+    let shuffledNames;
+    if (gameMode === 'brains-brawn-beauty') {
+      shuffledNames = ['Brains', 'Brawn', 'Beauty'];
+    } else {
+      shuffledNames = namePool.sort(() => Math.random() - 0.5).slice(0, tribeCount);
     }
 
+    let tribes = [];
+
+    if (gameMode === 'brains-brawn-beauty') {
+      const brains = allSurvivors.filter(s => s.traitClass === 'Mental');
+      const brawn = allSurvivors.filter(s => s.traitClass === 'Physical');
+      const beauty = allSurvivors.filter(s => s.traitClass === 'Social');
+
+      const groups = [brains, brawn, beauty];
+
+      tribes = groups.map((group, i) => ({
+        color: chosenColors[i],
+        name: shuffledNames[i],
+        members: group
+      }));
+
+    } else if (gameMode === 'battle-sexes') {
+      const males = allSurvivors.filter(s => s.gender.toLowerCase() === 'male');
+      const females = allSurvivors.filter(s => s.gender.toLowerCase() === 'female');
+
+      const groups = [males, females];
+
+      tribes = groups.map((group, i) => ({
+        color: chosenColors[i],
+        name: shuffledNames[i],
+        members: group
+      }));
+
+    } else {
+      const males = allSurvivors.filter(s => s.gender.toLowerCase() === 'male').sort(() => Math.random() - 0.5);
+      const females = allSurvivors.filter(s => s.gender.toLowerCase() === 'female').sort(() => Math.random() - 0.5);
+
+      const interleaved = [];
+      let mi = 0, fi = 0;
+      while (mi < males.length || fi < females.length) {
+        if (fi < females.length) interleaved.push(females[fi++]);
+        if (mi < males.length) interleaved.push(males[mi++]);
+      }
+
+      const shuffledSurvivors = interleaved;
+      const tribeSize = Math.floor(shuffledSurvivors.length / tribeCount);
+      let index = 0;
+
+      for (let i = 0; i < tribeCount; i++) {
+        const size = i === tribeCount - 1
+          ? shuffledSurvivors.length - index
+          : tribeSize;
+
+        const members = shuffledSurvivors.slice(index, index + size);
+        index += size;
+
+        tribes.push({
+          color: chosenColors[i],
+          name: shuffledNames[i],
+          members
+        });
+      }
+    }
+
+    tribes.forEach((tribe, i) => {
+      tribe.members.forEach(member => {
+        member.tribeId = i + 1;
+        member.tribeColor = tribe.color;
+      });
+    });
+
+    gameManager.tribes = tribes;
+    gameManager.survivors = tribes.flatMap(t => t.members);
+
     const playerTribeIndex = tribes.findIndex(tribe =>
-      tribe.members.some(m => m.id === playerSurvivor.id)
+      tribe.members.some(m => playerSurvivor && m.id === playerSurvivor.id)
     );
-    const [playerTribe] = tribes.splice(playerTribeIndex, 1);
-    tribes.unshift(playerTribe);
+    if (playerTribeIndex !== -1) {
+      const [playerTribe] = tribes.splice(playerTribeIndex, 1);
+      tribes.unshift(playerTribe);
+    }
 
     tribes.forEach(tribe => {
-      const tribeImage = createElement('img', {
-        src: `Assets/Tribe/${tribe.color}-portrait.png`,
+      const wrapper = createElement('div', {
+        className: 'tribe-wrapper',
         style: `
-          width: 100%;
-          max-width: 500px;
-          display: block;
-          margin: 30px auto 10px;
+          text-align: center;
+          margin-bottom: 40px;
+          position: relative;
+          display: inline-block;
         `
       });
 
-      const nameLabel = createElement('div', {
+      const nameLabel = createElement('h2', {
         style: `
-          text-align: center;
-          font-size: 22px;
-          font-weight: bold;
           font-family: 'Survivant', sans-serif;
-          color: white;
+          font-size: 2rem;
           margin-bottom: 10px;
+          color: ${tribe.color};
+          -webkit-text-stroke: 1px white;
+          text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
         `
       }, tribe.name);
 
-      const nameList = createElement('div', {
+      const image = createElement('img', {
+        src: `Assets/Tribe/${tribe.color}-portrait.png`,
+        alt: `${tribe.name} portrait`,
         style: `
-          text-align: center;
-          font-family: 'Survivant', sans-serif;
-          color: white;
-          font-size: 20px;
-          margin-bottom: 20px;
+          width: 100%;
+          max-width: 400px;
+          display: block;
+          margin: 0 auto;
+          position: relative;
+          z-index: 1;
         `
-      }, tribe.members.map(m => m.firstName).join(', '));
+      });
 
-      container.append(nameLabel, tribeImage, nameList);
+      const avatarGrid = createElement('div', {
+        style: `
+          position: absolute;
+          top: 33%;
+          left: 50%;
+          transform: translateX(-50%) scale(${tribeCount === 3 ? 1.1 : 1});
+          display: grid;
+          grid-template-columns: repeat(${tribeCount === 3 ? 2 : 3}, auto);
+          grid-template-rows: repeat(${tribeCount === 3 ? 3 : 3}, auto);
+          column-gap: 4px;
+          row-gap: 8px;
+          z-index: 2;
+        `
+      });
+
+      tribe.members.forEach(member => {
+        const wrapper = createElement('div', {
+          style: 'display: flex; flex-direction: column; align-items: center;'
+        });
+
+        const avatar = createElement('img', {
+          src: member.avatarUrl || `Assets/Avatars/${member.firstName.toLowerCase()}.jpeg`,
+          alt: member.firstName,
+          style: `
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid ${tribe.color};
+            background: #000;
+          `
+        });
+
+        const name = createElement('span', {
+          style: `
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.85rem;
+            color: white;
+            margin-top: 4px;
+            text-align: center;
+            text-shadow: 1px 1px 2px black;
+            width: 80px;
+            white-space: normal;
+            word-break: keep-all;
+            line-height: 1.1;
+          `
+        }, member.firstName.toUpperCase());
+
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(name);
+        avatarGrid.appendChild(wrapper);
+      });
+
+      wrapper.append(nameLabel, image, avatarGrid);
+      scrollWrapper.appendChild(wrapper);
     });
 
-    const day1Button = createElement('button', {
+    const button = createElement('button', {
       className: 'rect-button',
-      style: 'margin: 40px auto 80px; display: block;'
+      style: `
+        margin: 40px auto 80px;
+        display: block;
+        box-shadow: none;
+        filter: none;
+        font-size: 1.3rem;
+      `
     }, 'Begin Day 1');
 
-    container.appendChild(day1Button);
+    button.addEventListener('click', () => {
+      screenManager.showScreen('tribe-flag');
+    });
+
+    scrollWrapper.appendChild(button);
+    container.appendChild(scrollWrapper);
   }
 
   teardown() {

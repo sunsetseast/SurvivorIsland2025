@@ -25,7 +25,6 @@ export const GameState = {
   GAME_OVER: 'gameOver'
 };
 
-// Game phases
 export const GamePhase = {
   PRE_GAME: 'preGame',
   PRE_CHALLENGE: 'preChallenge',
@@ -79,18 +78,12 @@ class GameManager {
   }
 
   startNewGame(settings = {}) {
-    console.log('Starting new game');
     this.gameSettings = { ...this.gameSettings, ...settings };
     this.tribeCount = this.gameSettings.tribeCount;
     this.resetGameState();
-
-    // Ensure survivors are loaded before character selection
     this.survivors = [...GameData.getSurvivors()];
-
     this.setGameState(GameState.CHARACTER_SELECTION);
-    eventManager.publish(GameEvents.GAME_STARTED, {
-      settings: this.gameSettings
-    });
+    eventManager.publish(GameEvents.GAME_STARTED, { settings: this.gameSettings });
   }
 
   resetGameState() {
@@ -137,41 +130,43 @@ class GameManager {
     if (!survivor) return;
     survivor.isPlayer = true;
     this.player = survivor;
-    this.survivors = [...GameData.getSurvivors()];
-    this.createTribes();
     eventManager.publish(GameEvents.CHARACTER_SELECTED, { survivor });
     this.setGameState(GameState.TRIBE_DIVISION);
   }
 
   createTribes() {
     const survivors = [...this.survivors];
-    const tribeNames = GameData.getTribeNames();
-    if (survivors.length === 0) return;
+    const allTribeNames = GameData.getTribeNames();
+    const tribeCount = this.tribeCount;
+    const colorPool = ['red', 'orange', 'blue', 'purple', 'green'];
 
-    if (tribeNames.length < this.tribeCount) {
-      console.error('Not enough tribe names');
-      return;
+    // Shuffle tribe names and survivors
+    const shuffledNames = [...allTribeNames].sort(() => Math.random() - 0.5).slice(0, tribeCount);
+    const shuffledSurvivors = survivors.sort(() => Math.random() - 0.5);
+
+    // Ensure red + orange aren’t both selected
+    let chosenColors;
+    while (true) {
+      const shuffledColors = [...colorPool].sort(() => Math.random() - 0.5);
+      chosenColors = shuffledColors.slice(0, tribeCount);
+      if (!(chosenColors.includes('red') && chosenColors.includes('orange'))) break;
     }
 
     this.tribes = [];
-    for (let i = survivors.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [survivors[i], survivors[j]] = [survivors[j], survivors[i]];
-    }
 
-    const survivorsPerTribe = Math.floor(survivors.length / this.tribeCount);
-    let remaining = survivors.length % this.tribeCount;
+    const perTribe = Math.floor(survivors.length / tribeCount);
+    let remainder = survivors.length % tribeCount;
     let index = 0;
 
-    for (let i = 0; i < this.tribeCount; i++) {
-      const tribeSize = survivorsPerTribe + (remaining-- > 0 ? 1 : 0);
-      const members = survivors.slice(index, index + tribeSize);
-      index += tribeSize;
+    for (let i = 0; i < tribeCount; i++) {
+      const size = perTribe + (remainder-- > 0 ? 1 : 0);
+      const members = shuffledSurvivors.slice(index, index + size);
+      index += size;
 
       this.tribes.push({
         id: i + 1,
-        tribeName: tribeNames[i].name,
-        tribeColor: tribeNames[i].color,
+        tribeName: shuffledNames[i].name,
+        tribeColor: chosenColors[i],
         members,
         resources: { food: 25, water: 50, fire: 75, shelter: 60 },
         immunityWins: 0,

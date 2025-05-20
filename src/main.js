@@ -8,7 +8,8 @@ import {
   WelcomeScreen,
   CharacterSelectionScreen,
   TribeDivisionScreen,
-  CampScreen
+  CampScreen,
+  TribeFlagScreen
 } from './modules/screens/index.js';
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
@@ -40,6 +41,7 @@ function init() {
   screenManager.registerScreen('character-selection', new CharacterSelectionScreen());
   screenManager.registerScreen('tribe-division', new TribeDivisionScreen());
   screenManager.registerScreen('camp', new CampScreen());
+  screenManager.registerScreen('tribe-flag', new TribeFlagScreen());
   screenManager.initialize();
 
   // Show the welcome screen

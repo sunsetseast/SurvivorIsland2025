@@ -6,6 +6,7 @@
 import { getElement, createElement, clearChildren } from '../utils/index.js';
 import { gameManager, eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
+import { screenManager } from '../core/index.js'; // Make sure this is imported if not already
 
 export class WelcomeScreen {
   initialize() {
@@ -44,8 +45,7 @@ export class WelcomeScreen {
     const newGameButton = createElement('div', {
       className: 'rect-button',
       onclick: () => {
-        const tribePopup = getElement('tribe-popup');
-        tribePopup.style.display = 'flex';
+        screenManager.showScreen('character-selection'); // Adjust this if your first screen differs
       }
     }, 'New Game');
 
@@ -74,57 +74,6 @@ export class WelcomeScreen {
     menuContainer.appendChild(loadGameButton);
     menuContainer.appendChild(infoButton);
 
-    // Tribe popup
-    const tribePopup = createElement('div', {
-      id: 'tribe-popup',
-      style: {
-        display: 'none',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: '1rem',
-        zIndex: 999
-      }
-    });
-
-    const tribeModeTitle = createElement('h2', {
-      style: { color: '#fff', marginBottom: '1rem' }
-    }, 'Select Tribe Mode');
-
-    const twoTribeButton = createElement('button', {
-      className: 'rect-button',
-      onclick: () => {
-        gameManager.startNewGame({ tribeCount: 2 });
-        tribePopup.style.display = 'none';
-      }
-    }, '2 Tribes');
-
-    const threeTribeButton = createElement('button', {
-      className: 'rect-button',
-      onclick: () => {
-        gameManager.startNewGame({ tribeCount: 3 });
-        tribePopup.style.display = 'none';
-      }
-    }, '3 Tribes');
-
-    const closePopupButton = createElement('button', {
-      className: 'rect-button small',
-      onclick: () => {
-        tribePopup.style.display = 'none';
-      }
-    }, 'Cancel');
-
-    tribePopup.appendChild(tribeModeTitle);
-    tribePopup.appendChild(twoTribeButton);
-    tribePopup.appendChild(threeTribeButton);
-    tribePopup.appendChild(closePopupButton);
-
     const versionInfo = createElement('div', {
       className: 'version-info',
       style: {
@@ -137,7 +86,6 @@ export class WelcomeScreen {
     }, 'v1.0.0');
 
     welcomeScreen.appendChild(menuContainer);
-    welcomeScreen.appendChild(tribePopup);
     welcomeScreen.appendChild(versionInfo);
 
     eventManager.publish(GameEvents.SCREEN_CHANGED, { screenId: 'welcome', data });
@@ -151,7 +99,6 @@ export class WelcomeScreen {
       clearChildren(welcomeScreen);
     }
 
-    // Optional: reset background if needed
     const gameContainer = getElement('game-container');
     if (gameContainer) {
       gameContainer.style.backgroundImage = '';
@@ -160,7 +107,6 @@ export class WelcomeScreen {
       gameContainer.style.backgroundRepeat = '';
     }
 
-    // Remove lingering UI from other screens if any (like button-row, filter-options)
     const buttonRow = document.querySelector('.button-row');
     if (buttonRow) buttonRow.remove();
 

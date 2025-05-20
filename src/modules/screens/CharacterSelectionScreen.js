@@ -1,115 +1,126 @@
-/**
- * @module CharacterSelectionScreen
- * Character selection screen for the game (ES6+ class version)
- */
+  /**
+   * @module CharacterSelectionScreen
+   * Character selection screen for the game (ES6+ class version)
+   */
 
-import { getElement, createElement, clearChildren } from '../utils/index.js';
-import { gameManager, eventManager } from '../core/index.js';
-import { GameEvents } from '../core/EventManager.js';
-import gameData from '../data/index.js';
-import { setupScrollReveal } from '../utils/ScrollReveal.js';
+  import { getElement, createElement, clearChildren } from '../utils/index.js';
+  import { gameManager, eventManager } from '../core/index.js';
+  import { GameEvents } from '../core/EventManager.js';
+  import gameData from '../data/index.js';
+  import { setupScrollReveal } from '../utils/ScrollReveal.js';
 
-export default class CharacterSelectionScreen {
-  constructor() {
-    this.selectedCharacter = null;
-    this.availableSurvivors = [];
-    this.genderFilter = null;
-    this.traitClassFilter = null;
-  }
-
-  initialize() {
-    console.log('CharacterSelectionScreen initialized');
-    document.addEventListener('click', (e) => {
-      const filterOptions = getElement('filter-options');
-      const filterButton = getElement('filter-button');
-      filterButton.classList.add('rect-button');
-
-      // Delay checking for outside click until after button logic
-      setTimeout(() => {
-        if (!filterOptions.contains(e.target) && e.target !== filterButton) {
-          this._toggleFilterOptions(true);
-        }
-      }, 0);
-    });
-  }
-
-  setup(data = {}) {
-    const characterSelectionScreen = getElement('character-selection-screen');
-    const gameContainer = getElement('game-container');
-    if (!characterSelectionScreen || !gameContainer) return;
-
-    gameContainer.style.backgroundImage = "url('Assets/jungle1.png')";
-    gameContainer.style.backgroundSize = 'cover';
-    gameContainer.style.backgroundPosition = 'center';
-    gameContainer.style.backgroundRepeat = 'no-repeat';
-
-    document.querySelectorAll('.game-screen').forEach(screen => screen.classList.remove('active'));
-    characterSelectionScreen.classList.add('active');
-
-    clearChildren(characterSelectionScreen);
-    this.selectedCharacter = null;
-
-    try {
-      const survivors = gameData.getSurvivors();
-      this.availableSurvivors = Array.isArray(survivors) ? [...survivors] : [];
-    } catch (e) {
-      return;
+  export default class CharacterSelectionScreen {
+    constructor() {
+      this.selectedCharacter = null;
+      this.availableSurvivors = [];
+      this.genderFilter = null;
+      this.traitClassFilter = null;
     }
 
-    const survivorArea = createElement('div', { id: 'survivor-stack' });
-    this.availableSurvivors.forEach((survivor, index) => {
-      const card = this._createSurvivorCard(survivor, index);
-      survivorArea.appendChild(card);
-    });
+    initialize() {
+      console.log('CharacterSelectionScreen initialized');
+      document.addEventListener('click', (e) => {
+        const filterOptions = getElement('filter-options');
+        const filterButton = getElement('filter-button');
+        filterButton.classList.add('rect-button');
 
-    const filterOptions = createElement('div', { id: 'filter-options', className: 'hidden filter-options' });
-    ['all', 'male', 'female', 'physical', 'mental', 'social'].forEach(type => {
-      const optionBtn = createElement('button', {
-        onclick: () => this._applyFilter(type)
-      }, type.charAt(0).toUpperCase() + type.slice(1));
-      filterOptions.appendChild(optionBtn);
-    });
+        // Delay checking for outside click until after button logic
+        setTimeout(() => {
+          if (!filterOptions.contains(e.target) && e.target !== filterButton) {
+            this._toggleFilterOptions(true);
+          }
+        }, 0);
+      });
+    }
 
-    const buttonRow = createElement('div', { className: 'button-row', id: 'character-selection-buttons' });
+    setup(data = {}) {
+      const characterSelectionScreen = getElement('character-selection-screen');
+      const gameContainer = getElement('game-container');
+      if (!characterSelectionScreen || !gameContainer) return;
 
-    const backButton = createElement('button', {
-      id: 'back-button',
-      className: 'rect-button',
-      onclick: () => gameManager.setGameState('welcome')
-    }, 'Back');
+      gameContainer.style.backgroundImage = "url('Assets/jungle1.png')";
+      gameContainer.style.backgroundSize = 'cover';
+      gameContainer.style.backgroundPosition = 'center';
+      gameContainer.style.backgroundRepeat = 'no-repeat';
 
-    const continueButton = createElement('button', {
-      id: 'continue-button',
-      className: 'rect-button',
-      disabled: true,
-      onclick: () => {
-        if (this.selectedCharacter) {
-          gameManager.selectCharacter(this.selectedCharacter);
-        }
+      document.querySelectorAll('.game-screen').forEach(screen => screen.classList.remove('active'));
+      characterSelectionScreen.classList.add('active');
+
+      clearChildren(characterSelectionScreen);
+      this.selectedCharacter = null;
+
+      try {
+        const survivors = gameData.getSurvivors();
+        this.availableSurvivors = Array.isArray(survivors)
+        ? [...survivors].sort(() => Math.random() - 0.5)
+        : [];
+      } catch (e) {
+        return;
       }
-    }, 'Continue');
 
-    const filterButton = createElement('button', {
-      id: 'filter-button',
-      className: 'rect-button',
-      onclick: () => this._toggleFilterOptions()
-    }, 'Filter');
+      const survivorArea = createElement('div', { id: 'survivor-stack' });
+      this.availableSurvivors.forEach((survivor, index) => {
+        const card = this._createSurvivorCard(survivor, index);
+        survivorArea.appendChild(card);
+      });
 
-    buttonRow.appendChild(backButton);
-    buttonRow.appendChild(continueButton);
-    buttonRow.appendChild(filterButton);
+      const filterOptions = createElement('div', { id: 'filter-options', className: 'hidden filter-options' });
+      ['all', 'male', 'female', 'physical', 'mental', 'social'].forEach(type => {
+        const optionBtn = createElement('button', {
+          onclick: () => this._applyFilter(type)
+        }, type.charAt(0).toUpperCase() + type.slice(1));
+        filterOptions.appendChild(optionBtn);
+      });
 
-    characterSelectionScreen.appendChild(survivorArea);
-    gameContainer.appendChild(filterOptions);
-    gameContainer.appendChild(buttonRow);
+      const buttonRow = createElement('div', { className: 'button-row', id: 'character-selection-buttons' });
 
-    setupScrollReveal();
+      const backButton = createElement('button', {
+        id: 'back-button',
+        className: 'rect-button',
+        onclick: () => gameManager.setGameState('welcome')
+      }, 'Back');
 
-    eventManager.publish(GameEvents.SCREEN_CHANGED, {
-      screenId: 'characterSelection',
-      data
-    });
-  }
+      const continueButton = createElement('button', {
+        id: 'continue-button',
+        className: 'rect-button',
+        disabled: true,
+        onclick: () => {
+          // Ensure gameManager.survivors is initialized BEFORE selecting character
+          gameManager.survivors = [...gameData.getSurvivors()];
+          const selectedCard = document.querySelector('.survivor-card.selected');
+          if (selectedCard) {
+            const selectedId = selectedCard.dataset.id;
+            const selectedSurvivor = gameManager.survivors.find(s => s.id.toString() === selectedId);
+            if (selectedSurvivor) {
+              this.selectedCharacter = selectedSurvivor; // now properly from gameManager.survivors
+              gameManager.selectCharacter(this.selectedCharacter);
+            
+            }
+          }
+        }
+      }, 'Continue');
+
+      const filterButton = createElement('button', {
+        id: 'filter-button',
+        className: 'rect-button',
+        onclick: () => this._toggleFilterOptions()
+      }, 'Filter');
+
+      buttonRow.appendChild(backButton);
+      buttonRow.appendChild(continueButton);
+      buttonRow.appendChild(filterButton);
+
+      characterSelectionScreen.appendChild(survivorArea);
+      gameContainer.appendChild(filterOptions);
+      gameContainer.appendChild(buttonRow);
+
+      setupScrollReveal();
+
+      eventManager.publish(GameEvents.SCREEN_CHANGED, {
+        screenId: 'characterSelection',
+        data
+      });
+    }
 
   _createSurvivorCard(survivor, index) {
     const cardWrapper = createElement('div', { className: 'card-wrapper' });
