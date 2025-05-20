@@ -21,9 +21,20 @@ export default class TribeFlagScreen {
     container.style.backgroundRepeat = 'no-repeat';
 
     const playerSurvivor = gameManager.getPlayerSurvivor();
+
+    if (!playerSurvivor) {
+      console.error('TribeFlagScreen: No player survivor found.');
+      return;
+    }
+
     const playerTribe = gameManager.tribes.find(tribe =>
       tribe.members.some(m => m.id === playerSurvivor.id)
     );
+
+    if (!playerTribe) {
+      console.error('TribeFlagScreen: Player tribe not found.');
+      return;
+    }
 
     const wrapper = createElement('div', {
       className: 'tribe-wrapper',
