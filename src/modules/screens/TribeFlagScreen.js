@@ -12,6 +12,11 @@ export default class TribeFlagScreen {
   }
 
   setup(data = {}) {
+
+    console.log('setup() called');
+    const test = document.getElementById('tribe-flag-screen');
+    console.log('tribe-flag-screen found:', test);
+    
     const container = getElement('tribe-flag-screen');
     clearChildren(container);
 
