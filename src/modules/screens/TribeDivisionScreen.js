@@ -434,6 +434,10 @@ export default class TribeDivisionScreen {
       addDebugBanner('Attempting to load camp screen', 'purple', 30);
 
       try {
+        // Reveal hamburger icon
+        const hamburger = document.getElementById('hamburger-icon');
+        if (hamburger) hamburger.style.display = 'block';
+
         screenManager.showScreen('camp');
         addDebugBanner('screenManager.showScreen(camp) finished', 'gold', 50);
       } catch (e) {

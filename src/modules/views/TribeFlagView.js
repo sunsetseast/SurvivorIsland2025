@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import screenManager from '../core/ScreenManager.js';
 
 export default function renderTribeFlag(container) {
   console.log('renderTribeFlag() called');
@@ -65,7 +66,7 @@ export default function renderTribeFlag(container) {
   const tribeNameOverlay = createElement('div', {
     style: `
       position: absolute;
-      top: 8%;
+      top: 15%;
       left: 50%;
       transform: translateX(-50%);
       color: white;
@@ -81,7 +82,7 @@ export default function renderTribeFlag(container) {
   const isTwoTribeMode = memberCount === 9;
   const isThreeTribeMode = memberCount === 6;
 
-  const topOffset = isTwoTribeMode ? '23%' : '23%';
+  const topOffset = isTwoTribeMode ? '27%' : '28%';
   const scaleValue = isTwoTribeMode ? 0.9 : 1.05;
   const columns = isTwoTribeMode ? 3 : 2;
 
@@ -103,7 +104,7 @@ export default function renderTribeFlag(container) {
   const bottomOverlay = createElement('div', {
     style: `
       position: absolute;
-      bottom: 10%;
+      bottom: 17%;
       left: 50%;
       transform: translateX(-50%);
       color: white;
@@ -164,6 +165,56 @@ export default function renderTribeFlag(container) {
 
   wrapper.append(tribeImage, tribeNameOverlay, avatarGrid, bottomOverlay);
   container.appendChild(wrapper);
+
+  // --- Action Bar Buttons ---
+  const actionButtons = document.getElementById('action-buttons');
+  if (actionButtons) {
+    clearChildren(actionButtons);
+
+    actionButtons.style.justifyContent = 'space-between';
+    actionButtons.style.padding = '0 40px';
+
+    const createIconButton = (src, alt, onClick) => {
+      const wrapper = createElement('div', {
+        style: `
+          width: 240px;
+          height: 135px;
+          display: inline-block;
+          overflow: hidden;
+          cursor: pointer;
+        `
+      });
+
+      const image = createElement('img', {
+        src,
+        alt,
+        style: `
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: contain;
+          pointer-events: none;
+        `
+      });
+
+      wrapper.appendChild(image);
+      wrapper.addEventListener('click', onClick);
+      return wrapper;
+    };
+
+    const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
+      console.log('Left button clicked');
+      screenManager.screens['camp'].loadView('beach');
+    });
+
+    const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
+      console.log('Right button clicked');
+      // You can update this to load another view when ready
+    });
+
+    actionButtons.appendChild(leftButton);
+    actionButtons.appendChild(rightButton);
+  }
 
   addDebugBanner('Tribe flag view rendered!', 'limegreen', 170);
 }

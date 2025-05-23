@@ -41,7 +41,11 @@ function init() {
   screenManager.registerScreen('welcome', new WelcomeScreen());
   screenManager.registerScreen('character-selection', new CharacterSelectionScreen());
   screenManager.registerScreen('tribe-division', new TribeDivisionScreen());
-  screenManager.registerScreen('camp', new CampScreen());
+
+  const campScreenInstance = new CampScreen();
+  screenManager.registerScreen('camp', campScreenInstance);
+  window.campScreen = campScreenInstance;
+
   screenManager.initialize();
 
   // Show the welcome screen

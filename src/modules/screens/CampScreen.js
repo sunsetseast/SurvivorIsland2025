@@ -1,10 +1,12 @@
 import { getElement, clearChildren } from '../utils/index.js';
 import renderTribeFlag from '../views/TribeFlagView.js';
+import renderBeach from '../views/BeachView.js';
+import renderRockyShore from '../views/RockyShoreView.js';
 
 const campViews = {
   flag: renderTribeFlag,
-  // shelter: renderShelter,
-  // jungle: renderJungle,
+  beach: renderBeach,
+  rocky: renderRockyShore
 };
 
 export default class CampScreen {

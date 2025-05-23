@@ -732,13 +732,6 @@ body {
     padding-bottom: 10px;
 }
 
-#action-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin: 15px 0;
-}
-
 .camp-menu {
     display: flex;
     justify-content: space-around;
@@ -989,36 +982,18 @@ body {
 
 /* Hamburger Menu */
 #hamburger-icon {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 35px;
-    height: 28px;
-    cursor: pointer;
-    z-index: 10;
-}
-
-#hamburger-icon .bar1, 
-#hamburger-icon .bar2, 
-#hamburger-icon .bar3 {
-    width: 35px;
-    height: 5px;
-    background-color: #e67700; /* Tribal torch orange */
-    margin: 6px 0;
-    transition: 0.4s;
-    border-radius: 2px;
-}
-
-#hamburger-icon.change .bar1 {
-    transform: rotate(-45deg) translate(-8px, 6px);
-}
-
-#hamburger-icon.change .bar2 {
-    opacity: 0;
-}
-
-#hamburger-icon.change .bar3 {
-    transform: rotate(45deg) translate(-8px, -8px);
+    display: none;
+  background-image: url('Assets/Buttons/menu.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 100px;
+  height: 70px;
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 10;
+  cursor: pointer;
 }
 
 #game-menu {
@@ -2305,12 +2280,12 @@ body {
 
 #action-buttons {
   position: absolute;
-  bottom: 0;
+  bottom: 5px;
   width: 100%;
   height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 20px;
+  gap: 40px;
   pointer-events: auto;
 }
