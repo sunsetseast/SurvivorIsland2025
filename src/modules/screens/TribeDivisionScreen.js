@@ -3,7 +3,7 @@
  * Combined Marooning + Tribe Division Screen
  */
 
-import { getElement, createElement, clearChildren } from '../utils/index.js';
+import { getElement, createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager, screenManager } from '../core/index.js';
 import gameData from '../data/index.js';
 
@@ -13,7 +13,7 @@ export default class TribeDivisionScreen {
   }
 
   setup(data = {}) {
-    const container = getElement('game-container');
+    const container = getElement('tribe-division-screen');
     clearChildren(container);
 
     container.style.backgroundImage = "url('Assets/marooning.jpeg')";
@@ -313,6 +313,7 @@ export default class TribeDivisionScreen {
 
     gameManager.tribes = tribes;
     gameManager.survivors = tribes.flatMap(t => t.members);
+    gameManager.player = gameManager.survivors.find(s => s.isPlayer);
 
     const playerTribeIndex = tribes.findIndex(tribe =>
       tribe.members.some(m => playerSurvivor && m.id === playerSurvivor.id)
@@ -425,8 +426,20 @@ export default class TribeDivisionScreen {
       `
     }, 'Begin Day 1');
 
+    button.style.border = '4px solid lime';
+
     button.addEventListener('click', () => {
-      screenManager.showScreen('tribe-flag');
+      console.log('Begin Day 1 clicked');
+      addDebugBanner('Begin Day 1 clicked', 'purple', 40);
+      addDebugBanner('Attempting to load camp screen', 'purple', 30);
+
+      try {
+        screenManager.showScreen('camp');
+        addDebugBanner('screenManager.showScreen(camp) finished', 'gold', 50);
+      } catch (e) {
+        console.error('Error showing camp screen:', e);
+        addDebugBanner(`ERROR: ${e.message}`, 'red', 60);
+      }
     });
 
     scrollWrapper.appendChild(button);

@@ -79,94 +79,19 @@
 
     <!-- Camp Screen -->
     <div id="camp-screen" class="game-screen">
-      <div class="camp-header">
-        <h2 id="tribe-name"></h2>
-        <div class="day-display">Day <span id="day-number">1</span></div>
-        <div class="energy-display">
-          Energy: <span id="energy-value">3</span>/<span id="max-energy">3</span>
-        </div>
-      </div>
-      <div class="resources-container">
-        <div class="resource">
-          <label>Fire:</label>
-          <div class="progress-bar">
-            <div id="fire-bar" class="progress-fill"></div>
-          </div>
-          <span id="fire-value">50</span>
-        </div>
-        <div class="resource">
-          <label>Water:</label>
-          <div class="progress-bar">
-            <div id="water-bar" class="progress-fill"></div>
-          </div>
-          <span id="water-value">50</span>
-        </div>
-        <div class="resource">
-          <label>Food:</label>
-          <div class="progress-bar">
-            <div id="food-bar" class="progress-fill"></div>
-          </div>
-          <span id="food-value">50</span>
-        </div>
-        <div class="resource">
-          <label>Tribe Health:</label>
-          <div class="progress-bar">
-            <div id="tribe-health-bar" class="progress-fill"></div>
-          </div>
-          <span id="tribe-health-value">100</span>
-        </div>
-        <div class="resource">
-          <label>Your Health:</label>
-          <div class="progress-bar">
-            <div id="player-health-bar" class="progress-fill"></div>
-          </div>
-          <span id="player-health-value">100</span>
-        </div>
-      </div>
+      <div id="camp-content"></div>
 
-      <div class="health-actions">
-        <h3>Personal Health</h3>
-        <div class="health-actions-buttons">
-          <button id="eat-button" class="action-button">Eat (-10 Tribe Food)</button>
-          <button id="drink-button" class="action-button">Drink (-10 Tribe Water)</button>
-          <button id="personal-rest-button" class="action-button">Rest (Uses Fire)</button>
+      <!-- Action Bar -->
+      <div id="camp-action-bar">
+        <img src="Assets/button-row.jpeg" id="action-bar-bg" />
+        <div id="action-buttons">
+          <!-- Buttons will be injected here -->
         </div>
-      </div>
-
-      <div class="camp-locations">
-        <h3>Locations</h3>
-        <div id="location-buttons"></div>
-      </div>
-      <div id="location-actions" class="hidden">
-        <h3 id="location-name"></h3>
-        <p id="location-description"></p>
-        <div id="action-buttons"></div>
-        <button id="back-to-locations-button" class="small-button">Back</button>
-      </div>
-
-      <div class="camp-menu">
-        <button id="view-relationships-button" class="menu-button">Relationships</button>
-        <button id="view-alliances-button" class="menu-button">Alliances</button>
-        <button id="proceed-to-challenge-button" class="menu-button">Next Phase</button>
       </div>
     </div>
 
     <!-- Tribal Council Screen -->
-    <div id="tribal-council-screen" class="game-screen">
-      <h2>Tribal Council</h2>
-      <p id="tribal-instruction">Vote for a tribe member to eliminate:</p>
-      <div id="voting-grid"></div>
-      <button id="cast-vote-button" class="big-button" disabled>Cast Vote</button>
-      <div id="idol-play-container">
-        <button id="play-idol-button" class="menu-button hidden">Play Hidden Immunity Idol</button>
-      </div>
-      <div id="vote-results" class="hidden">
-        <h3>Vote Results</h3>
-        <div id="votes-container"></div>
-        <p id="elimination-text"></p>
-        <button id="continue-after-vote-button" class="big-button">Continue</button>
-      </div>
-    </div>
+    <div id="tribal-council-screen" class="game-screen"></div>
 
     <!-- Fire Making Challenge Screen -->
     <div id="fire-making-challenge-screen" class="game-screen">
@@ -174,16 +99,7 @@
     </div>
 
     <!-- Dialogue System -->
-    <div id="dialogue-container" class="hidden">
-      <div class="dialogue-box">
-        <div class="dialogue-header">
-          <div class="speaker-portrait"></div>
-          <h3 id="speaker-name"></h3>
-        </div>
-        <p id="dialogue-text"></p>
-        <div id="dialogue-choices"></div>
-      </div>
-    </div>
+    <div id="dialogue-container" class="hidden"></div>
   </div>
 
   <!-- Show red banner if main.js fails -->

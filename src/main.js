@@ -2,17 +2,18 @@
  * Main entry point for the Survivor Island game
  * Initializes game systems and starts the game
  */
-window.mainJsLoaded = true;
+
 import { gameManager, screenManager, eventManager, GameEvents } from './modules/core/index.js';
 import {
   WelcomeScreen,
   CharacterSelectionScreen,
   TribeDivisionScreen,
-  CampScreen,
-  TribeFlagScreen
+  CampScreen
 } from './modules/screens/index.js';
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
+
+window.mainJsLoaded = true;
 
 // Game constants
 const GAME_TITLE = 'Survivor Island';
@@ -41,7 +42,6 @@ function init() {
   screenManager.registerScreen('character-selection', new CharacterSelectionScreen());
   screenManager.registerScreen('tribe-division', new TribeDivisionScreen());
   screenManager.registerScreen('camp', new CampScreen());
-  screenManager.registerScreen('tribe-flag', new TribeFlagScreen());
   screenManager.initialize();
 
   // Show the welcome screen

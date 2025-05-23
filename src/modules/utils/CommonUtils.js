@@ -200,3 +200,35 @@ export function slugify(str) {
 export function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+
+/**
+ * Add a temporary debug banner to the screen for visual feedback
+ * @param {string} message - The text to display
+ * @param {string} [bgColor='rgba(0,0,0,0.8)'] - The background color
+ * @param {number} [top=20] - The top offset in pixels
+ */
+export function addDebugBanner(message, bgColor = 'rgba(0,0,0,0.8)', top = 20) {
+  const banner = document.createElement('div');
+  banner.textContent = message;
+  banner.style.cssText = `
+    position: fixed;
+    top: ${top}px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: ${bgColor};
+    color: white;
+    font-family: sans-serif;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    z-index: 9999;
+    pointer-events: none;
+    box-shadow: 0 0 4px black;
+  `;
+  document.body.appendChild(banner);
+
+  setTimeout(() => {
+    banner.remove();
+  }, 3000);
+}

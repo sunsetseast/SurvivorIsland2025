@@ -5,6 +5,7 @@
 
 import { getElement, clearChildren, showElement, hideElement } from '../utils/DOMUtils.js';
 import eventManager, { GameEvents } from './EventManager.js';
+import { addDebugBanner } from '../utils/index.js';
 
 class ScreenManager {
   constructor() {
@@ -63,20 +64,22 @@ class ScreenManager {
 
     if (!screen) {
       console.error(`Screen ${screenId} not found`);
+      addDebugBanner(`Screen ${screenId} not found`, 'red', 20);
       return;
     }
 
     const screenElement = getElement(`${screenId}-screen`);
     if (!screenElement) {
       console.error(`Screen element #${screenId}-screen not found`);
+      addDebugBanner(`Element #${screenId}-screen not found`, 'red', 30);
       return;
     }
 
-    this._hideAllScreens();
+    this._hideAllScreens(); // hide all other screens
 
-    if (this.currentScreen) {
+    if (this.currentScreen && this.screens[this.currentScreen]) {
       const prevScreen = this.screens[this.currentScreen];
-      if (prevScreen && typeof prevScreen.teardown === 'function') {
+      if (typeof prevScreen.teardown === 'function') {
         try {
           prevScreen.teardown();
         } catch (error) {
@@ -93,19 +96,22 @@ class ScreenManager {
 
     this.currentScreen = screenId;
 
-    const transition = options.transition || this.defaultTransition;
-    const transitionFn = this.transitions[transition] || this.transitions.none;
-    transitionFn(screenElement, () => {
-      try {
-        screen.setup(data);
-      } catch (error) {
-        console.error(`Error in screen setup for ${screenId}:`, error);
-      }
+    // Force show and run setup immediately — skip animations for now
+    showElement(screenElement);
+    screenElement.style.opacity = '1';
+    screenElement.style.transition = '';
 
-      eventManager.publish(GameEvents.SCREEN_CHANGED, {
-        screenId,
-        data
-      });
+    try {
+      screen.setup(data);
+      addDebugBanner(`✅ setup() executed for ${screenId}`, 'lime', 50);
+    } catch (error) {
+      console.error(`Error in screen setup for ${screenId}:`, error);
+      addDebugBanner(`ERROR in setup(): ${error.message}`, 'red', 60);
+    }
+
+    eventManager.publish(GameEvents.SCREEN_CHANGED, {
+      screenId,
+      data
     });
   }
 
@@ -175,15 +181,24 @@ class ScreenManager {
   }
 
   _fadeTransition(element, callback) {
-    showElement(element); // Ensure it's visible before setup
-    element.style.opacity = '0';
-    element.style.transition = 'opacity 0.3s ease';
-    element.offsetHeight; // force reflow
-    element.style.opacity = '1';
-    setTimeout(() => {
-      element.style.transition = '';
-      callback();
-    }, 300);
+    try {
+      showElement(element); // Ensure it's visible before setup
+      element.style.opacity = '0';
+      element.style.transition = 'opacity 0.3s ease';
+      element.offsetHeight; // force reflow
+      element.style.opacity = '1';
+
+      // Add fallback to force callback even if animation is blocked
+      setTimeout(() => {
+        element.style.transition = '';
+        if (typeof callback === 'function') {
+          callback();
+        }
+      }, 300);
+    } catch (error) {
+      console.error('Fade transition error:', error);
+      if (typeof callback === 'function') callback();
+    }
   }
 
   _slideTransition(element, callback) {
