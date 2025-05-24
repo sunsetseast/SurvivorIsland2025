@@ -12,7 +12,7 @@ export default function renderRockyShore(container) {
 
   clearChildren(container);
 
-  container.style.backgroundImage = "url('Assets/Screens/rocky.PNG')";
+  container.style.backgroundImage = "url('Assets/Screens/rocky.png')";
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
@@ -47,18 +47,22 @@ export default function renderRockyShore(container) {
   container.appendChild(wrapper);
 
   // --- Action Bar Buttons ---
+  // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
+
     actionButtons.style.justifyContent = 'center';
     actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 240px;
-          height: 135px;
-          display: inline-block;
+          width: 140px;
+          height: 80px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
           overflow: hidden;
           cursor: pointer;
         `
@@ -68,11 +72,11 @@ export default function renderRockyShore(container) {
         src,
         alt,
         style: `
-          width: 100%;
-          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          width: auto;
+          height: auto;
           display: block;
-          object-fit: contain;
-          pointer-events: none;
         `
       });
 
@@ -88,6 +92,6 @@ export default function renderRockyShore(container) {
 
     actionButtons.appendChild(downButton);
   }
-
+  
   addDebugBanner('Rocky Shore view rendered!', 'darkslategray', 170);
 }

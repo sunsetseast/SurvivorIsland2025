@@ -1,24 +1,24 @@
 /**
- * @module BeachView
- * Renders the beach screen inside the Camp Phase
+ * @module ForktwView
+ * Renders the Fork in the Trail screen inside the Camp Phase
  */
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
-import { gameManager, screenManager } from '../core/index.js';
+import { gameManager } from '../core/index.js';
 
-export default function renderBeach(container) {
-  console.log('renderBeach() called');
-  addDebugBanner('renderBeach() called', 'skyblue', 40);
+export default function renderForktw(container) {
+  console.log('renderForktw() called');
+  addDebugBanner('renderForktw() called', 'orchid', 40);
 
   clearChildren(container);
 
-  container.style.backgroundImage = "url('Assets/Screens/beach.png')";
+  container.style.backgroundImage = "url('Assets/Screens/forktw.png')";
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
 
   const wrapper = createElement('div', {
-    className: 'beach-wrapper',
+    className: 'forktw-wrapper',
     style: `
       position: relative;
       width: 100%;
@@ -41,7 +41,7 @@ export default function renderBeach(container) {
       padding: 20px;
       z-index: 2;
     `
-  }, 'Welcome to the Beach! Chill, fish, and bond with your tribe.');
+  }, 'You reach a fork in the trail...');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
@@ -51,14 +51,15 @@ export default function renderBeach(container) {
   if (actionButtons) {
     clearChildren(actionButtons);
 
-    actionButtons.style.justifyContent = 'space-between';
-    actionButtons.style.padding = '0 40px';
+    actionButtons.style.justifyContent = 'center';
+    actionButtons.style.gap = '20px';
+    actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 240px;
-          height: 135px;
+          width: 260px;
+          height: 150px;
           display: inline-block;
           overflow: hidden;
           cursor: pointer;
@@ -78,23 +79,27 @@ export default function renderBeach(container) {
       });
 
       wrapper.appendChild(image);
-      wrapper.addEventListener('click', onClick);
+      if (onClick) wrapper.addEventListener('click', onClick);
       return wrapper;
     };
 
-    const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
-      console.log('Up button clicked - going to Rocky Shore');
-      window.campScreen.loadView('rocky');
+    const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
+      console.log('Left button clicked - TBD');
+    });
+
+    const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
+      console.log('Down button clicked - returning to Shelter');
+      window.campScreen.loadView('shelter');
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - returning to Tribe Flag');
-      window.campScreen.loadView('flag');
+      console.log('Right button clicked - TBD');
     });
 
-    actionButtons.appendChild(upButton);
+    actionButtons.appendChild(leftButton);
+    actionButtons.appendChild(downButton);
     actionButtons.appendChild(rightButton);
   }
 
-  addDebugBanner('Beach view rendered!', 'deepskyblue', 170);
+  addDebugBanner('Forktw view rendered!', 'orchid', 170);
 }

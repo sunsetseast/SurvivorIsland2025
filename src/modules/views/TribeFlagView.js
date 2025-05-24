@@ -208,8 +208,8 @@ export default function renderTribeFlag(container) {
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked');
-      // You can update this to load another view when ready
+      console.log('Right button clicked - loading Campfire');
+      window.campScreen.loadView('campfire');
     });
 
     actionButtons.appendChild(leftButton);
