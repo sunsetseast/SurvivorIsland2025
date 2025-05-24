@@ -97,5 +97,7 @@ export default function renderShelter(container) {
   actionButtons.appendChild(leftButton);
   actionButtons.appendChild(blankButton);
   actionButtons.appendChild(downButton);
+  }
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
+}
 }
