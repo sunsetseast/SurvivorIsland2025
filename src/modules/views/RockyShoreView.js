@@ -1,3 +1,4 @@
+
 /**
  * @module RockyShoreView
  * Renders the rocky shore screen inside the Camp Phase
@@ -41,17 +42,15 @@ export default function renderRockyShore(container) {
       padding: 20px;
       z-index: 2;
     `
-  }, 'You’ve reached the Rocky Shore. A quiet, reflective spot on the island.');
+  }, 'You've reached the Rocky Shore. A quiet, reflective spot on the island.');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
   // --- Action Bar Buttons ---
-  // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-
     actionButtons.style.justifyContent = 'center';
     actionButtons.style.padding = '0';
 
