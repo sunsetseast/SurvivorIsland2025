@@ -89,15 +89,13 @@ export default function renderShelter(container) {
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+  const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
+    console.log('Down button clicked — loading Fork1 View');
+    window.campScreen.loadView('fork1');
+  });
 
-    const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-      console.log('Down button clicked — returning to Shelter View');
-      window.campScreen.loadView('forktw');
-    });
-
-    actionButtons.appendChild(leftButton);
-    actionButtons.appendChild(blankButton);
-    actionButtons.appendChild(downButton);
-
-    addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
-  }
+  actionButtons.appendChild(leftButton);
+  actionButtons.appendChild(blankButton);
+  actionButtons.appendChild(downButton);
+  addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
+}

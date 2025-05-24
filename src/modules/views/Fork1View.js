@@ -1,24 +1,24 @@
 /**
- * @module ForktwView
+ * @module Fork1View
  * Renders the Fork in the Trail screen inside the Camp Phase
  */
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 
-export default function renderForktw(container) {
-  console.log('renderForktw() called');
-  addDebugBanner('renderForktw() called', 'orchid', 40);
+export default function renderFork1(container) {
+  console.log('renderFork1() called');
+  addDebugBanner('renderFork1() called', 'orchid', 40);
 
   clearChildren(container);
 
-  container.style.backgroundImage = "url('Assets/Screens/forktw.png')";
+  container.style.backgroundImage = "url('Assets/Screens/fork1.png')";
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
 
   const wrapper = createElement('div', {
-    className: 'forktw-wrapper',
+    className: 'fork-wrapper',
     style: `
       position: relative;
       width: 100%;
@@ -101,5 +101,5 @@ export default function renderForktw(container) {
     actionButtons.appendChild(rightButton);
   }
 
-  addDebugBanner('Forktw view rendered!', 'orchid', 170);
+  addDebugBanner('Fork1 view rendered!', 'orchid', 170);
 }

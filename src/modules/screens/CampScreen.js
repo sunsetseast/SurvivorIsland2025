@@ -4,7 +4,7 @@ import renderBeach from '../views/BeachView.js';
 import renderRockyShore from '../views/RockyShoreView.js';
 import renderCampfire from '../views/CampfireView.js';
 import renderShelter from '../views/ShelterView.js';
-import renderForktw from '../views/ForktwView.js'; // Renamed to match file
+import renderFork1 from '../views/Fork1View.js';
 
 const campViews = {
   flag: renderTribeFlag,
@@ -12,7 +12,7 @@ const campViews = {
   rocky: renderRockyShore,
   campfire: renderCampfire,
   shelter: renderShelter,
-  forktw: renderForktw // Updated reference
+  fork1: renderFork1
 };
 
 export default class CampScreen {
