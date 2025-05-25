@@ -100,4 +100,3 @@ export default function renderShelter(container) {
   }
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
-}

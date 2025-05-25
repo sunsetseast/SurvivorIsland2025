@@ -163,17 +163,6 @@ button:disabled {
     border-radius: 6px;
 }
 
-.menu-button {
-    display: inline-block;
-    margin: 5px;
-    background: linear-gradient(to bottom, #2d8a50, #216b3d); /* Jungle green */
-    border: 1px solid #3aa866;
-}
-
-.menu-button:hover {
-    background: linear-gradient(to bottom, #36a45f, #297a47);
-}
-
 .progress-bar {
     width: 100%;
     height: 15px;
@@ -636,115 +625,6 @@ body {
     box-shadow: none;
 }
 
-.camp-locations {
-    margin: 25px 0;
-}
-
-.camp-locations h3 {
-    position: relative;
-    display: inline-block;
-    padding-bottom: 8px;
-    margin-bottom: 20px;
-}
-
-.camp-locations h3::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: linear-gradient(to right, #8d5524, #b89064, #8d5524);
-    border-radius: 3px;
-}
-
-#location-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    margin-top: 15px;
-}
-
-.location-button {
-    flex: 1;
-    min-width: 120px;
-    padding: 12px 15px;
-    background: linear-gradient(to bottom, rgba(233, 216, 193, 0.9), rgba(184, 144, 100, 0.8));
-    border: 2px solid #8d5524;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.3s;
-    text-align: center;
-    font-weight: bold;
-    color: #5a3921;
-    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    position: relative;
-    overflow: hidden;
-}
-
-.location-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url("data:image/svg+xml,%3Csvg width='20' height='12' viewBox='0 0 20 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 12c0-.622-.095-1.221-.27-1.785A5.982 5.982 0 0 0 10 12c1.67 0 3.182-.683 4.27-1.785A5.998 5.998 0 0 0 14 12h2a4 4 0 0 1 4-4V6c-1.67 0-3.182.683-4.27 1.785C15.905 7.22 16 6.622 16 6c0-.622-.095-1.221-.27-1.785A5.982 5.982 0 0 0 20 6V4a4 4 0 0 1-4-4h-2c0 .622.095 1.221.27 1.785A5.982 5.982 0 0 0 10 0C8.33 0 6.818.683 5.73 1.785 5.905 1.22 6 .622 6 0H4a4 4 0 0 1-4 4v2c1.67 0 3.182-.683 4.27-1.785C4.095 4.78 4 5.378 4 6c0 .622.095 1.221.27 1.785A5.982 5.982 0 0 0 0 6v2a4 4 0 0 1 4 4h2zm-4 0a2 2 0 0 0-2-2v2h2zm16 0a2 2 0 0 1 2-2v2h-2zM0 2a2 2 0 0 0 2-2H0v2zm20 0a2 2 0 0 1-2-2h2v2zm-10 8a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0-2a2 2 0 1 1 0-4 2 2 0 0 1 0 4z' fill='%238d5524' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
-    opacity: 0.5;
-}
-
-.location-button:hover {
-    transform: translateY(-3px) scale(1.03);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-    background: linear-gradient(to bottom, rgba(233, 216, 193, 1), rgba(184, 144, 100, 0.9));
-}
-
-.location-button:active {
-    transform: translateY(1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.location-button.selected {
-    background: linear-gradient(to bottom, rgba(184, 144, 100, 0.9), rgba(141, 85, 36, 0.8));
-    color: #fff;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
-    border-color: #5a3921;
-    box-shadow: 0 0 15px rgba(141, 85, 36, 0.4);
-}
-
-#location-actions {
-    background-color: rgba(233, 216, 193, 0.8);
-    background-image: url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%238d5524' fill-opacity='0.08'%3E%3Cpath d='M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95l8.486 8.486-1.414 1.414-8.486-8.486 1.414-1.414z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 25px;
-    border: 3px solid #b89064;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-    position: relative;
-}
-
-#location-actions h3 {
-    color: #5a3921;
-    margin-top: 0;
-    margin-bottom: 15px;
-    border-bottom: 2px solid rgba(141, 85, 36, 0.3);
-    padding-bottom: 10px;
-}
-
-.camp-menu {
-    display: flex;
-    justify-content: space-around;
-    margin-top: 35px;
-    flex-wrap: wrap;
-    gap: 15px;
-    background: rgba(233, 216, 193, 0.6);
-    padding: 20px;
-    border-radius: 12px;
-    border: 2px solid #b89064;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
 /* Tribal Council */
 #tribal-council-screen {
     background-color: #1e2124;
@@ -996,64 +876,43 @@ body {
   cursor: pointer;
 }
 
-#game-menu {
-    position: fixed;
-    top: 0;
-    right: -350px;
-    width: 350px;
-    height: 100%;
-    background-color: #ffffff;
-    box-shadow: -3px 0 15px rgba(0, 0, 0, 0.2);
-    transition: right 0.3s ease;
-    z-index: 9;
-    overflow-y: auto;
+#menu-card {
+  display: none;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 300px; /* Adjusted scale */
+  height: auto;
+  z-index: 999;
 }
 
-#game-menu.active {
-    right: 0;
+#menu-card-bg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
-#game-menu.hidden {
-    right: -350px;
+#menu-avatar {
+  position: absolute;
+  top: 45px;
+  left: 35px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid white;
+  z-index: 2;
 }
 
-.menu-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background-color: #e67700; /* Tribal torch orange */
-    color: white;
-}
-
-.menu-header h3 {
-    color: white;
-    margin: 0;
-}
-
-#close-menu {
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.menu-content {
-    padding: 20px;
-}
-
-.menu-section {
-    margin-bottom: 20px;
-    padding: 15px;
-    background-color: #f8fafc;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-}
-
-.menu-section h4 {
-    color: #2d8a50; /* Jungle green */
-    margin-bottom: 10px;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 5px;
+#menu-name {
+  position: absolute;
+  top: 50px;
+  left: 130px;
+  font-family: 'Survivant', sans-serif;
+  font-size: 1.2rem;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+  z-index: 2;
 }
 
 /* Energy Notification */

@@ -10,42 +10,6 @@
   <div id="game-container">
     <div id="hamburger-icon"></div>
 
-    <!-- Game Menu -->
-    <div id="game-menu" class="hidden">
-      <div class="menu-header">
-        <h3>Survivor Island Menu</h3>
-        <span id="close-menu">&times;</span>
-      </div>
-      <div class="menu-content">
-        <div id="player-stats-section" class="menu-section">
-          <h4>Player Stats</h4>
-          <div id="player-stats"></div>
-        </div>
-        <div id="game-info-section" class="menu-section">
-          <h4>Game Information</h4>
-          <div id="game-info"></div>
-        </div>
-        <div id="tribe-info-section" class="menu-section">
-          <h4>Tribe Information</h4>
-          <div id="tribe-info"></div>
-        </div>
-        <div id="inventory-section" class="menu-section">
-          <h4>Inventory</h4>
-          <div id="inventory">
-            <p id="idol-status">Hidden Immunity Idol: No</p>
-            <p id="idols-in-play">Idols in Play: 0</p>
-            <p id="immunity-status">Immunity: No</p>
-          </div>
-        </div>
-        <div class="menu-buttons">
-          <button id="save-game-button" class="menu-button">Save Game</button>
-          <button id="load-game-button" class="menu-button">Load Game</button>
-          <button id="restart-game-button" class="menu-button">Restart Game</button>
-          <button id="help-button" class="menu-button">Help</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Welcome Screen -->
     <div id="welcome-screen" class="game-screen active"></div>
 
@@ -54,8 +18,6 @@
 
     <!-- Tribe Division Screen -->
     <div id="tribe-division-screen" class="game-screen"></div>
-
-  
 
     <!-- Challenge Screen -->
     <div id="challenge-screen" class="game-screen">
@@ -89,15 +51,54 @@
     <div id="tribal-council-screen" class="game-screen"></div>
 
     <!-- Fire Making Challenge Screen -->
-    <div id="fire-making-challenge-screen" class="game-screen">
-      <!-- Content populated dynamically -->
-    </div>
+    <div id="fire-making-challenge-screen" class="game-screen"></div>
 
     <!-- Dialogue System -->
     <div id="dialogue-container" class="hidden"></div>
+
+    <!-- Menu Overlay -->
+    <div id="menu-overlay" style="
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 998;
+    "></div>
+
+    <!-- New Menu Card -->
+    <div id="menu-card" style="display: none; position: absolute; top: 20px; right: 20px; z-index: 999;">
+      <img src="Assets/menu-card.png" alt="Menu Card Background" id="menu-card-bg"
+        style="width: 300px; height: auto; display: block;" />
+
+      <img id="menu-avatar" src="" alt="Survivor Avatar" style="
+        position: absolute;
+        top: 30px;
+        left: 30px;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid white;
+        z-index: 2;
+      " />
+
+      <div id="menu-name" style="
+        position: absolute;
+        top: 32px;
+        left: 120px;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.2rem;
+        color: white;
+        text-shadow: 1px 1px 2px black;
+        z-index: 2;
+      "></div>
+    </div>
   </div>
 
-  <!-- Show red banner if main.js fails -->
+  <!-- Fallback if main.js fails -->
   <script>
     setTimeout(() => {
       if (!window.mainJsLoaded) {
@@ -117,7 +118,29 @@
       }
     }, 2000);
   </script>
-  <!-- Main Game Script -->
+
+  <!-- Menu Toggle Logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const hamburger = document.getElementById('hamburger-icon');
+      const menu = document.getElementById('menu-card');
+      const overlay = document.getElementById('menu-overlay');
+
+      if (hamburger && menu && overlay) {
+        hamburger.addEventListener('click', () => {
+          const isVisible = menu.style.display === 'block';
+          menu.style.display = isVisible ? 'none' : 'block';
+          overlay.style.display = isVisible ? 'none' : 'block';
+        });
+
+        overlay.addEventListener('click', () => {
+          menu.style.display = 'none';
+          overlay.style.display = 'none';
+        });
+      }
+    });
+  </script>
+
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

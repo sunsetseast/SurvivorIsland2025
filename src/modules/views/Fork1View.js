@@ -84,7 +84,8 @@ export default function renderFork1(container) {
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      console.log('Left button clicked - TBD');
+      console.log('Left button clicked - loading Mountain Trail');
+      window.campScreen.loadView('mountainTrail');
     });
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
@@ -93,7 +94,8 @@ export default function renderFork1(container) {
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - TBD');
+      console.log('Right button clicked - going to Jungle Trail');
+      window.campScreen.loadView('jungleTrail');
     });
 
     actionButtons.appendChild(leftButton);

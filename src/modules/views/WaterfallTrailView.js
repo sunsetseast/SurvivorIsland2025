@@ -1,24 +1,24 @@
 /**
- * @module BeachView
- * Renders the beach screen inside the Camp Phase
+ * @module WaterfallTrailView
+ * Renders the waterfall trail screen inside the Camp Phase
  */
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
-import { gameManager, screenManager } from '../core/index.js';
+import { gameManager } from '../core/index.js';
 
-export default function renderBeach(container) {
-  console.log('renderBeach() called');
-  addDebugBanner('renderBeach() called', 'skyblue', 40);
+export default function renderWaterfallTrail(container) {
+  console.log('renderWaterfallTrail() called');
+  addDebugBanner('renderWaterfallTrail() called', 'dodgerblue', 40);
 
   clearChildren(container);
 
-  container.style.backgroundImage = "url('Assets/Screens/beach.png')";
+  container.style.backgroundImage = "url('Assets/Screens/waterfall-trail.png')";
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
 
   const wrapper = createElement('div', {
-    className: 'beach-wrapper',
+    className: 'waterfall-trail-wrapper',
     style: `
       position: relative;
       width: 100%;
@@ -41,7 +41,7 @@ export default function renderBeach(container) {
       padding: 20px;
       z-index: 2;
     `
-  }, 'Welcome to the Beach! Chill, fish, and bond with your tribe.');
+  }, 'A peaceful trail winds around a stunning waterfall.');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
@@ -51,15 +51,14 @@ export default function renderBeach(container) {
     if (actionButtons) {
       clearChildren(actionButtons);
 
-      actionButtons.style.justifyContent = 'center';
-      actionButtons.style.gap = '20px';
-      actionButtons.style.padding = '0'; // No extra side padding
+      actionButtons.style.justifyContent = 'space-between';
+      actionButtons.style.padding = '0 40px';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 240px;
-          height: 135px;
+          width: 260px;
+          height: 150px;
           display: inline-block;
           overflow: hidden;
           cursor: pointer;
@@ -83,22 +82,19 @@ export default function renderBeach(container) {
       return wrapper;
     };
 
-    const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
-      console.log('Up button clicked - going to Rocky Shore');
-      window.campScreen.loadView('rocky');
+    const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
+      console.log('Left button clicked - returning to Tree Mail');
+      window.campScreen.loadView('treemail');
     });
 
-    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+      const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
+        console.log('Right button clicked - going to Water Well');
+        window.campScreen.loadView('waterWell');
+      });
 
-    const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - returning to Tribe Flag');
-      window.campScreen.loadView('flag');
-    });
-
-    actionButtons.appendChild(upButton);
-    actionButtons.appendChild(blankButton);
+    actionButtons.appendChild(leftButton);
     actionButtons.appendChild(rightButton);
   }
 
-  addDebugBanner('Beach view rendered!', 'deepskyblue', 170);
+  addDebugBanner('Waterfall Trail view rendered!', 'dodgerblue', 170);
 }

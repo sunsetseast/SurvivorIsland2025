@@ -1,24 +1,24 @@
 /**
- * @module BeachView
- * Renders the beach screen inside the Camp Phase
+ * @module TreeMailView
+ * Renders the Tree Mail screen inside the Camp Phase
  */
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
-import { gameManager, screenManager } from '../core/index.js';
+import { gameManager } from '../core/index.js';
 
-export default function renderBeach(container) {
-  console.log('renderBeach() called');
-  addDebugBanner('renderBeach() called', 'skyblue', 40);
+export default function renderTreeMail(container) {
+  console.log('renderTreeMail() called');
+  addDebugBanner('renderTreeMail() called', 'sienna', 40);
 
   clearChildren(container);
 
-  container.style.backgroundImage = "url('Assets/Screens/beach.png')";
+  container.style.backgroundImage = "url('Assets/Screens/tree-mail.png')";
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
 
   const wrapper = createElement('div', {
-    className: 'beach-wrapper',
+    className: 'treemail-wrapper',
     style: `
       position: relative;
       width: 100%;
@@ -41,25 +41,25 @@ export default function renderBeach(container) {
       padding: 20px;
       z-index: 2;
     `
-  }, 'Welcome to the Beach! Chill, fish, and bond with your tribe.');
+  }, 'Tree Mail: A clue to your next challenge appears...');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
-    if (actionButtons) {
-      clearChildren(actionButtons);
+  if (actionButtons) {
+    clearChildren(actionButtons);
 
-      actionButtons.style.justifyContent = 'center';
-      actionButtons.style.gap = '20px';
-      actionButtons.style.padding = '0'; // No extra side padding
+    actionButtons.style.justifyContent = 'center';
+    actionButtons.style.gap = '20px';
+    actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 240px;
-          height: 135px;
+          width: 260px;
+          height: 150px;
           display: inline-block;
           overflow: hidden;
           cursor: pointer;
@@ -83,22 +83,22 @@ export default function renderBeach(container) {
       return wrapper;
     };
 
-    const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
-      console.log('Up button clicked - going to Rocky Shore');
-      window.campScreen.loadView('rocky');
+    const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
+      console.log('Left button clicked - returning to Mountain Trail');
+      window.campScreen.loadView('mountainTrail');
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - returning to Tribe Flag');
-      window.campScreen.loadView('flag');
+      console.log('Right button clicked - loading Waterfall Trail View');
+      window.campScreen.loadView('waterfallTrail');
     });
 
-    actionButtons.appendChild(upButton);
+    actionButtons.appendChild(leftButton);
     actionButtons.appendChild(blankButton);
     actionButtons.appendChild(rightButton);
   }
 
-  addDebugBanner('Beach view rendered!', 'deepskyblue', 170);
+  addDebugBanner('Tree Mail view rendered!', 'sienna', 170);
 }
