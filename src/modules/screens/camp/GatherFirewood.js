@@ -155,23 +155,27 @@ export default function renderGatherFirewoodView(container) {
   popup.appendChild(startButton);
   container.appendChild(popup);
 
-  // Add CSS for animations
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes hitPing {
-      0% { opacity: 1; transform: translateX(-50%) scale(1); }
-      100% { opacity: 0; transform: translateX(-50%) scale(1.2); }
-    }
-    
-    .hidden {
-      display: none;
-    }
-    
-    .red-line.hit {
-      background-color: #16a085 !important;
-    }
-  `;
-  document.head.appendChild(style);
+  // Add CSS for animations (only if not already present)
+  const existingStyle = document.getElementById('firewood-game-styles');
+  if (!existingStyle) {
+    const style = document.createElement('style');
+    style.id = 'firewood-game-styles';
+    style.textContent = `
+      @keyframes hitPing {
+        0% { opacity: 1; transform: translateX(-50%) scale(1); }
+        100% { opacity: 0; transform: translateX(-50%) scale(1.2); }
+      }
+      
+      .hidden {
+        display: none;
+      }
+      
+      .red-line.hit {
+        background-color: #16a085 !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   // === GAME FUNCTIONS ===
   function startGame() {
@@ -312,9 +316,31 @@ export default function renderGatherFirewoodView(container) {
   }
 
   // Cleanup function for when leaving the view
-  container.addEventListener('cleanup', () => {
+  const cleanup = () => {
     if (animationId) {
       cancelAnimationFrame(animationId);
+      animationId = null;
     }
+    gameState = 'finished';
+  };
+  
+  container.addEventListener('cleanup', cleanup);
+  
+  // Also cleanup when the container is removed from DOM
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        mutation.removedNodes.forEach((node) => {
+          if (node === container || node.contains?.(container)) {
+            cleanup();
+            observer.disconnect();
+          }
+        });
+      }
+    });
   });
+  
+  if (container.parentNode) {
+    observer.observe(container.parentNode, { childList: true, subtree: true });
+  }
 }
