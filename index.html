@@ -1,146 +1,493 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Survivor Island</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div id="game-container">
-    <div id="hamburger-icon"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Survivor Island</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="hamburger-icon"></div>
 
-    <!-- Welcome Screen -->
-    <div id="welcome-screen" class="game-screen active"></div>
+      <!-- Welcome Screen -->
+      <div id="welcome-screen" class="game-screen active"></div>
 
-    <!-- Character Selection Screen -->
-    <div id="character-selection-screen" class="game-screen"></div>
+      <!-- Character Selection Screen -->
+      <div id="character-selection-screen" class="game-screen"></div>
 
-    <!-- Tribe Division Screen -->
-    <div id="tribe-division-screen" class="game-screen"></div>
+      <!-- Tribe Division Screen -->
+      <div id="tribe-division-screen" class="game-screen"></div>
 
-    <!-- Challenge Screen -->
-    <div id="challenge-screen" class="game-screen">
-      <h2 id="challenge-title">Immunity Challenge</h2>
-      <p id="challenge-description"></p>
-      <div class="challenge-container">
-        <div class="challenge-progress">
-          <div class="progress-bar">
-            <div id="challenge-progress-bar" class="progress-fill"></div>
+      <!-- Challenge Screen -->
+      <div id="challenge-screen" class="game-screen">
+        <h2 id="challenge-title">Immunity Challenge</h2>
+        <p id="challenge-description"></p>
+        <div class="challenge-container">
+          <div class="challenge-progress">
+            <div class="progress-bar">
+              <div id="challenge-progress-bar" class="progress-fill"></div>
+            </div>
+          </div>
+          <button id="challenge-button" class="big-button">
+            Start Challenge
+          </button>
+        </div>
+        <div id="competitors-container"></div>
+      </div>
+
+      <!-- Camp Screen -->
+      <div id="camp-screen" class="game-screen">
+        <div id="camp-content"></div>
+
+        <!-- Action Bar -->
+        <div id="camp-action-bar">
+          <img src="Assets/button-row.jpeg" id="action-bar-bg" />
+          <div id="action-buttons">
+            <!-- Buttons will be injected here -->
           </div>
         </div>
-        <button id="challenge-button" class="big-button">Start Challenge</button>
       </div>
-      <div id="competitors-container"></div>
-    </div>
 
-    <!-- Camp Screen -->
-    <div id="camp-screen" class="game-screen">
-      <div id="camp-content"></div>
+      <!-- Tribal Council Screen -->
+      <div id="tribal-council-screen" class="game-screen"></div>
 
-      <!-- Action Bar -->
-      <div id="camp-action-bar">
-        <img src="Assets/button-row.jpeg" id="action-bar-bg" />
-        <div id="action-buttons">
-          <!-- Buttons will be injected here -->
+      <!-- Fire Making Challenge Screen -->
+      <div id="fire-making-challenge-screen" class="game-screen"></div>
+
+      <!-- Dialogue System -->
+      <div id="dialogue-container" class="hidden"></div>
+
+      <!-- Menu Overlay -->
+      <div
+        id="menu-overlay"
+        style="
+          display: none;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.5);
+          z-index: 997;
+        "
+      ></div>
+
+      <!-- New Menu Card -->
+      <div
+        id="menu-card"
+        style="
+          display: none;
+          position: absolute;
+          top: 60px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 340px;
+          height: auto;
+          max-height: calc(100vh - 80px);
+          z-index: 999;
+          overflow-y: auto;
+        "
+      >
+        <!-- Avatar behind the frame -->
+        <img
+          id="menu-avatar"
+          src=""
+          alt="Survivor Avatar"
+          style="
+            position: absolute;
+            top: 72px;
+            left: 52px;
+            width: 162px;
+            height: 162px;
+            border-radius: 50%;
+            object-fit: cover;
+            z-index: 998;
+          "
+        />
+
+        <!-- Frame on top -->
+        <img
+          src="Assets/menu-card.png"
+          alt="Menu Card Background"
+          id="menu-card-bg"
+          style="
+            width: 100%;
+            height: auto;
+            display: block;
+            position: relative;
+            z-index: 999;
+          "
+        />
+
+        <!-- Player Name -->
+        <div
+          id="menu-name"
+          style="
+            position: absolute;
+            top: 266px;
+            left: 40px;
+            width: 185px;
+            font-family: &quot;Survivant&quot;, sans-serif;
+            font-size: 1.7rem;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            z-index: 1000;
+            white-space: nowrap;
+            text-align: center;
+          "
+        ></div>
+
+        <!-- Invisible buttons over icons -->
+        <button
+          id="menu-map-button"
+          class="menu-action-button"
+          style="top: 65px; right: 40px"
+          onclick="handleMapClick()"
+        ></button>
+        <button
+          id="menu-bag-button"
+          class="menu-action-button"
+          style="top: 136px; right: 40px"
+          onclick="handleBagClick()"
+        ></button>
+        <button
+          id="menu-handshake-button"
+          class="menu-action-button"
+          style="top: 205px; right: 40px"
+          onclick="handleHandshakeClick()"
+        ></button>
+      </div>
+
+      <!-- Fullscreen Map Overlay -->
+      <div
+        id="map-overlay"
+        style="
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.85);
+          z-index: 1002;
+        "
+      >
+        <img
+          src="Assets/map.png"
+          alt="Map"
+          style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            max-width: 95vw;
+            max-height: 95vh;
+            transform: translate(-50%, -50%);
+          "
+        />
+
+        <!-- Temporary visible hotspot buttons -->
+        <button
+          class="menu-action-button"
+          style="top: 13%; left: 15%; background: transparent; border: none"
+          onclick="goToView('rocky')"
+        ></button>
+        <button
+          class="menu-action-button"
+          style="top: 27%; left: 10%; background: transparent; border: none"
+          onclick="goToView('beach')"
+        ></button>
+        <button
+          class="menu-action-button"
+          style="top: 25%; left: 55%; background: transparent; border: none"
+          onclick="goToView('campfire')"
+        ></button>
+        <button
+          class="menu-action-button"
+          style="top: 40%; left: 53%; background: transparent; border: none"
+          onclick="goToView('fork1')"
+        ></button>
+        <button
+          class="menu-action-button"
+          style="top: 72%; left: 70%; background: transparent; border: none"
+          onclick="goToView('treemail')"
+        ></button>
+        <button
+          class="menu-action-button"
+          style="top: 51%; left: 15%; background: transparent; border: none"
+          onclick="goToView('waterWell')"
+        ></button>
+      </div>
+
+      <!-- Add inside your #game-container, right after the #map-overlay -->
+      <div
+        id="inventory-overlay"
+        style="
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.85);
+          z-index: 1002;
+        "
+      >
+        <img
+          src="Assets/inventory.png"
+          alt="Inventory"
+          style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 95vw;
+            max-height: 95vh;
+          "
+        />
+
+        <!-- Inventory slots will be positioned here -->
+        <div
+          id="inventory-items"
+          style="
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            z-index: 1003;
+          "
+        >
+          <!-- JavaScript will populate item icons here -->
+        </div>
+      </div>
+      <!-- Relationships Overlay -->
+      <div
+        id="relationships-overlay"
+        style="
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.85);
+          z-index: 1002;
+        "
+      >
+        <div
+          id="relationships-content"
+          style="
+            position: relative;
+            width: 100%;
+            height: 100%;
+          "
+        >
+          <!-- Tribe Portrait -->
+          <img
+            id="relationships-tribe-image"
+            src=""
+            alt="Tribe Portrait"
+            style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              width: 300px;
+              transform: translate(-50%, -50%);
+              z-index: 1;
+            "
+          />
+
+          <!-- Tribe Name Overlay -->
+          <div
+            id="relationships-tribe-name"
+            style="
+              position: absolute;
+              top: 15%;
+              left: 50%;
+              transform: translateX(-50%);
+              color: white;
+              text-shadow: 2px 2px 4px black;
+              font-size: 2.4rem;
+              font-family: 'Survivant', sans-serif;
+              z-index: 2;
+              pointer-events: none;
+            "
+          ></div>
+
+          <!-- Avatar Grid -->
+          <div
+            id="relationships-grid"
+            style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              display: grid;
+              grid-template-columns: repeat(3, 80px);
+              grid-template-rows: repeat(3, 80px);
+              justify-content: center;
+              align-content: center;
+              row-gap: 10px;
+              column-gap: 10px;
+              z-index: 2;
+            "
+          >
+            <!-- JS will populate avatars -->
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Tribal Council Screen -->
-    <div id="tribal-council-screen" class="game-screen"></div>
+    <!-- Fallback if main.js fails -->
+    <script>
+      setTimeout(() => {
+        if (!window.mainJsLoaded) {
+          const errorBanner = document.createElement("div");
+          errorBanner.textContent = "ERROR: main.js failed to load.";
+          errorBanner.style.position = "fixed";
+          errorBanner.style.top = "0";
+          errorBanner.style.left = "0";
+          errorBanner.style.width = "100%";
+          errorBanner.style.backgroundColor = "darkred";
+          errorBanner.style.color = "white";
+          errorBanner.style.padding = "10px";
+          errorBanner.style.fontWeight = "bold";
+          errorBanner.style.textAlign = "center";
+          errorBanner.style.zIndex = "9999";
+          document.body.appendChild(errorBanner);
+        }
+      }, 2000);
+    </script>
 
-    <!-- Fire Making Challenge Screen -->
-    <div id="fire-making-challenge-screen" class="game-screen"></div>
+    <script>
+      function handleMapClick() {
+        const menu = document.getElementById("menu-card");
+        const overlay = document.getElementById("menu-overlay");
+        const mapOverlay = document.getElementById("map-overlay");
 
-    <!-- Dialogue System -->
-    <div id="dialogue-container" class="hidden"></div>
-
-    <!-- Menu Overlay -->
-    <div id="menu-overlay" style="
-      display: none;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      z-index: 998;
-    "></div>
-
-    <!-- New Menu Card -->
-    <div id="menu-card" style="display: none; position: absolute; top: 20px; right: 20px; z-index: 999;">
-      <img src="Assets/menu-card.png" alt="Menu Card Background" id="menu-card-bg"
-        style="width: 300px; height: auto; display: block;" />
-
-      <img id="menu-avatar" src="" alt="Survivor Avatar" style="
-        position: absolute;
-        top: 30px;
-        left: 30px;
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid white;
-        z-index: 2;
-      " />
-
-      <div id="menu-name" style="
-        position: absolute;
-        top: 32px;
-        left: 120px;
-        font-family: 'Survivant', sans-serif;
-        font-size: 1.2rem;
-        color: white;
-        text-shadow: 1px 1px 2px black;
-        z-index: 2;
-      "></div>
-    </div>
-  </div>
-
-  <!-- Fallback if main.js fails -->
-  <script>
-    setTimeout(() => {
-      if (!window.mainJsLoaded) {
-        const errorBanner = document.createElement('div');
-        errorBanner.textContent = 'ERROR: main.js failed to load.';
-        errorBanner.style.position = 'fixed';
-        errorBanner.style.top = '0';
-        errorBanner.style.left = '0';
-        errorBanner.style.width = '100%';
-        errorBanner.style.backgroundColor = 'darkred';
-        errorBanner.style.color = 'white';
-        errorBanner.style.padding = '10px';
-        errorBanner.style.fontWeight = 'bold';
-        errorBanner.style.textAlign = 'center';
-        errorBanner.style.zIndex = '9999';
-        document.body.appendChild(errorBanner);
+        if (menu) menu.style.display = "none";
+        if (overlay) overlay.style.display = "none";
+        if (mapOverlay) mapOverlay.style.display = "block";
       }
-    }, 2000);
-  </script>
 
-  <!-- Menu Toggle Logic -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const hamburger = document.getElementById('hamburger-icon');
-      const menu = document.getElementById('menu-card');
-      const overlay = document.getElementById('menu-overlay');
+      function handleBagClick() {
+        const menu = document.getElementById("menu-card");
+        const overlay = document.getElementById("menu-overlay");
+        const inventoryOverlay = document.getElementById("inventory-overlay");
 
-      if (hamburger && menu && overlay) {
-        hamburger.addEventListener('click', () => {
-          const isVisible = menu.style.display === 'block';
-          menu.style.display = isVisible ? 'none' : 'block';
-          overlay.style.display = isVisible ? 'none' : 'block';
-        });
-
-        overlay.addEventListener('click', () => {
-          menu.style.display = 'none';
-          overlay.style.display = 'none';
-        });
+        if (menu) menu.style.display = "none";
+        if (overlay) overlay.style.display = "none";
+        if (inventoryOverlay) inventoryOverlay.style.display = "block";
       }
-    });
-  </script>
 
-  <script type="module" src="src/main.js"></script>
-</body>
+      function addItemToInventory(itemElement) {
+        const inventory = document.getElementById("inventory-items");
+        if (!inventory) return;
+
+        const slot = document.createElement("div");
+        slot.style.width = "60px";
+        slot.style.height = "60px";
+        slot.style.border = "2px solid white";
+        slot.style.borderRadius = "6px";
+        slot.style.backgroundColor = "rgba(255,255,255,0.1)";
+        slot.style.display = "flex";
+        slot.style.alignItems = "center";
+        slot.style.justifyContent = "center";
+        slot.appendChild(itemElement);
+
+        inventory.appendChild(slot);
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const mapOverlay = document.getElementById("map-overlay");
+        if (mapOverlay) {
+          mapOverlay.addEventListener("click", () => {
+            mapOverlay.style.display = "none";
+          });
+        }
+
+        const inventoryOverlay = document.getElementById("inventory-overlay");
+        if (inventoryOverlay) {
+          inventoryOverlay.addEventListener("click", () => {
+            inventoryOverlay.style.display = "none";
+          });
+        }
+      });
+    </script>
+
+    <script>
+      function handleHandshakeClick() {
+        const menuCard = document.getElementById("menu-card");
+        const menuOverlay = document.getElementById("menu-overlay");
+        if (menuCard) menuCard.style.display = "none";
+        if (menuOverlay) menuOverlay.style.display = "none";
+
+        if (typeof openRelationshipsOverlay === "function") {
+          window.resetRelationshipsOverlayToPlayer = true;  // flag to force reset
+          openRelationshipsOverlay();
+        } else {
+          console.error("openRelationshipsOverlay is not defined.");
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const relationshipsOverlay = document.getElementById("relationships-overlay");
+        const relationshipsGrid = document.getElementById("relationships-grid");
+
+        if (relationshipsOverlay) {
+          relationshipsOverlay.addEventListener("click", (e) => {
+            // Check if the click target is NOT within the avatar grid
+            if (!relationshipsGrid || !relationshipsGrid.contains(e.target)) {
+              relationshipsOverlay.style.display = "none";
+            }
+          });
+
+          // Prevent clicks on avatar images from bubbling up
+          if (relationshipsGrid) {
+            relationshipsGrid.addEventListener("click", (e) => {
+              e.stopPropagation();
+            });
+          }
+
+          // Escape key support
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && relationshipsOverlay.style.display === "block") {
+              relationshipsOverlay.style.display = "none";
+            }
+          });
+        }
+      });
+
+      // Function to set tribe name in relationships overlay
+      window.setRelationshipsTribeName = function(tribeName) {
+        const tribeNameElement = document.getElementById('relationships-tribe-name');
+        if (tribeNameElement) {
+          tribeNameElement.textContent = tribeName.toUpperCase();
+        }
+      };
+    </script>
+
+    <script>
+      function goToView(viewName) {
+        // Close menu and overlay
+        document.getElementById("menu-card").style.display = "none";
+        document.getElementById("menu-overlay").style.display = "none";
+        document.getElementById("map-overlay").style.display = "none";
+
+        // Load the selected camp view
+        if (
+          window.campScreen &&
+          typeof window.campScreen.loadView === "function"
+        ) {
+          window.campScreen.loadView(viewName);
+        }
+      }
+    </script>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
 </html>

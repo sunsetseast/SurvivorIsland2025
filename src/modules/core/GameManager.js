@@ -97,6 +97,8 @@ class GameManager {
     this.isTribesShuffled = false;
     this.isMerged = false;
     this.gamePhase = GamePhase.PRE_GAME;
+    this.dayTimer = 7200;
+    this.timeSpeed = 8;
     Object.values(this.systems).forEach(system => {
       if (system.reset) system.reset();
     });
@@ -221,6 +223,36 @@ class GameManager {
     eventManager.publish(GameEvents.DAY_ADVANCED, { day: this.day });
   }
 
+  advanceGamePhase() {
+    const phaseOrder = [
+      GamePhase.PRE_CHALLENGE,
+      GamePhase.CHALLENGE,
+      GamePhase.POST_CHALLENGE,
+      GamePhase.TRIBAL_COUNCIL,
+      GamePhase.NIGHT
+    ];
+
+    const currentIndex = phaseOrder.indexOf(this.gamePhase);
+    const nextIndex = (currentIndex + 1) % phaseOrder.length;
+    const nextPhase = phaseOrder[nextIndex];
+
+    this.gamePhase = nextPhase;
+    eventManager.publish(GameEvents.GAME_PHASE_CHANGED, { phase: nextPhase });
+
+    // Optional: load the screen based on phase
+    if (nextPhase === GamePhase.CHALLENGE) {
+      this.setGameState(GameState.CHALLENGE);
+    } else if (nextPhase === GamePhase.TRIBAL_COUNCIL) {
+      this.setGameState(GameState.TRIBAL_COUNCIL);
+    } else if (nextPhase === GamePhase.NIGHT) {
+      this.advanceDay(); // Move to next day
+      this.setGameState(GameState.CAMP);
+      this.gamePhase = GamePhase.PRE_CHALLENGE;
+    } else {
+      this.setGameState(GameState.CAMP); // fallback screen
+    }
+  }
+
   updateTribeHealth() {
     this.tribes.forEach(tribe => {
       tribe.members.forEach(member => {
@@ -283,6 +315,18 @@ class GameManager {
       addedToJury: this.isMerged
     });
     if (survivor.isPlayer) this.setGameState(GameState.GAME_OVER);
+  }
+
+  getDayTimer() {
+    return this.dayTimer;
+  }
+
+  getTimeSpeed() {
+    return this.timeSpeed;
+  }
+
+  decreaseDayTimer() {
+    this.dayTimer = Math.max(0, this.dayTimer - this.timeSpeed);
   }
 
   saveGame() {

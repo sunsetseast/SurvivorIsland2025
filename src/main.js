@@ -12,8 +12,10 @@ import {
 } from './modules/screens/index.js';
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
+import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOverlay.js';
 
 window.mainJsLoaded = true;
+window.openRelationshipsOverlay = openRelationshipsOverlay; // ✅ Make it globally accessible
 
 // Game constants
 const GAME_TITLE = 'Survivor Island';
@@ -165,4 +167,3 @@ if (document.readyState === 'loading') {
 
 window.addEventListener('beforeunload', cleanup);
 window.gameManager = gameManager;
-export { gameManager, screenManager, eventManager };

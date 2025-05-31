@@ -915,6 +915,16 @@ body {
   z-index: 2;
 }
 
+.menu-action-button {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+    background: transparent;
+    border: none;
+  z-index: 1001;
+  cursor: pointer;
+}
+
 /* Energy Notification */
 @keyframes fadeOutUp {
     from {
@@ -2147,4 +2157,26 @@ body {
   align-items: center;
   gap: 40px;
   pointer-events: auto;
+}
+
+.inventory-slot {
+  width: 50px;
+  height: 50px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 2px solid #ccc;
+  border-radius: 6px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+@keyframes hitPing {
+  0% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1.2);
+    opacity: 0;
+  }
 }

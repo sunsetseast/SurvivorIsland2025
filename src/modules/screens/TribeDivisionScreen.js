@@ -3,9 +3,16 @@
  * Combined Marooning + Tribe Division Screen
  */
 
-import { getElement, createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import {
+  getElement,
+  createElement,
+  clearChildren,
+  addDebugBanner,
+  timerManager
+} from '../utils/index.js';
 import { gameManager, screenManager } from '../core/index.js';
 import gameData from '../data/index.js';
+
 
 export default class TribeDivisionScreen {
   initialize() {
@@ -431,17 +438,42 @@ export default class TribeDivisionScreen {
     button.addEventListener('click', () => {
       console.log('Begin Day 1 clicked');
       addDebugBanner('Begin Day 1 clicked', 'purple', 40);
-      addDebugBanner('Attempting to load camp screen', 'purple', 30);
+      addDebugBanner('Starting game clock and loading camp screen', 'purple', 30);
 
       try {
+        // Set phase and reset clock
+        gameManager.gamePhase = 'preChallenge'; // fixed: no setPhase method
+        gameManager.dayTimer = 7200; // 2 in-game hours
+        gameManager.timeSpeed = 8;   // 8 seconds per real second
+
+        // Start ticking the clock
+        timerManager.setInterval('dayClock', () => {
+          gameManager.decreaseDayTimer();
+
+          const clockElement = document.getElementById('day-timer');
+          const dayElement = document.getElementById('day-label');
+          if (clockElement && dayElement) {
+            const min = Math.floor(gameManager.dayTimer / 60);
+            const sec = gameManager.dayTimer % 60;
+            clockElement.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+            dayElement.textContent = `Day ${gameManager.day}`;
+          }
+
+          if (gameManager.dayTimer <= 0) {
+            timerManager.clearInterval('dayClock');
+            gameManager.advanceGamePhase();
+          }
+        }, 1000);
+
         // Reveal hamburger icon
         const hamburger = document.getElementById('hamburger-icon');
         if (hamburger) hamburger.style.display = 'block';
 
+        // Transition to camp screen
         screenManager.showScreen('camp');
         addDebugBanner('screenManager.showScreen(camp) finished', 'gold', 50);
       } catch (e) {
-        console.error('Error showing camp screen:', e);
+        console.error('Error starting game clock or showing camp screen:', e);
         addDebugBanner(`ERROR: ${e.message}`, 'red', 60);
       }
     });
