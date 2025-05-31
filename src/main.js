@@ -14,8 +14,25 @@ import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
 import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOverlay.js';
 
-window.mainJsLoaded = true;
-window.openRelationshipsOverlay = openRelationshipsOverlay; // ✅ Make it globally accessible
+// Add error logging immediately
+window.addEventListener('error', (e) => {
+  console.error('Global error:', e.error, 'at', e.filename, 'line', e.lineno);
+  console.error('Stack:', e.error?.stack);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Unhandled promise rejection:', e.reason);
+});
+
+console.log('main.js: Starting execution...');
+
+try {
+  window.mainJsLoaded = true;
+  window.openRelationshipsOverlay = openRelationshipsOverlay; // ✅ Make it globally accessible
+  console.log('main.js: Basic setup complete');
+} catch (error) {
+  console.error('Error in main.js setup:', error);
+}
 
 // Game constants
 const GAME_TITLE = 'Survivor Island';
@@ -37,45 +54,67 @@ document.body.appendChild(debugBanner);
  * Initialize the game when the DOM is loaded
  */
 function init() {
-  console.log(`Initializing ${GAME_TITLE} v${GAME_VERSION}`);
+  try {
+    console.log(`Initializing ${GAME_TITLE} v${GAME_VERSION}`);
 
-  // Register screens
-  screenManager.registerScreen('welcome', new WelcomeScreen());
-  screenManager.registerScreen('character-selection', new CharacterSelectionScreen());
-  screenManager.registerScreen('tribe-division', new TribeDivisionScreen());
+    // Register screens
+    console.log('Registering screens...');
+    screenManager.registerScreen('welcome', new WelcomeScreen());
+    screenManager.registerScreen('character-selection', new CharacterSelectionScreen());
+    screenManager.registerScreen('tribe-division', new TribeDivisionScreen());
 
-  const campScreenInstance = new CampScreen();
-  screenManager.registerScreen('camp', campScreenInstance);
-  window.campScreen = campScreenInstance;
+    console.log('Creating camp screen...');
+    const campScreenInstance = new CampScreen();
+    screenManager.registerScreen('camp', campScreenInstance);
+    window.campScreen = campScreenInstance;
 
-  screenManager.initialize();
-  screenManager.showScreen('welcome');
+  console.log('Initializing screen manager...');
+    screenManager.initialize();
+    screenManager.showScreen('welcome');
 
-  // Register systems
-  gameManager.registerSystem('dialogueSystem', new systems.DialogueSystem(gameManager));
-  gameManager.registerSystem('energySystem', new systems.EnergySystem(gameManager));
-  gameManager.registerSystem('idolSystem', new systems.IdolSystem(gameManager));
-  gameManager.registerSystem('relationshipSystem', new systems.RelationshipSystem(gameManager));
-  gameManager.registerSystem('allianceSystem', new systems.AllianceSystem(gameManager));
+    // Register systems
+    console.log('Registering systems...');
+    gameManager.registerSystem('dialogueSystem', new systems.DialogueSystem(gameManager));
+    gameManager.registerSystem('energySystem', new systems.EnergySystem(gameManager));
+    gameManager.registerSystem('idolSystem', new systems.IdolSystem(gameManager));
+    gameManager.registerSystem('relationshipSystem', new systems.RelationshipSystem(gameManager));
+    gameManager.registerSystem('allianceSystem', new systems.AllianceSystem(gameManager));
 
-  // Subscribe to game events
-  eventManager.subscribe(GameEvents.GAME_INITIALIZED, handleGameInitialized);
-  eventManager.subscribe(GameEvents.GAME_STARTED, handleGameStarted);
+    // Subscribe to game events
+    console.log('Setting up event handlers...');
+    eventManager.subscribe(GameEvents.GAME_INITIALIZED, handleGameInitialized);
+    eventManager.subscribe(GameEvents.GAME_STARTED, handleGameStarted);
 
-  // Initialize game
-  gameManager.initialize();
+    // Initialize game
+    console.log('Initializing game manager...');
+    gameManager.initialize();
 
-  // Reveal "Continue Game" if save exists
-  const continueButton = document.getElementById('continue-game-button');
-  if (gameManager.hasSavedGame() && continueButton) {
-    continueButton.style.display = 'block';
+    // Reveal "Continue Game" if save exists
+    const continueButton = document.getElementById('continue-game-button');
+    if (gameManager.hasSavedGame() && continueButton) {
+      continueButton.style.display = 'block';
+    }
+
+    // Set up UI
+    console.log('Setting up UI...');
+    setupEventListeners();
+    setupMenuToggle();
+
+    console.log('Initialization complete');
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Show error to user
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+      position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+      background: red; color: white; padding: 20px; z-index: 10000;
+      border-radius: 5px; font-family: monospace;
+    `;
+    errorDiv.textContent = `Initialization failed: ${error.message}`;
+    document.body.appendChild(errorDiv);
   }
-
-  // Set up UI
-  setupEventListeners();
-  setupMenuToggle();
-
-  console.log('Initialization complete');
 }
 
 function handleGameInitialized(data) {
@@ -159,10 +198,16 @@ function cleanup() {
   console.log('Game cleanup complete');
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+try {
+  if (document.readyState === 'loading') {
+    console.log('DOM loading, waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    console.log('DOM already loaded, initializing immediately...');
+    init();
+  }
+} catch (error) {
+  console.error('Error setting up DOM ready handler:', error);
 }
 
 window.addEventListener('beforeunload', cleanup);
