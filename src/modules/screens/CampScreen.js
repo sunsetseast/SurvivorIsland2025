@@ -15,7 +15,7 @@ import renderFork3 from '../views/Fork3View.js';
 import { refreshMenuCard } from '../utils/MenuUtils.js';
 import { timerManager } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
-import renderGatherFirewoodView from './camp/GatherFirewood.js';
+import { renderGatherFirewoodView } from './camp/GatherFirewood.js';
 
 const campViews = {
   flag: renderTribeFlag,

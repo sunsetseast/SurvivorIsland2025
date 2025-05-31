@@ -5,7 +5,7 @@
 
 import { createElement, clearChildren } from '../../../utils/index.js';
 
-export default function renderGatherFirewoodView(container) {
+export function renderGatherFirewoodView(container) {
   clearChildren(container);
 
   // Set full-screen background
