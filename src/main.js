@@ -3,20 +3,18 @@
  * Initializes game systems and starts the game
  */
 
-try {
-  const { gameManager, screenManager, eventManager, GameEvents } = await import('./modules/core/index.js');
-  const {
-    WelcomeScreen,
-    CharacterSelectionScreen,
-    TribeDivisionScreen,
-    CampScreen
-  } = await import('./modules/screens/index.js');
-  const systems = await import('./modules/systems/index.js');
-  const timerManagerModule = await import('./modules/utils/TimerManager.js');
-  const timerManager = timerManagerModule.default;
-  const { openRelationshipsOverlay } = await import('./modules/screens/camp/RelationshipsOverlay.js');
+import { gameManager, screenManager, eventManager, GameEvents } from './modules/core/index.js';
+import {
+  WelcomeScreen,
+  CharacterSelectionScreen,
+  TribeDivisionScreen,
+  CampScreen
+} from './modules/screens/index.js';
+import * as systems from './modules/systems/index.js';
+import timerManager from './modules/utils/TimerManager.js';
+import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOverlay.js';
 
-  window.mainJsLoaded = true;
+window.mainJsLoaded = true;
 window.openRelationshipsOverlay = openRelationshipsOverlay; // ✅ Make it globally accessible
 
 // Game constants
@@ -38,7 +36,7 @@ document.body.appendChild(debugBanner);
 /**
  * Initialize the game when the DOM is loaded
  */
-async function init() {
+function init() {
   console.log(`Initializing ${GAME_TITLE} v${GAME_VERSION}`);
 
   // Register screens
@@ -162,28 +160,9 @@ function cleanup() {
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-} catch (error) {
-  console.error('Critical error loading main.js:', error);
-  const errorBanner = document.createElement('div');
-  errorBanner.textContent = `IMPORT ERROR: ${error.message}`;
-  errorBanner.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    background-color: darkred;
-    color: white;
-    padding: 10px;
-    font-weight: bold;
-    text-align: center;
-    z-index: 9999;
-  `;
-  document.body.appendChild(errorBanner);
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
 }
 
 window.addEventListener('beforeunload', cleanup);
