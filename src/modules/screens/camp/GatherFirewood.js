@@ -7,6 +7,12 @@
 import { createElement, clearChildren } from '../../../utils/index.js';
 
 export default function renderGatherFirewoodView(container) {
+  // Prevent multiple initializations
+  if (container._firewoodInitialized) {
+    return;
+  }
+  container._firewoodInitialized = true;
+
   clearChildren(container);
 
   // Set full-screen background
@@ -326,21 +332,6 @@ export default function renderGatherFirewoodView(container) {
   
   container.addEventListener('cleanup', cleanup);
   
-  // Also cleanup when the container is removed from DOM
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList') {
-        mutation.removedNodes.forEach((node) => {
-          if (node === container || node.contains?.(container)) {
-            cleanup();
-            observer.disconnect();
-          }
-        });
-      }
-    });
-  });
-  
-  if (container.parentNode) {
-    observer.observe(container.parentNode, { childList: true, subtree: true });
-  }
+  // Store cleanup function on container for manual cleanup
+  container._firewoodCleanup = cleanup;
 }
