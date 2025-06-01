@@ -341,18 +341,18 @@ function endGame() {
   tapArea.style.display = 'none';
 
   // Deduct 5 minutes (300 seconds)
-  if (gameManager && typeof gameManager.deductDayTimer === 'function') {
-    gameManager.deductDayTimer(300);
+  if (window.gameManager && typeof window.gameManager.deductTime === 'function') {
+    window.gameManager.deductTime(300);
   }
 
   // Flash the clock red for 1 second
-  const timerEl = document.getElementById('clock-time-text');
+  const timerEl = document.getElementById('day-timer');
   if (timerEl) {
     timerEl.style.color = 'red';
     timerEl.style.transition = 'color 0.3s ease';
 
     setTimeout(() => {
-      timerEl.style.color = '#2b190a'; // restore original clock color
+      timerEl.style.color = 'white'; // adjust if your original color is different
     }, 1000);
   }
 
