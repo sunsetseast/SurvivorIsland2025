@@ -4,6 +4,7 @@
  */
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { updateCampClockUI } from '../utils/ClockUtils.js';
 
 export default function renderFirewoodView(container) {
   console.log('renderFirewoodView() called');
@@ -336,26 +337,30 @@ export default function renderFirewoodView(container) {
     setTimeout(() => effect.remove(), 800);
   }
 
-function endGame() {
-  if (animationId) cancelAnimationFrame(animationId);
-  tapArea.style.display = 'none';
+  function endGame() {
+    if (animationId) cancelAnimationFrame(animationId);
+    tapArea.style.display = 'none';
 
-  // Deduct 5 minutes (300 seconds)
-  if (window.gameManager && typeof window.gameManager.deductTime === 'function') {
-    window.gameManager.deductTime(300);
+    // Deduct 5 minutes (300 seconds)
+    if (gameManager && typeof gameManager.deductTime === 'function') {
+      gameManager.deductTime(300);
+      updateCampClockUI(
+        gameManager.getDayTimer(),
+        gameManager.getCurrentDay()
+      );
+    }
+
+    // Flash the clock red for 1 second
+    const timerEl = document.getElementById('day-timer');
+    if (timerEl) {
+      timerEl.style.color = 'red';
+      timerEl.style.transition = 'color 0.3s ease';
+
+      setTimeout(() => {
+        timerEl.style.color = 'white'; // adjust if your original color is different
+      }, 1000);
+    }
+
+    popupMessage.textContent = `You collected ${firewood} firewood.`;
+    popup.style.display = 'flex';
   }
-
-  // Flash the clock red for 1 second
-  const timerEl = document.getElementById('day-timer');
-  if (timerEl) {
-    timerEl.style.color = 'red';
-    timerEl.style.transition = 'color 0.3s ease';
-
-    setTimeout(() => {
-      timerEl.style.color = 'white'; // adjust if your original color is different
-    }, 1000);
-  }
-
-  popupMessage.textContent = `You collected ${firewood} firewood.`;
-  popup.style.display = 'flex';
-}

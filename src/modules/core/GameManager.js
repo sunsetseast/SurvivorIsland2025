@@ -329,6 +329,10 @@ class GameManager {
     this.dayTimer = Math.max(0, this.dayTimer - this.timeSpeed);
   }
 
+  deductTime(seconds) {
+    this.dayTimer = Math.max(0, this.dayTimer - seconds);
+  }
+
   saveGame() {
     const data = {
       gameState: this.gameState,
