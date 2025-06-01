@@ -1,4 +1,3 @@
-
 /**
  * @module GatherFirewoodView
  * Machete-based firewood chopping mini-game view
@@ -7,12 +6,6 @@
 import { createElement, clearChildren } from '../../../utils/index.js';
 
 export default function renderGatherFirewoodView(container) {
-  // Prevent multiple initializations
-  if (container._firewoodInitialized) {
-    return;
-  }
-  container._firewoodInitialized = true;
-
   clearChildren(container);
 
   // Set full-screen background
@@ -161,28 +154,6 @@ export default function renderGatherFirewoodView(container) {
   popup.appendChild(startButton);
   container.appendChild(popup);
 
-  // Add CSS for animations (only if not already present)
-  const existingStyle = document.getElementById('firewood-game-styles');
-  if (!existingStyle) {
-    const style = document.createElement('style');
-    style.id = 'firewood-game-styles';
-    style.textContent = `
-      @keyframes hitPing {
-        0% { opacity: 1; transform: translateX(-50%) scale(1); }
-        100% { opacity: 0; transform: translateX(-50%) scale(1.2); }
-      }
-      
-      .hidden {
-        display: none;
-      }
-      
-      .red-line.hit {
-        background-color: #16a085 !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
   // === GAME FUNCTIONS ===
   function startGame() {
     gameState = 'playing';
@@ -193,11 +164,8 @@ export default function renderGatherFirewoodView(container) {
 
     for (let i = 0; i < 5; i++) {
       const line = document.getElementById(`line-${i}`);
-      if (line) {
-        line.classList.remove('hit');
-        const check = line.querySelector('.line-check');
-        if (check) check.classList.add('hidden');
-      }
+      line.classList.remove('hit');
+      line.querySelector('.line-check').classList.add('hidden');
     }
 
     animate();
@@ -237,11 +205,8 @@ export default function renderGatherFirewoodView(container) {
       firewood++;
 
       const line = document.getElementById(`line-${hitLine}`);
-      if (line) {
-        line.classList.add('hit');
-        const check = line.querySelector('.line-check');
-        if (check) check.classList.remove('hidden');
-      }
+      line.classList.add('hit');
+      line.querySelector('.line-check').classList.remove('hidden');
       showHitEffect(redLinePositions[hitLine]);
     }
   }
@@ -271,67 +236,7 @@ export default function renderGatherFirewoodView(container) {
     if (animationId) cancelAnimationFrame(animationId);
     tapArea.style.display = 'none';
 
+    // Optional: Show a result popup or return to camp here
     console.log(`Firewood gathered: ${firewood}`);
-    
-    // Show completion message
-    const completionPopup = createElement('div', {
-      style: `
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 300px;
-        padding: 30px 20px;
-        background-image: url('Assets/parch-portrait.png');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        text-align: center;
-        font-family: 'Survivant', serif;
-        color: #2d1a05;
-        z-index: 100;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-      `
-    });
-
-    const completionMessage = createElement('p', {
-      style: `
-        margin-bottom: 24px;
-        font-size: 16px;
-        line-height: 1.5;
-      `
-    }, `You gathered ${firewood} pieces of firewood!`);
-
-    const returnButton = createElement('button', {
-      className: 'rect-button small',
-      style: 'margin-top: 8px;'
-    }, 'Return to Camp');
-
-    returnButton.addEventListener('click', () => {
-      if (window.campScreen) {
-        window.campScreen.loadView('campfire');
-      }
-    });
-
-    completionPopup.appendChild(completionMessage);
-    completionPopup.appendChild(returnButton);
-    container.appendChild(completionPopup);
   }
-
-  // Cleanup function for when leaving the view
-  const cleanup = () => {
-    if (animationId) {
-      cancelAnimationFrame(animationId);
-      animationId = null;
-    }
-    gameState = 'finished';
-  };
-  
-  container.addEventListener('cleanup', cleanup);
-  
-  // Store cleanup function on container for manual cleanup
-  container._firewoodCleanup = cleanup;
 }

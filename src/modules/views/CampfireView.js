@@ -90,7 +90,11 @@ export default function renderCampfire(container) {
       window.campScreen.loadView('flag');
     });
 
-    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
+      console.log('Blank button clicked - launching Firewood mini-game');
+      window.previousCampView = 'campfire'; // ← Set previous view
+      window.campScreen.loadView('firewood');
+    });
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       console.log('Down button clicked - loading Shelter');

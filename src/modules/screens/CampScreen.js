@@ -15,7 +15,7 @@ import renderFork3 from '../views/Fork3View.js';
 import { refreshMenuCard } from '../utils/MenuUtils.js';
 import { timerManager } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
-import renderGatherFirewoodView from './camp/GatherFirewood.js';
+import renderFirewoodView from '../views/FirewoodView.js';
 
 
 const campViews = {
@@ -32,7 +32,7 @@ const campViews = {
   jungleTrail: renderJungleTrail,
   fork2: renderFork2,
   fork3: renderFork3,
-  gatherFirewood: renderGatherFirewoodView // 👈 add this line
+  firewood: renderFirewoodView
 };
 
 export default class CampScreen {
