@@ -4,12 +4,23 @@
  */
 
 export function updateCampClockUI(dayTimer, currentDay) {
-  const timerEl = document.getElementById('day-timer');
-  const dayEl = document.getElementById('day-label');
-  if (!timerEl || !dayEl) return;
+  // Use the correct element IDs from CampScreen.js
+  const timeText = document.getElementById('clock-time-text');
+  const dayText = document.getElementById('clock-day-text');
 
-  const min = Math.floor(dayTimer / 60);
-  const sec = Math.floor(dayTimer % 60);
-  timerEl.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
-  dayEl.textContent = `Day ${currentDay}`;
+  if (!(timeText instanceof HTMLElement) || !(dayText instanceof HTMLElement)) return;
+
+  // Format time to match CampScreen's format (HH:MM:SS)
+  const total = Math.max(0, Math.floor(dayTimer));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+
+  const displayTime = 
+    `${hours.toString().padStart(2, '0')}:` +
+    `${minutes.toString().padStart(2, '0')}:` +
+    `${seconds.toString().padStart(2, '0')}`;
+
+  timeText.innerText = displayTime;
+  dayText.innerText = `Day ${currentDay}`;
 }

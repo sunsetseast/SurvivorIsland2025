@@ -59,6 +59,8 @@ class GameManager {
       tribeCount: 2
     };
     this.systems = {};
+    this.dayTimer = 7200;     // 2 hours in seconds
+    this.timeSpeed = 8;       // countdown rate per tick
   }
 
   initialize() {
@@ -331,6 +333,10 @@ class GameManager {
 
   deductTime(seconds) {
     this.dayTimer = Math.max(0, this.dayTimer - seconds);
+  }
+
+  getCurrentDay() {
+    return this.day;
   }
 
   saveGame() {

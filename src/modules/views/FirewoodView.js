@@ -111,9 +111,9 @@ export default function renderFirewoodView(container) {
       left: 50%;
       transform: translate(-50%, -50%);
       width: 320px;
-      height: 280px; /* ⬅️ Reduce height to squish the parchment */
+      height: 280px;
       background-image: url('Assets/parch-portrait.png');
-      background-size: 100% 100%; /* ⬅️ Prevent cropping */
+      background-size: 100% 100%;
       background-position: center;
       background-repeat: no-repeat;
       text-align: center;
@@ -337,30 +337,37 @@ export default function renderFirewoodView(container) {
     setTimeout(() => effect.remove(), 800);
   }
 
-  function endGame() {
-    if (animationId) cancelAnimationFrame(animationId);
-    tapArea.style.display = 'none';
+function endGame() {
+  if (animationId) cancelAnimationFrame(animationId);
+  tapArea.style.display = 'none';
 
-    // Deduct 5 minutes (300 seconds)
-    if (gameManager && typeof gameManager.deductTime === 'function') {
-      gameManager.deductTime(300);
-      updateCampClockUI(
-        gameManager.getDayTimer(),
-        gameManager.getCurrentDay()
-      );
-    }
+  // Deduct 5 minutes (300 seconds) and update the clock UI
+  gameManager.deductTime(300);
+  updateCampClockUI(
+    gameManager.getDayTimer(),
+    gameManager.getCurrentDay()
+  );
 
-    // Flash the clock red for 1 second
-    const timerEl = document.getElementById('day-timer');
-    if (timerEl) {
-      timerEl.style.color = 'red';
-      timerEl.style.transition = 'color 0.3s ease';
-
-      setTimeout(() => {
-        timerEl.style.color = 'white'; // adjust if your original color is different
-      }, 1000);
-    }
-
-    popupMessage.textContent = `You collected ${firewood} firewood.`;
-    popup.style.display = 'flex';
+  // Add firewood to player inventory
+  const player = gameManager.getPlayerSurvivor();
+  if (player) {
+    player.firewood = (player.firewood || 0) + firewood;
+    console.log(`Player now has ${player.firewood} firewood`);
+  } else {
+    console.warn('No player survivor found to assign firewood.');
   }
+
+  // Flash the clock red
+  const timerEl = document.getElementById('clock-time-text');
+  if (timerEl) {
+    timerEl.style.color = 'red';
+    timerEl.style.transition = 'color 0.3s ease';
+
+    setTimeout(() => {
+      timerEl.style.color = '#2b190a'; // Original color
+    }, 1000);
+  }
+
+  popupMessage.textContent = `You collected ${firewood} firewood.`;
+  popup.style.display = 'flex';
+}

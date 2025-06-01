@@ -16,6 +16,7 @@ import { refreshMenuCard } from '../utils/MenuUtils.js';
 import { timerManager } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import renderFirewoodView from '../views/FirewoodView.js';
+import { updateCampClockUI } from '../utils/ClockUtils.js'; // Make sure this is at the top
 
 
 const campViews = {
@@ -85,7 +86,6 @@ export default class CampScreen {
     clockWrapper.style.backgroundRepeat = 'no-repeat';
     clockWrapper.style.backgroundPosition = 'center';
     clockWrapper.style.zIndex = '1000';
-    clockWrapper.style.position = 'absolute';
 
     // Time text
     const timeText = document.createElement('div');
@@ -118,21 +118,10 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.appendChild(clockWrapper);
 
-    // Start live update
+    // ✅ Centralized clock updater
     timerManager.setInterval('campClockTick', () => {
       gameManager.decreaseDayTimer();
-
-      const total = Math.max(0, Math.floor(gameManager.getDayTimer()));
-      const hours = Math.floor(total / 3600);
-      const minutes = Math.floor((total % 3600) / 60);
-      const seconds = total % 60;
-
-      const displayTime =
-        `${hours.toString().padStart(2, '0')}:` +
-        `${minutes.toString().padStart(2, '0')}:` +
-        `${seconds.toString().padStart(2, '0')}`;
-
-      timeText.innerText = displayTime;
+      updateCampClockUI(gameManager.getDayTimer(), gameManager.getDay());
     }, 1000);
   }
 }
