@@ -2,7 +2,6 @@
  * @module TribeDivisionScreen
  * Combined Marooning + Tribe Division Screen
  */
-
 import {
   getElement,
   createElement,
@@ -12,7 +11,6 @@ import {
 } from '../utils/index.js';
 import { gameManager, screenManager } from '../core/index.js';
 import gameData from '../data/index.js';
-
 
 export default class TribeDivisionScreen {
   initialize() {
@@ -166,7 +164,6 @@ export default class TribeDivisionScreen {
       : `LET’S DIVIDE INTO TRIBES!`;
 
     parchmentWrapper.append(parchment, text);
-
     container.appendChild(parchmentWrapper);
 
     if (stage === 0) {
@@ -228,7 +225,7 @@ export default class TribeDivisionScreen {
       style: `
         max-height: 100vh;
         overflow-y: auto;
-        padding: 20px;
+        padding: 10px;
       `
     });
 
@@ -267,7 +264,6 @@ export default class TribeDivisionScreen {
         name: shuffledNames[i],
         members: group
       }));
-
     } else if (gameMode === 'battle-sexes') {
       const males = allSurvivors.filter(s => s.gender.toLowerCase() === 'male');
       const females = allSurvivors.filter(s => s.gender.toLowerCase() === 'female');
@@ -279,7 +275,6 @@ export default class TribeDivisionScreen {
         name: shuffledNames[i],
         members: group
       }));
-
     } else {
       const males = allSurvivors.filter(s => s.gender.toLowerCase() === 'male').sort(() => Math.random() - 0.5);
       const females = allSurvivors.filter(s => s.gender.toLowerCase() === 'female').sort(() => Math.random() - 0.5);
@@ -335,7 +330,7 @@ export default class TribeDivisionScreen {
         className: 'tribe-wrapper',
         style: `
           text-align: center;
-          margin-bottom: 40px;
+          margin-bottom: 30px;
           position: relative;
           display: inline-block;
         `
@@ -345,7 +340,7 @@ export default class TribeDivisionScreen {
         style: `
           font-family: 'Survivant', sans-serif;
           font-size: 2rem;
-          margin-bottom: 10px;
+          margin-bottom: 5px;
           color: ${tribe.color};
           -webkit-text-stroke: 1px white;
           text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
@@ -381,7 +376,7 @@ export default class TribeDivisionScreen {
       });
 
       tribe.members.forEach(member => {
-        const wrapper = createElement('div', {
+        const memberWrapper = createElement('div', {
           style: 'display: flex; flex-direction: column; align-items: center;'
         });
 
@@ -413,9 +408,9 @@ export default class TribeDivisionScreen {
           `
         }, member.firstName.toUpperCase());
 
-        wrapper.appendChild(avatar);
-        wrapper.appendChild(name);
-        avatarGrid.appendChild(wrapper);
+        memberWrapper.appendChild(avatar);
+        memberWrapper.appendChild(name);
+        avatarGrid.appendChild(memberWrapper);
       });
 
       wrapper.append(nameLabel, image, avatarGrid);
@@ -425,7 +420,7 @@ export default class TribeDivisionScreen {
     const button = createElement('button', {
       className: 'rect-button',
       style: `
-        margin: 40px auto 80px;
+        margin: 20px auto 40px;
         display: block;
         box-shadow: none;
         filter: none;
@@ -433,7 +428,8 @@ export default class TribeDivisionScreen {
       `
     }, 'Begin Day 1');
 
-    button.style.border = '4px solid lime';
+    // Removed green border
+    // button.style.border = '4px solid lime';
 
     button.addEventListener('click', () => {
       console.log('Begin Day 1 clicked');

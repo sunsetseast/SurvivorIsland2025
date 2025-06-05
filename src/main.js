@@ -131,6 +131,18 @@ function setupEventListeners() {
   });
 }
 
+function updateInventoryUI() {
+  const player = gameManager.getPlayerSurvivor();
+  if (!player) return;
+
+  document.getElementById('value-coconut').textContent = player.coconuts || 0;
+  document.getElementById('value-water').textContent = player.water || 0;
+  document.getElementById('value-fish').textContent = player.fish || 0;
+  document.getElementById('value-bamboo').textContent = player.bamboo || 0;
+  document.getElementById('value-firewood').textContent = player.firewood || 0;
+  document.getElementById('value-palms').textContent = player.palms || 0;
+}
+
 function setupMenuToggle() {
   const hamburger = document.getElementById('hamburger-icon');
   const menuCard = document.getElementById('menu-card');
@@ -143,6 +155,11 @@ function setupMenuToggle() {
 
     menuCard.style.display = isVisible ? 'none' : 'block';
     overlay.style.display = isVisible ? 'none' : 'block';
+
+    // 🔁 Update inventory values when the menu is shown
+    if (!isVisible) {
+      updateInventoryUI();
+    }
   });
 
   overlay.addEventListener('click', () => {

@@ -16,8 +16,11 @@ import { refreshMenuCard } from '../utils/MenuUtils.js';
 import { timerManager } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import renderFirewoodView from '../views/FirewoodView.js';
-import { updateCampClockUI } from '../utils/ClockUtils.js'; // Make sure this is at the top
-
+import renderBambooView from '../views/BambooView.js';
+import renderShakeView from '../views/ShakeView.js';
+import renderFishingView from '../views/FishingView.js';
+import renderFireView from '../views/FireView.js';
+import { updateCampClockUI } from '../utils/ClockUtils.js';
 
 const campViews = {
   flag: renderTribeFlag,
@@ -33,7 +36,11 @@ const campViews = {
   jungleTrail: renderJungleTrail,
   fork2: renderFork2,
   fork3: renderFork3,
-  firewood: renderFirewoodView
+  firewood: renderFirewoodView,
+  bamboo: renderBambooView,
+  shake: renderShakeView,
+  fishing: renderFishingView,
+  fire: renderFireView
 };
 
 export default class CampScreen {
@@ -45,7 +52,6 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.style.display = 'block';
     this.loadView('flag');
-
     this.renderClockUI();
   }
 
@@ -58,10 +64,8 @@ export default class CampScreen {
   loadView(viewName) {
     const viewContainer = getElement('camp-content');
     clearChildren(viewContainer);
-
     window.previousCampView = this.currentView || null;
     this.currentView = viewName;
-
     const renderFn = campViews[viewName];
     if (renderFn) {
       renderFn(viewContainer);
@@ -87,7 +91,6 @@ export default class CampScreen {
     clockWrapper.style.backgroundPosition = 'center';
     clockWrapper.style.zIndex = '1000';
 
-    // Time text
     const timeText = document.createElement('div');
     timeText.id = 'clock-time-text';
     timeText.style.position = 'absolute';
@@ -100,7 +103,6 @@ export default class CampScreen {
     timeText.style.fontWeight = 'bold';
     timeText.innerText = '02:00:00';
 
-    // Day text
     const dayText = document.createElement('div');
     dayText.id = 'clock-day-text';
     dayText.style.position = 'absolute';
@@ -118,10 +120,31 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.appendChild(clockWrapper);
 
-    // ✅ Centralized clock updater
+    // 🕒 Track last time water was decreased
+    let lastWaterTick = gameManager.getDayTimer();
+
     timerManager.setInterval('campClockTick', () => {
       gameManager.decreaseDayTimer();
-      updateCampClockUI(gameManager.getDayTimer(), gameManager.getDay());
+      const currentTime = gameManager.getDayTimer();
+      updateCampClockUI(currentTime, gameManager.getDay());
+
+      // If at least 300 seconds (5 in-game minutes) have passed
+      if (lastWaterTick - currentTime >= 300) {
+        lastWaterTick = currentTime;
+        gameManager.decreaseWaterForAll(1);
+
+        // Update water display if inventory is open
+        const menuCard = document.getElementById('menu-card');
+        if (menuCard && menuCard.style.display === 'block') {
+          const player = gameManager.getPlayerSurvivor();
+          if (player) {
+            const waterValue = document.getElementById('value-water');
+            if (waterValue) {
+              waterValue.textContent = player.water || 0;
+            }
+          }
+        }
+      }
     }, 1000);
   }
 }

@@ -371,3 +371,4 @@ function endGame() {
   popupMessage.textContent = `You collected ${firewood} firewood.`;
   popup.style.display = 'flex';
 }
+}

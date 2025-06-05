@@ -44,6 +44,8 @@ export default function renderMountainTrail(container) {
       text-align: center;
       padding: 20px;
       z-index: 2;
+      opacity: 1;
+      transition: opacity 1s ease;
       transform: scaleX(${fromTreeMail ? -1 : 1}); /* Unflip the message */
     `
   }, 'You begin your ascent up the Mountain Trail...');
@@ -51,13 +53,24 @@ export default function renderMountainTrail(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
+  // Fade out message after a delay
+  setTimeout(() => {
+    message.style.opacity = '0';
+  }, 3000);
+
+  setTimeout(() => {
+    message.remove();
+  }, 4000);
+
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
 
-    actionButtons.style.justifyContent = 'space-between';
-    actionButtons.style.padding = '0 40px';
+    actionButtons.style.display = 'flex';
+    actionButtons.style.justifyContent = 'center';
+    actionButtons.style.padding = '0';
+    actionButtons.style.gap = '20px';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -88,27 +101,39 @@ export default function renderMountainTrail(container) {
     };
 
     const upButton = fromTreeMail
-    ? createIconButton('Assets/Buttons/up.png', 'Up', () => {
-        console.log('Up button clicked - going to Fork2');
-        document.getElementById('camp-content').style.transform = 'scaleX(1)';
-        window.campScreen.loadView('fork2');
-      })
-    : createIconButton('Assets/Buttons/up.png', 'Up', () => {
-        console.log('Up button clicked - going to TreeMail');
-        window.campScreen.loadView('treemail');
-      });
+      ? createIconButton('Assets/Buttons/up.png', 'Up', () => {
+          console.log('Up: go to Fork2 (from TreeMail)');
+          // Reset transform before navigating
+          document.getElementById('camp-content').style.transform = 'scaleX(1)';
+          window.campScreen.loadView('fork2');
+        })
+      : createIconButton('Assets/Buttons/up.png', 'Up', () => {
+          console.log('Up: back to Tree Mail (from Fork2)');
+          window.campScreen.loadView('treemail');
+        });
+
+    const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', () => {
+      console.log('Center: go to ShakeView');
+      // Always reset transform when going to ShakeView to prevent mirror image
+      document.getElementById('camp-content').style.transform = 'scaleX(1)';
+      window.previousCampView = 'mountainTrail'; // Set consistent previous view
+      window.campScreen.loadView('shake');
+    });
+
     const downButton = fromTreeMail
-    ? createIconButton('Assets/Buttons/down.png', 'Down', () => {
-        console.log('Down button clicked - returning to TreeMail');
-        document.getElementById('camp-content').style.transform = 'scaleX(1)';
-        window.campScreen.loadView('treemail');
-      })
-    : createIconButton('Assets/Buttons/down.png', 'Down', () => {
-        console.log('Down button clicked - returning to Fork2');
-        window.campScreen.loadView('fork2');
-      });
+      ? createIconButton('Assets/Buttons/down.png', 'Down', () => {
+          console.log('Down: back to Tree Mail (from TreeMail)');
+          // Reset transform before navigating back
+          document.getElementById('camp-content').style.transform = 'scaleX(1)';
+          window.campScreen.loadView('treemail');
+        })
+      : createIconButton('Assets/Buttons/down.png', 'Down', () => {
+          console.log('Down: go to Fork2 (from Fork2)');
+          window.campScreen.loadView('fork2');
+        });
 
     actionButtons.appendChild(upButton);
+    actionButtons.appendChild(centerButton);
     actionButtons.appendChild(downButton);
   }
 

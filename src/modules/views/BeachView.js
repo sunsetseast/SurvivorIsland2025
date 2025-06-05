@@ -48,12 +48,12 @@ export default function renderBeach(container) {
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
-    if (actionButtons) {
-      clearChildren(actionButtons);
+  if (actionButtons) {
+    clearChildren(actionButtons);
 
-      actionButtons.style.justifyContent = 'center';
-      actionButtons.style.gap = '20px';
-      actionButtons.style.padding = '0'; // No extra side padding
+    actionButtons.style.justifyContent = 'center';
+    actionButtons.style.gap = '20px';
+    actionButtons.style.padding = '0'; // No extra side padding
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -88,7 +88,10 @@ export default function renderBeach(container) {
       window.campScreen.loadView('rocky');
     });
 
-    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
+      console.log('Blank button clicked - going to Fishing');
+      window.campScreen.loadView('fishing');
+    });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - returning to Tribe Flag');

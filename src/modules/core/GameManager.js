@@ -9,6 +9,7 @@ import { GameData } from '../data/index.js';
 import { loadFromLocalStorage, saveToLocalStorage } from '../utils/StorageUtils.js';
 import { deepCopy } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
+import { MAX_WATER } from '../data/GameData.js';
 
 // Game states
 export const GameState = {
@@ -317,6 +318,16 @@ class GameManager {
       addedToJury: this.isMerged
     });
     if (survivor.isPlayer) this.setGameState(GameState.GAME_OVER);
+  }
+
+  decreaseWaterForAll(amount) {
+    if (!this.survivors) return;
+
+    this.survivors.forEach(survivor => {
+      if (typeof survivor.water === 'number') {
+        survivor.water = Math.max(0, survivor.water - amount);
+      }
+    });
   }
 
   getDayTimer() {

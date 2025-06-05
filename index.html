@@ -220,48 +220,48 @@
       </div>
 
       <!-- Add inside your #game-container, right after the #map-overlay -->
-      <div
-        id="inventory-overlay"
-        style="
-          display: none;
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background-color: rgba(0, 0, 0, 0.85);
-          z-index: 1002;
-        "
-      >
-        <img
-          src="Assets/inventory.png"
-          alt="Inventory"
-          style="
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 95vw;
-            max-height: 95vh;
-          "
-        />
+          <div
+            id="inventory-overlay"
+            style="
+              display: none;
+              position: fixed;
+              top: 0;
+              left: 0;
+              width: 100vw;
+              height: 100vh;
+              background-color: rgba(0, 0, 0, 0.85);
+              z-index: 1002;
+            "
+          >
+            <img
+              src="Assets/inventory.png"
+              alt="Inventory"
+              style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                max-width: 95vw;
+                max-height: 95vh;
+              "
+            />
 
-        <!-- Inventory slots will be positioned here -->
-        <div
-          id="inventory-items"
-          style="
-            position: absolute;
-            top: 10%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            z-index: 1003;
-          "
-        >
-          <!-- JavaScript will populate item icons here -->
+            <!-- Resource Values positioned relative to center -->
+            <div id="inventory-values" style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              z-index: 1004;
+            ">
+              <div id="value-coconut" class="resource-value" style="position: absolute; top: 0px; left: -40px;">0</div>
+              <div id="value-water" class="resource-value" style="position: absolute; top: 0px; left: 96px;">0</div>
+              <div id="value-fish" class="resource-value" style="position: absolute; top: 54px; left: -40px;">0</div>
+              <div id="value-bamboo" class="resource-value" style="position: absolute; top: 54px; left: 96px;">0</div>
+              <div id="value-firewood" class="resource-value" style="position: absolute; top: 108px; left: -40px;">0</div>
+              <div id="value-palms" class="resource-value" style="position: absolute; top: 108px; left: 96px;">0</div>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Relationships Overlay -->
@@ -477,6 +477,15 @@
         document.getElementById("menu-card").style.display = "none";
         document.getElementById("menu-overlay").style.display = "none";
         document.getElementById("map-overlay").style.display = "none";
+
+        // Always reset any flip transformation when teleporting via map
+        const campContent = document.getElementById('camp-content');
+        if (campContent) {
+          campContent.style.transform = 'scaleX(1)';
+        }
+
+        // Clear the previous view tracking since we're teleporting
+        window.previousCampView = null;
 
         // Load the selected camp view
         if (

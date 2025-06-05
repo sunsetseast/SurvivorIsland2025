@@ -36,6 +36,7 @@ export default function renderJungleTrail(container) {
   });
 
   const message = createElement('div', {
+    id: 'jungle-message',
     style: `
       color: white;
       text-shadow: 2px 2px 4px black;
@@ -44,19 +45,109 @@ export default function renderJungleTrail(container) {
       text-align: center;
       padding: 20px;
       z-index: 2;
-      transform: scaleX(${fromWaterWell ? -1 : 1}); /* Unflip the message */
+      transform: scaleX(${fromWaterWell ? -1 : 1});
+      opacity: 1;
+      transition: opacity 1s ease;
     `
   }, 'The jungle grows thick around you...');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
+  // Fade out message after a delay
+  setTimeout(() => {
+    message.style.opacity = '0';
+  }, 3000);
+
+  setTimeout(() => {
+    message.remove();
+  }, 4000);
+
+  // --- Resource Popup UI ---
+  const resourcePopup = createElement('div', {
+    id: 'resource-popup',
+    style: `
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 1005;
+      align-items: center;
+      justify-content: center;
+      transform: scaleX(${fromWaterWell ? -1 : 1});
+    `
+  });
+
+  const popupContent = createElement('div', {
+    id: 'resource-popup-content',
+    style: `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: none;
+      padding: 20px;
+      gap: 12px;
+      z-index: 1006;
+    `
+  });
+
+  const popupTitle = createElement('div', {
+    style: `
+      color: white;
+      font-family: 'Survivant', sans-serif;
+      font-size: 1.4rem;
+    `
+  }, 'Gather Resources:');
+
+  const firewoodButton = createElement('button', { 
+    className: 'rect-button alt' 
+  }, 'Firewood');
+
+  firewoodButton.addEventListener('click', () => {
+    if (fromWaterWell) {
+      document.getElementById('camp-content').style.transform = 'scaleX(1)';
+    }
+    window.previousCampView = fromWaterWell ? 'waterWell' : 'jungleTrail';
+    window.campScreen.loadView('firewood');
+  });
+
+  const bambooButton = createElement('button', { 
+    className: 'rect-button alt' 
+  }, 'Bamboo');
+
+  bambooButton.addEventListener('click', () => {
+    if (fromWaterWell) {
+      document.getElementById('camp-content').style.transform = 'scaleX(1)';
+    }
+    window.previousCampView = fromWaterWell ? 'waterWell' : 'jungleTrail';
+    window.campScreen.loadView('bamboo');
+  });
+
+  popupContent.appendChild(popupTitle);
+  popupContent.appendChild(firewoodButton);
+  popupContent.appendChild(bambooButton);
+  resourcePopup.appendChild(popupContent);
+  container.appendChild(resourcePopup);
+
+  // Allow closing when clicking the background, but not popup content
+  resourcePopup.addEventListener('click', (e) => {
+    const content = document.getElementById('resource-popup-content');
+    if (!content.contains(e.target)) {
+      resourcePopup.style.display = 'none';
+    }
+  });
+
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.justifyContent = 'space-between';
-    actionButtons.style.padding = '0 40px';
+    actionButtons.style.display = 'flex';
+    actionButtons.style.justifyContent = 'center';
+    actionButtons.style.padding = '0';
+    actionButtons.style.gap = '20px';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -86,29 +177,35 @@ export default function renderJungleTrail(container) {
       return wrapper;
     };
 
-    const upButton = fromWaterWell
-      ? createIconButton('Assets/Buttons/up.png', 'Up', () => {
-          console.log('Up button clicked - going to Fork3');
-          document.getElementById('camp-content').style.transform = 'scaleX(1)';
-          window.campScreen.loadView('fork3');
-        })
-      : createIconButton('Assets/Buttons/up.png', 'Up', () => {
-          console.log('Up button clicked - returning to Water Well');
-          window.campScreen.loadView('waterWell');
-        });
+    const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
+      if (fromWaterWell) {
+        console.log('Up: go to Fork3');
+        document.getElementById('camp-content').style.transform = 'scaleX(1)';
+        window.campScreen.loadView('fork3');
+      } else {
+        console.log('Up: back to Water Well');
+        window.campScreen.loadView('waterWell');
+      }
+    });
 
-    const downButton = fromWaterWell
-      ? createIconButton('Assets/Buttons/down.png', 'Down', () => {
-          console.log('Down button clicked - returning to Water Well');
-          document.getElementById('camp-content').style.transform = 'scaleX(1)';
-          window.campScreen.loadView('waterWell');
-        })
-      : createIconButton('Assets/Buttons/down.png', 'Down', () => {
-          console.log('Down button clicked - going to Fork3');
-          window.campScreen.loadView('fork3');
-        });
+    const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', () => {
+      const popup = document.getElementById('resource-popup');
+      popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
+      if (fromWaterWell) {
+        console.log('Down: back to Water Well');
+        document.getElementById('camp-content').style.transform = 'scaleX(1)';
+        window.campScreen.loadView('waterWell');
+      } else {
+        console.log('Down: go to Fork3');
+        window.campScreen.loadView('fork3');
+      }
+    });
 
     actionButtons.appendChild(upButton);
+    actionButtons.appendChild(centerButton);
     actionButtons.appendChild(downButton);
   }
 

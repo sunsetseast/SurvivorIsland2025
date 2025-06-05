@@ -1,6 +1,7 @@
 /**
  * @module CampfireView
- * Renders the campfire screen inside the Camp Phase
+ * Renders the campfire screen inside the Camp Phase,
+ * with a fading message similar to JungleTrailView.
  */
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
@@ -17,6 +18,7 @@ export default function renderCampfire(container) {
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
 
+  // Wrapper around the message
   const wrapper = createElement('div', {
     className: 'campfire-wrapper',
     style: `
@@ -31,7 +33,9 @@ export default function renderCampfire(container) {
     `
   });
 
+  // Message with fade-out styling
   const message = createElement('div', {
+    id: 'campfire-message',
     style: `
       color: white;
       text-shadow: 2px 2px 4px black;
@@ -40,11 +44,31 @@ export default function renderCampfire(container) {
       text-align: center;
       padding: 20px;
       z-index: 2;
+
+      /* Start fully visible and allow a fade transition */
+      opacity: 1;
+      transition: opacity 1s ease;
     `
   }, 'Welcome to the Campfire. Warm up and plan your next move.');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+
+  // Fade out after 3 seconds (3000ms)  [oai_citation:0‡JungleTrailView.js](file-service://file-La9ibWCFvF9icVYDgQu4YA)
+  setTimeout(() => {
+    const msgEl = document.getElementById('campfire-message');
+    if (msgEl) {
+      msgEl.style.opacity = '0';
+    }
+  }, 3000);
+
+  // Remove the message from DOM after 4 seconds (4000ms)  [oai_citation:1‡JungleTrailView.js](file-service://file-La9ibWCFvF9icVYDgQu4YA)
+  setTimeout(() => {
+    const msgEl = document.getElementById('campfire-message');
+    if (msgEl) {
+      msgEl.remove();
+    }
+  }, 4000);
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
@@ -91,9 +115,9 @@ export default function renderCampfire(container) {
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
-      console.log('Blank button clicked - launching Firewood mini-game');
+      console.log('Blank button clicked - launching Fire view');
       window.previousCampView = 'campfire'; // ← Set previous view
-      window.campScreen.loadView('firewood');
+      window.campScreen.loadView('fire');
     });
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
