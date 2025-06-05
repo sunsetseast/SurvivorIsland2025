@@ -155,6 +155,43 @@ export default function renderFireView(container) {
 
   addDebugBanner('Fire view rendered!', 'orange', 170);
 
+  // --- Helper function for showing firewood deduction effect ---
+  function showFirewoodEffect(amount) {
+    const effect = createElement('div', {
+      className: 'firewood-hit-effect',
+      style: `
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #dc2626;
+        z-index: 9999;
+        pointer-events: none;
+      `
+    });
+
+    const minus = document.createElement('span');
+    minus.textContent = `-${amount}`;
+
+    const icon = document.createElement('img');
+    icon.src = 'Assets/Resources/firewood.png';
+    icon.style.height = '28px';
+    icon.style.width = 'auto';
+
+    effect.appendChild(minus);
+    effect.appendChild(icon);
+    document.body.appendChild(effect);
+
+    setTimeout(() => {
+      effect.remove();
+    }, 2500);
+  }
+
   // --- 1) Handle Make Fire tap: check firewood first ---
   function handleMakeFireTap() {
     const firewoodCount = player.firewood || 0;
@@ -894,41 +931,7 @@ export default function renderFireView(container) {
 
       addDebugBanner('Fire successfully built!', 'orange', 200);
     }
-    function showFirewoodEffect(amount) {
-      const effect = createElement('div', {
-        className: 'firewood-hit-effect',
-        style: `
-          position: fixed;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%);
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 28px;
-          font-weight: bold;
-          color: #dc2626;
-          z-index: 9999;
-          pointer-events: none;
-        `
-      });
-
-      const minus = document.createElement('span');
-      minus.textContent = `-${amount}`;
-
-      const icon = document.createElement('img');
-      icon.src = 'Assets/Resources/firewood.png';
-      icon.style.height = '28px';
-      icon.style.width = 'auto';
-
-      effect.appendChild(minus);
-      effect.appendChild(icon);
-      document.body.appendChild(effect);
-
-      setTimeout(() => {
-        effect.remove();
-      }, 2500);
-    }
+    
 
     function showTeamPlayerEffect(amount) {
       const effect = document.createElement('div');
