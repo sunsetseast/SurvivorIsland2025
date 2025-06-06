@@ -127,11 +127,7 @@ export default function renderFireView(container) {
       const tendFireButton = createIconButton(
         'Assets/Buttons/blank.png',
         'Tend Fire',
-        () => {
-          console.log('Tend Fire clicked');
-          gameManager.deductTime(120);
-          updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
-        },
+        () => handleTendFireTap(),
         'Tend Fire'
       );
       actionButtons.appendChild(tendFireButton);
@@ -196,18 +192,32 @@ export default function renderFireView(container) {
   function handleMakeFireTap() {
     const firewoodCount = player.firewood || 0;
     if (firewoodCount < 10) {
-      showInsufficientFirewoodParchment();
+      showInsufficientFirewoodParchment(10);
     } else {
       // Deduct 10 firewood and show effect
       player.firewood = firewoodCount - 10;
       showFirewoodEffect(10);
       // Then show instructions to start minigame
-      showFireInstructions();
+      showFireInstructions(false); // false = normal speed
+    }
+  }
+
+  // --- 1b) Handle Tend Fire tap: check firewood first ---
+  function handleTendFireTap() {
+    const firewoodCount = player.firewood || 0;
+    if (firewoodCount < 20) {
+      showInsufficientFirewoodParchment(20);
+    } else {
+      // Deduct 20 firewood and show effect
+      player.firewood = firewoodCount - 20;
+      showFirewoodEffect(20);
+      // Then show instructions to start minigame at faster speed
+      showTendFireInstructions();
     }
   }
 
   // --- 2) Parchment for insufficient firewood ---
-  function showInsufficientFirewoodParchment() {
+  function showInsufficientFirewoodParchment(requiredAmount = 10) {
     const overlay = createElement('div', {
       id: 'insufficient-firewood-overlay',
       style: `
@@ -250,7 +260,7 @@ export default function renderFireView(container) {
           line-height: 1.4;
         `
       },
-      `You need 10 firewood to make a fire.\nHead into the jungle and gather some more.`
+      `You need ${requiredAmount} firewood to ${requiredAmount === 10 ? 'make' : 'tend'} a fire.\nHead into the jungle and gather some more.`
     );
 
     parchment.appendChild(text);
@@ -264,7 +274,7 @@ export default function renderFireView(container) {
   }
 
   // --- 3) Show the parchment instructions before the minigame starts ---
-  function showFireInstructions() {
+  function showFireInstructions(isFastMode = false) {
     const overlay = createElement('div', {
       id: 'fire-instructions-overlay',
       style: `
@@ -307,7 +317,7 @@ export default function renderFireView(container) {
           line-height: 1.4;
         `
       },
-      `Make Fire:\nTap when the ember is glowing on top of each ring in order until all 5 rings are lit.\n\n(Ends cost 5 minutes and 10 firewood.)`
+      `Make Fire:\nTap when the ember is glowing on top of each ring in order until all 5 rings are lit.\n\n(Costs 5 minutes and 10 firewood.)`
     );
 
     parchment.appendChild(text);
@@ -316,12 +326,69 @@ export default function renderFireView(container) {
 
     overlay.addEventListener('click', () => {
       overlay.remove();
-      initFireGame();
+      initFireGame(isFastMode);
+    });
+  }
+
+  // --- 3b) Show the parchment instructions for tending fire ---
+  function showTendFireInstructions() {
+    const overlay = createElement('div', {
+      id: 'tend-fire-instructions-overlay',
+      style: `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        cursor: pointer;
+      `
+    });
+
+    const parchment = createElement('div', {
+      style: `
+        width: 80vw;
+        max-width: 400px;
+        background-image: url('Assets/parch-landscape.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        padding: 30px;
+        box-sizing: border-box;
+      `
+    });
+
+    const text = createElement(
+      'div',
+      {
+        style: `
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 1.2rem;
+          text-align: center;
+          text-shadow: 2px 2px 4px black;
+          line-height: 1.4;
+        `
+      },
+      `Tend Fire:\nTap when the ember is glowing on top of each ring in order until all 5 rings are lit.\n\n(Faster pace! Costs 5 minutes and 20 firewood.)`
+    );
+
+    parchment.appendChild(text);
+    overlay.appendChild(parchment);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', () => {
+      overlay.remove();
+      initFireGame(true); // true = fast mode
     });
   }
 
   // --- 4) Initialize and run the Spiral Fire Challenge minigame ---
-  function initFireGame() {
+  function initFireGame(isFastMode = false) {
     // Do NOT deduct time or firewood here—instead do it at end of minigame.
 
     // Container for the minigame UI (rings, canvas, etc.)
@@ -501,7 +568,7 @@ export default function renderFireView(container) {
       ember: {
         angle: 0,
         radius: 140,
-        speed: 0.02,
+        speed: isFastMode ? 0.035 : 0.02, // Faster speed for tend fire
         brightness: 0.5,
         x: 0,
         y: 0
@@ -830,7 +897,7 @@ export default function renderFireView(container) {
         ember: {
           angle: 0,
           radius: 140,
-          speed: 0.02,
+          speed: isFastMode ? 0.035 : 0.02, // Maintain speed based on mode
           brightness: 0.5,
           x: 0,
           y: 0
@@ -873,10 +940,16 @@ export default function renderFireView(container) {
       gameManager.deductTime(300);
       updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
 
-      // Set tribe fire value to 1
+      // Set tribe fire value based on current state and mode
       const playerTribe = gameManager.getPlayerTribe();
       if (playerTribe) {
-        playerTribe.fire = 1;
+        if (isFastMode) {
+          // Tending fire increases to level 2
+          playerTribe.fire = 2;
+        } else {
+          // Making fire sets to level 1
+          playerTribe.fire = 1;
+        }
       }
 
       // Award teamPlayer points to player for each other tribe member
@@ -896,27 +969,39 @@ export default function renderFireView(container) {
       const gameUIEl = document.getElementById('fire-game-ui');
       if (gameUIEl) gameUIEl.remove();
 
-      // Switch background to fire1.png
-      container.style.backgroundImage = "url('Assets/Minigame/fire1.png')";
+      // Switch background based on fire level
+      const newFireLevel = playerTribe ? playerTribe.fire : 1;
+      if (newFireLevel >= 2) {
+        container.style.backgroundImage = "url('Assets/Minigame/fire2.png')";
+      } else {
+        container.style.backgroundImage = "url('Assets/Minigame/fire1.png')";
+      }
 
-      // Rebuild action row: clear and add Tend Fire + Down
+      // Rebuild action row: clear and add appropriate button + Down
       if (actionButtons) {
         clearChildren(actionButtons);
 
-        const tendFireBtn = createIconButton(
-          'Assets/Buttons/blank.png',
-          'Tend Fire',
-          () => {
-            console.log('Tend Fire clicked');
-            gameManager.deductTime(120);
-            updateCampClockUI(
-              gameManager.getDayTimer(),
-              gameManager.getCurrentDay()
-            );
-          },
-          'Tend Fire'
-        );
-        actionButtons.appendChild(tendFireBtn);
+        if (newFireLevel >= 2) {
+          // Fire is at max level, show a different button or message
+          const maxFireBtn = createIconButton(
+            'Assets/Buttons/blank.png',
+            'Fire Maxed',
+            () => {
+              console.log('Fire is at maximum level');
+            },
+            'Fire Maxed'
+          );
+          actionButtons.appendChild(maxFireBtn);
+        } else {
+          // Still can tend fire
+          const tendFireBtn = createIconButton(
+            'Assets/Buttons/blank.png',
+            'Tend Fire',
+            () => handleTendFireTap(),
+            'Tend Fire'
+          );
+          actionButtons.appendChild(tendFireBtn);
+        }
 
         const downBtn = createIconButton(
           'Assets/Buttons/down.png',
