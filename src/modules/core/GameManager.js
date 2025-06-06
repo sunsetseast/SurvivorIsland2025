@@ -174,6 +174,7 @@ class GameManager {
         tribeColor: chosenColors[i],
         members,
         resources: { food: 25, water: 50, fire: 75, shelter: 60 },
+        fire: 0,
         immunityWins: 0,
         rewardWins: 0,
         attributes: this._calculateTribeAttributes(members)
@@ -298,6 +299,7 @@ class GameManager {
       tribeColor: "#FFC107",
       members: allMembers,
       resources: { food: 50, water: 75, fire: 100, shelter: 80 },
+      fire: 0,
       immunityWins: 0,
       rewardWins: 0,
       attributes: this._calculateTribeAttributes(allMembers)

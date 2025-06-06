@@ -16,8 +16,8 @@ import { updateCampClockUI } from '../utils/ClockUtils.js';
 export default function renderFireView(container) {
   // --- Persistent state: has the fire been built already? ---
   const player = gameManager.getPlayerSurvivor();
-  if (!player.dynamicValues) player.dynamicValues = {};
-  const fireBuilt = player.dynamicValues.fireBuilt === true;
+  const playerTribe = gameManager.getPlayerTribe();
+  const fireBuilt = playerTribe && playerTribe.fire >= 1;
 
   // --- Clear existing content and set FireView background ---
   clearChildren(container);
@@ -873,7 +873,11 @@ export default function renderFireView(container) {
       gameManager.deductTime(300);
       updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
 
-      player.dynamicValues.fireBuilt = true;
+      // Set tribe fire value to 1
+      const playerTribe = gameManager.getPlayerTribe();
+      if (playerTribe) {
+        playerTribe.fire = 1;
+      }
 
       // Award teamPlayer points to player for each other tribe member
       const tribe = gameManager.getPlayerTribe();

@@ -13,7 +13,14 @@ export default function renderCampfire(container) {
 
   clearChildren(container);
 
-  container.style.backgroundImage = "url('Assets/Screens/fire1.png')";
+  // Get player's tribe fire value to determine background
+  const playerTribe = gameManager.getPlayerTribe();
+  const tribeFireValue = playerTribe ? playerTribe.fire : 0;
+  
+  // Use fire2.png if tribe has fire (value >= 1), otherwise fire1.png
+  const backgroundImage = tribeFireValue >= 1 ? "url('Assets/Screens/fire2.png')" : "url('Assets/Screens/fire1.png')";
+  
+  container.style.backgroundImage = backgroundImage;
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
