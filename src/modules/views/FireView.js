@@ -19,11 +19,23 @@ export default function renderFireView(container) {
   const playerTribe = gameManager.getPlayerTribe();
   const fireBuilt = playerTribe && playerTribe.fire >= 1;
 
-  // --- Clear existing content and set FireView background ---
+  // --- Clear existing content and set FireView background based on fire level ---
   clearChildren(container);
-  container.style.backgroundImage = fireBuilt
-    ? "url('Assets/Minigame/fire1.png')"
-    : "url('Assets/Minigame/fire0.png')";
+
+  // Get current fire level from tribe
+  const currentFireLevel = playerTribe ? playerTribe.fire : 0;
+
+  // Set background image based on fire level
+  let backgroundImage;
+  if (currentFireLevel >= 2) {
+    backgroundImage = "url('Assets/Minigame/fire2.png')";
+  } else if (currentFireLevel >= 1) {
+    backgroundImage = "url('Assets/Minigame/fire1.png')";
+  } else {
+    backgroundImage = "url('Assets/Minigame/fire0.png')";
+  }
+
+  container.style.backgroundImage = backgroundImage;
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
@@ -1020,7 +1032,7 @@ export default function renderFireView(container) {
 
       addDebugBanner('Fire successfully built!', 'orange', 200);
     }
-    
+
 
     function showTeamPlayerEffect(amount) {
       const effect = document.createElement('div');
