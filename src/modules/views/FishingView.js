@@ -207,6 +207,7 @@ export default function renderFishingView(container) {
   container.appendChild(tapArea);
 
   // === ACTION BAR BUTTONS ===
+  // === ACTION BAR BUTTONS ===
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
@@ -235,11 +236,36 @@ export default function renderFishingView(container) {
       `
     });
     downButton.appendChild(downImg);
+
     downButton.addEventListener('click', () => {
+      // ——— CLEANUP FISHING LOGIC ———
+      gameState = 'ended';            // stop any further spawning
+      aimSet = false;                 // prevent clicks from setting aim
+      tapArea.style.display = 'none'; // hide tap area
+      aimCircle.style.display = 'none';
+      spear.style.display = 'none';
+
+      // cancel and remove any fish still on screen
+      if (currentFish) {
+        if (currentFish.animation) {
+          currentFish.animation.cancel();
+        }
+        currentFish.remove();
+        currentFish = null;
+      }
+
+      // clear any pending spawn timers
+      if (spawnTimer) {
+        clearTimeout(spawnTimer);
+        spawnTimer = null;
+      }
+
+      // ——— SWITCH VIEW ———
       if (window.campScreen && typeof window.campScreen.loadView === 'function') {
         window.campScreen.loadView('beach');
       }
     });
+
     actionButtons.appendChild(downButton);
   }
 
