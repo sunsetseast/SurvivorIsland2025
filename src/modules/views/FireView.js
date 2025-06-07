@@ -92,17 +92,17 @@ export default function renderFireView(container) {
         transition: all 0.4s ease;
       `
     });
-    
+
     // Light up circles based on current fire level
     if (currentFireLevel > i) {
       circle.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
       circle.style.borderColor = '#ffd700';
       circle.style.boxShadow = '0 0 15px rgba(255, 140, 0, 0.8)';
     }
-    
+
     fireLevelContainer.appendChild(circle);
   }
-  
+
   container.appendChild(fireLevelContainer);
 
   // --- Helper: createIconButton (usable throughout this module) ---
@@ -199,6 +199,10 @@ export default function renderFireView(container) {
       'Assets/Buttons/down.png',
       'Down',
       () => {
+        if (cookingState.activeItems.length > 0) {
+          showCookingUnattendedParchment();
+          return;
+        }
         if (window.previousCampView) {
           window.campScreen.loadView(window.previousCampView);
         } else {
@@ -222,24 +226,25 @@ export default function renderFireView(container) {
   }
   const cookingState = window.globalCookingState;
 
-  
+
 
   // --- COOKING SYSTEM FUNCTIONS ---
   function handlePotClick() {
     const playerTribe = gameManager.getPlayerTribe();
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
 
-    // require fire level ≥2 (i.e. at least “fire2”) to cook
-    if (currentFireLevel < 2) {
-      // fire is too weak—show parchment and bail out
-      showWeakFireParchment();
-      return;
+    if (currentFireLevel < 1) {
+        showWeakFireParchment();
+        return;
+    } else if (currentFireLevel < 2){
+        showWeakFireParchment();
+        return;
     }
-
-    // fire is strong enough—open cooking UI
-    showCookingInterface();
+    else {
+        showCookingInterface();
+    }
   }
-  
+
   function showWeakFireParchment() {
     const overlay = createElement('div', {
       id: 'weak-fire-overlay',
@@ -297,21 +302,21 @@ export default function renderFireView(container) {
 
   function showCookingInterface() {
     if (cookingState.isOpen) return;
-    
+
     // Double-check fire level before showing interface
     const playerTribe = gameManager.getPlayerTribe();
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
-    
+
     if (currentFireLevel < 2) {
       showWeakFireParchment();
       return;
     }
-    
+
     // Set cooking background now that fire check passed
     container.style.backgroundImage = "url('Assets/Screens/fire-pot.png')";
-    
+
     cookingState.isOpen = true;
-    
+
     // Show large pot overlay instead of changing small pot image
     const potOverlay = createElement('div', {
       id: 'pot-overlay',
@@ -351,7 +356,7 @@ export default function renderFireView(container) {
     potContainer.appendChild(largePotImage);
     potOverlay.appendChild(potContainer);
     document.body.appendChild(potOverlay);
-    
+
     // Show instructions if first time opening
     if (cookingState.activeItems.length === 0) {
       showCookingInstructions(() => {
@@ -495,7 +500,7 @@ export default function renderFireView(container) {
   function showIngredientSelector(type) {
     const player = gameManager.getPlayerSurvivor();
     const availableAmount = type === 'fish' ? (player.fish || 0) : (player.coconuts || 0);
-    
+
     if (availableAmount === 0) {
       alert(`You don't have any ${type} to cook!`);
       return;
@@ -530,7 +535,7 @@ export default function renderFireView(container) {
     });
 
     const title = createElement('h3', {}, `Add ${type} to pot`);
-    
+
     const controls = createElement('div', {
       style: `
         display: flex;
@@ -636,7 +641,7 @@ export default function renderFireView(container) {
 
   function addToPot(type, quantity) {
     const player = gameManager.getPlayerSurvivor();
-    
+
     // Check if we can cook both items (max 2 types)
     const uniqueTypes = [...new Set(cookingState.activeItems.map(item => item.type))];
     if (uniqueTypes.length >= 2 && !uniqueTypes.includes(type)) {
@@ -661,10 +666,10 @@ export default function renderFireView(container) {
     };
 
     cookingState.activeItems.push(cookingItem);
-    
+
     // Update background to fire-pot
     container.style.backgroundImage = "url('Assets/Screens/fire-pot.png')";
-    
+
     updateCookingDisplay();
     startCookingTimer(cookingItem);
   }
@@ -822,20 +827,20 @@ export default function renderFireView(container) {
         cookingItem.state = 'burned';
         updateCookingDisplay();
         clearInterval(timer);
-        
+
         // Remove timer from array
         const timerIndex = cookingState.timers.indexOf(timer);
         if (timerIndex > -1) {
           cookingState.timers.splice(timerIndex, 1);
         }
-        
+
         // Remove from active items after a delay
         setTimeout(() => {
           const itemIndex = cookingState.activeItems.indexOf(cookingItem);
           if (itemIndex > -1) {
             cookingState.activeItems.splice(itemIndex, 1);
             updateCookingDisplay();
-            
+
             // Reset background if no more items cooking
             if (cookingState.activeItems.length === 0) {
               const playerTribe = gameManager.getPlayerTribe();
@@ -863,12 +868,12 @@ export default function renderFireView(container) {
     if (timer) clearInterval(timer);
   });
   cookingState.timers = [];
-  
+
   // Resume existing timers when returning to view
   cookingState.activeItems.forEach((item, index) => {
     startCookingTimer(item);
   });
-  
+
   // Update display for existing items
   if (cookingState.activeItems.length > 0) {
     updateCookingDisplay();
@@ -876,12 +881,12 @@ export default function renderFireView(container) {
 
   function closeCookingInterface() {
     cookingState.isOpen = false;
-    
+
     const potOverlay = document.getElementById('pot-overlay');
     if (potOverlay) {
       potOverlay.remove();
     }
-    
+
     // Don't clear timers or items - they should persist
   }
 
@@ -940,7 +945,7 @@ export default function renderFireView(container) {
   function handleTendFireTap() {
     const firewoodCount = player.firewood || 0;
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
-    
+
     // Determine cost based on current fire level
     let requiredFirewood;
     if (currentFireLevel === 1) {
@@ -950,7 +955,7 @@ export default function renderFireView(container) {
     } else {
       requiredFirewood = 20; // Default fallback
     }
-    
+
     if (firewoodCount < requiredFirewood) {
       showInsufficientFirewoodParchment(requiredFirewood);
     } else {
@@ -986,8 +991,7 @@ export default function renderFireView(container) {
         width: 80vw;
         max-width: 400px;
         background-image: url('Assets/parch-landscape.png');
-        background-size: contain;
-        background-repeat: no-repeat;
+        background-size: contain;        background-repeat: no-repeat;
         background-position: center;
         padding: 30px;
         box-sizing: border-box;
@@ -1551,7 +1555,7 @@ export default function renderFireView(container) {
       for (let i = 0; i < 5; i++) {
         const ringEl = document.getElementById(`ring${i}`);
         if (!ringEl) continue;
-        
+
         if (gameState.ringsLit[i]) {
           // Keep successfully lit rings glowing
           ringEl.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
@@ -1743,7 +1747,7 @@ export default function renderFireView(container) {
       const fireLevelIndicator = document.getElementById('fire-level-indicator');
       if (fireLevelIndicator) {
         fireLevelIndicator.style.display = 'flex';
-        
+
         // Update fire level circles based on new fire level
         for (let i = 0; i < 3; i++) {
           const circle = document.getElementById(`fire-level-${i}`);
@@ -1814,7 +1818,6 @@ export default function renderFireView(container) {
       addDebugBanner('Fire successfully built!', 'orange', 200);
     }
 
-
     function showTeamPlayerEffect(amount) {
       const effect = document.createElement('div');
       effect.className = 'team-player-hit-effect';
@@ -1862,4 +1865,58 @@ export default function renderFireView(container) {
       e.preventDefault();
     });
   }
+  function showCookingUnattendedParchment() {
+    const overlay = createElement('div', {
+        id: 'cooking-unattended-overlay',
+        style: `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2000;
+          cursor: pointer;
+        `
+      });
+  
+      const parchment = createElement('div', {
+        style: `
+          width: 80vw;
+          max-width: 400px;
+          background-image: url('Assets/parch-landscape.png');
+          background-size: contain;
+          background-repeat: no-repeat;
+          background-position: center;
+          padding: 30px;
+          box-sizing: border-box;
+        `
+      });
+  
+      const text = createElement(
+        'div',
+        {
+          style: `
+            color: white;
+            font-family: 'Survivant', sans-serif;
+            font-size: 1.2rem;
+            text-align: center;
+            text-shadow: 2px 2px 4px black;
+            line-height: 1.4;
+          `
+        },
+        `You can't leave food cooking unattended.`
+      );
+  
+      parchment.appendChild(text);
+      overlay.appendChild(parchment);
+      document.body.appendChild(overlay);
+  
+      overlay.addEventListener('click', () => {
+        overlay.remove();
+      });
+    }
 }
