@@ -222,10 +222,7 @@ export default function renderFireView(container) {
   }
   const cookingState = window.globalCookingState;
 
-  // Check if we have active cooking items and update background
-  if (cookingState.activeItems.length > 0) {
-    container.style.backgroundImage = "url('Assets/Screens/fire-pot.png')";
-  }
+  
 
   // --- COOKING SYSTEM FUNCTIONS ---
   function handlePotClick() {
@@ -300,6 +297,18 @@ export default function renderFireView(container) {
 
   function showCookingInterface() {
     if (cookingState.isOpen) return;
+    
+    // Double-check fire level before showing interface
+    const playerTribe = gameManager.getPlayerTribe();
+    const currentFireLevel = playerTribe ? playerTribe.fire : 0;
+    
+    if (currentFireLevel < 2) {
+      showWeakFireParchment();
+      return;
+    }
+    
+    // Set cooking background now that fire check passed
+    container.style.backgroundImage = "url('Assets/Screens/fire-pot.png')";
     
     cookingState.isOpen = true;
     
