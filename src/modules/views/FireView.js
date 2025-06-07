@@ -825,12 +825,23 @@ export default function renderFireView(container) {
       for (let i = 0; i < 5; i++) {
         const ringEl = document.getElementById(`ring${i}`);
         if (!ringEl) continue;
-        ringEl.style.borderColor = '#8B4513';
-        ringEl.style.background = 'rgba(139, 69, 19, 0.3)';
-        ringEl.style.boxShadow = 'none';
-        ringEl.style.transform = 'scale(1)';
+        
+        if (gameState.ringsLit[i]) {
+          // Keep successfully lit rings glowing
+          ringEl.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
+          ringEl.style.borderColor = '#ffd700';
+          ringEl.style.boxShadow = '0 0 20px rgba(255, 140, 0, 0.9)';
+          ringEl.style.transform = 'scale(1.1)';
+        } else {
+          // Reset unlighted rings to default
+          ringEl.style.borderColor = '#8B4513';
+          ringEl.style.background = 'rgba(139, 69, 19, 0.3)';
+          ringEl.style.boxShadow = 'none';
+          ringEl.style.transform = 'scale(1)';
+        }
       }
 
+      // Highlight the current active ring (if it's not already lit)
       const idx = gameState.currentRing;
       if (idx !== -1 && !gameState.ringsLit[idx]) {
         const activeEl = document.getElementById(`ring${idx}`);
@@ -853,12 +864,6 @@ export default function renderFireView(container) {
         // --- Success on a ring ---
         gameState.ringsLit[gameState.currentRing] = true;
         gameState.spiralRings[gameState.currentRing].lit = true;
-
-        const litEl = document.getElementById(`ring${gameState.currentRing}`);
-        litEl.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
-        litEl.style.borderColor = '#ffd700';
-        litEl.style.boxShadow = '0 0 20px rgba(255, 140, 0, 0.9)';
-        litEl.style.transform = 'scale(1.1)';
 
         // Create success spark particles
         for (let i = 0; i < 15; i++) {
