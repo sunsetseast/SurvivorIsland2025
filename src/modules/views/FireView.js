@@ -682,6 +682,9 @@ export default function renderFireView(container) {
     const potOverlay = document.getElementById('pot-overlay');
     const displayParent = potOverlay || container;
 
+    // Make sure we have a valid parent element
+    if (!displayParent) return;
+
     const display = createElement('div', {
       id: 'cooking-items-display',
       style: `
@@ -855,11 +858,15 @@ export default function renderFireView(container) {
     cookingState.timers.push(timer);
   }
 
+  // Clean up any existing timers first
+  cookingState.timers.forEach(timer => {
+    if (timer) clearInterval(timer);
+  });
+  cookingState.timers = [];
+  
   // Resume existing timers when returning to view
   cookingState.activeItems.forEach((item, index) => {
-    if (cookingState.timers.length <= index) {
-      startCookingTimer(item);
-    }
+    startCookingTimer(item);
   });
   
   // Update display for existing items
