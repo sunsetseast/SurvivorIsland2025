@@ -865,6 +865,9 @@ export default function renderFireView(container) {
         gameState.ringsLit[gameState.currentRing] = true;
         gameState.spiralRings[gameState.currentRing].lit = true;
 
+        // Update ring display immediately to show gold circle
+        updateRingDisplay();
+
         // Create success spark particles
         for (let i = 0; i < 15; i++) {
           gameState.particles.push(
