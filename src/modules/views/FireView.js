@@ -229,6 +229,7 @@ export default function renderFireView(container) {
 
   // --- COOKING SYSTEM FUNCTIONS ---
   function handlePotClick() {
+    const playerTribe = gameManager.getPlayerTribe();
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
     
     if (currentFireLevel < 2) {
@@ -642,8 +643,8 @@ export default function renderFireView(container) {
     const cookingItem = {
       type: type,
       quantity: quantity,
-      startTime: Date.now(),
-      duration: type === 'fish' ? 600000 : 480000, // 10 minutes for fish, 8 minutes for coconut (in game time)
+      startTime: gameManager.getDayTimer(), // Use game time instead of real time
+      duration: type === 'fish' ? 600 : 480, // 10 minutes for fish, 8 minutes for coconut (in game seconds)
       state: 'cooking' // 'cooking', 'cooked', 'burned'
     };
 
@@ -784,12 +785,10 @@ export default function renderFireView(container) {
   }
 
   function startCookingTimer(cookingItem) {
-    const startTime = cookingItem.startTime;
-    const duration = cookingItem.duration;
-
     const timer = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      const currentGameTime = gameManager.getDayTimer();
+      const elapsed = cookingItem.startTime - currentGameTime; // Game time counts down
+      const progress = Math.min(elapsed / cookingItem.duration, 1);
 
       // Update progress bar
       const index = cookingState.activeItems.indexOf(cookingItem);
@@ -824,6 +823,7 @@ export default function renderFireView(container) {
             
             // Reset background if no more items cooking
             if (cookingState.activeItems.length === 0) {
+              const playerTribe = gameManager.getPlayerTribe();
               const currentFireLevel = playerTribe ? playerTribe.fire : 0;
               if (currentFireLevel >= 3) {
                 container.style.backgroundImage = "url('Assets/Minigame/fire3.png')";
