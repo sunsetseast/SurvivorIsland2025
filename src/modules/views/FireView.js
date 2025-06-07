@@ -231,18 +231,14 @@ export default function renderFireView(container) {
   // --- COOKING SYSTEM FUNCTIONS ---
   function handlePotClick() {
     const playerTribe = gameManager.getPlayerTribe();
-    const currentFireLevel = playerTribe ? playerTribe.fire : 0;
+    const currentFireLevel = playerTribe && typeof playerTribe.fire === 'number' ? playerTribe.fire : 0;
 
-    if (currentFireLevel < 1) {
-        showWeakFireParchment();
-        return;
-    } else if (currentFireLevel < 2){
+    if (currentFireLevel < 2) {
         showWeakFireParchment();
         return;
     }
-    else {
-        showCookingInterface();
-    }
+    
+    showCookingInterface();
   }
 
   function showWeakFireParchment() {
@@ -305,7 +301,7 @@ export default function renderFireView(container) {
 
     // Double-check fire level before showing interface
     const playerTribe = gameManager.getPlayerTribe();
-    const currentFireLevel = playerTribe ? playerTribe.fire : 0;
+    const currentFireLevel = playerTribe && typeof playerTribe.fire === 'number' ? playerTribe.fire : 0;
 
     if (currentFireLevel < 2) {
       showWeakFireParchment();
@@ -863,19 +859,23 @@ export default function renderFireView(container) {
     cookingState.timers.push(timer);
   }
 
-  // Clean up any existing timers first
-  cookingState.timers.forEach(timer => {
-    if (timer) clearInterval(timer);
-  });
-  cookingState.timers = [];
+  // Only resume cooking if we have both adequate fire and active items
+  const resumePlayerTribe = gameManager.getPlayerTribe();
+  const resumeFireLevel = resumePlayerTribe && typeof resumePlayerTribe.fire === 'number' ? resumePlayerTribe.fire : 0;
+  
+  if (resumeFireLevel >= 2 && cookingState.activeItems.length > 0) {
+    // Clean up any existing timers first
+    cookingState.timers.forEach(timer => {
+      if (timer) clearInterval(timer);
+    });
+    cookingState.timers = [];
 
-  // Resume existing timers when returning to view
-  cookingState.activeItems.forEach((item, index) => {
-    startCookingTimer(item);
-  });
+    // Resume existing timers when returning to view
+    cookingState.activeItems.forEach((item, index) => {
+      startCookingTimer(item);
+    });
 
-  // Update display for existing items
-  if (cookingState.activeItems.length > 0) {
+    // Update display for existing items
     updateCookingDisplay();
   }
 
