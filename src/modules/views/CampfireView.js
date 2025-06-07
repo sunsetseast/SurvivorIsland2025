@@ -16,17 +16,19 @@ export default function renderCampfire(container) {
   // Get player's tribe fire value to determine background
   const playerTribe = gameManager.getPlayerTribe();
   const tribeFireValue = playerTribe ? playerTribe.fire : 0;
-  
-  // Use different backgrounds based on fire level
+
+  // Use different backgrounds based on fire level (CampfireView uses +1 offset)
   let backgroundImage;
-  if (tribeFireValue >= 2) {
+  if (tribeFireValue >= 3) {
+    backgroundImage = "url('Assets/Screens/fire4.png')";
+  } else if (tribeFireValue >= 2) {
     backgroundImage = "url('Assets/Screens/fire3.png')";
   } else if (tribeFireValue >= 1) {
     backgroundImage = "url('Assets/Screens/fire2.png')";
   } else {
     backgroundImage = "url('Assets/Screens/fire1.png')";
   }
-  
+
   container.style.backgroundImage = backgroundImage;
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';

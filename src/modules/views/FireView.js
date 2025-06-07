@@ -27,7 +27,9 @@ export default function renderFireView(container) {
 
   // Set background image based on fire level
   let backgroundImage;
-  if (currentFireLevel >= 2) {
+  if (currentFireLevel >= 3) {
+    backgroundImage = "url('Assets/Minigame/fire3.png')";
+  } else if (currentFireLevel >= 2) {
     backgroundImage = "url('Assets/Minigame/fire2.png')";
   } else if (currentFireLevel >= 1) {
     backgroundImage = "url('Assets/Minigame/fire1.png')";
@@ -217,14 +219,26 @@ export default function renderFireView(container) {
   // --- 1b) Handle Tend Fire tap: check firewood first ---
   function handleTendFireTap() {
     const firewoodCount = player.firewood || 0;
-    if (firewoodCount < 20) {
-      showInsufficientFirewoodParchment(20);
+    const currentFireLevel = playerTribe ? playerTribe.fire : 0;
+    
+    // Determine cost based on current fire level
+    let requiredFirewood;
+    if (currentFireLevel === 1) {
+      requiredFirewood = 20; // Fire 1 → Fire 2
+    } else if (currentFireLevel === 2) {
+      requiredFirewood = 30; // Fire 2 → Fire 3 (max)
     } else {
-      // Deduct 20 firewood and show effect
-      player.firewood = firewoodCount - 20;
-      showFirewoodEffect(20);
+      requiredFirewood = 20; // Default fallback
+    }
+    
+    if (firewoodCount < requiredFirewood) {
+      showInsufficientFirewoodParchment(requiredFirewood);
+    } else {
+      // Deduct required firewood and show effect
+      player.firewood = firewoodCount - requiredFirewood;
+      showFirewoodEffect(requiredFirewood);
       // Then show instructions to start minigame at faster speed
-      showTendFireInstructions();
+      showTendFireInstructions(requiredFirewood);
     }
   }
 
@@ -343,7 +357,7 @@ export default function renderFireView(container) {
   }
 
   // --- 3b) Show the parchment instructions for tending fire ---
-  function showTendFireInstructions() {
+  function showTendFireInstructions(firewoodCost = 20) {
     const overlay = createElement('div', {
       id: 'tend-fire-instructions-overlay',
       style: `
@@ -386,7 +400,7 @@ export default function renderFireView(container) {
           line-height: 1.4;
         `
       },
-      `Tend Fire:\nTap when the ember is glowing on top of each ring in order until all 5 rings are lit.\n\n(Faster pace! Costs 5 minutes and 20 firewood.)`
+      `Tend Fire:\nTap when the ember is glowing on top of each ring in order until all 5 rings are lit.\n\n(Faster pace! Costs 5 minutes and ${firewoodCost} firewood.)`
     );
 
     parchment.appendChild(text);
@@ -956,8 +970,8 @@ export default function renderFireView(container) {
       const playerTribe = gameManager.getPlayerTribe();
       if (playerTribe) {
         if (isFastMode) {
-          // Tending fire increases to level 2
-          playerTribe.fire = 2;
+          // Tending fire increases by 1 level
+          playerTribe.fire = Math.min(3, playerTribe.fire + 1);
         } else {
           // Making fire sets to level 1
           playerTribe.fire = 1;
@@ -983,7 +997,9 @@ export default function renderFireView(container) {
 
       // Switch background based on fire level
       const newFireLevel = playerTribe ? playerTribe.fire : 1;
-      if (newFireLevel >= 2) {
+      if (newFireLevel >= 3) {
+        container.style.backgroundImage = "url('Assets/Minigame/fire3.png')";
+      } else if (newFireLevel >= 2) {
         container.style.backgroundImage = "url('Assets/Minigame/fire2.png')";
       } else {
         container.style.backgroundImage = "url('Assets/Minigame/fire1.png')";
@@ -993,7 +1009,7 @@ export default function renderFireView(container) {
       if (actionButtons) {
         clearChildren(actionButtons);
 
-        if (newFireLevel >= 2) {
+        if (newFireLevel >= 3) {
           // Fire is at max level, show a different button or message
           const maxFireBtn = createIconButton(
             'Assets/Buttons/blank.png',
