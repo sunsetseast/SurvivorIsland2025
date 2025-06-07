@@ -232,11 +232,13 @@ export default function renderFireView(container) {
     const playerTribe = gameManager.getPlayerTribe();
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
     
+    // Only allow cooking if fire level is 2 or higher
     if (currentFireLevel < 2) {
       showWeakFireParchment();
-      return; // Exit early, don't do anything else
+      return; // Exit early, don't show cooking interface
     }
     
+    // Fire is strong enough, show cooking interface
     showCookingInterface();
   }
 
