@@ -58,6 +58,47 @@ export default function renderFireView(container) {
   });
   container.appendChild(potImg);
 
+  // --- FIRE LEVEL INDICATOR (3 circles on left side) ---
+  const fireLevelContainer = createElement('div', {
+    id: 'fire-level-indicator',
+    style: `
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      z-index: 10;
+    `
+  });
+
+  // Create 3 circles for fire levels (bottom to top: level 1, 2, 3)
+  for (let i = 2; i >= 0; i--) { // Reverse order so bottom circle is index 0
+    const circle = createElement('div', {
+      id: `fire-level-${i}`,
+      style: `
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid #8B4513;
+        background: rgba(139, 69, 19, 0.3);
+        transition: all 0.4s ease;
+      `
+    });
+    
+    // Light up circles based on current fire level
+    if (currentFireLevel > i) {
+      circle.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
+      circle.style.borderColor = '#ffd700';
+      circle.style.boxShadow = '0 0 15px rgba(255, 140, 0, 0.8)';
+    }
+    
+    fireLevelContainer.appendChild(circle);
+  }
+  
+  container.appendChild(fireLevelContainer);
+
   // --- Helper: createIconButton (usable throughout this module) ---
   function createIconButton(
     src,
@@ -416,6 +457,12 @@ export default function renderFireView(container) {
   // --- 4) Initialize and run the Spiral Fire Challenge minigame ---
   function initFireGame(isFastMode = false) {
     // Do NOT deduct time or firewood here—instead do it at end of minigame.
+
+    // Hide fire level indicator during minigame
+    const fireLevelIndicator = document.getElementById('fire-level-indicator');
+    if (fireLevelIndicator) {
+      fireLevelIndicator.style.display = 'none';
+    }
 
     // Container for the minigame UI (rings, canvas, etc.)
     const gameUI = createElement('div', {
@@ -965,6 +1012,13 @@ export default function renderFireView(container) {
           ringEl.style.transform = 'scale(1)';
         }
       }
+
+      // Show fire level indicator again
+      const fireLevelIndicator = document.getElementById('fire-level-indicator');
+      if (fireLevelIndicator) {
+        fireLevelIndicator.style.display = 'flex';
+      }
+
       updateGame();
     }
 
@@ -1002,6 +1056,28 @@ export default function renderFireView(container) {
       // Remove the minigame UI container
       const gameUIEl = document.getElementById('fire-game-ui');
       if (gameUIEl) gameUIEl.remove();
+
+      // Show and update fire level indicator
+      const fireLevelIndicator = document.getElementById('fire-level-indicator');
+      if (fireLevelIndicator) {
+        fireLevelIndicator.style.display = 'flex';
+        
+        // Update fire level circles based on new fire level
+        for (let i = 0; i < 3; i++) {
+          const circle = document.getElementById(`fire-level-${i}`);
+          if (circle) {
+            if (newFireLevel > i) {
+              circle.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
+              circle.style.borderColor = '#ffd700';
+              circle.style.boxShadow = '0 0 15px rgba(255, 140, 0, 0.8)';
+            } else {
+              circle.style.background = 'rgba(139, 69, 19, 0.3)';
+              circle.style.borderColor = '#8B4513';
+              circle.style.boxShadow = 'none';
+            }
+          }
+        }
+      }
 
       // Switch background based on fire level
       const newFireLevel = playerTribe ? playerTribe.fire : 1;
