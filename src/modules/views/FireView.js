@@ -863,23 +863,19 @@ export default function renderFireView(container) {
     cookingState.timers.push(timer);
   }
 
-  // Only resume cooking if we have active items and adequate fire
-  const playerTribe = gameManager.getPlayerTribe();
-  const currentFireLevel = playerTribe ? playerTribe.fire : 0;
-  
-  if (currentFireLevel >= 2 && cookingState.activeItems.length > 0) {
-    // Clean up any existing timers first
-    cookingState.timers.forEach(timer => {
-      if (timer) clearInterval(timer);
-    });
-    cookingState.timers = [];
+  // Clean up any existing timers first
+  cookingState.timers.forEach(timer => {
+    if (timer) clearInterval(timer);
+  });
+  cookingState.timers = [];
 
-    // Resume existing timers when returning to view
-    cookingState.activeItems.forEach((item, index) => {
-      startCookingTimer(item);
-    });
+  // Resume existing timers when returning to view
+  cookingState.activeItems.forEach((item, index) => {
+    startCookingTimer(item);
+  });
 
-    // Update display for existing items
+  // Update display for existing items
+  if (cookingState.activeItems.length > 0) {
     updateCookingDisplay();
   }
 
