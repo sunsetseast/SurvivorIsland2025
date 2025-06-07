@@ -858,34 +858,20 @@ export default function renderFireView(container) {
     cookingState.timers.push(timer);
   }
 
-  // Only resume cooking timers and displays if fire is strong enough
-  const playerTribe = gameManager.getPlayerTribe();
-  const currentFireLevel = playerTribe ? playerTribe.fire : 0;
+  // Clean up any existing timers first
+  cookingState.timers.forEach(timer => {
+    if (timer) clearInterval(timer);
+  });
+  cookingState.timers = [];
   
-  if (currentFireLevel >= 2) {
-    // Clean up any existing timers first
-    cookingState.timers.forEach(timer => {
-      if (timer) clearInterval(timer);
-    });
-    cookingState.timers = [];
-    
-    // Resume existing timers when returning to view
-    cookingState.activeItems.forEach((item, index) => {
-      startCookingTimer(item);
-    });
-    
-    // Update display for existing items
-    if (cookingState.activeItems.length > 0) {
-      updateCookingDisplay();
-    }
-  } else {
-    // Fire too weak - clear any existing cooking items and timers
-    cookingState.timers.forEach(timer => {
-      if (timer) clearInterval(timer);
-    });
-    cookingState.timers = [];
-    cookingState.activeItems = [];
-    cookingState.isOpen = false;
+  // Resume existing timers when returning to view
+  cookingState.activeItems.forEach((item, index) => {
+    startCookingTimer(item);
+  });
+  
+  // Update display for existing items
+  if (cookingState.activeItems.length > 0) {
+    updateCookingDisplay();
   }
 
   function closeCookingInterface() {
