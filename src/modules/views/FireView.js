@@ -470,21 +470,19 @@ export default function renderFireView(container) {
     coconutButton.addEventListener('click', () => showIngredientSelector('coconut'));
 
     // Close button
-    const closeButton = createElement('button', {
+    const closeButton = createElement('img', {
+      src: 'Assets/Buttons/x-button.png',
+      alt: 'Close',
       style: `
         position: absolute;
-        top: -50px;
-        right: -10px;
-        width: 30px;
-        height: 30px;
-        border: none;
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 50%;
+        top: -40px;
+        right: -5px;
+        width: 20px;
+        height: 20px;
         cursor: pointer;
-        font-size: 18px;
-        font-weight: bold;
+        z-index: 1700;
       `
-    }, '×');
+    });
     closeButton.addEventListener('click', closeCookingInterface);
 
     cookingButtonsContainer.appendChild(fishButton);
