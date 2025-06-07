@@ -450,8 +450,8 @@ export default function renderFireView(container) {
       src: 'Assets/Minigame/fishButton.png',
       alt: 'Cook Fish',
       style: `
-        width: 60px;
         height: 60px;
+        width: auto;
         cursor: pointer;
       `
     });
@@ -462,8 +462,8 @@ export default function renderFireView(container) {
       src: 'Assets/Minigame/coconutButton.png',
       alt: 'Cook Coconut',
       style: `
-        width: 60px;
         height: 60px;
+        width: auto;
         cursor: pointer;
       `
     });
