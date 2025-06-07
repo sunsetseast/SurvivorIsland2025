@@ -443,7 +443,7 @@ export default function renderFireView(container) {
     const ringsWrapper = createElement('div', {
       id: 'progress-rings-container',
       style: `
-        margin-top: 10px;
+        margin-top: 35px;
         display: flex;
         justify-content: center;
         gap: 8px;
