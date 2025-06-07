@@ -212,12 +212,20 @@ export default function renderFireView(container) {
 
   addDebugBanner('Fire view rendered!', 'orange', 170);
 
-  // --- COOKING SYSTEM STATE ---
-  let cookingState = {
-    isOpen: false,
-    activeItems: [], // { type: 'fish'|'coconut', quantity: 1, startTime: Date.now(), duration: 600000 }
-    timers: []
-  };
+  // --- COOKING SYSTEM STATE (persistent across view changes) ---
+  if (!window.globalCookingState) {
+    window.globalCookingState = {
+      isOpen: false,
+      activeItems: [], // { type: 'fish'|'coconut', quantity: 1, startTime: Date.now(), duration: 600000 }
+      timers: []
+    };
+  }
+  const cookingState = window.globalCookingState;
+
+  // Check if we have active cooking items and update background
+  if (cookingState.activeItems.length > 0) {
+    container.style.backgroundImage = "url('Assets/Screens/fire-pot.png')";
+  }
 
   // --- COOKING SYSTEM FUNCTIONS ---
   function handlePotClick() {
@@ -290,10 +298,59 @@ export default function renderFireView(container) {
     
     cookingState.isOpen = true;
     
-    // Change pot image to open pot
-    potImg.src = 'Assets/Minigame/pot-open.png';
+    // Show large pot overlay instead of changing small pot image
+    const potOverlay = createElement('div', {
+      id: 'pot-overlay',
+      style: `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1500;
+      `
+    });
+
+    const potContainer = createElement('div', {
+      style: `
+        position: relative;
+        width: 80vw;
+        max-width: 400px;
+        height: 80vh;
+        max-height: 600px;
+      `
+    });
+
+    const largePotImage = createElement('img', {
+      src: 'Assets/Minigame/pot-open.png',
+      style: `
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      `
+    });
+
+    potContainer.appendChild(largePotImage);
+    potOverlay.appendChild(potContainer);
+    document.body.appendChild(potOverlay);
     
-    // Show instructions parchment
+    // Show instructions if first time opening
+    if (cookingState.activeItems.length === 0) {
+      showCookingInstructions(() => {
+        showCookingButtons();
+        updateCookingDisplay();
+      });
+    } else {
+      showCookingButtons();
+      updateCookingDisplay();
+    }
+  }
+
+  function showCookingInstructions(callback) {
     const overlay = createElement('div', {
       id: 'cooking-instructions-overlay',
       style: `
@@ -345,21 +402,31 @@ export default function renderFireView(container) {
 
     overlay.addEventListener('click', () => {
       overlay.remove();
-      showCookingButtons();
+      if (callback) callback();
     });
   }
 
   function showCookingButtons() {
-    // Create cooking buttons container
+    // Remove existing buttons
+    const existingButtons = document.getElementById('cooking-buttons-container');
+    if (existingButtons) {
+      existingButtons.remove();
+    }
+
+    // Create cooking buttons container inside pot overlay
+    const potOverlay = document.getElementById('pot-overlay');
+    if (!potOverlay) return;
+
     const cookingButtonsContainer = createElement('div', {
       id: 'cooking-buttons-container',
       style: `
         position: absolute;
-        bottom: 150px;
-        right: 20px;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
-        gap: 10px;
-        z-index: 15;
+        gap: 20px;
+        z-index: 1600;
       `
     });
 
@@ -387,12 +454,28 @@ export default function renderFireView(container) {
     });
     coconutButton.addEventListener('click', () => showIngredientSelector('coconut'));
 
+    // Close button
+    const closeButton = createElement('button', {
+      style: `
+        position: absolute;
+        top: -50px;
+        right: -10px;
+        width: 30px;
+        height: 30px;
+        border: none;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 18px;
+        font-weight: bold;
+      `
+    }, '×');
+    closeButton.addEventListener('click', closeCookingInterface);
+
     cookingButtonsContainer.appendChild(fishButton);
     cookingButtonsContainer.appendChild(coconutButton);
-    container.appendChild(cookingButtonsContainer);
-
-    // Show cooking items and timers
-    updateCookingDisplay();
+    cookingButtonsContainer.appendChild(closeButton);
+    potOverlay.appendChild(cookingButtonsContainer);
   }
 
   function showIngredientSelector(type) {
@@ -564,6 +647,10 @@ export default function renderFireView(container) {
     };
 
     cookingState.activeItems.push(cookingItem);
+    
+    // Update background to fire-pot
+    container.style.backgroundImage = "url('Assets/Screens/fire-pot.png')";
+    
     updateCookingDisplay();
     startCookingTimer(cookingItem);
   }
@@ -577,14 +664,23 @@ export default function renderFireView(container) {
 
     if (cookingState.activeItems.length === 0) return;
 
+    // Find the pot overlay or use the main container
+    const potOverlay = document.getElementById('pot-overlay');
+    const displayParent = potOverlay || container;
+
     const display = createElement('div', {
       id: 'cooking-items-display',
       style: `
         position: absolute;
-        bottom: 100px;
-        right: 45px;
-        z-index: 12;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        z-index: ${potOverlay ? '1600' : '12'};
         pointer-events: none;
+        max-width: 200px;
       `
     });
 
@@ -592,9 +688,11 @@ export default function renderFireView(container) {
       const itemContainer = createElement('div', {
         style: `
           position: relative;
-          width: 40px;
-          height: 40px;
-          margin-bottom: 5px;
+          width: 60px;
+          height: 60px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         `
       });
 
@@ -627,35 +725,40 @@ export default function renderFireView(container) {
         `
       });
 
-      // Quantity indicator
-      const quantityLabel = createElement('div', {
-        style: `
-          position: absolute;
-          top: -5px;
-          right: -5px;
-          background: rgba(0, 0, 0, 0.7);
-          color: white;
-          border-radius: 50%;
-          width: 20px;
-          height: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          font-weight: bold;
-        `
-      }, `x${item.quantity}`);
+      // Quantity indicator (only show if > 1)
+      if (item.quantity > 1) {
+        const quantityLabel = createElement('div', {
+          style: `
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid white;
+          `
+        }, `x${item.quantity}`);
+        itemContainer.appendChild(quantityLabel);
+      }
 
       // Cooking progress bar
       const progressBar = createElement('div', {
         style: `
           position: absolute;
-          bottom: -8px;
+          bottom: -10px;
           left: 0;
           width: 100%;
-          height: 4px;
-          background: rgba(0, 0, 0, 0.3);
-          border-radius: 2px;
+          height: 6px;
+          background: rgba(0, 0, 0, 0.5);
+          border-radius: 3px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
         `
       });
 
@@ -666,17 +769,17 @@ export default function renderFireView(container) {
           border-radius: 2px;
           transition: all 0.5s ease;
           background: linear-gradient(to right, #ffff99, #ff6600, #000000);
+          width: 0%;
         `
       });
 
       progressBar.appendChild(progressFill);
       itemContainer.appendChild(itemImg);
-      itemContainer.appendChild(quantityLabel);
       itemContainer.appendChild(progressBar);
       display.appendChild(itemContainer);
     });
 
-    container.appendChild(display);
+    displayParent.appendChild(display);
   }
 
   function startCookingTimer(cookingItem) {
@@ -705,12 +808,32 @@ export default function renderFireView(container) {
         updateCookingDisplay();
         clearInterval(timer);
         
+        // Remove timer from array
+        const timerIndex = cookingState.timers.indexOf(timer);
+        if (timerIndex > -1) {
+          cookingState.timers.splice(timerIndex, 1);
+        }
+        
         // Remove from active items after a delay
         setTimeout(() => {
           const itemIndex = cookingState.activeItems.indexOf(cookingItem);
           if (itemIndex > -1) {
             cookingState.activeItems.splice(itemIndex, 1);
             updateCookingDisplay();
+            
+            // Reset background if no more items cooking
+            if (cookingState.activeItems.length === 0) {
+              const currentFireLevel = playerTribe ? playerTribe.fire : 0;
+              if (currentFireLevel >= 3) {
+                container.style.backgroundImage = "url('Assets/Minigame/fire3.png')";
+              } else if (currentFireLevel >= 2) {
+                container.style.backgroundImage = "url('Assets/Minigame/fire2.png')";
+              } else if (currentFireLevel >= 1) {
+                container.style.backgroundImage = "url('Assets/Minigame/fire1.png')";
+              } else {
+                container.style.backgroundImage = "url('Assets/Minigame/fire0.png')";
+              }
+            }
           }
         }, 5000);
       }
@@ -719,31 +842,27 @@ export default function renderFireView(container) {
     cookingState.timers.push(timer);
   }
 
-  // Add click outside to close cooking interface
-  container.addEventListener('click', (e) => {
-    if (cookingState.isOpen && !e.target.closest('#cooking-buttons-container') && e.target !== potImg) {
-      closeCookingInterface();
+  // Resume existing timers when returning to view
+  cookingState.activeItems.forEach((item, index) => {
+    if (cookingState.timers.length <= index) {
+      startCookingTimer(item);
     }
   });
+  
+  // Update display for existing items
+  if (cookingState.activeItems.length > 0) {
+    updateCookingDisplay();
+  }
 
   function closeCookingInterface() {
     cookingState.isOpen = false;
-    potImg.src = 'Assets/Resources/pot.png';
     
-    const cookingButtons = document.getElementById('cooking-buttons-container');
-    if (cookingButtons) {
-      cookingButtons.remove();
+    const potOverlay = document.getElementById('pot-overlay');
+    if (potOverlay) {
+      potOverlay.remove();
     }
     
-    const cookingDisplay = document.getElementById('cooking-items-display');
-    if (cookingDisplay) {
-      cookingDisplay.remove();
-    }
-    
-    // Clear timers
-    cookingState.timers.forEach(timer => clearInterval(timer));
-    cookingState.timers = [];
-    cookingState.activeItems = [];
+    // Don't clear timers or items - they should persist
   }
 
   // --- Helper function for showing firewood deduction effect ---
