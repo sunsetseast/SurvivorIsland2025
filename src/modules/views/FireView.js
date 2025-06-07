@@ -231,17 +231,18 @@ export default function renderFireView(container) {
   function handlePotClick() {
     const playerTribe = gameManager.getPlayerTribe();
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
-    
-    // Only allow cooking if fire level is 2 or higher
+
+    // require fire level ≥2 (i.e. at least “fire2”) to cook
     if (currentFireLevel < 2) {
+      // fire is too weak—show parchment and bail out
       showWeakFireParchment();
-      return; // Exit early, don't show cooking interface
+      return;
     }
-    
-    // Fire is strong enough, show cooking interface
+
+    // fire is strong enough—open cooking UI
     showCookingInterface();
   }
-
+  
   function showWeakFireParchment() {
     const overlay = createElement('div', {
       id: 'weak-fire-overlay',
