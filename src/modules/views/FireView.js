@@ -1057,6 +1057,9 @@ export default function renderFireView(container) {
       const gameUIEl = document.getElementById('fire-game-ui');
       if (gameUIEl) gameUIEl.remove();
 
+      // Get the new fire level first
+      const newFireLevel = playerTribe ? playerTribe.fire : 1;
+
       // Show and update fire level indicator
       const fireLevelIndicator = document.getElementById('fire-level-indicator');
       if (fireLevelIndicator) {
@@ -1080,7 +1083,6 @@ export default function renderFireView(container) {
       }
 
       // Switch background based on fire level
-      const newFireLevel = playerTribe ? playerTribe.fire : 1;
       if (newFireLevel >= 3) {
         container.style.backgroundImage = "url('Assets/Minigame/fire3.png')";
       } else if (newFireLevel >= 2) {
