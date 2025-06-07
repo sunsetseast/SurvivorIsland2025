@@ -233,9 +233,10 @@ export default function renderFireView(container) {
     
     if (currentFireLevel < 2) {
       showWeakFireParchment();
-    } else {
-      showCookingInterface();
+      return; // Exit early, don't do anything else
     }
+    
+    showCookingInterface();
   }
 
   function showWeakFireParchment() {
