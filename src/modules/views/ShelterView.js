@@ -21,7 +21,7 @@ export default function renderShelter(container) {
 
   // Get player's tribe shelter value to determine background
   const playerTribe = gameManager.getPlayerTribe();
-  const tribeShelterValue = playerTribe ? playerTribe.shelter : 0;
+  const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
 
   // Set background based on shelter level
   const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.jpeg')`;
@@ -231,10 +231,12 @@ function showCoBuilderSelection() {
   const grid = createElement('div', {
     style: `
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 20px;
-      max-width: 600px;
-      width: 100%;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      max-width: 500px;
+      width: 90%;
+      padding: 40px 20px;
+      margin-top: 60px;
     `
   });
 
@@ -266,30 +268,30 @@ function showCoBuilderSelection() {
       src: survivor.avatarUrl,
       alt: survivor.name,
       style: `
-        width: 80px;
-        height: 80px;
+        width: 60px;
+        height: 60px;
         border-radius: 50%;
         object-fit: cover;
-        border: 3px solid white;
-        margin-bottom: 8px;
+        border: 2px solid white;
+        margin-bottom: 6px;
       `
     });
 
     const name = createElement('div', {
       style: `
         font-family: 'Survivant', serif;
-        font-size: 14px;
+        font-size: 12px;
         color: white;
         text-shadow: 1px 1px 2px black;
         text-align: center;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
       `
     }, survivor.firstName);
 
     const physical = createElement('div', {
       style: `
         font-family: 'Survivant', serif;
-        font-size: 12px;
+        font-size: 10px;
         color: white;
         text-shadow: 1px 1px 2px black;
         text-align: center;
@@ -312,10 +314,6 @@ function showCoBuilderSelection() {
 }
 
 function showConfirmationDialog(survivor, parentPopup) {
-  const playerTribe = gameManager.getPlayerTribe();
-  const tribeColor = playerTribe.color || 'blue';
-  const backgroundImage = `Assets/Tribe/${tribeColor}-banner.png`;
-
   const confirmPopup = createElement('div', {
     id: 'confirm-popup',
     style: `
@@ -323,10 +321,10 @@ function showConfirmationDialog(survivor, parentPopup) {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 400px;
-      height: 300px;
-      background-image: url('${backgroundImage}');
-      background-size: cover;
+      width: 300px;
+      height: 250px;
+      background-image: url('Assets/card-back.png');
+      background-size: 100% 100%;
       background-position: center;
       background-repeat: no-repeat;
       display: flex;
@@ -343,30 +341,29 @@ function showConfirmationDialog(survivor, parentPopup) {
     src: survivor.avatarUrl,
     alt: survivor.name,
     style: `
-      width: 80px;
-      height: 80px;
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
       object-fit: cover;
-      border: 3px solid white;
-      margin-bottom: 15px;
+      border: 2px solid white;
+      margin-bottom: 10px;
     `
   });
 
   const question = createElement('div', {
     style: `
       font-family: 'Survivant', serif;
-      font-size: 18px;
-      color: white;
-      text-shadow: 1px 1px 2px black;
+      font-size: 16px;
+      color: #4a4a4a;
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     `
   }, `Choose ${survivor.firstName}?`);
 
   const buttonContainer = createElement('div', {
     style: `
       display: flex;
-      gap: 15px;
+      gap: 10px;
     `
   });
 
@@ -376,10 +373,10 @@ function showConfirmationDialog(survivor, parentPopup) {
       background-image: url('Assets/rect-button.png');
       background-size: 100% 100%;
       border: none;
-      width: 100px;
-      height: 40px;
+      width: 80px;
+      height: 35px;
       font-family: 'Survivant', serif;
-      font-size: 14px;
+      font-size: 12px;
       color: white;
       cursor: pointer;
     `
@@ -391,10 +388,10 @@ function showConfirmationDialog(survivor, parentPopup) {
       background-image: url('Assets/rect-button.png');
       background-size: 100% 100%;
       border: none;
-      width: 100px;
-      height: 40px;
+      width: 80px;
+      height: 35px;
       font-family: 'Survivant', serif;
-      font-size: 14px;
+      font-size: 12px;
       color: white;
       cursor: pointer;
     `
