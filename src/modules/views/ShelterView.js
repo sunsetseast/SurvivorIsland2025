@@ -257,7 +257,7 @@ function showCoBuilderSelection() {
       max-width: 500px;
       width: 90%;
       padding: 40px 20px;
-      margin-top: 60px;
+      margin-top: 20px;
     `
   });
 
@@ -375,7 +375,8 @@ function showConfirmationDialog(survivor, parentPopup) {
     style: `
       font-family: 'Survivant', serif;
       font-size: 16px;
-      color: #4a4a4a;
+      color: white;
+      text-shadow: 2px 2px 4px black;
       text-align: center;
       margin-bottom: 15px;
     `
@@ -630,17 +631,20 @@ function showStartBuildingButton() {
     id: 'start-building-button',
     style: `
       position: fixed;
-      top: 50%;
+      top: 35%;
       left: 50%;
       transform: translate(-50%, -50%);
       width: 200px;
       height: 60px;
       background-image: url('Assets/rect-button-1.png');
-      background-size: 100% 100%;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
       border: none;
       font-family: 'Survivant', serif;
       font-size: 18px;
       color: white;
+      text-shadow: 2px 2px 4px black;
       cursor: pointer;
       z-index: 100;
       filter: brightness(1.1);
@@ -717,22 +721,44 @@ function showTeamPlayerAnimation() {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-family: 'Survivant', serif;
-      font-size: 24px;
-      color: #4CAF50;
-      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       z-index: 1000;
-      animation: fadeInOut 2s forwards;
+      animation: fadeInOut 3s forwards;
       pointer-events: none;
     `
-  }, '+10 Team Player');
+  });
+
+  const teamPlayerIcon = createElement('img', {
+    src: 'Assets/Resources/teamPlayer.png',
+    alt: 'Team Player',
+    style: `
+      width: 40px;
+      height: 40px;
+    `
+  });
+
+  const text = createElement('div', {
+    style: `
+      font-family: 'Survivant', serif;
+      font-size: 24px;
+      color: white;
+      text-shadow: 2px 2px 4px black;
+      font-weight: bold;
+    `
+  }, '+10');
+
+  animationElement.appendChild(teamPlayerIcon);
+  animationElement.appendChild(text);
 
   // Add CSS animation
   const style = createElement('style');
   style.textContent = `
     @keyframes fadeInOut {
       0% { opacity: 0; transform: translate(-50%, -50%) translateY(20px); }
-      50% { opacity: 1; transform: translate(-50%, -50%) translateY(0px); }
+      30% { opacity: 1; transform: translate(-50%, -50%) translateY(0px); }
+      70% { opacity: 1; transform: translate(-50%, -50%) translateY(0px); }
       100% { opacity: 0; transform: translate(-50%, -50%) translateY(-20px); }
     }
   `;
@@ -743,5 +769,5 @@ function showTeamPlayerAnimation() {
   setTimeout(() => {
     animationElement.remove();
     style.remove();
-  }, 2000);
+  }, 3000);
 }
