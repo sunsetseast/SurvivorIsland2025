@@ -491,12 +491,67 @@ export default function renderFireView(container) {
     potOverlay.appendChild(cookingButtonsContainer);
   }
 
+  function showInsufficientIngredientParchment(type) {
+    const overlay = createElement('div', {
+      id: 'insufficient-ingredient-overlay',
+      style: `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        cursor: pointer;
+      `
+    });
+
+    const parchment = createElement('div', {
+      style: `
+        width: 80vw;
+        max-width: 400px;
+        background-image: url('Assets/parch-landscape.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        padding: 30px;
+        box-sizing: border-box;
+      `
+    });
+
+    const text = createElement(
+      'div',
+      {
+        style: `
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 1.2rem;
+          text-align: center;
+          text-shadow: 2px 2px 4px black;
+          line-height: 1.4;
+        `
+      },
+      `You don't have any ${type} to cook!`
+    );
+
+    parchment.appendChild(text);
+    overlay.appendChild(parchment);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', () => {
+      overlay.remove();
+    });
+  }
+
   function showIngredientSelector(type) {
     const player = gameManager.getPlayerSurvivor();
     const availableAmount = type === 'fish' ? (player.fish || 0) : (player.coconuts || 0);
 
     if (availableAmount === 0) {
-      alert(`You don't have any ${type} to cook!`);
+      showInsufficientIngredientParchment(type);
       return;
     }
 
