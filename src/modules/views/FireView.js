@@ -520,37 +520,38 @@ export default function renderFireView(container) {
 
     const selector = createElement('div', {
       style: `
-        width: 280px;
-        height: 320px;
+        width: 260px;
+        height: 280px;
         background-image: url('Assets/card-back.png');
-        background-size: contain;
+        background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 25px 20px;
+        padding: 20px 15px;
         box-sizing: border-box;
       `
     });
 
     const title = createElement('h3', {
       style: `
-        margin: 0 0 20px 0;
-        font-size: 20px;
+        margin: 0 0 15px 0;
+        font-size: 18px;
         font-weight: bold;
         color: #fff8e7;
         text-shadow: 2px 2px 4px black;
         font-family: 'Survivant', fantasy;
         text-align: center;
+        line-height: 1.2;
       `
-    }, `Add ${type} to pot`);
+    }, `Add ${type}<br>to pot`);
 
     const availableDisplay = createElement('div', {
       style: `
-        margin-bottom: 15px;
-        font-size: 16px;
+        margin-bottom: 12px;
+        font-size: 14px;
         color: #fff8e7;
         text-shadow: 1px 1px 2px black;
         font-family: 'Survivant', fantasy;
@@ -563,8 +564,8 @@ export default function renderFireView(container) {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 20px;
-        margin: 15px 0;
+        gap: 15px;
+        margin: 12px 0;
       `
     });
 
@@ -620,36 +621,17 @@ export default function renderFireView(container) {
     const buttonContainer = createElement('div', {
       style: `
         display: flex;
-        gap: 12px;
-        margin-top: 20px;
+        gap: 10px;
+        margin-top: 15px;
         justify-content: center;
       `
     });
 
     const addButton = createElement('button', {
-      className: 'rect-button',
-      style: `
-        background-image: url('Assets/rect-button.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        width: 85px;
-        height: 42px;
-        border: none;
-        color: #fff8e7;
-        font-family: 'Survivant', fantasy;
-        font-size: 14px;
-        font-weight: bold;
-        cursor: pointer;
-        text-shadow: 2px 2px 4px black;
-      `
-    }, 'Add');
-
-    const cancelButton = createElement('button', {
       className: 'rect-button small',
       style: `
         background-image: url('Assets/rect-button.png');
-        background-size: contain;
+        background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
         width: 70px;
@@ -661,6 +643,27 @@ export default function renderFireView(container) {
         font-weight: bold;
         cursor: pointer;
         text-shadow: 1px 1px 2px black;
+        box-shadow: none;
+      `
+    }, 'Add');
+
+    const cancelButton = createElement('button', {
+      className: 'rect-button small',
+      style: `
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 70px;
+        height: 35px;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        text-shadow: 1px 1px 2px black;
+        box-shadow: none;
       `
     }, 'Cancel');
 
