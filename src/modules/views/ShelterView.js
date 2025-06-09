@@ -253,7 +253,7 @@ function showCoBuilderSelection() {
     style: `
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
+      gap: 8px;
       max-width: 500px;
       width: 90%;
       padding: 40px 20px;
@@ -271,7 +271,7 @@ function showCoBuilderSelection() {
         flex-direction: column;
         align-items: center;
         cursor: pointer;
-        padding: 10px;
+        padding: 5px;
         border-radius: 10px;
         transition: background-color 0.3s;
       `
@@ -294,7 +294,7 @@ function showCoBuilderSelection() {
         border-radius: 50%;
         object-fit: cover;
         border: 2px solid white;
-        margin-bottom: 6px;
+        margin-bottom: 3px;
       `
     });
 
@@ -305,7 +305,7 @@ function showCoBuilderSelection() {
         color: white;
         text-shadow: 1px 1px 2px black;
         text-align: center;
-        margin-bottom: 3px;
+        margin-bottom: 1px;
       `
     }, survivor.firstName);
 
@@ -362,11 +362,11 @@ function showConfirmationDialog(survivor, parentPopup) {
     src: survivor.avatarUrl,
     alt: survivor.name,
     style: `
-      width: 60px;
-      height: 60px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid white;
+      border: 3px solid white;
       margin-bottom: 10px;
     `
   });
@@ -457,7 +457,7 @@ function createResourceButtons(container) {
     style: `
       width: 80px;
       height: 80px;
-      background-image: url('Assets/Resources/bamboo.png');
+      background-image: url('Assets/Minigame/bambooButton.png');
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
@@ -472,7 +472,7 @@ function createResourceButtons(container) {
     style: `
       width: 80px;
       height: 80px;
-      background-image: url('Assets/Resources/palm.png');
+      background-image: url('Assets/Minigame/palmsButton.png');
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
@@ -523,7 +523,8 @@ function showResourcePopup(resourceType) {
   const player = gameManager.getPlayerSurvivor();
   if (!player) return;
 
-  const resourceCount = player[resourceType] || 0;
+  const resourceProperty = resourceType === 'bamboo' ? 'bamboo' : 'palms';
+  const resourceCount = player[resourceProperty] || 0;
   const alreadyAdded = resourceType === 'bamboo' ? bambooAdded : palmsAdded;
   const maxNeeded = 1;
 
