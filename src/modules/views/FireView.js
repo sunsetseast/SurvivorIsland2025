@@ -511,13 +511,13 @@ export default function renderFireView(container) {
 
     const parchment = createElement('div', {
       style: `
-        width: 80vw;
-        max-width: 400px;
+        width: 70vw;
+        max-width: 300px;
         background-image: url('Assets/parch-landscape.png');
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
-        padding: 30px;
+        padding: 25px 20px;
         box-sizing: border-box;
       `
     });
@@ -528,10 +528,10 @@ export default function renderFireView(container) {
         style: `
           color: white;
           font-family: 'Survivant', sans-serif;
-          font-size: 1.2rem;
+          font-size: 1rem;
           text-align: center;
           text-shadow: 2px 2px 4px black;
-          line-height: 1.4;
+          line-height: 1.3;
         `
       },
       `You don't have any ${type} to cook!`
@@ -601,7 +601,8 @@ export default function renderFireView(container) {
         text-align: center;
         line-height: 1.2;
       `
-    }, `Add ${type}<br>to pot`);
+    });
+    title.innerHTML = `Add ${type}<br>to pot`;
 
     const availableDisplay = createElement('div', {
       style: `
