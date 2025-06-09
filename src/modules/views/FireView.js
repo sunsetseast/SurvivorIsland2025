@@ -520,8 +520,8 @@ export default function renderFireView(container) {
 
     const selector = createElement('div', {
       style: `
-        width: 350px;
-        height: 400px;
+        width: 280px;
+        height: 320px;
         background-image: url('Assets/card-back.png');
         background-size: contain;
         background-repeat: no-repeat;
@@ -530,15 +530,15 @@ export default function renderFireView(container) {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px 30px;
+        padding: 25px 20px;
         box-sizing: border-box;
       `
     });
 
     const title = createElement('h3', {
       style: `
-        margin: 0 0 30px 0;
-        font-size: 24px;
+        margin: 0 0 20px 0;
+        font-size: 20px;
         font-weight: bold;
         color: #fff8e7;
         text-shadow: 2px 2px 4px black;
@@ -549,8 +549,8 @@ export default function renderFireView(container) {
 
     const availableDisplay = createElement('div', {
       style: `
-        margin-bottom: 25px;
-        font-size: 18px;
+        margin-bottom: 15px;
+        font-size: 16px;
         color: #fff8e7;
         text-shadow: 1px 1px 2px black;
         font-family: 'Survivant', fantasy;
@@ -563,8 +563,8 @@ export default function renderFireView(container) {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 25px;
-        margin: 25px 0;
+        gap: 20px;
+        margin: 15px 0;
       `
     });
 
@@ -572,8 +572,8 @@ export default function renderFireView(container) {
       src: 'Assets/Buttons/minus.png',
       alt: 'Decrease',
       style: `
-        width: 50px;
-        height: 50px;
+        width: 40px;
+        height: 40px;
         cursor: pointer;
         transition: transform 0.2s;
       `
@@ -588,12 +588,12 @@ export default function renderFireView(container) {
 
     const amountDisplay = createElement('span', {
       style: `
-        font-size: 32px;
+        font-size: 28px;
         font-weight: bold;
         color: #fff8e7;
         text-shadow: 2px 2px 4px black;
         font-family: 'Survivant', fantasy;
-        min-width: 60px;
+        min-width: 50px;
         text-align: center;
         display: inline-block;
       `
@@ -603,8 +603,8 @@ export default function renderFireView(container) {
       src: 'Assets/Buttons/add.png',
       alt: 'Increase',
       style: `
-        width: 50px;
-        height: 50px;
+        width: 40px;
+        height: 40px;
         cursor: pointer;
         transition: transform 0.2s;
       `
@@ -620,8 +620,8 @@ export default function renderFireView(container) {
     const buttonContainer = createElement('div', {
       style: `
         display: flex;
-        gap: 15px;
-        margin-top: 30px;
+        gap: 12px;
+        margin-top: 20px;
         justify-content: center;
       `
     });
@@ -633,12 +633,12 @@ export default function renderFireView(container) {
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
-        width: 100px;
-        height: 50px;
+        width: 85px;
+        height: 42px;
         border: none;
         color: #fff8e7;
         font-family: 'Survivant', fantasy;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: bold;
         cursor: pointer;
         text-shadow: 2px 2px 4px black;
@@ -652,12 +652,12 @@ export default function renderFireView(container) {
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
-        width: 80px;
-        height: 40px;
+        width: 70px;
+        height: 35px;
         border: none;
         color: #fff8e7;
         font-family: 'Survivant', fantasy;
-        font-size: 14px;
+        font-size: 12px;
         font-weight: bold;
         cursor: pointer;
         text-shadow: 1px 1px 2px black;
