@@ -45,6 +45,7 @@ export default function renderShelter(container) {
   });
 
   const message = createElement('div', {
+    id: 'shelter-message',
     style: `
       color: white;
       text-shadow: 2px 2px 4px black;
@@ -53,11 +54,31 @@ export default function renderShelter(container) {
       text-align: center;
       padding: 20px;
       z-index: 2;
+
+      /* Start fully visible and allow a fade transition */
+      opacity: 1;
+      transition: opacity 1s ease;
     `
   }, 'Shelter: Rest, recover, and prepare for the next challenge.');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+
+  // Fade out after 3 seconds (3000ms)
+  setTimeout(() => {
+    const msgEl = document.getElementById('shelter-message');
+    if (msgEl) {
+      msgEl.style.opacity = '0';
+    }
+  }, 3000);
+
+  // Remove the message from DOM after 4 seconds (4000ms)
+  setTimeout(() => {
+    const msgEl = document.getElementById('shelter-message');
+    if (msgEl) {
+      msgEl.remove();
+    }
+  }, 4000);
 
   // Resource buttons (initially hidden)
   createResourceButtons(container);
