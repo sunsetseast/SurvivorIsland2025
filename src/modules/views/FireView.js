@@ -520,78 +520,147 @@ export default function renderFireView(container) {
 
     const selector = createElement('div', {
       style: `
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        min-width: 200px;
+        width: 350px;
+        height: 400px;
+        background-image: url('Assets/card-back.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 30px;
+        box-sizing: border-box;
       `
     });
 
-    const title = createElement('h3', {}, `Add ${type} to pot`);
+    const title = createElement('h3', {
+      style: `
+        margin: 0 0 30px 0;
+        font-size: 24px;
+        font-weight: bold;
+        color: #fff8e7;
+        text-shadow: 2px 2px 4px black;
+        font-family: 'Survivant', fantasy;
+        text-align: center;
+      `
+    }, `Add ${type} to pot`);
+
+    const availableDisplay = createElement('div', {
+      style: `
+        margin-bottom: 25px;
+        font-size: 18px;
+        color: #fff8e7;
+        text-shadow: 1px 1px 2px black;
+        font-family: 'Survivant', fantasy;
+        text-align: center;
+      `
+    }, `Available: ${availableAmount}`);
 
     const controls = createElement('div', {
       style: `
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 20px;
-        margin: 20px 0;
+        gap: 25px;
+        margin: 25px 0;
       `
     });
 
-    const minusBtn = createElement('button', {
+    const minusBtn = createElement('img', {
+      src: 'Assets/Buttons/minus.png',
+      alt: 'Decrease',
       style: `
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
-        border: none;
-        background: #ddd;
+        width: 50px;
+        height: 50px;
         cursor: pointer;
+        transition: transform 0.2s;
       `
-    }, '-');
+    });
+
+    minusBtn.addEventListener('mouseenter', () => {
+      minusBtn.style.transform = 'scale(1.1)';
+    });
+    minusBtn.addEventListener('mouseleave', () => {
+      minusBtn.style.transform = 'scale(1)';
+    });
 
     const amountDisplay = createElement('span', {
-      style: `font-size: 24px; font-weight: bold;`
+      style: `
+        font-size: 32px;
+        font-weight: bold;
+        color: #fff8e7;
+        text-shadow: 2px 2px 4px black;
+        font-family: 'Survivant', fantasy;
+        min-width: 60px;
+        text-align: center;
+        display: inline-block;
+      `
     }, '0');
 
-    const plusBtn = createElement('button', {
+    const plusBtn = createElement('img', {
+      src: 'Assets/Buttons/add.png',
+      alt: 'Increase',
       style: `
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
-        border: none;
-        background: #ddd;
+        width: 50px;
+        height: 50px;
         cursor: pointer;
+        transition: transform 0.2s;
       `
-    }, '+');
+    });
 
-    const availableDisplay = createElement('div', {
-      style: `margin: 10px 0;`
-    }, `Available: ${availableAmount}`);
+    plusBtn.addEventListener('mouseenter', () => {
+      plusBtn.style.transform = 'scale(1.1)';
+    });
+    plusBtn.addEventListener('mouseleave', () => {
+      plusBtn.style.transform = 'scale(1)';
+    });
+
+    const buttonContainer = createElement('div', {
+      style: `
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+        justify-content: center;
+      `
+    });
 
     const addButton = createElement('button', {
-      className: 'rect-button small',
+      className: 'rect-button',
       style: `
-        padding: 8px 16px;
-        margin-top: 10px;
-        background: linear-gradient(to bottom, #f4b942, #d4a668);
-        border: 2px solid #a66b36;
-        border-radius: 8px;
-        color: #442a18;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 100px;
+        height: 50px;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        font-size: 16px;
         font-weight: bold;
         cursor: pointer;
+        text-shadow: 2px 2px 4px black;
       `
     }, 'Add');
 
     const cancelButton = createElement('button', {
+      className: 'rect-button small',
       style: `
-        padding: 8px 16px;
-        margin: 10px 0 0 10px;
-        background: #ccc;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 80px;
+        height: 40px;
         border: none;
-        border-radius: 8px;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        font-size: 14px;
+        font-weight: bold;
         cursor: pointer;
+        text-shadow: 1px 1px 2px black;
       `
     }, 'Cancel');
 
@@ -624,11 +693,13 @@ export default function renderFireView(container) {
     controls.appendChild(amountDisplay);
     controls.appendChild(plusBtn);
 
+    buttonContainer.appendChild(addButton);
+    buttonContainer.appendChild(cancelButton);
+
     selector.appendChild(title);
-    selector.appendChild(controls);
     selector.appendChild(availableDisplay);
-    selector.appendChild(addButton);
-    selector.appendChild(cancelButton);
+    selector.appendChild(controls);
+    selector.appendChild(buttonContainer);
     overlay.appendChild(selector);
     document.body.appendChild(overlay);
   }
