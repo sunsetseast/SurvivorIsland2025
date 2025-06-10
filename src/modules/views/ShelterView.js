@@ -511,8 +511,14 @@ function updateResourceButtonStyles() {
   const bambooButton = resourceButtons.children[0];
   const palmButton = resourceButtons.children[1];
 
+  // Make border fit snugly around the image
   bambooButton.style.borderColor = bambooAdded >= 1 ? '#4CAF50' : 'transparent';
+  bambooButton.style.borderWidth = bambooAdded >= 1 ? '3px' : '3px';
+  bambooButton.style.borderRadius = bambooAdded >= 1 ? '8px' : '10px';
+  
   palmButton.style.borderColor = palmsAdded >= 1 ? '#4CAF50' : 'transparent';
+  palmButton.style.borderWidth = palmsAdded >= 1 ? '3px' : '3px';
+  palmButton.style.borderRadius = palmsAdded >= 1 ? '8px' : '10px';
 
   // Show start building button if both resources are added
   if (bambooAdded >= 1 && palmsAdded >= 1) {
@@ -530,7 +536,7 @@ function showResourcePopup(resourceType) {
   const maxNeeded = 1;
 
   if (resourceCount <= 0) {
-    showParchmentPopup(`You don't have any ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}.`);
+    showInsufficientResourceParchment(resourceType);
     return;
   }
 
@@ -539,88 +545,313 @@ function showResourcePopup(resourceType) {
     return;
   }
 
-  const popup = createElement('div', {
+  let selectedAmount = 0;
+
+  const overlay = createElement('div', {
+    id: `${resourceType}-selector-overlay`,
     style: `
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 300px;
-      height: 200px;
-      background-image: url('Assets/parch-portrait.png');
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    `
+  });
+
+  const selector = createElement('div', {
+    style: `
+      width: 260px;
+      height: 280px;
+      background-image: url('Assets/card-back.png');
       background-size: 100% 100%;
-      background-position: center;
       background-repeat: no-repeat;
+      background-position: center;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
-      padding: 20px;
+      padding: 20px 15px;
       box-sizing: border-box;
     `
   });
 
-  const title = createElement('div', {
+  const title = createElement('h3', {
     style: `
-      font-family: 'Survivant', serif;
+      margin: 0 0 15px 0;
       font-size: 18px;
-      color: #4a4a4a;
+      font-weight: bold;
+      color: #fff8e7;
+      text-shadow: 2px 2px 4px black;
+      font-family: 'Survivant', fantasy;
       text-align: center;
-      margin-bottom: 20px;
+      line-height: 1.2;
     `
-  }, `Add ${resourceType === 'bamboo' ? 'Bamboo' : 'Palm Fronds'}`);
+  });
+  title.innerHTML = `Add ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}<br>to shelter`;
+
+  const availableDisplay = createElement('div', {
+    style: `
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #fff8e7;
+      text-shadow: 1px 1px 2px black;
+      font-family: 'Survivant', fantasy;
+      text-align: center;
+    `
+  }, `Available: ${resourceCount}`);
+
+  const controls = createElement('div', {
+    style: `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin: 12px 0;
+    `
+  });
+
+  const minusBtn = createElement('img', {
+    src: 'Assets/Buttons/minus.png',
+    alt: 'Decrease',
+    style: `
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    `
+  });
+
+  minusBtn.addEventListener('mouseenter', () => {
+    minusBtn.style.transform = 'scale(1.1)';
+  });
+  minusBtn.addEventListener('mouseleave', () => {
+    minusBtn.style.transform = 'scale(1)';
+  });
+
+  const amountDisplay = createElement('span', {
+    style: `
+      font-size: 28px;
+      font-weight: bold;
+      color: #fff8e7;
+      text-shadow: 2px 2px 4px black;
+      font-family: 'Survivant', fantasy;
+      min-width: 50px;
+      text-align: center;
+      display: inline-block;
+    `
+  }, '0');
+
+  const plusBtn = createElement('img', {
+    src: 'Assets/Buttons/add.png',
+    alt: 'Increase',
+    style: `
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    `
+  });
+
+  plusBtn.addEventListener('mouseenter', () => {
+    plusBtn.style.transform = 'scale(1.1)';
+  });
+  plusBtn.addEventListener('mouseleave', () => {
+    plusBtn.style.transform = 'scale(1)';
+  });
+
+  const buttonContainer = createElement('div', {
+    style: `
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      justify-content: center;
+    `
+  });
 
   const addButton = createElement('button', {
+    className: 'rect-button small',
     style: `
       background-image: url('Assets/rect-button.png');
       background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-position: center;
+      width: 70px;
+      height: 35px;
       border: none;
-      width: 120px;
-      height: 40px;
-      font-family: 'Survivant', serif;
-      font-size: 14px;
-      color: white;
+      color: #fff8e7;
+      font-family: 'Survivant', fantasy;
+      font-size: 12px;
+      font-weight: bold;
       cursor: pointer;
-      margin-bottom: 10px;
+      text-shadow: 1px 1px 2px black;
+      box-shadow: none;
     `
-  }, 'Add 1');
+  }, 'Add');
 
   const cancelButton = createElement('button', {
+    className: 'rect-button small',
     style: `
       background-image: url('Assets/rect-button.png');
       background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-position: center;
+      width: 70px;
+      height: 35px;
       border: none;
-      width: 120px;
-      height: 40px;
-      font-family: 'Survivant', serif;
-      font-size: 14px;
-      color: white;
+      color: #fff8e7;
+      font-family: 'Survivant', fantasy;
+      font-size: 12px;
+      font-weight: bold;
       cursor: pointer;
+      text-shadow: 1px 1px 2px black;
+      box-shadow: none;
     `
   }, 'Cancel');
 
-  addButton.addEventListener('click', () => {
-    if (resourceType === 'bamboo') {
-      bambooAdded = 1;
-      player.bamboo = Math.max(0, player.bamboo - 1);
-    } else {
-      palmsAdded = 1;
-      player.palms = Math.max(0, player.palms - 1);
+  minusBtn.addEventListener('click', () => {
+    if (selectedAmount > 0) {
+      selectedAmount--;
+      amountDisplay.textContent = selectedAmount;
     }
-    popup.remove();
-    updateResourceButtonStyles();
+  });
+
+  plusBtn.addEventListener('click', () => {
+    if (selectedAmount < Math.min(resourceCount, maxNeeded)) {
+      selectedAmount++;
+      amountDisplay.textContent = selectedAmount;
+    }
+  });
+
+  addButton.addEventListener('click', () => {
+    if (selectedAmount > 0) {
+      // Show resource deduction effect
+      showResourceEffect(resourceType, selectedAmount);
+      
+      if (resourceType === 'bamboo') {
+        bambooAdded = selectedAmount;
+        player.bamboo = Math.max(0, player.bamboo - selectedAmount);
+      } else {
+        palmsAdded = selectedAmount;
+        player.palms = Math.max(0, player.palms - selectedAmount);
+      }
+      overlay.remove();
+      updateResourceButtonStyles();
+    }
   });
 
   cancelButton.addEventListener('click', () => {
-    popup.remove();
+    overlay.remove();
   });
 
-  popup.appendChild(title);
-  popup.appendChild(addButton);
-  popup.appendChild(cancelButton);
+  controls.appendChild(minusBtn);
+  controls.appendChild(amountDisplay);
+  controls.appendChild(plusBtn);
 
-  document.body.appendChild(popup);
+  buttonContainer.appendChild(addButton);
+  buttonContainer.appendChild(cancelButton);
+
+  selector.appendChild(title);
+  selector.appendChild(availableDisplay);
+  selector.appendChild(controls);
+  selector.appendChild(buttonContainer);
+  overlay.appendChild(selector);
+  document.body.appendChild(overlay);
+}
+
+function showInsufficientResourceParchment(resourceType) {
+  const overlay = createElement('div', {
+    id: `insufficient-${resourceType}-overlay`,
+    style: `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      cursor: pointer;
+    `
+  });
+
+  const parchment = createElement('div', {
+    style: `
+      width: 70vw;
+      max-width: 300px;
+      background-image: url('Assets/parch-landscape.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      padding: 25px 20px;
+      box-sizing: border-box;
+    `
+  });
+
+  const text = createElement(
+    'div',
+    {
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        text-align: center;
+        text-shadow: 2px 2px 4px black;
+        line-height: 1.3;
+      `
+    },
+    `You don't have any ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'} to add!`
+  );
+
+  parchment.appendChild(text);
+  overlay.appendChild(parchment);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', () => {
+    overlay.remove();
+  });
+}
+
+function showResourceEffect(resourceType, amount) {
+  const effect = createElement('div', {
+    className: `${resourceType}-hit-effect`,
+    style: `
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #dc2626;
+      z-index: 9999;
+      pointer-events: none;
+    `
+  });
+
+  const minus = document.createElement('span');
+  minus.textContent = `-${amount}`;
+
+  const icon = document.createElement('img');
+  icon.src = `Assets/Resources/${resourceType === 'bamboo' ? 'bamboo' : 'palm'}.png`;
+  icon.style.height = '28px';
+  icon.style.width = 'auto';
+
+  effect.appendChild(minus);
+  effect.appendChild(icon);
+  document.body.appendChild(effect);
+
+  setTimeout(() => {
+    effect.remove();
+  }, 2500);
 }
 
 function showStartBuildingButton() {
@@ -629,25 +860,29 @@ function showStartBuildingButton() {
 
   const button = createElement('button', {
     id: 'start-building-button',
+    className: 'rect-button',
     style: `
       position: fixed;
       top: 35%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 200px;
+      width: 180px;
       height: 60px;
-      background-image: url('Assets/rect-button-1.png');
+      background-image: url('Assets/rect-button.png');
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
       border: none;
       font-family: 'Survivant', serif;
-      font-size: 18px;
+      font-size: 16px;
+      font-weight: bold;
       color: white;
-      text-shadow: 2px 2px 4px black;
+      text-shadow: 1px 1px 2px black;
       cursor: pointer;
       z-index: 100;
-      filter: brightness(1.1);
+      box-shadow: none;
+      filter: none;
+      padding: 0;
     `
   }, 'Start Building');
 
@@ -690,11 +925,26 @@ function startBuilding() {
   // Show completion message
   const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.`;
   
-  // Deduct time from clock and flash red
-  const clockElement = document.getElementById('clock-display');
+  // Deduct time from clock (convert minutes to seconds)
+  const timeInSeconds = constructionTime * 60;
+  gameManager.deductTime(timeInSeconds);
+  
+  // Update clock display
+  const clockElement = document.getElementById('day-timer');
+  const dayElement = document.getElementById('day-label');
+  if (clockElement && dayElement) {
+    const min = Math.floor(gameManager.dayTimer / 60);
+    const sec = gameManager.dayTimer % 60;
+    clockElement.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+    dayElement.textContent = `Day ${gameManager.day}`;
+  }
+  
+  // Flash red effect
   if (clockElement) {
-    timerManager.subtractTime(constructionTime);
-    timerManager.flashRed();
+    clockElement.style.color = 'red';
+    setTimeout(() => {
+      clockElement.style.color = 'white';
+    }, 500);
   }
   
   // Show teamPlayer animation
