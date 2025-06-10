@@ -336,7 +336,14 @@ export default function renderBambooView(container) {
 
     const player = gameManager.getPlayerSurvivor();
     if (player) {
-      player.bamboo = (player.bamboo || 0) + bamboo;
+      const bambooGathered = bamboo;
+      player.bamboo = (player.bamboo || 0) + bambooGathered;
+
+      // Track bamboo gathering
+      trackResourceAttempt('bamboo', bambooGathered);
+      trackPlayerAction('Resource gathering', `gathered ${bambooGathered} bamboo`);
+
+      console.log('Resource attempt tracked:', {resourceType: 'bamboo', amount: bambooGathered});
       console.log(`Player now has ${player.bamboo} bamboo`);
     }
 

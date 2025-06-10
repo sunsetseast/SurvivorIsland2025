@@ -242,9 +242,22 @@ export default function renderWaterWell(container) {
     flashClockRed();
 
     player.water = Math.min(MAX_WATER, (player.water || 0) + 100);
+
+      // Track water gathering for self
+      trackWaterGathering('self', 100);
+      trackPlayerAction('Water gathering', 'for self');
+
+      console.log('Water gathering tracked:', {type: 'self'});
+      console.log(`Player's water is now ${player.water}`);
     showWaterEffect(container);
     console.log(`Player's water is now ${player.water}`);
   });
+
+  function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
 
   forTribeButton.addEventListener('click', () => {
     const tribe = gameManager.getPlayerTribe();
@@ -286,6 +299,27 @@ export default function renderWaterWell(container) {
       console.log(`teamPlayer is now ${player.dynamicValues.teamPlayer}`);
     }
 
+    // Increase teamPlayer value
+      const teamPlayerIncrease = getRandomInt(5, 15);
+      player.dynamicValues.teamPlayer = Math.min(100, (player.dynamicValues.teamPlayer || 0) + teamPlayerIncrease);
+
+      // Track water gathering for tribe and teamPlayer change
+      trackWaterGathering('tribe', 30); // Average water given to tribe
+      trackTeamPlayerChange(teamPlayerIncrease, 'watering tribe');
+      trackPlayerAction('Water gathering', 'for tribe');
+
+      console.log('Water gathering tracked:', {type: 'tribe'});
+      console.log(`teamPlayer is now ${player.dynamicValues.teamPlayer}`);
+
+      // Water all tribe members who have less than 100 water
+      tribe.members.forEach(member => {
+        if (member.water < 100) {
+          member.water = Math.min(100, member.water + getRandomInt(15, 30));
+        }
+      });
+
+      console.log('Tribe watered (only those under 100 got more).');
+
     // Show visual effects
     showWaterEffect(container);
 
@@ -299,7 +333,7 @@ export default function renderWaterWell(container) {
 
     console.log('Tribe watered (only those under 100 got more).');
   });
-  
+
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);

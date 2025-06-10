@@ -289,16 +289,24 @@ export default function renderShakeView(container) {
         // Show side-by-side drop effect
         player.coconuts = (player.coconuts || 0) + rewards.coconuts;
         player.palms = (player.palms || 0) + rewards.palms;
+        // Track resource gathering
+        trackResourceAttempt('coconuts', rewards.coconuts);
+        trackResourceAttempt('palms', rewards.palms);
+        trackPlayerAction('Resource gathering', 'shook palm tree for coconuts and fronds');
         console.log(`Player now has ${player.coconuts} coconuts and ${player.palms} palm fronds`);
         showBothRewardsSideBySide();
       } else {
         if (rewards.coconuts > 0) {
           player.coconuts = (player.coconuts || 0) + rewards.coconuts;
+          trackResourceAttempt('coconuts', rewards.coconuts);
+          trackPlayerAction('Resource gathering', 'shook palm tree for coconuts');
           console.log(`Player now has ${player.coconuts} coconuts`);
           showRewardEffect('coconuts', rewards.coconuts);
         }
         if (rewards.palms > 0) {
           player.palms = (player.palms || 0) + rewards.palms;
+          trackResourceAttempt('palms',  rewards.palms);
+          trackPlayerAction('Resource gathering', 'shook palm tree for palm fronds');
           console.log(`Player now has ${player.palms} palm fronds`);
           showRewardEffect('palms', rewards.palms);
         }
@@ -435,4 +443,13 @@ export default function renderShakeView(container) {
     }
   `;
   document.head.appendChild(style);
+}
+
+// Dummy functions for Activity Tracking, ensure no code breaks
+// Implement these inside of ActivityTracker.js for persistence
+function trackResourceAttempt(resource, quantity) {
+  console.log(`Resource Attempt: ${resource}, Quantity: ${quantity}`);}
+
+function trackPlayerAction(action, description) {
+  console.log(`Player Action: ${action}, Description: ${description}`);
 }
