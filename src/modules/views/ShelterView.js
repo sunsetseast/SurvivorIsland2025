@@ -937,8 +937,6 @@ function showStartBuildingButton() {
       padding: 8px;
       line-height: 1.1;
       text-align: center;
-      width: 140px;
-      height: 60px;
     `
   });
   
@@ -991,7 +989,7 @@ function startBuilding() {
         circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
       } else {
         circle.style.background = 'rgba(139, 69, 19, 0.3)';
-        circle.style.borderColor = '#8B4513';
+        circle.style.borderColor = '#2d8100';
         circle.style.boxShadow = 'none';
       }
     }
