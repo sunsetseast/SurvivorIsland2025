@@ -174,7 +174,7 @@ export default function renderTribeFlag(container) {
         height: 100%;
         backface-visibility: hidden;
         border-radius: 12px;
-        padding: 15px;
+        padding: 0;
         display: block;
       `
     });
@@ -185,7 +185,7 @@ export default function renderTribeFlag(container) {
       alt: `${s.firstName}'s avatar`,
       style: `
         position: absolute;
-        top: 150px;
+        top: 200px;
         left: 50%;
         transform: translateX(-50%);
         width: 120px;
@@ -193,7 +193,7 @@ export default function renderTribeFlag(container) {
         border-radius: 50%;
         object-fit: cover;
         border: 3px solid white;
-        z-index: 2;
+        z-index: 10;
       `
     });
 
@@ -201,16 +201,17 @@ export default function renderTribeFlag(container) {
       className: 'survivor-header',
       style: `
         position: absolute;
-        top: 60px;
+        top: 90px;
         left: 50%;
         transform: translateX(-50%);
         color: white;
         font-family: 'Survivant', fantasy;
-        font-size: 18px;
+        font-size: 24px;
         text-align: center;
-        text-shadow: 1px 1px 2px black;
+        text-shadow: 2px 2px 4px black;
         margin: 0;
-        z-index: 2;
+        z-index: 10;
+        width: 200px;
       `
     });
     name.innerHTML = `${s.firstName}<br>${s.lastName}`;
@@ -219,10 +220,10 @@ export default function renderTribeFlag(container) {
       className: 'card-button',
       style: `
         position: absolute;
-        bottom: 120px;
+        bottom: 150px;
         left: 50%;
         transform: translateX(-50%);
-        padding: 10px 20px;
+        padding: 12px 24px;
         background-image: url('Assets/rect-button.png');
         background-size: 100% 100%;
         background-repeat: no-repeat;
@@ -230,7 +231,7 @@ export default function renderTribeFlag(container) {
         border: none;
         color: #fff8e7;
         font-family: 'Survivant', fantasy;
-        font-size: 16px;
+        font-size: 18px;
         font-weight: bold;
         cursor: pointer;
         text-shadow: 
@@ -239,7 +240,9 @@ export default function renderTribeFlag(container) {
           0 3px 0 #000,
           0 4px 4px rgba(0, 0, 0, 0.5);
         transition: transform 0.3s;
-        z-index: 2;
+        z-index: 10;
+        min-width: 120px;
+        height: 50px;
       `
     }, 'More Info');
 
