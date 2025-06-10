@@ -137,84 +137,246 @@ export default function renderTribeFlag(container) {
   const CARD_W = 350, CARD_H = 500;
 
   function createSurvivorCard(s) {
-    // Wrapper with perspective for 3D flip
-    const cw = createElement('div', {
+    const cardWrapper = createElement('div', { 
+      className: 'card-wrapper',
       style: `
-        position:relative;
-        width:${CARD_W}px; height:${CARD_H}px;
-        perspective:1000px;
+        position: relative;
+        width: 100%;
+        max-width: 909px;
+        height: 625px;
+        background-image: url('Assets/card-front.png');
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        margin: 0 auto;
       `
     });
 
-    // Inner card that flips
-    const card = createElement('div', {
+    const card = createElement('div', { 
+      className: 'survivor-card',
       style: `
-        width:100%; height:100%;
-        position:relative;
-        transform-style:preserve-3d;
-        transition:transform 0.6s ease-in-out;
+        width: 100%;
+        height: 100%;
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.6s ease-in-out;
       `
     });
 
     // FRONT SIDE
-    const front = createElement('div', {
+    const cardFront = createElement('div', { 
+      className: 'card-front',
       style: `
-        position:absolute; top:0; left:0;
-        width:100%; height:100%;
-        backface-visibility:hidden;
-        background:url('Assets/card-front.png') center/cover no-repeat;
-        display:flex; flex-direction:column; align-items:center;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border-radius: 12px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       `
     });
-    // Name header
-    front.append(
-      createElement('h3', {
-        style: `
-          margin-top:40px;
-          color:white; text-shadow:2px2px4px black;
-          text-align:center;
-        `
-      }, `${s.firstName}\n${s.lastName}`),
-      createElement('button', {
-        style: 'margin-top:auto; margin-bottom:20px; padding:8px 16px;'
-      }, 'More Info')
-    );
+
+    const name = createElement('h3', { 
+      className: 'survivor-header',
+      style: `
+        position: absolute;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-family: 'Survivant', fantasy;
+        font-size: 18px;
+        text-align: center;
+        text-shadow: 1px 1px 2px black;
+        margin: 0;
+      `
+    });
+    name.innerHTML = `${s.firstName}<br>${s.lastName}`;
+
+    const moreInfoButton = createElement('button', { 
+      className: 'card-button',
+      style: `
+        position: absolute;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 20px;
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        text-shadow: 
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s;
+      `
+    }, 'More Info');
+
+    cardFront.appendChild(name);
+    cardFront.appendChild(moreInfoButton);
 
     // BACK SIDE
-    const back = createElement('div', {
+    const cardBack = createElement('div', { 
+      className: 'card-back',
       style: `
-        position:absolute; top:0; left:0;
-        width:100%; height:100%;
-        backface-visibility:hidden;
-        transform:rotateY(180deg);
-        background:url('Assets/card-back-${s.traitClass.toLowerCase()}.png')
-                   center/cover no-repeat;
-        display:flex; flex-direction:column; align-items:center;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        transform: rotateY(180deg);
+        background-image: url('Assets/card-back-${s.traitClass.toLowerCase()}.png');
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        border-radius: 12px;
       `
     });
-    back.append(
-      createElement('div', {
-        style: `
-          margin-top:40px;
-          color:white; text-shadow:2px2px4px black;
-          text-align:center;
-        `
-      }, `${s.firstName} ${s.lastName}`),
-      createElement('button', {
-        style: 'margin-top:auto; margin-bottom:20px; padding:8px 16px;'
-      }, 'Back')
-    );
 
-    // Wire up flip
-    front.querySelector('button').addEventListener('click', () => {
-      card.style.transform = 'rotateY(180deg)';
+    const nameBox = createElement('div', { 
+      className: 'name-box',
+      style: `
+        position: absolute;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-family: 'Survivant', fantasy;
+        font-size: 18px;
+        text-align: center;
+        text-shadow: 1px 1px 2px black;
+      `
     });
-    back.querySelector('button').addEventListener('click', () => {
-      card.style.transform = 'rotateY(0deg)';
+    nameBox.innerHTML = `<strong>${s.firstName}<br>${s.lastName}</strong><br><small>${s.season || 'Unknown'}</small>`;
+
+    const gameplayStyleBox = createElement('div', {
+      className: `gameplay-style-box${['Lethal Charmer', 'Shadow Strategist'].includes(s.gameplayStyle) ? ' small-text' : ''}`,
+      style: `
+        position: absolute;
+        top: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-family: 'Survivant', fantasy;
+        font-size: 16px;
+        text-align: center;
+        text-shadow: 1px 1px 2px black;
+        max-width: 200px;
+      `
+    }, s.gameplayStyle || 'Unknown');
+
+    const traitBox = createElement('div', {
+      className: `trait-values ${s.traitClass.toLowerCase()}-layout`,
+      style: `
+        position: absolute;
+        top: 160px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+      `
+    });
+    traitBox.innerHTML = `
+      <div class="trait-row physical-value" style="color: white; font-family: 'Survivant', fantasy; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 2px black; text-align: center; min-width: 40px;">${s.physical}</div>
+      <div class="trait-row mental-value" style="color: white; font-family: 'Survivant', fantasy; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 2px black; text-align: center; min-width: 40px;">${s.mental}</div>
+      <div class="trait-row social-value" style="color: white; font-family: 'Survivant', fantasy; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 2px black; text-align: center; min-width: 40px;">${s.social}</div>
+    `;
+
+    const buttonWrap = createElement('div', { 
+      className: 'card-buttons-back',
+      style: `
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px;
+      `
     });
 
-    cw.append(card.append(front, back));
-    return cw;
+    const backButton = createElement('button', { 
+      className: 'rect-button',
+      style: `
+        padding: 10px 20px;
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        text-shadow: 
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s;
+      `
+    }, 'Back');
+
+    const moreTraitsButton = createElement('button', { 
+      className: 'rect-button',
+      style: `
+        padding: 10px 20px;
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        text-shadow: 
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s;
+      `
+    }, 'Traits');
+
+    buttonWrap.appendChild(backButton);
+    buttonWrap.appendChild(moreTraitsButton);
+
+    cardBack.appendChild(nameBox);
+    cardBack.appendChild(gameplayStyleBox);
+    cardBack.appendChild(traitBox);
+    cardBack.appendChild(buttonWrap);
+
+    // Combine front/back
+    card.appendChild(cardFront);
+    card.appendChild(cardBack);
+    cardWrapper.appendChild(card);
+
+    // Flip logic
+    moreInfoButton.addEventListener('click', () => {
+      cardWrapper.classList.toggle('flipped');
+    });
+    
+    backButton.addEventListener('click', () => {
+      cardWrapper.classList.remove('flipped');
+    });
+
+    return cardWrapper;
   }
 
   // --- Show Card in Overlay ---
