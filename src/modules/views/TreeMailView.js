@@ -100,13 +100,13 @@ export default function renderTreeMail(container) {
         `
       });
 
-      // Base blank button
+      // Base blank button - maintain original size
       const blankImage = createElement('img', {
         src: 'Assets/Buttons/blank.png',
         alt: 'Blank',
         style: `
-          width: 100%;
-          height: 100%;
+          width: 260px;
+          height: 150px;
           display: block;
           object-fit: contain;
           pointer-events: none;
