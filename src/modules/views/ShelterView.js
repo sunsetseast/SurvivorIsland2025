@@ -44,6 +44,47 @@ export default function renderShelter(container) {
     `
   });
 
+  // --- SHELTER LEVEL INDICATOR (5 circles on left side) ---
+  const shelterLevelContainer = createElement('div', {
+    id: 'shelter-level-indicator',
+    style: `
+      position: absolute;
+      left: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    `
+  });
+
+  // Create 5 circles for shelter levels (bottom to top: level 1, 2, 3, 4, 5)
+  for (let i = 4; i >= 0; i--) { // Reverse order so bottom circle is index 0
+    const circle = createElement('div', {
+      id: `shelter-level-${i}`,
+      style: `
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid #8B4513;
+        background: rgba(139, 69, 19, 0.3);
+        transition: all 0.4s ease;
+      `
+    });
+
+    // Light up circles based on current shelter level
+    if (tribeShelterValue > i) {
+      circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+      circle.style.borderColor = '#22c55e';
+      circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
+    }
+
+    shelterLevelContainer.appendChild(circle);
+  }
+
+  container.appendChild(shelterLevelContainer);
+
   const message = createElement('div', {
     id: 'shelter-message',
     style: `
@@ -201,7 +242,7 @@ function showParchmentPopup(message, canProceed = false) {
       font-family: 'Survivant', serif;
       font-size: 18px;
       color: white;
-      text-shadow: 1px 1px 2px black;
+      text-shadow: 3px 3px 6px black;
       text-align: center;
       line-height: 1.4;
       white-space: pre-line;
@@ -512,10 +553,10 @@ function updateResourceButtonStyles() {
   const bambooButton = resourceButtons.children[0];
   const palmButton = resourceButtons.children[1];
 
-  // Add gold glow effect when resources are added
+  // Add blurred gold glow effect when resources are added
   if (bambooAdded >= 1) {
     bambooButton.style.border = '2px solid gold';
-    bambooButton.style.boxShadow = '0 0 8px gold';
+    bambooButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
     bambooButton.style.borderRadius = '10px';
   } else {
     bambooButton.style.border = '2px solid transparent';
@@ -525,7 +566,7 @@ function updateResourceButtonStyles() {
   
   if (palmsAdded >= 1) {
     palmButton.style.border = '2px solid gold';
-    palmButton.style.boxShadow = '0 0 8px gold';
+    palmButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
     palmButton.style.borderRadius = '10px';
   } else {
     palmButton.style.border = '2px solid transparent';
@@ -885,17 +926,23 @@ function showStartBuildingButton() {
       background-position: center;
       border: none;
       font-family: 'Survivant', serif;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
       color: white;
-      text-shadow: 2px 2px 4px black;
+      text-shadow: 3px 3px 6px black;
       cursor: pointer;
       z-index: 100;
       box-shadow: none;
       filter: brightness(1.1);
-      padding: 0;
+      padding: 8px;
+      line-height: 1.1;
+      text-align: center;
+      width: 140px;
+      height: 60px;
     `
-  }, 'Start Building');
+  });
+  
+  button.innerHTML = 'Start<br>Building';
 
   button.addEventListener('click', startBuilding);
   document.body.appendChild(button);
@@ -932,6 +979,23 @@ function startBuilding() {
   const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
   const container = document.querySelector('.shelter-wrapper').parentElement;
   container.style.backgroundImage = newBackgroundImage;
+  
+  // Update shelter level indicator
+  const newShelterLevel = playerTribe.shelter;
+  for (let i = 0; i < 5; i++) {
+    const circle = document.getElementById(`shelter-level-${i}`);
+    if (circle) {
+      if (newShelterLevel > i) {
+        circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+        circle.style.borderColor = '#22c55e';
+        circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
+      } else {
+        circle.style.background = 'rgba(139, 69, 19, 0.3)';
+        circle.style.borderColor = '#8B4513';
+        circle.style.boxShadow = 'none';
+      }
+    }
+  }
   
   // Show completion message
   const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.`;
