@@ -73,6 +73,80 @@ export default class CampScreen {
     }
   }
 
+  triggerTreeMailEvent() {
+    console.log('Time ran out - triggering Tree Mail event');
+    
+    // Create the tree mail icon overlay
+    const treeMailOverlay = document.createElement('div');
+    treeMailOverlay.id = 'tree-mail-overlay';
+    treeMailOverlay.style.position = 'fixed';
+    treeMailOverlay.style.top = '0';
+    treeMailOverlay.style.left = '0';
+    treeMailOverlay.style.width = '100%';
+    treeMailOverlay.style.height = '100%';
+    treeMailOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    treeMailOverlay.style.display = 'flex';
+    treeMailOverlay.style.alignItems = 'center';
+    treeMailOverlay.style.justifyContent = 'center';
+    treeMailOverlay.style.zIndex = '2000';
+    treeMailOverlay.style.opacity = '0';
+    treeMailOverlay.style.transition = 'opacity 0.5s ease';
+
+    // Create the large tree mail icon
+    const treeMailIcon = document.createElement('img');
+    treeMailIcon.src = 'Assets/Resources/treeMail.png';
+    treeMailIcon.alt = 'Tree Mail';
+    treeMailIcon.style.width = '200px';
+    treeMailIcon.style.height = '200px';
+    treeMailIcon.style.objectFit = 'contain';
+    treeMailIcon.style.animation = 'pulse 1s ease-in-out infinite';
+
+    treeMailOverlay.appendChild(treeMailIcon);
+    document.body.appendChild(treeMailOverlay);
+
+    // Fade in the overlay
+    setTimeout(() => {
+      treeMailOverlay.style.opacity = '1';
+    }, 100);
+
+    // After 2 seconds, animate to top-left position
+    setTimeout(() => {
+      this.animateTreeMailToPosition(treeMailOverlay, treeMailIcon);
+    }, 2000);
+  }
+
+  animateTreeMailToPosition(overlay, icon) {
+    // Change overlay to not block clicks
+    overlay.style.backgroundColor = 'transparent';
+    overlay.style.alignItems = 'flex-start';
+    overlay.style.justifyContent = 'flex-start';
+    overlay.style.padding = '20px';
+
+    // Animate icon to smaller size and position
+    icon.style.width = '60px';
+    icon.style.height = '60px';
+    icon.style.animation = 'none';
+    icon.style.cursor = 'pointer';
+    icon.style.transition = 'all 0.5s ease';
+    icon.style.filter = 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))';
+
+    // Add click handler to navigate to tree mail
+    icon.addEventListener('click', () => {
+      console.log('Tree Mail icon clicked - loading TreeMail view');
+      overlay.remove();
+      this.loadView('treemail');
+    });
+
+    // Add hover effect
+    icon.addEventListener('mouseenter', () => {
+      icon.style.transform = 'scale(1.1)';
+    });
+
+    icon.addEventListener('mouseleave', () => {
+      icon.style.transform = 'scale(1)';
+    });
+  }
+
   renderClockUI() {
     const existing = document.getElementById('camp-clock');
     if (existing) return;
@@ -127,6 +201,13 @@ export default class CampScreen {
       gameManager.decreaseDayTimer();
       const currentTime = gameManager.getDayTimer();
       updateCampClockUI(currentTime, gameManager.getDay());
+
+      // Check if time has run out
+      if (currentTime <= 0) {
+        timerManager.clearInterval('campClockTick');
+        this.triggerTreeMailEvent();
+        return;
+      }
 
       // If at least 300 seconds (5 in-game minutes) have passed
       if (lastWaterTick - currentTime >= 300) {
