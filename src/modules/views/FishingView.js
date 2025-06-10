@@ -559,7 +559,7 @@ export default function renderFishingView(container) {
       }
     }    requestAnimationFrame(animateSpear);
   }
-
+  
   function catchFish() {
     // 1) If a fish exists, compute its current on‐screen position and cancel its WAAPI animation
     if (currentFish) {

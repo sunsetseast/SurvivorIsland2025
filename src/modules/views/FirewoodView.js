@@ -352,12 +352,6 @@ function endGame() {
   const player = gameManager.getPlayerSurvivor();
   if (player) {
     player.firewood = (player.firewood || 0) + firewood;
-
-      // Track firewood gathering
-      trackResourceAttempt('firewood', firewood);
-      trackPlayerAction('Resource gathering', `gathered ${firewood} firewood`);
-
-      console.log('Resource attempt tracked:', {resourceType: 'firewood', amount: firewood});
     console.log(`Player now has ${player.firewood} firewood`);
   } else {
     console.warn('No player survivor found to assign firewood.');
