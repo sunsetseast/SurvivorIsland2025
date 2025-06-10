@@ -5,7 +5,6 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
-import { trackResourceAttempt } from '../utils/ActivityTracker.js';
 
 export default function renderBambooView(container) {
   console.log('renderBambooView() called');
@@ -334,9 +333,6 @@ export default function renderBambooView(container) {
 
     gameManager.deductTime(300);
     updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
-
-    // Track bamboo gathering attempt
-    trackResourceAttempt('bamboo', bamboo);
 
     const player = gameManager.getPlayerSurvivor();
     if (player) {

@@ -8,7 +8,6 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
-import { trackShelterBuilding } from '../utils/ActivityTracker.js';
 
 let selectedCoBuilder = null;
 let bambooAdded = 0;
@@ -952,9 +951,6 @@ function startBuilding() {
   const playerTribe = gameManager.getPlayerTribe();
   
   if (!player || !selectedCoBuilder || !playerTribe) return;
-
-  // Track shelter building attempt with co-builder info
-  trackShelterBuilding([selectedCoBuilder.firstName], true);
 
   // Calculate construction time based on physical values
   const playerPhysical = player.physical || 30;

@@ -6,7 +6,6 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { MAX_WATER } from '../data/GameData.js';
-import { trackWaterGathering } from '../utils/ActivityTracker.js';
 
 export default function renderWaterWell(container) {
   console.log('renderWaterWell() called');
@@ -238,9 +237,6 @@ export default function renderWaterWell(container) {
 
     waterPopup.style.display = 'none';
 
-    // Track water gathering for self
-    trackWaterGathering('self');
-
     gameManager.deductTime(300);
     updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
     flashClockRed();
@@ -264,9 +260,6 @@ export default function renderWaterWell(container) {
     }
 
     waterPopup.style.display = 'none';
-
-    // Track water gathering for tribe
-    trackWaterGathering('tribe');
 
     // Calculate other members (excluding player) FIRST
     const otherMembers = tribe.members.filter(m => m.id !== player.id);

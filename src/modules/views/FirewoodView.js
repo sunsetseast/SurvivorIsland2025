@@ -5,7 +5,6 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
-import { trackResourceAttempt } from '../utils/ActivityTracker.js';
 
 export default function renderFirewoodView(container) {
   console.log('renderFirewoodView() called');
@@ -348,9 +347,6 @@ function endGame() {
     gameManager.getDayTimer(),
     gameManager.getCurrentDay()
   );
-
-  // Track firewood gathering attempt
-  trackResourceAttempt('firewood', firewood);
 
   // Add firewood to player inventory
   const player = gameManager.getPlayerSurvivor();

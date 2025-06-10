@@ -12,7 +12,6 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
-import { trackFireAttempt } from '../utils/ActivityTracker.js';
 
 export default function renderFireView(container) {
   // --- Persistent state: has the fire been built already? ---
@@ -1612,14 +1611,6 @@ export default function renderFireView(container) {
       } else {
         // --- Failure: show failure parchment, deduct time (5 min) and leave background as fire0 ---
         gameState.gameRunning = false;
-        
-        // Track fire building failure
-        if (isFastMode) {
-          trackFireAttempt('tend', false);
-        } else {
-          trackFireAttempt('make', false);
-        }
-        
         // Create failure particles (sand/water)
         for (let i = 0; i < 12; i++) {
           gameState.particles.push(
@@ -1696,13 +1687,6 @@ export default function renderFireView(container) {
 
     // --- 6) After Victory: finalize fire build, persist state, and restore action buttons ---
     function finalizeFireBuild() {
-      // Track fire building success
-      if (isFastMode) {
-        trackFireAttempt('tend', true);
-      } else {
-        trackFireAttempt('make', true);
-      }
-      
       // Deduct 5 minutes (time cost of success)
       gameManager.deductTime(300);
       updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
