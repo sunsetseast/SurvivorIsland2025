@@ -1,4 +1,3 @@
-
 /**
  * @module ShelterView
  * Renders the shelter screen inside the Camp Phase with building functionality
@@ -183,7 +182,7 @@ export default function renderShelter(container) {
 function handleCenterButtonClick() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
-  
+
   if (!playerTribe || !player) return;
 
   const shelterValue = playerTribe.shelter || 0;
@@ -263,7 +262,7 @@ function showParchmentPopup(message, canProceed = false) {
 function showCoBuilderSelection() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
-  
+
   if (!playerTribe || !player) return;
 
   const tribeColor = playerTribe.color || 'blue';
@@ -539,7 +538,7 @@ function showResourceButtons() {
   if (resourceButtons) {
     resourceButtons.style.display = 'flex';
   }
-  
+
   // Reset resource counts
   bambooAdded = 0;
   palmsAdded = 0;
@@ -563,7 +562,7 @@ function updateResourceButtonStyles() {
     bambooButton.style.boxShadow = 'none';
     bambooButton.style.borderRadius = '10px';
   }
-  
+
   if (palmsAdded >= 1) {
     palmButton.style.border = '2px solid gold';
     palmButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
@@ -785,7 +784,7 @@ function showResourcePopup(resourceType) {
     if (selectedAmount > 0) {
       // Show resource deduction effect
       showResourceEffect(resourceType, selectedAmount);
-      
+
       if (resourceType === 'bamboo') {
         bambooAdded = selectedAmount;
         player.bamboo = Math.max(0, player.bamboo - selectedAmount);
@@ -926,7 +925,7 @@ function showStartBuildingButton() {
       background-position: center;
       border: none;
       font-family: 'Survivant', serif;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: bold;
       color: white;
       text-shadow: 3px 3px 6px black;
@@ -939,7 +938,7 @@ function showStartBuildingButton() {
       text-align: center;
     `
   });
-  
+
   button.innerHTML = 'Start<br>Building';
 
   button.addEventListener('click', startBuilding);
@@ -949,35 +948,37 @@ function showStartBuildingButton() {
 function startBuilding() {
   const player = gameManager.getPlayerSurvivor();
   const playerTribe = gameManager.getPlayerTribe();
-  
+
   if (!player || !selectedCoBuilder || !playerTribe) return;
 
   // Calculate construction time based on physical values
   const playerPhysical = player.physical || 30;
   const coBuilderPhysical = selectedCoBuilder.physical || 30;
   const averagePhysical = (playerPhysical + coBuilderPhysical) / 2;
-  
+
   // Convert average physical (28-45 range) to time (5-20 minutes)
   // Higher physical = less time
   const minTime = 5;
   const maxTime = 20;
   const minPhysical = 28;
   const maxPhysical = 45;
-  
+
   const constructionTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
-  
+
   // Increase shelter value
   playerTribe.shelter = (playerTribe.shelter || 0) + 1;
-  
+
   // Add teamPlayer points
   player.teamPlayer = (player.teamPlayer || 50) + 10;
   selectedCoBuilder.teamPlayer = (selectedCoBuilder.teamPlayer || 50) + 10;
-  
+
+Analysis: The code needs to have the inactive circle color changed to `#2d8100` and the "Start Building" text size increased to 18px.
+
   // Update background
   const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
   const container = document.querySelector('.shelter-wrapper').parentElement;
   container.style.backgroundImage = newBackgroundImage;
-  
+
   // Update shelter level indicator
   const newShelterLevel = playerTribe.shelter;
   for (let i = 0; i < 5; i++) {
@@ -994,14 +995,14 @@ function startBuilding() {
       }
     }
   }
-  
+
   // Show completion message
   const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.`;
-  
+
   // Deduct time from clock (convert minutes to seconds)
   const timeInSeconds = constructionTime * 60;
   gameManager.deductTime(timeInSeconds);
-  
+
   // Update clock display and flash red
   const clockElement = document.getElementById('clock-time-text');
   const dayElement = document.getElementById('clock-day-text');
@@ -1011,7 +1012,7 @@ function startBuilding() {
     clockElement.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
     dayElement.textContent = `Day ${gameManager.day}`;
   }
-  
+
   // Flash red effect on the correct clock element
   if (clockElement) {
     clockElement.style.color = 'red';
@@ -1019,21 +1020,21 @@ function startBuilding() {
       clockElement.style.color = '#2b190a';
     }, 500);
   }
-  
+
   // Show teamPlayer animation
   showTeamPlayerAnimation();
-  
+
   // Clean up
   const startButton = document.getElementById('start-building-button');
   if (startButton) startButton.remove();
-  
+
   const resourceButtons = document.getElementById('shelter-resource-buttons');
   if (resourceButtons) resourceButtons.style.display = 'none';
-  
+
   selectedCoBuilder = null;
   bambooAdded = 0;
   palmsAdded = 0;
-  
+
   showParchmentPopup(message);
 }
 
