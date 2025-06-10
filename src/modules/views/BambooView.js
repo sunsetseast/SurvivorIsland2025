@@ -336,16 +336,8 @@ export default function renderBambooView(container) {
 
     const player = gameManager.getPlayerSurvivor();
     if (player) {
-      const currentBamboo = player.bamboo || 0;
-        player.bamboo = Math.min(10, currentBamboo + 1);
-
-        // Track player activity
-        if (typeof window !== 'undefined' && window.campActivityTracker) {
-          window.campActivityTracker.playerActions.push('Gathered bamboo');
-        }
-
-        // Update display
-        
+      player.bamboo = (player.bamboo || 0) + bamboo;
+      console.log(`Player now has ${player.bamboo} bamboo`);
     }
 
     const timerEl = document.getElementById('clock-time-text');

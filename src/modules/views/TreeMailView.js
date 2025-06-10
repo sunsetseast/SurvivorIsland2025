@@ -147,8 +147,8 @@ export default function renderTreeMail(container) {
 
       // Add click handler
       buttonWrapper.addEventListener('click', () => {
-        console.log('Tree Mail button clicked - loading summary view');
-        window.campScreen.loadView('summary');
+        console.log('Tree Mail button clicked - advancing to challenge phase');
+        gameManager.advanceGamePhase();
       });
 
       buttonWrapper.appendChild(blankImage);

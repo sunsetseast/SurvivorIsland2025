@@ -994,14 +994,6 @@ function startBuilding() {
     }
   }
 
-  // Track player activity with co-builder info
-  if (typeof window !== 'undefined' && window.campActivityTracker) {
-    window.campActivityTracker.playerActions.push(`Built shelter with ${selectedCoBuilder.firstName} (level ${newShelterLevel})`);
-  }
-
-  console.log(`Shelter level increased to ${newShelterLevel}`);
-  addDebugBanner(`Shelter level now: ${newShelterLevel}`, 'green', 200);
-
   // Show completion message
   const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.`;
 
