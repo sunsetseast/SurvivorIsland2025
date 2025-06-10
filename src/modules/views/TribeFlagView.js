@@ -6,7 +6,6 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import screenManager from '../core/ScreenManager.js';
-import gameData from '../data/index.js';
 
 export default function renderTribeFlag(container) {
   console.log('renderTribeFlag() called');
@@ -121,6 +120,23 @@ export default function renderTribeFlag(container) {
     `
   }, 'Click a Survivor to see more information about them.');
 
+  // Create survivor card overlay container (hidden by default)
+  const survivorCardOverlay = createElement('div', {
+    className: 'survivor-card-overlay hidden',
+    style: `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    `
+  });
+
   playerTribe.members.forEach(member => {
     const avatarWrapper = createElement('div', {
       style: 'display: flex; flex-direction: column; align-items: center; cursor: pointer;'
@@ -158,7 +174,7 @@ export default function renderTribeFlag(container) {
     avatarWrapper.appendChild(name);
 
     avatarWrapper.addEventListener('click', () => {
-      showSurvivorCard(member);
+      showSurvivorCard(member, survivorCardOverlay);
     });
 
     avatarGrid.appendChild(avatarWrapper);
@@ -166,6 +182,7 @@ export default function renderTribeFlag(container) {
 
   wrapper.append(tribeImage, tribeNameOverlay, avatarGrid, bottomOverlay);
   container.appendChild(wrapper);
+  container.appendChild(survivorCardOverlay);
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
@@ -220,46 +237,21 @@ export default function renderTribeFlag(container) {
   addDebugBanner('Tribe flag view rendered!', 'limegreen', 170);
 }
 
-function showSurvivorCard(survivor) {
-  // Create full-screen overlay
-  const overlay = createElement('div', {
+function showSurvivorCard(survivor, overlayContainer) {
+  clearChildren(overlayContainer);
+
+  const cardWrapper = createElement('div', { 
+    className: 'card-wrapper',
     style: `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      box-sizing: border-box;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.6s;
     `
   });
 
-  // Create the card using the same structure as CharacterSelectionScreen
-  const cardWrapper = createSurvivorCard(survivor);
-  overlay.appendChild(cardWrapper);
-
-  // Close on overlay click (but not on card click)
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      document.body.removeChild(overlay);
-    }
-  });
-
-  // Add to document body
-  document.body.appendChild(overlay);
-}
-
-function createSurvivorCard(survivor) {
-  const cardWrapper = createElement('div', { className: 'card-wrapper' });
-
   const avatarFrame = createElement('div', { className: 'avatar-frame' });
   const avatarImg = createElement('img', {
-    src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+    src: survivor.avatarUrl || 'Assets/Avatars/default.jpeg',
     alt: `${survivor.firstName}'s avatar`
   });
   avatarFrame.appendChild(avatarImg);
@@ -268,22 +260,25 @@ function createSurvivorCard(survivor) {
   const card = createElement('div', { className: 'survivor-card' });
   card.dataset.id = survivor.id;
 
-  // FRONT of card
+  // FRONT
   const cardFront = createElement('div', { className: 'card-front' });
   const name = createElement('h3', { className: 'survivor-header' });
   name.innerHTML = `${survivor.firstName}<br>${survivor.lastName}`;
 
-  const moreInfoButton = createElement('button', { className: 'card-button' }, 'More Info');
-  
+  const moreInfoButton = createElement('button', { 
+    className: 'card-button',
+    style: 'margin: 0 auto; display: block;' // Center the button
+  }, 'More Info');
+
   const buttonContainer = createElement('div', { 
     className: 'card-buttons',
-    style: 'justify-content: center;'
+    style: 'display: flex; justify-content: center;' // Center the button container
   });
   buttonContainer.appendChild(moreInfoButton);
   cardFront.appendChild(name);
   cardFront.appendChild(buttonContainer);
 
-  // BACK of card
+  // BACK
   const cardBack = createElement('div', { className: 'card-back' });
   cardBack.style.backgroundImage = `url('Assets/card-back-${survivor.traitClass.toLowerCase()}.png')`;
 
@@ -373,14 +368,38 @@ function createSurvivorCard(survivor) {
     traitCardOverlay.classList.remove('hidden');
   });
 
-  // Combine front and back
+  // Combine front/back
   card.appendChild(cardFront);
   card.appendChild(cardBack);
   cardWrapper.appendChild(card);
 
-  // Flip functionality
+  // Flip logic
   moreInfoButton.addEventListener('click', () => cardWrapper.classList.toggle('flipped'));
   backButton.addEventListener('click', () => cardWrapper.classList.remove('flipped'));
 
-  return cardWrapper;
+  // Close overlay button
+  const closeOverlayButton = createElement('button', {
+    className: 'rect-button',
+    style: `
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1001;
+    `
+  }, 'Close');
+
+  closeOverlayButton.addEventListener('click', () => {
+    overlayContainer.classList.add('hidden');
+  });
+
+  overlayContainer.appendChild(cardWrapper);
+  overlayContainer.appendChild(closeOverlayButton);
+  overlayContainer.classList.remove('hidden');
+
+  // Close overlay when clicking outside the card
+  overlayContainer.addEventListener('click', (e) => {
+    if (e.target === overlayContainer) {
+      overlayContainer.classList.add('hidden');
+    }
+  });
 }
