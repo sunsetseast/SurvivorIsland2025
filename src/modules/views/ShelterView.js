@@ -511,25 +511,25 @@ function updateResourceButtonStyles() {
   const bambooButton = resourceButtons.children[0];
   const palmButton = resourceButtons.children[1];
 
-  // Make border fit snugly around the image
+  // Add gold glow effect when resources are added
   if (bambooAdded >= 1) {
-    bambooButton.style.border = '2px solid #4CAF50';
-    bambooButton.style.borderRadius = '8px';
-    bambooButton.style.padding = '2px';
+    bambooButton.style.border = '2px solid gold';
+    bambooButton.style.boxShadow = '0 0 8px gold';
+    bambooButton.style.borderRadius = '10px';
   } else {
     bambooButton.style.border = '2px solid transparent';
+    bambooButton.style.boxShadow = 'none';
     bambooButton.style.borderRadius = '10px';
-    bambooButton.style.padding = '2px';
   }
   
   if (palmsAdded >= 1) {
-    palmButton.style.border = '2px solid #4CAF50';
-    palmButton.style.borderRadius = '8px';
-    palmButton.style.padding = '2px';
+    palmButton.style.border = '2px solid gold';
+    palmButton.style.boxShadow = '0 0 8px gold';
+    palmButton.style.borderRadius = '10px';
   } else {
     palmButton.style.border = '2px solid transparent';
+    palmButton.style.boxShadow = 'none';
     palmButton.style.borderRadius = '10px';
-    palmButton.style.padding = '2px';
   }
 
   // Show start building button if both resources are added
