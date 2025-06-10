@@ -200,7 +200,8 @@ function showParchmentPopup(message, canProceed = false) {
     style: `
       font-family: 'Survivant', serif;
       font-size: 18px;
-      color: #4a4a4a;
+      color: white;
+      text-shadow: 1px 1px 2px black;
       text-align: center;
       line-height: 1.4;
       white-space: pre-line;
@@ -872,14 +873,12 @@ function showStartBuildingButton() {
 
   const button = createElement('button', {
     id: 'start-building-button',
-    className: 'rect-button',
+    className: 'rect-button alt',
     style: `
-      position: fixed;
+      position: absolute;
       top: 35%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 200px;
-      height: 60px;
       background-image: url('Assets/rect-button-1.png');
       background-size: 100% 100%;
       background-repeat: no-repeat;
@@ -986,7 +985,7 @@ function showTeamPlayerAnimation() {
       display: flex;
       align-items: center;
       gap: 10px;
-      z-index: 1000;
+      z-index: 1010;
       animation: fadeInOut 3s forwards;
       pointer-events: none;
     `
