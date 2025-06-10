@@ -255,6 +255,132 @@ function showSurvivorCard(survivor, overlayContainer) {
     `
   });
 
+  // Add CSS classes for card functionality
+  const style = document.createElement('style');
+  style.textContent = `
+    .card-wrapper.flipped {
+      transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      backface-visibility: hidden;
+    }
+    .card-back {
+      transform: rotateY(180deg);
+    }
+    .hidden {
+      display: none !important;
+    }
+    .trait-card-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    .trait-card-wrapper {
+      position: relative;
+      max-width: 90%;
+      max-height: 90%;
+    }
+    .trait-card-bg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .trait-element {
+      position: absolute;
+      color: white;
+      font-family: 'Survivant', fantasy;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px black;
+      transform: translate(-50%, -50%);
+    }
+    .name-box {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: 'Survivant', fantasy;
+      font-size: 18px;
+      text-align: center;
+      text-shadow: 1px 1px 2px black;
+    }
+    .gameplay-style-box {
+      position: absolute;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: 'Survivant', fantasy;
+      font-size: 16px;
+      text-align: center;
+      text-shadow: 1px 1px 2px black;
+      max-width: 200px;
+    }
+    .gameplay-style-box.small-text {
+      font-size: 14px;
+    }
+    .trait-values {
+      position: absolute;
+      top: 160px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+    }
+    .trait-row {
+      color: white;
+      font-family: 'Survivant', fantasy;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px black;
+      text-align: center;
+      min-width: 40px;
+    }
+    .card-buttons-back {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+    }
+    .rect-button {
+      padding: 10px 20px;
+      background-image: url('Assets/rect-button.png');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-position: center;
+      border: none;
+      color: #fff8e7;
+      font-family: 'Survivant', fantasy;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      text-shadow: 
+        0 1px 0 #000,
+        0 2px 0 #000,
+        0 3px 0 #000,
+        0 4px 4px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s;
+    }
+    .rect-button:hover {
+      transform: scale(1.05);
+    }
+    .rect-button.small {
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+  `;
+  document.head.appendChild(style);
+
   const avatarFrame = createElement('div', { 
     className: 'avatar-frame',
     style: `
