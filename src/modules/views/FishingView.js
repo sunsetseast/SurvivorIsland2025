@@ -559,14 +559,14 @@ export default function renderFishingView(container) {
       }
     }    requestAnimationFrame(animateSpear);
   }
-  
+
   function catchFish() {
     // 1) If a fish exists, compute its current on‐screen position and cancel its WAAPI animation
     if (currentFish) {
       const fishRect      = currentFish.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
 
-      // Calculate fish’s coordinates relative to the container
+      // Calculate fish's coordinates relative to the container
       const relLeft = fishRect.left - containerRect.left;
       const relTop  = fishRect.top  - containerRect.top;
 
@@ -575,7 +575,7 @@ export default function renderFishingView(container) {
         currentFish.animation.cancel();
       }
 
-      // Explicitly “freeze” the fish in place by setting its inline styles
+      // Explicitly "freeze" the fish in place by setting its inline styles
       currentFish.style.left = `${relLeft}px`;
       currentFish.style.top  = `${relTop}px`;
     }
@@ -586,14 +586,17 @@ export default function renderFishingView(container) {
     if (src.includes('fish2.png')) amount = 3;
     if (src.includes('fish3.png')) amount = 5;
 
-    // 3) Update player inventory
+    // 3) Track fishing success
+    trackFishingAttempt(amount);
+
+    // 4) Update player inventory
     const player = gameManager.getPlayerSurvivor();
     if (player) {
       player.fish = (player.fish || 0) + amount;
       console.log(`Player now has ${player.fish} fish.`);
     }
 
-    // 4) Show the “+X fish” effect at the fish’s frozen position
+    // 4) Show the "+X fish" effect at the fish's frozen position
     showFishEffect(amount, currentFish);
 
     // 5) After a short delay (to let the freeze be visible), remove the fish element

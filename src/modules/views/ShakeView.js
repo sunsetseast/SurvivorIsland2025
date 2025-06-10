@@ -275,14 +275,13 @@ export default function renderShakeView(container) {
   }
 
   function showResults(rewards) {
-    // Deduct 5 minutes (300 seconds) and update the clock UI
     gameManager.deductTime(300);
-    updateCampClockUI(
-      gameManager.getDayTimer(),
-      gameManager.getCurrentDay()
-    );
+    updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
 
-    // Add resources to player inventory
+    // Track resource gathering attempts
+    trackResourceAttempt('coconuts', rewards.coconuts);
+    trackResourceAttempt('palms', rewards.palms);
+
     const player = gameManager.getPlayerSurvivor();
     if (player) {
       if (rewards.coconuts > 0 && rewards.palms > 0) {

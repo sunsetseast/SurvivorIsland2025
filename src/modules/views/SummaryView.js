@@ -7,6 +7,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
+import { getPlayerActivitySummary } from '../utils/ActivityTracker.js';
 
 // Track camp activities
 if (!window.campActivityTracker) {
@@ -296,7 +297,79 @@ function generateSummaryData() {
 function generateSummaryText(data) {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
+  const playerActivities = getPlayerActivitySummary();
+  
   let text = `<p><strong>The first two hours at ${playerTribe.tribeName} camp have set the stage for the days ahead...</strong></p>`;
+
+  // Player-specific activities first
+  text += `<p><strong>Your Activities:</strong> `;
+  
+  // Fishing
+  if (playerActivities.fishing.attempts > 0) {
+    text += `You attempted to fish ${playerActivities.fishing.attempts} time${playerActivities.fishing.attempts > 1 ? 's' : ''}`;
+    if (playerActivities.fishing.totalFishCaught > 0) {
+      text += ` and successfully caught ${playerActivities.fishing.totalFishCaught} fish. `;
+    } else {
+      text += ` but didn't catch anything. `;
+    }
+  }
+
+  // Fire building
+  if (playerActivities.fire.attempts > 0 || playerActivities.fire.tendAttempts > 0) {
+    if (playerActivities.fire.attempts > 0) {
+      text += `You attempted to build fire`;
+      if (playerActivities.fire.successful) {
+        text += ` and succeeded! `;
+      } else {
+        text += ` but were unsuccessful. `;
+      }
+    }
+    if (playerActivities.fire.tendAttempts > 0) {
+      text += `You tended the fire ${playerActivities.fire.tendAttempts} time${playerActivities.fire.tendAttempts > 1 ? 's' : ''}`;
+      if (playerActivities.fire.tendSuccessful > 0) {
+        text += ` successfully ${playerActivities.fire.tendSuccessful} time${playerActivities.fire.tendSuccessful > 1 ? 's' : ''}. `;
+      } else {
+        text += ` but were unsuccessful. `;
+      }
+    }
+  }
+
+  // Shelter building
+  if (playerActivities.shelter.attempts > 0) {
+    if (playerActivities.shelter.successful) {
+      text += `You successfully built shelter with ${playerActivities.shelter.coBuilders.join(', ')}. `;
+    } else {
+      text += `You attempted to build shelter but were unsuccessful. `;
+    }
+  }
+
+  // Resource gathering
+  const resourceSummary = [];
+  Object.keys(playerActivities.resources).forEach(resource => {
+    const data = playerActivities.resources[resource];
+    if (data.attempts > 0) {
+      if (data.gathered > 0) {
+        resourceSummary.push(`${data.gathered} ${resource}`);
+      } else {
+        resourceSummary.push(`attempted to gather ${resource} but got none`);
+      }
+    }
+  });
+  if (resourceSummary.length > 0) {
+    text += `You gathered ${resourceSummary.join(', ')}. `;
+  }
+
+  // Water gathering
+  if (playerActivities.water.attempts > 0) {
+    if (playerActivities.water.forSelf > 0 && playerActivities.water.forTribe > 0) {
+      text += `You gathered water for yourself and for the entire tribe. `;
+    } else if (playerActivities.water.forSelf > 0) {
+      text += `You gathered water for yourself. `;
+    } else if (playerActivities.water.forTribe > 0) {
+      text += `You gathered water for the entire tribe, showing great teamwork. `;
+    }
+  }
+  text += `</p>`;
 
   // Leadership
   if (data.leadership.length > 0) {
@@ -304,49 +377,21 @@ function generateSummaryText(data) {
     text += `<p><strong>Leadership:</strong> ${leader.firstName} ${leader.lastName} stepped up as a natural leader, organizing the tribe's initial efforts. Their authoritative presence has increased their threat level.</p>`;
   }
 
-  // Fire attempts
-  if (data.fireAttempts.length > 0) {
-    data.fireAttempts.forEach(attempt => {
-      if (attempt.survivor.isPlayer) {
-        text += `<p><strong>Fire Building:</strong> You took on the crucial task of building fire. ${attempt.success ? 'Your efforts paid off, and the tribe now has fire!' : 'Despite your best efforts, the fire remains elusive.'}</p>`;
-      } else {
-        text += `<p><strong>Fire Building:</strong> ${attempt.survivor.firstName} worked tirelessly to create fire for the tribe. ${attempt.success ? 'Their persistence paid off, providing warmth and security.' : 'Unfortunately, their attempts were unsuccessful.'}</p>`;
-      }
-    });
-  }
-
-  // Shelter building
-  if (data.shelterBuilders.length === 2) {
-    const builder1 = data.shelterBuilders[0];
-    const builder2 = data.shelterBuilders[1];
-    
-    if (builder1.isPlayer) {
-      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder2.firstName} to begin constructing the tribe's shelter. Working together, you've created a basic foundation that will protect the tribe from the elements.</p>`;
-    } else if (builder2.isPlayer) {
-      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder1.firstName} to begin constructing the tribe's shelter. Working together, you've created a basic foundation that will protect the tribe from the elements.</p>`;
-    } else {
-      text += `<p><strong>Shelter Construction:</strong> ${builder1.firstName} and ${builder2.firstName} took initiative in building the tribe's shelter, working well together to create a protective structure.</p>`;
-    }
-  }
-
-  // Resource gathering summary
-  text += `<p><strong>Resource Gathering:</strong> `;
-  const playerGathered = window.campActivityTracker.playerActions || [];
-  if (playerGathered.length > 0) {
-    text += `You contributed by ${playerGathered.join(', ').toLowerCase()}. `;
-  }
-
-  let gatheringDetails = [];
+  // NPC activities
+  let npcActivities = [];
   Object.keys(data.resourceGathering).forEach(survivorId => {
     const survivor = playerTribe.members.find(m => m.id == survivorId);
-    const resources = data.resourceGathering[survivorId];
-    if (resources.length > 0) {
-      gatheringDetails.push(`${survivor.firstName} gathered ${resources.join(', ')}`);
-    } else {
-      gatheringDetails.push(`${survivor.firstName} focused on other tasks`);
+    if (survivor && !survivor.isPlayer) {
+      const resources = data.resourceGathering[survivorId];
+      if (resources.length > 0) {
+        npcActivities.push(`${survivor.firstName} gathered ${resources.join(', ')}`);
+      }
     }
   });
-  text += gatheringDetails.join('; ') + '.</p>';
+  
+  if (npcActivities.length > 0) {
+    text += `<p><strong>Tribe Activities:</strong> ${npcActivities.join('; ')}.</p>`;
+  }
 
   // Relationship dynamics
   if (data.relationships.length > 0) {
