@@ -89,7 +89,8 @@ export default function renderTreeMail(container) {
     };
 
     const createTreeMailButton = () => {
-      const wrapper = createElement('div', {
+      const buttonWrapper = createElement('div', {
+        className: 'tree-mail-button-wrapper',
         style: `
           width: 240px;
           height: 135px;
@@ -97,47 +98,63 @@ export default function renderTreeMail(container) {
           overflow: hidden;
           cursor: pointer;
           position: relative;
+          transition: transform 0.1s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         `
       });
 
-      // Base blank button - maintain original size
+      // Base blank button - smaller size
       const blankImage = createElement('img', {
         src: 'Assets/Buttons/blank.png',
-        alt: 'Blank',
+        alt: 'Blank Button Base',
         style: `
-          width: 100%;
-          height: 100%;
+          width: 140px;
+          height: 90px;
           display: block;
           object-fit: contain;
           pointer-events: none;
+          position: absolute;
         `
       });
 
-      // Tree mail icon overlay
+      // Tree mail icon overlay - properly sized and centered
       const treeMailIcon = createElement('img', {
         src: 'Assets/Resources/treeMail.png',
-        alt: 'Tree Mail',
+        alt: 'Tree Mail Icon',
         style: `
           position: absolute;
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
-          width: 80px;
-          height: 80px;
+          width: 60px;
+          height: 60px;
           object-fit: contain;
           pointer-events: none;
+          z-index: 1;
         `
       });
 
-      wrapper.appendChild(blankImage);
-      wrapper.appendChild(treeMailIcon);
-      
-      wrapper.addEventListener('click', () => {
+      // Add hover effect
+      buttonWrapper.addEventListener('mouseenter', () => {
+        buttonWrapper.style.transform = 'scale(1.05)';
+      });
+
+      buttonWrapper.addEventListener('mouseleave', () => {
+        buttonWrapper.style.transform = 'scale(1)';
+      });
+
+      // Add click handler
+      buttonWrapper.addEventListener('click', () => {
         console.log('Tree Mail button clicked - advancing to challenge phase');
         gameManager.advanceGamePhase();
       });
 
-      return wrapper;
+      buttonWrapper.appendChild(blankImage);
+      buttonWrapper.appendChild(treeMailIcon);
+
+      return buttonWrapper;
     };
 
     if (timerExpired) {
