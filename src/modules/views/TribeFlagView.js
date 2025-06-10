@@ -175,9 +175,7 @@ export default function renderTribeFlag(container) {
         backface-visibility: hidden;
         border-radius: 12px;
         padding: 15px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        display: block;
       `
     });
 
@@ -387,6 +385,18 @@ export default function renderTribeFlag(container) {
     card.appendChild(cardFront);
     card.appendChild(cardBack);
     cardWrapper.appendChild(card);
+
+    // Add flip animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+      .card-wrapper.flipped .survivor-card {
+        transform: rotateY(180deg);
+      }
+    `;
+    if (!document.head.querySelector('style[data-card-flip]')) {
+      style.setAttribute('data-card-flip', 'true');
+      document.head.appendChild(style);
+    }
 
     // Flip logic
     moreInfoButton.addEventListener('click', () => {
