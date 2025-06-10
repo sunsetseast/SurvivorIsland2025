@@ -559,7 +559,7 @@ export default function renderFishingView(container) {
       }
     }    requestAnimationFrame(animateSpear);
   }
-  
+
   function catchFish() {
     // 1) If a fish exists, compute its current on‐screen position and cancel its WAAPI animation
     if (currentFish) {
@@ -589,8 +589,16 @@ export default function renderFishingView(container) {
     // 3) Update player inventory
     const player = gameManager.getPlayerSurvivor();
     if (player) {
-      player.fish = (player.fish || 0) + amount;
-      console.log(`Player now has ${player.fish} fish.`);
+      const currentFish = player.fish || 0;
+        player.fish = Math.min(10, currentFish + 1);
+
+        // Track player activity
+        if (typeof window !== 'undefined' && window.campActivityTracker) {
+          window.campActivityTracker.playerActions.push('Caught fish');
+        }
+
+        // Update display
+        refreshMenuCard();
     }
 
     // 4) Show the “+X fish” effect at the fish’s frozen position

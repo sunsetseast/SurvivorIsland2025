@@ -20,6 +20,7 @@ import renderBambooView from '../views/BambooView.js';
 import renderShakeView from '../views/ShakeView.js';
 import renderFishingView from '../views/FishingView.js';
 import renderFireView from '../views/FireView.js';
+import renderSummary from '../views/SummaryView.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 
 const campViews = {
@@ -40,7 +41,8 @@ const campViews = {
   bamboo: renderBambooView,
   shake: renderShakeView,
   fishing: renderFishingView,
-  fire: renderFireView
+  fire: renderFireView,
+  summary: renderSummary
 };
 
 export default class CampScreen {
