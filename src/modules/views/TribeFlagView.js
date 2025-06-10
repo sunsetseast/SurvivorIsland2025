@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import screenManager from '../core/ScreenManager.js';
+import gameData from '../data/index.js';
 
 export default function renderTribeFlag(container) {
   console.log('renderTribeFlag() called');
@@ -244,43 +245,198 @@ function showSurvivorCard(survivor, overlayContainer) {
     className: 'card-wrapper',
     style: `
       position: relative;
+      width: 100%;
+      max-width: 909px;
+      height: 625px;
       transform-style: preserve-3d;
       transition: transform 0.6s;
+      perspective: 1000px;
+      margin: 0 auto;
     `
   });
 
-  const avatarFrame = createElement('div', { className: 'avatar-frame' });
+  const avatarFrame = createElement('div', { 
+    className: 'avatar-frame',
+    style: `
+      position: absolute;
+      top: 119px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 220px;
+      height: 220px;
+      overflow: hidden;
+      border-radius: 12px;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backface-visibility: hidden;
+    `
+  });
   const avatarImg = createElement('img', {
-    src: survivor.avatarUrl || 'Assets/Avatars/default.jpeg',
-    alt: `${survivor.firstName}'s avatar`
+    src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+    alt: `${survivor.firstName}'s avatar`,
+    style: `
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    `
   });
   avatarFrame.appendChild(avatarImg);
   cardWrapper.appendChild(avatarFrame);
 
-  const card = createElement('div', { className: 'survivor-card' });
+  const card = createElement('div', { 
+    className: 'survivor-card',
+    style: `
+      width: 100%;
+      max-width: 909px;
+      height: 625px;
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      font-size: 18px;
+      font-family: 'Survivant', fantasy;
+      color: #333;
+      border-radius: 12px;
+      padding: 0;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      margin: 0 auto;
+      position: relative;
+      text-align: center;
+      z-index: 1;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+    `
+  });
   card.dataset.id = survivor.id;
 
   // FRONT
-  const cardFront = createElement('div', { className: 'card-front' });
-  const name = createElement('h3', { className: 'survivor-header' });
+  const cardFront = createElement('div', { 
+    className: 'card-front',
+    style: `
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 12px;
+      padding: 15px;
+      background-image: url('Assets/card-front.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      overflow: hidden;
+      z-index: 2;
+    `
+  });
+  const name = createElement('h3', { 
+    className: 'survivor-header',
+    style: `
+      position: absolute;
+      top: 99px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      font-size: 32px;
+      font-weight: bold;
+      font-family: 'Survivant', fantasy;
+      color: #fff8e7;
+      text-align: center;
+      box-shadow: 
+        0 3px 6px rgba(0, 0, 0, 0.15),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+        inset 0 2px 6px rgba(255, 255, 255, 0.05);
+      text-shadow: 
+        0 1px 0 #000,
+        0 2px 0 #000,
+        0 3px 0 #000,
+        0 4px 4px rgba(0, 0, 0, 0.5);
+      z-index: 3;
+      pointer-events: none;
+    `
+  });
   name.innerHTML = `${survivor.firstName}<br>${survivor.lastName}`;
 
   const moreInfoButton = createElement('button', { 
     className: 'card-button',
-    style: 'margin: 0 auto; display: block;' // Center the button
+    style: `
+      padding: 10px;
+      background-image: url('Assets/rect-button.png');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-position: center;
+      border: none;
+      color: #fff8e7;
+      font-family: 'Survivant', fantasy;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 120px;
+      height: 60px;
+      box-shadow: 
+        0 3px 6px rgba(0, 0, 0, 0.15),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+        inset 0 2px 4px rgba(255, 255, 255, 0.4);
+      text-shadow: 
+        0 1px 0 #000,
+        0 2px 0 #000,
+        0 3px 0 #000,
+        0 4px 4px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s;
+      margin: 0 auto;
+      display: block;
+    `
   }, 'More Info');
 
   const buttonContainer = createElement('div', { 
     className: 'card-buttons',
-    style: 'display: flex; justify-content: center;' // Center the button container
+    style: `
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: auto;
+      margin-bottom: 109px;
+    `
   });
   buttonContainer.appendChild(moreInfoButton);
   cardFront.appendChild(name);
   cardFront.appendChild(buttonContainer);
 
   // BACK
-  const cardBack = createElement('div', { className: 'card-back' });
-  cardBack.style.backgroundImage = `url('Assets/card-back-${survivor.traitClass.toLowerCase()}.png')`;
+  const cardBack = createElement('div', { 
+    className: 'card-back',
+    style: `
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 12px;
+      padding: 15px;
+      background-image: url('Assets/card-back-${survivor.traitClass.toLowerCase()}.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transform: rotateY(180deg);
+    `
+  });
 
   const nameBox = createElement('div', { className: 'name-box' });
   nameBox.innerHTML = `<strong>${survivor.firstName}<br>${survivor.lastName}</strong><br><small>${survivor.season || 'Unknown'}</small>`;
