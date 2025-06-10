@@ -419,6 +419,7 @@ function showSurvivorCard(survivor, overlayContainer) {
       width: 100%;
       max-width: 909px;
       height: 625px;
+      background-image: url('Assets/card-front.png');
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
@@ -452,10 +453,6 @@ function showSurvivorCard(survivor, overlayContainer) {
       backface-visibility: hidden;
       border-radius: 12px;
       padding: 15px;
-      background-image: url('Assets/card-front.png');
-      background-size: contain;
-      background-position: center;
-      background-repeat: no-repeat;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -518,8 +515,6 @@ function showSurvivorCard(survivor, overlayContainer) {
         0 3px 0 #000,
         0 4px 4px rgba(0, 0, 0, 0.5);
       transition: transform 0.3s;
-      margin: 0 auto;
-      display: block;
     `
   }, 'More Info');
 
