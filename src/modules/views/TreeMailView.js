@@ -46,6 +46,10 @@ export default function renderTreeMail(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
+  // Check if timer has run out
+  const currentTimer = gameManager.getDayTimer();
+  const timerExpired = currentTimer <= 0;
+
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
@@ -63,6 +67,7 @@ export default function renderTreeMail(container) {
           display: inline-block;
           overflow: hidden;
           cursor: pointer;
+          position: relative;
         `
       });
 
@@ -83,21 +88,80 @@ export default function renderTreeMail(container) {
       return wrapper;
     };
 
-    const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      console.log('Left button clicked - returning to Mountain Trail');
-      window.campScreen.loadView('mountainTrail');
-    });
+    const createTreeMailButton = () => {
+      const wrapper = createElement('div', {
+        style: `
+          width: 260px;
+          height: 150px;
+          display: inline-block;
+          overflow: hidden;
+          cursor: pointer;
+          position: relative;
+        `
+      });
 
-    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+      // Base blank button
+      const blankImage = createElement('img', {
+        src: 'Assets/Buttons/blank.png',
+        alt: 'Blank',
+        style: `
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: contain;
+          pointer-events: none;
+        `
+      });
 
-    const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - loading Waterfall Trail View');
-      window.campScreen.loadView('waterfallTrail');
-    });
+      // Tree mail icon overlay
+      const treeMailIcon = createElement('img', {
+        src: 'Assets/Resources/treeMail.png',
+        alt: 'Tree Mail',
+        style: `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 80px;
+          height: 80px;
+          object-fit: contain;
+          pointer-events: none;
+        `
+      });
 
-    actionButtons.appendChild(leftButton);
-    actionButtons.appendChild(blankButton);
-    actionButtons.appendChild(rightButton);
+      wrapper.appendChild(blankImage);
+      wrapper.appendChild(treeMailIcon);
+      
+      wrapper.addEventListener('click', () => {
+        console.log('Tree Mail button clicked - advancing to challenge phase');
+        gameManager.advanceGamePhase();
+      });
+
+      return wrapper;
+    };
+
+    if (timerExpired) {
+      // When timer expired, only show the tree mail button in center
+      const treeMailButton = createTreeMailButton();
+      actionButtons.appendChild(treeMailButton);
+    } else {
+      // Normal navigation buttons when timer hasn't expired
+      const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
+        console.log('Left button clicked - returning to Mountain Trail');
+        window.campScreen.loadView('mountainTrail');
+      });
+
+      const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+
+      const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
+        console.log('Right button clicked - loading Waterfall Trail View');
+        window.campScreen.loadView('waterfallTrail');
+      });
+
+      actionButtons.appendChild(leftButton);
+      actionButtons.appendChild(blankButton);
+      actionButtons.appendChild(rightButton);
+    }
   }
 
   addDebugBanner('Tree Mail view rendered!', 'sienna', 170);
