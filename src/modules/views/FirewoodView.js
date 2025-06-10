@@ -351,8 +351,16 @@ function endGame() {
   // Add firewood to player inventory
   const player = gameManager.getPlayerSurvivor();
   if (player) {
-    player.firewood = (player.firewood || 0) + firewood;
-    console.log(`Player now has ${player.firewood} firewood`);
+    const currentFirewood = player.firewood || 0;
+        player.firewood = Math.min(10, currentFirewood + 1);
+
+        // Track player activity
+        if (typeof window !== 'undefined' && window.campActivityTracker) {
+          window.campActivityTracker.playerActions.push('Gathered firewood');
+        }
+
+        // Update display
+        refreshMenuCard();
   } else {
     console.warn('No player survivor found to assign firewood.');
   }

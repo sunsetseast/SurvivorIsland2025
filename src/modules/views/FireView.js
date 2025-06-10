@@ -237,7 +237,7 @@ export default function renderFireView(container) {
         showWeakFireParchment();
         return;
     }
-    
+
     showCookingInterface();
   }
 
@@ -990,7 +990,7 @@ export default function renderFireView(container) {
   // Only resume cooking if we have both adequate fire and active items
   const resumePlayerTribe = gameManager.getPlayerTribe();
   const resumeFireLevel = resumePlayerTribe && typeof resumePlayerTribe.fire === 'number' ? resumePlayerTribe.fire : 0;
-  
+
   if (resumeFireLevel >= 2 && cookingState.activeItems.length > 0) {
     // Clean up any existing timers first
     cookingState.timers.forEach(timer => {
@@ -1850,6 +1850,15 @@ export default function renderFireView(container) {
           playerTribe.fire = 1;
         }
       }
+      playerTribe.fire = newFireLevel;
+
+    // Track player activity
+    if (typeof window !== 'undefined' && window.campActivityTracker) {
+      window.campActivityTracker.playerActions.push(`Built fire (level ${newFireLevel})`);
+    }
+
+    console.log(`Fire level increased to ${newFireLevel}`);
+    addDebugBanner(`Fire level now: ${newFireLevel}`, 'orange', 200);
 
       // Award teamPlayer points to player for each other tribe member
       const tribe = gameManager.getPlayerTribe();
@@ -2010,7 +2019,7 @@ export default function renderFireView(container) {
           cursor: pointer;
         `
       });
-  
+
       const parchment = createElement('div', {
         style: `
           width: 80vw;
@@ -2023,7 +2032,7 @@ export default function renderFireView(container) {
           box-sizing: border-box;
         `
       });
-  
+
       const text = createElement(
         'div',
         {
@@ -2038,11 +2047,11 @@ export default function renderFireView(container) {
         },
         `You can't leave food cooking unattended.`
       );
-  
+
       parchment.appendChild(text);
       overlay.appendChild(parchment);
       document.body.appendChild(overlay);
-  
+
       overlay.addEventListener('click', () => {
         overlay.remove();
       });
