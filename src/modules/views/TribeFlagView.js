@@ -181,6 +181,24 @@ export default function renderTribeFlag(container) {
       `
     });
 
+    // Avatar image
+    const avatarImg = createElement('img', {
+      src: s.avatarUrl || `Assets/Avatars/${s.firstName.toLowerCase()}.jpeg`,
+      alt: `${s.firstName}'s avatar`,
+      style: `
+        position: absolute;
+        top: 150px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid white;
+        z-index: 2;
+      `
+    });
+
     const name = createElement('h3', { 
       className: 'survivor-header',
       style: `
@@ -194,6 +212,7 @@ export default function renderTribeFlag(container) {
         text-align: center;
         text-shadow: 1px 1px 2px black;
         margin: 0;
+        z-index: 2;
       `
     });
     name.innerHTML = `${s.firstName}<br>${s.lastName}`;
@@ -222,9 +241,11 @@ export default function renderTribeFlag(container) {
           0 3px 0 #000,
           0 4px 4px rgba(0, 0, 0, 0.5);
         transition: transform 0.3s;
+        z-index: 2;
       `
     }, 'More Info');
 
+    cardFront.appendChild(avatarImg);
     cardFront.appendChild(name);
     cardFront.appendChild(moreInfoButton);
 
