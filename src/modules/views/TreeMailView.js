@@ -62,8 +62,8 @@ export default function renderTreeMail(container) {
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 260px;
-          height: 150px;
+          width: 240px;
+          height: 135px;
           display: inline-block;
           overflow: hidden;
           cursor: pointer;
@@ -91,8 +91,8 @@ export default function renderTreeMail(container) {
     const createTreeMailButton = () => {
       const wrapper = createElement('div', {
         style: `
-          width: 260px;
-          height: 150px;
+          width: 240px;
+          height: 135px;
           display: inline-block;
           overflow: hidden;
           cursor: pointer;
@@ -105,8 +105,8 @@ export default function renderTreeMail(container) {
         src: 'Assets/Buttons/blank.png',
         alt: 'Blank',
         style: `
-          width: 260px;
-          height: 150px;
+          width: 100%;
+          height: 100%;
           display: block;
           object-fit: contain;
           pointer-events: none;
