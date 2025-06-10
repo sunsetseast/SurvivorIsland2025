@@ -512,13 +512,25 @@ function updateResourceButtonStyles() {
   const palmButton = resourceButtons.children[1];
 
   // Make border fit snugly around the image
-  bambooButton.style.borderColor = bambooAdded >= 1 ? '#4CAF50' : 'transparent';
-  bambooButton.style.borderWidth = bambooAdded >= 1 ? '3px' : '3px';
-  bambooButton.style.borderRadius = bambooAdded >= 1 ? '8px' : '10px';
+  if (bambooAdded >= 1) {
+    bambooButton.style.border = '2px solid #4CAF50';
+    bambooButton.style.borderRadius = '8px';
+    bambooButton.style.padding = '2px';
+  } else {
+    bambooButton.style.border = '2px solid transparent';
+    bambooButton.style.borderRadius = '10px';
+    bambooButton.style.padding = '2px';
+  }
   
-  palmButton.style.borderColor = palmsAdded >= 1 ? '#4CAF50' : 'transparent';
-  palmButton.style.borderWidth = palmsAdded >= 1 ? '3px' : '3px';
-  palmButton.style.borderRadius = palmsAdded >= 1 ? '8px' : '10px';
+  if (palmsAdded >= 1) {
+    palmButton.style.border = '2px solid #4CAF50';
+    palmButton.style.borderRadius = '8px';
+    palmButton.style.padding = '2px';
+  } else {
+    palmButton.style.border = '2px solid transparent';
+    palmButton.style.borderRadius = '10px';
+    palmButton.style.padding = '2px';
+  }
 
   // Show start building button if both resources are added
   if (bambooAdded >= 1 && palmsAdded >= 1) {
@@ -866,22 +878,22 @@ function showStartBuildingButton() {
       top: 35%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 180px;
+      width: 200px;
       height: 60px;
-      background-image: url('Assets/rect-button.png');
-      background-size: contain;
+      background-image: url('Assets/rect-button-1.png');
+      background-size: 100% 100%;
       background-repeat: no-repeat;
       background-position: center;
       border: none;
       font-family: 'Survivant', serif;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: bold;
       color: white;
-      text-shadow: 1px 1px 2px black;
+      text-shadow: 2px 2px 4px black;
       cursor: pointer;
       z-index: 100;
       box-shadow: none;
-      filter: none;
+      filter: brightness(1.1);
       padding: 0;
     `
   }, 'Start Building');
@@ -929,9 +941,9 @@ function startBuilding() {
   const timeInSeconds = constructionTime * 60;
   gameManager.deductTime(timeInSeconds);
   
-  // Update clock display
-  const clockElement = document.getElementById('day-timer');
-  const dayElement = document.getElementById('day-label');
+  // Update clock display and flash red
+  const clockElement = document.getElementById('clock-time-text');
+  const dayElement = document.getElementById('clock-day-text');
   if (clockElement && dayElement) {
     const min = Math.floor(gameManager.dayTimer / 60);
     const sec = gameManager.dayTimer % 60;
@@ -939,11 +951,11 @@ function startBuilding() {
     dayElement.textContent = `Day ${gameManager.day}`;
   }
   
-  // Flash red effect
+  // Flash red effect on the correct clock element
   if (clockElement) {
     clockElement.style.color = 'red';
     setTimeout(() => {
-      clockElement.style.color = 'white';
+      clockElement.style.color = '#2b190a';
     }, 500);
   }
   
