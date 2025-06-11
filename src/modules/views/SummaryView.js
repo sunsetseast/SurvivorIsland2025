@@ -1,4 +1,3 @@
-
 /**
  * @module SummaryView
  * Renders the summary of camp activities after the 2-hour timer expires
@@ -6,22 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
-import { getRandomInt } from '../utils/CommonUtils.js';
-
-// Track camp activities
-if (!window.campActivityTracker) {
-  window.campActivityTracker = {
-    playerActions: [],
-    npcActions: [],
-    relationships: {},
-    resourcesGathered: {},
-    fireAttempts: [],
-    shelterBuilders: [],
-    leadershipActions: [],
-    bonding: [],
-    conflicts: []
-  };
-}
+import { getActivitySummary } from '../utils/ActivityTracker.js';
 
 export default function renderSummary(container) {
   console.log('renderSummary() called');
@@ -29,24 +13,11 @@ export default function renderSummary(container) {
 
   clearChildren(container);
 
-  const playerTribe = gameManager.getPlayerTribe();
-  if (!playerTribe) {
-    console.error('No player tribe found for summary');
-    return;
-  }
-
-  // Set background based on tribe color
-  const tribeColor = playerTribe.tribeColor;
-  container.style.backgroundImage = `url('Assets/Tribe/${tribeColor}-portrait.png')`;
-  container.style.backgroundSize = 'cover';
+  container.style.backgroundImage = "url('Assets/parch-landscape.png')";
+  container.style.backgroundSize = 'contain';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
-
-  // Generate summary content
-  const summaryData = generateSummaryData();
-  
-  // Apply all the changes to game state
-  applySummaryChanges(summaryData);
+  container.style.backgroundColor = '#8B4513';
 
   const wrapper = createElement('div', {
     className: 'summary-wrapper',
@@ -60,53 +31,209 @@ export default function renderSummary(container) {
       justify-content: flex-start;
       overflow-y: auto;
       padding: 20px;
-      background: rgba(0, 0, 0, 0.3);
+      box-sizing: border-box;
     `
   });
 
-  const title = createElement('h2', {
+  // Get activity data
+  const summary = getActivitySummary();
+
+  // Title
+  const title = createElement('h1', {
     style: `
-      color: white;
-      text-shadow: 2px 2px 4px black;
-      font-size: 2.2rem;
-      font-family: 'Survivant', sans-serif;
+      color: #2d1810;
+      text-shadow: 1px 1px 2px rgba(255,255,255,0.3);
+      font-size: 2.5rem;
+      font-family: 'Survivant', serif;
       text-align: center;
-      margin-bottom: 20px;
-      border-bottom: 2px solid white;
-      padding-bottom: 10px;
+      margin: 20px 0;
+      font-weight: bold;
     `
-  }, `Day 1 Summary - ${playerTribe.tribeName} Tribe`);
+  }, 'Camp Activity Summary');
 
-  const summaryContent = createElement('div', {
-    style: `
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 15px;
-      padding: 25px;
-      max-width: 800px;
-      color: white;
-      font-family: 'Survivant', sans-serif;
-      font-size: 1.1rem;
-      line-height: 1.6;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-    `
-  });
-
-  // Create summary text
-  let summaryText = generateSummaryText(summaryData);
-  
-  const textElement = createElement('div', {
-    style: `
-      text-shadow: 1px 1px 2px black;
-    `
-  });
-  textElement.innerHTML = summaryText;
-
-  summaryContent.appendChild(textElement);
   wrapper.appendChild(title);
-  wrapper.appendChild(summaryContent);
+
+  // Create sections for different activities
+  const sections = [
+    {
+      title: '🎣 Fishing Activities',
+      data: summary.fishing,
+      render: (data) => [
+        `Total Fishing Attempts: ${data.totalAttempts}`,
+        `Successful Catches: ${data.successfulAttempts}`,
+        `Total Fish Caught: ${data.totalFishCaught}`,
+        `Success Rate: ${data.totalAttempts > 0 ? Math.round((data.successfulAttempts / data.totalAttempts) * 100) : 0}%`,
+        `Fish Types: ${data.fishByType.common} Common, ${data.fishByType.uncommon} Uncommon, ${data.fishByType.rare} Rare`
+      ]
+    },
+    {
+      title: '🔥 Fire Management',
+      data: summary.fire,
+      render: (data) => [
+        `Fire Attempts: ${data.totalAttempts}`,
+        `Successful Fire Actions: ${data.successfulAttempts}`,
+        `Fire Builds: ${data.builds}`,
+        `Fire Tending: ${data.tends}`,
+        `Firewood Used: ${data.totalFirewoodUsed}`,
+        `Success Rate: ${data.totalAttempts > 0 ? Math.round((data.successfulAttempts / data.totalAttempts) * 100) : 0}%`
+      ]
+    },
+    {
+      title: '🍳 Cooking Activities',
+      data: summary.cooking,
+      render: (data) => {
+        const items = Object.entries(data.itemsCooked).map(([item, count]) => `${item}: ${count}`).join(', ');
+        return [
+          `Cooking Attempts: ${data.totalAttempts}`,
+          `Successful Cooks: ${data.successfulCooks}`,
+          `Items Cooked: ${items || 'None'}`
+        ];
+      }
+    },
+    {
+      title: '🏠 Shelter Building',
+      data: summary.shelter,
+      render: (data) => [
+        `Shelter Builds: ${data.totalBuilds}`,
+        `Co-builders: ${data.coBuilders.join(', ') || 'None'}`,
+        `Bamboo Used: ${data.totalBambooUsed}`,
+        `Palm Fronds Used: ${data.totalPalmsUsed}`
+      ]
+    },
+    {
+      title: '🌿 Resource Gathering',
+      data: summary.resources,
+      render: (data) => {
+        return Object.entries(data).map(([resource, info]) => 
+          `${resource}: ${info.total} (from ${info.locations.join(', ')})`
+        );
+      }
+    },
+    {
+      title: '💧 Water Collection',
+      data: summary.water,
+      render: (data) => [
+        `Total Water Gathered: ${data.totalGathered}`,
+        `For Personal Use: ${data.forSelf}`,
+        `For Tribe: ${data.forTribe}`
+      ]
+    },
+    {
+      title: '🤝 Team Player Actions',
+      data: summary.teamPlayer,
+      render: (data) => [
+        `Team Player Changes: ${data.totalChanges}`,
+        `Net Team Player Points: ${data.netGain > 0 ? '+' : ''}${data.netGain}`,
+        `Actions: ${[...new Set(data.reasons)].join(', ') || 'None'}`
+      ]
+    }
+  ];
+
+  // Create summary cards
+  sections.forEach(section => {
+    if (section.data && (
+      (typeof section.data === 'object' && Object.keys(section.data).length > 0) ||
+      (typeof section.data === 'number' && section.data > 0) ||
+      (Array.isArray(section.data) && section.data.length > 0)
+    )) {
+      const card = createElement('div', {
+        style: `
+          background: rgba(255, 248, 231, 0.9);
+          border: 2px solid #8B4513;
+          border-radius: 10px;
+          padding: 15px;
+          margin: 10px 0;
+          width: 100%;
+          max-width: 600px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        `
+      });
+
+      const cardTitle = createElement('h3', {
+        style: `
+          color: #2d1810;
+          font-family: 'Survivant', serif;
+          font-size: 1.4rem;
+          margin: 0 0 10px 0;
+          text-align: center;
+          font-weight: bold;
+        `
+      }, section.title);
+
+      card.appendChild(cardTitle);
+
+      const details = section.render(section.data);
+      details.forEach(detail => {
+        const detailElement = createElement('div', {
+          style: `
+            color: #2d1810;
+            font-family: 'Survivant', serif;
+            font-size: 1rem;
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(139, 69, 19, 0.2);
+          `
+        }, detail);
+        card.appendChild(detailElement);
+      });
+
+      wrapper.appendChild(card);
+    }
+  });
+
+  // Session summary
+  const sessionCard = createElement('div', {
+    style: `
+      background: rgba(255, 215, 0, 0.2);
+      border: 2px solid #DAA520;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 20px 0;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    `
+  });
+
+  const sessionTitle = createElement('h3', {
+    style: `
+      color: #2d1810;
+      font-family: 'Survivant', serif;
+      font-size: 1.4rem;
+      margin: 0 0 10px 0;
+      text-align: center;
+      font-weight: bold;
+    `
+  }, '⏱️ Session Summary');
+
+  sessionCard.appendChild(sessionTitle);
+
+  const sessionDuration = Math.round(summary.session.duration / 1000 / 60); // minutes
+  const sessionDetails = [
+    `Session Duration: ${sessionDuration} minutes`,
+    `Unique Areas Visited: ${summary.session.uniqueViewsVisited}`,
+    `Current Day: ${gameManager.getCurrentDay()}`
+  ];
+
+  sessionDetails.forEach(detail => {
+    const detailElement = createElement('div', {
+      style: `
+        color: #2d1810;
+        font-family: 'Survivant', serif;
+        font-size: 1rem;
+        margin: 5px 0;
+        padding: 3px 0;
+        border-bottom: 1px solid rgba(218, 165, 32, 0.3);
+      `
+    }, detail);
+    sessionCard.appendChild(detailElement);
+  });
+
+  wrapper.appendChild(sessionCard);
+
   container.appendChild(wrapper);
 
-  // --- Action Bar Buttons ---
+  // Action Bar Buttons
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
@@ -115,304 +242,59 @@ export default function renderSummary(container) {
     actionButtons.style.gap = '20px';
     actionButtons.style.padding = '0';
 
-    const createButton = (text, onClick) => {
-      const button = createElement('div', {
+    const createIconButton = (src, alt, onClick) => {
+      const wrapper = createElement('div', {
         style: `
-          background-image: url('Assets/Buttons/blank.png');
-          background-size: contain;
-          background-repeat: no-repeat;
-          background-position: center;
-          width: 200px;
-          height: 100px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 240px;
+          height: 135px;
+          display: inline-block;
+          overflow: hidden;
           cursor: pointer;
-          transition: transform 0.1s ease;
-          font-family: 'Survivant', sans-serif;
-          font-size: 1rem;
-          color: #8B4513;
-          font-weight: bold;
-          text-shadow: 1px 1px 1px rgba(255,255,255,0.8);
+          position: relative;
         `
-      }, text);
-
-      button.addEventListener('mouseenter', () => {
-        button.style.transform = 'scale(1.05)';
       });
 
-      button.addEventListener('mouseleave', () => {
-        button.style.transform = 'scale(1)';
+      const image = createElement('img', {
+        src,
+        alt,
+        style: `
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: contain;
+          pointer-events: none;
+        `
       });
 
-      if (onClick) button.addEventListener('click', onClick);
-      return button;
+      wrapper.appendChild(image);
+      if (onClick) wrapper.addEventListener('click', onClick);
+      return wrapper;
     };
 
-    const continueButton = createButton('Continue to Challenge', () => {
-      console.log('Continue to Challenge clicked');
-      gameManager.advanceGamePhase();
+    const continueButton = createIconButton('Assets/Buttons/blank.png', 'Continue', () => {
+      console.log('Continue button clicked - proceeding to next phase');
+      // This would typically advance to the next game phase
+      alert('Summary complete! Game would continue to next phase.');
     });
+
+    // Add "Continue" text overlay
+    const textOverlay = createElement('div', {
+      style: `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 1.3rem;
+        font-family: 'Survivant', sans-serif;
+        text-shadow: 1px 1px 2px black;
+        pointer-events: none;
+      `
+    }, 'Continue');
+    continueButton.appendChild(textOverlay);
 
     actionButtons.appendChild(continueButton);
   }
 
   addDebugBanner('Summary view rendered!', 'purple', 170);
-}
-
-function generateSummaryData() {
-  const playerTribe = gameManager.getPlayerTribe();
-  const player = gameManager.getPlayerSurvivor();
-  const tribeMembers = playerTribe.members.filter(m => !m.isPlayer);
-  
-  const data = {
-    leadership: [],
-    fireAttempts: [],
-    shelterBuilders: [],
-    resourceGathering: {},
-    relationships: [],
-    playerActions: window.campActivityTracker.playerActions || [],
-    currentFire: playerTribe.fire || 0,
-    currentShelter: playerTribe.shelter || 0
-  };
-
-  // Determine leadership based on gameplay styles and traits
-  const leadershipCandidates = tribeMembers.filter(m => 
-    m.gameplayStyle === 'Power Player' || 
-    m.gameplayStyle === 'Social Genius' || 
-    m.traitClass === 'Mental'
-  );
-  
-  if (leadershipCandidates.length > 0) {
-    const leader = leadershipCandidates[getRandomInt(0, leadershipCandidates.length - 1)];
-    data.leadership.push(leader);
-  }
-
-  // Determine fire attempts - prioritize physical survivors and player if they did fire activities
-  const fireBuilders = [];
-  const playerDidFire = data.playerActions.some(action => action.includes('fire') || action.includes('Fire'));
-  
-  if (playerDidFire) {
-    fireBuilders.push({ survivor: player, success: data.currentFire > 0 });
-  } else {
-    const physicalSurvivors = tribeMembers.filter(m => m.traitClass === 'Physical');
-    if (physicalSurvivors.length > 0) {
-      const fireBuilder = physicalSurvivors[getRandomInt(0, physicalSurvivors.length - 1)];
-      const success = Math.random() < 0.6; // 60% success rate
-      fireBuilders.push({ survivor: fireBuilder, success });
-      if (success && data.currentFire === 0) {
-        data.currentFire = 1;
-      }
-    }
-  }
-  data.fireAttempts = fireBuilders;
-
-  // Determine shelter builders - need 2 survivors
-  const playerDidShelter = data.playerActions.some(action => action.includes('shelter') || action.includes('Shelter'));
-  
-  if (playerDidShelter) {
-    // Player built shelter, pick a co-builder
-    const coBuilder = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
-    data.shelterBuilders = [player, coBuilder];
-  } else {
-    // Pick 2 NPCs to build shelter
-    const shuffled = [...tribeMembers].sort(() => Math.random() - 0.5);
-    data.shelterBuilders = shuffled.slice(0, 2);
-  }
-
-  // Set shelter level if builders were chosen
-  if (data.shelterBuilders.length === 2 && data.currentShelter === 0) {
-    data.currentShelter = 1;
-  }
-
-  // Generate resource gathering for each survivor
-  tribeMembers.forEach(survivor => {
-    const resourceCount = getRandomInt(0, 3);
-    const resources = ['fish', 'coconuts', 'palms', 'bamboo', 'firewood'];
-    const gathered = [];
-    
-    for (let i = 0; i < resourceCount; i++) {
-      const resource = resources[getRandomInt(0, resources.length - 1)];
-      if (!gathered.includes(resource)) {
-        gathered.push(resource);
-      }
-    }
-    
-    data.resourceGathering[survivor.id] = gathered;
-  });
-
-  // Ensure shelter builders have palms and bamboo
-  data.shelterBuilders.forEach(builder => {
-    if (!builder.isPlayer) {
-      if (!data.resourceGathering[builder.id].includes('palms')) {
-        data.resourceGathering[builder.id].push('palms');
-      }
-      if (!data.resourceGathering[builder.id].includes('bamboo')) {
-        data.resourceGathering[builder.id].push('bamboo');
-      }
-    }
-  });
-
-  // Ensure fire builders have firewood
-  data.fireAttempts.forEach(attempt => {
-    if (!attempt.survivor.isPlayer) {
-      if (!data.resourceGathering[attempt.survivor.id].includes('firewood')) {
-        data.resourceGathering[attempt.survivor.id].push('firewood');
-      }
-    }
-  });
-
-  // Generate relationship changes
-  const relationshipSystem = gameManager.systems.relationshipSystem;
-  if (relationshipSystem) {
-    // Create some bonding pairs
-    for (let i = 0; i < 2; i++) {
-      if (tribeMembers.length >= 2) {
-        const pair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
-        if (Math.random() < 0.7) {
-          data.relationships.push({
-            survivors: pair,
-            type: 'bonding',
-            change: getRandomInt(5, 12)
-          });
-        }
-      }
-    }
-
-    // Potential conflicts
-    if (Math.random() < 0.4) {
-      const conflictPair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
-      data.relationships.push({
-        survivors: conflictPair,
-        type: 'conflict',
-        change: -getRandomInt(3, 8)
-      });
-    }
-  }
-
-  return data;
-}
-
-function generateSummaryText(data) {
-  const playerTribe = gameManager.getPlayerTribe();
-  const player = gameManager.getPlayerSurvivor();
-  let text = `<p><strong>The first two hours at ${playerTribe.tribeName} camp have set the stage for the days ahead...</strong></p>`;
-
-  // Leadership
-  if (data.leadership.length > 0) {
-    const leader = data.leadership[0];
-    text += `<p><strong>Leadership:</strong> ${leader.firstName} ${leader.lastName} stepped up as a natural leader, organizing the tribe's initial efforts. Their authoritative presence has increased their threat level.</p>`;
-  }
-
-  // Fire attempts
-  if (data.fireAttempts.length > 0) {
-    data.fireAttempts.forEach(attempt => {
-      if (attempt.survivor.isPlayer) {
-        text += `<p><strong>Fire Building:</strong> You took on the crucial task of building fire. ${attempt.success ? 'Your efforts paid off, and the tribe now has fire!' : 'Despite your best efforts, the fire remains elusive.'}</p>`;
-      } else {
-        text += `<p><strong>Fire Building:</strong> ${attempt.survivor.firstName} worked tirelessly to create fire for the tribe. ${attempt.success ? 'Their persistence paid off, providing warmth and security.' : 'Unfortunately, their attempts were unsuccessful.'}</p>`;
-      }
-    });
-  }
-
-  // Shelter building
-  if (data.shelterBuilders.length === 2) {
-    const builder1 = data.shelterBuilders[0];
-    const builder2 = data.shelterBuilders[1];
-    
-    if (builder1.isPlayer) {
-      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder2.firstName} to begin constructing the tribe's shelter. Working together, you've created a basic foundation that will protect the tribe from the elements.</p>`;
-    } else if (builder2.isPlayer) {
-      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder1.firstName} to begin constructing the tribe's shelter. Working together, you've created a basic foundation that will protect the tribe from the elements.</p>`;
-    } else {
-      text += `<p><strong>Shelter Construction:</strong> ${builder1.firstName} and ${builder2.firstName} took initiative in building the tribe's shelter, working well together to create a protective structure.</p>`;
-    }
-  }
-
-  // Resource gathering summary
-  text += `<p><strong>Resource Gathering:</strong> `;
-  const playerGathered = window.campActivityTracker.playerActions || [];
-  if (playerGathered.length > 0) {
-    text += `You contributed by ${playerGathered.join(', ').toLowerCase()}. `;
-  }
-
-  let gatheringDetails = [];
-  Object.keys(data.resourceGathering).forEach(survivorId => {
-    const survivor = playerTribe.members.find(m => m.id == survivorId);
-    const resources = data.resourceGathering[survivorId];
-    if (resources.length > 0) {
-      gatheringDetails.push(`${survivor.firstName} gathered ${resources.join(', ')}`);
-    } else {
-      gatheringDetails.push(`${survivor.firstName} focused on other tasks`);
-    }
-  });
-  text += gatheringDetails.join('; ') + '.</p>';
-
-  // Relationship dynamics
-  if (data.relationships.length > 0) {
-    text += `<p><strong>Social Dynamics:</strong> `;
-    const bondingEvents = data.relationships.filter(r => r.type === 'bonding');
-    const conflictEvents = data.relationships.filter(r => r.type === 'conflict');
-    
-    if (bondingEvents.length > 0) {
-      const bonds = bondingEvents.map(b => `${b.survivors[0].firstName} and ${b.survivors[1].firstName} formed a strong connection`);
-      text += bonds.join(', ') + '. ';
-    }
-    
-    if (conflictEvents.length > 0) {
-      const conflicts = conflictEvents.map(c => `tension emerged between ${c.survivors[0].firstName} and ${c.survivors[1].firstName}`);
-      text += 'However, ' + conflicts.join(', ') + '. ';
-    }
-    
-    text += 'These early relationships will be crucial as the game progresses.</p>';
-  }
-
-  text += `<p><strong>Tribe Status:</strong> ${playerTribe.tribeName} ends their first day with a fire level of ${data.currentFire} and shelter level of ${data.currentShelter}. The foundation has been set for the challenges ahead.</p>`;
-
-  return text;
-}
-
-function applySummaryChanges(data) {
-  const playerTribe = gameManager.getPlayerTribe();
-  const relationshipSystem = gameManager.systems.relationshipSystem;
-
-  // Update tribe fire and shelter levels
-  playerTribe.fire = data.currentFire;
-  playerTribe.shelter = data.currentShelter;
-
-  // Update threat levels for leaders
-  data.leadership.forEach(leader => {
-    leader.threat = Math.min(10, leader.threat + getRandomInt(2, 4));
-  });
-
-  // Update teamPlayer values for those who didn't gather resources
-  Object.keys(data.resourceGathering).forEach(survivorId => {
-    const survivor = playerTribe.members.find(m => m.id == survivorId);
-    if (survivor && data.resourceGathering[survivorId].length === 0) {
-      survivor.teamPlayer = Math.max(0, survivor.teamPlayer - getRandomInt(3, 8));
-    }
-  });
-
-  // Apply relationship changes
-  if (relationshipSystem) {
-    data.relationships.forEach(rel => {
-      const survivor1 = rel.survivors[0];
-      const survivor2 = rel.survivors[1];
-      relationshipSystem.changeRelationship(survivor1.id, survivor2.id, rel.change);
-    });
-  }
-
-  // Update survivor resources based on gathering
-  Object.keys(data.resourceGathering).forEach(survivorId => {
-    const survivor = playerTribe.members.find(m => m.id == survivorId);
-    if (survivor) {
-      data.resourceGathering[survivorId].forEach(resource => {
-        if (survivor[resource] !== undefined) {
-          survivor[resource] = (survivor[resource] || 0) + 1;
-        }
-      });
-    }
-  });
-
-  console.log('Summary changes applied to game state');
 }
