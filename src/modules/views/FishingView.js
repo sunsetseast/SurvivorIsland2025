@@ -559,14 +559,14 @@ export default function renderFishingView(container) {
       }
     }    requestAnimationFrame(animateSpear);
   }
-  
+
   function catchFish() {
     // 1) If a fish exists, compute its current on‐screen position and cancel its WAAPI animation
     if (currentFish) {
       const fishRect      = currentFish.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
 
-      // Calculate fish’s coordinates relative to the container
+      // Calculate fish's coordinates relative to the container
       const relLeft = fishRect.left - containerRect.left;
       const relTop  = fishRect.top  - containerRect.top;
 
@@ -575,16 +575,23 @@ export default function renderFishingView(container) {
         currentFish.animation.cancel();
       }
 
-      // Explicitly “freeze” the fish in place by setting its inline styles
+      // Explicitly "freeze" the fish in place by setting its inline styles
       currentFish.style.left = `${relLeft}px`;
       currentFish.style.top  = `${relTop}px`;
     }
 
     // 2) Determine how many fish (1, 3, or 5) based on the image filename
     let amount = 1;
+    let fishType = 'fish1';
     const src = currentFish.getAttribute('src');
-    if (src.includes('fish2.png')) amount = 3;
-    if (src.includes('fish3.png')) amount = 5;
+    if (src.includes('fish2.png')) {
+      amount = 3;
+      fishType = 'fish2';
+    }
+    if (src.includes('fish3.png')) {
+      amount = 5;
+      fishType = 'fish3';
+    }
 
     // 3) Update player inventory
     const player = gameManager.getPlayerSurvivor();
@@ -593,8 +600,8 @@ export default function renderFishingView(container) {
       console.log(`Player now has ${player.fish} fish.`);
     }
 
-    // 4) Show the “+X fish” effect at the fish’s frozen position
-    showFishEffect(amount, currentFish);
+    // 4) Track successful fishing attempt
+    activityTracker.trackFishingAttempt(true, amount, fishType);
 
     // 5) After a short delay (to let the freeze be visible), remove the fish element
     setTimeout(() => {
@@ -677,4 +684,10 @@ export default function renderFishingView(container) {
 
     setTimeout(() => effect.remove(), 800);
   }
+    // Activity tracker integration, placing here to ensure it's accessible within the fishing view's scope.
+  const activityTracker = {
+    trackFishingAttempt: function(success, amount, fishType) {
+      console.log(`Fishing Attempt: Success - ${success}, Amount - ${amount}, Fish Type - ${fishType}`);
+    }
+  };
 }

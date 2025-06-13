@@ -1,76 +1,129 @@
 
-/**
- * @module ActivityTracker
- * Tracks player and NPC activities during camp phase
- */
-
-// Initialize global activity tracker
-if (!window.campActivityTracker) {
-  window.campActivityTracker = {
-    playerActions: [],
-    npcActions: [],
-    relationships: {},
-    resourcesGathered: {},
-    fireAttempts: [],
-    shelterBuilders: [],
-    leadershipActions: [],
-    bonding: [],
-    conflicts: []
-  };
-}
-
-export function trackPlayerAction(action, details = '') {
-  if (!window.campActivityTracker.playerActions) {
-    window.campActivityTracker.playerActions = [];
+class ActivityTracker {
+  constructor() {
+    this.activities = [];
   }
-  
-  const actionString = details ? `${action} (${details})` : action;
-  window.campActivityTracker.playerActions.push(actionString);
-  console.log('Player action tracked:', actionString);
-}
 
-export function trackNPCAction(survivorId, action, details = '') {
-  if (!window.campActivityTracker.npcActions) {
-    window.campActivityTracker.npcActions = [];
+  trackActivity(type, data = {}) {
+    const activity = {
+      type,
+      timestamp: Date.now(),
+      day: window.gameManager?.getCurrentDay() || 1,
+      ...data
+    };
+    
+    this.activities.push(activity);
+    console.log('Activity tracked:', activity);
   }
-  
-  const actionString = details ? `${action} (${details})` : action;
-  window.campActivityTracker.npcActions.push({
-    survivorId,
-    action: actionString,
-    timestamp: Date.now()
-  });
-  console.log('NPC action tracked:', actionString);
-}
 
-export function trackResourceGathering(survivorId, resource, amount = 1) {
-  if (!window.campActivityTracker.resourcesGathered) {
-    window.campActivityTracker.resourcesGathered = {};
+  getActivities(type = null) {
+    if (type) {
+      return this.activities.filter(activity => activity.type === type);
+    }
+    return this.activities;
   }
-  
-  if (!window.campActivityTracker.resourcesGathered[survivorId]) {
-    window.campActivityTracker.resourcesGathered[survivorId] = {};
+
+  getActivitiesByDay(day) {
+    return this.activities.filter(activity => activity.day === day);
   }
-  
-  window.campActivityTracker.resourcesGathered[survivorId][resource] = 
-    (window.campActivityTracker.resourcesGathered[survivorId][resource] || 0) + amount;
+
+  clearActivities() {
+    this.activities = [];
+  }
+
+  // Specific tracking methods
+  trackFishingAttempt(success = false, fishCaught = 0, fishType = null) {
+    this.trackActivity('fishing_attempt', {
+      success,
+      fishCaught,
+      fishType,
+      player: window.gameManager?.getPlayerSurvivor()?.name || 'Unknown'
+    });
+  }
+
+  trackFireBuilding(success = false, fireLevel = 0) {
+    this.trackActivity('fire_building', {
+      success,
+      fireLevel,
+      player: window.gameManager?.getPlayerSurvivor()?.name || 'Unknown'
+    });
+  }
+
+  trackCooking(success = false, itemCooked = null, quantity = 0) {
+    this.trackActivity('cooking', {
+      success,
+      itemCooked,
+      quantity,
+      player: window.gameManager?.getPlayerSurvivor()?.name || 'Unknown'
+    });
+  }
+
+  trackShelterBuilding(success = false, coBuilder = null, shelterLevel = 0) {
+    this.trackActivity('shelter_building', {
+      success,
+      coBuilder,
+      shelterLevel,
+      player: window.gameManager?.getPlayerSurvivor()?.name || 'Unknown'
+    });
+  }
+
+  trackResourceGathering(resourceType, quantity = 0, location = null) {
+    this.trackActivity('resource_gathering', {
+      resourceType,
+      quantity,
+      location,
+      player: window.gameManager?.getPlayerSurvivor()?.name || 'Unknown'
+    });
+  }
+
+  trackWaterGathering(quantity = 0, forTribe = false) {
+    this.trackActivity('water_gathering', {
+      quantity,
+      forTribe,
+      player: window.gameManager?.getPlayerSurvivor()?.name || 'Unknown'
+    });
+  }
+
+  trackTeamPlayerPoints(pointsEarned = 0, pointsLost = 0, reason = null) {
+    this.trackActivity('team_player_points', {
+      pointsEarned,
+      pointsLost,
+      reason,
+      player: window.gameManager?.getPlayerSurvivor()?.name || 'Unknown'
+    });
+  }
+
+  // Summary methods for reporting
+  getFishingStats() {
+    const fishingAttempts = this.getActivities('fishing_attempt');
+    return {
+      totalAttempts: fishingAttempts.length,
+      successfulCatches: fishingAttempts.filter(a => a.success).length,
+      totalFishCaught: fishingAttempts.reduce((sum, a) => sum + (a.fishCaught || 0), 0)
+    };
+  }
+
+  getResourceStats() {
+    const resourceGathering = this.getActivities('resource_gathering');
+    const stats = {};
+    
+    resourceGathering.forEach(activity => {
+      if (!stats[activity.resourceType]) {
+        stats[activity.resourceType] = 0;
+      }
+      stats[activity.resourceType] += activity.quantity || 0;
+    });
+    
+    return stats;
+  }
 }
 
-export function resetActivityTracker() {
-  window.campActivityTracker = {
-    playerActions: [],
-    npcActions: [],
-    relationships: {},
-    resourcesGathered: {},
-    fireAttempts: [],
-    shelterBuilders: [],
-    leadershipActions: [],
-    bonding: [],
-    conflicts: []
-  };
-  console.log('Activity tracker reset');
+// Create global instance
+const activityTracker = new ActivityTracker();
+
+// Make it globally accessible
+if (typeof window !== 'undefined') {
+  window.activityTracker = activityTracker;
 }
 
-export function getActivityTracker() {
-  return window.campActivityTracker;
-}
+export default activityTracker;
