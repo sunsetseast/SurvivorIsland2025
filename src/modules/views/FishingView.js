@@ -425,12 +425,16 @@ export default function renderFishingView(container) {
         startY = Math.random() * (h - 200) + 100;
         endX = w + 80;
         endY = Math.random() * (h - 200) + 100;
+        // Flip fish horizontally when swimming left to right
+        fish.style.transform = 'scaleX(-1)';
         break;
       case 1: // Right → Left
         startX = w + 80;
         startY = Math.random() * (h - 200) + 100;
         endX = -80;
         endY = Math.random() * (h - 200) + 100;
+        // Keep fish normal when swimming right to left
+        fish.style.transform = 'scaleX(1)';
         break;
       case 2: // Top → Bottom
         startX = Math.random() * (w - 200) + 100;
