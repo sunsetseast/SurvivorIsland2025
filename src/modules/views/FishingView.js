@@ -667,27 +667,22 @@ export default function renderFishingView(container) {
   }
 
   function showFishEffect(fishType, fishEl) {
-    // Position effect near where fish was caught
-    const fishRect = fishEl.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const topPos = fishRect.top - containerRect.top + 10;
-    const leftPos = fishRect.left - containerRect.left + 10;
-
     const effect = createElement('div', {
       className: 'fish-effect',
       style: `
-        position: absolute;
-        left: ${leftPos}px;
-        top: ${topPos}px;
-        font-size: 26px;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 28px;
         font-weight: bold;
         color: #16a085;
         pointer-events: none;
-        z-index: 20;
+        z-index: 2000;
         display: flex;
         align-items: center;
-        gap: 8px;
-        animation: hitPing 0.8s ease-out;
+        gap: 10px;
+        animation: teamPing 2.5s ease-out forwards;
       `
     });
     const plusText = createElement('span', {}, '+1');
@@ -702,9 +697,9 @@ export default function renderFishingView(container) {
     });
     effect.appendChild(plusText);
     effect.appendChild(icon);
-    container.appendChild(effect);
+    document.body.appendChild(effect);
 
-    setTimeout(() => effect.remove(), 800);
+    setTimeout(() => effect.remove(), 2500);
   }
     
 }
