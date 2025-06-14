@@ -50,6 +50,21 @@ export default function renderWaterWell(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
+  // Add CSS animations for visual effects
+  const style = createElement('style');
+  style.textContent = `
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+      80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    }
+  `;
+  if (!document.getElementById('water-well-animations')) {
+    style.id = 'water-well-animations';
+    document.head.appendChild(style);
+  }
+
   setTimeout(() => message.style.opacity = '0', 3000);
   setTimeout(() => message.remove(), 4000);
 
@@ -174,7 +189,22 @@ export default function renderWaterWell(container) {
   function showWaterEffect(target) {
     const effect = createElement('div', {
       className: 'water-hit-effect',
-      style: 'position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; font-size: 28px; font-weight: bold; color: white; text-shadow: 2px 2px 4px black; z-index: 999;'
+      style: `
+        position: fixed;
+        top: 45%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 28px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 2px 2px 4px black;
+        z-index: 2000;
+        pointer-events: none;
+        animation: fadeInOut 2s ease-out forwards;
+      `
     });
 
     const plus = createElement('span', {}, '+100');
@@ -185,44 +215,43 @@ export default function renderWaterWell(container) {
 
     effect.appendChild(plus);
     effect.appendChild(icon);
-    target.appendChild(effect);
+    document.body.appendChild(effect);
 
     setTimeout(() => effect.remove(), 2000);
   }
 
   function showTeamPlayerEffect(target, amount) {
-    const effect = document.createElement('div');
-    effect.className = 'team-player-hit-effect';
-    effect.style.position = 'absolute';
-    effect.style.left = '50%';
-    effect.style.top = '58%';
-    effect.style.transform = 'translate(-50%, -50%)';
-    effect.style.fontSize = '28px';
-    effect.style.fontWeight = 'bold';
-    effect.style.color = '#10b981';
-    effect.style.zIndex = '2000';
-    effect.style.display = 'flex';
-    effect.style.alignItems = 'center';
-    effect.style.gap = '10px';
-    effect.style.pointerEvents = 'none';
-    effect.style.animation = 'teamPing 2.5s ease-out forwards';
+    const effect = createElement('div', {
+      className: 'team-player-hit-effect',
+      style: `
+        position: fixed;
+        top: 58%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #10b981;
+        text-shadow: 2px 2px 4px black;
+        z-index: 2000;
+        pointer-events: none;
+        animation: fadeInOut 2.5s ease-out forwards;
+      `
+    });
 
-    const plus = document.createElement('span');
-    plus.textContent = `+${amount}`;
-
-    const icon = document.createElement('img');
-    icon.src = 'Assets/Resources/teamPlayer.png';
-    icon.style.height = '28px';
-    icon.style.width = 'auto';
+    const plus = createElement('span', {}, `+${amount}`);
+    const icon = createElement('img', {
+      src: 'Assets/Resources/teamPlayer.png',
+      style: 'height: 28px; width: auto;'
+    });
 
     effect.appendChild(plus);
     effect.appendChild(icon);
-    target.appendChild(effect);
+    document.body.appendChild(effect);
 
-    // Match the timeout to the animation duration
-    setTimeout(() => {
-      effect.remove();
-    }, 2500); // Changed from 2000 to 2500 to match animation duration
+    setTimeout(() => effect.remove(), 2500);
   }
 
   forYourselfButton.addEventListener('click', () => {
