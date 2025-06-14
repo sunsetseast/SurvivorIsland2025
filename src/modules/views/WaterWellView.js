@@ -6,7 +6,6 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { MAX_WATER } from '../data/GameData.js';
-import activityTracker from '../utils/ActivityTracker.js';
 
 export default function renderWaterWell(container) {
   console.log('renderWaterWell() called');
@@ -243,10 +242,6 @@ export default function renderWaterWell(container) {
     flashClockRed();
 
     player.water = Math.min(MAX_WATER, (player.water || 0) + 100);
-    
-    // Track water gathering for self
-    activityTracker.trackWaterGathering(100, false);
-    
     showWaterEffect(container);
     console.log(`Player's water is now ${player.water}`);
   });
@@ -280,9 +275,6 @@ export default function renderWaterWell(container) {
     tribe.members.forEach(member => {
       member.water = Math.min(MAX_WATER, (member.water || 0) + 100);
     });
-
-    // Track water gathering for entire tribe
-    activityTracker.trackWaterGathering(100, true);
 
     // Increase player's teamPlayer value by the number of OTHER tribe members
     if (otherMembersCount > 0) {
