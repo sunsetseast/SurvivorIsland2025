@@ -12,6 +12,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import activityTracker from '../utils/ActivityTracker.js';
 
 export default function renderFireView(container) {
   // --- Persistent state: has the fire been built already? ---
@@ -650,6 +651,9 @@ export default function renderFireView(container) {
       player.coconuts = (player.coconuts || 0) - quantity;
     }
 
+    // Track cooking attempt
+    activityTracker.trackCooking(false, type, quantity); // Initially false, will update on success/failure
+
     // Add to cooking state
     const cookingItem = {
       type: type,
@@ -815,10 +819,18 @@ export default function renderFireView(container) {
       if (progress >= 0.9 && cookingItem.state === 'cooking') {
         // 90% done - item is cooked
         cookingItem.state = 'cooked';
+        
+        // Track successful cooking
+        activityTracker.trackCooking(true, cookingItem.type, cookingItem.quantity);
+        
         updateCookingDisplay();
       } else if (progress >= 1) {
         // 100% done - item is burned
         cookingItem.state = 'burned';
+        
+        // Track cooking failure (burned)
+        activityTracker.trackCooking(false, cookingItem.type, cookingItem.quantity);
+        
         updateCookingDisplay();
         clearInterval(timer);
 
@@ -1629,6 +1641,10 @@ export default function renderFireView(container) {
       } else {
         // --- Failure: show failure parchment, deduct time (5 min) and leave background as fire0 ---
         gameState.gameRunning = false;
+        
+        // Track fire building failure
+        activityTracker.trackFireBuilding(false, 0);
+        
         // Create failure particles (sand/water)
         for (let i = 0; i < 12; i++) {
           gameState.particles.push(
@@ -1711,15 +1727,21 @@ export default function renderFireView(container) {
 
       // Set tribe fire value based on current state and mode
       const playerTribe = gameManager.getPlayerTribe();
+      let newFireLevel = 1;
       if (playerTribe) {
         if (isFastMode) {
           // Tending fire increases by 1 level
           playerTribe.fire = Math.min(3, playerTribe.fire + 1);
+          newFireLevel = playerTribe.fire;
         } else {
           // Making fire sets to level 1
           playerTribe.fire = 1;
+          newFireLevel = 1;
         }
       }
+
+      // Track fire building success
+      activityTracker.trackFireBuilding(true, newFireLevel);
 
       // Award teamPlayer points to player for each other tribe member
       const tribe = gameManager.getPlayerTribe();
