@@ -7,6 +7,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
+import activityTracker from '../utils/ActivityTracker.js';
 
 // Track camp activities
 if (!window.campActivityTracker) {
@@ -165,13 +166,19 @@ function generateSummaryData() {
   const player = gameManager.getPlayerSurvivor();
   const tribeMembers = playerTribe.members.filter(m => !m.isPlayer);
   
+  // Get tracked activities for the current day
+  const currentDay = gameManager.getCurrentDay();
+  const dayActivities = activityTracker.getActivitiesByDay(currentDay);
+  
   const data = {
     leadership: [],
     fireAttempts: [],
     shelterBuilders: [],
     resourceGathering: {},
     relationships: [],
-    playerActions: window.campActivityTracker.playerActions || [],
+    playerActivities: dayActivities,
+    playerResourceStats: activityTracker.getResourceStats(),
+    playerFishingStats: activityTracker.getFishingStats(),
     currentFire: playerTribe.fire || 0,
     currentShelter: playerTribe.shelter || 0
   };
@@ -188,12 +195,13 @@ function generateSummaryData() {
     data.leadership.push(leader);
   }
 
-  // Determine fire attempts - prioritize physical survivors and player if they did fire activities
+  // Determine fire attempts - check ActivityTracker for actual fire building
   const fireBuilders = [];
-  const playerDidFire = data.playerActions.some(action => action.includes('fire') || action.includes('Fire'));
+  const playerFireActivities = dayActivities.filter(a => a.type === 'fire_building');
   
-  if (playerDidFire) {
-    fireBuilders.push({ survivor: player, success: data.currentFire > 0 });
+  if (playerFireActivities.length > 0) {
+    const lastFireAttempt = playerFireActivities[playerFireActivities.length - 1];
+    fireBuilders.push({ survivor: player, success: lastFireAttempt.success || data.currentFire > 0 });
   } else {
     const physicalSurvivors = tribeMembers.filter(m => m.traitClass === 'Physical');
     if (physicalSurvivors.length > 0) {
@@ -207,10 +215,10 @@ function generateSummaryData() {
   }
   data.fireAttempts = fireBuilders;
 
-  // Determine shelter builders - need 2 survivors
-  const playerDidShelter = data.playerActions.some(action => action.includes('shelter') || action.includes('Shelter'));
+  // Determine shelter builders - check ActivityTracker for actual shelter building
+  const playerShelterActivities = dayActivities.filter(a => a.type === 'shelter_building');
   
-  if (playerDidShelter) {
+  if (playerShelterActivities.length > 0) {
     // Player built shelter, pick a co-builder
     const coBuilder = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
     data.shelterBuilders = [player, coBuilder];
@@ -329,13 +337,62 @@ function generateSummaryText(data) {
     }
   }
 
-  // Resource gathering summary
+  // Resource gathering summary based on ActivityTracker
   text += `<p><strong>Resource Gathering:</strong> `;
-  const playerGathered = window.campActivityTracker.playerActions || [];
-  if (playerGathered.length > 0) {
-    text += `You contributed by ${playerGathered.join(', ').toLowerCase()}. `;
+  
+  // Player's actual resource gathering from ActivityTracker
+  const playerResourceActivities = data.playerActivities.filter(a => a.type === 'resource_gathering');
+  const playerWaterActivities = data.playerActivities.filter(a => a.type === 'water_gathering');
+  const playerFishingActivities = data.playerActivities.filter(a => a.type === 'fishing_attempt');
+  const playerCookingActivities = data.playerActivities.filter(a => a.type === 'cooking');
+  
+  let playerActions = [];
+  
+  if (playerResourceActivities.length > 0) {
+    const resourceSummary = {};
+    playerResourceActivities.forEach(activity => {
+      resourceSummary[activity.resourceType] = (resourceSummary[activity.resourceType] || 0) + activity.quantity;
+    });
+    Object.keys(resourceSummary).forEach(resource => {
+      playerActions.push(`collected ${resourceSummary[resource]} ${resource}`);
+    });
+  }
+  
+  if (playerWaterActivities.length > 0) {
+    const tribeWater = playerWaterActivities.filter(a => a.forTribe).length;
+    const selfWater = playerWaterActivities.filter(a => !a.forTribe).length;
+    if (tribeWater > 0) {
+      playerActions.push(`gathered water for the entire tribe`);
+    }
+    if (selfWater > 0) {
+      playerActions.push(`gathered water for yourself`);
+    }
+  }
+  
+  if (playerFishingActivities.length > 0) {
+    const successfulCatches = playerFishingActivities.filter(a => a.success).length;
+    if (successfulCatches > 0) {
+      playerActions.push(`caught ${data.playerFishingStats.totalFishCaught} fish`);
+    } else {
+      playerActions.push(`attempted fishing (no catches)`);
+    }
+  }
+  
+  if (playerCookingActivities.length > 0) {
+    const successfulCooks = playerCookingActivities.filter(a => a.success);
+    if (successfulCooks.length > 0) {
+      const cookedItems = successfulCooks.map(a => `${a.quantity} ${a.itemCooked}`);
+      playerActions.push(`cooked ${cookedItems.join(', ')}`);
+    }
+  }
+  
+  if (playerActions.length > 0) {
+    text += `You personally ${playerActions.join(', ')}. `;
+  } else {
+    text += `You focused on exploration and tribe dynamics. `;
   }
 
+  // NPC resource gathering (existing logic)
   let gatheringDetails = [];
   Object.keys(data.resourceGathering).forEach(survivorId => {
     const survivor = playerTribe.members.find(m => m.id == survivorId);
@@ -346,7 +403,11 @@ function generateSummaryText(data) {
       gatheringDetails.push(`${survivor.firstName} focused on other tasks`);
     }
   });
-  text += gatheringDetails.join('; ') + '.</p>';
+  
+  if (gatheringDetails.length > 0) {
+    text += `Meanwhile, ${gatheringDetails.join('; ')}.`;
+  }
+  text += `</p>`;
 
   // Relationship dynamics
   if (data.relationships.length > 0) {
@@ -365,6 +426,32 @@ function generateSummaryText(data) {
     }
     
     text += 'These early relationships will be crucial as the game progresses.</p>';
+  }
+
+  // Detailed activity breakdown
+  if (data.playerActivities.length > 0) {
+    text += `<p><strong>Your Day Summary:</strong> `;
+    const activitySummary = [];
+    
+    const resourceCount = playerResourceActivities.length;
+    const waterCount = playerWaterActivities.length;
+    const fishingCount = playerFishingActivities.length;
+    const fireCount = data.playerActivities.filter(a => a.type === 'fire_building').length;
+    const shelterCount = data.playerActivities.filter(a => a.type === 'shelter_building').length;
+    const cookingCount = playerCookingActivities.length;
+    
+    if (resourceCount > 0) activitySummary.push(`${resourceCount} resource gathering session${resourceCount > 1 ? 's' : ''}`);
+    if (waterCount > 0) activitySummary.push(`${waterCount} water collection${waterCount > 1 ? 's' : ''}`);
+    if (fishingCount > 0) activitySummary.push(`${fishingCount} fishing attempt${fishingCount > 1 ? 's' : ''}`);
+    if (fireCount > 0) activitySummary.push(`${fireCount} fire building attempt${fireCount > 1 ? 's' : ''}`);
+    if (shelterCount > 0) activitySummary.push(`${shelterCount} shelter construction session${shelterCount > 1 ? 's' : ''}`);
+    if (cookingCount > 0) activitySummary.push(`${cookingCount} cooking session${cookingCount > 1 ? 's' : ''}`);
+    
+    if (activitySummary.length > 0) {
+      text += `You completed ${activitySummary.join(', ')}. This shows your commitment to both survival and tribe welfare.</p>`;
+    } else {
+      text += `You focused on exploration and getting oriented to camp life.</p>`;
+    }
   }
 
   text += `<p><strong>Tribe Status:</strong> ${playerTribe.tribeName} ends their first day with a fire level of ${data.currentFire} and shelter level of ${data.currentShelter}. The foundation has been set for the challenges ahead.</p>`;
