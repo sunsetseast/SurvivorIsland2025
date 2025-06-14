@@ -5,6 +5,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import activityTracker from '../utils/ActivityTracker.js';
 
 export default function renderBambooView(container) {
   console.log('renderBambooView() called');
@@ -338,6 +339,9 @@ export default function renderBambooView(container) {
     if (player) {
       player.bamboo = (player.bamboo || 0) + bamboo;
       console.log(`Player now has ${player.bamboo} bamboo`);
+      
+      // Track bamboo gathering activity
+      activityTracker.trackResourceGathering('bamboo', bamboo, 'Bamboo Cutting');
     }
 
     const timerEl = document.getElementById('clock-time-text');

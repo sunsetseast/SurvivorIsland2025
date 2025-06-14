@@ -5,6 +5,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import activityTracker from '../utils/ActivityTracker.js';
 
 export default function renderFirewoodView(container) {
   console.log('renderFirewoodView() called');
@@ -353,6 +354,9 @@ function endGame() {
   if (player) {
     player.firewood = (player.firewood || 0) + firewood;
     console.log(`Player now has ${player.firewood} firewood`);
+    
+    // Track firewood gathering activity
+    activityTracker.trackResourceGathering('firewood', firewood, 'Wood Chopping');
   } else {
     console.warn('No player survivor found to assign firewood.');
   }
