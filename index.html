@@ -157,6 +157,26 @@
           style="top: 205px; right: 40px"
           onclick="handleHandshakeClick()"
         ></button>
+        <!-- Stats Display -->
+        <div
+          id="menu-stats"
+          style="
+            position: absolute;
+            top: 520px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Survivant', sans-serif;
+            font-size: 12px;
+            color: white;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 12px;
+            border-radius: 4px;
+            z-index: 1000;
+          "
+        >
+          Threat: <span id="value-threat">0</span> Team Player: <span id="value-team-player">0</span> Hunger: <span id="value-hunger-display">0</span>
+        </div>
       </div>
 
       <!-- Fullscreen Map Overlay -->

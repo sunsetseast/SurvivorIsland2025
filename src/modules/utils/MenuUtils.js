@@ -20,4 +20,24 @@ export function refreshMenuCard() {
   // Set player name and apply tribe color styling
   nameText.textContent = player.firstName.toUpperCase();
   nameText.style.color = tribeColor;
+
+  // Update stats display
+  const threatElement = document.getElementById('value-threat');
+  const teamPlayerElement = document.getElementById('value-team-player');
+  const hungerDisplayElement = document.getElementById('value-hunger-display');
+
+  if (threatElement) {
+    const threatValue = player.dynamicValues?.threat || 0;
+    threatElement.textContent = threatValue;
+  }
+
+  if (teamPlayerElement) {
+    const teamPlayerValue = player.dynamicValues?.teamPlayer || 0;
+    teamPlayerElement.textContent = teamPlayerValue;
+  }
+
+  if (hungerDisplayElement) {
+    const hungerValue = player.hunger || 0;
+    hungerDisplayElement.textContent = hungerValue;
+  }
 }
