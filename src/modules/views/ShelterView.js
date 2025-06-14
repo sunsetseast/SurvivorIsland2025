@@ -1088,6 +1088,11 @@ function startBuilding() {
   const relationshipImpact = calculateShelterRelationshipImpact(player, selectedCoBuilder);
   const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.\n\nWorking together, you ${relationshipImpact.reason}.`;
   
+  // Show relationship animation
+  setTimeout(() => {
+    showRelationshipAnimation(relationshipImpact.change, selectedCoBuilder.firstName);
+  }, 1000);
+  
   // Deduct time from clock (convert minutes to seconds)
   const timeInSeconds = constructionTime * 60;
   gameManager.deductTime(timeInSeconds);
@@ -1164,6 +1169,78 @@ function showTeamPlayerAnimation() {
 
   animationElement.appendChild(teamPlayerIcon);
   animationElement.appendChild(text);
+
+  // Add CSS animation
+  const style = createElement('style');
+  style.textContent = `
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -50%) translateY(20px); }
+      30% { opacity: 1; transform: translate(-50%, -50%) translateY(0px); }
+      70% { opacity: 1; transform: translate(-50%, -50%) translateY(0px); }
+      100% { opacity: 0; transform: translate(-50%, -50%) translateY(-20px); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  document.body.appendChild(animationElement);
+
+  setTimeout(() => {
+    animationElement.remove();
+    style.remove();
+  }, 3000);
+}
+
+function showRelationshipAnimation(change, partnerName) {
+  const animationElement = createElement('div', {
+    style: `
+      position: fixed;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1010;
+      animation: fadeInOut 3s forwards;
+      pointer-events: none;
+    `
+  });
+
+  const relationshipIcon = createElement('img', {
+    src: 'Assets/Resources/relationship.png',
+    alt: 'Relationship',
+    style: `
+      width: 40px;
+      height: 40px;
+    `
+  });
+
+  const changeText = change > 0 ? `+${change}` : `${change}`;
+  const textColor = change > 0 ? '#10b981' : '#ef4444';
+  
+  const text = createElement('div', {
+    style: `
+      font-family: 'Survivant', serif;
+      font-size: 24px;
+      color: ${textColor};
+      text-shadow: 2px 2px 4px black;
+      font-weight: bold;
+    `
+  }, changeText);
+
+  const partnerText = createElement('div', {
+    style: `
+      font-family: 'Survivant', serif;
+      font-size: 16px;
+      color: white;
+      text-shadow: 2px 2px 4px black;
+      margin-left: 5px;
+    `
+  }, `with ${partnerName}`);
+
+  animationElement.appendChild(relationshipIcon);
+  animationElement.appendChild(text);
+  animationElement.appendChild(partnerText);
 
   // Add CSS animation
   const style = createElement('style');
