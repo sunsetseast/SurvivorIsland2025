@@ -8,6 +8,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
+import activityTracker from '../utils/ActivityTracker.js';
 
 let selectedCoBuilder = null;
 let bambooAdded = 0;
@@ -967,7 +968,22 @@ function startBuilding() {
   const constructionTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
   
   // Increase shelter value
-  playerTribe.shelter = (playerTribe.shelter || 0) + 1;
+  const newShelterLevel = (playerTribe.shelter || 0) + 1;
+  playerTribe.shelter = newShelterLevel;
+  
+  // Track shelter building activity
+  activityTracker.trackShelterBuilding(
+    true, // success
+    selectedCoBuilder.firstName,
+    newShelterLevel
+  );
+  
+  // Track teamPlayer points gained
+  activityTracker.trackTeamPlayerPoints(
+    10, // pointsEarned
+    0,  // pointsLost
+    `Shelter building with ${selectedCoBuilder.firstName}`
+  );
   
   // Add teamPlayer points
   player.teamPlayer = (player.teamPlayer || 50) + 10;
