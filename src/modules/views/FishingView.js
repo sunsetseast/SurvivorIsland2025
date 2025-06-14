@@ -620,7 +620,12 @@ export default function renderFishingView(container) {
     // 4) Track successful fishing attempt
     activityTracker.trackFishingAttempt(true, 1, fishType);
 
-    // 5) After a short delay (to let the freeze be visible), remove the fish element
+    // 5) Show the +1 fish animation effect
+    if (currentFish) {
+      showFishEffect(fishType, currentFish);
+    }
+
+    // 6) After a short delay (to let the freeze be visible), remove the fish element
     setTimeout(() => {
       if (currentFish) {
         currentFish.remove();
@@ -628,18 +633,18 @@ export default function renderFishingView(container) {
       }
     }, 300); // 300ms delay before removal—adjust if needed
 
-    // 6) Deduct 5 minutes (= 300 seconds) from camp clock, then update UI
+    // 7) Deduct 5 minutes (= 300 seconds) from camp clock, then update UI
     gameManager.deductTime(300);
     updateCampClockUI(
       gameManager.getDayTimer(),
       gameManager.getCurrentDay()
     );
 
-    // 7) Display the result parchment (catch)
+    // 8) Display the result parchment (catch)
     popupMessage.textContent = fishDescription;
     popup.style.display = 'flex';
 
-    // 8) Stop spawning new fish until the player closes the popup
+    // 9) Stop spawning new fish until the player closes the popup
     aimCircle.style.display = 'none';
   }
 
