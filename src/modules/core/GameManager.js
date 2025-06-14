@@ -340,6 +340,16 @@ class GameManager {
     });
   }
 
+  decreaseHungerForAll(amount) {
+    if (!this.survivors) return;
+
+    this.survivors.forEach(survivor => {
+      if (typeof survivor.hunger === 'number') {
+        survivor.hunger = Math.max(0, survivor.hunger - amount);
+      }
+    });
+  }
+
   getDayTimer() {
     return this.dayTimer;
   }

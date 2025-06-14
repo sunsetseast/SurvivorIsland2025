@@ -9,8 +9,11 @@ class TimerManager {
     this.intervals = {};
     this.gameSpeed = 1.0; // Default game speed multiplier
     this.paused = false;
-    this.waterDecreaseCounter = 0; // Track seconds for water decrease
-    this.WATER_DECREASE_INTERVAL = 300; // 5 minutes in seconds
+    this.gameManager = null;
+    this.WATER_DECREASE_INTERVAL = 300; // 5 in-game minutes
+    this.HUNGER_DECREASE_INTERVAL = 360; // 6 in-game minutes
+    this.lastWaterDecreaseTime = null;
+    this.lastHungerDecreaseTime = null;
   }
 
   /**
@@ -110,9 +113,33 @@ class TimerManager {
 
       // Check if we've hit a 5-minute mark (every 300 seconds)
       if (roundedSeconds > 0 && roundedSeconds % this.WATER_DECREASE_INTERVAL === 0) {
-        if (!this.lastDecreaseTime || this.lastDecreaseTime !== roundedSeconds) {
-          this.lastDecreaseTime = roundedSeconds;
+        if (!this.lastWaterDecreaseTime || this.lastWaterDecreaseTime !== roundedSeconds) {
+          this.lastWaterDecreaseTime = roundedSeconds;
           this.handleWaterDecrease();
+        }
+      }
+    }, 1000); // check every real-life second
+  }
+
+  /**
+   * Initialize hunger decrease system
+   * @param {Object} gameManager - Game manager instance
+   */
+  initializeHungerDecrease(gameManager) {
+    this.gameManager = gameManager;
+
+    // Check every real second if 6 in-game minutes have passed
+    this.setInterval('checkHungerDecrease', () => {
+      if (typeof gameManager.getDayTimer !== 'function') return;
+
+      const dayTimer = gameManager.getDayTimer(); // This returns in-game seconds passed
+      const roundedSeconds = Math.floor(dayTimer);
+
+      // Check if we've hit a 6-minute mark (every 360 seconds)
+      if (roundedSeconds > 0 && roundedSeconds % this.HUNGER_DECREASE_INTERVAL === 0) {
+        if (!this.lastHungerDecreaseTime || this.lastHungerDecreaseTime !== roundedSeconds) {
+          this.lastHungerDecreaseTime = roundedSeconds;
+          this.handleHungerDecrease();
         }
       }
     }, 1000); // check every real-life second
@@ -140,6 +167,30 @@ class TimerManager {
     }
 
     console.log('Water decreased for all survivors (5 in-game minutes passed)');
+  }
+
+  /**
+   * Handle hunger decrease for all survivors
+   * @private
+   */
+  handleHungerDecrease() {
+    if (!this.gameManager?.survivors?.length) return;
+
+    this.gameManager.decreaseHungerForAll(1);
+
+    // Update inventory UI only if player is viewing the menu
+    const menuCard = document.getElementById('menu-card');
+    if (menuCard && menuCard.style.display === 'block') {
+      const player = this.gameManager.getPlayerSurvivor();
+      if (player) {
+        const hungerElement = document.getElementById('value-hunger');
+        if (hungerElement) {
+          hungerElement.textContent = player.hunger || 0;
+        }
+      }
+    }
+
+    console.log('Hunger decreased for all survivors (6 in-game minutes passed)');
   }
 
   /**
@@ -288,9 +339,6 @@ class TimerManager {
     this.timers = {};
     this.intervals = {};
 
-    // Reset water decrease counter
-    this.waterDecreaseCounter = 0;
-
     console.log('All timers and intervals cleared');
   }
 
@@ -368,27 +416,6 @@ class TimerManager {
    */
   isPaused() {
     return this.paused;
-  }
-
-  /**
-   * Get water decrease status
-   * @returns {Object} Water decrease information
-   */
-  getWaterDecreaseInfo() {
-    return {
-      counter: this.waterDecreaseCounter,
-      interval: this.WATER_DECREASE_INTERVAL,
-      nextDecreaseIn: this.WATER_DECREASE_INTERVAL - this.waterDecreaseCounter,
-      isActive: this.hasInterval('waterDecrease')
-    };
-  }
-
-  /**
-   * Reset water decrease counter (useful for testing or save/load)
-   */
-  resetWaterDecreaseCounter() {
-    this.waterDecreaseCounter = 0;
-    console.log('Water decrease counter reset');
   }
 }
 
