@@ -181,6 +181,73 @@ export default function renderShelter(container) {
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
 
+function calculateShelterRelationshipImpact(player, coBuilder) {
+  // Base factors for relationship change
+  let relationshipChange = 0;
+  let reason = '';
+  
+  // Factor 1: Physical compatibility (similar physical stats work better together)
+  const playerPhysical = player.physical || 30;
+  const coBuilderPhysical = coBuilder.physical || 30;
+  const physicalDifference = Math.abs(playerPhysical - coBuilderPhysical);
+  
+  // Factor 2: Trait class compatibility
+  const playerTraitClass = player.traitClass || 'Physical';
+  const coBuilderTraitClass = coBuilder.traitClass || 'Physical';
+  
+  // Factor 3: Random collaboration factor (represents unpredictable chemistry)
+  const collaborationRoll = Math.random();
+  
+  // Calculate base relationship change
+  if (physicalDifference <= 3) {
+    // Similar physical abilities - usually work well together
+    relationshipChange += getRandomInt(3, 6);
+    reason = 'worked exceptionally well together due to similar work pace';
+  } else if (physicalDifference <= 8) {
+    // Moderate difference - can go either way
+    relationshipChange += getRandomInt(-2, 4);
+    reason = 'had a decent working relationship despite different approaches';
+  } else {
+    // Large difference - potential for conflict
+    relationshipChange += getRandomInt(-4, 2);
+    reason = 'struggled to coordinate due to different physical capabilities';
+  }
+  
+  // Trait class compatibility bonus/penalty
+  if (playerTraitClass === coBuilderTraitClass) {
+    relationshipChange += 2;
+    reason = reason.replace('due to', 'and shared similar mindsets, leading to');
+  } else if (
+    (playerTraitClass === 'Social' && coBuilderTraitClass === 'Physical') ||
+    (playerTraitClass === 'Physical' && coBuilderTraitClass === 'Social')
+  ) {
+    // Physical and Social often complement each other
+    relationshipChange += 1;
+    reason = reason.replace('despite', 'with their complementary skills helping overcome');
+  }
+  
+  // Random collaboration chemistry (30% chance for exceptional outcome)
+  if (collaborationRoll < 0.15) {
+    // Exceptional positive chemistry
+    relationshipChange += getRandomInt(4, 7);
+    reason = 'had amazing chemistry and became much closer through the shared work';
+  } else if (collaborationRoll > 0.85) {
+    // Unexpected conflict
+    relationshipChange -= getRandomInt(3, 6);
+    reason = 'clashed over construction methods and butted heads throughout the process';
+  }
+  
+  // Ensure reasonable bounds
+  relationshipChange = Math.max(-8, Math.min(10, relationshipChange));
+  
+  console.log(`Shelter building relationship impact: ${player.firstName} and ${coBuilder.firstName} ${reason} (${relationshipChange > 0 ? '+' : ''}${relationshipChange})`);
+  
+  return {
+    change: relationshipChange,
+    reason: reason
+  };
+}
+
 function handleCenterButtonClick() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
@@ -989,6 +1056,13 @@ function startBuilding() {
   player.teamPlayer = (player.teamPlayer || 50) + 10;
   selectedCoBuilder.teamPlayer = (selectedCoBuilder.teamPlayer || 50) + 10;
   
+  // Process relationship impact from working together
+  const relationshipImpact = calculateShelterRelationshipImpact(player, selectedCoBuilder);
+  const relationshipSystem = gameManager.getRelationshipSystem();
+  if (relationshipSystem) {
+    relationshipSystem.changeRelationship(player.id, selectedCoBuilder.id, relationshipImpact.change);
+  }
+  
   // Update background
   const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
   const container = document.querySelector('.shelter-wrapper').parentElement;
@@ -1010,8 +1084,9 @@ function startBuilding() {
     }
   }
   
-  // Show completion message
-  const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.`;
+  // Show completion message with relationship outcome
+  const relationshipImpact = calculateShelterRelationshipImpact(player, selectedCoBuilder);
+  const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.\n\nWorking together, you ${relationshipImpact.reason}.`;
   
   // Deduct time from clock (convert minutes to seconds)
   const timeInSeconds = constructionTime * 60;
