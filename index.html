@@ -234,7 +234,8 @@
             "
           >
             <img
-              src="Assets/inventory.png"
+              id="inventory-image"
+              src="Assets/inventory1.png"
               alt="Inventory"
               style="
                 position: absolute;
@@ -261,6 +262,21 @@
               <div id="value-firewood" class="resource-value" style="position: absolute; top: 108px; left: -40px;">0</div>
               <div id="value-palms" class="resource-value" style="position: absolute; top: 108px; left: 96px;">0</div>
             </div>
+              <!-- Invisible button to toggle inventory pages -->
+              <button
+                id="inventory-nav-button"
+                class="menu-action-button"
+                style="
+                  bottom: 10%;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  width: 100px; /* Adjust as needed */
+                  height: 50px; /* Adjust as needed */
+                  background: transparent;
+                  border: none;
+                "
+                onclick="toggleInventoryPage()"
+              ></button>
           </div>
         </div>
       </div>
@@ -402,18 +418,41 @@
         inventory.appendChild(slot);
       }
 
-      document.addEventListener("DOMContentLoaded", () => {
-        const mapOverlay = document.getElementById("map-overlay");
-        if (mapOverlay) {
-          mapOverlay.addEventListener("click", () => {
-            mapOverlay.style.display = "none";
-          });
-        }
+      let currentInventoryPage = 1; // Track which inventory page we're on
 
+      function toggleInventoryPage() {
+        const inventoryImage = document.getElementById("inventory-image");
+        const inventoryValues = document.getElementById("inventory-values");
+
+        if (currentInventoryPage === 1) {
+          // Switch to inventory2.png
+          inventoryImage.src = "Assets/inventory2.png";
+          inventoryValues.style.display = "none"; // Hide resource values on page 2
+          currentInventoryPage = 2;
+        } else {
+          // Switch back to inventory1.png
+          inventoryImage.src = "Assets/inventory1.png";
+          inventoryValues.style.display = "block"; // Show resource values on page 1
+          currentInventoryPage = 1;
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
         const inventoryOverlay = document.getElementById("inventory-overlay");
+        const inventoryNavButton = document.getElementById("inventory-nav-button");
+
         if (inventoryOverlay) {
-          inventoryOverlay.addEventListener("click", () => {
-            inventoryOverlay.style.display = "none";
+          inventoryOverlay.addEventListener("click", (e) => {
+            // Don't close if clicking the navigation button
+            if (!inventoryNavButton || !inventoryNavButton.contains(e.target)) {
+              inventoryOverlay.style.display = "none";
+              // Reset to page 1 when closing
+              const inventoryImage = document.getElementById("inventory-image");
+              const inventoryValues = document.getElementById("inventory-values");
+              if (inventoryImage) inventoryImage.src = "Assets/inventory1.png";
+              if (inventoryValues) inventoryValues.style.display = "block";
+              currentInventoryPage = 1;
+            }
           });
         }
       });
