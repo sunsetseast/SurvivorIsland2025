@@ -5,6 +5,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import activityTracker from '../utils/ActivityTracker.js';
 
 export default function renderFishingView(container) {
   console.log('renderFishingView() called');
@@ -580,7 +581,7 @@ export default function renderFishingView(container) {
       currentFish.style.top  = `${relTop}px`;
     }
 
-    // 2) Determine how many fish (1, 3, or 5) based on the image filename
+    // 2) Determine fish type and amount based on the image filename
     let amount = 1;
     let fishType = 'fish1';
     const src = currentFish.getAttribute('src');
@@ -593,11 +594,27 @@ export default function renderFishingView(container) {
       fishType = 'fish3';
     }
 
-    // 3) Update player inventory
+    // 3) Update player inventory with specific fish type
     const player = gameManager.getPlayerSurvivor();
     if (player) {
-      player.fish = (player.fish || 0) + amount;
-      console.log(`Player now has ${player.fish} fish.`);
+      // Initialize fish properties if they don't exist
+      if (!player.fish1) player.fish1 = 0;
+      if (!player.fish2) player.fish2 = 0;
+      if (!player.fish3) player.fish3 = 0;
+      
+      // Update the specific fish type
+      if (fishType === 'fish1') {
+        player.fish1 += amount;
+      } else if (fishType === 'fish2') {
+        player.fish2 += amount;
+      } else if (fishType === 'fish3') {
+        player.fish3 += amount;
+      }
+      
+      // Update total fish count
+      gameManager.updateSurvivorTotalFish(player);
+      
+      console.log(`Player now has ${player.fish} total fish (${player.fish1} fish1, ${player.fish2} fish2, ${player.fish3} fish3).`);
     }
 
     // 4) Track successful fishing attempt
@@ -619,7 +636,7 @@ export default function renderFishingView(container) {
     );
 
     // 7) Display the result parchment (catch)
-    popupMessage.textContent = `You caught ${amount} fish.`;
+    popupMessage.textContent = `You caught ${amount} ${fishType}.`;
     popup.style.display = 'flex';
 
     // 8) Stop spawning new fish until the player closes the popup
@@ -684,10 +701,5 @@ export default function renderFishingView(container) {
 
     setTimeout(() => effect.remove(), 800);
   }
-    // Activity tracker integration, placing here to ensure it's accessible within the fishing view's scope.
-  const activityTracker = {
-    trackFishingAttempt: function(success, amount, fishType) {
-      console.log(`Fishing Attempt: Success - ${success}, Amount - ${amount}, Fish Type - ${fishType}`);
-    }
-  };
+    
 }

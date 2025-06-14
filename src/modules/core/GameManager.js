@@ -173,7 +173,7 @@ class GameManager {
         tribeName: shuffledNames[i].name,
         tribeColor: chosenColors[i],
         members,
-        resources: { fish: 0, water: 50, fire: 75, shelter: 60 },
+        resources: { fish: 0, fish1: 0, fish2: 0, fish3: 0, water: 50, fire: 75, shelter: 60 },
         fire: 0,
         shelter: 0,
         immunityWins: 0,
@@ -299,7 +299,7 @@ class GameManager {
       tribeName: "Merged Tribe",
       tribeColor: "#FFC107",
       members: allMembers,
-      resources: { food: 50, water: 75, fire: 100, shelter: 80 },
+      resources: { fish: 50, fish1: 0, fish2: 0, fish3: 0, water: 75, fire: 100, shelter: 80 },
       fire: 0,
       shelter: 0,
       immunityWins: 0,
@@ -390,6 +390,36 @@ class GameManager {
 
   showGameOverScreen() {
     this.setGameState(GameState.GAME_OVER);
+  }
+
+  // Calculate total fish for a survivor from individual fish types
+  calculateTotalFish(survivor) {
+    if (!survivor) return 0;
+    const fish1 = survivor.fish1 || 0;
+    const fish2 = survivor.fish2 || 0;
+    const fish3 = survivor.fish3 || 0;
+    return fish1 + fish2 + fish3;
+  }
+
+  // Update survivor's total fish count
+  updateSurvivorTotalFish(survivor) {
+    if (!survivor) return;
+    survivor.fish = this.calculateTotalFish(survivor);
+  }
+
+  // Calculate total tribe fish from all members
+  calculateTribeFish(tribe) {
+    if (!tribe || !tribe.members) return { fish: 0, fish1: 0, fish2: 0, fish3: 0 };
+    
+    const totals = { fish: 0, fish1: 0, fish2: 0, fish3: 0 };
+    tribe.members.forEach(member => {
+      totals.fish1 += member.fish1 || 0;
+      totals.fish2 += member.fish2 || 0;
+      totals.fish3 += member.fish3 || 0;
+    });
+    totals.fish = totals.fish1 + totals.fish2 + totals.fish3;
+    
+    return totals;
   }
 }
 
