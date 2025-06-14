@@ -5,6 +5,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import activityTracker from '../utils/ActivityTracker.js';
 
 export default function renderShakeView(container) {
   console.log('renderShakeView() called');
@@ -290,18 +291,36 @@ export default function renderShakeView(container) {
         player.coconuts = (player.coconuts || 0) + rewards.coconuts;
         player.palms = (player.palms || 0) + rewards.palms;
         console.log(`Player now has ${player.coconuts} coconuts and ${player.palms} palm fronds`);
+        
+        // Track both resource collections
+        activityTracker.trackResourceGathering('coconuts', rewards.coconuts, 'Tree Shaking');
+        activityTracker.trackResourceGathering('palms', rewards.palms, 'Tree Shaking');
+        
         showBothRewardsSideBySide();
       } else {
         if (rewards.coconuts > 0) {
           player.coconuts = (player.coconuts || 0) + rewards.coconuts;
           console.log(`Player now has ${player.coconuts} coconuts`);
+          
+          // Track coconut collection
+          activityTracker.trackResourceGathering('coconuts', rewards.coconuts, 'Tree Shaking');
+          
           showRewardEffect('coconuts', rewards.coconuts);
         }
         if (rewards.palms > 0) {
           player.palms = (player.palms || 0) + rewards.palms;
           console.log(`Player now has ${player.palms} palm fronds`);
+          
+          // Track palm collection
+          activityTracker.trackResourceGathering('palms', rewards.palms, 'Tree Shaking');
+          
           showRewardEffect('palms', rewards.palms);
         }
+      }
+      
+      // Track unsuccessful attempts (when nothing is found)
+      if (rewards.coconuts === 0 && rewards.palms === 0) {
+        activityTracker.trackResourceGathering('none', 0, 'Tree Shaking - No rewards');
       }
     } else {
       console.warn('No player survivor found to assign resources.');
