@@ -284,27 +284,27 @@ export default function renderWaterWell(container) {
     // Track water gathering for entire tribe
     activityTracker.trackWaterGathering(100, true);
 
-    // Increase player's teamPlayer value by the number of OTHER tribe members
-    if (otherMembersCount > 0) {
-      if (typeof player.teamPlayer !== 'number') {
-        player.teamPlayer = 50; // Default value from GameData
-      }
-      player.teamPlayer += otherMembersCount;
-      console.log(`teamPlayer is now ${player.teamPlayer}`);
+  // Increase player's teamPlayer value by the number of OTHER tribe members
+  if (otherMembersCount > 0) {
+    if (typeof player.teamPlayer !== 'number') {
+      player.teamPlayer = 0;
     }
+    player.teamPlayer += otherMembersCount;
+    console.log(`teamPlayer is now ${player.teamPlayer}`);
+  }
 
-    // Show visual effects
-    showWaterEffect(container);
+  // Show visual effects
+  showWaterEffect(container);
 
-    // Show teamPlayer effect if applicable
-    if (otherMembersCount > 0) {
-      // Add a small delay to make both effects visible
-      setTimeout(() => {
-        showTeamPlayerEffect(container, otherMembersCount);
-      }, 300);
-    }
+  // Show teamPlayer effect if applicable
+  if (otherMembersCount > 0) {
+    // Add a small delay to make both effects visible
+    setTimeout(() => {
+      showTeamPlayerEffect(container, otherMembersCount);
+    }, 300);
+  }
 
-    console.log('Tribe watered (only those under 100 got more).');
+  console.log('Tribe watered (only those under 100 got more).');
   });
   
   const actionButtons = document.getElementById('action-buttons');
