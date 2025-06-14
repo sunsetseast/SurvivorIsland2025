@@ -968,8 +968,8 @@ function startBuilding() {
   const constructionTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
   
   // Increase shelter value
-  const newShelterLevel = (playerTribe.shelter || 0) + 1;
-  playerTribe.shelter = newShelterLevel;
+  playerTribe.shelter = (playerTribe.shelter || 0) + 1;
+  const newShelterLevel = playerTribe.shelter;
   
   // Track shelter building activity
   activityTracker.trackShelterBuilding(
