@@ -348,13 +348,6 @@ class GameManager {
         survivor.hunger = Math.max(0, survivor.hunger - amount);
       }
     });
-  }n;
-
-    this.survivors.forEach(survivor => {
-      if (typeof survivor.hunger === 'number') {
-        survivor.hunger = Math.max(0, survivor.hunger - amount);
-      }
-    });
   }
 
   getDayTimer() {
