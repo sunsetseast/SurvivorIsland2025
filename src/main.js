@@ -135,12 +135,24 @@ function updateInventoryUI() {
   const player = gameManager.getPlayerSurvivor();
   if (!player) return;
 
-  document.getElementById('value-coconut').textContent = player.coconuts || 0;
-  document.getElementById('value-water').textContent = player.water || 0;
-  document.getElementById('value-fish').textContent = player.fish || 0;
-  document.getElementById('value-bamboo').textContent = player.bamboo || 0;
-  document.getElementById('value-firewood').textContent = player.firewood || 0;
-  document.getElementById('value-palms').textContent = player.palms || 0;
+  // Update individual fish types
+  const fish1Element = document.getElementById('value-fish1');
+  const fish2Element = document.getElementById('value-fish2');
+  const fish3Element = document.getElementById('value-fish3');
+  const coconutElement = document.getElementById('value-coconut');
+  const firewoodElement = document.getElementById('value-firewood');
+  const waterElement = document.getElementById('value-water');
+  const bambooElement = document.getElementById('value-bamboo');
+  const palmsElement = document.getElementById('value-palms');
+
+  if (fish1Element) fish1Element.textContent = player.fish1 || 0;
+  if (fish2Element) fish2Element.textContent = player.fish2 || 0;
+  if (fish3Element) fish3Element.textContent = player.fish3 || 0;
+  if (coconutElement) coconutElement.textContent = player.coconuts || 0;
+  if (firewoodElement) firewoodElement.textContent = player.firewood || 0;
+  if (waterElement) waterElement.textContent = player.water || 0;
+  if (bambooElement) bambooElement.textContent = player.bamboo || 0;
+  if (palmsElement) palmsElement.textContent = player.palms || 0;
 }
 
 function setupMenuToggle() {
