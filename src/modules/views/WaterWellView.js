@@ -291,6 +291,11 @@ export default function renderWaterWell(container) {
     }
     player.teamPlayer += otherMembersCount;
     console.log(`teamPlayer is now ${player.teamPlayer}`);
+    
+    // Refresh menu card to update teamPlayer display
+    import('../utils/MenuUtils.js').then(({ refreshMenuCard }) => {
+      refreshMenuCard();
+    });
   }
 
   // Show visual effects
