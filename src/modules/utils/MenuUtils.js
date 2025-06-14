@@ -27,12 +27,12 @@ export function refreshMenuCard() {
   const hungerDisplayElement = document.getElementById('value-hunger-display');
 
   if (threatElement) {
-    const threatValue = player.dynamicValues?.threat || 0;
+    const threatValue = player.threat || 0;
     threatElement.textContent = threatValue;
   }
 
   if (teamPlayerElement) {
-    const teamPlayerValue = player.dynamicValues?.teamPlayer || 0;
+    const teamPlayerValue = player.teamPlayer || 0;
     teamPlayerElement.textContent = teamPlayerValue;
   }
 
