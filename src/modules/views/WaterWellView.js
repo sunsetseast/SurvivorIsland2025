@@ -286,11 +286,12 @@ export default function renderWaterWell(container) {
 
     // Increase player's teamPlayer value by the number of OTHER tribe members
     if (otherMembersCount > 0) {
-      if (typeof player.teamPlayer !== 'number') {
-        player.teamPlayer = 50; // Default value from GameData
+      if (!player.dynamicValues) player.dynamicValues = {};
+      if (typeof player.dynamicValues.teamPlayer !== 'number') {
+        player.dynamicValues.teamPlayer = 0;
       }
-      player.teamPlayer += otherMembersCount;
-      console.log(`teamPlayer is now ${player.teamPlayer}`);
+      player.dynamicValues.teamPlayer += otherMembersCount;
+      console.log(`teamPlayer is now ${player.dynamicValues.teamPlayer}`);
     }
 
     // Show visual effects
