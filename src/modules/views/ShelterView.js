@@ -1085,7 +1085,6 @@ function startBuilding() {
   }
   
   // Show completion message with relationship outcome
-  const relationshipImpact = calculateShelterRelationshipImpact(player, selectedCoBuilder);
   const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.\n\nWorking together, you ${relationshipImpact.reason}.`;
   
   // Show relationship animation
