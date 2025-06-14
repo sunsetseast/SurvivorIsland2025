@@ -1758,7 +1758,7 @@ export default function renderFireView(container) {
 
       // Remove the minigame UI container
       const gameUIEl = document.getElementById('fire-game-ui');
-      if (gameUIEl) gameUIel.remove();
+      if (gameUIEl) gameUIEl.remove();
 
       // Show and update fire level indicator
       const fireLevelIndicator = document.getElementById('fire-level-indicator');
