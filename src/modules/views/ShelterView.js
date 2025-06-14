@@ -968,8 +968,8 @@ function startBuilding() {
   const constructionTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
   
   // Increase shelter value
-  playerTribe.shelter = (playerTribe.shelter || 0) + 1;
-  const newShelterLevel = playerTribe.shelter;
+  const newShelterLevel = (playerTribe.shelter || 0) + 1;
+  playerTribe.shelter = newShelterLevel;
   
   // Track shelter building activity
   activityTracker.trackShelterBuilding(
@@ -995,7 +995,6 @@ function startBuilding() {
   container.style.backgroundImage = newBackgroundImage;
   
   // Update shelter level indicator
-  const newShelterLevel = playerTribe.shelter;
   for (let i = 0; i < 5; i++) {
     const circle = document.getElementById(`shelter-level-${i}`);
     if (circle) {
