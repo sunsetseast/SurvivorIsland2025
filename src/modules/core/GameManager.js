@@ -9,7 +9,7 @@ import { GameData } from '../data/index.js';
 import { loadFromLocalStorage, saveToLocalStorage } from '../utils/StorageUtils.js';
 import { deepCopy } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
-import { MAX_WATER } from '../data/GameData.js';
+import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
 
 // Game states
