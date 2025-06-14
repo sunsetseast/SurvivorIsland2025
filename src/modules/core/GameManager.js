@@ -10,6 +10,7 @@ import { loadFromLocalStorage, saveToLocalStorage } from '../utils/StorageUtils.
 import { deepCopy } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import { MAX_WATER } from '../data/GameData.js';
+import RelationshipSystem from '../systems/RelationshipSystem.js';
 
 // Game states
 export const GameState = {
@@ -70,6 +71,11 @@ class GameManager {
     eventManager.setDebug(false);
     screenManager.initialize();
     timerManager.clearAll();
+    
+    // Initialize relationship system
+    this.systems.relationshipSystem = new RelationshipSystem(this);
+    this.systems.relationshipSystem.initialize();
+    
     this.gameState = GameState.WELCOME;
     this.isInitialized = true;
     eventManager.publish(GameEvents.GAME_INITIALIZED);
@@ -420,6 +426,13 @@ class GameManager {
     totals.fish = totals.fish1 + totals.fish2 + totals.fish3;
     
     return totals;
+  }
+
+  // Get relationship value between two survivors
+  getRelationshipValue(id1, id2) {
+    if (!this.systems.relationshipSystem) return 50; // Default neutral value
+    const relationship = this.systems.relationshipSystem.getRelationship(id1, id2);
+    return relationship ? relationship.value : 50;
   }
 }
 
