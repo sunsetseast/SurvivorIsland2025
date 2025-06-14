@@ -581,20 +581,20 @@ export default function renderFishingView(container) {
       currentFish.style.top  = `${relTop}px`;
     }
 
-    // 2) Determine fish type and amount based on the image filename
-    let amount = 1;
+    // 2) Determine fish type based on the image filename
     let fishType = 'fish1';
+    let fishDescription = 'You caught 1 small fish.';
     const src = currentFish.getAttribute('src');
     if (src.includes('fish2.png')) {
-      amount = 3;
       fishType = 'fish2';
+      fishDescription = 'You caught 1 medium fish.';
     }
     if (src.includes('fish3.png')) {
-      amount = 5;
       fishType = 'fish3';
+      fishDescription = 'You caught 1 large fish.';
     }
 
-    // 3) Update player inventory with specific fish type
+    // 3) Update player inventory with specific fish type (always +1)
     const player = gameManager.getPlayerSurvivor();
     if (player) {
       // Initialize fish properties if they don't exist
@@ -604,11 +604,11 @@ export default function renderFishingView(container) {
       
       // Update the specific fish type
       if (fishType === 'fish1') {
-        player.fish1 += amount;
+        player.fish1 += 1;
       } else if (fishType === 'fish2') {
-        player.fish2 += amount;
+        player.fish2 += 1;
       } else if (fishType === 'fish3') {
-        player.fish3 += amount;
+        player.fish3 += 1;
       }
       
       // Update total fish count
@@ -618,7 +618,7 @@ export default function renderFishingView(container) {
     }
 
     // 4) Track successful fishing attempt
-    activityTracker.trackFishingAttempt(true, amount, fishType);
+    activityTracker.trackFishingAttempt(true, 1, fishType);
 
     // 5) After a short delay (to let the freeze be visible), remove the fish element
     setTimeout(() => {
@@ -636,7 +636,7 @@ export default function renderFishingView(container) {
     );
 
     // 7) Display the result parchment (catch)
-    popupMessage.textContent = `You caught ${amount} ${fishType}.`;
+    popupMessage.textContent = fishDescription;
     popup.style.display = 'flex';
 
     // 8) Stop spawning new fish until the player closes the popup
@@ -661,7 +661,7 @@ export default function renderFishingView(container) {
     aimCircle.style.display = 'none';
   }
 
-  function showFishEffect(amount, fishEl) {
+  function showFishEffect(fishType, fishEl) {
     // Position effect near where fish was caught
     const fishRect = fishEl.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
@@ -685,9 +685,9 @@ export default function renderFishingView(container) {
         animation: hitPing 0.8s ease-out;
       `
     });
-    const plusText = createElement('span', {}, `+${amount}`);
+    const plusText = createElement('span', {}, '+1');
     const icon = createElement('img', {
-      src: `Assets/Resources/fish${amount === 1 ? 1 : amount === 3 ? 2 : 3}.png`,
+      src: `Assets/Resources/${fishType}.png`,
       alt: 'FishIcon',
       style: `
         height: 28px;

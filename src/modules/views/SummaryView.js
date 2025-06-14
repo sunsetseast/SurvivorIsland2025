@@ -1,4 +1,3 @@
-
 /**
  * @module SummaryView
  * Renders the summary of camp activities after the 2-hour timer expires
@@ -45,7 +44,7 @@ export default function renderSummary(container) {
 
   // Generate summary content
   const summaryData = generateSummaryData();
-  
+
   // Apply all the changes to game state
   applySummaryChanges(summaryData);
 
@@ -94,7 +93,7 @@ export default function renderSummary(container) {
 
   // Create summary text
   let summaryText = generateSummaryText(summaryData);
-  
+
   const textElement = createElement('div', {
     style: `
       text-shadow: 1px 1px 2px black;
@@ -165,11 +164,11 @@ function generateSummaryData() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
   const tribeMembers = playerTribe.members.filter(m => !m.isPlayer);
-  
+
   // Get tracked activities for the current day
   const currentDay = gameManager.getCurrentDay();
   const dayActivities = activityTracker.getActivitiesByDay(currentDay);
-  
+
   const data = {
     leadership: [],
     fireAttempts: [],
@@ -189,7 +188,7 @@ function generateSummaryData() {
     m.gameplayStyle === 'Social Genius' || 
     m.traitClass === 'Mental'
   );
-  
+
   if (leadershipCandidates.length > 0) {
     const leader = leadershipCandidates[getRandomInt(0, leadershipCandidates.length - 1)];
     data.leadership.push(leader);
@@ -198,7 +197,7 @@ function generateSummaryData() {
   // Determine fire attempts - check ActivityTracker for actual fire building
   const fireBuilders = [];
   const playerFireActivities = dayActivities.filter(a => a.type === 'fire_building');
-  
+
   if (playerFireActivities.length > 0) {
     const lastFireAttempt = playerFireActivities[playerFireActivities.length - 1];
     fireBuilders.push({ survivor: player, success: lastFireAttempt.success || data.currentFire > 0 });
@@ -217,7 +216,7 @@ function generateSummaryData() {
 
   // Determine shelter builders - check ActivityTracker for actual shelter building
   const playerShelterActivities = dayActivities.filter(a => a.type === 'shelter_building');
-  
+
   if (playerShelterActivities.length > 0) {
     // Player built shelter, pick a co-builder
     const coBuilder = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
@@ -238,14 +237,14 @@ function generateSummaryData() {
     const resourceCount = getRandomInt(0, 3);
     const resources = ['fish', 'coconuts', 'palms', 'bamboo', 'firewood'];
     const gathered = [];
-    
+
     for (let i = 0; i < resourceCount; i++) {
       const resource = resources[getRandomInt(0, resources.length - 1)];
       if (!gathered.includes(resource)) {
         gathered.push(resource);
       }
     }
-    
+
     data.resourceGathering[survivor.id] = gathered;
   });
 
@@ -327,7 +326,7 @@ function generateSummaryText(data) {
   if (data.shelterBuilders.length === 2) {
     const builder1 = data.shelterBuilders[0];
     const builder2 = data.shelterBuilders[1];
-    
+
     if (builder1.isPlayer) {
       text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder2.firstName} to begin constructing the tribe's shelter. Working together, you've created a basic foundation that will protect the tribe from the elements.</p>`;
     } else if (builder2.isPlayer) {
@@ -339,15 +338,15 @@ function generateSummaryText(data) {
 
   // Resource gathering summary based on ActivityTracker
   text += `<p><strong>Resource Gathering:</strong> `;
-  
+
   // Player's actual resource gathering from ActivityTracker
   const playerResourceActivities = data.playerActivities.filter(a => a.type === 'resource_gathering');
   const playerWaterActivities = data.playerActivities.filter(a => a.type === 'water_gathering');
   const playerFishingActivities = data.playerActivities.filter(a => a.type === 'fishing_attempt');
   const playerCookingActivities = data.playerActivities.filter(a => a.type === 'cooking');
-  
+
   let playerActions = [];
-  
+
   if (playerResourceActivities.length > 0) {
     const resourceSummary = {};
     playerResourceActivities.forEach(activity => {
@@ -357,7 +356,7 @@ function generateSummaryText(data) {
       playerActions.push(`collected ${resourceSummary[resource]} ${resource}`);
     });
   }
-  
+
   if (playerWaterActivities.length > 0) {
     const tribeWater = playerWaterActivities.filter(a => a.forTribe).length;
     const selfWater = playerWaterActivities.filter(a => !a.forTribe).length;
@@ -368,7 +367,7 @@ function generateSummaryText(data) {
       playerActions.push(`gathered water for yourself`);
     }
   }
-  
+
   if (playerFishingActivities.length > 0) {
     const successfulCatches = playerFishingActivities.filter(a => a.success).length;
     if (successfulCatches > 0) {
@@ -377,7 +376,7 @@ function generateSummaryText(data) {
       playerActions.push(`attempted fishing (no catches)`);
     }
   }
-  
+
   if (playerCookingActivities.length > 0) {
     const successfulCooks = playerCookingActivities.filter(a => a.success);
     if (successfulCooks.length > 0) {
@@ -385,7 +384,7 @@ function generateSummaryText(data) {
       playerActions.push(`cooked ${cookedItems.join(', ')}`);
     }
   }
-  
+
   if (playerActions.length > 0) {
     text += `You personally ${playerActions.join(', ')}. `;
   } else {
@@ -403,7 +402,7 @@ function generateSummaryText(data) {
       gatheringDetails.push(`${survivor.firstName} focused on other tasks`);
     }
   });
-  
+
   if (gatheringDetails.length > 0) {
     text += `Meanwhile, ${gatheringDetails.join('; ')}.`;
   }
@@ -414,17 +413,17 @@ function generateSummaryText(data) {
     text += `<p><strong>Social Dynamics:</strong> `;
     const bondingEvents = data.relationships.filter(r => r.type === 'bonding');
     const conflictEvents = data.relationships.filter(r => r.type === 'conflict');
-    
+
     if (bondingEvents.length > 0) {
       const bonds = bondingEvents.map(b => `${b.survivors[0].firstName} and ${b.survivors[1].firstName} formed a strong connection`);
       text += bonds.join(', ') + '. ';
     }
-    
+
     if (conflictEvents.length > 0) {
       const conflicts = conflictEvents.map(c => `tension emerged between ${c.survivors[0].firstName} and ${c.survivors[1].firstName}`);
       text += 'However, ' + conflicts.join(', ') + '. ';
     }
-    
+
     text += 'These early relationships will be crucial as the game progresses.</p>';
   }
 
@@ -432,21 +431,21 @@ function generateSummaryText(data) {
   if (data.playerActivities.length > 0) {
     text += `<p><strong>Your Day Summary:</strong> `;
     const activitySummary = [];
-    
+
     const resourceCount = playerResourceActivities.length;
     const waterCount = playerWaterActivities.length;
     const fishingCount = playerFishingActivities.length;
     const fireCount = data.playerActivities.filter(a => a.type === 'fire_building').length;
     const shelterCount = data.playerActivities.filter(a => a.type === 'shelter_building').length;
     const cookingCount = playerCookingActivities.length;
-    
+
     if (resourceCount > 0) activitySummary.push(`${resourceCount} resource gathering session${resourceCount > 1 ? 's' : ''}`);
     if (waterCount > 0) activitySummary.push(`${waterCount} water collection${waterCount > 1 ? 's' : ''}`);
     if (fishingCount > 0) activitySummary.push(`${fishingCount} fishing attempt${fishingCount > 1 ? 's' : ''}`);
     if (fireCount > 0) activitySummary.push(`${fireCount} fire building attempt${fireCount > 1 ? 's' : ''}`);
     if (shelterCount > 0) activitySummary.push(`${shelterCount} shelter construction session${shelterCount > 1 ? 's' : ''}`);
     if (cookingCount > 0) activitySummary.push(`${cookingCount} cooking session${cookingCount > 1 ? 's' : ''}`);
-    
+
     if (activitySummary.length > 0) {
       text += `You completed ${activitySummary.join(', ')}. This shows your commitment to both survival and tribe welfare.</p>`;
     } else {
@@ -489,17 +488,31 @@ function applySummaryChanges(data) {
     });
   }
 
-  // Update survivor resources based on gathering
-  Object.keys(data.resourceGathering).forEach(survivorId => {
-    const survivor = playerTribe.members.find(m => m.id == survivorId);
-    if (survivor) {
-      data.resourceGathering[survivorId].forEach(resource => {
-        if (survivor[resource] !== undefined) {
-          survivor[resource] = (survivor[resource] || 0) + 1;
+  const currentTribe = gameManager.getPlayerTribe();
+  // Apply resource gathering
+      Object.keys(data.resourceGathering).forEach(survivorId => {
+        const survivor = currentTribe.members.find(m => m.id == survivorId);
+        if (survivor) {
+          data.resourceGathering[survivorId].forEach(resource => {
+            if (resource === 'fish1' || resource === 'fish2' || resource === 'fish3') {
+              // Fish types always add 1
+              if (survivor[resource] !== undefined) {
+                survivor[resource] += 1;
+              } else {
+                survivor[resource] = 1;
+              }
+              // Update total fish count
+              gameManager.updateSurvivorTotalFish(survivor);
+            } else {
+              // Other resources add random amount
+              const amount = getRandomInt(1, 3);
+              if (survivor[resource] !== undefined) {
+                survivor[resource] += amount;
+              }
+            }
+          });
         }
       });
-    }
-  });
 
   console.log('Summary changes applied to game state');
 }
