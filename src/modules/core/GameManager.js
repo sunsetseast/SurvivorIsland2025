@@ -173,7 +173,7 @@ class GameManager {
         tribeName: shuffledNames[i].name,
         tribeColor: chosenColors[i],
         members,
-        resources: { food: 25, water: 50, fire: 75, shelter: 60 },
+        resources: { fish: 0, water: 50, fire: 75, shelter: 60 },
         fire: 0,
         shelter: 0,
         immunityWins: 0,
