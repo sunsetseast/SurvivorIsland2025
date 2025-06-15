@@ -179,8 +179,22 @@ function openRelationshipsOverlayImmediate() {
       `
     }, member.firstName.toUpperCase());
 
+    // Get relationship value for display
+    const relationshipValue = getRelationshipValue(selectedSurvivor.id, member.id);
+    const relationshipNumber = createElement('span', {
+      style: `
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.75rem;
+        color: #cccccc;
+        margin-top: 2px;
+        text-align: center;
+        text-shadow: 1px 1px 2px black;
+      `
+    }, `(${relationshipValue})`);
+
     wrapper.appendChild(avatar);
     wrapper.appendChild(name);
+    wrapper.appendChild(relationshipNumber);
     grid.appendChild(wrapper);
   });
 
@@ -213,6 +227,30 @@ function openRelationshipsOverlayImmediate() {
   overlay.appendChild(instructionText);
 
   console.log('Relationships overlay populated with', otherMembers.length, 'surrounding members');
+}
+
+function getRelationshipValue(fromId, toId) {
+  // Same person - return 100
+  if (fromId === toId) return 100;
+
+  // Try to get relationship value
+  try {
+    if (!gameManager.systems || !gameManager.systems.relationshipSystem) {
+      return 50; // Default neutral value
+    }
+
+    const relationshipSystem = gameManager.systems.relationshipSystem;
+    const allRelationships = relationshipSystem.getRelationships();
+    const relationshipKey = fromId < toId ? `${fromId}_${toId}` : `${toId}_${fromId}`;
+    const directRelationship = allRelationships[relationshipKey];
+    const methodRelationship = relationshipSystem.getRelationship(fromId, toId);
+
+    const relationship = directRelationship || methodRelationship;
+    return relationship ? relationship.value : 50;
+  } catch (error) {
+    console.warn('Could not get relationship value:', error);
+    return 50;
+  }
 }
 
 function getRelationshipBorder(fromId, toId) {
