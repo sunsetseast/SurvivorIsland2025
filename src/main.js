@@ -168,9 +168,13 @@ function setupMenuToggle() {
     menuCard.style.display = isVisible ? 'none' : 'block';
     overlay.style.display = isVisible ? 'none' : 'block';
 
-    // 🔁 Update inventory values when the menu is shown
+    // 🔁 Update all menu values when the menu is shown
     if (!isVisible) {
       updateInventoryUI();
+      // Also refresh character stats (hunger, rest, threat, etc.)
+      if (window.refreshMenuCard && typeof window.refreshMenuCard === 'function') {
+        window.refreshMenuCard();
+      }
     }
   });
 
