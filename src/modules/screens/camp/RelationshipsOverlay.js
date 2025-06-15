@@ -12,7 +12,7 @@ export function openRelationshipsOverlay() {
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
     // Ensure all relationships exist before displaying
     gameManager.systems.relationshipSystem.ensureAllRelationships();
-    
+
     const allRelationships = gameManager.systems.relationshipSystem.getRelationships();
     console.log('Current relationships data:', allRelationships);
     console.log('Total relationships:', Object.keys(allRelationships).length);
@@ -140,11 +140,11 @@ function openRelationshipsOverlayImmediate() {
     // Force immediate relationship lookup for border calculation
     const relationshipBorder = getRelationshipBorder(selectedSurvivor.id, member.id);
     console.log(`Border for ${selectedSurvivor.firstName} → ${member.firstName}: ${relationshipBorder}`);
-    
+
     // Additional debug: log the actual relationship value
     const debugRelationship = gameManager.systems.relationshipSystem.getRelationship(selectedSurvivor.id, member.id);
     console.log(`  -> Actual relationship value: ${debugRelationship ? debugRelationship.value : 'not found'}`);
-    
+
     const avatar = createElement('img', {
       src: member.avatarUrl || `Assets/Avatars/${member.firstName.toLowerCase()}.jpeg`,
       alt: member.firstName,
@@ -232,7 +232,7 @@ function getRelationshipBorder(fromId, toId) {
     const relationshipKey = fromId < toId ? `${fromId}_${toId}` : `${toId}_${fromId}`;
     const directRelationship = allRelationships[relationshipKey];
     const methodRelationship = relationshipSystem.getRelationship(fromId, toId);
-    
+
     // Use whichever method works
     const relationship = directRelationship || methodRelationship;
     const value = relationship ? relationship.value : 50; // Default to neutral if no relationship found
@@ -242,7 +242,7 @@ function getRelationshipBorder(fromId, toId) {
     const toSurvivor = gameManager.survivors.find(s => s.id === toId);
     const fromName = fromSurvivor ? fromSurvivor.firstName : `ID:${fromId}`;
     const toName = toSurvivor ? toSurvivor.firstName : `ID:${toId}`;
-    
+
     console.log(`Relationship border: ${fromName} → ${toName} = ${value} (key: ${relationshipKey}, direct: ${!!directRelationship}, method: ${!!methodRelationship})`);
 
     if (value === 100) return '4px solid gold';
