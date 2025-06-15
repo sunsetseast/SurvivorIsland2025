@@ -947,51 +947,62 @@ function showStartBuildingButton() {
 }
 
 function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, expectedBuildTime) {
-  // 1. Performance Factor
+  // 1. Performance Factor (more impactful)
   const performanceFactor = expectedBuildTime / actualBuildTime;
-
-  // 2. Style Compatibility
+  
+  // 2. Style Compatibility (enhanced bonuses)
   const styleCompat = {
-    'aggressive|aggressive': 0.9,
-    'aggressive|balanced': 1.1,
-    'aggressive|cautious': 0.8,
-    'balanced|aggressive': 1.1,
-    'balanced|balanced': 1.2,
-    'balanced|cautious': 1.0,
-    'cautious|aggressive': 0.8,
-    'cautious|balanced': 1.0,
-    'cautious|cautious': 1.1
+    'aggressive|aggressive': 1.3,
+    'aggressive|balanced': 1.4,
+    'aggressive|cautious': 0.7,
+    'balanced|aggressive': 1.4,
+    'balanced|balanced': 1.5,
+    'balanced|cautious': 1.2,
+    'cautious|aggressive': 0.7,
+    'cautious|balanced': 1.2,
+    'cautious|cautious': 1.3
   };
 
   const styleKey = `${player.gameplayStyle}|${coBuilder.gameplayStyle}`;
   const styleFactor = styleCompat[styleKey] || 1.0;
 
-  // 3. Physical Balance
+  // 3. Physical Balance (more generous)
   const physGap = Math.abs(player.physical - coBuilder.physical);
   const maxPhysical = 100;
-  const physicalFactor = 1 - (physGap / maxPhysical) * 0.5;
+  const physicalFactor = 1 - (physGap / maxPhysical) * 0.3; // Reduced penalty
 
-  // 4. Personality Harmony
+  // 4. Personality Harmony (enhanced impact)
   const avgTeam = (player.teamPlayer + coBuilder.teamPlayer) / 200;
   const avgSocial = (player.social + coBuilder.social) / 200;
   const avgMental = (player.mental + coBuilder.mental) / 200;
-  const harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
+  const harmonyFactor = (avgTeam * 1.2 + avgSocial * 1.1 + avgMental) / 3; // Weight teamPlayer more
 
-  // 5. Stress / Suspicion Penalty
+  // 5. Stress / Suspicion Penalty (reduced impact)
   const threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
   const healthAvg = (player.health + coBuilder.health) / 2 / 100;
-  const stressFactor = 1 - (threatAvg * 0.3) - ((1 - healthAvg) * 0.2);
+  const stressFactor = 1 - (threatAvg * 0.2) - ((1 - healthAvg) * 0.1); // Reduced penalties
 
-  // 6. Random Jitter
-  const randomJitter = 1 + (Math.random() - 0.5) * 0.1;
+  // 6. Success Bonus (working together successfully should be rewarding)
+  const successBonus = 1.3; // 30% bonus for successful collaboration
 
-  // 7. Base Change
-  const baseChange = performanceFactor > 1 ? +2 : -2;
+  // 7. Base Change (more significant starting point)
+  const baseChange = performanceFactor >= 1 ? +4 : +2; // Always positive for successful building
 
-  // 8. Combine & Clamp
-  const rawDelta = baseChange * performanceFactor * styleFactor * physicalFactor * harmonyFactor * stressFactor * randomJitter;
+  // 8. Combine & Apply
+  const rawDelta = baseChange * performanceFactor * styleFactor * physicalFactor * harmonyFactor * stressFactor * successBonus;
   let delta = Math.round(rawDelta);
-  delta = Math.max(-5, Math.min(5, delta));
+  
+  // Ensure meaningful change (minimum +2 for successful collaboration)
+  delta = Math.max(2, Math.min(8, delta));
+
+  console.log(`Shelter relationship calculation:
+    Performance: ${performanceFactor.toFixed(2)}
+    Style: ${styleFactor}
+    Physical: ${physicalFactor.toFixed(2)}
+    Harmony: ${harmonyFactor.toFixed(2)}
+    Stress: ${stressFactor.toFixed(2)}
+    Base: ${baseChange}
+    Final Delta: ${delta}`);
 
   return delta;
 }
