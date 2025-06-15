@@ -225,6 +225,114 @@ export default function renderWaterWell(container) {
     }, 2500); // Changed from 2000 to 2500 to match animation duration
   }
 
+  function showYourselfParchment() {
+    const overlay = createElement('div', {
+      id: 'yourself-parchment-overlay',
+      style: `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        cursor: pointer;
+      `
+    });
+
+    const parchment = createElement('div', {
+      style: `
+        width: 70vw;
+        max-width: 300px;
+        background-image: url('Assets/parch-landscape.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        padding: 30px;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `
+    });
+
+    const text = createElement('div', {
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.2rem;
+        text-align: center;
+        text-shadow: 2px 2px 4px black;
+        line-height: 1.4;
+      `
+    }, 'You fill your own canteen. The rest can fend for themselves.');
+
+    parchment.appendChild(text);
+    overlay.appendChild(parchment);
+    container.appendChild(overlay);
+
+    overlay.addEventListener('click', () => {
+      overlay.remove();
+    });
+  }
+
+  function showTribeParchment() {
+    const overlay = createElement('div', {
+      id: 'tribe-parchment-overlay',
+      style: `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        cursor: pointer;
+      `
+    });
+
+    const parchment = createElement('div', {
+      style: `
+        width: 70vw;
+        max-width: 300px;
+        background-image: url('Assets/parch-landscape.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        padding: 30px;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `
+    });
+
+    const text = createElement('div', {
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.2rem;
+        text-align: center;
+        text-shadow: 2px 2px 4px black;
+        line-height: 1.4;
+      `
+    }, 'You fill canteens for every tribe mate. This improves your standing in the tribe.');
+
+    parchment.appendChild(text);
+    overlay.appendChild(parchment);
+    container.appendChild(overlay);
+
+    overlay.addEventListener('click', () => {
+      overlay.remove();
+    });
+  }
+
   forYourselfButton.addEventListener('click', () => {
     const player = gameManager.getPlayerSurvivor();
     if (!player) return;
@@ -248,6 +356,12 @@ export default function renderWaterWell(container) {
     activityTracker.trackWaterGathering(100, false);
     
     showWaterEffect(container);
+    
+    // Show parchment popup after water effect
+    setTimeout(() => {
+      showYourselfParchment();
+    }, 500);
+    
     console.log(`Player's water is now ${player.water}`);
   });
 
@@ -308,6 +422,11 @@ export default function renderWaterWell(container) {
       showTeamPlayerEffect(container, otherMembersCount);
     }, 300);
   }
+
+  // Show parchment popup after effects
+  setTimeout(() => {
+    showTribeParchment();
+  }, 1000);
 
   console.log('Tribe watered (only those under 100 got more).');
   });
