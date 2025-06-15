@@ -25,6 +25,7 @@ export function refreshMenuCard() {
   const threatElement = document.getElementById('value-threat');
   const teamPlayerElement = document.getElementById('value-team-player');
   const hungerDisplayElement = document.getElementById('value-hunger-display');
+  const restElement = document.getElementById('value-rest');
 
   if (threatElement) {
     const threatValue = player.threat || 0;
@@ -39,5 +40,10 @@ export function refreshMenuCard() {
   if (hungerDisplayElement) {
     const hungerValue = player.hunger || 0;
     hungerDisplayElement.textContent = hungerValue;
+  }
+
+  if (restElement) {
+    const restValue = player.rest || 0;
+    restElement.textContent = restValue;
   }
 }
