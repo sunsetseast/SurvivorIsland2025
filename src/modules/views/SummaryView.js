@@ -218,9 +218,18 @@ function generateSummaryData() {
   const playerShelterActivities = dayActivities.filter(a => a.type === 'shelter_building');
 
   if (playerShelterActivities.length > 0) {
-    // Player built shelter, pick a co-builder
-    const coBuilder = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
-    data.shelterBuilders = [player, coBuilder];
+    // Player built shelter, use the actual co-builder from the activity
+    const shelterActivity = playerShelterActivities[0];
+    const coBuilderName = shelterActivity.coBuilder;
+    const coBuilder = tribeMembers.find(m => m.firstName === coBuilderName);
+    
+    if (coBuilder) {
+      data.shelterBuilders = [player, coBuilder];
+    } else {
+      // Fallback if co-builder not found
+      const fallbackCoBuilder = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
+      data.shelterBuilders = [player, fallbackCoBuilder];
+    }
   } else {
     // Pick 2 NPCs to build shelter
     const shuffled = [...tribeMembers].sort(() => Math.random() - 0.5);
