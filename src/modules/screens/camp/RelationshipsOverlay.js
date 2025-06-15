@@ -10,6 +10,9 @@ export function openRelationshipsOverlay() {
 
   // Force refresh relationship data by logging current state
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
+    // Ensure all relationships exist before displaying
+    gameManager.systems.relationshipSystem.ensureAllRelationships();
+    
     const allRelationships = gameManager.systems.relationshipSystem.getRelationships();
     console.log('Current relationships data:', allRelationships);
     console.log('Total relationships:', Object.keys(allRelationships).length);

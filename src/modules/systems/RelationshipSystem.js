@@ -59,6 +59,8 @@ class RelationshipSystem {
       }
     });
     
+    console.log(`Creating relationships for ${allSurvivors.length} survivors`);
+    
     // Create relationships between all survivors
     for (let i = 0; i < allSurvivors.length; i++) {
       for (let j = i + 1; j < allSurvivors.length; j++) {
@@ -66,7 +68,10 @@ class RelationshipSystem {
         const survivor2 = allSurvivors[j];
         
         // Skip if relationship already exists
-        if (this.getRelationship(survivor1.id, survivor2.id)) continue;
+        if (this.getRelationship(survivor1.id, survivor2.id)) {
+          console.log(`Relationship already exists between ${survivor1.firstName} (${survivor1.id}) and ${survivor2.firstName} (${survivor2.id})`);
+          continue;
+        }
         
         // Create initial relationship
         let value = this.defaultValue;
@@ -75,9 +80,12 @@ class RelationshipSystem {
         if (this._areInSameTribe(survivor1, survivor2)) {
           // Tribe bonus: 5-15 extra points
           value += getRandomInt(5, 15);
+          console.log(`Same tribe bonus for ${survivor1.firstName} and ${survivor2.firstName}: +${value - this.defaultValue}`);
         } else {
           // Small random variation for non-tribe members
-          value += getRandomInt(-10, 10);
+          const variation = getRandomInt(-10, 10);
+          value += variation;
+          console.log(`Cross-tribe relationship for ${survivor1.firstName} and ${survivor2.firstName}: ${variation > 0 ? '+' : ''}${variation}`);
         }
         
         // Ensure value is within bounds
@@ -85,10 +93,12 @@ class RelationshipSystem {
         
         // Set the relationship
         this.setRelationship(survivor1.id, survivor2.id, value);
+        console.log(`Created relationship: ${survivor1.firstName} (${survivor1.id}) ↔ ${survivor2.firstName} (${survivor2.id}) = ${value}`);
       }
     }
     
-    console.log('Initial relationships created');
+    console.log(`Initial relationships created. Total: ${Object.keys(this.relationships).length}`);
+    console.log('All relationships:', this.relationships);
   }
   
   /**
@@ -413,6 +423,55 @@ class RelationshipSystem {
    */
   setRelationships(relationships) {
     this.relationships = relationships;
+  }
+  
+  /**
+   * Ensure all survivors have relationships with each other
+   * Creates missing relationships with default values
+   */
+  ensureAllRelationships() {
+    const tribes = this.gameManager.getTribes();
+    if (!tribes || tribes.length === 0) return;
+    
+    // Get all survivors
+    const allSurvivors = [];
+    tribes.forEach(tribe => {
+      if (tribe.members && tribe.members.length > 0) {
+        tribe.members.forEach(survivor => {
+          allSurvivors.push(survivor);
+        });
+      }
+    });
+    
+    let created = 0;
+    
+    // Check all possible pairs
+    for (let i = 0; i < allSurvivors.length; i++) {
+      for (let j = i + 1; j < allSurvivors.length; j++) {
+        const survivor1 = allSurvivors[i];
+        const survivor2 = allSurvivors[j];
+        
+        // Create relationship if it doesn't exist
+        if (!this.getRelationship(survivor1.id, survivor2.id)) {
+          let value = this.defaultValue;
+          
+          // Same tribe bonus
+          if (this._areInSameTribe(survivor1, survivor2)) {
+            value += getRandomInt(5, 15);
+          } else {
+            value += getRandomInt(-10, 10);
+          }
+          
+          value = Math.min(100, Math.max(0, value));
+          this.setRelationship(survivor1.id, survivor2.id, value);
+          created++;
+        }
+      }
+    }
+    
+    if (created > 0) {
+      console.log(`Created ${created} missing relationships`);
+    }
   }
 }
 
