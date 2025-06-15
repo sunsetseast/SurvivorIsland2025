@@ -149,6 +149,25 @@ export default class CampScreen {
     });
   }
 
+  updateInventoryDisplay() {
+    const menuCard = document.getElementById('menu-card');
+    if (menuCard && menuCard.style.display === 'block') {
+      const player = gameManager.getPlayerSurvivor();
+      if (player) {
+        // Update all player stats in the inventory
+        const waterValue = document.getElementById('value-water');
+        const hungerValue = document.getElementById('value-hunger');
+        const restValue = document.getElementById('value-rest');
+        const healthValue = document.getElementById('value-health');
+        
+        if (waterValue) waterValue.textContent = player.water || 0;
+        if (hungerValue) hungerValue.textContent = player.hunger || 0;
+        if (restValue) restValue.textContent = player.rest || 0;
+        if (healthValue) healthValue.textContent = player.health || 0;
+      }
+    }
+  }
+
   renderClockUI() {
     const existing = document.getElementById('camp-clock');
     if (existing) return;
@@ -214,41 +233,23 @@ export default class CampScreen {
         return;
       }
 
+      // Track if any stats changed to update health
+      let statsChanged = false;
+
       // If at least 300 seconds (5 in-game minutes) have passed - water decrease
       if (lastWaterTick - currentTime >= 300) {
         lastWaterTick = currentTime;
         gameManager.decreaseWaterForAll(1);
-
-        // Update water display if inventory is open
-        const menuCard = document.getElementById('menu-card');
-        if (menuCard && menuCard.style.display === 'block') {
-          const player = gameManager.getPlayerSurvivor();
-          if (player) {
-            const waterValue = document.getElementById('value-water');
-            if (waterValue) {
-              waterValue.textContent = player.water || 0;
-            }
-          }
-        }
+        statsChanged = true;
+        console.log('Water decreased for all survivors (5 in-game minutes passed)');
       }
 
       // If at least 360 seconds (6 in-game minutes) have passed - hunger decrease
       if (lastHungerTick - currentTime >= 360) {
         lastHungerTick = currentTime;
         gameManager.decreaseHungerForAll(1);
+        statsChanged = true;
         console.log('Hunger decreased for all survivors (6 in-game minutes passed)');
-
-        // Update hunger display if inventory is open
-        const menuCard = document.getElementById('menu-card');
-        if (menuCard && menuCard.style.display === 'block') {
-          const player = gameManager.getPlayerSurvivor();
-          if (player) {
-            const hungerValue = document.getElementById('value-hunger');
-            if (hungerValue) {
-              hungerValue.textContent = player.hunger || 0;
-            }
-          }
-        }
       }
 
       // Dynamic rest deduction based on shelter level
@@ -270,24 +271,17 @@ export default class CampScreen {
       if (lastRestTick - currentTime >= restInterval && lastRestTick !== currentTime) {
         lastRestTick = currentTime;
         gameManager.decreaseRestForAll(1);
+        statsChanged = true;
         console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
-
-        // Update rest and health display if inventory is open
-        const menuCard = document.getElementById('menu-card');
-        if (menuCard && menuCard.style.display === 'block') {
-          const player = gameManager.getPlayerSurvivor();
-          if (player) {
-            const restValue = document.getElementById('value-rest');
-            const healthValue = document.getElementById('value-health');
-            if (restValue) {
-              restValue.textContent = player.rest || 0;
-            }
-            if (healthValue) {
-              healthValue.textContent = player.health || 0;
-            }
-          }
-        }
       }
+
+      // Update health calculations for all survivors if any stats changed
+      if (statsChanged) {
+        gameManager.updateHealthForAll();
+      }
+
+      // Update UI display if inventory is open
+      this.updateInventoryDisplay();
     }, 1000);
   }
 }
