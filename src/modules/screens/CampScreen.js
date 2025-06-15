@@ -196,10 +196,38 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.appendChild(clockWrapper);
 
-    // 🕒 Track last time water and hunger were decreased
-    let lastWaterTick = gameManager.getDayTimer();
-    let lastHungerTick = gameManager.getDayTimer();
-    let lastRestTick = gameManager.getDayTimer();
+    // 🕒 Track deduction milestones based on game timer
+    const TOTAL_GAME_TIME = 7200; // 2 hours = 7200 seconds
+    let waterDeductionTimes = new Set();
+    let hungerDeductionTimes = new Set();
+    let restDeductionTimes = new Set();
+
+    // Pre-calculate all deduction times for water (every 5 minutes = 300 seconds)
+    for (let time = TOTAL_GAME_TIME - 300; time > 0; time -= 300) {
+      waterDeductionTimes.add(time);
+    }
+
+    // Pre-calculate all deduction times for hunger (every 6 minutes = 360 seconds)
+    for (let time = TOTAL_GAME_TIME - 360; time > 0; time -= 360) {
+      hungerDeductionTimes.add(time);
+    }
+
+    // Function to calculate rest deduction times based on current shelter level
+    const calculateRestDeductionTimes = () => {
+      const playerTribe = gameManager.getPlayerTribe();
+      const shelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
+      const restInterval = 240 + (shelterLevel * 120); // 4-14 minutes based on shelter
+      
+      const newRestTimes = new Set();
+      for (let time = TOTAL_GAME_TIME - restInterval; time > 0; time -= restInterval) {
+        newRestTimes.add(time);
+      }
+      return newRestTimes;
+    };
+
+    // Initial calculation of rest deduction times
+    restDeductionTimes = calculateRestDeductionTimes();
+    let lastShelterLevel = gameManager.getPlayerTribe()?.shelter || 0;
 
     timerManager.setInterval('campClockTick', () => {
       gameManager.decreaseDayTimer();
@@ -213,9 +241,16 @@ export default class CampScreen {
         return;
       }
 
-      // If at least 300 seconds (5 in-game minutes) have passed - water decrease
-      if (lastWaterTick - currentTime >= 300) {
-        lastWaterTick = currentTime;
+      // Check if shelter level changed and recalculate rest deduction times
+      const currentShelterLevel = gameManager.getPlayerTribe()?.shelter || 0;
+      if (currentShelterLevel !== lastShelterLevel) {
+        restDeductionTimes = calculateRestDeductionTimes();
+        lastShelterLevel = currentShelterLevel;
+      }
+
+      // Water deduction - check if current time matches a deduction milestone
+      if (waterDeductionTimes.has(Math.floor(currentTime))) {
+        waterDeductionTimes.delete(Math.floor(currentTime));
         gameManager.decreaseWaterForAll(1);
 
         // Update water display if inventory is open
@@ -231,9 +266,9 @@ export default class CampScreen {
         }
       }
 
-      // If at least 360 seconds (6 in-game minutes) have passed - hunger decrease
-      if (lastHungerTick - currentTime >= 360) {
-        lastHungerTick = currentTime;
+      // Hunger deduction - check if current time matches a deduction milestone
+      if (hungerDeductionTimes.has(Math.floor(currentTime))) {
+        hungerDeductionTimes.delete(Math.floor(currentTime));
         gameManager.decreaseHungerForAll(1);
 
         // Update hunger display if inventory is open
@@ -249,15 +284,9 @@ export default class CampScreen {
         }
       }
 
-      // Dynamic rest deduction based on shelter level
-      // Level 0: 240 seconds (4 min), Level 5: 840 seconds (14 min)
-      // Linear progression: 240 + (shelterLevel * 120)
-      const playerTribe = gameManager.getPlayerTribe();
-      const shelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
-      const restInterval = 240 + (shelterLevel * 120); // 120 seconds per shelter level
-      
-      if (lastRestTick - currentTime >= restInterval) {
-        lastRestTick = currentTime;
+      // Rest deduction - check if current time matches a deduction milestone
+      if (restDeductionTimes.has(Math.floor(currentTime))) {
+        restDeductionTimes.delete(Math.floor(currentTime));
         gameManager.decreaseRestForAll(1);
 
         // Update rest display if inventory is open
