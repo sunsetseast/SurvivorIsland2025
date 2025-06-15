@@ -266,7 +266,8 @@ export default class CampScreen {
       
       const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
       
-      if (lastRestTick - currentTime >= restInterval) {
+      // Only deduct if enough time has passed AND we haven't already deducted at this time
+      if (lastRestTick - currentTime >= restInterval && lastRestTick !== currentTime) {
         lastRestTick = currentTime;
         gameManager.decreaseRestForAll(1);
         console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
