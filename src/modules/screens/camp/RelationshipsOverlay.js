@@ -8,6 +8,11 @@ let selectedSurvivor = null;
 export function openRelationshipsOverlay() {
   console.log('Opening relationships overlay...');
 
+  // Force refresh relationship data by logging current state
+  if (gameManager.systems && gameManager.systems.relationshipSystem) {
+    console.log('Current relationships data:', gameManager.systems.relationshipSystem.getRelationships());
+  }
+
   const overlay = document.getElementById('relationships-overlay');
   const tribeImage = document.getElementById('relationships-tribe-image');
   const grid = document.getElementById('relationships-grid');
@@ -196,11 +201,21 @@ function getRelationshipBorder(fromId, toId) {
 
   // Try to get relationship value
   try {
+    if (!gameManager.systems || !gameManager.systems.relationshipSystem) {
+      console.warn('Relationship system not available');
+      return '2px solid white';
+    }
+
     const relationship = gameManager.systems.relationshipSystem.getRelationship(fromId, toId);
     const value = relationship ? relationship.value : 50; // Default to neutral if no relationship found
 
-    // Debug log to verify relationship values
-    console.log(`Relationship between ${fromId} and ${toId}: ${value}`);
+    // Enhanced debug log with survivor names for clarity
+    const fromSurvivor = gameManager.survivors.find(s => s.id === fromId);
+    const toSurvivor = gameManager.survivors.find(s => s.id === toId);
+    const fromName = fromSurvivor ? fromSurvivor.firstName : `ID:${fromId}`;
+    const toName = toSurvivor ? toSurvivor.firstName : `ID:${toId}`;
+    
+    console.log(`Relationship border: ${fromName} → ${toName} = ${value} (${relationship ? 'found' : 'default'})`);
 
     if (value === 100) return '4px solid gold';
     if (value >= 76) return '3px solid green';
