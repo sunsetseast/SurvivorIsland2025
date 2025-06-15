@@ -947,25 +947,111 @@ function showStartBuildingButton() {
   document.body.appendChild(button);
 }
 
+function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, expectedBuildTime) {
+  // 1. Performance Factor
+  const performanceFactor = expectedBuildTime / actualBuildTime;
+  
+  // 2. Style Compatibility
+  const styleCompat = {
+    'aggressive|aggressive': 0.9,
+    'aggressive|balanced': 1.1,
+    'aggressive|cautious': 0.8,
+    'balanced|aggressive': 1.1,
+    'balanced|balanced': 1.2,
+    'balanced|cautious': 1.0,
+    'cautious|aggressive': 0.8,
+    'cautious|balanced': 1.0,
+    'cautious|cautious': 1.1
+  };
+  
+  const styleKey = `${player.gameplayStyle}|${coBuilder.gameplayStyle}`;
+  const styleFactor = styleCompat[styleKey] || 1.0;
+  
+  // 3. Physical Balance
+  const physGap = Math.abs(player.physical - coBuilder.physical);
+  const maxPhysical = 100;
+  const physicalFactor = 1 - (physGap / maxPhysical) * 0.5;
+  
+  // 4. Personality Harmony
+  const avgTeam = (player.teamPlayer + coBuilder.teamPlayer) / 200;
+  const avgSocial = (player.social + coBuilder.social) / 200;
+  const avgMental = (player.mental + coBuilder.mental) / 200;
+  const harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
+  
+  // 5. Stress / Suspicion Penalty
+  const threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
+  const healthAvg = (player.health + coBuilder.health) / 2 / 100;
+  const stressFactor = 1 - (threatAvg * 0.3) - ((1 - healthAvg) * 0.2);
+  
+  // 6. Random Jitter
+  const randomJitter = 1 + (Math.random() - 0.5) * 0.1;
+  
+  // 7. Base Change
+  const baseChange = performanceFactor > 1 ? +2 : -2;
+  
+  // 8. Combine & Clamp
+  const rawDelta = baseChange * performanceFactor * styleFactor * physicalFactor * harmonyFactor * stressFactor * randomJitter;
+  let delta = Math.round(rawDelta);
+  delta = Math.max(-5, Math.min(5, delta));
+  
+  return delta;
+}
+
 function startBuilding() {
   const player = gameManager.getPlayerSurvivor();
   const playerTribe = gameManager.getPlayerTribe();
   
   if (!player || !selectedCoBuilder || !playerTribe) return;
 
-  // Calculate construction time based on physical values
+  // Calculate expected construction time based on physical values
   const playerPhysical = player.physical || 30;
   const coBuilderPhysical = selectedCoBuilder.physical || 30;
   const averagePhysical = (playerPhysical + coBuilderPhysical) / 2;
   
-  // Convert average physical (28-45 range) to time (5-20 minutes)
+  // Convert average physical (28-45 range) to expected time (5-20 minutes)
   // Higher physical = less time
   const minTime = 5;
   const maxTime = 20;
   const minPhysical = 28;
   const maxPhysical = 45;
   
-  const constructionTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
+  const expectedBuildTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
+  
+  // Calculate actual build time with additional factors
+  let actualBuildTime = expectedBuildTime;
+  
+  // Apply harmony factor to actual build time
+  const avgTeam = (player.teamPlayer + coBuilder.teamPlayer) / 200;
+  const avgSocial = (player.social + coBuilder.social) / 200;
+  const avgMental = (player.mental + coBuilder.mental) / 200;
+  const harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
+  
+  // Apply style compatibility to build time
+  const styleCompat = {
+    'aggressive|aggressive': 0.9,
+    'aggressive|balanced': 1.1,
+    'aggressive|cautious': 0.8,
+    'balanced|aggressive': 1.1,
+    'balanced|balanced': 1.2,
+    'balanced|cautious': 1.0,
+    'cautious|aggressive': 0.8,
+    'cautious|balanced': 1.0,
+    'cautious|cautious': 1.1
+  };
+  
+  const styleKey = `${player.gameplayStyle}|${coBuilder.gameplayStyle}`;
+  const styleFactor = styleCompat[styleKey] || 1.0;
+  
+  // Apply stress factors
+  const threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
+  const healthAvg = (player.health + coBuilder.health) / 2 / 100;
+  const stressFactor = 1 - (threatAvg * 0.3) - ((1 - healthAvg) * 0.2);
+  
+  // Calculate final build time
+  actualBuildTime = Math.round(expectedBuildTime / (harmonyFactor * styleFactor * stressFactor));
+  actualBuildTime = Math.max(3, Math.min(30, actualBuildTime)); // Clamp between 3-30 minutes
+  
+  const constructionTime = actualBuildTime;
   
   // Increase shelter value
   const newShelterLevel = (playerTribe.shelter || 0) + 1;
@@ -989,6 +1075,16 @@ function startBuilding() {
   player.teamPlayer = (player.teamPlayer || 50) + 10;
   selectedCoBuilder.teamPlayer = (selectedCoBuilder.teamPlayer || 50) + 10;
   
+  // Calculate and apply relationship delta
+  const relationshipDelta = computeShelterRelationshipDelta(player, selectedCoBuilder, actualBuildTime, expectedBuildTime);
+  
+  // Apply relationship changes using the relationship system
+  if (gameManager.systems && gameManager.systems.relationshipSystem) {
+    gameManager.systems.relationshipSystem.changeRelationship(player.id, selectedCoBuilder.id, relationshipDelta);
+  }
+  
+  console.log(`Shelter building relationship change: ${relationshipDelta} between ${player.firstName} and ${selectedCoBuilder.firstName}`);
+  
   // Update background
   const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
   const container = document.querySelector('.shelter-wrapper').parentElement;
@@ -1010,8 +1106,17 @@ function startBuilding() {
     }
   }
   
-  // Show completion message
-  const message = `Based on your and ${selectedCoBuilder.firstName}'s Physical values, construction took ${constructionTime} minutes.`;
+  // Show completion message with relationship context
+  let relationshipMessage = '';
+  if (relationshipDelta > 0) {
+    relationshipMessage = ` Working together went well and strengthened your bond with ${selectedCoBuilder.firstName}.`;
+  } else if (relationshipDelta < 0) {
+    relationshipMessage = ` There were some tensions while working together with ${selectedCoBuilder.firstName}.`;
+  } else {
+    relationshipMessage = ` You and ${selectedCoBuilder.firstName} worked together professionally.`;
+  }
+  
+  const message = `Based on your teamwork, compatibility, and combined abilities, construction took ${constructionTime} minutes.${relationshipMessage}`;
   
   // Deduct time from clock (convert minutes to seconds)
   const timeInSeconds = constructionTime * 60;
