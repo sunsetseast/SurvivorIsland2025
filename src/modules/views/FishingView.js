@@ -644,6 +644,17 @@ export default function renderFishingView(container) {
       gameManager.getCurrentDay()
     );
 
+    // Flash the clock red
+    const timerEl = document.getElementById('clock-time-text');
+    if (timerEl) {
+      timerEl.style.color = 'red';
+      timerEl.style.transition = 'color 0.3s ease';
+
+      setTimeout(() => {
+        timerEl.style.color = '#2b190a'; // Original color
+      }, 1000);
+    }
+
     // 8) Display the result parchment (catch)
     popupMessage.textContent = fishDescription;
     popup.style.display = 'flex';
@@ -664,6 +675,18 @@ export default function renderFishingView(container) {
       gameManager.getDayTimer(),
       gameManager.getCurrentDay()
     );
+
+    // Flash the clock red
+    const timerEl = document.getElementById('clock-time-text');
+    if (timerEl) {
+      timerEl.style.color = 'red';
+      timerEl.style.transition = 'color 0.3s ease';
+
+      setTimeout(() => {
+        timerEl.style.color = '#2b190a'; // Original color
+      }, 1000);
+    }
+
     // Show miss popup
     popupMessage.textContent = `You missed.`;
     popup.style.display = 'flex';
