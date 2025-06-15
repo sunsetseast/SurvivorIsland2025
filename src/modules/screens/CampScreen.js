@@ -236,6 +236,7 @@ export default class CampScreen {
       if (lastHungerTick - currentTime >= 360) {
         lastHungerTick = currentTime;
         gameManager.decreaseHungerForAll(1);
+        console.log('Hunger decreased for all survivors (6 in-game minutes passed)');
 
         // Update hunger display if inventory is open
         const menuCard = document.getElementById('menu-card');
@@ -260,6 +261,7 @@ export default class CampScreen {
       if (currentShelterLevel !== lastShelterLevel) {
         lastRestTick = currentTime;
         lastShelterLevel = currentShelterLevel;
+        console.log(`Shelter level changed to ${currentShelterLevel}, rest interval now ${240 + (currentShelterLevel * 120)} seconds`);
       }
       
       const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
@@ -267,6 +269,7 @@ export default class CampScreen {
       if (lastRestTick - currentTime >= restInterval) {
         lastRestTick = currentTime;
         gameManager.decreaseRestForAll(1);
+        console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
 
         // Update rest display if inventory is open
         const menuCard = document.getElementById('menu-card');
