@@ -11,17 +11,9 @@ export function openRelationshipsOverlay() {
   // Force refresh relationship data by logging current state
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
     console.log('Current relationships data:', gameManager.systems.relationshipSystem.getRelationships());
-    
-    // Force a small delay to ensure any pending relationship changes are processed
-    setTimeout(() => {
-      const overlay = document.getElementById('relationships-overlay');
-      if (overlay && overlay.style.display === 'block') {
-        // Refresh the overlay to pick up any changes
-        openRelationshipsOverlayImmediate();
-      }
-    }, 100);
   }
 
+  // Always use immediate opening - no delays
   openRelationshipsOverlayImmediate();
 }
 
@@ -216,27 +208,17 @@ function getRelationshipBorder(fromId, toId) {
   // Same person - gold border
   if (fromId === toId) return '4px solid gold';
 
-  // Try to get relationship value with multiple fallback attempts
+  // Try to get relationship value
   try {
     if (!gameManager.systems || !gameManager.systems.relationshipSystem) {
       console.warn('Relationship system not available');
       return '2px solid white';
     }
 
-    // Get the relationship system instance
+    // Get fresh relationship data every time
     const relationshipSystem = gameManager.systems.relationshipSystem;
-    
-    // Direct access to relationships data for immediate lookup
-    const relationshipKey = fromId < toId ? `${fromId}_${toId}` : `${toId}_${fromId}`;
-    const allRelationships = relationshipSystem.getRelationships();
-    const directRelationship = allRelationships[relationshipKey];
-    
-    // Use the getRelationship method as backup
     const relationship = relationshipSystem.getRelationship(fromId, toId);
-    
-    // Prefer direct lookup, fallback to method lookup, then default
-    const finalRelationship = directRelationship || relationship;
-    const value = finalRelationship ? finalRelationship.value : 50;
+    const value = relationship ? relationship.value : 50; // Default to neutral if no relationship found
 
     // Enhanced debug log with survivor names for clarity
     const fromSurvivor = gameManager.survivors.find(s => s.id === fromId);
@@ -244,7 +226,7 @@ function getRelationshipBorder(fromId, toId) {
     const fromName = fromSurvivor ? fromSurvivor.firstName : `ID:${fromId}`;
     const toName = toSurvivor ? toSurvivor.firstName : `ID:${toId}`;
     
-    console.log(`Relationship border: ${fromName} → ${toName} = ${value} (key: ${relationshipKey}, direct: ${!!directRelationship}, method: ${!!relationship})`);
+    console.log(`Relationship border: ${fromName} → ${toName} = ${value} (${relationship ? 'found' : 'default'})`);
 
     if (value === 100) return '4px solid gold';
     if (value >= 76) return '3px solid green';
