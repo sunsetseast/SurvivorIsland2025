@@ -425,6 +425,48 @@
         if (menu) menu.style.display = "none";
         if (overlay) overlay.style.display = "none";
         if (inventoryOverlay) inventoryOverlay.style.display = "block";
+
+        // Update inventory values when opening
+        if (window.gameManager) {
+          const player = window.gameManager.getPlayerSurvivor();
+          if (player) {
+            // Update water value
+            const waterElement = document.getElementById("value-water");
+            if (waterElement) {
+              waterElement.textContent = player.water || 0;
+            }
+
+            // Update hunger value (using value-hunger-display from menu for consistency)
+            const hungerElement = document.getElementById("value-hunger-display");
+            if (hungerElement) {
+              hungerElement.textContent = player.hunger || 0;
+            }
+
+            // Update rest value
+            const restElement = document.getElementById("value-rest");
+            if (restElement) {
+              restElement.textContent = player.rest || 0;
+            }
+
+            // Update all other resource values
+            const fishElements = [
+              { id: "value-fish1", resource: "fish1" },
+              { id: "value-fish2", resource: "fish2" },
+              { id: "value-fish3", resource: "fish3" },
+              { id: "value-coconut", resource: "coconut" },
+              { id: "value-firewood", resource: "firewood" },
+              { id: "value-bamboo", resource: "bamboo" },
+              { id: "value-palms", resource: "palms" }
+            ];
+
+            fishElements.forEach(({ id, resource }) => {
+              const element = document.getElementById(id);
+              if (element) {
+                element.textContent = player[resource] || 0;
+              }
+            });
+          }
+        }
       }
 
       function addItemToInventory(itemElement) {
