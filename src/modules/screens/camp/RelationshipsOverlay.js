@@ -11,8 +11,21 @@ export function openRelationshipsOverlay() {
   // Force refresh relationship data by logging current state
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
     console.log('Current relationships data:', gameManager.systems.relationshipSystem.getRelationships());
+    
+    // Force a small delay to ensure any pending relationship changes are processed
+    setTimeout(() => {
+      const overlay = document.getElementById('relationships-overlay');
+      if (overlay && overlay.style.display === 'block') {
+        // Refresh the overlay to pick up any changes
+        openRelationshipsOverlayImmediate();
+      }
+    }, 100);
   }
 
+  openRelationshipsOverlayImmediate();
+}
+
+function openRelationshipsOverlayImmediate() {
   const overlay = document.getElementById('relationships-overlay');
   const tribeImage = document.getElementById('relationships-tribe-image');
   const grid = document.getElementById('relationships-grid');
@@ -125,6 +138,10 @@ export function openRelationshipsOverlay() {
       `
     });
 
+    // Force immediate relationship lookup for border calculation
+    const relationshipBorder = getRelationshipBorder(selectedSurvivor.id, member.id);
+    console.log(`Border for ${selectedSurvivor.firstName} → ${member.firstName}: ${relationshipBorder}`);
+    
     const avatar = createElement('img', {
       src: member.avatarUrl || `Assets/Avatars/${member.firstName.toLowerCase()}.jpeg`,
       alt: member.firstName,
@@ -133,7 +150,7 @@ export function openRelationshipsOverlay() {
         height: 64px;
         border-radius: 50%;
         object-fit: cover;
-        border: ${getRelationshipBorder(selectedSurvivor.id, member.id)};
+        border: ${relationshipBorder};
         background: #000;
       `
     });
@@ -199,15 +216,27 @@ function getRelationshipBorder(fromId, toId) {
   // Same person - gold border
   if (fromId === toId) return '4px solid gold';
 
-  // Try to get relationship value
+  // Try to get relationship value with multiple fallback attempts
   try {
     if (!gameManager.systems || !gameManager.systems.relationshipSystem) {
       console.warn('Relationship system not available');
       return '2px solid white';
     }
 
-    const relationship = gameManager.systems.relationshipSystem.getRelationship(fromId, toId);
-    const value = relationship ? relationship.value : 50; // Default to neutral if no relationship found
+    // Get the relationship system instance
+    const relationshipSystem = gameManager.systems.relationshipSystem;
+    
+    // Direct access to relationships data for immediate lookup
+    const relationshipKey = fromId < toId ? `${fromId}_${toId}` : `${toId}_${fromId}`;
+    const allRelationships = relationshipSystem.getRelationships();
+    const directRelationship = allRelationships[relationshipKey];
+    
+    // Use the getRelationship method as backup
+    const relationship = relationshipSystem.getRelationship(fromId, toId);
+    
+    // Prefer direct lookup, fallback to method lookup, then default
+    const finalRelationship = directRelationship || relationship;
+    const value = finalRelationship ? finalRelationship.value : 50;
 
     // Enhanced debug log with survivor names for clarity
     const fromSurvivor = gameManager.survivors.find(s => s.id === fromId);
@@ -215,12 +244,12 @@ function getRelationshipBorder(fromId, toId) {
     const fromName = fromSurvivor ? fromSurvivor.firstName : `ID:${fromId}`;
     const toName = toSurvivor ? toSurvivor.firstName : `ID:${toId}`;
     
-    console.log(`Relationship border: ${fromName} → ${toName} = ${value} (${relationship ? 'found' : 'default'})`);
+    console.log(`Relationship border: ${fromName} → ${toName} = ${value} (key: ${relationshipKey}, direct: ${!!directRelationship}, method: ${!!relationship})`);
 
     if (value === 100) return '4px solid gold';
     if (value >= 76) return '3px solid green';
     if (value >= 51) return '2px solid green';
-    if (value === 50) return '1px solid black';
+    if (value === 50) return '1px solid white';
     if (value >= 25) return '2px solid red';
     return '4px solid red';
   } catch (error) {
