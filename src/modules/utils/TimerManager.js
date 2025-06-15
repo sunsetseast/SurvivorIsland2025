@@ -160,8 +160,12 @@ class TimerManager {
       const player = this.gameManager.getPlayerSurvivor();
       if (player) {
         const waterElement = document.getElementById('value-water');
+        const healthElement = document.getElementById('value-health');
         if (waterElement) {
           waterElement.textContent = player.water || 0;
+        }
+        if (healthElement) {
+          healthElement.textContent = player.health || 0;
         }
       }
     }
@@ -184,8 +188,12 @@ class TimerManager {
       const player = this.gameManager.getPlayerSurvivor();
       if (player) {
         const hungerElement = document.getElementById('value-hunger');
+        const healthElement = document.getElementById('value-health');
         if (hungerElement) {
           hungerElement.textContent = player.hunger || 0;
+        }
+        if (healthElement) {
+          healthElement.textContent = player.health || 0;
         }
       }
     }

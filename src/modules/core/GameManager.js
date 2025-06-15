@@ -71,11 +71,11 @@ class GameManager {
     eventManager.setDebug(false);
     screenManager.initialize();
     timerManager.clearAll();
-    
+
     // Initialize relationship system
     this.systems.relationshipSystem = new RelationshipSystem(this);
     this.systems.relationshipSystem.initialize();
-    
+
     this.gameState = GameState.WELCOME;
     this.isInitialized = true;
     eventManager.publish(GameEvents.GAME_INITIALIZED);
@@ -436,7 +436,7 @@ class GameManager {
   // Calculate total tribe fish from all members
   calculateTribeFish(tribe) {
     if (!tribe || !tribe.members) return { fish: 0, fish1: 0, fish2: 0, fish3: 0 };
-    
+
     const totals = { fish: 0, fish1: 0, fish2: 0, fish3: 0 };
     tribe.members.forEach(member => {
       totals.fish1 += member.fish1 || 0;
@@ -444,7 +444,7 @@ class GameManager {
       totals.fish3 += member.fish3 || 0;
     });
     totals.fish = totals.fish1 + totals.fish2 + totals.fish3;
-    
+
     return totals;
   }
 

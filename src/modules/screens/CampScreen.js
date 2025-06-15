@@ -272,14 +272,18 @@ export default class CampScreen {
         gameManager.decreaseRestForAll(1);
         console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
 
-        // Update rest display if inventory is open
+        // Update rest and health display if inventory is open
         const menuCard = document.getElementById('menu-card');
         if (menuCard && menuCard.style.display === 'block') {
           const player = gameManager.getPlayerSurvivor();
           if (player) {
             const restValue = document.getElementById('value-rest');
+            const healthValue = document.getElementById('value-health');
             if (restValue) {
               restValue.textContent = player.rest || 0;
+            }
+            if (healthValue) {
+              healthValue.textContent = player.health || 0;
             }
           }
         }
