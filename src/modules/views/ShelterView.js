@@ -997,8 +997,8 @@ function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, exp
     baseChange = +3;
     message = 'Good collaboration';
   } else if (collaborationQuality >= 0.6) {
-    // Adequate but strained
-    baseChange = +1;
+    // Adequate but strained - can be slightly negative to slightly positive
+    baseChange = Math.random() < 0.5 ? -1 : +1; // Random between -1 and +1
     message = 'Adequate but tense';
   } else if (collaborationQuality >= 0.4) {
     // Poor collaboration - relationship damage
@@ -1013,8 +1013,13 @@ function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, exp
   // 7. Apply final calculation
   let delta = Math.round(baseChange * (0.5 + collaborationQuality * 0.5));
   
-  // Clamp to reasonable bounds (-6 to +8)
-  delta = Math.max(-6, Math.min(8, delta));
+  // Special handling for adequate but tense range to ensure -2 to +2
+  if (collaborationQuality >= 0.6 && collaborationQuality < 0.9) {
+    delta = Math.max(-2, Math.min(2, delta));
+  } else {
+    // Clamp to reasonable bounds (-6 to +8) for other categories
+    delta = Math.max(-6, Math.min(8, delta));
+  }
 
   console.log(`Shelter relationship calculation:
     Performance: ${performanceFactor.toFixed(2)}
