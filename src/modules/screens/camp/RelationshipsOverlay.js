@@ -166,6 +166,9 @@ function openRelationshipsOverlayImmediate() {
       openRelationshipsOverlay(); // Refresh the overlay
     });
 
+    // Get relationship value for display
+    const relationshipValue = getRelationshipValue(selectedSurvivor.id, member.id);
+    
     const name = createElement('span', {
       style: `
         font-family: 'Survivant', sans-serif;
@@ -177,24 +180,10 @@ function openRelationshipsOverlayImmediate() {
         max-width: 80px;
         word-wrap: break-word;
       `
-    }, member.firstName.toUpperCase());
-
-    // Get relationship value for display
-    const relationshipValue = getRelationshipValue(selectedSurvivor.id, member.id);
-    const relationshipNumber = createElement('span', {
-      style: `
-        font-family: 'Survivant', sans-serif;
-        font-size: 0.75rem;
-        color: #cccccc;
-        margin-top: 2px;
-        text-align: center;
-        text-shadow: 1px 1px 2px black;
-      `
-    }, `(${relationshipValue})`);
+    }, `${member.firstName.toUpperCase()} (${relationshipValue})`);
 
     wrapper.appendChild(avatar);
     wrapper.appendChild(name);
-    wrapper.appendChild(relationshipNumber);
     grid.appendChild(wrapper);
   });
 
