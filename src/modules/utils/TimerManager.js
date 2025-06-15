@@ -153,9 +153,6 @@ class TimerManager {
     if (!this.gameManager?.survivors?.length) return;
 
     this.gameManager.decreaseWaterForAll(1);
-    
-    // Update health for all survivors after water change
-    this.gameManager.updateHealthForAll();
 
     // Update inventory UI only if player is viewing the menu
     const menuCard = document.getElementById('menu-card');
@@ -163,12 +160,8 @@ class TimerManager {
       const player = this.gameManager.getPlayerSurvivor();
       if (player) {
         const waterElement = document.getElementById('value-water');
-        const healthElement = document.getElementById('value-health');
         if (waterElement) {
           waterElement.textContent = player.water || 0;
-        }
-        if (healthElement) {
-          healthElement.textContent = this.gameManager.calculateHealth(player);
         }
       }
     }
@@ -184,9 +177,6 @@ class TimerManager {
     if (!this.gameManager?.survivors?.length) return;
 
     this.gameManager.decreaseHungerForAll(1);
-    
-    // Update health for all survivors after hunger change
-    this.gameManager.updateHealthForAll();
 
     // Update inventory UI only if player is viewing the menu
     const menuCard = document.getElementById('menu-card');
@@ -194,12 +184,8 @@ class TimerManager {
       const player = this.gameManager.getPlayerSurvivor();
       if (player) {
         const hungerElement = document.getElementById('value-hunger');
-        const healthElement = document.getElementById('value-health');
         if (hungerElement) {
           hungerElement.textContent = player.hunger || 0;
-        }
-        if (healthElement) {
-          healthElement.textContent = this.gameManager.calculateHealth(player);
         }
       }
     }

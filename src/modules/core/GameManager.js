@@ -454,41 +454,6 @@ class GameManager {
     const relationship = this.systems.relationshipSystem.getRelationship(id1, id2);
     return relationship ? relationship.value : 50;
   }
-
-  /**
-   * Calculate health based on hunger, rest, and water values
-   * @param {Object} survivor - Survivor object
-   * @returns {number} Health value (0-100)
-   */
-  calculateHealth(survivor) {
-    if (!survivor) return 0;
-    
-    const hunger = survivor.hunger || 0;
-    const rest = survivor.rest || 0;
-    const water = survivor.water || 0;
-    
-    // Health formula: average of the three values, but with penalties for very low values
-    let health = (hunger + rest + water) / 3;
-    
-    // Apply penalties for critical low values
-    if (hunger < 20) health *= 0.8; // 20% penalty for very low hunger
-    if (rest < 20) health *= 0.8;   // 20% penalty for very low rest
-    if (water < 20) health *= 0.7;  // 30% penalty for very low water (most critical)
-    
-    // Ensure health is between 0 and 100 and return as whole number
-    return Math.round(Math.max(0, Math.min(100, health)));
-  }
-
-  /**
-   * Update health for all survivors
-   */
-  updateHealthForAll() {
-    if (!this.survivors) return;
-    
-    this.survivors.forEach(survivor => {
-      survivor.health = this.calculateHealth(survivor);
-    });
-  }
 }
 
 const gameManager = new GameManager();

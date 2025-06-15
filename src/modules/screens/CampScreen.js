@@ -256,33 +256,20 @@ export default class CampScreen {
       // Linear progression: 240 + (shelterLevel * 120)
       const playerTribe = gameManager.getPlayerTribe();
       const currentShelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
-
+      
       // Recalculate rest tick if shelter level changed
       if (currentShelterLevel !== lastShelterLevel) {
         lastRestTick = currentTime;
         lastShelterLevel = currentShelterLevel;
         console.log(`Shelter level changed to ${currentShelterLevel}, rest interval now ${240 + (currentShelterLevel * 120)} seconds`);
       }
-
+      
       const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
-
+      
       // Only deduct if enough time has passed AND we haven't already deducted at this time
       if (lastRestTick - currentTime >= restInterval && lastRestTick !== currentTime) {
         lastRestTick = currentTime;
         gameManager.decreaseRestForAll(1);
-
-        // Update health for all survivors after rest change
-        gameManager.updateHealthForAll();
-
-        // Update rest display if inventory is open
-        const menuCard = document.getElementById('menu-card');
-        if (menuCard && menuCard.style.display === 'block') {
-          const player = gameManager.getPlayerSurvivor();
-          const healthElement = document.getElementById('value-health');
-          if (healthElement) {
-            healthElement.textContent = gameManager.calculateHealth(player);
-          }
-        }
         console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
 
         // Update rest display if inventory is open
