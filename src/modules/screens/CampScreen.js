@@ -249,8 +249,14 @@ export default class CampScreen {
         }
       }
 
-      // If at least 420 seconds (7 in-game minutes) have passed - rest decrease
-      if (lastRestTick - currentTime >= 420) {
+      // Dynamic rest deduction based on shelter level
+      // Level 0: 240 seconds (4 min), Level 5: 840 seconds (14 min)
+      // Linear progression: 240 + (shelterLevel * 120)
+      const playerTribe = gameManager.getPlayerTribe();
+      const shelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
+      const restInterval = 240 + (shelterLevel * 120); // 120 seconds per shelter level
+      
+      if (lastRestTick - currentTime >= restInterval) {
         lastRestTick = currentTime;
         gameManager.decreaseRestForAll(1);
 
