@@ -199,6 +199,9 @@ function getRelationshipBorder(fromId, toId) {
     const relationship = gameManager.systems.relationshipSystem.getRelationship(fromId, toId);
     const value = relationship ? relationship.value : 50; // Default to neutral if no relationship found
 
+    // Debug log to verify relationship values
+    console.log(`Relationship between ${fromId} and ${toId}: ${value}`);
+
     if (value === 100) return '4px solid gold';
     if (value >= 76) return '3px solid green';
     if (value >= 51) return '2px solid green';
