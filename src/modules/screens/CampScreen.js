@@ -218,15 +218,22 @@ export default class CampScreen {
       if (lastWaterTick - currentTime >= 300) {
         lastWaterTick = currentTime;
         gameManager.decreaseWaterForAll(1);
+        
+        // Recalculate health for player after water change
+        gameManager.updatePlayerHealth();
 
-        // Update water display if inventory is open
+        // Update water and health display if inventory is open
         const menuCard = document.getElementById('menu-card');
         if (menuCard && menuCard.style.display === 'block') {
           const player = gameManager.getPlayerSurvivor();
           if (player) {
             const waterValue = document.getElementById('value-water');
+            const healthValue = document.getElementById('value-health');
             if (waterValue) {
               waterValue.textContent = player.water || 0;
+            }
+            if (healthValue) {
+              healthValue.textContent = player.health || 0;
             }
           }
         }
@@ -237,15 +244,22 @@ export default class CampScreen {
         lastHungerTick = currentTime;
         gameManager.decreaseHungerForAll(1);
         console.log('Hunger decreased for all survivors (6 in-game minutes passed)');
+        
+        // Recalculate health for player after hunger change
+        gameManager.updatePlayerHealth();
 
-        // Update hunger display if inventory is open
+        // Update hunger and health display if inventory is open
         const menuCard = document.getElementById('menu-card');
         if (menuCard && menuCard.style.display === 'block') {
           const player = gameManager.getPlayerSurvivor();
           if (player) {
             const hungerValue = document.getElementById('value-hunger');
+            const healthValue = document.getElementById('value-health');
             if (hungerValue) {
               hungerValue.textContent = player.hunger || 0;
+            }
+            if (healthValue) {
+              healthValue.textContent = player.health || 0;
             }
           }
         }
@@ -271,6 +285,9 @@ export default class CampScreen {
         lastRestTick = currentTime;
         gameManager.decreaseRestForAll(1);
         console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
+        
+        // Recalculate health for player after rest change
+        gameManager.updatePlayerHealth();
 
         // Update rest and health display if inventory is open
         const menuCard = document.getElementById('menu-card');
