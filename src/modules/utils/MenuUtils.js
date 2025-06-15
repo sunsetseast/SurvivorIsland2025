@@ -26,6 +26,7 @@ export function refreshMenuCard() {
   const teamPlayerElement = document.getElementById('value-team-player');
   const hungerDisplayElement = document.getElementById('value-hunger-display');
   const restElement = document.getElementById('value-rest');
+  const healthElement = document.getElementById('value-health');
 
   if (threatElement) {
     const threatValue = player.threat || 0;
@@ -45,6 +46,12 @@ export function refreshMenuCard() {
   if (restElement) {
     const restValue = player.rest || 0;
     restElement.textContent = restValue;
+  }
+
+  if (healthElement) {
+    // Calculate health using GameManager's method
+    const healthValue = window.gameManager ? window.gameManager.calculateHealth(player) : 100;
+    healthElement.textContent = healthValue;
   }
 }
 
