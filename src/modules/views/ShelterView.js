@@ -1,4 +1,3 @@
-
 /**
  * @module ShelterView
  * Renders the shelter screen inside the Camp Phase with building functionality
@@ -184,7 +183,7 @@ export default function renderShelter(container) {
 function handleCenterButtonClick() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
-  
+
   if (!playerTribe || !player) return;
 
   const shelterValue = playerTribe.shelter || 0;
@@ -264,7 +263,7 @@ function showParchmentPopup(message, canProceed = false) {
 function showCoBuilderSelection() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
-  
+
   if (!playerTribe || !player) return;
 
   const tribeColor = playerTribe.color || 'blue';
@@ -540,7 +539,7 @@ function showResourceButtons() {
   if (resourceButtons) {
     resourceButtons.style.display = 'flex';
   }
-  
+
   // Reset resource counts
   bambooAdded = 0;
   palmsAdded = 0;
@@ -564,7 +563,7 @@ function updateResourceButtonStyles() {
     bambooButton.style.boxShadow = 'none';
     bambooButton.style.borderRadius = '10px';
   }
-  
+
   if (palmsAdded >= 1) {
     palmButton.style.border = '2px solid gold';
     palmButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
@@ -786,7 +785,7 @@ function showResourcePopup(resourceType) {
     if (selectedAmount > 0) {
       // Show resource deduction effect
       showResourceEffect(resourceType, selectedAmount);
-      
+
       if (resourceType === 'bamboo') {
         bambooAdded = selectedAmount;
         player.bamboo = Math.max(0, player.bamboo - selectedAmount);
@@ -940,7 +939,7 @@ function showStartBuildingButton() {
       text-align: center;
     `
   });
-  
+
   button.innerHTML = 'Start<br>Building';
 
   button.addEventListener('click', startBuilding);
@@ -950,7 +949,7 @@ function showStartBuildingButton() {
 function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, expectedBuildTime) {
   // 1. Performance Factor
   const performanceFactor = expectedBuildTime / actualBuildTime;
-  
+
   // 2. Style Compatibility
   const styleCompat = {
     'aggressive|aggressive': 0.9,
@@ -963,69 +962,69 @@ function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, exp
     'cautious|balanced': 1.0,
     'cautious|cautious': 1.1
   };
-  
+
   const styleKey = `${player.gameplayStyle}|${coBuilder.gameplayStyle}`;
   const styleFactor = styleCompat[styleKey] || 1.0;
-  
+
   // 3. Physical Balance
   const physGap = Math.abs(player.physical - coBuilder.physical);
   const maxPhysical = 100;
   const physicalFactor = 1 - (physGap / maxPhysical) * 0.5;
-  
+
   // 4. Personality Harmony
   const avgTeam = (player.teamPlayer + coBuilder.teamPlayer) / 200;
   const avgSocial = (player.social + coBuilder.social) / 200;
   const avgMental = (player.mental + coBuilder.mental) / 200;
   const harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
-  
+
   // 5. Stress / Suspicion Penalty
   const threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
   const healthAvg = (player.health + coBuilder.health) / 2 / 100;
   const stressFactor = 1 - (threatAvg * 0.3) - ((1 - healthAvg) * 0.2);
-  
+
   // 6. Random Jitter
   const randomJitter = 1 + (Math.random() - 0.5) * 0.1;
-  
+
   // 7. Base Change
   const baseChange = performanceFactor > 1 ? +2 : -2;
-  
+
   // 8. Combine & Clamp
   const rawDelta = baseChange * performanceFactor * styleFactor * physicalFactor * harmonyFactor * stressFactor * randomJitter;
   let delta = Math.round(rawDelta);
   delta = Math.max(-5, Math.min(5, delta));
-  
+
   return delta;
 }
 
 function startBuilding() {
   const player = gameManager.getPlayerSurvivor();
   const playerTribe = gameManager.getPlayerTribe();
-  
+
   if (!player || !selectedCoBuilder || !playerTribe) return;
 
   // Calculate expected construction time based on physical values
   const playerPhysical = player.physical || 30;
   const coBuilderPhysical = selectedCoBuilder.physical || 30;
   const averagePhysical = (playerPhysical + coBuilderPhysical) / 2;
-  
+
   // Convert average physical (28-45 range) to expected time (5-20 minutes)
   // Higher physical = less time
   const minTime = 5;
   const maxTime = 20;
   const minPhysical = 28;
   const maxPhysical = 45;
-  
+
   const expectedBuildTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
-  
+
   // Calculate actual build time with additional factors
   let actualBuildTime = expectedBuildTime;
-  
+
   // Apply harmony factor to actual build time
   const avgTeam = (player.teamPlayer + selectedCoBuilder.teamPlayer) / 200;
   const avgSocial = (player.social + selectedCoBuilder.social) / 200;
   const avgMental = (player.mental + selectedCoBuilder.mental) / 200;
   const harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
-  
+
   // Apply style compatibility to build time
   const styleCompat = {
     'aggressive|aggressive': 0.9,
@@ -1038,58 +1037,58 @@ function startBuilding() {
     'cautious|balanced': 1.0,
     'cautious|cautious': 1.1
   };
-  
-  const styleKey = `${player.gameplayStyle}|${coBuilder.gameplayStyle}`;
+
+  const styleKey = `${player.gameplayStyle}|${selectedCoBuilder.gameplayStyle}`;
   const styleFactor = styleCompat[styleKey] || 1.0;
-  
+
   // Apply stress factors
   const threatAvg = (player.threat + selectedCoBuilder.threat) / 2 / 100;
   const healthAvg = (player.health + selectedCoBuilder.health) / 2 / 100;
   const stressFactor = 1 - (threatAvg * 0.3) - ((1 - healthAvg) * 0.2);
-  
+
   // Calculate final build time
   actualBuildTime = Math.round(expectedBuildTime / (harmonyFactor * styleFactor * stressFactor));
   actualBuildTime = Math.max(3, Math.min(30, actualBuildTime)); // Clamp between 3-30 minutes
-  
+
   const constructionTime = actualBuildTime;
-  
+
   // Increase shelter value
   const newShelterLevel = (playerTribe.shelter || 0) + 1;
   playerTribe.shelter = newShelterLevel;
-  
+
   // Track shelter building activity
   activityTracker.trackShelterBuilding(
     true, // success
     selectedCoBuilder.firstName,
     newShelterLevel
   );
-  
+
   // Track teamPlayer points gained
   activityTracker.trackTeamPlayerPoints(
     10, // pointsEarned
     0,  // pointsLost
     `Shelter building with ${selectedCoBuilder.firstName}`
   );
-  
+
   // Add teamPlayer points
   player.teamPlayer = (player.teamPlayer || 50) + 10;
   selectedCoBuilder.teamPlayer = (selectedCoBuilder.teamPlayer || 50) + 10;
-  
+
   // Calculate and apply relationship delta
   const relationshipDelta = computeShelterRelationshipDelta(player, selectedCoBuilder, actualBuildTime, expectedBuildTime);
-  
+
   // Apply relationship changes using the relationship system
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
     gameManager.systems.relationshipSystem.changeRelationship(player.id, selectedCoBuilder.id, relationshipDelta);
   }
-  
+
   console.log(`Shelter building relationship change: ${relationshipDelta} between ${player.firstName} and ${selectedCoBuilder.firstName}`);
-  
+
   // Update background
   const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
   const container = document.querySelector('.shelter-wrapper').parentElement;
   container.style.backgroundImage = newBackgroundImage;
-  
+
   // Update shelter level indicator
   for (let i = 0; i < 5; i++) {
     const circle = document.getElementById(`shelter-level-${i}`);
@@ -1105,7 +1104,7 @@ function startBuilding() {
       }
     }
   }
-  
+
   // Show completion message with relationship context
   let relationshipMessage = '';
   if (relationshipDelta > 0) {
@@ -1115,13 +1114,13 @@ function startBuilding() {
   } else {
     relationshipMessage = ` You and ${selectedCoBuilder.firstName} worked together professionally.`;
   }
-  
+
   const message = `Based on your teamwork, compatibility, and combined abilities, construction took ${constructionTime} minutes.${relationshipMessage}`;
-  
+
   // Deduct time from clock (convert minutes to seconds)
   const timeInSeconds = constructionTime * 60;
   gameManager.deductTime(timeInSeconds);
-  
+
   // Update clock display and flash red
   const clockElement = document.getElementById('clock-time-text');
   const dayElement = document.getElementById('clock-day-text');
@@ -1131,7 +1130,7 @@ function startBuilding() {
     clockElement.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
     dayElement.textContent = `Day ${gameManager.day}`;
   }
-  
+
   // Flash red effect on the correct clock element
   if (clockElement) {
     clockElement.style.color = 'red';
@@ -1139,21 +1138,21 @@ function startBuilding() {
       clockElement.style.color = '#2b190a';
     }, 500);
   }
-  
+
   // Show teamPlayer animation
   showTeamPlayerAnimation();
-  
+
   // Clean up
   const startButton = document.getElementById('start-building-button');
   if (startButton) startButton.remove();
-  
+
   const resourceButtons = document.getElementById('shelter-resource-buttons');
   if (resourceButtons) resourceButtons.style.display = 'none';
-  
+
   selectedCoBuilder = null;
   bambooAdded = 0;
   palmsAdded = 0;
-  
+
   showParchmentPopup(message);
 }
 
