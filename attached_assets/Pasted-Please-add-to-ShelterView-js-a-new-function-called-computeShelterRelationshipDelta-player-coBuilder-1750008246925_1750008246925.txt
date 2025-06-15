@@ -1,0 +1,59 @@
+Please add to ShelterView.js a new function called computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, expectedBuildTime) that returns a signed integer between –5 and +5. Follow this algorithm:
+
+1. **Performance Factor**  
+   - Calculate `performanceFactor = expectedBuildTime / actualBuildTime`.  
+   - This yields >1.0 for faster-than-expected builds, <1.0 for slower.
+
+2. **Style Compatibility**  
+   - Define a lookup table named `styleCompat` where keys are `"playerStyle|coStyle"` strings and values are multipliers (e.g. 1.2 for very compatible, 0.8 for clashing).  
+   - Retrieve `styleFactor = styleCompat[\`\${player.gameplayStyle}|\${coBuilder.gameplayStyle}\`]` or default to 1.0.
+
+3. **Physical Balance**  
+   - Compute absolute gap: `physGap = Math.abs(player.physical - coBuilder.physical)`.  
+   - Let `maxPhysical = 100`.  
+   - Set `physicalFactor = 1 - (physGap / maxPhysical) * 0.5`.
+
+4. **Personality Harmony**  
+   - Normalize and average the three stats:  
+     ```
+     avgTeam   = (player.teamPlayer   + coBuilder.teamPlayer)   / 200;
+     avgSocial = (player.social       + coBuilder.social)       / 200;
+     avgMental = (player.mental       + coBuilder.mental)       / 200;
+     harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
+     ```
+
+5. **Stress / Suspicion Penalty**  
+   - Compute averages:  
+     ```
+     threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
+     healthAvg = (player.health + coBuilder.health) / 2 / 100;
+     stressFactor = 1
+       - (threatAvg * 0.3)               // up to –30% if threat is max
+       - ((1 - healthAvg) * 0.2);        // up to –20% if health is zero
+     ```
+
+6. **Random Jitter**  
+   - `randomJitter = 1 + (Math.random() - 0.5) * 0.1`  // ±5%
+
+7. **Base Change**  
+   - `baseChange = performanceFactor > 1 ? +2 : -2`
+
+8. **Combine & Clamp**  
+   - Multiply all factors:  
+     ```
+     rawDelta = baseChange
+       * performanceFactor
+       * styleFactor
+       * physicalFactor
+       * harmonyFactor
+       * stressFactor
+       * randomJitter;
+     ```  
+   - Round: `delta = Math.round(rawDelta)`  
+   - Clamp:  
+     ```
+     delta = Math.max(-5, Math.min(5, delta));
+     ```  
+   - Return `delta`.
+
+Have it apply `delta` to both `player.relationships[coBuilder.id]` and `coBuilder.relationships[player.id]` immediately after the build completes.
