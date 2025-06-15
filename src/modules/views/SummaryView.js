@@ -297,6 +297,12 @@ function generateSummaryData() {
     }
   }
 
+   // Store shelter activity data
+   const shelterActivities = dayActivities.filter(a => a.type === 'shelter_building');
+   if (shelterActivities.length > 0) {
+       data.shelterActivity = shelterActivities[0]; // Use the first shelter activity found
+   }
+
   return data;
 }
 
@@ -322,17 +328,28 @@ function generateSummaryText(data) {
     });
   }
 
-  // Shelter building
-  if (data.shelterBuilders.length === 2) {
+  // Shelter building summary
+  if (data.shelterBuilders && data.shelterBuilders.length === 2) {
     const builder1 = data.shelterBuilders[0];
     const builder2 = data.shelterBuilders[1];
 
+    // Check if we have actual activity data with outcome information
+    let outcomeText = "Working together, you've created a basic foundation that will protect the tribe from the elements.";
+
+    if (data.shelterActivity && data.shelterActivity.success !== undefined) {
+      if (data.shelterActivity.success) {
+        outcomeText = "The collaboration went well, strengthening both your shelter and your working relationship.";
+      } else {
+        outcomeText = "While you managed to improve the shelter, the work was challenging and created some tension between you.";
+      }
+    }
+
     if (builder1.isPlayer) {
-      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder2.firstName} to begin constructing the tribe's shelter. Working together, you've created a basic foundation that will protect the tribe from the elements.</p>`;
+      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder2.firstName} to work on the tribe's shelter. ${outcomeText}</p>`;
     } else if (builder2.isPlayer) {
-      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder1.firstName} to begin constructing the tribe's shelter. Working together, you've created a basic foundation that will protect the tribe from the elements.</p>`;
+      text += `<p><strong>Shelter Construction:</strong> You partnered with ${builder1.firstName} to work on the tribe's shelter. ${outcomeText}</p>`;
     } else {
-      text += `<p><strong>Shelter Construction:</strong> ${builder1.firstName} and ${builder2.firstName} took initiative in building the tribe's shelter, working well together to create a protective structure.</p>`;
+      text += `<p><strong>Shelter Construction:</strong> ${builder1.firstName} and ${builder2.firstName} took initiative in building the tribe's shelter, working together to improve the structure.</p>`;
     }
   }
 

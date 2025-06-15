@@ -1095,9 +1095,10 @@ function startBuilding() {
   const newShelterLevel = (playerTribe.shelter || 0) + 1;
   playerTribe.shelter = newShelterLevel;
 
-  // Track shelter building activity
+  // Track shelter building activity with relationship outcome
+  const relationshipOutcomePositive = relationshipDelta >= 0;
   activityTracker.trackShelterBuilding(
-    true, // success
+    relationshipOutcomePositive, // success based on relationship outcome
     selectedCoBuilder.firstName,
     newShelterLevel
   );
