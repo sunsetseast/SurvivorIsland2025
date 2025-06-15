@@ -77,7 +77,7 @@ export default class CampScreen {
 
   triggerTreeMailEvent() {
     console.log('Time ran out - triggering Tree Mail event');
-    
+
     // Create the tree mail icon overlay
     const treeMailOverlay = document.createElement('div');
     treeMailOverlay.id = 'tree-mail-overlay';
@@ -199,6 +199,7 @@ export default class CampScreen {
     // 🕒 Track last time water and hunger were decreased
     let lastWaterTick = gameManager.getDayTimer();
     let lastHungerTick = gameManager.getDayTimer();
+    let lastRestTick = gameManager.getDayTimer();
 
     timerManager.setInterval('campClockTick', () => {
       gameManager.decreaseDayTimer();
@@ -243,6 +244,24 @@ export default class CampScreen {
             const hungerValue = document.getElementById('value-hunger');
             if (hungerValue) {
               hungerValue.textContent = player.hunger || 0;
+            }
+          }
+        }
+      }
+
+      // If at least 420 seconds (7 in-game minutes) have passed - rest decrease
+      if (lastRestTick - currentTime >= 420) {
+        lastRestTick = currentTime;
+        gameManager.decreaseRestForAll(1);
+
+        // Update rest display if inventory is open
+        const menuCard = document.getElementById('menu-card');
+        if (menuCard && menuCard.style.display === 'block') {
+          const player = gameManager.getPlayerSurvivor();
+          if (player) {
+            const restValue = document.getElementById('value-rest');
+            if (restValue) {
+              restValue.textContent = player.rest || 0;
             }
           }
         }

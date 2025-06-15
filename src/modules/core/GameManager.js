@@ -350,6 +350,16 @@ class GameManager {
     });
   }
 
+  decreaseRestForAll(amount) {
+    if (!this.survivors) return;
+
+    this.survivors.forEach(survivor => {
+      if (typeof survivor.rest === 'number') {
+        survivor.rest = Math.max(0, survivor.rest - amount);
+      }
+    });
+  }
+
   getDayTimer() {
     return this.dayTimer;
   }
