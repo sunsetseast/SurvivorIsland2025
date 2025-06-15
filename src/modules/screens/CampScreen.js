@@ -196,8 +196,9 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.appendChild(clockWrapper);
 
-    // 🕒 Track last time water was decreased
+    // 🕒 Track last time water and hunger were decreased
     let lastWaterTick = gameManager.getDayTimer();
+    let lastHungerTick = gameManager.getDayTimer();
 
     timerManager.setInterval('campClockTick', () => {
       gameManager.decreaseDayTimer();
@@ -211,7 +212,7 @@ export default class CampScreen {
         return;
       }
 
-      // If at least 300 seconds (5 in-game minutes) have passed
+      // If at least 300 seconds (5 in-game minutes) have passed - water decrease
       if (lastWaterTick - currentTime >= 300) {
         lastWaterTick = currentTime;
         gameManager.decreaseWaterForAll(1);
@@ -224,6 +225,24 @@ export default class CampScreen {
             const waterValue = document.getElementById('value-water');
             if (waterValue) {
               waterValue.textContent = player.water || 0;
+            }
+          }
+        }
+      }
+
+      // If at least 360 seconds (6 in-game minutes) have passed - hunger decrease
+      if (lastHungerTick - currentTime >= 360) {
+        lastHungerTick = currentTime;
+        gameManager.decreaseHungerForAll(1);
+
+        // Update hunger display if inventory is open
+        const menuCard = document.getElementById('menu-card');
+        if (menuCard && menuCard.style.display === 'block') {
+          const player = gameManager.getPlayerSurvivor();
+          if (player) {
+            const hungerValue = document.getElementById('value-hunger');
+            if (hungerValue) {
+              hungerValue.textContent = player.hunger || 0;
             }
           }
         }
