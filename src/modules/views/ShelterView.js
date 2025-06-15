@@ -1021,9 +1021,9 @@ function startBuilding() {
   let actualBuildTime = expectedBuildTime;
   
   // Apply harmony factor to actual build time
-  const avgTeam = (player.teamPlayer + coBuilder.teamPlayer) / 200;
-  const avgSocial = (player.social + coBuilder.social) / 200;
-  const avgMental = (player.mental + coBuilder.mental) / 200;
+  const avgTeam = (player.teamPlayer + selectedCoBuilder.teamPlayer) / 200;
+  const avgSocial = (player.social + selectedCoBuilder.social) / 200;
+  const avgMental = (player.mental + selectedCoBuilder.mental) / 200;
   const harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
   
   // Apply style compatibility to build time
@@ -1043,8 +1043,8 @@ function startBuilding() {
   const styleFactor = styleCompat[styleKey] || 1.0;
   
   // Apply stress factors
-  const threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
-  const healthAvg = (player.health + coBuilder.health) / 2 / 100;
+  const threatAvg = (player.threat + selectedCoBuilder.threat) / 2 / 100;
+  const healthAvg = (player.health + selectedCoBuilder.health) / 2 / 100;
   const stressFactor = 1 - (threatAvg * 0.3) - ((1 - healthAvg) * 0.2);
   
   // Calculate final build time
