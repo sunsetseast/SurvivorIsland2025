@@ -24,8 +24,7 @@ export function refreshMenuCard() {
   // Update stats display
   const threatElement = document.getElementById('value-threat');
   const teamPlayerElement = document.getElementById('value-team-player');
-  const hungerElement = document.getElementById('value-hunger');
-  const restElement = document.getElementById('value-rest');
+  const hungerDisplayElement = document.getElementById('value-hunger-display');
 
   if (threatElement) {
     const threatValue = player.threat || 0;
@@ -37,13 +36,8 @@ export function refreshMenuCard() {
     teamPlayerElement.textContent = teamPlayerValue;
   }
 
-  if (hungerElement) {
+  if (hungerDisplayElement) {
     const hungerValue = player.hunger || 0;
-    hungerElement.textContent = hungerValue;
-  }
-
-  if (restElement) {
-    const restValue = player.rest || 0;
-    restElement.textContent = restValue;
+    hungerDisplayElement.textContent = hungerValue;
   }
 }
