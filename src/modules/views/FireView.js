@@ -819,18 +819,18 @@ export default function renderFireView(container) {
       if (progress >= 0.9 && cookingItem.state === 'cooking') {
         // 90% done - item is cooked
         cookingItem.state = 'cooked';
-
+        
         // Track successful cooking
         activityTracker.trackCooking(true, cookingItem.type, cookingItem.quantity);
-
+        
         updateCookingDisplay();
       } else if (progress >= 1) {
         // 100% done - item is burned
         cookingItem.state = 'burned';
-
+        
         // Track cooking failure (burned)
         activityTracker.trackCooking(false, cookingItem.type, cookingItem.quantity);
-
+        
         updateCookingDisplay();
         clearInterval(timer);
 
@@ -989,8 +989,7 @@ export default function renderFireView(container) {
         height: 100vh;
         background-color: rgba(0, 0, 0, 0.7);
         display: flex;
-        ```text
-align-items: center;
+        align-items: center;
         justify-content: center;
         z-index: 2000;
         cursor: pointer;
@@ -999,8 +998,8 @@ align-items: center;
 
     const parchment = createElement('div', {
       style: `
-        width: 70vw;
-        max-width: 300px;
+        width: 80vw;
+        max-width: 400px;
         background-image: url('Assets/parch-landscape.png');
         background-size: contain;        background-repeat: no-repeat;
         background-position: center;
@@ -1055,8 +1054,8 @@ align-items: center;
 
     const parchment = createElement('div', {
       style: `
-        width: 70vw;
-        max-width: 300px;
+        width: 80vw;
+        max-width: 400px;
         background-image: url('Assets/parch-landscape.png');
         background-size: contain;
         background-repeat: no-repeat;
@@ -1112,8 +1111,8 @@ align-items: center;
 
     const parchment = createElement('div', {
       style: `
-        width: 70vw;
-        max-width: 300px;
+        width: 80vw;
+        max-width: 400px;
         background-image: url('Assets/parch-landscape.png');
         background-size: contain;
         background-repeat: no-repeat;
@@ -1245,8 +1244,8 @@ align-items: center;
     });
     const failureParchment = createElement('div', {
       style: `
-        width: 70vw;
-        max-width: 300px;
+        width: 80vw;
+        max-width: 400px;
         background-image: url('Assets/parch-landscape.png');
         background-size: contain;
         background-repeat: no-repeat;
@@ -1298,8 +1297,8 @@ align-items: center;
     });
     const victoryParchment = createElement('div', {
       style: `
-        width: 70vw;
-        max-width: 300px;
+        width: 80vw;
+        max-width: 400px;
         background-image: url('Assets/parch-landscape.png');
         background-size: contain;
         background-repeat: no-repeat;
@@ -1642,10 +1641,10 @@ align-items: center;
       } else {
         // --- Failure: show failure parchment, deduct time (5 min) and leave background as fire0 ---
         gameState.gameRunning = false;
-
+        
         // Track fire building failure
         activityTracker.trackFireBuilding(false, 0);
-
+        
         // Create failure particles (sand/water)
         for (let i = 0; i < 12; i++) {
           gameState.particles.push(
@@ -1903,8 +1902,8 @@ align-items: center;
 
       const parchment = createElement('div', {
         style: `
-          width: 70vw;
-          max-width: 300px;
+          width: 80vw;
+          max-width: 400px;
           background-image: url('Assets/parch-landscape.png');
           background-size: contain;
           background-repeat: no-repeat;
