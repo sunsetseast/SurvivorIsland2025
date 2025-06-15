@@ -78,8 +78,8 @@ class RelationshipSystem {
         
         // Tribe members have slightly better relationships to start
         if (this._areInSameTribe(survivor1, survivor2)) {
-          // Tribe bonus: 5-15 extra points
-          value += getRandomInt(5, 15);
+          // Tribe bonus: 1-3 extra points
+          value += getRandomInt(1, 3);
           console.log(`Same tribe bonus for ${survivor1.firstName} and ${survivor2.firstName}: +${value - this.defaultValue}`);
         } else {
           // Small random variation for non-tribe members
@@ -457,7 +457,7 @@ class RelationshipSystem {
           
           // Same tribe bonus
           if (this._areInSameTribe(survivor1, survivor2)) {
-            value += getRandomInt(5, 15);
+            value += getRandomInt(1, 3);
           } else {
             value += getRandomInt(-10, 10);
           }
