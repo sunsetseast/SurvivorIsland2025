@@ -196,10 +196,11 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.appendChild(clockWrapper);
 
-    // 🕒 Track last time water and hunger were decreased
+    // 🕒 Track last time water, hunger, and rest were decreased
     let lastWaterTick = gameManager.getDayTimer();
     let lastHungerTick = gameManager.getDayTimer();
     let lastRestTick = gameManager.getDayTimer();
+    let lastShelterLevel = gameManager.getPlayerTribe()?.shelter || 0;
 
     timerManager.setInterval('campClockTick', () => {
       gameManager.decreaseDayTimer();
@@ -253,8 +254,15 @@ export default class CampScreen {
       // Level 0: 240 seconds (4 min), Level 5: 840 seconds (14 min)
       // Linear progression: 240 + (shelterLevel * 120)
       const playerTribe = gameManager.getPlayerTribe();
-      const shelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
-      const restInterval = 240 + (shelterLevel * 120); // 120 seconds per shelter level
+      const currentShelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
+      
+      // Recalculate rest tick if shelter level changed
+      if (currentShelterLevel !== lastShelterLevel) {
+        lastRestTick = currentTime;
+        lastShelterLevel = currentShelterLevel;
+      }
+      
+      const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
       
       if (lastRestTick - currentTime >= restInterval) {
         lastRestTick = currentTime;
