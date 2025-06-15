@@ -10,11 +10,15 @@ export function openRelationshipsOverlay() {
 
   // Force refresh relationship data by logging current state
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
-    console.log('Current relationships data:', gameManager.systems.relationshipSystem.getRelationships());
+    const allRelationships = gameManager.systems.relationshipSystem.getRelationships();
+    console.log('Current relationships data:', allRelationships);
+    console.log('Total relationships:', Object.keys(allRelationships).length);
   }
 
-  // Always use immediate opening - no delays
-  openRelationshipsOverlayImmediate();
+  // Add a tiny delay to ensure any pending relationship updates are processed
+  setTimeout(() => {
+    openRelationshipsOverlayImmediate();
+  }, 50);
 }
 
 function openRelationshipsOverlayImmediate() {
@@ -134,6 +138,10 @@ function openRelationshipsOverlayImmediate() {
     const relationshipBorder = getRelationshipBorder(selectedSurvivor.id, member.id);
     console.log(`Border for ${selectedSurvivor.firstName} → ${member.firstName}: ${relationshipBorder}`);
     
+    // Additional debug: log the actual relationship value
+    const debugRelationship = gameManager.systems.relationshipSystem.getRelationship(selectedSurvivor.id, member.id);
+    console.log(`  -> Actual relationship value: ${debugRelationship ? debugRelationship.value : 'not found'}`);
+    
     const avatar = createElement('img', {
       src: member.avatarUrl || `Assets/Avatars/${member.firstName.toLowerCase()}.jpeg`,
       alt: member.firstName,
@@ -215,9 +223,15 @@ function getRelationshipBorder(fromId, toId) {
       return '2px solid white';
     }
 
-    // Get fresh relationship data every time
+    // Get fresh relationship data every time - multiple attempts
     const relationshipSystem = gameManager.systems.relationshipSystem;
-    const relationship = relationshipSystem.getRelationship(fromId, toId);
+    const allRelationships = relationshipSystem.getRelationships();
+    const relationshipKey = fromId < toId ? `${fromId}_${toId}` : `${toId}_${fromId}`;
+    const directRelationship = allRelationships[relationshipKey];
+    const methodRelationship = relationshipSystem.getRelationship(fromId, toId);
+    
+    // Use whichever method works
+    const relationship = directRelationship || methodRelationship;
     const value = relationship ? relationship.value : 50; // Default to neutral if no relationship found
 
     // Enhanced debug log with survivor names for clarity
@@ -226,7 +240,7 @@ function getRelationshipBorder(fromId, toId) {
     const fromName = fromSurvivor ? fromSurvivor.firstName : `ID:${fromId}`;
     const toName = toSurvivor ? toSurvivor.firstName : `ID:${toId}`;
     
-    console.log(`Relationship border: ${fromName} → ${toName} = ${value} (${relationship ? 'found' : 'default'})`);
+    console.log(`Relationship border: ${fromName} → ${toName} = ${value} (key: ${relationshipKey}, direct: ${!!directRelationship}, method: ${!!methodRelationship})`);
 
     if (value === 100) return '4px solid gold';
     if (value >= 76) return '3px solid green';
