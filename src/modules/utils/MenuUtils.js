@@ -46,6 +46,12 @@ export function refreshMenuCard() {
     const restValue = player.rest || 0;
     restElement.textContent = restValue;
   }
+
+  const healthElement = document.getElementById('value-health');
+  if (healthElement) {
+    const healthValue = player.health || 0;
+    healthElement.textContent = healthValue;
+  }
 }
 
 // Make refreshMenuCard globally accessible for hamburger menu
