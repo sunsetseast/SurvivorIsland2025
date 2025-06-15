@@ -47,3 +47,6 @@ export function refreshMenuCard() {
     restElement.textContent = restValue;
   }
 }
+
+// Make refreshMenuCard globally accessible for hamburger menu
+window.refreshMenuCard = refreshMenuCard;

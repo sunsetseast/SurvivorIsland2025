@@ -563,6 +563,36 @@
       }
     </script>
 
+    <script>
+      // Hamburger menu click handler
+      document.addEventListener('DOMContentLoaded', () => {
+        const hamburgerIcon = document.getElementById('hamburger-icon');
+        const menuCard = document.getElementById('menu-card');
+        const menuOverlay = document.getElementById('menu-overlay');
+
+        if (hamburgerIcon) {
+          hamburgerIcon.addEventListener('click', () => {
+            // Refresh menu values when opening
+            if (window.refreshMenuCard && typeof window.refreshMenuCard === 'function') {
+              window.refreshMenuCard();
+            }
+
+            // Show menu
+            if (menuOverlay) menuOverlay.style.display = 'block';
+            if (menuCard) menuCard.style.display = 'block';
+          });
+        }
+
+        // Close menu when clicking overlay
+        if (menuOverlay) {
+          menuOverlay.addEventListener('click', () => {
+            menuOverlay.style.display = 'none';
+            if (menuCard) menuCard.style.display = 'none';
+          });
+        }
+      });
+    </script>
+
     <script type="module" src="src/main.js"></script>
   </body>
 </html>
