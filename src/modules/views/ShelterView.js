@@ -1091,6 +1091,11 @@ function startBuilding() {
 
   const constructionTime = actualBuildTime;
 
+  // Calculate relationship delta FIRST
+  const relationshipResult = computeShelterRelationshipDelta(player, selectedCoBuilder, actualBuildTime, expectedBuildTime);
+  const relationshipDelta = relationshipResult.delta;
+  const collaborationMessage = relationshipResult.message;
+
   // Increase shelter value
   const newShelterLevel = (playerTribe.shelter || 0) + 1;
   playerTribe.shelter = newShelterLevel;
@@ -1113,11 +1118,6 @@ function startBuilding() {
   // Add teamPlayer points
   player.teamPlayer = (player.teamPlayer || 50) + 10;
   selectedCoBuilder.teamPlayer = (selectedCoBuilder.teamPlayer || 50) + 10;
-
-  // Calculate and apply relationship delta
-  const relationshipResult = computeShelterRelationshipDelta(player, selectedCoBuilder, actualBuildTime, expectedBuildTime);
-  const relationshipDelta = relationshipResult.delta;
-  const collaborationMessage = relationshipResult.message;
 
   // Apply relationship changes using the relationship system
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
