@@ -454,6 +454,33 @@ class GameManager {
     const relationship = this.systems.relationshipSystem.getRelationship(id1, id2);
     return relationship ? relationship.value : 50;
   }
+
+  // Update health for all survivors based on their stats
+  updateHealthForAll() {
+    if (!this.survivors) return;
+
+    this.survivors.forEach(survivor => {
+      this.updateSurvivorHealth(survivor);
+    });
+  }
+
+  // Calculate and update health for a single survivor
+  updateSurvivorHealth(survivor) {
+    if (!survivor) return;
+
+    const water = survivor.water || 0;
+    const hunger = survivor.hunger || 0;
+    const rest = survivor.rest || 0;
+
+    // Health calculation: average of water, hunger, and rest
+    // Each stat contributes equally to health
+    const calculatedHealth = Math.round((water + hunger + rest) / 3);
+    
+    // Ensure health stays within 0-100 bounds
+    survivor.health = Math.max(0, Math.min(100, calculatedHealth));
+
+    console.log(`Updated health for ${survivor.name}: ${survivor.health} (water: ${water}, hunger: ${hunger}, rest: ${rest})`);
+  }
 }
 
 const gameManager = new GameManager();
