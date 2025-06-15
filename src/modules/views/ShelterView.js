@@ -950,50 +950,71 @@ function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, exp
   // 1. Performance Factor (more impactful)
   const performanceFactor = expectedBuildTime / actualBuildTime;
   
-  // 2. Style Compatibility (enhanced bonuses)
+  // 2. Style Compatibility (with negative potential)
   const styleCompat = {
-    'aggressive|aggressive': 1.3,
+    'aggressive|aggressive': 1.2,  // Can clash if both too forceful
     'aggressive|balanced': 1.4,
-    'aggressive|cautious': 0.7,
+    'aggressive|cautious': 0.4,   // Very poor compatibility
     'balanced|aggressive': 1.4,
     'balanced|balanced': 1.5,
     'balanced|cautious': 1.2,
-    'cautious|aggressive': 0.7,
+    'cautious|aggressive': 0.4,   // Very poor compatibility
     'cautious|balanced': 1.2,
-    'cautious|cautious': 1.3
+    'cautious|cautious': 0.8      // Too slow together
   };
 
   const styleKey = `${player.gameplayStyle}|${coBuilder.gameplayStyle}`;
   const styleFactor = styleCompat[styleKey] || 1.0;
 
-  // 3. Physical Balance (more generous)
+  // 3. Physical Balance (bigger penalty for mismatched abilities)
   const physGap = Math.abs(player.physical - coBuilder.physical);
   const maxPhysical = 100;
-  const physicalFactor = 1 - (physGap / maxPhysical) * 0.3; // Reduced penalty
+  const physicalFactor = 1 - (physGap / maxPhysical) * 0.6; // Increased penalty
 
-  // 4. Personality Harmony (enhanced impact)
+  // 4. Personality Harmony (can be negative)
   const avgTeam = (player.teamPlayer + coBuilder.teamPlayer) / 200;
   const avgSocial = (player.social + coBuilder.social) / 200;
   const avgMental = (player.mental + coBuilder.mental) / 200;
-  const harmonyFactor = (avgTeam * 1.2 + avgSocial * 1.1 + avgMental) / 3; // Weight teamPlayer more
+  const harmonyFactor = (avgTeam * 1.3 + avgSocial * 1.2 + avgMental) / 3;
 
-  // 5. Stress / Suspicion Penalty (reduced impact)
+  // 5. Stress / Suspicion Penalty (more impactful)
   const threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
   const healthAvg = (player.health + coBuilder.health) / 2 / 100;
-  const stressFactor = 1 - (threatAvg * 0.2) - ((1 - healthAvg) * 0.1); // Reduced penalties
+  const stressFactor = 1 - (threatAvg * 0.4) - ((1 - healthAvg) * 0.3);
 
-  // 6. Success Bonus (working together successfully should be rewarding)
-  const successBonus = 1.3; // 30% bonus for successful collaboration
-
-  // 7. Base Change (more significant starting point)
-  const baseChange = performanceFactor >= 1 ? +4 : +2; // Always positive for successful building
-
-  // 8. Combine & Apply
-  const rawDelta = baseChange * performanceFactor * styleFactor * physicalFactor * harmonyFactor * stressFactor * successBonus;
-  let delta = Math.round(rawDelta);
+  // 6. Determine if collaboration was successful or problematic
+  const collaborationQuality = performanceFactor * styleFactor * physicalFactor * harmonyFactor * stressFactor;
   
-  // Ensure meaningful change (minimum +2 for successful collaboration)
-  delta = Math.max(2, Math.min(8, delta));
+  let baseChange;
+  let message = '';
+  
+  if (collaborationQuality >= 1.2) {
+    // Excellent collaboration
+    baseChange = +5;
+    message = 'Excellent teamwork!';
+  } else if (collaborationQuality >= 0.9) {
+    // Good collaboration
+    baseChange = +3;
+    message = 'Good collaboration';
+  } else if (collaborationQuality >= 0.6) {
+    // Adequate but strained
+    baseChange = +1;
+    message = 'Adequate but tense';
+  } else if (collaborationQuality >= 0.4) {
+    // Poor collaboration - relationship damage
+    baseChange = -2;
+    message = 'Poor collaboration caused friction';
+  } else {
+    // Very poor collaboration - significant damage
+    baseChange = -4;
+    message = 'Terrible collaboration caused conflict';
+  }
+
+  // 7. Apply final calculation
+  let delta = Math.round(baseChange * (0.5 + collaborationQuality * 0.5));
+  
+  // Clamp to reasonable bounds (-6 to +8)
+  delta = Math.max(-6, Math.min(8, delta));
 
   console.log(`Shelter relationship calculation:
     Performance: ${performanceFactor.toFixed(2)}
@@ -1001,10 +1022,12 @@ function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, exp
     Physical: ${physicalFactor.toFixed(2)}
     Harmony: ${harmonyFactor.toFixed(2)}
     Stress: ${stressFactor.toFixed(2)}
+    Collaboration Quality: ${collaborationQuality.toFixed(2)}
     Base: ${baseChange}
-    Final Delta: ${delta}`);
+    Final Delta: ${delta}
+    Result: ${message}`);
 
-  return delta;
+  return { delta, message };
 }
 
 function startBuilding() {
@@ -1086,14 +1109,16 @@ function startBuilding() {
   selectedCoBuilder.teamPlayer = (selectedCoBuilder.teamPlayer || 50) + 10;
 
   // Calculate and apply relationship delta
-  const relationshipDelta = computeShelterRelationshipDelta(player, selectedCoBuilder, actualBuildTime, expectedBuildTime);
+  const relationshipResult = computeShelterRelationshipDelta(player, selectedCoBuilder, actualBuildTime, expectedBuildTime);
+  const relationshipDelta = relationshipResult.delta;
+  const collaborationMessage = relationshipResult.message;
 
   // Apply relationship changes using the relationship system
   if (gameManager.systems && gameManager.systems.relationshipSystem) {
     gameManager.systems.relationshipSystem.changeRelationship(player.id, selectedCoBuilder.id, relationshipDelta);
   }
 
-  console.log(`Shelter building relationship change: ${relationshipDelta} between ${player.firstName} and ${selectedCoBuilder.firstName}`);
+  console.log(`Shelter building relationship change: ${relationshipDelta} between ${player.firstName} and ${selectedCoBuilder.firstName} (${collaborationMessage})`);
 
   // Update background
   const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
@@ -1119,11 +1144,11 @@ function startBuilding() {
   // Show completion message with relationship context
   let relationshipMessage = '';
   if (relationshipDelta > 0) {
-    relationshipMessage = ` Working together went well and strengthened your bond with ${selectedCoBuilder.firstName}.`;
+    relationshipMessage = ` ${collaborationMessage} - your relationship with ${selectedCoBuilder.firstName} improved.`;
   } else if (relationshipDelta < 0) {
-    relationshipMessage = ` There were some tensions while working together with ${selectedCoBuilder.firstName}.`;
+    relationshipMessage = ` ${collaborationMessage} - this strained your relationship with ${selectedCoBuilder.firstName}.`;
   } else {
-    relationshipMessage = ` You and ${selectedCoBuilder.firstName} worked together professionally.`;
+    relationshipMessage = ` You and ${selectedCoBuilder.firstName} worked together without major incident.`;
   }
 
   const message = `Based on your teamwork, compatibility, and combined abilities, construction took ${constructionTime} minutes.${relationshipMessage}`;
@@ -1150,8 +1175,10 @@ function startBuilding() {
     }, 500);
   }
 
-  // Show teamPlayer animation
-  showTeamPlayerAnimation();
+  // Show teamPlayer animation (only if positive outcome)
+  if (relationshipDelta >= 0) {
+    showTeamPlayerAnimation();
+  }
 
   // Clean up
   const startButton = document.getElementById('start-building-button');
