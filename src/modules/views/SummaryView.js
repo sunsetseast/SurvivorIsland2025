@@ -278,14 +278,24 @@ function generateSummaryData() {
     }
   });
 
-  // Generate relationship changes
+  // Generate relationship changes - ensure player is involved in some interactions
   const relationshipSystem = gameManager.systems.relationshipSystem;
   if (relationshipSystem) {
-    // Create some bonding pairs
-    for (let i = 0; i < 2; i++) {
+    // 70% chance player is involved in a bonding event
+    if (Math.random() < 0.7 && tribeMembers.length > 0) {
+      const bondingPartner = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
+      data.relationships.push({
+        survivors: [player, bondingPartner],
+        type: 'bonding',
+        change: getRandomInt(5, 12)
+      });
+    }
+
+    // Create some NPC bonding pairs
+    for (let i = 0; i < 1; i++) {
       if (tribeMembers.length >= 2) {
         const pair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
-        if (Math.random() < 0.7) {
+        if (Math.random() < 0.6) {
           data.relationships.push({
             survivors: pair,
             type: 'bonding',
@@ -295,14 +305,25 @@ function generateSummaryData() {
       }
     }
 
-    // Potential conflicts
-    if (Math.random() < 0.4) {
-      const conflictPair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
-      data.relationships.push({
-        survivors: conflictPair,
-        type: 'conflict',
-        change: -getRandomInt(3, 8)
-      });
+    // 30% chance of conflict involving player or NPCs
+    if (Math.random() < 0.3) {
+      let conflictPair;
+      if (Math.random() < 0.5 && tribeMembers.length > 0) {
+        // Player involved in conflict
+        const conflictPartner = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
+        conflictPair = [player, conflictPartner];
+      } else if (tribeMembers.length >= 2) {
+        // NPC conflict
+        conflictPair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
+      }
+      
+      if (conflictPair) {
+        data.relationships.push({
+          survivors: conflictPair,
+          type: 'conflict',
+          change: -getRandomInt(3, 8)
+        });
+      }
     }
   }
 
@@ -323,7 +344,8 @@ function generateSummaryText(data) {
   // Leadership
   if (data.leadership.length > 0) {
     const leader = data.leadership[0];
-    text += `<p><strong>Leadership:</strong> ${leader.firstName} ${leader.lastName} stepped up as a natural leader, organizing the tribe's initial efforts. Their authoritative presence has increased their threat level.</p>`;
+    const threatIncrease = getRandomInt(2, 4);
+    text += `<p><strong>Leadership:</strong> ${leader.firstName} ${leader.lastName} stepped up as a natural leader, organizing the tribe's initial efforts. Their authoritative presence has increased their threat level. <em>(Threat +${threatIncrease})</em></p>`;
   }
 
   // Fire attempts
@@ -425,7 +447,9 @@ function generateSummaryText(data) {
     if (resources.length > 0) {
       gatheringDetails.push(`${survivor.firstName} gathered ${resources.join(', ')}`);
     } else {
-      gatheringDetails.push(`${survivor.firstName} focused on other tasks`);
+      const teamPlayerPenalty = data.teamPlayerChanges && data.teamPlayerChanges[survivorId];
+      const penaltyText = teamPlayerPenalty ? ` <em>(Team Player ${teamPlayerPenalty})</em>` : '';
+      gatheringDetails.push(`${survivor.firstName} focused on other tasks${penaltyText}`);
     }
   });
 
@@ -441,12 +465,20 @@ function generateSummaryText(data) {
     const conflictEvents = data.relationships.filter(r => r.type === 'conflict');
 
     if (bondingEvents.length > 0) {
-      const bonds = bondingEvents.map(b => `${b.survivors[0].firstName} and ${b.survivors[1].firstName} formed a strong connection`);
+      const bonds = bondingEvents.map(b => {
+        const survivor1Name = b.survivors[0].isPlayer ? 'You' : b.survivors[0].firstName;
+        const survivor2Name = b.survivors[1].isPlayer ? 'you' : b.survivors[1].firstName;
+        return `${survivor1Name} and ${survivor2Name} formed a strong connection <em>(Relationship +${b.change})</em>`;
+      });
       text += bonds.join(', ') + '. ';
     }
 
     if (conflictEvents.length > 0) {
-      const conflicts = conflictEvents.map(c => `tension emerged between ${c.survivors[0].firstName} and ${c.survivors[1].firstName}`);
+      const conflicts = conflictEvents.map(c => {
+        const survivor1Name = c.survivors[0].isPlayer ? 'you' : c.survivors[0].firstName;
+        const survivor2Name = c.survivors[1].isPlayer ? 'you' : c.survivors[1].firstName;
+        return `tension emerged between ${survivor1Name} and ${survivor2Name} <em>(Relationship ${c.change})</em>`;
+      });
       text += 'However, ' + conflicts.join(', ') + '. ';
     }
 
@@ -498,12 +530,18 @@ function applySummaryChanges(data) {
   });
 
   // Update teamPlayer values for those who didn't gather resources
+  const teamPlayerChanges = {};
   Object.keys(data.resourceGathering).forEach(survivorId => {
     const survivor = playerTribe.members.find(m => m.id == survivorId);
     if (survivor && data.resourceGathering[survivorId].length === 0) {
-      survivor.teamPlayer = Math.max(0, survivor.teamPlayer - getRandomInt(3, 8));
+      const penalty = getRandomInt(3, 8);
+      survivor.teamPlayer = Math.max(0, survivor.teamPlayer - penalty);
+      teamPlayerChanges[survivorId] = -penalty;
     }
   });
+  
+  // Store team player changes for display
+  data.teamPlayerChanges = teamPlayerChanges;
 
   // Apply relationship changes
   if (relationshipSystem) {
