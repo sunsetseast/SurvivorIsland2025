@@ -42,15 +42,14 @@ class ChallengeScreen {
     // Clear any existing content
     clearChildren(this.container);
 
-    // Determine which view to load based on game state
+    // Get current game state
     const currentDay = gameManager.getDay();
     const gamePhase = gameManager.getGamePhase();
     const tribes = gameManager.getTribes();
 
     console.log(`Setting up challenge for Day ${currentDay}, Phase: ${gamePhase}`);
 
-    // For now, always load the tribal challenge view
-    // In the future, this can be expanded to handle individual challenges post-merge
+    // Load the tribal challenge view
     this.loadTribeChallengeView();
   }
 
