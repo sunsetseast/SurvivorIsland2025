@@ -81,6 +81,4 @@ class ChallengeScreen {
   }
 }
 
-// Create and export instance
-const challengeScreen = new ChallengeScreen();
-export default challengeScreen;
+export default ChallengeScreen;
