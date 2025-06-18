@@ -1,3 +1,4 @@
+
 /**
  * Main entry point for the Survivor Island game
  * Initializes game systems and starts the game
@@ -11,7 +12,7 @@ import {
   CampScreen,
   ChallengeScreen
 } from './modules/screens/index.js';
-import * * as systems from './modules/systems/index.js';
+import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
 import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOverlay.js';
 
@@ -48,7 +49,7 @@ function init() {
   const campScreenInstance = new CampScreen();
   screenManager.registerScreen('camp', campScreenInstance);
   window.campScreen = campScreenInstance;
-  screenManager.registerScreen('challenge-screen', new ChallengeScreen());
+  screenManager.registerScreen('challenge', new ChallengeScreen());
 
   screenManager.initialize();
   screenManager.showScreen('welcome');
