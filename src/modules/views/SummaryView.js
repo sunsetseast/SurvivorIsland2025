@@ -184,7 +184,7 @@ export default function renderSummary(container) {
 
     continueButton.addEventListener('click', () => {
       console.log('Continue to Challenge button clicked');
-      gameManager.setGameState('challenge');
+      gameManager.setGameState('challenge-screen');
     });
 
     actionButtons.appendChild(continueButton);

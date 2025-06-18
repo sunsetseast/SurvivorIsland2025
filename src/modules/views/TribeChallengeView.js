@@ -1,4 +1,3 @@
-
 /**
  * @module TribeChallengeView
  * Renders the Tribal Immunity Challenge screen
@@ -116,6 +115,7 @@ export default function renderTribeChallengeView(container) {
       console.log('Continue to Challenge clicked');
       // Return to camp screen summary view
       gameManager.setGameState('camp');
+      screenManager.showScreen('camp');
       if (window.campScreen && typeof window.campScreen.loadView === 'function') {
         window.campScreen.loadView('summary');
       }
@@ -142,7 +142,7 @@ export default function renderTribeChallengeView(container) {
   console.log('Player:', playerSurvivor?.name);
   console.log('Player Tribe:', playerTribe?.tribeName);
   console.log('Total Tribes:', tribes?.length);
-  
+
   if (tribes) {
     tribes.forEach((tribe, index) => {
       console.log(`Tribe ${index + 1}: ${tribe.tribeName} (${tribe.members?.length} members)`);
