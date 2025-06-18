@@ -75,19 +75,20 @@ export default function renderSummary(container) {
       border-bottom: 2px solid white;
       padding-bottom: 10px;
     `
-  }, `Day 1 Summary - ${playerTribe.tribeName} Tribe`);
+  }, `Day 1 Summary - ${playerTribe.name} Tribe`);
 
   const summaryContent = createElement('div', {
     style: `
-      background: rgba(0, 0, 0, 0.7);
+      background: #F5DEB3;
       border-radius: 15px;
       padding: 25px;
       max-width: 800px;
-      color: white;
+      color: #4A4A4A;
       font-family: 'Survivant', sans-serif;
       font-size: 1.1rem;
       line-height: 1.6;
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      border: 2px solid #D2B48C;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     `
   });
 
@@ -96,7 +97,7 @@ export default function renderSummary(container) {
 
   const textElement = createElement('div', {
     style: `
-      text-shadow: 1px 1px 2px black;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
     `
   });
   textElement.innerHTML = summaryText;
@@ -131,9 +132,10 @@ export default function renderSummary(container) {
           transition: transform 0.1s ease;
           font-family: 'Survivant', sans-serif;
           font-size: 1rem;
-          color: #8B4513;
+          color: white;
           font-weight: bold;
-          text-shadow: 1px 1px 1px rgba(255,255,255,0.8);
+          text-shadow: 2px 2px 4px black;
+          text-align: center;
         `
       }, text);
 
@@ -339,7 +341,7 @@ function generateSummaryData() {
 function generateSummaryText(data) {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
-  let text = `<p><strong>The first two hours at ${playerTribe.tribeName} camp have set the stage for the days ahead...</strong></p>`;
+  let text = `<p><strong>The first two hours at ${playerTribe.name} camp have set the stage for the days ahead...</strong></p>`;
 
   // Leadership
   if (data.leadership.length > 0) {
@@ -398,10 +400,14 @@ function generateSummaryText(data) {
   if (playerResourceActivities.length > 0) {
     const resourceSummary = {};
     playerResourceActivities.forEach(activity => {
-      resourceSummary[activity.resourceType] = (resourceSummary[activity.resourceType] || 0) + activity.quantity;
+      if (activity.resourceType && activity.quantity > 0) {
+        resourceSummary[activity.resourceType] = (resourceSummary[activity.resourceType] || 0) + activity.quantity;
+      }
     });
     Object.keys(resourceSummary).forEach(resource => {
-      playerActions.push(`collected ${resourceSummary[resource]} ${resource}`);
+      if (resourceSummary[resource] > 0) {
+        playerActions.push(`collected ${resourceSummary[resource]} ${resource}`);
+      }
     });
   }
 
@@ -511,7 +517,8 @@ function generateSummaryText(data) {
     }
   }
 
-  text += `<p><strong>Tribe Status:</strong> ${playerTribe.tribeName} ends their first day with a fire level of ${data.currentFire} and shelter level of ${data.currentShelter}. The foundation has been set for the challenges ahead.</p>`;
+  const fireStatus = data.currentFire === 0 ? 'no fire' : `a fire level of ${data.currentFire}`;
+  text += `<p><strong>Tribe Status:</strong> ${playerTribe.name} ends their first day with ${fireStatus} and shelter level of ${data.currentShelter}. The foundation has been set for the challenges ahead.</p>`;
 
   return text;
 }
