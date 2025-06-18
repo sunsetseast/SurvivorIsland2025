@@ -151,9 +151,40 @@ export default function renderSummary(container) {
       return button;
     };
 
-    const continueButton = createButton('Continue to Challenge', () => {
-      console.log('Continue to Challenge clicked');
-      gameManager.advanceGamePhase();
+    // Add continue button at the bottom
+  const continueButton = createElement('div', {
+    style: `
+          background-image: url('Assets/Buttons/blank.png');
+          background-size: contain;
+          background-repeat: no-repeat;
+          background-position: center;
+          width: 200px;
+          height: 100px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: transform 0.1s ease;
+          font-family: 'Survivant', sans-serif;
+          font-size: 1rem;
+          color: white;
+          font-weight: bold;
+          text-shadow: 2px 2px 4px black;
+          text-align: center;
+        `
+  }, 'Continue to Challenge');
+
+      continueButton.addEventListener('mouseenter', () => {
+        continueButton.style.transform = 'scale(1.05)';
+      });
+
+      continueButton.addEventListener('mouseleave', () => {
+        continueButton.style.transform = 'scale(1)';
+      });
+
+    continueButton.addEventListener('click', () => {
+      console.log('Continue to Challenge button clicked');
+      gameManager.setGameState('challenge');
     });
 
     actionButtons.appendChild(continueButton);
@@ -224,7 +255,7 @@ function generateSummaryData() {
     const shelterActivity = playerShelterActivities[0];
     const coBuilderName = shelterActivity.coBuilder;
     const coBuilder = tribeMembers.find(m => m.firstName === coBuilderName);
-    
+
     if (coBuilder) {
       data.shelterBuilders = [player, coBuilder];
     } else {
@@ -318,7 +349,7 @@ function generateSummaryData() {
         // NPC conflict
         conflictPair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
       }
-      
+
       if (conflictPair) {
         data.relationships.push({
           survivors: conflictPair,
@@ -546,7 +577,7 @@ function applySummaryChanges(data) {
       teamPlayerChanges[survivorId] = -penalty;
     }
   });
-  
+
   // Store team player changes for display
   data.teamPlayerChanges = teamPlayerChanges;
 
