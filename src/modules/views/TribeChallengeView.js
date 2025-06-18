@@ -150,29 +150,4 @@ export default function renderTribeChallengeView(container) {
   }
 
   addDebugBanner(`Player: ${playerSurvivor?.name} | Tribe: ${playerTribe?.tribeName}`, 'green', 100);
-
-  // Add event listeners for filter buttons
-  const filterButtons = container.querySelectorAll('.filter-button');
-  filterButtons.forEach(button => {
-    if (button && typeof button.classList !== 'undefined') {
-      button.addEventListener('click', () => {
-        // Remove active class from all buttons
-        filterButtons.forEach(btn => {
-          if (btn && typeof btn.classList !== 'undefined') {
-            btn.classList.remove('active');
-          }
-        });
-        // Add active class to clicked button
-        if (button.classList) {
-          button.classList.add('active');
-        }
-
-        const filter = button.dataset ? button.dataset.filter : '';
-        console.log(`Filter button clicked: ${filter}`);
-
-        // Here you would implement the actual filtering logic
-        // For now, just log the filter type
-      });
-    }
-  });
 }

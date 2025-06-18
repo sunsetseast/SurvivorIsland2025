@@ -77,8 +77,44 @@ export default class CampScreen {
 
   triggerTreeMailEvent() {
     console.log('Time ran out - triggering Tree Mail event');
-    // Only load tree mail view, don't automatically go to challenge
-    this.loadView('treemail');
+
+    // Create the tree mail icon overlay
+    const treeMailOverlay = document.createElement('div');
+    treeMailOverlay.id = 'tree-mail-overlay';
+    treeMailOverlay.style.position = 'fixed';
+    treeMailOverlay.style.top = '0';
+    treeMailOverlay.style.left = '0';
+    treeMailOverlay.style.width = '100%';
+    treeMailOverlay.style.height = '100%';
+    treeMailOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    treeMailOverlay.style.display = 'flex';
+    treeMailOverlay.style.alignItems = 'center';
+    treeMailOverlay.style.justifyContent = 'center';
+    treeMailOverlay.style.zIndex = '2000';
+    treeMailOverlay.style.opacity = '0';
+    treeMailOverlay.style.transition = 'opacity 0.5s ease';
+
+    // Create the large tree mail icon
+    const treeMailIcon = document.createElement('img');
+    treeMailIcon.src = 'Assets/Resources/treeMail.png';
+    treeMailIcon.alt = 'Tree Mail';
+    treeMailIcon.style.width = '200px';
+    treeMailIcon.style.height = '200px';
+    treeMailIcon.style.objectFit = 'contain';
+    treeMailIcon.style.animation = 'pulse 1s ease-in-out infinite';
+
+    treeMailOverlay.appendChild(treeMailIcon);
+    document.body.appendChild(treeMailOverlay);
+
+    // Fade in the overlay
+    setTimeout(() => {
+      treeMailOverlay.style.opacity = '1';
+    }, 100);
+
+    // After 2 seconds, animate to top-left position
+    setTimeout(() => {
+      this.animateTreeMailToPosition(treeMailOverlay, treeMailIcon);
+    }, 2000);
   }
 
   animateTreeMailToPosition(overlay, icon) {
@@ -123,7 +159,7 @@ export default class CampScreen {
         const hungerValue = document.getElementById('value-hunger');
         const restValue = document.getElementById('value-rest');
         const healthValue = document.getElementById('value-health');
-
+        
         if (waterValue) waterValue.textContent = player.water || 0;
         if (hungerValue) hungerValue.textContent = player.hunger || 0;
         if (restValue) restValue.textContent = player.rest || 0;
@@ -221,16 +257,16 @@ export default class CampScreen {
       // Linear progression: 240 + (shelterLevel * 120)
       const playerTribe = gameManager.getPlayerTribe();
       const currentShelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
-
+      
       // Recalculate rest tick if shelter level changed
       if (currentShelterLevel !== lastShelterLevel) {
         lastRestTick = currentTime;
         lastShelterLevel = currentShelterLevel;
         console.log(`Shelter level changed to ${currentShelterLevel}, rest interval now ${240 + (currentShelterLevel * 120)} seconds`);
       }
-
+      
       const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
-
+      
       // Only deduct if enough time has passed AND we haven't already deducted at this time
       if (lastRestTick - currentTime >= restInterval && lastRestTick !== currentTime) {
         lastRestTick = currentTime;

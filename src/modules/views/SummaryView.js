@@ -5,7 +5,6 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
-import screenManager from '../core/ScreenManager.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
 
@@ -185,7 +184,7 @@ export default function renderSummary(container) {
 
     continueButton.addEventListener('click', () => {
       console.log('Continue to Challenge button clicked');
-      screenManager.showScreen('challenge-screen');
+      gameManager.setGameState('challenge-screen');
     });
 
     actionButtons.appendChild(continueButton);
