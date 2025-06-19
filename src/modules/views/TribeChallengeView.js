@@ -132,6 +132,14 @@ const TribeChallengeView = {
         z-index: 2;
         padding: 15px 30px;
         font-size: 1.1rem;
+        background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+        color: white;
+        border: 2px solid #654321;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Survivant', sans-serif;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       `,
       onclick: () => {
         this.challengeStage++;
@@ -256,6 +264,16 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+        color: white;
+        border: 2px solid #654321;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Survivant', sans-serif;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       `,
       onclick: () => {
         this.challengeStage++;
@@ -331,6 +349,16 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+        color: white;
+        border: 2px solid #654321;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Survivant', sans-serif;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       `,
       onclick: () => {
         this.challengeStage++;
@@ -462,6 +490,16 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+        color: white;
+        border: 2px solid #654321;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Survivant', sans-serif;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       `,
       onclick: () => {
         this.challengeStage++;
