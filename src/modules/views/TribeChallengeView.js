@@ -105,8 +105,12 @@ const TribeChallengeView = {
         text-align: center;
         margin: -160px auto 0;
         max-width: 260px;
-        font-size: 1.2rem;
+        font-size: 1.8rem;
         line-height: 1.3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 120px;
         text-shadow:
           0 1px 0 #000,
           0 2px 0 #000,
@@ -140,6 +144,9 @@ const TribeChallengeView = {
 
   renderPlayerTribeFlag(container, config, playerTribe, player) {
     clearChildren(container);
+
+    // Remove Jeff background by setting challenge background
+    container.style.backgroundImage = `url('${config.background}')`;
 
     const wrapper = createElement('div', {
       className: 'tribe-wrapper',
@@ -251,6 +258,20 @@ const TribeChallengeView = {
         z-index: 2;
         padding: 15px 30px;
         font-size: 1.1rem;
+        min-width: 120px;
+        height: 50px;
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -264,6 +285,9 @@ const TribeChallengeView = {
 
   renderOtherTribesMessage(container, config, allTribes) {
     clearChildren(container);
+
+    // Set challenge background instead of Jeff background
+    container.style.backgroundImage = `url('${config.background}')`;
 
     const parchmentWrapper = createElement('div', {
       style: `
@@ -325,6 +349,20 @@ const TribeChallengeView = {
         z-index: 2;
         padding: 15px 30px;
         font-size: 1.1rem;
+        min-width: 120px;
+        height: 50px;
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -337,6 +375,9 @@ const TribeChallengeView = {
 
   renderOtherTribeFlag(container, config, tribe) {
     clearChildren(container);
+
+    // Set challenge background instead of Jeff background
+    container.style.backgroundImage = `url('${config.background}')`;
 
     const wrapper = createElement('div', {
       className: 'tribe-wrapper',
@@ -454,6 +495,20 @@ const TribeChallengeView = {
         z-index: 2;
         padding: 15px 30px;
         font-size: 1.1rem;
+        min-width: 120px;
+        height: 50px;
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       `,
       onclick: () => {
         this.challengeStage++;
