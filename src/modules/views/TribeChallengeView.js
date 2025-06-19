@@ -63,8 +63,11 @@ const TribeChallengeView = {
         const tribeIndex = this.challengeStage - 3;
         if (tribeIndex >= 0 && tribeIndex < otherTribes.length) {
           this.renderOtherTribeFlag(container, config, otherTribes[tribeIndex]);
+        } else if (this.challengeStage === 3 + otherTribes.length) {
+          // Show Jeff's challenge explanation
+          this.renderJeffChallengeExplanation(container, config);
         } else {
-          // All tribes shown, now show the actual challenge info
+          // All stages complete, show the actual challenge info
           this.renderChallengeInfo(container, config, playerTribe, allTribes, player);
         }
         break;
@@ -153,11 +156,98 @@ const TribeChallengeView = {
     container.append(parchmentWrapper, nextButton);
   },
 
+  renderJeffChallengeExplanation(container, config) {
+    clearChildren(container);
+
+    // Use Jeff background for this explanation
+    container.style.backgroundImage = `url('${config.background}')`;
+
+    // Parchment wrapper for Jeff's challenge explanation
+    const parchmentWrapper = createElement('div', {
+      style: `
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 320px;
+        z-index: 2;
+      `
+    });
+
+    const parchment = createElement('img', {
+      src: 'Assets/parch-landscape.png',
+      style: `
+        width: 100%;
+        max-width: 320px;
+        max-height: 180px;
+        display: block;
+        margin: 0 auto;
+      `
+    });
+
+    const jeffText = createElement('div', {
+      className: 'parchment-text',
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        margin: -160px auto 0;
+        max-width: 260px;
+        font-size: 0.9rem;
+        line-height: 1.2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 120px;
+        text-shadow:
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+      `
+    }, 'Welcome to your first Immunity Challenge of the season! Winning the challenge earns safety for your tribe. Losing tribe will join me tonight for the first Tribal Council of Survivor Island.');
+
+    parchmentWrapper.append(parchment, jeffText);
+
+    // Begin Challenge button
+    const beginButton = createElement('button', {
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        this.challengeStage++;
+        this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+      }
+    }, 'Begin Challenge');
+
+    container.append(parchmentWrapper, beginButton);
+  },
+
   renderPlayerTribeFlag(container, config, playerTribe, player) {
     clearChildren(container);
 
-    // Remove Jeff background by setting challenge background
-    container.style.backgroundImage = `url('${config.background}')`;
+    // Use challenge background instead of Jeff background
+    container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
 
     const wrapper = createElement('div', {
       className: 'tribe-wrapper',
@@ -294,8 +384,8 @@ const TribeChallengeView = {
   renderOtherTribesMessage(container, config, allTribes) {
     clearChildren(container);
 
-    // Set challenge background instead of Jeff background
-    container.style.backgroundImage = `url('${config.background}')`;
+    // Use challenge background instead of Jeff background
+    container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
 
     const parchmentWrapper = createElement('div', {
       style: `
@@ -381,8 +471,8 @@ const TribeChallengeView = {
   renderOtherTribeFlag(container, config, tribe) {
     clearChildren(container);
 
-    // Set challenge background instead of Jeff background
-    container.style.backgroundImage = `url('${config.background}')`;
+    // Use challenge background instead of Jeff background
+    container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
 
     const wrapper = createElement('div', {
       className: 'tribe-wrapper',
@@ -517,7 +607,7 @@ const TribeChallengeView = {
         this.challengeStage++;
         this.renderSpecialIntro(container, config, playerTribe, allTribes, gameManager.getPlayerSurvivor());
       }
-    }, isLastTribe ? 'Begin Challenge' : 'Next');
+    }, 'Next');
 
     wrapper.append(tribeImage, tribeNameOverlay, avatarGrid, nextButton);
     container.appendChild(wrapper);
