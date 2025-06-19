@@ -127,7 +127,7 @@ class GameManager {
       characterSelection: 'character-selection',
       tribeDivision: 'tribe-division',
       camp: 'camp',
-      challenge: 'challenge-screen',
+      challenge: 'challenge',
       tribalCouncil: 'tribal-council',
       fireMaking: 'fire-making-challenge',
       finale: 'finale',
