@@ -112,12 +112,13 @@ export default function renderTribeChallengeView(container) {
       font-size: 1rem;
     `,
     onclick: () => {
-      console.log('Continue to Challenge clicked');
-      // Return to camp screen summary view
+      console.log('Continue from Challenge clicked');
+      // This should advance to next day or tribal council
+      // For now, return to camp screen
       gameManager.setGameState('camp');
       screenManager.showScreen('camp');
       if (window.campScreen && typeof window.campScreen.loadView === 'function') {
-        window.campScreen.loadView('summary');
+        window.campScreen.loadView('flag');
       }
     }
   }, 'Continue to Challenge');

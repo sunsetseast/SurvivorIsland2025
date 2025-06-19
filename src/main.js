@@ -1,4 +1,3 @@
-
 /**
  * Main entry point for the Survivor Island game
  * Initializes game systems and starts the game
