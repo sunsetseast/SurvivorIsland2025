@@ -276,10 +276,6 @@ const TribeChallengeView = {
 
 export default TribeChallengeView;
 
-// ChallengeIntroView.js
-import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import gameManager from '../core/GameManager.js';
-
 const ChallengeIntroView = {
     render(container, config, playerTribe, allTribes, player, onIntroComplete) {
         clearChildren(container);
@@ -936,20 +932,6 @@ const ChallengeIntroView = {
         container.append(popupWrapper);
     }
 };
-
-// ChallengeScreen.js```text
-align-items: center;
-        justify-content: center;
-      `
-        });
-
-        container.append(popupWrapper);
-    }
-};
-
-// ChallengeScreen.js
-import React, { useState, useEffect } from 'react';
-import TribeChallengeView from './TribeChallengeView.js';
 import ChallengeIntroView from './ChallengeIntroView.js';
 import gameManager from '../core/GameManager.js';
 
