@@ -2,6 +2,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
 import challengeManager from '../core/ChallengeManager.js';
+import ChallengeIntroView from '../views/ChallengeIntroView.js';
 import TribeChallengeView from '../views/TribeChallengeView.js';
 import IndividualChallengeView from '../views/IndividualChallengeView.js';
 
@@ -36,6 +37,25 @@ export default class ChallengeScreen {
   }
 
   loadChallenge() {
+    if (!this.container || !this.currentChallenge) return;
+
+    clearChildren(this.container);
+
+    // Always start with the challenge introduction
+    this.loadChallengeIntro();
+  }
+
+  loadChallengeIntro() {
+    // Show the challenge introduction first
+    ChallengeIntroView.render(this.container, this.currentChallenge, () => {
+      // Once intro is complete, load the actual challenge
+      this.loadActualChallenge();
+    });
+    this.currentView = 'challenge-intro';
+    console.log(`Loaded challenge introduction: ${this.currentChallenge.name}`);
+  }
+
+  loadActualChallenge() {
     if (!this.container || !this.currentChallenge) return;
 
     clearChildren(this.container);
