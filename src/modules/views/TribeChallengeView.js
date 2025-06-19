@@ -59,7 +59,7 @@ const TribeChallengeView = {
         break;
       default:
         // Show other tribes (stage 3+)
-        const otherTribes = allTribes.filter(tribe => tribe.id !== playerTribe.id);
+        const otherTribes = allTribes.filter(tribe => tribe.name !== playerTribe.name);
         const tribeIndex = this.challengeStage - 3;
         if (tribeIndex >= 0 && tribeIndex < otherTribes.length) {
           this.renderOtherTribeFlag(container, config, otherTribes[tribeIndex]);
@@ -297,7 +297,7 @@ const TribeChallengeView = {
     });
 
     const playerTribe = gameManager.getPlayerTribe();
-    const otherTribes = allTribes.filter(tribe => tribe.id !== playerTribe.id);
+    const otherTribes = allTribes.filter(tribe => tribe.name !== playerTribe.name);
     const messageText = otherTribes.length > 1 ? 
       'You see the other tribes walk in from the jungle.' : 
       'You see the other tribe walk in from the jungle.';
@@ -449,7 +449,8 @@ const TribeChallengeView = {
 
     const allTribes = gameManager.getTribes();
     const playerTribe = gameManager.getPlayerTribe();
-    const otherTribes = allTribes.filter(t => t.id !== playerTribe.id);
+    // Filter other tribes by comparing against player tribe - use name since tribes from TribeDivisionScreen don't have id
+    const otherTribes = allTribes.filter(t => t.name !== playerTribe.name);
     const currentTribeIndex = this.challengeStage - 3;
     const isLastTribe = currentTribeIndex >= otherTribes.length - 1;
 
