@@ -64,8 +64,17 @@ const TribeChallengeView = {
         if (tribeIndex >= 0 && tribeIndex < otherTribes.length) {
           this.renderOtherTribeFlag(container, config, otherTribes[tribeIndex]);
         } else if (this.challengeStage === 3 + otherTribes.length) {
-          // Show Jeff's challenge explanation
-          this.renderJeffChallengeExplanation(container, config);
+          // Show Jeff's challenge explanation stage 1
+          this.renderJeffChallengeExplanation(container, config, 1);
+        } else if (this.challengeStage === 4 + otherTribes.length) {
+          // Show Jeff's challenge explanation stage 2
+          this.renderJeffChallengeExplanation(container, config, 2);
+        } else if (this.challengeStage === 5 + otherTribes.length) {
+          // Show Jeff's challenge explanation stage 3
+          this.renderJeffChallengeExplanation(container, config, 3);
+        } else if (this.challengeStage === 6 + otherTribes.length) {
+          // Show First Contact popup
+          this.renderFirstContactPopup(container, config);
         } else {
           // All stages complete, show the actual challenge info
           this.renderChallengeInfo(container, config, playerTribe, allTribes, player);
@@ -156,7 +165,7 @@ const TribeChallengeView = {
     container.append(parchmentWrapper, nextButton);
   },
 
-  renderJeffChallengeExplanation(container, config) {
+  renderJeffChallengeExplanation(container, config, stage = 1) {
     clearChildren(container);
 
     // Use Jeff background for this explanation
@@ -186,7 +195,24 @@ const TribeChallengeView = {
       `
     });
 
-    const jeffText = createElement('div', {
+    let jeffText, buttonText;
+    
+    switch (stage) {
+      case 1:
+        jeffText = 'Welcome to your first Immunity Challenge of the season! Winning the challenge earns safety for your tribe. Losing tribe will join me tonight for the first Tribal Council of Survivor Island.';
+        buttonText = 'Next';
+        break;
+      case 2:
+        jeffText = "Here's how it works: Tribes will compete head to head in a series of stages. Each stage will put each survivor's unique traits to the test.";
+        buttonText = 'Next';
+        break;
+      case 3:
+        jeffText = 'First tribes to finish win Immunity.\n\nI\'ll give you a minute to strategize.';
+        buttonText = 'Begin Challenge';
+        break;
+    }
+
+    const textElement = createElement('div', {
       className: 'parchment-text',
       style: `
         color: white;
@@ -206,13 +232,14 @@ const TribeChallengeView = {
           0 2px 0 #000,
           0 3px 0 #000,
           0 4px 4px rgba(0, 0, 0, 0.5);
+        white-space: pre-line;
       `
-    }, 'Welcome to your first Immunity Challenge of the season! Winning the challenge earns safety for your tribe. Losing tribe will join me tonight for the first Tribal Council of Survivor Island.');
+    }, jeffText);
 
-    parchmentWrapper.append(parchment, jeffText);
+    parchmentWrapper.append(parchment, textElement);
 
-    // Begin Challenge button
-    const beginButton = createElement('button', {
+    // Button
+    const actionButton = createElement('button', {
       style: `
         position: absolute;
         bottom: 40px;
@@ -238,9 +265,9 @@ const TribeChallengeView = {
         this.challengeStage++;
         this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
       }
-    }, 'Begin Challenge');
+    }, buttonText);
 
-    container.append(parchmentWrapper, beginButton);
+    container.append(parchmentWrapper, actionButton);
   },
 
   renderPlayerTribeFlag(container, config, playerTribe, player) {
@@ -611,6 +638,90 @@ const TribeChallengeView = {
 
     wrapper.append(tribeImage, tribeNameOverlay, avatarGrid, nextButton);
     container.appendChild(wrapper);
+  },
+
+  renderFirstContactPopup(container, config) {
+    clearChildren(container);
+
+    // Use Jeff background for this explanation
+    container.style.backgroundImage = `url('${config.background}')`;
+
+    // Large sideways popup wrapper
+    const popupWrapper = createElement('div', {
+      style: `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(90deg);
+        width: 80vh;
+        height: 80vw;
+        max-width: 600px;
+        max-height: 400px;
+        z-index: 2;
+        background-image: url('Assets/rect-button-1.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `
+    });
+
+    const popupText = createElement('div', {
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        font-size: 2rem;
+        line-height: 1.3;
+        text-shadow:
+          0 2px 0 #000,
+          0 4px 0 #000,
+          0 6px 0 #000,
+          0 8px 8px rgba(0, 0, 0, 0.5);
+        transform: rotate(-90deg);
+        width: 300px;
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `
+    }, 'FIRST CONTACT');
+
+    popupWrapper.appendChild(popupText);
+
+    // Close button (positioned outside the rotated popup)
+    const closeButton = createElement('button', {
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 3;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        this.challengeStage++;
+        this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+      }
+    }, 'Continue');
+
+    container.append(popupWrapper, closeButton);
   },
 
   renderChallengeInfo(container, config, playerTribe, allTribes, player) {
