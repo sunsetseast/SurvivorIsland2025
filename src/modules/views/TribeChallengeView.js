@@ -275,9 +275,7 @@ const TribeChallengeView = {
 };
 
 export default TribeChallengeView;
-```
 
-```javascript
 // ChallengeIntroView.js
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
@@ -931,7 +929,24 @@ const ChallengeIntroView = {
         width: 300px;
         height: 200px;
         display: flex;
-        ```javascript
+        
+      `
+        });
+
+        container.append(popupWrapper);
+    }
+};
+
+// ChallengeScreen.js```text
+align-items: center;
+        justify-content: center;
+      `
+        });
+
+        container.append(popupWrapper);
+    }
+};
+
 // ChallengeScreen.js
 import React, { useState, useEffect } from 'react';
 import TribeChallengeView from './TribeChallengeView.js';
