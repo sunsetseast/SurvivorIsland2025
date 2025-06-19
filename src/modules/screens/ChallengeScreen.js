@@ -1,69 +1,51 @@
-
-/**
- * @module ChallengeScreen
- * Manages the Challenge screen and its different phases
- */
-
-import { getElement, clearChildren, createElement } from '../utils/index.js';
-import { gameManager } from '../core/index.js';
+import { createElement, clearChildren } from '../utils/DOMUtils.js';
+import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
-import renderTribeChallengeView from '../views/TribeChallengeView.js';
+import TribeChallengeView from '../views/TribeChallengeView.js';
 
-class ChallengeScreen {
+export default class ChallengeScreen {
   constructor() {
     this.container = null;
     this.currentView = null;
-    this.isInitialized = false;
   }
 
-  initialize() {
-    if (this.isInitialized) return;
-    
-    console.log('ChallengeScreen initializing...');
-    this.container = getElement('challenge-screen');
-    
+  setup() {
+    console.log('ChallengeScreen setup');
+    this.container = document.getElementById('challenge-screen');
+
     if (!this.container) {
       console.error('Challenge screen container not found');
       return;
     }
-    
-    this.isInitialized = true;
-    console.log('ChallengeScreen initialized');
-  }
 
-  setup(data = {}) {
-    console.log('ChallengeScreen setup called with data:', data);
-    
-    if (!this.container) {
-      console.error('Challenge screen container not available');
-      return;
-    }
-
-    // Clear any existing content
     clearChildren(this.container);
 
-    // Get current game state
-    const currentDay = gameManager.getDay();
-    const gamePhase = gameManager.getGamePhase();
-    const tribes = gameManager.getTribes();
-
-    console.log(`Setting up challenge for Day ${currentDay}, Phase: ${gamePhase}`);
-
     // Load the tribal challenge view
-    this.loadTribeChallengeView();
+    this.loadView('tribal-challenge');
   }
 
-  loadTribeChallengeView() {
-    console.log('Loading tribal challenge view...');
-    
-    if (!this.container) {
-      console.error('Container not available for tribal challenge view');
-      return;
+  loadView(viewName) {
+    if (!this.container) return;
+
+    clearChildren(this.container);
+
+    switch (viewName) {
+      case 'tribal-challenge':
+        TribeChallengeView.render(this.container);
+        break;
+      default:
+        console.warn(`Unknown challenge view: ${viewName}`);
     }
 
-    // Render the tribal challenge view
-    renderTribeChallengeView(this.container);
-    this.currentView = 'tribal-challenge';
+    this.currentView = viewName;
+  }
+
+  teardown() {
+    console.log('ChallengeScreen teardown');
+    if (this.container) {
+      clearChildren(this.container);
+    }
+    this.currentView = null;
   }
 
   destroy() {
@@ -73,22 +55,3 @@ class ChallengeScreen {
     this.currentView = null;
   }
 }
-
-export default ChallengeScreen;
-
-  teardown() {
-    console.log('ChallengeScreen teardown');
-    
-    if (this.container) {
-      clearChildren(this.container);
-    }
-    
-    this.currentView = null;
-  }
-
-  getCurrentView() {
-    return this.currentView;
-  }
-}
-
-export default ChallengeScreen;
