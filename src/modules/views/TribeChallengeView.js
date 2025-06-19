@@ -1,5 +1,6 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import { gameManager, screenManager } from '../core/index.js';
+import gameManager from '../core/GameManager.js';
+import challengeManager from '../core/ChallengeManager.js';
 
 const TribeChallengeView = {
   render(container, challengeConfig = null) {
@@ -19,8 +20,8 @@ const TribeChallengeView = {
     const allTribes = gameManager.getTribes();
     const player = gameManager.getPlayerSurvivor();
 
-    // Use provided config or get default
-    const config = challengeConfig || this.getDefaultConfig();
+    // Use provided config or get from challenge manager
+    const config = challengeConfig || challengeManager.getCurrentChallenge() || this.getDefaultConfig();
 
     console.log('=== TRIBAL IMMUNITY CHALLENGE ===');
     console.log('Challenge:', config.name);
@@ -128,15 +129,19 @@ const TribeChallengeView = {
       style: 'font-size: 1.2rem; margin-bottom: 15px;'
     }, config.description);
 
-    // Add basic mechanics info
-    const mechanicsInfo = createElement('p', {
-      style: `
-        font-size: 1rem;
-        color: #f39c12;
-        font-style: italic;
-      `
-    }, `🏃 ${config.mechanics} challenge`);
-    challengeDescription.append(description, mechanicsInfo);
+    const mechanics = challengeManager.getMechanic(config.mechanics);
+    if (mechanics) {
+      const mechanicsInfo = createElement('p', {
+        style: `
+          font-size: 1rem;
+          color: #f39c12;
+          font-style: italic;
+        `
+      }, `${mechanics.icon} ${mechanics.description}`);
+      challengeDescription.append(description, mechanicsInfo);
+    } else {
+      challengeDescription.appendChild(description);
+    }
 
     // Tribe standings
     const tribesContainer = this.createTribesDisplay(allTribes, playerTribe);
@@ -926,11 +931,57 @@ const ChallengeIntroView = {
         width: 300px;
         height: 200px;
         display: flex;
-        align-items: center;
-        justify-content: center;
-      `
-        }, 'FIRST CONTACT!');
+        ```javascript
+// ChallengeScreen.js
+import React, { useState, useEffect } from 'react';
+import TribeChallengeView from './TribeChallengeView.js';
+import ChallengeIntroView from './ChallengeIntroView.js';
+import gameManager from '../core/GameManager.js';
 
-        popupWrapper.appendChild(popupText);
+function ChallengeScreen() {
+    const [challengeConfig, setChallengeConfig] = useState(null);
+    const [introComplete, setIntroComplete] = useState(false);
 
-        const nextButton
+    useEffect(() => {
+        const config = {
+            name: 'First Immunity Challenge',
+            description: 'A test of balance and teamwork.',
+            background: 'Assets/Screens/challenge.png',
+            mechanics: 'balance',
+            day: gameManager.getDay(),
+            isSpecial: true,
+            showJeff: true,
+            jeffMessage: 'Welcome to the first Immunity Challenge!'
+        };
+        setChallengeConfig(config);
+    }, []);
+
+    const handleIntroComplete = () => {
+        setIntroComplete(true);
+    };
+
+    return (
+        <div>
+            {challengeConfig && !introComplete ? (
+                <ChallengeIntroView
+                    render={ (container) => ChallengeIntroView.render(
+                      container,
+                      challengeConfig,
+                      gameManager.getPlayerTribe(),
+                      gameManager.getTribes(),
+                      gameManager.getPlayerSurvivor(),
+                      handleIntroComplete
+                    )}
+                 />
+            ) : challengeConfig ? (
+                <TribeChallengeView
+                    render={(container) => TribeChallengeView.render(container, challengeConfig)}
+                />
+            ) : (
+                <p>Loading challenge...</p>
+            )}
+        </div>
+    );
+}
+
+export default ChallengeScreen;

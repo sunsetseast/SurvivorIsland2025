@@ -1,5 +1,7 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import { gameManager, screenManager } from '../core/index.js';
+import gameManager from '../core/GameManager.js';
+import screenManager from '../core/ScreenManager.js';
+import challengeManager from '../core/ChallengeManager.js';
 import ChallengeIntroView from '../views/ChallengeIntroView.js';
 import TribeChallengeView from '../views/TribeChallengeView.js';
 import IndividualChallengeView from '../views/IndividualChallengeView.js';
@@ -22,18 +24,13 @@ export default class ChallengeScreen {
 
     clearChildren(this.container);
 
-    // Create default challenge configuration for first immunity challenge
-    this.currentChallenge = {
-      name: 'First Immunity Challenge',
-      description: 'Welcome to your first immunity challenge! Tribes will compete for safety.',
-      background: 'Assets/jeff-screen.png',
-      type: 'tribal',
-      mechanics: 'endurance',
-      day: gameManager.getDay(),
-      isSpecial: true,
-      showJeff: true,
-      jeffMessage: 'COME ON IN, GUYS!'
-    };
+    // Get current challenge from challenge manager
+    this.currentChallenge = challengeManager.getCurrentChallenge();
+
+    if (!this.currentChallenge) {
+      console.warn('No challenge configured for current day');
+      return;
+    }
 
     // Load appropriate challenge type
     this.loadChallenge();
@@ -78,9 +75,15 @@ export default class ChallengeScreen {
 
       default:
         console.warn(`Unknown challenge type: ${challengeType}`);
-        // Fallback to tribal challenge for early game
-        TribeChallengeView.render(this.container, this.currentChallenge);
-        this.currentView = 'tribal-challenge';
+        // Fallback - determine type based on game state
+        const fallbackType = challengeManager.determineChallengeType();
+        if (fallbackType === 'individual') {
+          IndividualChallengeView.render(this.container, this.currentChallenge);
+          this.currentView = 'individual-challenge';
+        } else {
+          TribeChallengeView.render(this.container, this.currentChallenge);
+          this.currentView = 'tribal-challenge';
+        }
     }
 
     console.log(`Loaded ${challengeType} challenge: ${this.currentChallenge.name}`);
@@ -94,8 +97,7 @@ export default class ChallengeScreen {
   // Method to handle challenge completion (called by views)
   completeChallenge(results = null) {
     if (results && this.currentChallenge) {
-      console.log('Challenge completed with results:', results);
-      // Store results in game manager if needed
+      challengeManager.storeChallengeResult(this.currentChallenge.day, results);
     }
 
     // Advance game phase
