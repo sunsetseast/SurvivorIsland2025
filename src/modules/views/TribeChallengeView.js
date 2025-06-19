@@ -1,6 +1,5 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import gameManager from '../core/GameManager.js';
-import challengeManager from '../core/ChallengeManager.js';
+import { gameManager, screenManager } from '../core/index.js';
 
 const TribeChallengeView = {
   render(container, challengeConfig = null) {
@@ -20,8 +19,8 @@ const TribeChallengeView = {
     const allTribes = gameManager.getTribes();
     const player = gameManager.getPlayerSurvivor();
 
-    // Use provided config or get from challenge manager
-    const config = challengeConfig || challengeManager.getCurrentChallenge() || this.getDefaultConfig();
+    // Use provided config or get default
+    const config = challengeConfig || this.getDefaultConfig();
 
     console.log('=== TRIBAL IMMUNITY CHALLENGE ===');
     console.log('Challenge:', config.name);
@@ -129,19 +128,15 @@ const TribeChallengeView = {
       style: 'font-size: 1.2rem; margin-bottom: 15px;'
     }, config.description);
 
-    const mechanics = challengeManager.getMechanic(config.mechanics);
-    if (mechanics) {
-      const mechanicsInfo = createElement('p', {
-        style: `
-          font-size: 1rem;
-          color: #f39c12;
-          font-style: italic;
-        `
-      }, `${mechanics.icon} ${mechanics.description}`);
-      challengeDescription.append(description, mechanicsInfo);
-    } else {
-      challengeDescription.appendChild(description);
-    }
+    // Add basic mechanics info
+    const mechanicsInfo = createElement('p', {
+      style: `
+        font-size: 1rem;
+        color: #f39c12;
+        font-style: italic;
+      `
+    }, `🏃 ${config.mechanics} challenge`);
+    challengeDescription.append(description, mechanicsInfo);
 
     // Tribe standings
     const tribesContainer = this.createTribesDisplay(allTribes, playerTribe);
