@@ -926,57 +926,11 @@ const ChallengeIntroView = {
         width: 300px;
         height: 200px;
         display: flex;
-        ```javascript
-// ChallengeScreen.js
-import React, { useState, useEffect } from 'react';
-import TribeChallengeView from './TribeChallengeView.js';
-import ChallengeIntroView from './ChallengeIntroView.js';
-import gameManager from '../core/GameManager.js';
+        align-items: center;
+        justify-content: center;
+      `
+        }, 'FIRST CONTACT!');
 
-function ChallengeScreen() {
-    const [challengeConfig, setChallengeConfig] = useState(null);
-    const [introComplete, setIntroComplete] = useState(false);
+        popupWrapper.appendChild(popupText);
 
-    useEffect(() => {
-        const config = {
-            name: 'First Immunity Challenge',
-            description: 'A test of balance and teamwork.',
-            background: 'Assets/Screens/challenge.png',
-            mechanics: 'balance',
-            day: gameManager.getDay(),
-            isSpecial: true,
-            showJeff: true,
-            jeffMessage: 'Welcome to the first Immunity Challenge!'
-        };
-        setChallengeConfig(config);
-    }, []);
-
-    const handleIntroComplete = () => {
-        setIntroComplete(true);
-    };
-
-    return (
-        <div>
-            {challengeConfig && !introComplete ? (
-                <ChallengeIntroView
-                    render={ (container) => ChallengeIntroView.render(
-                      container,
-                      challengeConfig,
-                      gameManager.getPlayerTribe(),
-                      gameManager.getTribes(),
-                      gameManager.getPlayerSurvivor(),
-                      handleIntroComplete
-                    )}
-                 />
-            ) : challengeConfig ? (
-                <TribeChallengeView
-                    render={(container) => TribeChallengeView.render(container, challengeConfig)}
-                />
-            ) : (
-                <p>Loading challenge...</p>
-            )}
-        </div>
-    );
-}
-
-export default ChallengeScreen;
+        const nextButton
