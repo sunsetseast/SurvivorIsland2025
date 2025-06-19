@@ -61,7 +61,7 @@ const TribeChallengeView = {
         // Show other tribes (stage 3+)
         const otherTribes = allTribes.filter(tribe => tribe.id !== playerTribe.id);
         const tribeIndex = this.challengeStage - 3;
-        if (tribeIndex < otherTribes.length) {
+        if (tribeIndex >= 0 && tribeIndex < otherTribes.length) {
           this.renderOtherTribeFlag(container, config, otherTribes[tribeIndex]);
         } else {
           // All tribes shown, now show the actual challenge info
@@ -258,20 +258,6 @@ const TribeChallengeView = {
         z-index: 2;
         padding: 15px 30px;
         font-size: 1.1rem;
-        min-width: 120px;
-        height: 50px;
-        background-image: url('Assets/rect-button.png');
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        border: none;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-weight: bold;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -349,20 +335,6 @@ const TribeChallengeView = {
         z-index: 2;
         padding: 15px 30px;
         font-size: 1.1rem;
-        min-width: 120px;
-        height: 50px;
-        background-image: url('Assets/rect-button.png');
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        border: none;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-weight: bold;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -495,20 +467,6 @@ const TribeChallengeView = {
         z-index: 2;
         padding: 15px 30px;
         font-size: 1.1rem;
-        min-width: 120px;
-        height: 50px;
-        background-image: url('Assets/rect-button.png');
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        border: none;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-weight: bold;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       `,
       onclick: () => {
         this.challengeStage++;
