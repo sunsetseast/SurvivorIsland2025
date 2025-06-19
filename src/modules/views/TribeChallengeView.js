@@ -130,12 +130,18 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        opacity: 0;
       `,
       onclick: () => {
         this.challengeStage++;
         this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
       }
     }, 'Next');
+
+    // Force button styling to apply immediately
+    setTimeout(() => {
+      nextButton.style.opacity = '1';
+    }, 10);
 
     container.append(parchmentWrapper, nextButton);
   },
@@ -254,12 +260,18 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        opacity: 0;
       `,
       onclick: () => {
         this.challengeStage++;
         this.renderSpecialIntro(container, config, playerTribe, gameManager.getTribes(), player);
       }
     }, 'Next');
+
+    // Force button styling to apply immediately
+    setTimeout(() => {
+      nextButton.style.opacity = '1';
+    }, 10);
 
     wrapper.append(tribeImage, tribeNameOverlay, avatarGrid, nextButton);
     container.appendChild(wrapper);
@@ -329,12 +341,18 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        opacity: 0;
       `,
       onclick: () => {
         this.challengeStage++;
         this.renderSpecialIntro(container, config, playerTribe, allTribes, gameManager.getPlayerSurvivor());
       }
     }, 'Next');
+
+    // Force button styling to apply immediately
+    setTimeout(() => {
+      nextButton.style.opacity = '1';
+    }, 10);
 
     container.append(parchmentWrapper, nextButton);
   },
@@ -460,12 +478,18 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        opacity: 0;
       `,
       onclick: () => {
         this.challengeStage++;
         this.renderSpecialIntro(container, config, playerTribe, allTribes, gameManager.getPlayerSurvivor());
       }
     }, isLastTribe ? 'Begin Challenge' : 'Next');
+
+    // Force button styling to apply immediately
+    setTimeout(() => {
+      nextButton.style.opacity = '1';
+    }, 10);
 
     wrapper.append(tribeImage, tribeNameOverlay, avatarGrid, nextButton);
     container.appendChild(wrapper);
