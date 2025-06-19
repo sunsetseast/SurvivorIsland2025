@@ -256,8 +256,6 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
-        padding: 15px 30px;
-        font-size: 1.1rem;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -333,8 +331,6 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
-        padding: 15px 30px;
-        font-size: 1.1rem;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -465,8 +461,6 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
-        padding: 15px 30px;
-        font-size: 1.1rem;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -493,8 +487,6 @@ const TribeChallengeView = {
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
-        padding: 15px 30px;
-        font-size: 1.1rem;
       `,
       onclick: () => {
         console.log(`${config.name} completed - returning to camp`);
