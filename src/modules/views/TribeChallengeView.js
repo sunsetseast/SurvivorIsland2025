@@ -43,21 +43,10 @@ const TribeChallengeView = {
   },
 
   renderFirstChallengeIntro(container, playerTribe, allTribes, player) {
-    // Jeff background overlay
-    const jeffOverlay = createElement('div', {
-      style: `
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: url('Assets/jeff-screen.png');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        z-index: 1;
-      `
-    });
+    // Replace background with Jeff image for first challenge
+    container.style.backgroundImage = "url('Assets/jeff-screen.png')";
+    
+    // Jeff background overlay (removed since we're using it as main background)
 
     // Parchment wrapper positioned at top
     const parchmentWrapper = createElement('div', {
@@ -153,9 +142,9 @@ const TribeChallengeView = {
       style: `
         margin: 5px 0;
         font-weight: bold;
-        color: ${playerTribe?.tribeColor || '#fff'};
+        color: ${playerTribe?.color || '#fff'};
       `
-    }, `Your Tribe: ${playerTribe?.tribeName || 'Unknown'} (${playerTribe?.members?.length || 0} members)`);
+    }, `Your Tribe: ${playerTribe?.name || 'Unknown'} (${playerTribe?.members?.length || 0} members)`);
 
     const playerInfo = createElement('p', {
       style: `
@@ -185,7 +174,7 @@ const TribeChallengeView = {
       }
     }, 'Begin Challenge');
 
-    container.append(jeffOverlay, parchmentWrapper, challengeInfo, continueButton);
+    container.append(parchmentWrapper, challengeInfo, continueButton);
   },
 
   renderRegularChallenge(container, currentDay, playerTribe, allTribes) {
