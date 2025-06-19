@@ -123,13 +123,26 @@ const TribeChallengeView = {
 
     // Next button
     const nextButton = createElement('button', {
-      className: 'rect-button',
       style: `
         position: absolute;
         bottom: 40px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -247,13 +260,26 @@ const TribeChallengeView = {
     });
 
     const nextButton = createElement('button', {
-      className: 'rect-button',
       style: `
         position: absolute;
         bottom: 40px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -322,13 +348,26 @@ const TribeChallengeView = {
     parchmentWrapper.append(parchment, messageTextElement);
 
     const nextButton = createElement('button', {
-      className: 'rect-button',
       style: `
         position: absolute;
         bottom: 40px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -453,13 +492,26 @@ const TribeChallengeView = {
     const isLastTribe = currentTribeIndex >= otherTribes.length - 1;
 
     const nextButton = createElement('button', {
-      className: 'rect-button',
       style: `
         position: absolute;
         bottom: 40px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
       `,
       onclick: () => {
         this.challengeStage++;
@@ -479,13 +531,26 @@ const TribeChallengeView = {
 
     // Continue button
     const continueButton = createElement('button', {
-      className: 'rect-button',
       style: `
         position: absolute;
         bottom: 40px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
       `,
       onclick: () => {
         console.log(`${config.name} completed - returning to camp`);
@@ -565,10 +630,21 @@ const TribeChallengeView = {
 
     // Continue button
     const continueButton = createElement('button', {
-      className: 'rect-button',
       style: `
-        padding: 15px 30px;
-        font-size: 1.1rem;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
         margin-top: 30px;
       `,
       onclick: () => {
