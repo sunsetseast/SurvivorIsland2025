@@ -235,33 +235,31 @@ class GameManager {
   }
 
   advanceGamePhase() {
-    const phaseOrder = [
-      GamePhase.PRE_CHALLENGE,
-      GamePhase.CHALLENGE,
-      GamePhase.POST_CHALLENGE,
-      GamePhase.TRIBAL_COUNCIL,
-      GamePhase.NIGHT
-    ];
+    console.log(`Advancing from phase: ${this.gamePhase}`);
 
-    const currentIndex = phaseOrder.indexOf(this.gamePhase);
-    const nextIndex = (currentIndex + 1) % phaseOrder.length;
-    const nextPhase = phaseOrder[nextIndex];
-
-    this.gamePhase = nextPhase;
-    eventManager.publish(GameEvents.GAME_PHASE_CHANGED, { phase: nextPhase });
-
-    // Optional: load the screen based on phase
-    if (nextPhase === GamePhase.CHALLENGE) {
-      this.setGameState(GameState.CHALLENGE);
-    } else if (nextPhase === GamePhase.TRIBAL_COUNCIL) {
-      this.setGameState(GameState.TRIBAL_COUNCIL);
-    } else if (nextPhase === GamePhase.NIGHT) {
-      this.advanceDay(); // Move to next day
-      this.setGameState(GameState.CAMP);
-      this.gamePhase = GamePhase.PRE_CHALLENGE;
-    } else {
-      this.setGameState(GameState.CAMP); // fallback screen
+    switch (this.gamePhase) {
+      case 'preChallenge':
+        this.gamePhase = 'challenge';
+        // Don't auto-trigger screen change - let Tree Mail handle it
+        this._triggerTreeMail();
+        break;
+      case 'challenge':
+        this.gamePhase = 'postChallenge';
+        break;
+      case 'postChallenge':
+        this.gamePhase = 'tribalCouncil';
+        break;
+      case 'tribalCouncil':
+        this.day++;
+        this.gamePhase = 'preChallenge';
+        this.dayTimer = 7200; // Reset timer for new day
+        break;
+      default:
+        console.warn(`Unknown game phase: ${this.gamePhase}`);
     }
+
+    console.log(`Advanced to phase: ${this.gamePhase}`);
+    this._publishPhaseChange();
   }
 
   updateTribeHealth() {
@@ -475,7 +473,7 @@ class GameManager {
     // Health calculation: average of water, hunger, and rest
     // Each stat contributes equally to health
     const calculatedHealth = Math.round((water + hunger + rest) / 3);
-    
+
     // Ensure health stays within 0-100 bounds
     survivor.health = Math.max(0, Math.min(100, calculatedHealth));
 
