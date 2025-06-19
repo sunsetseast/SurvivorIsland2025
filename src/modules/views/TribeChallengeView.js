@@ -158,7 +158,12 @@ const TribeChallengeView = {
       `,
       onclick: () => {
         this.challengeStage++;
-        this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        if (this.challengeStage > 3) {
+          // After "I'll give you a minute to strategize", show challenge stages
+          this.renderChallengeStages(container, config);
+        } else {
+          this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        }
       }
     }, 'Next');
 
@@ -196,7 +201,7 @@ const TribeChallengeView = {
     });
 
     let jeffText, buttonText;
-    
+
     switch (stage) {
       case 1:
         jeffText = 'Welcome to your first Immunity Challenge of the season! Winning the challenge earns safety for your tribe. Losing tribe will join me tonight for the first Tribal Council of Survivor Island.';
@@ -263,7 +268,12 @@ const TribeChallengeView = {
       `,
       onclick: () => {
         this.challengeStage++;
-        this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        if (this.challengeStage > 3) {
+          // After "I'll give you a minute to strategize", show challenge stages
+          this.renderChallengeStages(container, config);
+        } else {
+          this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        }
       }
     }, buttonText);
 
@@ -400,7 +410,12 @@ const TribeChallengeView = {
       `,
       onclick: () => {
         this.challengeStage++;
-        this.renderSpecialIntro(container, config, playerTribe, gameManager.getTribes(), player);
+        if (this.challengeStage > 3) {
+          // After "I'll give you a minute to strategize", show challenge stages
+          this.renderChallengeStages(container, config);
+        } else {
+          this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        }
       }
     }, 'Next');
 
@@ -488,7 +503,12 @@ const TribeChallengeView = {
       `,
       onclick: () => {
         this.challengeStage++;
-        this.renderSpecialIntro(container, config, playerTribe, allTribes, gameManager.getPlayerSurvivor());
+        if (this.challengeStage > 3) {
+          // After "I'll give you a minute to strategize", show challenge stages
+          this.renderChallengeStages(container, config);
+        } else {
+          this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        }
       }
     }, 'Next');
 
@@ -632,7 +652,12 @@ const TribeChallengeView = {
       `,
       onclick: () => {
         this.challengeStage++;
-        this.renderSpecialIntro(container, config, playerTribe, allTribes, gameManager.getPlayerSurvivor());
+        if (this.challengeStage > 3) {
+          // After "I'll give you a minute to strategize", show challenge stages
+          this.renderChallengeStages(container, config);
+        } else {
+          this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        }
       }
     }, 'Next');
 
@@ -717,7 +742,12 @@ const TribeChallengeView = {
       `,
       onclick: () => {
         this.challengeStage++;
-        this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        if (this.challengeStage > 3) {
+          // After "I'll give you a minute to strategize", show challenge stages
+          this.renderChallengeStages(container, config);
+        } else {
+          this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
+        }
       }
     }, 'Continue');
 
@@ -882,7 +912,7 @@ const TribeChallengeView = {
     });
 
     const challengeTitle = createElement('h2', {
-      style: `
+      style:`
         font-family: 'Survivant', serif;
         font-size: 1.8rem;
         margin-bottom: 15px;
@@ -1020,6 +1050,132 @@ const TribeChallengeView = {
         window.campScreen.loadView('flag');
       }
     }
+  },
+
+  renderChallengeStages(container, config) {
+    clearChildren(container);
+
+    // Set background back to challenge.png
+    container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
+
+    // Scroll wrapper
+    const scrollWrapper = createElement('div', {
+      style: `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        height: 80%;
+        overflow-x: auto;
+        display: flex;
+        align-items: center;
+        padding: 20px;
+      `
+    });
+
+    // Card data
+    const cards = [
+      { image: 'Assets/Challenge/mud-pit.png', name: 'Mud Pit' },
+      { image: 'Assets/Challenge/untie-knots.png', name: 'Untie Knots' },
+      { image: 'Assets/Challenge/bean-bag-toss.png', name: 'Bean Bag Toss' },
+      { image: 'Assets/Challenge/vertical-puzzle.png', name: 'Vertical Puzzle' }
+    ];
+
+    // Card flip state
+    const cardFlipState = {};
+
+    // Create cards
+    cards.forEach((card, index) => {
+      cardFlipState[index] = false;
+
+      const cardWrapper = createElement('div', {
+        style: `
+          position: relative;
+          width: 200px;
+          height: 300px;
+          margin: 0 10px;
+          transition: transform 0.8s;
+          transform-style: preserve-3d;
+          cursor: pointer;
+        `
+      });
+
+      const cardFront = createElement('img', {
+        src: card.image,
+        alt: card.name,
+        style: `
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          backface-visibility: hidden;
+        `
+      });
+
+      const cardBack = createElement('img', {
+        src: 'Assets/card-back.png',
+        alt: 'Card Back',
+        style: `
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          backface-visibility: hidden;
+          transform: rotateY(180deg);
+        `
+      });
+
+      const flipButton = createElement('button', {
+        style: `
+          position: absolute;
+          bottom: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: rgba(0, 0, 0, 0.5);
+          color: white;
+          border: none;
+          padding: 5px 10px;
+          cursor: pointer;
+        `,
+        onclick: () => {
+          cardFlipState[index] = !cardFlipState[index];
+          if (cardFlipState[index]) {
+            cardWrapper.style.transform = 'rotateY(180deg)';
+          } else {
+            cardWrapper.style.transform = 'rotateY(0deg)';
+          }
+        }
+      }, 'Flip Back');
+
+      const invisibleButton = createElement('button', {
+        style: `
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0.5;
+          cursor: pointer;
+        `,
+        onclick: () => {
+          cardFlipState[index] = !cardFlipState[index];
+          if (cardFlipState[index]) {
+            cardWrapper.style.transform = 'rotateY(180deg)';
+          } else {
+            cardWrapper.style.transform = 'rotateY(0deg)';
+          }
+        }
+      }, '');
+
+      cardWrapper.appendChild(cardFront);
+      cardWrapper.appendChild(cardBack);
+      cardWrapper.appendChild(invisibleButton);
+
+      scrollWrapper.appendChild(cardWrapper);
+    });
+
+    container.appendChild(scrollWrapper);
   }
 };
 
