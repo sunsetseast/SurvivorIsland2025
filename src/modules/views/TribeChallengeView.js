@@ -26,7 +26,8 @@ const TribeChallengeView = {
     console.log('Total tribes:', allTribes?.length);
 
     // Determine if this is the first immunity challenge
-    const isFirstChallenge = currentDay === 1;
+    // First challenge happens on Day 1 when moving from preChallenge to challenge phase
+    const isFirstChallenge = currentDay === 1 && gamePhase === 'challenge';
 
     // Set background to challenge image
     container.style.backgroundImage = "url('Assets/Screens/challenge.png')";
