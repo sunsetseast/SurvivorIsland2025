@@ -44,13 +44,8 @@ function init() {
   screenManager.registerScreen('welcome', new WelcomeScreen());
   screenManager.registerScreen('character-selection', new CharacterSelectionScreen());
   screenManager.registerScreen('tribe-division', new TribeDivisionScreen());
-
-  const campScreenInstance = new CampScreen();
-  screenManager.registerScreen('camp', campScreenInstance);
-  window.campScreen = campScreenInstance;
-  
-  const challengeScreenInstance = new ChallengeScreen();
-  screenManager.registerScreen('challenge-screen', challengeScreenInstance);
+  screenManager.registerScreen('camp', new CampScreen());
+  screenManager.registerScreen('challenge', new ChallengeScreen());
 
   screenManager.initialize();
   screenManager.showScreen('welcome');
