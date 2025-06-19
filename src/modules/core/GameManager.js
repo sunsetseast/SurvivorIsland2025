@@ -262,6 +262,21 @@ class GameManager {
     this._publishPhaseChange();
   }
 
+  _triggerTreeMail() {
+    console.log('Tree Mail triggered for challenge phase');
+    eventManager.publish(GameEvents.TREE_MAIL_RECEIVED, { 
+      phase: this.gamePhase,
+      day: this.day 
+    });
+  }
+
+  _publishPhaseChange() {
+    eventManager.publish(GameEvents.GAME_PHASE_CHANGED, { 
+      phase: this.gamePhase,
+      day: this.day 
+    });
+  }
+
   updateTribeHealth() {
     this.tribes.forEach(tribe => {
       tribe.members.forEach(member => {

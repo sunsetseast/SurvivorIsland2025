@@ -48,7 +48,9 @@ function init() {
   const campScreenInstance = new CampScreen();
   screenManager.registerScreen('camp', campScreenInstance);
   window.campScreen = campScreenInstance;
-  screenManager.registerScreen('challenge', new ChallengeScreen());
+  
+  const challengeScreenInstance = new ChallengeScreen();
+  screenManager.registerScreen('challenge-screen', challengeScreenInstance);
 
   screenManager.initialize();
   screenManager.showScreen('welcome');

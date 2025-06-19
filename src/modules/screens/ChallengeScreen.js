@@ -66,6 +66,16 @@ class ChallengeScreen {
     this.currentView = 'tribal-challenge';
   }
 
+  destroy() {
+    if (this.container) {
+      clearChildren(this.container);
+    }
+    this.currentView = null;
+  }
+}
+
+export default ChallengeScreen;
+
   teardown() {
     console.log('ChallengeScreen teardown');
     
