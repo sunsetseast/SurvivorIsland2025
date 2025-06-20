@@ -747,12 +747,12 @@ const RoleView = {
   },
 
   _getHighlightedTraitsForStage(stageId) {
-    // TODO: Update these based on the attached photo showing which traits are tested
+    // Based on the challenge stage requirements from the attached image
     const stageTraits = {
-      'mud-crawl': ['physical', 'strength', 'endurance'], // Placeholder - update with actual traits
-      'untie-knots': ['mental', 'dexterity', 'focus'], // Placeholder - update with actual traits
-      'bean-bag-toss': ['physical', 'dexterity', 'balance'], // Placeholder - update with actual traits
-      'vertical-puzzle': ['mental', 'puzzles', 'focus'] // Placeholder - update with actual traits
+      'mud-crawl': ['strength', 'endurance', 'dexterity', 'balance'],
+      'untie-knots': ['dexterity', 'puzzles', 'focus', 'endurance'],
+      'bean-bag-toss': ['dexterity', 'focus', 'strength'],
+      'vertical-puzzle': ['puzzles', 'memory', 'focus']
     };
     return stageTraits[stageId] || [];
   },
