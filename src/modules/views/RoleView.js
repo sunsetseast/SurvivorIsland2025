@@ -1,6 +1,5 @@
 
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import { setupScrollReveal } from '../utils/ScrollReveal.js';
 
 const RoleView = {
   render(container, onComplete = null) {
@@ -42,45 +41,78 @@ const RoleView = {
       }
     ];
 
-    // Create scrollable card stack
-    const stageArea = createElement('div', { 
-      id: 'stage-stack',
+    // Create scrollable card wrapper (horizontal like character selection)
+    const scrollableCardWrapper = createElement('div', {
       style: `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        height: 70%;
+        overflow-x: auto;
+        overflow-y: hidden;
         display: flex;
-        flex-direction: column;
+        align-items: center;
         gap: 20px;
         padding: 20px;
-        overflow-y: auto;
-        height: calc(100vh - 40px);
-        align-items: center;
+        scroll-behavior: smooth;
       `
     });
 
     challengeStages.forEach((stage, index) => {
-      const card = this._createStageCard(stage, index);
-      stageArea.appendChild(card);
+      const cardWrapper = this._createStageCard(stage, index);
+      scrollableCardWrapper.appendChild(cardWrapper);
     });
 
-    container.appendChild(stageArea);
-    
-    if (setupScrollReveal) {
-      setupScrollReveal();
-    }
+    container.appendChild(scrollableCardWrapper);
+
+    // Add navigation button to continue
+    const continueButton = createElement('button', {
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        if (this.onComplete && typeof this.onComplete === 'function') {
+          this.onComplete();
+        }
+      }
+    }, 'Continue');
+
+    container.appendChild(continueButton);
   },
 
   _createStageCard(stage, index) {
-    const cardWrapper = createElement('div', { 
+    const cardWrapper = createElement('div', {
       className: 'card-wrapper',
       style: `
         position: relative;
-        width: 300px;
-        height: 400px;
+        width: 250px;
+        height: 350px;
+        flex-shrink: 0;
         perspective: 1000px;
-        margin-bottom: 20px;
       `
     });
 
-    const card = createElement('div', { 
+    const card = createElement('div', {
       className: 'stage-card',
       style: `
         position: relative;
@@ -90,10 +122,9 @@ const RoleView = {
         transition: transform 0.6s;
       `
     });
-    card.dataset.id = stage.id;
 
     // FRONT of card
-    const cardFront = createElement('div', { 
+    const cardFront = createElement('div', {
       className: 'card-front',
       style: `
         position: absolute;
@@ -105,13 +136,12 @@ const RoleView = {
         background-position: center;
         background-repeat: no-repeat;
         border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
       `
     });
 
-    // Visible button for positioning (as requested)
+    // Flip button
     const flipButton = createElement('button', {
       className: 'flip-button',
       style: `
@@ -121,21 +151,25 @@ const RoleView = {
         transform: translate(-50%, -50%);
         width: 80%;
         height: 80%;
-        background: rgba(255, 0, 0, 0.3);
+        background: rgba(255, 0, 0, 0.1);
         border: 2px solid red;
         cursor: pointer;
         z-index: 10;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        font-size: 1.2rem;
       `,
       onclick: (e) => {
         e.stopPropagation();
-        cardWrapper.classList.add('flipped');
+        card.style.transform = 'rotateY(180deg)';
       }
     }, 'FLIP');
 
     cardFront.appendChild(flipButton);
 
     // BACK of card
-    const cardBack = createElement('div', { 
+    const cardBack = createElement('div', {
       className: 'card-back',
       style: `
         position: absolute;
@@ -148,6 +182,8 @@ const RoleView = {
         background-position: center;
         background-repeat: no-repeat;
         border-radius: 10px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -166,26 +202,23 @@ const RoleView = {
         text-align: center;
         text-shadow: 2px 2px 4px black;
         margin: 0;
+        margin-top: 20px;
       `
     }, stage.name);
 
     // Back button
-    const backButton = createElement('button', {
+    const backButton = createElement('img', {
+      src: 'Assets/Buttons/left.png',
       className: 'back-button',
       style: `
         width: 40px;
         height: 40px;
-        background-image: url('Assets/Buttons/left.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        border: none;
         cursor: pointer;
         margin-bottom: 20px;
       `,
       onclick: (e) => {
         e.stopPropagation();
-        cardWrapper.classList.remove('flipped');
+        card.style.transform = 'rotateY(0deg)';
       }
     });
 
@@ -199,20 +232,5 @@ const RoleView = {
     return cardWrapper;
   }
 };
-
-// Add CSS for card flipping
-const style = createElement('style');
-style.textContent = `
-  .card-wrapper.flipped .stage-card {
-    transform: rotateY(180deg);
-  }
-  
-  .stage-card .card-front,
-  .stage-card .card-back {
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  }
-`;
-document.head.appendChild(style);
 
 export default RoleView;
