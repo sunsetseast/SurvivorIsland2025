@@ -72,17 +72,17 @@ const RoleView = {
     const textOverlay = createElement('div', {
       style: `
         position: absolute;
-        top: 15px;
+        top: 50px;
         left: 50%;
         transform: translateX(-50%);
         color: white;
         font-family: 'Survivant', sans-serif;
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         text-align: center;
-        max-width: 95%;
+        max-width: 85%;
         text-shadow: 2px 2px 4px black;
-        line-height: 1.2;
-        padding: 0 10px;
+        line-height: 1.3;
+        padding: 0 5px;
       `
     }, 'In your first Immunity Challenge, your tribe must complete a series of obstacles. Each stage will test the traits of your tribe against the traits of your opponents. Choose carefully because each Survivor may only be assigned one role in this challenge.');
 
@@ -411,9 +411,12 @@ const RoleView = {
       `,
       onclick: (e) => {
         e.stopPropagation();
+        console.log('Avatar clicked:', survivor.firstName, 'isAssigned:', isAssigned);
         if (isAssigned) {
+          console.log('Showing unassign popup');
           this._showUnassignPopup(survivor, stageId, mainContainer);
         } else {
+          console.log('Showing traits popup');
           this._showTraitsPopup(survivor, stageId, mainContainer);
         }
       }
@@ -431,7 +434,19 @@ const RoleView = {
         background: #000;
         transition: border-color 0.3s;
         cursor: pointer;
-      `
+        pointer-events: auto;
+      `,
+      onclick: (e) => {
+        e.stopPropagation();
+        console.log('Direct avatar image clicked:', survivor.firstName);
+        if (isAssigned) {
+          console.log('Showing unassign popup from avatar');
+          this._showUnassignPopup(survivor, stageId, mainContainer);
+        } else {
+          console.log('Showing traits popup from avatar');
+          this._showTraitsPopup(survivor, stageId, mainContainer);
+        }
+      }
     });
 
     const name = createElement('span', {
@@ -451,6 +466,8 @@ const RoleView = {
   },
 
   _showTraitsPopup(survivor, stageId, mainContainer) {
+    console.log('Creating traits popup for:', survivor.firstName);
+    
     // Semi-transparent overlay
     const overlay = createElement('div', {
       style: `
@@ -459,21 +476,29 @@ const RoleView = {
         left: 0;
         width: 100vw;
         height: 100vh;
-        background-color: rgba(0, 0, 0, 0.7);
+        background-color: rgba(0, 0, 0, 0.8);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 2000;
-      `
+      `,
+      onclick: (e) => {
+        if (e.target === overlay) {
+          console.log('Overlay clicked, closing popup');
+          document.body.removeChild(overlay);
+        }
+      }
     });
 
     // Traits card
     const traitsCard = createElement('div', {
       style: `
         width: 300px;
+        max-width: 90vw;
         height: 400px;
+        max-height: 90vh;
         background-image: url('Assets/card-back-traits.png');
-        background-size: cover;
+        background-size: 100% 100%;
         background-position: center;
         background-repeat: no-repeat;
         position: relative;
@@ -482,7 +507,12 @@ const RoleView = {
         align-items: center;
         padding: 20px;
         box-sizing: border-box;
-      `
+        border-radius: 15px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      `,
+      onclick: (e) => {
+        e.stopPropagation();
+      }
     });
 
     // Survivor name
@@ -595,7 +625,12 @@ const RoleView = {
     buttonsContainer.append(backBtn, assignBtn);
     traitsCard.append(survivorName, avatarImg, traitsContainer, buttonsContainer);
     overlay.appendChild(traitsCard);
+    
+    console.log('Appending traits popup to document body');
     document.body.appendChild(overlay);
+    
+    // Force a reflow to ensure visibility
+    overlay.offsetHeight;
   },
 
   _showUnassignPopup(survivor, stageId, mainContainer) {
