@@ -528,9 +528,13 @@ const RoleView = {
       alliances: [261, 445]
     };
 
+    // Get traits that should be highlighted for this stage
+    const highlightedTraits = this._getHighlightedTraitsForStage(stageId);
+
     // Add all trait values to the card
     Object.entries(traitCoordinates).forEach(([key, [x, y]]) => {
       const value = survivor[key];
+      const isHighlighted = highlightedTraits.includes(key);
       const traitElement = createElement('div', {
         className: 'trait-element',
         style: `
@@ -539,7 +543,7 @@ const RoleView = {
           top: ${y}px;
           font-size: 18px;
           font-weight: bold;
-          color: white;
+          color: ${isHighlighted ? 'gold' : 'white'};
           text-align: center;
           transform: translate(-50%, -50%);
           text-shadow: 1px 1px 3px black;
@@ -610,8 +614,8 @@ const RoleView = {
     assignButton.addEventListener('click', () => {
       this.assignedRoles.set(stageId, survivor.id);
       document.body.removeChild(overlay);
-      // Refresh the card back and confirm button
-      this._refreshCardBack(stageId, mainContainer);
+      // Refresh ALL card backs to update avatar grids across all open cards
+      this._refreshAllCardBacks(mainContainer);
       this._updateConfirmButton(mainContainer);
     });
 
@@ -676,8 +680,8 @@ const RoleView = {
       onclick: () => {
         this.assignedRoles.delete(stageId);
         document.body.removeChild(overlay);
-        // Refresh the card back and confirm button
-        this._refreshCardBack(stageId, mainContainer);
+        // Refresh ALL card backs to update avatar grids across all open cards
+        this._refreshAllCardBacks(mainContainer);
         this._updateConfirmButton(mainContainer);
       }
     }, 'Un-Assign Role');
@@ -740,6 +744,37 @@ const RoleView = {
   _getStageIndex(stageId) {
     const stages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
     return stages.indexOf(stageId);
+  },
+
+  _getHighlightedTraitsForStage(stageId) {
+    // TODO: Update these based on the attached photo showing which traits are tested
+    const stageTraits = {
+      'mud-crawl': ['physical', 'strength', 'endurance'], // Placeholder - update with actual traits
+      'untie-knots': ['mental', 'dexterity', 'focus'], // Placeholder - update with actual traits
+      'bean-bag-toss': ['physical', 'dexterity', 'balance'], // Placeholder - update with actual traits
+      'vertical-puzzle': ['mental', 'puzzles', 'focus'] // Placeholder - update with actual traits
+    };
+    return stageTraits[stageId] || [];
+  },
+
+  _refreshAllCardBacks(mainContainer) {
+    // Find all flipped cards (cards with rotateY(180deg)) and refresh their backs
+    const allCards = mainContainer.querySelectorAll('.stage-card');
+    allCards.forEach((card, index) => {
+      const isFlipped = card.style.transform === 'rotateY(180deg)';
+      if (isFlipped) {
+        const cardBack = card.querySelector('.card-back');
+        const stageId = this._getStageIdByIndex(index);
+        if (cardBack && stageId) {
+          this._updateCardBack(stageId, cardBack, mainContainer);
+        }
+      }
+    });
+  },
+
+  _getStageIdByIndex(index) {
+    const stages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
+    return stages[index];
   }
 };
 
