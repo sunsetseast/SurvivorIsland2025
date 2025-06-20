@@ -1,4 +1,3 @@
-
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
@@ -198,7 +197,7 @@ const ChallengeIntroView = {
     });
 
     let jeffText, buttonText;
-    
+
     switch (stage) {
       case 1:
         jeffText = 'Welcome to your first Immunity Challenge of the season! Winning the challenge earns safety for your tribe. Losing tribe will join me tonight for the first Tribal Council of Survivor Island.';
@@ -791,9 +790,9 @@ const ChallengeIntroView = {
         margin-top: 30px;
       `,
       onclick: () => {
-        this.completeIntro();
+        RoleView.render(container, this.onComplete);
       }
-    }, 'Begin Challenge');
+    }, 'Next');
 
     introWrapper.append(challengeTitle, daySubtitle, challengeDescription, continueButton);
     container.appendChild(introWrapper);
@@ -820,3 +819,133 @@ const ChallengeIntroView = {
 };
 
 export default ChallengeIntroView;
+```
+
+```javascript
+// RoleView.js
+import { createElement, clearChildren } from '../utils/DOMUtils.js';
+
+const RoleView = {
+    render(container, onComplete) {
+        if (!container) {
+            console.error('RoleView: No container provided');
+            return;
+        }
+
+        clearChildren(container);
+
+        container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
+        container.style.backgroundSize = 'cover';
+        container.style.backgroundPosition = 'center';
+        container.style.backgroundRepeat = 'no-repeat';
+
+        const scrollableCardWrapper = createElement('div', {
+            style: `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                height: 80%;
+                overflow-x: auto;
+                display: flex;
+                padding-bottom: 20px;
+            `
+        });
+
+        const stages = [
+            { name: 'Mud Crawl', front: 'Assets/mud-crawl-card.png' , back: 'Assets/card-back.png'},
+            { name: 'Untie Knots', front: 'Assets/untie-knots-card.png', back: 'Assets/card-back.png' },
+            { name: 'Bean Bag Toss', front: 'Assets/bean-bag-toss-card.png', back: 'Assets/card-back.png' },
+            { name: 'Vertical Puzzle', front: 'Assets/vertical-puzzle-card.png', back: 'Assets/card-back.png' }
+        ];
+
+        stages.forEach(stage => {
+            const cardWrapper = createElement('div', {
+                style: `
+                    position: relative;
+                    width: 200px;
+                    height: 300px;
+                    margin: 0 10px;
+                    flex-shrink: 0;
+                `
+            });
+            
+            const cardFront = createElement('img', {
+                src: stage.front,
+                style: `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    backface-visibility: hidden; /* Hide the back side initially */
+                    transition: transform 0.6s;
+                `
+            });
+
+            const cardBack = createElement('img', {
+                src: stage.back,
+                style: `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    backface-visibility: hidden;
+                    transform: rotateY(180deg); /* Initially rotate the back side */
+                    transition: transform 0.6s;
+                `
+            });
+
+            const invisibleButton = createElement('button', {
+                style: `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    opacity: 0.5; /* Make visible for positioning purposes */
+                    cursor: pointer;
+                    z-index: 10;
+                `,
+                onclick: () => {
+                    cardFront.style.transform = 'rotateY(180deg)';
+                    cardBack.style.transform = 'rotateY(360deg)';
+                }
+            });
+
+            const backButton = createElement('img', {
+                src: 'Assets/left.png',
+                style: `
+                    position: absolute;
+                    bottom: 10px;
+                    left: 10px;
+                    width: 30px;
+                    height: 30px;
+                    cursor: pointer;
+                    z-index: 11;
+                `,
+                onclick: () => {
+                    cardFront.style.transform = 'rotateY(0deg)';
+                    cardBack.style.transform = 'rotateY(180deg)';
+                }
+            });
+
+            cardBack.appendChild(backButton);
+            cardWrapper.appendChild(invisibleButton);
+            cardWrapper.appendChild(cardFront);
+            cardWrapper.appendChild(cardBack);
+            scrollableCardWrapper.appendChild(cardWrapper);
+        });
+
+        container.appendChild(scrollableCardWrapper);
+    }
+};
+
+export default RoleView;
+```
+
+This commit modifies the ChallengeIntroView to remove button rotation, change text to "Next", and loads RoleView, and creates RoleView to display challenge cards.
