@@ -408,18 +408,19 @@ const RoleView = {
         flex-direction: column;
         align-items: center;
         cursor: pointer;
-      `,
-      onclick: (e) => {
-        e.stopPropagation();
-        console.log('Avatar clicked:', survivor.firstName, 'isAssigned:', isAssigned);
-        if (isAssigned) {
-          console.log('Showing unassign popup');
-          this._showUnassignPopup(survivor, stageId, mainContainer);
-        } else {
-          console.log('Showing traits popup');
-          this._showTraitsPopup(survivor, stageId, mainContainer);
-        }
-      }
+        padding: 3px;
+        border-radius: 5px;
+        transition: background-color 0.3s;
+      `
+    });
+
+    // Add hover effect like in ShelterView
+    avatarWrapper.addEventListener('mouseenter', () => {
+      avatarWrapper.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    });
+
+    avatarWrapper.addEventListener('mouseleave', () => {
+      avatarWrapper.style.backgroundColor = 'transparent';
     });
 
     const avatar = createElement('img', {
@@ -433,20 +434,8 @@ const RoleView = {
         border: 3px solid ${isAssigned ? 'gold' : 'white'};
         background: #000;
         transition: border-color 0.3s;
-        cursor: pointer;
-        pointer-events: auto;
-      `,
-      onclick: (e) => {
-        e.stopPropagation();
-        console.log('Direct avatar image clicked:', survivor.firstName);
-        if (isAssigned) {
-          console.log('Showing unassign popup from avatar');
-          this._showUnassignPopup(survivor, stageId, mainContainer);
-        } else {
-          console.log('Showing traits popup from avatar');
-          this._showTraitsPopup(survivor, stageId, mainContainer);
-        }
-      }
+        pointer-events: none;
+      `
     });
 
     const name = createElement('span', {
@@ -458,8 +447,22 @@ const RoleView = {
         text-align: center;
         text-shadow: 1px 1px 2px black;
         line-height: 1;
+        pointer-events: none;
       `
     }, survivor.firstName.toUpperCase());
+
+    // Single click handler on the wrapper like ShelterView
+    avatarWrapper.addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('Avatar clicked:', survivor.firstName, 'isAssigned:', isAssigned);
+      if (isAssigned) {
+        console.log('Showing unassign popup');
+        this._showUnassignPopup(survivor, stageId, mainContainer);
+      } else {
+        console.log('Showing traits popup');
+        this._showTraitsPopup(survivor, stageId, mainContainer);
+      }
+    });
 
     avatarWrapper.append(avatar, name);
     return avatarWrapper;
@@ -468,8 +471,9 @@ const RoleView = {
   _showTraitsPopup(survivor, stageId, mainContainer) {
     console.log('Creating traits popup for:', survivor.firstName);
     
-    // Semi-transparent overlay
+    // Create overlay similar to ShelterView technique
     const overlay = createElement('div', {
+      id: 'traits-popup',
       style: `
         position: fixed;
         top: 0;
@@ -481,156 +485,150 @@ const RoleView = {
         align-items: center;
         justify-content: center;
         z-index: 2000;
-      `,
-      onclick: (e) => {
-        if (e.target === overlay) {
-          console.log('Overlay clicked, closing popup');
-          document.body.removeChild(overlay);
-        }
-      }
+      `
     });
 
-    // Traits card
-    const traitsCard = createElement('div', {
+    // Create traits card wrapper similar to CharacterSelectionScreen
+    const traitsCardWrapper = createElement('div', {
       style: `
-        width: 300px;
-        max-width: 90vw;
-        height: 400px;
-        max-height: 90vh;
+        position: relative;
+        width: 334px;
+        height: 550px;
         background-image: url('Assets/card-back-traits.png');
         background-size: 100% 100%;
-        background-position: center;
         background-repeat: no-repeat;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px;
-        box-sizing: border-box;
+        background-position: center;
         border-radius: 15px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
       `,
       onclick: (e) => {
         e.stopPropagation();
       }
     });
 
-    // Survivor name
-    const survivorName = createElement('h2', {
-      style: `
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 1.5rem;
-        text-shadow: 2px 2px 4px black;
-        margin: 10px 0;
-      `
-    }, survivor.firstName.toUpperCase());
+    // Use the same trait coordinates as CharacterSelectionScreen
+    const traitCoordinates = {
+      physical: [75, 141],
+      mental: [168, 141],
+      social: [261, 141],
+      strength: [75, 201],
+      memory: [168, 201],
+      connections: [261, 201],
+      speed: [75, 266],
+      puzzles: [168, 266],
+      likeability: [261, 266],
+      endurance: [75, 328],
+      fortitude: [168, 328],
+      interrogation: [261, 328],
+      dexterity: [75, 392],
+      awareness: [168, 392],
+      deception: [261, 392],
+      balance: [75, 457],
+      focus: [168, 457],
+      alliances: [261, 457]
+    };
 
-    // Avatar
-    const avatarImg = createElement('img', {
-      src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
-      style: `
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid white;
-        margin: 10px 0;
-      `
-    });
-
-    // Traits
-    const traitsContainer = createElement('div', {
-      style: `
-        flex: 1;
-        width: 100%;
-        padding: 10px;
-      `
-    });
-
-    ['physical', 'mental', 'social'].forEach(traitType => {
-      const traitValue = survivor.traits[traitType];
-      const traitRow = createElement('div', {
+    // Add all trait values to the card
+    Object.entries(traitCoordinates).forEach(([key, [x, y]]) => {
+      const value = survivor[key];
+      const traitElement = createElement('div', {
+        className: 'trait-element',
         style: `
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin: 8px 0;
+          position: absolute;
+          left: ${x}px;
+          top: ${y}px;
+          font-size: 18px;
+          font-weight: bold;
           color: white;
-          font-family: 'Survivant', sans-serif;
-          text-shadow: 1px 1px 2px black;
+          text-align: center;
+          transform: translate(-50%, -50%);
+          text-shadow: 1px 1px 3px black;
+          pointer-events: none;
         `
-      });
-
-      const traitLabel = createElement('span', {
-        style: 'font-size: 1rem;'
-      }, traitType.charAt(0).toUpperCase() + traitType.slice(1));
-
-      const traitValueSpan = createElement('span', {
-        style: 'font-size: 1rem; font-weight: bold;'
-      }, traitValue);
-
-      traitRow.append(traitLabel, traitValueSpan);
-      traitsContainer.appendChild(traitRow);
+      }, value?.toString() ?? '?');
+      traitsCardWrapper.appendChild(traitElement);
     });
 
-    // Buttons container
+    // Add buttons container at bottom
     const buttonsContainer = createElement('div', {
       style: `
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
         gap: 20px;
-        margin-top: 20px;
+        z-index: 5;
       `
     });
 
-    // Back button
-    const backBtn = createElement('img', {
-      src: 'Assets/Buttons/left.png',
+    // Back button using same style as ShelterView
+    const backButton = createElement('button', {
+      className: 'rect-button small',
       style: `
-        width: 40px;
-        height: 40px;
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 80px;
+        height: 35px;
+        border: none;
+        color: white;
+        font-family: 'Survivant', serif;
+        font-size: 12px;
+        font-weight: bold;
         cursor: pointer;
-      `,
-      onclick: () => {
+        text-shadow: 1px 1px 2px black;
+      `
+    }, 'Back');
+
+    // Assign role button
+    const assignButton = createElement('button', {
+      className: 'rect-button small',
+      style: `
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 100px;
+        height: 35px;
+        border: none;
+        color: white;
+        font-family: 'Survivant', serif;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        text-shadow: 1px 1px 2px black;
+      `
+    }, 'Assign Role');
+
+    // Event handlers
+    backButton.addEventListener('click', () => {
+      document.body.removeChild(overlay);
+    });
+
+    assignButton.addEventListener('click', () => {
+      this.assignedRoles.set(stageId, survivor.id);
+      document.body.removeChild(overlay);
+      // Refresh the card back and confirm button
+      this._refreshCardBack(stageId, mainContainer);
+      this._updateConfirmButton(mainContainer);
+    });
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
         document.body.removeChild(overlay);
       }
     });
 
-    // Assign role button
-    const assignBtn = createElement('button', {
-      style: `
-        width: 120px;
-        height: 40px;
-        background-image: url('Assets/rect-button.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        border: none;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 0.9rem;
-        font-weight: bold;
-        text-shadow: 1px 1px 2px black;
-        cursor: pointer;
-      `,
-      onclick: () => {
-        this.assignedRoles.set(stageId, survivor.id);
-        document.body.removeChild(overlay);
-        // Refresh the card back and confirm button
-        this._refreshCardBack(stageId, mainContainer);
-        this._updateConfirmButton(mainContainer);
-      }
-    }, 'Assign Role');
-
-    buttonsContainer.append(backBtn, assignBtn);
-    traitsCard.append(survivorName, avatarImg, traitsContainer, buttonsContainer);
-    overlay.appendChild(traitsCard);
+    buttonsContainer.appendChild(backButton);
+    buttonsContainer.appendChild(assignButton);
+    traitsCardWrapper.appendChild(buttonsContainer);
+    overlay.appendChild(traitsCardWrapper);
     
     console.log('Appending traits popup to document body');
     document.body.appendChild(overlay);
-    
-    // Force a reflow to ensure visibility
-    overlay.offsetHeight;
   },
 
   _showUnassignPopup(survivor, stageId, mainContainer) {
