@@ -820,9 +820,7 @@ const ChallengeIntroView = {
 };
 
 export default ChallengeIntroView;
-```
 
-```javascript
 // RoleView.js
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 
