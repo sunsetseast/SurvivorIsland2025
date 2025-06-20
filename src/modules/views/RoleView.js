@@ -431,7 +431,6 @@ const RoleView = {
         background: #000;
         transition: border-color 0.3s;
         cursor: pointer;
-        pointer-events: none;
       `
     });
 
