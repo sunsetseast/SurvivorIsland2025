@@ -1,7 +1,6 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
-import RoleView from './RoleView.js';
 
 const ChallengeIntroView = {
   render(container, challengeConfig = null, onComplete = null) {
@@ -791,7 +790,7 @@ const ChallengeIntroView = {
         margin-top: 30px;
       `,
       onclick: () => {
-        RoleView.render(container, this.onComplete);
+        this.completeIntro();
       }
     }, 'Next');
 

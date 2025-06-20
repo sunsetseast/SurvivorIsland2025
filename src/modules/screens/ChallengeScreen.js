@@ -48,11 +48,25 @@ export default class ChallengeScreen {
   loadChallengeIntro() {
     // Show the challenge introduction first
     ChallengeIntroView.render(this.container, this.currentChallenge, () => {
-      // Once intro is complete, load the actual challenge
-      this.loadActualChallenge();
+      // Once intro is complete, show RoleView before actual challenge
+      this.loadRoleView();
     });
     this.currentView = 'challenge-intro';
     console.log(`Loaded challenge introduction: ${this.currentChallenge.name}`);
+  }
+
+  loadRoleView() {
+    if (!this.container) return;
+
+    // Import RoleView at the top of the file
+    import('../views/RoleView.js').then(({ default: RoleView }) => {
+      RoleView.render(this.container, () => {
+        // Once RoleView is complete, load the actual challenge
+        this.loadActualChallenge();
+      });
+      this.currentView = 'role-view';
+      console.log('Loaded RoleView');
+    });
   }
 
   loadActualChallenge() {
