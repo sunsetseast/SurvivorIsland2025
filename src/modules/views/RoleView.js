@@ -41,7 +41,7 @@ const RoleView = {
       }
     ];
 
-    // Create scrollable card wrapper (horizontal like character selection)
+    // Create scrollable card wrapper
     const scrollableCardWrapper = createElement('div', {
       style: `
         position: absolute;
@@ -67,7 +67,7 @@ const RoleView = {
 
     container.appendChild(scrollableCardWrapper);
 
-    // Add navigation button to continue
+    // Add continue button
     const continueButton = createElement('button', {
       style: `
         position: absolute;
@@ -123,7 +123,7 @@ const RoleView = {
       `
     });
 
-    // FRONT of card
+    // Front of card
     const cardFront = createElement('div', {
       className: 'card-front',
       style: `
@@ -168,7 +168,7 @@ const RoleView = {
 
     cardFront.appendChild(flipButton);
 
-    // BACK of card
+    // Back of card
     const cardBack = createElement('div', {
       className: 'card-back',
       style: `
