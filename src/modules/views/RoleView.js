@@ -62,7 +62,10 @@ const RoleView = {
     });
 
     container.appendChild(stageArea);
-    setupScrollReveal();
+    
+    if (setupScrollReveal) {
+      setupScrollReveal();
+    }
   },
 
   _createStageCard(stage, index) {
@@ -108,7 +111,7 @@ const RoleView = {
       `
     });
 
-    // Invisible button for now (make visible for positioning)
+    // Visible button for positioning (as requested)
     const flipButton = createElement('button', {
       className: 'flip-button',
       style: `
