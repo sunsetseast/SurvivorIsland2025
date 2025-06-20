@@ -2,6 +2,7 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
+import screenManager from '../core/ScreenManager.js';
 
 const IndividualChallengeView = {
   render(container, challengeConfig = null) {

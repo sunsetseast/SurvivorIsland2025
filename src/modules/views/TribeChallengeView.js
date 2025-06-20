@@ -1,6 +1,7 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
+import screenManager from '../core/ScreenManager.js';
 
 const TribeChallengeView = {
   render(container, challengeConfig = null) {
