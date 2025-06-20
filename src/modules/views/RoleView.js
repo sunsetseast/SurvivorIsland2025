@@ -72,16 +72,17 @@ const RoleView = {
     const textOverlay = createElement('div', {
       style: `
         position: absolute;
-        top: 20px;
+        top: 15px;
         left: 50%;
         transform: translateX(-50%);
         color: white;
         font-family: 'Survivant', sans-serif;
-        font-size: 1.1rem;
+        font-size: 0.75rem;
         text-align: center;
-        max-width: 90%;
+        max-width: 95%;
         text-shadow: 2px 2px 4px black;
-        line-height: 1.4;
+        line-height: 1.2;
+        padding: 0 10px;
       `
     }, 'In your first Immunity Challenge, your tribe must complete a series of obstacles. Each stage will test the traits of your tribe against the traits of your opponents. Choose carefully because each Survivor may only be assigned one role in this challenge.');
 
@@ -407,7 +408,15 @@ const RoleView = {
         flex-direction: column;
         align-items: center;
         cursor: pointer;
-      `
+      `,
+      onclick: (e) => {
+        e.stopPropagation();
+        if (isAssigned) {
+          this._showUnassignPopup(survivor, stageId, mainContainer);
+        } else {
+          this._showTraitsPopup(survivor, stageId, mainContainer);
+        }
+      }
     });
 
     const avatar = createElement('img', {
@@ -422,15 +431,8 @@ const RoleView = {
         background: #000;
         transition: border-color 0.3s;
         cursor: pointer;
-      `,
-      onclick: (e) => {
-        e.stopPropagation();
-        if (isAssigned) {
-          this._showUnassignPopup(survivor, stageId, mainContainer);
-        } else {
-          this._showTraitsPopup(survivor, stageId, mainContainer);
-        }
-      }
+        pointer-events: none;
+      `
     });
 
     const name = createElement('span', {
