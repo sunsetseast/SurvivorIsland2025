@@ -209,7 +209,7 @@ const ChallengeIntroView = {
         break;
       case 3:
         jeffText = 'First tribes to finish win Immunity.\n\nI\'ll give you a minute to strategize.';
-        buttonText = 'Begin Challenge';
+        buttonText = 'Next';
         break;
     }
 
@@ -651,7 +651,7 @@ const ChallengeIntroView = {
         position: absolute;
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%) rotate(90deg);
+        transform: translate(-50%, -50%);
         width: 80vh;
         height: 80vw;
         max-width: 600px;
@@ -680,7 +680,6 @@ const ChallengeIntroView = {
           0 4px 0 #000,
           0 6px 0 #000,
           0 8px 8px rgba(0, 0, 0, 0.5);
-        transform: rotate(-90deg);
         width: 300px;
         height: 200px;
         display: flex;
@@ -718,7 +717,7 @@ const ChallengeIntroView = {
         this.challengeStage++;
         this.renderSpecialIntro(container, config, gameManager.getPlayerTribe(), gameManager.getTribes(), gameManager.getPlayerSurvivor());
       }
-    }, 'Continue');
+    }, 'Next');
 
     container.append(popupWrapper, closeButton);
   },
