@@ -1,7 +1,10 @@
 
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
+import gameManager from '../core/GameManager.js';
 
 const RoleView = {
+  assignedRoles: new Map(), // stage-id -> survivor-id mapping
+  
   render(container, onComplete = null) {
     if (!container) {
       console.error('RoleView: No container provided');
@@ -9,6 +12,83 @@ const RoleView = {
     }
 
     this.onComplete = onComplete;
+    this.assignedRoles.clear(); // Reset assignments for new challenge
+    
+    // Show initial popup first
+    this.showInitialPopup(container);
+  },
+
+  showInitialPopup(container) {
+    clearChildren(container);
+
+    // Set background
+    container.style.backgroundImage = "url('Assets/Screens/challenge.png')";
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundPosition = 'center';
+    container.style.backgroundRepeat = 'no-repeat';
+
+    // Semi-transparent overlay
+    const overlay = createElement('div', {
+      style: `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      `,
+      onclick: () => {
+        this.showRoleView(container);
+      }
+    });
+
+    const playerTribe = gameManager.getPlayerTribe();
+    
+    // Tribe portrait
+    const tribePortrait = createElement('img', {
+      src: `Assets/Tribe/${playerTribe.color}-portrait.png`,
+      style: `
+        width: 300px;
+        max-width: 80vw;
+        margin-bottom: 30px;
+      `
+    });
+
+    // Text overlay
+    const textOverlay = createElement('div', {
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.1rem;
+        text-align: center;
+        max-width: 600px;
+        padding: 0 20px;
+        text-shadow: 2px 2px 4px black;
+        line-height: 1.4;
+      `
+    }, 'In your first Immunity Challenge, your tribe must complete a series of obstacles. Each stage will test the traits of your tribe against the traits of your opponents. Choose carefully because each Survivor may only be assigned one role in this challenge.');
+
+    const clickText = createElement('div', {
+      style: `
+        color: #f39c12;
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.9rem;
+        text-align: center;
+        margin-top: 20px;
+        text-shadow: 2px 2px 4px black;
+      `
+    }, 'Click anywhere to continue');
+
+    overlay.append(tribePortrait, textOverlay, clickText);
+    container.appendChild(overlay);
+  },
+
+  showRoleView(container) {
     clearChildren(container);
 
     // Set background
@@ -61,14 +141,14 @@ const RoleView = {
     });
 
     challengeStages.forEach((stage, index) => {
-      const cardWrapper = this._createStageCard(stage, index);
+      const cardWrapper = this._createStageCard(stage, index, container);
       scrollableCardWrapper.appendChild(cardWrapper);
     });
 
     container.appendChild(scrollableCardWrapper);
 
-    // Add continue button
-    const continueButton = createElement('button', {
+    // Add confirm roles button
+    const confirmButton = createElement('button', {
       style: `
         position: absolute;
         bottom: 40px;
@@ -84,23 +164,27 @@ const RoleView = {
         border: none;
         color: white;
         font-family: 'Survivant', sans-serif;
-        font-size: 1.15rem;
+        font-size: 1rem;
         font-weight: bold;
         text-shadow: 1px 1px 2px black;
         padding: 0;
         cursor: pointer;
+        opacity: ${this.assignedRoles.size >= challengeStages.length ? 1 : 0.5};
+        pointer-events: ${this.assignedRoles.size >= challengeStages.length ? 'auto' : 'none'};
       `,
       onclick: () => {
-        if (this.onComplete && typeof this.onComplete === 'function') {
-          this.onComplete();
+        if (this.assignedRoles.size >= challengeStages.length) {
+          if (this.onComplete && typeof this.onComplete === 'function') {
+            this.onComplete();
+          }
         }
       }
-    }, 'Continue');
+    }, 'Confirm Roles');
 
-    container.appendChild(continueButton);
+    container.appendChild(confirmButton);
   },
 
-  _createStageCard(stage, index) {
+  _createStageCard(stage, index, mainContainer) {
     const cardWrapper = createElement('div', {
       className: 'card-wrapper',
       style: `
@@ -163,12 +247,13 @@ const RoleView = {
       onclick: (e) => {
         e.stopPropagation();
         card.style.transform = 'rotateY(180deg)';
+        this._updateCardBack(stage.id, cardBack, mainContainer);
       }
     }, 'FLIP');
 
     cardFront.appendChild(flipButton);
 
-    // Back of card
+    // Back of card with tribe banner and survivor grid
     const cardBack = createElement('div', {
       className: 'card-back',
       style: `
@@ -177,44 +262,25 @@ const RoleView = {
         height: 100%;
         backface-visibility: hidden;
         transform: rotateY(180deg);
-        background-image: url('Assets/card-back.png');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
         border-radius: 10px;
         border: 2px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: space-between;
-        padding: 20px;
-        box-sizing: border-box;
+        overflow: hidden;
       `
     });
-
-    // Stage name on back
-    const stageName = createElement('h3', {
-      style: `
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 1.5rem;
-        text-align: center;
-        text-shadow: 2px 2px 4px black;
-        margin: 0;
-        margin-top: 20px;
-      `
-    }, stage.name);
 
     // Back button
     const backButton = createElement('img', {
       src: 'Assets/Buttons/left.png',
       className: 'back-button',
       style: `
-        width: 40px;
-        height: 40px;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 30px;
+        height: 30px;
         cursor: pointer;
-        margin-bottom: 20px;
+        z-index: 20;
       `,
       onclick: (e) => {
         e.stopPropagation();
@@ -222,7 +288,6 @@ const RoleView = {
       }
     });
 
-    cardBack.appendChild(stageName);
     cardBack.appendChild(backButton);
 
     card.appendChild(cardFront);
@@ -230,6 +295,400 @@ const RoleView = {
     cardWrapper.appendChild(card);
 
     return cardWrapper;
+  },
+
+  _updateCardBack(stageId, cardBack, mainContainer) {
+    // Clear existing content except back button
+    const backButton = cardBack.querySelector('.back-button');
+    clearChildren(cardBack);
+    if (backButton) {
+      cardBack.appendChild(backButton);
+    }
+
+    const playerTribe = gameManager.getPlayerTribe();
+    
+    // Add tribe banner background, stretched to fit card
+    const bannerBg = createElement('div', {
+      style: `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url('Assets/Tribe/${playerTribe.color}-banner.png');
+        background-size: 100% 100%;
+        background-position: center;
+        background-repeat: no-repeat;
+      `
+    });
+    cardBack.appendChild(bannerBg);
+
+    // Stage name overlay
+    const stageName = createElement('h3', {
+      style: `
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.2rem;
+        text-align: center;
+        text-shadow: 2px 2px 4px black;
+        margin: 0;
+        z-index: 15;
+      `
+    }, this._getStageNameById(stageId));
+    cardBack.appendChild(stageName);
+
+    // Survivor grid
+    const survivorGrid = createElement('div', {
+      style: `
+        position: absolute;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        width: 90%;
+        max-width: 200px;
+        z-index: 15;
+      `
+    });
+
+    // Get available survivors (not already assigned to other roles)
+    const availableSurvivors = this._getAvailableSurvivors(stageId);
+    
+    availableSurvivors.forEach(survivor => {
+      const survivorWrapper = this._createSurvivorAvatar(survivor, stageId, mainContainer);
+      survivorGrid.appendChild(survivorWrapper);
+    });
+
+    cardBack.appendChild(survivorGrid);
+  },
+
+  _getAvailableSurvivors(currentStageId) {
+    const playerTribe = gameManager.getPlayerTribe();
+    const assignedSurvivorIds = new Set();
+    
+    // Get all survivors already assigned to other stages
+    for (const [stageId, survivorId] of this.assignedRoles) {
+      if (stageId !== currentStageId) {
+        assignedSurvivorIds.add(survivorId);
+      }
+    }
+    
+    // Return survivors not assigned to other stages
+    return playerTribe.members.filter(survivor => !assignedSurvivorIds.has(survivor.id));
+  },
+
+  _createSurvivorAvatar(survivor, stageId, mainContainer) {
+    const isAssigned = this.assignedRoles.get(stageId) === survivor.id;
+    
+    const avatarWrapper = createElement('div', {
+      style: `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+      `
+    });
+
+    const avatar = createElement('img', {
+      src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+      alt: survivor.firstName,
+      style: `
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid ${isAssigned ? 'gold' : 'white'};
+        background: #000;
+        transition: border-color 0.3s;
+      `,
+      onclick: () => {
+        if (isAssigned) {
+          this._showUnassignPopup(survivor, stageId, mainContainer);
+        } else {
+          this._showTraitsPopup(survivor, stageId, mainContainer);
+        }
+      }
+    });
+
+    const name = createElement('span', {
+      style: `
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.7rem;
+        color: white;
+        margin-top: 2px;
+        text-align: center;
+        text-shadow: 1px 1px 2px black;
+        line-height: 1;
+      `
+    }, survivor.firstName.toUpperCase());
+
+    avatarWrapper.append(avatar, name);
+    return avatarWrapper;
+  },
+
+  _showTraitsPopup(survivor, stageId, mainContainer) {
+    // Semi-transparent overlay
+    const overlay = createElement('div', {
+      style: `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      `
+    });
+
+    // Traits card
+    const traitsCard = createElement('div', {
+      style: `
+        width: 300px;
+        height: 400px;
+        background-image: url('Assets/card-back-traits.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        box-sizing: border-box;
+      `
+    });
+
+    // Survivor name
+    const survivorName = createElement('h2', {
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.5rem;
+        text-shadow: 2px 2px 4px black;
+        margin: 10px 0;
+      `
+    }, survivor.firstName.toUpperCase());
+
+    // Avatar
+    const avatarImg = createElement('img', {
+      src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+      style: `
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid white;
+        margin: 10px 0;
+      `
+    });
+
+    // Traits
+    const traitsContainer = createElement('div', {
+      style: `
+        flex: 1;
+        width: 100%;
+        padding: 10px;
+      `
+    });
+
+    ['physical', 'mental', 'social'].forEach(traitType => {
+      const traitValue = survivor.traits[traitType];
+      const traitRow = createElement('div', {
+        style: `
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin: 8px 0;
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          text-shadow: 1px 1px 2px black;
+        `
+      });
+
+      const traitLabel = createElement('span', {
+        style: 'font-size: 1rem;'
+      }, traitType.charAt(0).toUpperCase() + traitType.slice(1));
+
+      const traitValueSpan = createElement('span', {
+        style: 'font-size: 1rem; font-weight: bold;'
+      }, traitValue);
+
+      traitRow.append(traitLabel, traitValueSpan);
+      traitsContainer.appendChild(traitRow);
+    });
+
+    // Buttons container
+    const buttonsContainer = createElement('div', {
+      style: `
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+      `
+    });
+
+    // Back button
+    const backBtn = createElement('img', {
+      src: 'Assets/Buttons/left.png',
+      style: `
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        document.body.removeChild(overlay);
+      }
+    });
+
+    // Assign role button
+    const assignBtn = createElement('button', {
+      style: `
+        width: 120px;
+        height: 40px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        this.assignedRoles.set(stageId, survivor.id);
+        document.body.removeChild(overlay);
+        // Refresh the card back and confirm button
+        this._refreshCardBack(stageId, mainContainer);
+        this._updateConfirmButton(mainContainer);
+      }
+    }, 'Assign Role');
+
+    buttonsContainer.append(backBtn, assignBtn);
+    traitsCard.append(survivorName, avatarImg, traitsContainer, buttonsContainer);
+    overlay.appendChild(traitsCard);
+    document.body.appendChild(overlay);
+  },
+
+  _showUnassignPopup(survivor, stageId, mainContainer) {
+    // Semi-transparent overlay
+    const overlay = createElement('div', {
+      style: `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      `
+    });
+
+    // Buttons container
+    const buttonsContainer = createElement('div', {
+      style: `
+        display: flex;
+        gap: 20px;
+      `
+    });
+
+    // Unassign button
+    const unassignBtn = createElement('button', {
+      style: `
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        this.assignedRoles.delete(stageId);
+        document.body.removeChild(overlay);
+        // Refresh the card back and confirm button
+        this._refreshCardBack(stageId, mainContainer);
+        this._updateConfirmButton(mainContainer);
+      }
+    }, 'Un-Assign Role');
+
+    // Cancel button
+    const cancelBtn = createElement('button', {
+      style: `
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        document.body.removeChild(overlay);
+      }
+    }, 'Cancel');
+
+    buttonsContainer.append(unassignBtn, cancelBtn);
+    overlay.appendChild(buttonsContainer);
+    document.body.appendChild(overlay);
+  },
+
+  _refreshCardBack(stageId, mainContainer) {
+    const cardBack = mainContainer.querySelector(`.stage-card:nth-child(${this._getStageIndex(stageId) + 1}) .card-back`);
+    if (cardBack) {
+      this._updateCardBack(stageId, cardBack, mainContainer);
+    }
+  },
+
+  _updateConfirmButton(mainContainer) {
+    const confirmButton = mainContainer.querySelector('button');
+    const challengeStages = 4; // Total number of stages
+    
+    if (confirmButton) {
+      const allAssigned = this.assignedRoles.size >= challengeStages;
+      confirmButton.style.opacity = allAssigned ? '1' : '0.5';
+      confirmButton.style.pointerEvents = allAssigned ? 'auto' : 'none';
+    }
+  },
+
+  _getStageNameById(stageId) {
+    const names = {
+      'mud-crawl': 'Mud Crawl',
+      'untie-knots': 'Untie Knots',
+      'bean-bag-toss': 'Bean Bag Toss',
+      'vertical-puzzle': 'Vertical Puzzle'
+    };
+    return names[stageId] || 'Unknown Stage';
+  },
+
+  _getStageIndex(stageId) {
+    const stages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
+    return stages.indexOf(stageId);
   }
 };
 

@@ -642,8 +642,8 @@ const ChallengeIntroView = {
   renderFirstContactPopup(container, config) {
     clearChildren(container);
 
-    // Use Jeff background for this explanation
-    container.style.backgroundImage = `url('${config.background}')`;
+    // Use challenge background from this point forward
+    container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
 
     // Large sideways popup wrapper
     const popupWrapper = createElement('div', {
