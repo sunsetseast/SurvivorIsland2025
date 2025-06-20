@@ -49,29 +49,43 @@ const RoleView = {
 
     const playerTribe = gameManager.getPlayerTribe();
     
-    // Tribe portrait
-    const tribePortrait = createElement('img', {
-      src: `Assets/Tribe/${playerTribe.color}-portrait.png`,
+    // Container for tribe portrait and text overlay
+    const portraitContainer = createElement('div', {
       style: `
+        position: relative;
         width: 300px;
         max-width: 80vw;
         margin-bottom: 30px;
       `
     });
 
-    // Text overlay
+    // Tribe portrait
+    const tribePortrait = createElement('img', {
+      src: `Assets/Tribe/${playerTribe.color}-portrait.png`,
+      style: `
+        width: 100%;
+        display: block;
+      `
+    });
+
+    // Text overlay positioned on top of the image
     const textOverlay = createElement('div', {
       style: `
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
         color: white;
         font-family: 'Survivant', sans-serif;
         font-size: 1.1rem;
         text-align: center;
-        max-width: 600px;
-        padding: 0 20px;
+        max-width: 90%;
         text-shadow: 2px 2px 4px black;
         line-height: 1.4;
       `
     }, 'In your first Immunity Challenge, your tribe must complete a series of obstacles. Each stage will test the traits of your tribe against the traits of your opponents. Choose carefully because each Survivor may only be assigned one role in this challenge.');
+
+    portraitContainer.append(tribePortrait, textOverlay);
 
     const clickText = createElement('div', {
       style: `
@@ -84,7 +98,7 @@ const RoleView = {
       `
     }, 'Click anywhere to continue');
 
-    overlay.append(tribePortrait, textOverlay, clickText);
+    overlay.append(portraitContainer, clickText);
     container.appendChild(overlay);
   },
 
@@ -275,8 +289,9 @@ const RoleView = {
       className: 'back-button',
       style: `
         position: absolute;
-        top: 10px;
-        left: 10px;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
         width: 30px;
         height: 30px;
         cursor: pointer;
@@ -406,8 +421,10 @@ const RoleView = {
         border: 3px solid ${isAssigned ? 'gold' : 'white'};
         background: #000;
         transition: border-color 0.3s;
+        cursor: pointer;
       `,
-      onclick: () => {
+      onclick: (e) => {
+        e.stopPropagation();
         if (isAssigned) {
           this._showUnassignPopup(survivor, stageId, mainContainer);
         } else {
