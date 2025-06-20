@@ -1,6 +1,7 @@
 
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
+import screenManager from '../core/ScreenManager.js';
 
 const ChallengeIntroView = {
   render(container, challengeConfig = null, onComplete = null) {
