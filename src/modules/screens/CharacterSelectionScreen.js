@@ -22,6 +22,10 @@
       document.addEventListener('click', (e) => {
         const filterOptions = getElement('filter-options');
         const filterButton = getElement('filter-button');
+        
+        // Only execute if elements exist (we're on character selection screen)
+        if (!filterOptions || !filterButton) return;
+        
         filterButton.classList.add('rect-button');
 
         // Delay checking for outside click until after button logic
