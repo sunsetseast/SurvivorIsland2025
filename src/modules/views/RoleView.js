@@ -508,24 +508,24 @@ const RoleView = {
 
     // Use the same trait coordinates as CharacterSelectionScreen
     const traitCoordinates = {
-      physical: [75, 141],
-      mental: [168, 141],
-      social: [261, 141],
-      strength: [75, 201],
-      memory: [168, 201],
-      connections: [261, 201],
-      speed: [75, 266],
-      puzzles: [168, 266],
-      likeability: [261, 266],
-      endurance: [75, 328],
-      fortitude: [168, 328],
-      interrogation: [261, 328],
-      dexterity: [75, 392],
-      awareness: [168, 392],
-      deception: [261, 392],
-      balance: [75, 457],
-      focus: [168, 457],
-      alliances: [261, 457]
+      physical: [75, 71],
+      mental: [168, 71],
+      social: [261, 71],
+      strength: [75, 141],
+      memory: [168, 141],
+      connections: [261, 141],
+      speed: [75, 220],
+      puzzles: [168, 220],
+      likeability: [261, 220],
+      endurance: [75, 297],
+      fortitude: [168, 297],
+      interrogation: [261, 297],
+      dexterity: [75, 370],
+      awareness: [168, 370],
+      deception: [261, 370],
+      balance: [75, 445],
+      focus: [168, 445],
+      alliances: [261, 445]
     };
 
     // Add all trait values to the card
