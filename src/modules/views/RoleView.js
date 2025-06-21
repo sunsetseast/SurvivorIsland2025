@@ -1029,20 +1029,23 @@ const RoleView = {
     const playerTribe = gameManager.getPlayerTribe();
     const opposingTribe = allTribes.find(tribe => tribe.id !== playerTribe.id);
 
+    console.log('Showing matchup screen for tribes:', playerTribe.name, 'vs', opposingTribe?.name);
+    console.log('Player tribe members:', playerTribe.members.map(s => `${s.firstName}: roles=${s.roles}`));
+    console.log('Opposing tribe members:', opposingTribe?.members.map(s => `${s.firstName}: roles=${s.roles}`));
+
     // Main container for matchups
     const matchupsContainer = createElement('div', {
       style: `
         position: absolute;
-        top: 50%;
+        top: 10%;
         left: 50%;
-        transform: translate(-50%, -50%);
+        transform: translateX(-50%);
         width: 90%;
-        max-width: 800px;
+        max-width: 700px;
         height: 80%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
+        overflow-y: auto;
         padding: 20px;
+        z-index: 1;
       `
     });
 
@@ -1054,13 +1057,15 @@ const RoleView = {
       { id: 'vertical-puzzle', name: 'Vertical Puzzle', role: 'puzzle', matchupImage: 'Assets/Challenge/matchup4.png' }
     ];
 
-    stages.forEach(stage => {
+    stages.forEach((stage, index) => {
+      console.log(`Creating stage ${index + 1}: ${stage.name} with role ${stage.role}`);
+      
       const stageContainer = createElement('div', {
         style: `
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin-bottom: 20px;
+          margin-bottom: 30px;
         `
       });
 
@@ -1072,17 +1077,21 @@ const RoleView = {
           font-size: 1.4rem;
           text-align: center;
           text-shadow: 2px 2px 4px black;
-          margin-bottom: 10px;
+          margin-bottom: 15px;
+          margin-top: 0;
         `
       }, stage.name);
 
-      // Matchup container
+      // Matchup container with proper sizing
       const matchupContainer = createElement('div', {
         style: `
           position: relative;
           width: 100%;
-          max-width: 600px;
-          height: 120px;
+          max-width: 500px;
+          height: 100px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         `
       });
 
@@ -1093,19 +1102,29 @@ const RoleView = {
           width: 100%;
           height: 100%;
           object-fit: contain;
-        `
+          display: block;
+        `,
+        onload: () => {
+          console.log(`Matchup image loaded: ${stage.matchupImage}`);
+        },
+        onerror: () => {
+          console.error(`Failed to load matchup image: ${stage.matchupImage}`);
+        }
       });
 
       // Get survivors for this role
       const playerSurvivors = playerTribe.members.filter(s => s.roles && s.roles.includes(stage.role));
-      const opposingSurvivors = opposingTribe.members.filter(s => s.roles && s.roles.includes(stage.role));
+      const opposingSurvivors = opposingTribe ? opposingTribe.members.filter(s => s.roles && s.roles.includes(stage.role)) : [];
+
+      console.log(`${stage.name} - Player survivors:`, playerSurvivors.map(s => s.firstName));
+      console.log(`${stage.name} - Opposing survivors:`, opposingSurvivors.map(s => s.firstName));
 
       if (stage.id === 'mud-crawl') {
-        // For mud crawl, show "Entire Tribe" text
+        // For mud crawl, show "Entire Tribe" text overlaid on the image
         const leftText = createElement('div', {
           style: `
             position: absolute;
-            left: 15%;
+            left: 20%;
             top: 50%;
             transform: translate(-50%, -50%);
             color: white;
@@ -1114,13 +1133,17 @@ const RoleView = {
             font-weight: bold;
             text-shadow: 2px 2px 4px black;
             text-align: center;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
           `
         }, 'Entire Tribe');
 
         const rightText = createElement('div', {
           style: `
             position: absolute;
-            right: 15%;
+            right: 20%;
             top: 50%;
             transform: translate(50%, -50%);
             color: white;
@@ -1129,38 +1152,45 @@ const RoleView = {
             font-weight: bold;
             text-shadow: 2px 2px 4px black;
             text-align: center;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
           `
         }, 'Entire Tribe');
 
+        matchupContainer.appendChild(matchupBg);
         matchupContainer.appendChild(leftText);
         matchupContainer.appendChild(rightText);
       } else {
-        // For other stages, show survivor avatars
+        // For other stages, show survivor avatars overlaid on the image
         const leftContainer = createElement('div', {
           style: `
             position: absolute;
-            left: 15%;
+            left: 20%;
             top: 50%;
             transform: translate(-50%, -50%);
             display: flex;
             flex-wrap: wrap;
-            gap: 5px;
-            max-width: 150px;
+            gap: 3px;
+            max-width: 120px;
             justify-content: center;
+            z-index: 10;
           `
         });
 
         const rightContainer = createElement('div', {
           style: `
             position: absolute;
-            right: 15%;
+            right: 20%;
             top: 50%;
             transform: translate(50%, -50%);
             display: flex;
             flex-wrap: wrap;
-            gap: 5px;
-            max-width: 150px;
+            gap: 3px;
+            max-width: 120px;
             justify-content: center;
+            z-index: 10;
           `
         });
 
@@ -1169,12 +1199,19 @@ const RoleView = {
           const avatar = createElement('img', {
             src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
             style: `
-              width: 30px;
-              height: 30px;
+              width: 25px;
+              height: 25px;
               border-radius: 50%;
               object-fit: cover;
               border: 2px solid ${this._getTribeColorHex(playerTribe.color)};
-            `
+              background-color: white;
+            `,
+            onload: () => {
+              console.log(`Player avatar loaded: ${survivor.firstName}`);
+            },
+            onerror: () => {
+              console.error(`Failed to load player avatar: ${survivor.firstName}`);
+            }
           });
           leftContainer.appendChild(avatar);
         });
@@ -1184,21 +1221,28 @@ const RoleView = {
           const avatar = createElement('img', {
             src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
             style: `
-              width: 30px;
-              height: 30px;
+              width: 25px;
+              height: 25px;
               border-radius: 50%;
               object-fit: cover;
               border: 2px solid ${this._getTribeColorHex(opposingTribe.color)};
-            `
+              background-color: white;
+            `,
+            onload: () => {
+              console.log(`Opposing avatar loaded: ${survivor.firstName}`);
+            },
+            onerror: () => {
+              console.error(`Failed to load opposing avatar: ${survivor.firstName}`);
+            }
           });
           rightContainer.appendChild(avatar);
         });
 
+        matchupContainer.appendChild(matchupBg);
         matchupContainer.appendChild(leftContainer);
         matchupContainer.appendChild(rightContainer);
       }
 
-      matchupContainer.appendChild(matchupBg);
       stageContainer.appendChild(stageName);
       stageContainer.appendChild(matchupContainer);
       matchupsContainer.appendChild(stageContainer);
@@ -1230,6 +1274,7 @@ const RoleView = {
         cursor: pointer;
       `,
       onclick: () => {
+        console.log('Survivors Ready button clicked');
         if (this.onComplete && typeof this.onComplete === 'function') {
           this.onComplete();
         }
