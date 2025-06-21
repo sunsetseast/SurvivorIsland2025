@@ -164,6 +164,7 @@ const RoleView = {
 
     // Add confirm roles button
     const confirmButton = createElement('button', {
+      id: 'confirm-roles-button',
       style: `
         position: absolute;
         bottom: 40px;
@@ -184,17 +185,25 @@ const RoleView = {
         text-shadow: 1px 1px 2px black;
         padding: 0;
         cursor: pointer;
-        opacity: ${this.assignedRoles.size >= challengeStages.length ? 1 : 0.5};
-        pointer-events: ${this.assignedRoles.size >= challengeStages.length ? 'auto' : 'none'};
+        opacity: 0.5;
+        pointer-events: none;
       `,
       onclick: () => {
         console.log('Confirm button clicked, assigned roles:', this.assignedRoles);
-        if (this.assignedRoles.size >= challengeStages.length) {
+        const challengeStages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
+        const allAssigned = challengeStages.every(stageId => {
+          const assignment = this.assignedRoles.get(stageId);
+          const maxAssignments = this._getMaxAssignmentsForStage(stageId);
+          return assignment && Array.isArray(assignment) && assignment.length === maxAssignments;
+        });
+        
+        if (allAssigned) {
+          console.log('All roles properly assigned, proceeding to matchup screen');
           this._assignRolesToSurvivors();
           this._assignRolesToOpposingTribes();
           this._showMatchupScreen(container);
         } else {
-          console.log('Not all roles assigned yet:', this.assignedRoles.size, 'of', challengeStages.length);
+          console.log('Not all roles assigned properly:', this.assignedRoles);
         }
       }
     }, 'Confirm Roles');
@@ -822,7 +831,7 @@ const RoleView = {
   },
 
   _updateConfirmButton(mainContainer) {
-    const confirmButton = mainContainer.querySelector('button');
+    const confirmButton = mainContainer.querySelector('#confirm-roles-button'); // Target the confirm button specifically
     const challengeStages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
     
     if (confirmButton) {
@@ -831,18 +840,20 @@ const RoleView = {
         const assignment = this.assignedRoles.get(stageId);
         const maxAssignments = this._getMaxAssignmentsForStage(stageId);
         
-        if (Array.isArray(assignment)) {
+        if (assignment && Array.isArray(assignment)) {
           const isValid = assignment.length === maxAssignments;
           console.log(`Stage ${stageId}: assigned ${assignment.length}, required ${maxAssignments}, valid: ${isValid}`);
           return isValid;
         }
-        console.log(`Stage ${stageId}: no assignment found`);
+        console.log(`Stage ${stageId}: no valid assignment found, assignment:`, assignment);
         return false;
       });
       
-      console.log('All stages assigned:', allAssigned);
+      console.log('All stages assigned:', allAssigned, 'Total assignments:', this.assignedRoles.size);
       confirmButton.style.opacity = allAssigned ? '1' : '0.5';
       confirmButton.style.pointerEvents = allAssigned ? 'auto' : 'none';
+    } else {
+      console.log('Confirm button not found in container');
     }
   },
 
