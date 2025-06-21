@@ -188,10 +188,13 @@ const RoleView = {
         pointer-events: ${this.assignedRoles.size >= challengeStages.length ? 'auto' : 'none'};
       `,
       onclick: () => {
+        console.log('Confirm button clicked, assigned roles:', this.assignedRoles);
         if (this.assignedRoles.size >= challengeStages.length) {
           this._assignRolesToSurvivors();
           this._assignRolesToOpposingTribes();
           this._showMatchupScreen(container);
+        } else {
+          console.log('Not all roles assigned yet:', this.assignedRoles.size, 'of', challengeStages.length);
         }
       }
     }, 'Confirm Roles');
@@ -401,7 +404,9 @@ const RoleView = {
         `,
         onclick: () => {
           // Assign all survivors to mud crawl
-          this.assignedRoles.set(stageId, playerTribe.members.map(s => s.id));
+          const allSurvivorIds = playerTribe.members.map(s => s.id);
+          this.assignedRoles.set(stageId, allSurvivorIds);
+          console.log('Assigned all survivors to mud crawl:', allSurvivorIds);
           this._refreshAllCardBacks(mainContainer);
           this._updateConfirmButton(mainContainer);
         }
@@ -675,7 +680,9 @@ const RoleView = {
       if (stageId === 'mud-crawl') {
         // Mud crawl assigns all survivors
         const playerTribe = gameManager.getPlayerTribe();
-        this.assignedRoles.set(stageId, playerTribe.members.map(s => s.id));
+        const allSurvivorIds = playerTribe.members.map(s => s.id);
+        this.assignedRoles.set(stageId, allSurvivorIds);
+        console.log('Assigned all survivors to mud crawl from traits popup:', allSurvivorIds);
       } else {
         // Other stages - check if we can assign more survivors
         const currentAssignment = this.assignedRoles.get(stageId) || [];
@@ -685,9 +692,11 @@ const RoleView = {
           if (currentAssignment.length < maxAssignments) {
             currentAssignment.push(survivor.id);
             this.assignedRoles.set(stageId, currentAssignment);
+            console.log(`Assigned ${survivor.firstName} to ${stageId}:`, currentAssignment);
           }
         } else if (!currentAssignment) {
           this.assignedRoles.set(stageId, [survivor.id]);
+          console.log(`Assigned ${survivor.firstName} to ${stageId}: [${survivor.id}]`);
         }
       }
       
@@ -823,13 +832,15 @@ const RoleView = {
         const maxAssignments = this._getMaxAssignmentsForStage(stageId);
         
         if (Array.isArray(assignment)) {
-          return assignment.length === maxAssignments;
-        } else if (stageId === 'mud-crawl') {
-          return Array.isArray(assignment) && assignment.length === maxAssignments;
+          const isValid = assignment.length === maxAssignments;
+          console.log(`Stage ${stageId}: assigned ${assignment.length}, required ${maxAssignments}, valid: ${isValid}`);
+          return isValid;
         }
+        console.log(`Stage ${stageId}: no assignment found`);
         return false;
       });
       
+      console.log('All stages assigned:', allAssigned);
       confirmButton.style.opacity = allAssigned ? '1' : '0.5';
       confirmButton.style.pointerEvents = allAssigned ? 'auto' : 'none';
     }
