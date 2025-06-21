@@ -3,7 +3,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 
 const RoleView = {
-  assignedRoles: new Map(), // stage-id -> survivor-id mapping
+  assignedRoles: new Map(), // stage-id -> survivor-id mapping (or array for multi-survivor stages)
   
   render(container, onComplete = null) {
     if (!container) {
@@ -357,50 +357,110 @@ const RoleView = {
     }, this._getStageNameById(stageId));
     cardBack.appendChild(stageName);
 
-    // Survivor grid
-    const survivorGrid = createElement('div', {
-      style: `
-        position: absolute;
-        top: 60px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        width: 90%;
-        max-width: 200px;
-        z-index: 15;
-      `
-    });
+    if (stageId === 'mud-crawl') {
+      // Special handling for mud crawl - just text and assign button
+      const messageText = createElement('div', {
+        style: `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 1rem;
+          text-align: center;
+          text-shadow: 2px 2px 4px black;
+          z-index: 15;
+          max-width: 80%;
+          line-height: 1.3;
+        `
+      }, 'All tribe members must compete in this stage.');
+      cardBack.appendChild(messageText);
 
-    // Get available survivors (not already assigned to other roles)
-    const availableSurvivors = this._getAvailableSurvivors(stageId);
-    
-    availableSurvivors.forEach(survivor => {
-      const survivorWrapper = this._createSurvivorAvatar(survivor, stageId, mainContainer);
-      survivorGrid.appendChild(survivorWrapper);
-    });
+      // Assign role button
+      const assignButton = createElement('button', {
+        style: `
+          position: absolute;
+          bottom: 50px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 100px;
+          height: 35px;
+          background-image: url('Assets/rect-button.png');
+          background-size: 100% 100%;
+          background-repeat: no-repeat;
+          background-position: center;
+          border: none;
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 12px;
+          font-weight: bold;
+          cursor: pointer;
+          text-shadow: 1px 1px 2px black;
+          z-index: 15;
+        `,
+        onclick: () => {
+          // Assign all survivors to mud crawl
+          this.assignedRoles.set(stageId, playerTribe.members.map(s => s.id));
+          this._refreshAllCardBacks(mainContainer);
+          this._updateConfirmButton(mainContainer);
+        }
+      }, 'Assign Role');
+      cardBack.appendChild(assignButton);
 
-    cardBack.appendChild(survivorGrid);
+    } else {
+      // Other stages - show survivor grid with individual selection
+      const survivorGrid = createElement('div', {
+        style: `
+          position: absolute;
+          top: 60px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          width: 90%;
+          max-width: 200px;
+          z-index: 15;
+        `
+      });
+
+      // Get available survivors (not already assigned to other non-mud-crawl roles)
+      const availableSurvivors = this._getAvailableSurvivors(stageId);
+      
+      availableSurvivors.forEach(survivor => {
+        const survivorWrapper = this._createSurvivorAvatar(survivor, stageId, mainContainer);
+        survivorGrid.appendChild(survivorWrapper);
+      });
+
+      cardBack.appendChild(survivorGrid);
+    }
   },
 
   _getAvailableSurvivors(currentStageId) {
     const playerTribe = gameManager.getPlayerTribe();
     const assignedSurvivorIds = new Set();
     
-    // Get all survivors already assigned to other stages
-    for (const [stageId, survivorId] of this.assignedRoles) {
-      if (stageId !== currentStageId) {
-        assignedSurvivorIds.add(survivorId);
+    // Get all survivors already assigned to other stages (excluding mud-crawl)
+    for (const [stageId, assignment] of this.assignedRoles) {
+      if (stageId !== currentStageId && stageId !== 'mud-crawl') {
+        if (Array.isArray(assignment)) {
+          assignment.forEach(id => assignedSurvivorIds.add(id));
+        } else {
+          assignedSurvivorIds.add(assignment);
+        }
       }
     }
     
-    // Return survivors not assigned to other stages
+    // Return survivors not assigned to other non-mud-crawl stages
     return playerTribe.members.filter(survivor => !assignedSurvivorIds.has(survivor.id));
   },
 
   _createSurvivorAvatar(survivor, stageId, mainContainer) {
-    const isAssigned = this.assignedRoles.get(stageId) === survivor.id;
+    const assignment = this.assignedRoles.get(stageId);
+    const isAssigned = Array.isArray(assignment) ? 
+      assignment.includes(survivor.id) : 
+      assignment === survivor.id;
     
     const avatarWrapper = createElement('div', {
       style: `
@@ -612,7 +672,25 @@ const RoleView = {
     });
 
     assignButton.addEventListener('click', () => {
-      this.assignedRoles.set(stageId, survivor.id);
+      if (stageId === 'mud-crawl') {
+        // Mud crawl assigns all survivors
+        const playerTribe = gameManager.getPlayerTribe();
+        this.assignedRoles.set(stageId, playerTribe.members.map(s => s.id));
+      } else {
+        // Other stages - check if we can assign more survivors
+        const currentAssignment = this.assignedRoles.get(stageId) || [];
+        const maxAssignments = this._getMaxAssignmentsForStage(stageId);
+        
+        if (Array.isArray(currentAssignment)) {
+          if (currentAssignment.length < maxAssignments) {
+            currentAssignment.push(survivor.id);
+            this.assignedRoles.set(stageId, currentAssignment);
+          }
+        } else if (!currentAssignment) {
+          this.assignedRoles.set(stageId, [survivor.id]);
+        }
+      }
+      
       document.body.removeChild(overlay);
       // Refresh ALL card backs to update avatar grids across all open cards
       this._refreshAllCardBacks(mainContainer);
@@ -678,7 +756,21 @@ const RoleView = {
         cursor: pointer;
       `,
       onclick: () => {
-        this.assignedRoles.delete(stageId);
+        if (stageId === 'mud-crawl') {
+          this.assignedRoles.delete(stageId);
+        } else {
+          const assignment = this.assignedRoles.get(stageId);
+          if (Array.isArray(assignment)) {
+            const newAssignment = assignment.filter(id => id !== survivor.id);
+            if (newAssignment.length > 0) {
+              this.assignedRoles.set(stageId, newAssignment);
+            } else {
+              this.assignedRoles.delete(stageId);
+            }
+          } else {
+            this.assignedRoles.delete(stageId);
+          }
+        }
         document.body.removeChild(overlay);
         // Refresh ALL card backs to update avatar grids across all open cards
         this._refreshAllCardBacks(mainContainer);
@@ -722,10 +814,22 @@ const RoleView = {
 
   _updateConfirmButton(mainContainer) {
     const confirmButton = mainContainer.querySelector('button');
-    const challengeStages = 4; // Total number of stages
+    const challengeStages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
     
     if (confirmButton) {
-      const allAssigned = this.assignedRoles.size >= challengeStages;
+      // Check if all stages have the required number of assignments
+      const allAssigned = challengeStages.every(stageId => {
+        const assignment = this.assignedRoles.get(stageId);
+        const maxAssignments = this._getMaxAssignmentsForStage(stageId);
+        
+        if (Array.isArray(assignment)) {
+          return assignment.length === maxAssignments;
+        } else if (stageId === 'mud-crawl') {
+          return Array.isArray(assignment) && assignment.length === maxAssignments;
+        }
+        return false;
+      });
+      
       confirmButton.style.opacity = allAssigned ? '1' : '0.5';
       confirmButton.style.pointerEvents = allAssigned ? 'auto' : 'none';
     }
@@ -744,6 +848,36 @@ const RoleView = {
   _getStageIndex(stageId) {
     const stages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
     return stages.indexOf(stageId);
+  },
+
+  _getMaxAssignmentsForStage(stageId) {
+    const playerTribe = gameManager.getPlayerTribe();
+    const tribeSize = playerTribe.members.length;
+    
+    if (stageId === 'mud-crawl') {
+      return tribeSize; // All survivors
+    }
+    
+    // Distribution rules for other three stages
+    if (tribeSize >= 9) {
+      return 3; // 3 on each
+    } else if (tribeSize === 8) {
+      return stageId === 'untie-knots' ? 2 : 3; // 2 on untie, 3 on others
+    } else if (tribeSize === 7) {
+      return stageId === 'untie-knots' ? 2 : 3; // 2 on untie, 3 on others  
+    } else if (tribeSize === 6) {
+      return 2; // 2 on each
+    } else if (tribeSize === 5) {
+      return stageId === 'untie-knots' ? 1 : 2; // 1 on untie, 2 on others
+    } else if (tribeSize === 4) {
+      return stageId === 'vertical-puzzle' ? 2 : 1; // 2 on puzzle, 1 on others
+    } else if (tribeSize === 3) {
+      return 1; // 1 on each
+    } else if (tribeSize === 2) {
+      return 1; // 1 survivor will need to be assigned twice
+    }
+    
+    return 1; // Default fallback
   },
 
   _getHighlightedTraitsForStage(stageId) {
