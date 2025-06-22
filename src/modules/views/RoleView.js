@@ -965,9 +965,18 @@ const RoleView = {
   _assignRolesToOpposingTribes() {
     const allTribes = gameManager.getTribes();
     const playerTribe = gameManager.getPlayerTribe();
+    
+    if (!allTribes || !playerTribe) {
+      console.error('Could not find tribes for role assignment');
+      return;
+    }
+
     const opposingTribes = allTribes.filter(tribe => tribe.id !== playerTribe.id);
+    console.log('Found opposing tribes:', opposingTribes.length);
 
     opposingTribes.forEach(tribe => {
+      console.log(`Assigning roles to opposing tribe: ${tribe.tribeName || tribe.name} with ${tribe.members.length} members`);
+      
       // Clear existing roles
       tribe.members.forEach(survivor => {
         survivor.roles = [];
@@ -983,7 +992,9 @@ const RoleView = {
         }
       }
 
-      // Assign roles to opposing tribe members
+      console.log('Assignment counts for opposing tribe:', assignmentCounts);
+
+      // Assign roles to opposing tribe members using trait-based logic
       const roleMap = {
         'mud-crawl': 'mud',
         'untie-knots': 'knots',
@@ -993,26 +1004,54 @@ const RoleView = {
 
       // Start with mud crawl - assign all members
       tribe.members.forEach(survivor => {
+        if (!survivor.roles) survivor.roles = [];
         survivor.roles.push('mud');
       });
 
-      // Shuffle members for fair assignment to other roles
-      const shuffledMembers = [...tribe.members].sort(() => Math.random() - 0.5);
-      let memberIndex = 0;
+      // Smart assignment for other roles based on traits
+      const getTraitScore = (survivor, traits) => {
+        return traits.reduce((sum, trait) => sum + (survivor[trait] || 0), 0);
+      };
 
-      // Assign other roles
+      // Define traits for each stage
+      const stageTraits = {
+        'untie-knots': ['dexterity', 'puzzles', 'focus', 'endurance'],
+        'bean-bag-toss': ['dexterity', 'focus', 'strength'],
+        'vertical-puzzle': ['puzzles', 'memory', 'focus']
+      };
+
+      // Assign other roles based on trait scores
       ['untie-knots', 'bean-bag-toss', 'vertical-puzzle'].forEach(stageId => {
         const count = assignmentCounts[stageId] || 0;
         const role = roleMap[stageId];
+        const traits = stageTraits[stageId] || [];
         
-        for (let i = 0; i < count; i++) {
-          const survivor = shuffledMembers[memberIndex % shuffledMembers.length];
-          if (survivor && !survivor.roles.includes(role)) {
-            survivor.roles.push(role);
+        if (count > 0) {
+          // Sort members by trait score for this stage (excluding those already assigned to non-mud roles)
+          const availableMembers = tribe.members.filter(survivor => 
+            !survivor.roles.some(r => r !== 'mud')
+          );
+          
+          const sortedMembers = availableMembers
+            .map(survivor => ({
+              survivor,
+              score: getTraitScore(survivor, traits)
+            }))
+            .sort((a, b) => b.score - a.score)
+            .map(item => item.survivor);
+
+          // Assign the top members for this role
+          for (let i = 0; i < Math.min(count, sortedMembers.length); i++) {
+            const survivor = sortedMembers[i];
+            if (survivor && !survivor.roles.includes(role)) {
+              survivor.roles.push(role);
+              console.log(`Assigned ${survivor.firstName} to ${role} with trait score:`, getTraitScore(survivor, traits));
+            }
           }
-          memberIndex++;
         }
       });
+
+      console.log('Opposing tribe final assignments:', tribe.members.map(s => `${s.firstName}: ${s.roles}`));
     });
   },
 
@@ -1029,7 +1068,7 @@ const RoleView = {
     const playerTribe = gameManager.getPlayerTribe();
     const opposingTribe = allTribes.find(tribe => tribe.id !== playerTribe.id);
 
-    console.log('Showing matchup screen for tribes:', playerTribe.name, 'vs', opposingTribe?.name);
+    console.log('Showing matchup screen for tribes:', playerTribe.tribeName || playerTribe.name, 'vs', opposingTribe?.tribeName || opposingTribe?.name);
     console.log('Player tribe members:', playerTribe.members.map(s => `${s.firstName}: roles=${s.roles}`));
     console.log('Opposing tribe members:', opposingTribe?.members.map(s => `${s.firstName}: roles=${s.roles}`));
 
@@ -1134,7 +1173,6 @@ const RoleView = {
             text-shadow: 2px 2px 4px black;
             text-align: center;
             z-index: 10;
-            background-color: rgba(0, 0, 0, 0.5);
             padding: 5px 10px;
             border-radius: 5px;
           `
@@ -1153,7 +1191,6 @@ const RoleView = {
             text-shadow: 2px 2px 4px black;
             text-align: center;
             z-index: 10;
-            background-color: rgba(0, 0, 0, 0.5);
             padding: 5px 10px;
             border-radius: 5px;
           `
@@ -1199,11 +1236,11 @@ const RoleView = {
           const avatar = createElement('img', {
             src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
             style: `
-              width: 25px;
-              height: 25px;
+              width: 32px;
+              height: 32px;
               border-radius: 50%;
               object-fit: cover;
-              border: 2px solid ${this._getTribeColorHex(playerTribe.color)};
+              border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
               background-color: white;
             `,
             onload: () => {
@@ -1221,11 +1258,11 @@ const RoleView = {
           const avatar = createElement('img', {
             src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
             style: `
-              width: 25px;
-              height: 25px;
+              width: 32px;
+              height: 32px;
               border-radius: 50%;
               object-fit: cover;
-              border: 2px solid ${this._getTribeColorHex(opposingTribe.color)};
+              border: 2px solid ${this._getTribeColorHex(opposingTribe.tribeColor || opposingTribe.color)};
               background-color: white;
             `,
             onload: () => {
