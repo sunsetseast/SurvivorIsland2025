@@ -963,19 +963,16 @@ const RoleView = {
   },
 
   _assignRolesToOpposingTribes() {
-    // Use same logic as TribeFlagView - access tribes directly from gameManager
-    const gameManagerTribes = gameManager.tribes || [];
-    const playerSurvivor = gameManager.getPlayerSurvivor();
-    const playerTribe = gameManagerTribes.find(t => 
-      t.members && t.members.some(m => m.id === playerSurvivor?.id)
-    );
+    // Use the suggested approach for better tribe detection
+    const tribes = gameManager.getTribes();
+    const playerTribe = gameManager.getPlayerTribe();
     
-    if (!gameManagerTribes || !playerTribe) {
+    if (!tribes || !playerTribe) {
       console.error('Could not find tribes for role assignment');
       return;
     }
 
-    const opposingTribes = gameManagerTribes.filter(tribe => tribe.id !== playerTribe.id);
+    const opposingTribes = tribes.filter(tribe => tribe !== playerTribe);
     console.log('Found opposing tribes:', opposingTribes.length);
 
     opposingTribes.forEach(tribe => {
@@ -1074,29 +1071,16 @@ const RoleView = {
     console.log('All tribes from gameManager:', allTribes);
     console.log('Player tribe from gameManager:', playerTribe);
     
-    // Use same logic as TribeFlagView - access tribes directly from gameManager
-    const gameManagerTribes = gameManager.tribes || [];
-    const playerSurvivor = gameManager.getPlayerSurvivor();
-    const playerTribeFromManager = gameManagerTribes.find(t => 
-      t.members && t.members.some(m => m.id === playerSurvivor?.id)
-    );
-    
-    // Debug the tribe structure
-    console.log('GameManager tribe IDs:', gameManagerTribes.map(t => ({ id: t.id, name: t.tribeName || t.name })));
-    console.log('Player tribe ID:', playerTribeFromManager?.id);
-    
-    const opposingTribes = gameManagerTribes.filter(tribe => {
-      const isOpposing = tribe.id !== playerTribeFromManager?.id;
-      console.log(`Tribe ${tribe.tribeName || tribe.name} (ID: ${tribe.id}) - isOpposing: ${isOpposing}`);
-      return isOpposing;
-    });
-    const opposingTribe = opposingTribes.length > 0 ? opposingTribes[0] : null;
+    // Use the suggested approach for better tribe detection
+    const tribes = gameManager.getTribes();
+    const playerTribe = gameManager.getPlayerTribe();
+    const opposingTribe = tribes.find(t => t !== playerTribe);
 
-    console.log('GameManager tribes:', gameManagerTribes.length);
-    console.log('Player tribe:', playerTribeFromManager?.tribeName || playerTribeFromManager?.name);
-    console.log('Opposing tribes found:', opposingTribes.length);
+    console.log('All tribes:', tribes.length);
+    console.log('Player tribe:', playerTribe?.tribeName || playerTribe?.name);
+    console.log('Opposing tribe found:', !!opposingTribe);
     console.log('Opposing tribe:', opposingTribe?.tribeName || opposingTribe?.name);
-    console.log('Player tribe members:', playerTribeFromManager?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
+    console.log('Player tribe members:', playerTribe?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
     console.log('Opposing tribe members:', opposingTribe?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
 
     // Main container for matchups
@@ -1179,7 +1163,7 @@ const RoleView = {
       });
 
       // Get survivors for this role
-      const playerSurvivors = playerTribeFromManager.members.filter(s => s.roles && s.roles.includes(stage.role));
+      const playerSurvivors = playerTribe.members.filter(s => s.roles && s.roles.includes(stage.role));
       const opposingSurvivors = opposingTribe ? opposingTribe.members.filter(s => s.roles && s.roles.includes(stage.role)) : [];
 
       console.log(`${stage.name} - Player survivors:`, playerSurvivors.map(s => s.firstName));
@@ -1267,7 +1251,7 @@ const RoleView = {
               height: 32px;
               border-radius: 50%;
               object-fit: cover;
-              border: 2px solid ${this._getTribeColorHex(playerTribeFromManager.tribeColor || playerTribeFromManager.color)};
+              border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
               background-color: white;
             `,
             onload: () => {
