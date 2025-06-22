@@ -1076,12 +1076,20 @@ const RoleView = {
     
     // Use same logic as TribeFlagView - access tribes directly from gameManager
     const gameManagerTribes = gameManager.tribes || [];
+    const playerSurvivor = gameManager.getPlayerSurvivor();
     const playerTribeFromManager = gameManagerTribes.find(t => 
-      t.members && t.members.some(m => m.id === gameManager.getPlayerSurvivor()?.id)
+      t.members && t.members.some(m => m.id === playerSurvivor?.id)
     );
-    const opposingTribes = gameManagerTribes.filter(tribe => 
-      tribe.id !== playerTribeFromManager?.id
-    );
+    
+    // Debug the tribe structure
+    console.log('GameManager tribe IDs:', gameManagerTribes.map(t => ({ id: t.id, name: t.tribeName || t.name })));
+    console.log('Player tribe ID:', playerTribeFromManager?.id);
+    
+    const opposingTribes = gameManagerTribes.filter(tribe => {
+      const isOpposing = tribe.id !== playerTribeFromManager?.id;
+      console.log(`Tribe ${tribe.tribeName || tribe.name} (ID: ${tribe.id}) - isOpposing: ${isOpposing}`);
+      return isOpposing;
+    });
     const opposingTribe = opposingTribes.length > 0 ? opposingTribes[0] : null;
 
     console.log('GameManager tribes:', gameManagerTribes.length);
