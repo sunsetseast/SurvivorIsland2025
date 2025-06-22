@@ -1065,12 +1065,6 @@ const RoleView = {
     container.style.backgroundPosition = 'center';
     container.style.backgroundRepeat = 'no-repeat';
 
-    const allTribes = gameManager.getTribes();
-    const playerTribe = gameManager.getPlayerTribe();
-    
-    console.log('All tribes from gameManager:', allTribes);
-    console.log('Player tribe from gameManager:', playerTribe);
-    
     // Use the suggested approach for better tribe detection
     const tribes = gameManager.getTribes();
     const playerTribe = gameManager.getPlayerTribe();
