@@ -1066,11 +1066,13 @@ const RoleView = {
 
     const allTribes = gameManager.getTribes();
     const playerTribe = gameManager.getPlayerTribe();
-    const opposingTribe = allTribes.find(tribe => tribe.id !== playerTribe.id);
+    const opposingTribes = allTribes.filter(tribe => tribe.id !== playerTribe.id);
+    const opposingTribe = opposingTribes.length > 0 ? opposingTribes[0] : null;
 
     console.log('Showing matchup screen for tribes:', playerTribe.tribeName || playerTribe.name, 'vs', opposingTribe?.tribeName || opposingTribe?.name);
     console.log('Player tribe members:', playerTribe.members.map(s => `${s.firstName}: roles=${s.roles}`));
     console.log('Opposing tribe members:', opposingTribe?.members.map(s => `${s.firstName}: roles=${s.roles}`));
+    console.log('All tribes found:', allTribes.length, 'Opposing tribes found:', opposingTribes.length);
 
     // Main container for matchups
     const matchupsContainer = createElement('div', {
