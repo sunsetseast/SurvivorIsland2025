@@ -963,15 +963,19 @@ const RoleView = {
   },
 
   _assignRolesToOpposingTribes() {
-    const allTribes = gameManager.getTribes();
-    const playerTribe = gameManager.getPlayerTribe();
+    // Use same logic as TribeFlagView - access tribes directly from gameManager
+    const gameManagerTribes = gameManager.tribes || [];
+    const playerSurvivor = gameManager.getPlayerSurvivor();
+    const playerTribe = gameManagerTribes.find(t => 
+      t.members && t.members.some(m => m.id === playerSurvivor?.id)
+    );
     
-    if (!allTribes || !playerTribe) {
+    if (!gameManagerTribes || !playerTribe) {
       console.error('Could not find tribes for role assignment');
       return;
     }
 
-    const opposingTribes = allTribes.filter(tribe => tribe.id !== playerTribe.id);
+    const opposingTribes = gameManagerTribes.filter(tribe => tribe.id !== playerTribe.id);
     console.log('Found opposing tribes:', opposingTribes.length);
 
     opposingTribes.forEach(tribe => {
@@ -1066,13 +1070,26 @@ const RoleView = {
 
     const allTribes = gameManager.getTribes();
     const playerTribe = gameManager.getPlayerTribe();
-    const opposingTribes = allTribes.filter(tribe => tribe.id !== playerTribe.id);
+    
+    console.log('All tribes from gameManager:', allTribes);
+    console.log('Player tribe from gameManager:', playerTribe);
+    
+    // Use same logic as TribeFlagView - access tribes directly from gameManager
+    const gameManagerTribes = gameManager.tribes || [];
+    const playerTribeFromManager = gameManagerTribes.find(t => 
+      t.members && t.members.some(m => m.id === gameManager.getPlayerSurvivor()?.id)
+    );
+    const opposingTribes = gameManagerTribes.filter(tribe => 
+      tribe.id !== playerTribeFromManager?.id
+    );
     const opposingTribe = opposingTribes.length > 0 ? opposingTribes[0] : null;
 
-    console.log('Showing matchup screen for tribes:', playerTribe.tribeName || playerTribe.name, 'vs', opposingTribe?.tribeName || opposingTribe?.name);
-    console.log('Player tribe members:', playerTribe.members.map(s => `${s.firstName}: roles=${s.roles}`));
-    console.log('Opposing tribe members:', opposingTribe?.members.map(s => `${s.firstName}: roles=${s.roles}`));
-    console.log('All tribes found:', allTribes.length, 'Opposing tribes found:', opposingTribes.length);
+    console.log('GameManager tribes:', gameManagerTribes.length);
+    console.log('Player tribe:', playerTribeFromManager?.tribeName || playerTribeFromManager?.name);
+    console.log('Opposing tribes found:', opposingTribes.length);
+    console.log('Opposing tribe:', opposingTribe?.tribeName || opposingTribe?.name);
+    console.log('Player tribe members:', playerTribeFromManager?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
+    console.log('Opposing tribe members:', opposingTribe?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
 
     // Main container for matchups
     const matchupsContainer = createElement('div', {
@@ -1154,7 +1171,7 @@ const RoleView = {
       });
 
       // Get survivors for this role
-      const playerSurvivors = playerTribe.members.filter(s => s.roles && s.roles.includes(stage.role));
+      const playerSurvivors = playerTribeFromManager.members.filter(s => s.roles && s.roles.includes(stage.role));
       const opposingSurvivors = opposingTribe ? opposingTribe.members.filter(s => s.roles && s.roles.includes(stage.role)) : [];
 
       console.log(`${stage.name} - Player survivors:`, playerSurvivors.map(s => s.firstName));
@@ -1242,7 +1259,7 @@ const RoleView = {
               height: 32px;
               border-radius: 50%;
               object-fit: cover;
-              border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
+              border: 2px solid ${this._getTribeColorHex(playerTribeFromManager.tribeColor || playerTribeFromManager.color)};
               background-color: white;
             `,
             onload: () => {
