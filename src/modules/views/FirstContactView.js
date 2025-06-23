@@ -228,71 +228,75 @@ const FirstContactView = {
 
     // Jeff commentary overlay - clickable
     const jeffOverlay = createElement('div', {
-      className: 'jeff-overlay',
       style: `
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        background: rgba(0,0,0,0.7) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-        z-index: 10000 !important;
-        pointer-events: all !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 999999;
+        pointer-events: auto;
+        visibility: visible;
+        opacity: 1;
       `,
       onclick: (e) => {
         console.log('Jeff overlay clicked - proceeding to stage summary');
         e.preventDefault();
         e.stopPropagation();
-        jeffOverlay.remove();
+        document.body.removeChild(jeffOverlay);
         this._showStageSummary(stage);
       }
     });
 
     const jeffBubble = createElement('div', {
       style: `
-        background: rgba(139, 69, 19, 0.95) !important;
-        border: 3px solid #f39c12 !important;
-        border-radius: 15px !important;
-        padding: 25px 35px !important;
-        max-width: 550px !important;
-        text-align: center !important;
-        color: white !important;
-        font-family: 'Survivant', sans-serif !important;
-        font-size: 1.3rem !important;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important;
-        position: relative !important;
-        pointer-events: none !important;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5) !important;
+        background: rgba(139, 69, 19, 0.95);
+        border: 3px solid #f39c12;
+        border-radius: 15px;
+        padding: 25px 35px;
+        max-width: 550px;
+        text-align: center;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.3rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        position: relative;
+        pointer-events: none;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        display: block;
+        visibility: visible;
+        opacity: 1;
       `
     });
 
     const jeffName = createElement('div', {
       style: `
-        font-size: 1rem !important;
-        color: #f39c12 !important;
-        margin-bottom: 10px !important;
-        font-weight: bold !important;
+        font-size: 1rem;
+        color: #f39c12;
+        margin-bottom: 10px;
+        font-weight: bold;
       `
     }, 'JEFF PROBST:');
 
     const jeffMessage = createElement('div', {
       style: `
-        line-height: 1.4 !important;
-        margin-bottom: 15px !important;
+        line-height: 1.4;
+        margin-bottom: 15px;
       `
     }, jeffText);
 
     const clickHint = createElement('div', {
       style: `
-        font-size: 0.9rem !important;
-        color: #ccc !important;
-        margin-top: 15px !important;
-        font-style: italic !important;
-        animation: pulse 2s infinite !important;
+        font-size: 0.9rem;
+        color: #ccc;
+        margin-top: 15px;
+        font-style: italic;
+        animation: pulse 2s infinite;
       `
     }, 'Click anywhere to continue...');
 
@@ -313,11 +317,19 @@ const FirstContactView = {
 
     // Force append to body and log success
     document.body.appendChild(jeffOverlay);
-    console.log(`Jeff overlay created and appended. Overlay element:`, jeffOverlay);
-    console.log(`Jeff overlay is visible:`, jeffOverlay.offsetWidth > 0 && jeffOverlay.offsetHeight > 0);
+    console.log(`Jeff overlay created and appended successfully`);
+    console.log(`Jeff overlay computed styles:`, window.getComputedStyle(jeffOverlay));
+    console.log(`Jeff overlay dimensions:`, jeffOverlay.offsetWidth, 'x', jeffOverlay.offsetHeight);
+    console.log(`Jeff overlay in DOM:`, document.body.contains(jeffOverlay));
 
     // Force a reflow to ensure the overlay appears
     jeffOverlay.offsetHeight;
+    
+    // Additional debug - try to find the overlay
+    setTimeout(() => {
+      const foundOverlay = document.querySelector('div[style*="position: fixed"]');
+      console.log(`Can find overlay after timeout:`, foundOverlay !== null);
+    }, 100);
   },
 
   _showStageSummary(stage) {
