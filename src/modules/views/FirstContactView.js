@@ -97,32 +97,45 @@ const FirstContactView = {
           width: ${laneWidth}px;
           height: 100%;
           border-right: ${tIndex < laneCount - 1 ? '2px solid rgba(255,255,255,0.3)' : 'none'};
+          overflow: hidden;
         `,
       });
       this.container.appendChild(track);
 
       // Survivors on this track
-      tribe.members
-        .filter(s => s.roles.includes(stage.id))
-        .forEach((survivor, i) => {
-          const avatar = createElement('img', {
-            className: 'fc-avatar',
-            src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
-            style: `
-              position: absolute;
-              width: 50px;
-              height: 50px;
-              border-radius: 50%;
-              object-fit: cover;
-              border: 3px solid ${tribe.tribeColor || '#fff'};
-              left: ${(laneWidth - 50) / 2 + i * 15}px;
-              bottom: 10px;
-              z-index: ${10 + i};
-            `,
-          });
-          track.appendChild(avatar);
-          avatars.push({ survivor, avatar, tribe });
+      const stageParticipants = tribe.members.filter(s => s.roles.includes(stage.id));
+      stageParticipants.forEach((survivor, i) => {
+        // Calculate safe positioning within the lane
+        const avatarSize = 50;
+        const padding = 10;
+        const maxAvatarsPerRow = Math.floor((laneWidth - padding * 2) / (avatarSize + 5));
+        const row = Math.floor(i / maxAvatarsPerRow);
+        const col = i % maxAvatarsPerRow;
+        
+        // Center the avatars in the lane
+        const totalWidth = Math.min(stageParticipants.length, maxAvatarsPerRow) * (avatarSize + 5) - 5;
+        const startX = (laneWidth - totalWidth) / 2;
+        const xPos = startX + col * (avatarSize + 5);
+        const yOffset = row * 10; // Slight vertical offset for multiple rows
+
+        const avatar = createElement('img', {
+          className: 'fc-avatar',
+          src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+          style: `
+            position: absolute;
+            width: ${avatarSize}px;
+            height: ${avatarSize}px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid ${tribe.tribeColor || '#fff'};
+            left: ${Math.max(padding, Math.min(xPos, laneWidth - avatarSize - padding))}px;
+            bottom: ${10 + yOffset}px;
+            z-index: ${10 + i};
+          `,
         });
+        track.appendChild(avatar);
+        avatars.push({ survivor, avatar, tribe });
+      });
     });
 
     // Animate avatars from bottom → top
@@ -138,8 +151,8 @@ const FirstContactView = {
       });
     });
 
-    // When the animation finishes, show Jeff commentary
-    setTimeout(() => this._showJeffCommentary(stage), 4000);
+    // Keep avatars visible for 2 seconds after animation, then show Jeff commentary
+    setTimeout(() => this._showJeffCommentary(stage), 6000);
   },
 
   _showJeffCommentary(stage) {
@@ -161,15 +174,15 @@ const FirstContactView = {
 
     let jeffText;
     if (playerRank === 0) {
-      jeffText = `${this.playerTribe.tribeName} takes the lead in ${stage.name}!`;
+      jeffText = `${this.playerTribe.tribeName} takes the lead in the ${stage.name} stage! Strong performance by your tribe!`;
     } else {
-      jeffText = `${winner.tribe.tribeName} emerges first in ${stage.name}! ${this.playerTribe.tribeName} needs to catch up!`;
+      jeffText = `${winner.tribe.tribeName} emerges first in the ${stage.name} stage! ${this.playerTribe.tribeName} is trailing behind and needs to step it up!`;
     }
 
     // Jeff commentary overlay - clickable
     const jeffOverlay = createElement('div', {
       style: `
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         width: 100%;
@@ -179,9 +192,11 @@ const FirstContactView = {
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        z-index: 100;
+        z-index: 1000;
       `,
-      onclick: () => {
+      onclick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         jeffOverlay.remove();
         this._showStageSummary(stage);
       }
@@ -192,14 +207,15 @@ const FirstContactView = {
         background: rgba(139, 69, 19, 0.9);
         border: 3px solid #f39c12;
         border-radius: 15px;
-        padding: 20px 30px;
-        max-width: 500px;
+        padding: 25px 35px;
+        max-width: 550px;
         text-align: center;
         color: white;
         font-family: 'Survivant', sans-serif;
         font-size: 1.3rem;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         position: relative;
+        pointer-events: none;
       `
     });
 
@@ -212,7 +228,12 @@ const FirstContactView = {
       `
     }, 'JEFF PROBST:');
 
-    const jeffMessage = createElement('div', {}, jeffText);
+    const jeffMessage = createElement('div', {
+      style: `
+        line-height: 1.4;
+        margin-bottom: 15px;
+      `
+    }, jeffText);
 
     const clickHint = createElement('div', {
       style: `
@@ -220,8 +241,19 @@ const FirstContactView = {
         color: #ccc;
         margin-top: 15px;
         font-style: italic;
+        animation: pulse 2s infinite;
       `
-    }, 'Click to continue...');
+    }, 'Click anywhere to continue...');
+
+    // Add pulse animation
+    const style = createElement('style', {}, `
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+    `);
+    document.head.appendChild(style);
 
     jeffBubble.append(jeffName, jeffMessage, clickHint);
     jeffOverlay.appendChild(jeffBubble);
@@ -309,14 +341,26 @@ const FirstContactView = {
         border: none;
         color: white;
         font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
         cursor: pointer;
         z-index: 10;
+        transition: all 0.2s ease;
       `,
-      onclick: () => {
+      onclick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         this.stageIndex++;
         this.runNextStage();
+      },
+      onmouseover: (e) => {
+        e.target.style.transform = 'translateX(-50%) scale(1.05)';
+      },
+      onmouseout: (e) => {
+        e.target.style.transform = 'translateX(-50%) scale(1)';
       }
-    }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Finish');
+    }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Finish Challenge');
 
     this.container.append(parchment, nextBtn);
   },
@@ -374,10 +418,17 @@ const FirstContactView = {
         border: none;
         color: white;
         font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
         cursor: pointer;
         z-index: 10;
+        transition: all 0.2s ease;
       `,
-      onclick: () => {
+      onclick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
         const result = {
           challengeName: this.config.name || 'First Contact',
           challengeType: 'tribal',
@@ -405,6 +456,12 @@ const FirstContactView = {
             });
           });
         }
+      },
+      onmouseover: (e) => {
+        e.target.style.transform = 'translateX(-50%) scale(1.05)';
+      },
+      onmouseout: (e) => {
+        e.target.style.transform = 'translateX(-50%) scale(1)';
       }
     }, 'Return to Camp');
 
