@@ -223,116 +223,89 @@ const FirstContactView = {
       jeffText = `${winner.tribe.tribeName} emerges first in the ${stage.name} stage! ${this.playerTribe.tribeName} is trailing behind and needs to step it up!`;
     }
 
-    console.log(`Creating Jeff overlay with text: ${jeffText}`);
+    console.log(`Creating Jeff commentary with parchment layout`);
 
-    // Remove any existing Jeff overlays first
-    const existingOverlays = document.querySelectorAll('.jeff-overlay');
-    existingOverlays.forEach(overlay => overlay.remove());
-
-    // Jeff commentary overlay - clickable
-    const jeffOverlay = createElement('div', {
+    // Parchment wrapper for Jeff's message (matching intro view structure)
+    const parchmentWrapper = createElement('div', {
       style: `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0,0,0,0.8);
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 320px;
+        z-index: 2;
+      `
+    });
+
+    const parchment = createElement('img', {
+      src: 'Assets/parch-landscape.png',
+      style: `
+        width: 100%;
+        max-width: 320px;
+        max-height: 180px;
+        display: block;
+        margin: 0 auto;
+      `
+    });
+
+    const jeffTextElement = createElement('div', {
+      className: 'parchment-text',
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        margin: -160px auto 0;
+        max-width: 260px;
+        font-size: 0.9rem;
+        line-height: 1.2;
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        z-index: 999999;
-        pointer-events: auto;
-        visibility: visible;
-        opacity: 1;
-      `,
-      onclick: (e) => {
-        console.log('Jeff overlay clicked - proceeding to stage summary');
-        e.preventDefault();
-        e.stopPropagation();
-        document.body.removeChild(jeffOverlay);
-        this._showStageSummary(stage);
-      }
-    });
-
-    const jeffBubble = createElement('div', {
-      style: `
-        background: rgba(139, 69, 19, 0.95);
-        border: 3px solid #f39c12;
-        border-radius: 15px;
-        padding: 25px 35px;
-        max-width: 550px;
-        text-align: center;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 1.3rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        position: relative;
-        pointer-events: none;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        display: block;
-        visibility: visible;
-        opacity: 1;
-      `
-    });
-
-    const jeffName = createElement('div', {
-      style: `
-        font-size: 1rem;
-        color: #f39c12;
-        margin-bottom: 10px;
-        font-weight: bold;
-      `
-    }, 'JEFF PROBST:');
-
-    const jeffMessage = createElement('div', {
-      style: `
-        line-height: 1.4;
-        margin-bottom: 15px;
+        height: 120px;
+        text-shadow:
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+        white-space: pre-line;
       `
     }, jeffText);
 
-    const clickHint = createElement('div', {
+    parchmentWrapper.append(parchment, jeffTextElement);
+
+    // Next button (matching intro view structure)
+    const nextButton = createElement('button', {
       style: `
-        font-size: 0.9rem;
-        color: #ccc;
-        margin-top: 15px;
-        font-style: italic;
-        animation: pulse 2s infinite;
-      `
-    }, 'Click anywhere to continue...');
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        console.log('Jeff commentary next button clicked - proceeding to stage summary');
+        this._showStageSummary(stage);
+      }
+    }, 'Next');
 
-    // Add pulse animation if not already present
-    if (!document.querySelector('#pulse-animation')) {
-      const style = createElement('style', { id: 'pulse-animation' }, `
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
-      `);
-      document.head.appendChild(style);
-    }
-
-    jeffBubble.append(jeffName, jeffMessage, clickHint);
-    jeffOverlay.appendChild(jeffBubble);
-
-    // Force append to body and log success
-    document.body.appendChild(jeffOverlay);
-    console.log(`Jeff overlay created and appended successfully`);
-    console.log(`Jeff overlay computed styles:`, window.getComputedStyle(jeffOverlay));
-    console.log(`Jeff overlay dimensions:`, jeffOverlay.offsetWidth, 'x', jeffOverlay.offsetHeight);
-    console.log(`Jeff overlay in DOM:`, document.body.contains(jeffOverlay));
-
-    // Force a reflow to ensure the overlay appears
-    jeffOverlay.offsetHeight;
-    
-    // Additional debug - try to find the overlay
-    setTimeout(() => {
-      const foundOverlay = document.querySelector('div[style*="position: fixed"]');
-      console.log(`Can find overlay after timeout:`, foundOverlay !== null);
-    }, 100);
+    this.container.append(parchmentWrapper, nextButton);
+    console.log(`Jeff commentary parchment layout created successfully`);
   },
 
   _showStageSummary(stage) {
