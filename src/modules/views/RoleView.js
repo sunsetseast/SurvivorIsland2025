@@ -1202,13 +1202,13 @@ const RoleView = {
               transform: translate(-50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
-              font-size: 0.8rem;
+              font-size: 1.2rem;
               font-weight: bold;
               text-shadow: 2px 2px 4px black;
               text-align: center;
               z-index: 10;
-              padding: 3px 6px;
-              border-radius: 3px;
+              padding: 5px 10px;
+              border-radius: 5px;
             `
           }, 'ENTIRE TRIBE');
 
@@ -1220,13 +1220,13 @@ const RoleView = {
               transform: translate(-50%, -50%) rotate(-90deg);
               color: white;
               font-family: 'Survivant', sans-serif;
-              font-size: 0.8rem;
+              font-size: 1.2rem;
               font-weight: bold;
               text-shadow: 2px 2px 4px black;
               text-align: center;
               z-index: 10;
-              padding: 3px 6px;
-              border-radius: 3px;
+              padding: 5px 10px;
+              border-radius: 5px;
               white-space: nowrap;
             `
           }, 'ENTIRE TRIBE');
@@ -1239,13 +1239,13 @@ const RoleView = {
               transform: translate(50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
-              font-size: 0.8rem;
+              font-size: 1.2rem;
               font-weight: bold;
               text-shadow: 2px 2px 4px black;
               text-align: center;
               z-index: 10;
-              padding: 3px 6px;
-              border-radius: 3px;
+              padding: 5px 10px;
+              border-radius: 5px;
             `
           }, 'ENTIRE TRIBE');
 
@@ -1263,15 +1263,15 @@ const RoleView = {
               transform: translate(-50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
-              font-size: 1rem;
+              font-size: 1.4rem;
               font-weight: bold;
               text-shadow: 2px 2px 4px black;
               text-align: center;
               z-index: 10;
-              padding: 5px 10px;
-              border-radius: 5px;
+              padding: 8px 15px;
+              border-radius: 8px;
             `
-          }, 'Entire Tribe');
+          }, 'ENTIRE TRIBE');
 
           const rightText = createElement('div', {
             style: `
@@ -1281,15 +1281,15 @@ const RoleView = {
               transform: translate(50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
-              font-size: 1rem;
+              font-size: 1.4rem;
               font-weight: bold;
               text-shadow: 2px 2px 4px black;
               text-align: center;
               z-index: 10;
-              padding: 5px 10px;
-              border-radius: 5px;
+              padding: 8px 15px;
+              border-radius: 8px;
             `
-          }, 'Entire Tribe');
+          }, 'ENTIRE TRIBE');
 
           matchupContainer.appendChild(matchupBg);
           matchupContainer.appendChild(leftText);
