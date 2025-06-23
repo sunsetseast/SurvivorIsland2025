@@ -1198,7 +1198,7 @@ const RoleView = {
             style: `
               position: absolute;
               left: 25%;
-              top: 65%;
+              top: 25%;
               transform: translate(-50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
@@ -1216,7 +1216,7 @@ const RoleView = {
             style: `
               position: absolute;
               left: 50%;
-              top: 35%;
+              top: 65%;
               transform: translate(-50%, -50%) rotate(-90deg);
               color: white;
               font-family: 'Survivant', sans-serif;
@@ -1235,7 +1235,7 @@ const RoleView = {
             style: `
               position: absolute;
               right: 25%;
-              top: 65%;
+              top: 25%;
               transform: translate(50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
