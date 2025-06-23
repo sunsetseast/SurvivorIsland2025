@@ -141,6 +141,11 @@ const FirstContactView = {
     // Animate avatars from bottom → top
     requestAnimationFrame(() => {
       const maxAbility = Math.max(...avatars.map(a => a.survivor._fc_ability));
+      const maxDuration = Math.max(...avatars.map(({ survivor }) => {
+        const normalizedAbility = survivor._fc_ability / maxAbility;
+        return 1500 + (normalizedAbility * 2000);
+      }));
+
       avatars.forEach(({ survivor, avatar, tribe }) => {
         const normalizedAbility = survivor._fc_ability / maxAbility;
         const duration = 1500 + (normalizedAbility * 2000);
@@ -149,16 +154,25 @@ const FirstContactView = {
         avatar.style.transition = `transform ${duration}ms ease-out`;
         avatar.style.transform = `translateY(-${distance * normalizedAbility}px)`;
       });
-    });
 
-    // Keep avatars visible for 2 seconds after animation, then show Jeff commentary
-    setTimeout(() => this._showJeffCommentary(stage), 6000);
+      // Wait for all animations to complete, then keep avatars visible for 2 seconds before showing Jeff
+      setTimeout(() => {
+        console.log(`Animation complete for ${stage.name}, showing Jeff commentary in 2 seconds`);
+        setTimeout(() => {
+          console.log(`Calling Jeff commentary for ${stage.name}`);
+          this._showJeffCommentary(stage);
+        }, 2000);
+      }, maxDuration + 100); // Small buffer after longest animation
+    });
   },
 
   _showJeffCommentary(stage) {
+    console.log(`Showing Jeff commentary for stage: ${stage.name}`);
+    
     // Clear existing avatars but keep background
     const tracks = this.container.querySelectorAll('.fc-track');
     tracks.forEach(track => track.remove());
+    console.log(`Removed ${tracks.length} tracks`);
 
     // Determine stage winner
     const scores = this.context.stageScores[stage.id];
@@ -179,14 +193,16 @@ const FirstContactView = {
       jeffText = `${winner.tribe.tribeName} emerges first in the ${stage.name} stage! ${this.playerTribe.tribeName} is trailing behind and needs to step it up!`;
     }
 
+    console.log(`Creating Jeff overlay with text: ${jeffText}`);
+
     // Jeff commentary overlay - clickable
     const jeffOverlay = createElement('div', {
       style: `
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
         background: rgba(0,0,0,0.7);
         display: flex;
         align-items: center;
@@ -195,9 +211,11 @@ const FirstContactView = {
         z-index: 1000;
       `,
       onclick: (e) => {
+        console.log('Jeff overlay clicked');
         e.preventDefault();
         e.stopPropagation();
         jeffOverlay.remove();
+        console.log('Proceeding to stage summary');
         this._showStageSummary(stage);
       }
     });
@@ -257,7 +275,10 @@ const FirstContactView = {
 
     jeffBubble.append(jeffName, jeffMessage, clickHint);
     jeffOverlay.appendChild(jeffBubble);
+    
+    // Make sure the overlay is appended properly
     this.container.appendChild(jeffOverlay);
+    console.log('Jeff overlay appended to container');
   },
 
   _showStageSummary(stage) {
