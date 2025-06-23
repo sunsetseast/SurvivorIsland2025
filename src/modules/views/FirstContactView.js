@@ -7,6 +7,12 @@ const FirstContactView = {
   render(container, config = {}) {
     this.container = container;
     this.config = config;
+    
+    // Make container a containing block for absolutely positioned elements
+    this.container.style.position = 'relative';
+    this.container.style.width = '100%';
+    this.container.style.height = '100%';
+    
     this.playerTribe = gameManager.getPlayerTribe();
     this.allTribes = gameManager.getTribes();
     this.isThreeTribe = this.allTribes.length === 3;
