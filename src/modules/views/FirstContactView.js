@@ -151,21 +151,24 @@ const FirstContactView = {
     setTimeout(() => {
       console.log(`Starting avatar animations for ${avatars.length} avatars`);
 
-      const maxAbility = Math.max(...avatars.map(a => a.survivor._fc_ability));
-      console.log(`Max ability for stage: ${maxAbility}`);
+      const abilities = avatars.map(a => a.survivor._fc_ability || 0);
+      const maxAbility = Math.max(1, ...abilities); // Ensure minimum of 1 to avoid division by zero
+      console.log(`Max ability for stage: ${maxAbility}, all abilities:`, abilities);
 
-      // Calculate all durations first
+      // Calculate durations with safety checks
       const durations = avatars.map(({ survivor }) => {
-        const normalizedAbility = maxAbility > 0 ? survivor._fc_ability / maxAbility : 0.5;
+        const ability = Math.max(0, survivor._fc_ability || 0);
+        const normalizedAbility = ability / maxAbility;
         return 1500 + (normalizedAbility * 2000);
       });
 
-      const maxDuration = Math.max(...durations);
+      const maxDuration = Math.max(3000, ...durations); // Ensure minimum 3 seconds
       console.log(`Animation durations: ${durations.join(', ')}, max: ${maxDuration}`);
 
       // Apply animations
       avatars.forEach(({ survivor, avatar }, index) => {
-        const normalizedAbility = maxAbility > 0 ? survivor._fc_ability / maxAbility : 0.5;
+        const ability = Math.max(0, survivor._fc_ability || 0);
+        const normalizedAbility = ability / maxAbility;
         const duration = durations[index];
         const distance = this.container.clientHeight - 120; // Leave space at top
 
@@ -173,8 +176,8 @@ const FirstContactView = {
         avatar.style.transform = `translateY(-${distance * normalizedAbility}px)`;
       });
 
-      // Wait for all animations to complete, then show Jeff
-      const totalWaitTime = maxDuration + 2000; // Animation + 2 second pause
+      // FIXED: Ensure positive timeout value with minimum
+      const totalWaitTime = Math.max(4000, maxDuration + 2000);
       console.log(`Setting timeout for ${totalWaitTime}ms before showing Jeff commentary`);
 
       setTimeout(() => {
