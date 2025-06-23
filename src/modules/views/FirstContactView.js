@@ -191,10 +191,13 @@ const FirstContactView = {
   _showJeffCommentary(stage) {
     console.log(`Showing Jeff commentary for stage: ${stage.name}`);
 
-    // Clear existing avatars but keep background
+    // Clear existing avatars and change to Jeff background
     const tracks = this.container.querySelectorAll('.fc-track');
     tracks.forEach(track => track.remove());
     console.log(`Removed ${tracks.length} tracks`);
+    
+    // Change background to Jeff screen
+    this.container.style.backgroundImage = `url('Assets/jeff-screen.png')`;
 
     // Determine stage winner
     const scores = this.context.stageScores[stage.id];
