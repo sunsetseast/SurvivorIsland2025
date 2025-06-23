@@ -218,11 +218,9 @@ const FirstContactView = {
   _showJeffCommentary(stage) {
     console.log(`Showing Jeff commentary for stage: ${stage.name}`);
 
-    // Clear existing avatars and change to Jeff background
-    const tracks = this.container.querySelectorAll('.fc-track');
-    tracks.forEach(track => track.remove());
-    console.log(`Removed ${tracks.length} tracks`);
-
+    // Clear all existing elements first
+    clearChildren(this.container);
+    
     // Change background to Jeff screen
     this.container.style.backgroundImage = `url('Assets/jeff-screen.png')`;
 
