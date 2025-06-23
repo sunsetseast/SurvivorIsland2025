@@ -197,6 +197,9 @@ const FirstContactView = {
     const scores = this.context.stageScores[stage.id];
     if (!scores) {
       console.error(`No scores found for stage ${stage.id}`);
+      // If no scores, proceed to next stage
+      this.stageIndex++;
+      this.runNextStage();
       return;
     }
 
@@ -219,71 +222,77 @@ const FirstContactView = {
 
     console.log(`Creating Jeff overlay with text: ${jeffText}`);
 
+    // Remove any existing Jeff overlays first
+    const existingOverlays = document.querySelectorAll('.jeff-overlay');
+    existingOverlays.forEach(overlay => overlay.remove());
+
     // Jeff commentary overlay - clickable
     const jeffOverlay = createElement('div', {
+      className: 'jeff-overlay',
       style: `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0,0,0,0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        z-index: 1000;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background: rgba(0,0,0,0.7) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        z-index: 10000 !important;
+        pointer-events: all !important;
       `,
       onclick: (e) => {
-        console.log('Jeff overlay clicked');
+        console.log('Jeff overlay clicked - proceeding to stage summary');
         e.preventDefault();
         e.stopPropagation();
         jeffOverlay.remove();
-        console.log('Proceeding to stage summary');
         this._showStageSummary(stage);
       }
     });
 
     const jeffBubble = createElement('div', {
       style: `
-        background: rgba(139, 69, 19, 0.9);
-        border: 3px solid #f39c12;
-        border-radius: 15px;
-        padding: 25px 35px;
-        max-width: 550px;
-        text-align: center;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 1.3rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        position: relative;
-        pointer-events: none;
+        background: rgba(139, 69, 19, 0.95) !important;
+        border: 3px solid #f39c12 !important;
+        border-radius: 15px !important;
+        padding: 25px 35px !important;
+        max-width: 550px !important;
+        text-align: center !important;
+        color: white !important;
+        font-family: 'Survivant', sans-serif !important;
+        font-size: 1.3rem !important;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important;
+        position: relative !important;
+        pointer-events: none !important;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5) !important;
       `
     });
 
     const jeffName = createElement('div', {
       style: `
-        font-size: 1rem;
-        color: #f39c12;
-        margin-bottom: 10px;
-        font-weight: bold;
+        font-size: 1rem !important;
+        color: #f39c12 !important;
+        margin-bottom: 10px !important;
+        font-weight: bold !important;
       `
     }, 'JEFF PROBST:');
 
     const jeffMessage = createElement('div', {
       style: `
-        line-height: 1.4;
-        margin-bottom: 15px;
+        line-height: 1.4 !important;
+        margin-bottom: 15px !important;
       `
     }, jeffText);
 
     const clickHint = createElement('div', {
       style: `
-        font-size: 0.9rem;
-        color: #ccc;
-        margin-top: 15px;
-        font-style: italic;
-        animation: pulse 2s infinite;
+        font-size: 0.9rem !important;
+        color: #ccc !important;
+        margin-top: 15px !important;
+        font-style: italic !important;
+        animation: pulse 2s infinite !important;
       `
     }, 'Click anywhere to continue...');
 
@@ -302,9 +311,13 @@ const FirstContactView = {
     jeffBubble.append(jeffName, jeffMessage, clickHint);
     jeffOverlay.appendChild(jeffBubble);
 
-    // Make sure the overlay is appended properly
-    document.body.appendChild(jeffOverlay); // Changed from container to body for fixed positioning
-    console.log('Jeff overlay appended to document body');
+    // Force append to body and log success
+    document.body.appendChild(jeffOverlay);
+    console.log(`Jeff overlay created and appended. Overlay element:`, jeffOverlay);
+    console.log(`Jeff overlay is visible:`, jeffOverlay.offsetWidth > 0 && jeffOverlay.offsetHeight > 0);
+
+    // Force a reflow to ensure the overlay appears
+    jeffOverlay.offsetHeight;
   },
 
   _showStageSummary(stage) {
