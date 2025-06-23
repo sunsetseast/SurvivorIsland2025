@@ -302,7 +302,9 @@ const FirstContactView = {
   },
 
   _createJeffParchment(text, onNext) {
-    // Parchment wrapper for Jeff's message
+    console.log('Creating Jeff parchment with text:', text);
+    
+    // Parchment wrapper for Jeff's message with much higher z-index
     const parchmentWrapper = createElement('div', {
       style: `
         position: absolute;
@@ -311,7 +313,7 @@ const FirstContactView = {
         transform: translateX(-50%);
         width: 100%;
         max-width: 320px;
-        z-index: 2;
+        z-index: 1000;
       `
     });
 
@@ -323,6 +325,8 @@ const FirstContactView = {
         max-height: 180px;
         display: block;
         margin: 0 auto;
+        z-index: 1001;
+        position: relative;
       `
     });
 
@@ -347,19 +351,21 @@ const FirstContactView = {
           0 3px 0 #000,
           0 4px 4px rgba(0, 0, 0, 0.5);
         white-space: pre-line;
+        z-index: 1002;
+        position: relative;
       `
     }, text);
 
     parchmentWrapper.append(parchment, jeffTextElement);
 
-    // Next button
+    // Next button with high z-index
     const nextButton = createElement('button', {
       style: `
         position: absolute;
         bottom: 40px;
         left: 50%;
         transform: translateX(-50%);
-        z-index: 2;
+        z-index: 1003;
         width: 130px;
         height: 60px;
         background-image: url('Assets/rect-button.png');
@@ -378,7 +384,13 @@ const FirstContactView = {
       onclick: onNext
     }, 'Next');
 
+    console.log('Appending parchment wrapper and next button to container');
     this.container.append(parchmentWrapper, nextButton);
+    
+    // Force a repaint to ensure elements are visible
+    setTimeout(() => {
+      console.log('Parchment elements should now be visible');
+    }, 100);
   },
 
   _showStageSummary(stage) {
