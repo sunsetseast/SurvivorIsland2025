@@ -1154,8 +1154,8 @@ const RoleView = {
         style: `
           position: relative;
           width: 100%;
-          max-width: ${isThreeTribeMode ? '600px' : '500px'};
-          height: ${isThreeTribeMode ? '140px' : '100px'};
+          max-width: ${isThreeTribeMode ? '800px' : '700px'};
+          height: ${isThreeTribeMode ? '200px' : '150px'};
           display: flex;
           align-items: center;
           justify-content: center;
