@@ -1068,14 +1068,17 @@ const RoleView = {
     // Use the suggested approach for better tribe detection
     const tribes = gameManager.getTribes();
     const playerTribe = gameManager.getPlayerTribe();
-    const opposingTribe = tribes.find(t => t !== playerTribe);
+    const opposingTribes = tribes.filter(t => t !== playerTribe);
+    const isThreeTribeMode = tribes.length === 3;
 
     console.log('All tribes:', tribes.length);
     console.log('Player tribe:', playerTribe?.tribeName || playerTribe?.name);
-    console.log('Opposing tribe found:', !!opposingTribe);
-    console.log('Opposing tribe:', opposingTribe?.tribeName || opposingTribe?.name);
+    console.log('Opposing tribes found:', opposingTribes.length);
+    console.log('Is three tribe mode:', isThreeTribeMode);
     console.log('Player tribe members:', playerTribe?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
-    console.log('Opposing tribe members:', opposingTribe?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
+    opposingTribes.forEach((tribe, index) => {
+      console.log(`Opposing tribe ${index + 1} members:`, tribe?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
+    });
 
     // Main container for matchups
     const matchupsContainer = createElement('div', {
@@ -1093,12 +1096,32 @@ const RoleView = {
       `
     });
 
-    // Challenge stages data
+    // Challenge stages data - use different images for 3 tribe mode
     const stages = [
-      { id: 'mud-crawl', name: 'Mud Crawl', role: 'mud', matchupImage: 'Assets/Challenge/matchup1.png' },
-      { id: 'untie-knots', name: 'Untie Knots', role: 'knots', matchupImage: 'Assets/Challenge/matchup2.png' },
-      { id: 'bean-bag-toss', name: 'Bean Bag Toss', role: 'toss', matchupImage: 'Assets/Challenge/matchup3.png' },
-      { id: 'vertical-puzzle', name: 'Vertical Puzzle', role: 'puzzle', matchupImage: 'Assets/Challenge/matchup4.png' }
+      { 
+        id: 'mud-crawl', 
+        name: 'Mud Crawl', 
+        role: 'mud', 
+        matchupImage: isThreeTribeMode ? 'Assets/Challenge/matchup1-3.png' : 'Assets/Challenge/matchup1.png'
+      },
+      { 
+        id: 'untie-knots', 
+        name: 'Untie Knots', 
+        role: 'knots', 
+        matchupImage: isThreeTribeMode ? 'Assets/Challenge/matchup2-3.png' : 'Assets/Challenge/matchup2.png'
+      },
+      { 
+        id: 'bean-bag-toss', 
+        name: 'Bean Bag Toss', 
+        role: 'toss', 
+        matchupImage: isThreeTribeMode ? 'Assets/Challenge/matchup3-3.png' : 'Assets/Challenge/matchup3.png'
+      },
+      { 
+        id: 'vertical-puzzle', 
+        name: 'Vertical Puzzle', 
+        role: 'puzzle', 
+        matchupImage: isThreeTribeMode ? 'Assets/Challenge/matchup4-3.png' : 'Assets/Challenge/matchup4.png'
+      }
     ];
 
     stages.forEach((stage, index) => {
@@ -1156,133 +1179,319 @@ const RoleView = {
         }
       });
 
-      // Get survivors for this role
+      // Get survivors for this role from all tribes
       const playerSurvivors = playerTribe.members.filter(s => s.roles && s.roles.includes(stage.role));
-      const opposingSurvivors = opposingTribe ? opposingTribe.members.filter(s => s.roles && s.roles.includes(stage.role)) : [];
+      const opposingTribe1Survivors = opposingTribes[0] ? opposingTribes[0].members.filter(s => s.roles && s.roles.includes(stage.role)) : [];
+      const opposingTribe2Survivors = opposingTribes[1] ? opposingTribes[1].members.filter(s => s.roles && s.roles.includes(stage.role)) : [];
 
       console.log(`${stage.name} - Player survivors:`, playerSurvivors.map(s => s.firstName));
-      console.log(`${stage.name} - Opposing survivors:`, opposingSurvivors.map(s => s.firstName));
+      console.log(`${stage.name} - Opposing tribe 1 survivors:`, opposingTribe1Survivors.map(s => s.firstName));
+      if (isThreeTribeMode) {
+        console.log(`${stage.name} - Opposing tribe 2 survivors:`, opposingTribe2Survivors.map(s => s.firstName));
+      }
 
       if (stage.id === 'mud-crawl') {
         // For mud crawl, show "Entire Tribe" text overlaid on the image
-        const leftText = createElement('div', {
-          style: `
-            position: absolute;
-            left: 20%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-family: 'Survivant', sans-serif;
-            font-size: 1rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px black;
-            text-align: center;
-            z-index: 10;
-            padding: 5px 10px;
-            border-radius: 5px;
-          `
-        }, 'Entire Tribe');
+        if (isThreeTribeMode) {
+          // Three tribe positioning
+          const leftText = createElement('div', {
+            style: `
+              position: absolute;
+              left: 15%;
+              top: 50%;
+              transform: translate(-50%, -50%);
+              color: white;
+              font-family: 'Survivant', sans-serif;
+              font-size: 0.9rem;
+              font-weight: bold;
+              text-shadow: 2px 2px 4px black;
+              text-align: center;
+              z-index: 10;
+              padding: 5px 8px;
+              border-radius: 5px;
+            `
+          }, 'Entire Tribe');
 
-        const rightText = createElement('div', {
-          style: `
-            position: absolute;
-            right: 20%;
-            top: 50%;
-            transform: translate(50%, -50%);
-            color: white;
-            font-family: 'Survivant', sans-serif;
-            font-size: 1rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px black;
-            text-align: center;
-            z-index: 10;
-            padding: 5px 10px;
-            border-radius: 5px;
-          `
-        }, 'Entire Tribe');
+          const centerText = createElement('div', {
+            style: `
+              position: absolute;
+              left: 50%;
+              top: 50%;
+              transform: translate(-50%, -50%);
+              color: white;
+              font-family: 'Survivant', sans-serif;
+              font-size: 0.9rem;
+              font-weight: bold;
+              text-shadow: 2px 2px 4px black;
+              text-align: center;
+              z-index: 10;
+              padding: 5px 8px;
+              border-radius: 5px;
+            `
+          }, 'Entire Tribe');
 
-        matchupContainer.appendChild(matchupBg);
-        matchupContainer.appendChild(leftText);
-        matchupContainer.appendChild(rightText);
+          const rightText = createElement('div', {
+            style: `
+              position: absolute;
+              right: 15%;
+              top: 50%;
+              transform: translate(50%, -50%);
+              color: white;
+              font-family: 'Survivant', sans-serif;
+              font-size: 0.9rem;
+              font-weight: bold;
+              text-shadow: 2px 2px 4px black;
+              text-align: center;
+              z-index: 10;
+              padding: 5px 8px;
+              border-radius: 5px;
+            `
+          }, 'Entire Tribe');
+
+          matchupContainer.appendChild(matchupBg);
+          matchupContainer.appendChild(leftText);
+          matchupContainer.appendChild(centerText);
+          matchupContainer.appendChild(rightText);
+        } else {
+          // Two tribe positioning
+          const leftText = createElement('div', {
+            style: `
+              position: absolute;
+              left: 20%;
+              top: 50%;
+              transform: translate(-50%, -50%);
+              color: white;
+              font-family: 'Survivant', sans-serif;
+              font-size: 1rem;
+              font-weight: bold;
+              text-shadow: 2px 2px 4px black;
+              text-align: center;
+              z-index: 10;
+              padding: 5px 10px;
+              border-radius: 5px;
+            `
+          }, 'Entire Tribe');
+
+          const rightText = createElement('div', {
+            style: `
+              position: absolute;
+              right: 20%;
+              top: 50%;
+              transform: translate(50%, -50%);
+              color: white;
+              font-family: 'Survivant', sans-serif;
+              font-size: 1rem;
+              font-weight: bold;
+              text-shadow: 2px 2px 4px black;
+              text-align: center;
+              z-index: 10;
+              padding: 5px 10px;
+              border-radius: 5px;
+            `
+          }, 'Entire Tribe');
+
+          matchupContainer.appendChild(matchupBg);
+          matchupContainer.appendChild(leftText);
+          matchupContainer.appendChild(rightText);
+        }
       } else {
         // For other stages, show survivor avatars overlaid on the image
-        const leftContainer = createElement('div', {
-          style: `
-            position: absolute;
-            left: 20%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 3px;
-            max-width: 120px;
-            justify-content: center;
-            z-index: 10;
-          `
-        });
-
-        const rightContainer = createElement('div', {
-          style: `
-            position: absolute;
-            right: 20%;
-            top: 50%;
-            transform: translate(50%, -50%);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 3px;
-            max-width: 120px;
-            justify-content: center;
-            z-index: 10;
-          `
-        });
-
-        // Add player tribe survivors (left side)
-        playerSurvivors.forEach(survivor => {
-          const avatar = createElement('img', {
-            src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+        if (isThreeTribeMode) {
+          // Three tribe positioning
+          const leftContainer = createElement('div', {
             style: `
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              object-fit: cover;
-              border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
-              background-color: white;
-            `,
-            onload: () => {
-              console.log(`Player avatar loaded: ${survivor.firstName}`);
-            },
-            onerror: () => {
-              console.error(`Failed to load player avatar: ${survivor.firstName}`);
-            }
+              position: absolute;
+              left: 15%;
+              top: 50%;
+              transform: translate(-50%, -50%);
+              display: flex;
+              flex-wrap: wrap;
+              gap: 3px;
+              max-width: 100px;
+              justify-content: center;
+              z-index: 10;
+            `
           });
-          leftContainer.appendChild(avatar);
-        });
 
-        // Add opposing tribe survivors (right side)
-        opposingSurvivors.forEach(survivor => {
-          const avatar = createElement('img', {
-            src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+          const centerContainer = createElement('div', {
             style: `
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              object-fit: cover;
-              border: 2px solid ${this._getTribeColorHex(opposingTribe.tribeColor || opposingTribe.color)};
-              background-color: white;
-            `,
-            onload: () => {
-              console.log(`Opposing avatar loaded: ${survivor.firstName}`);
-            },
-            onerror: () => {
-              console.error(`Failed to load opposing avatar: ${survivor.firstName}`);
-            }
+              position: absolute;
+              left: 50%;
+              top: 50%;
+              transform: translate(-50%, -50%);
+              display: flex;
+              flex-direction: column;
+              gap: 3px;
+              align-items: center;
+              z-index: 10;
+            `
           });
-          rightContainer.appendChild(avatar);
-        });
 
-        matchupContainer.appendChild(matchupBg);
-        matchupContainer.appendChild(leftContainer);
-        matchupContainer.appendChild(rightContainer);
+          const rightContainer = createElement('div', {
+            style: `
+              position: absolute;
+              right: 15%;
+              top: 50%;
+              transform: translate(50%, -50%);
+              display: flex;
+              flex-wrap: wrap;
+              gap: 3px;
+              max-width: 100px;
+              justify-content: center;
+              z-index: 10;
+            `
+          });
+
+          // Add player tribe survivors (left side)
+          playerSurvivors.forEach(survivor => {
+            const avatar = createElement('img', {
+              src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+              style: `
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
+                background-color: white;
+              `,
+              onload: () => {
+                console.log(`Player avatar loaded: ${survivor.firstName}`);
+              },
+              onerror: () => {
+                console.error(`Failed to load player avatar: ${survivor.firstName}`);
+              }
+            });
+            leftContainer.appendChild(avatar);
+          });
+
+          // Add first opposing tribe survivors (center)
+          opposingTribe1Survivors.forEach(survivor => {
+            const avatar = createElement('img', {
+              src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+              style: `
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid ${this._getTribeColorHex(opposingTribes[0].tribeColor || opposingTribes[0].color)};
+                background-color: white;
+              `,
+              onload: () => {
+                console.log(`Opposing tribe 1 avatar loaded: ${survivor.firstName}`);
+              },
+              onerror: () => {
+                console.error(`Failed to load opposing tribe 1 avatar: ${survivor.firstName}`);
+              }
+            });
+            centerContainer.appendChild(avatar);
+          });
+
+          // Add second opposing tribe survivors (right side)
+          opposingTribe2Survivors.forEach(survivor => {
+            const avatar = createElement('img', {
+              src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+              style: `
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid ${this._getTribeColorHex(opposingTribes[1].tribeColor || opposingTribes[1].color)};
+                background-color: white;
+              `,
+              onload: () => {
+                console.log(`Opposing tribe 2 avatar loaded: ${survivor.firstName}`);
+              },
+              onerror: () => {
+                console.error(`Failed to load opposing tribe 2 avatar: ${survivor.firstName}`);
+              }
+            });
+            rightContainer.appendChild(avatar);
+          });
+
+          matchupContainer.appendChild(matchupBg);
+          matchupContainer.appendChild(leftContainer);
+          matchupContainer.appendChild(centerContainer);
+          matchupContainer.appendChild(rightContainer);
+        } else {
+          // Two tribe positioning
+          const leftContainer = createElement('div', {
+            style: `
+              position: absolute;
+              left: 20%;
+              top: 50%;
+              transform: translate(-50%, -50%);
+              display: flex;
+              flex-wrap: wrap;
+              gap: 3px;
+              max-width: 120px;
+              justify-content: center;
+              z-index: 10;
+            `
+          });
+
+          const rightContainer = createElement('div', {
+            style: `
+              position: absolute;
+              right: 20%;
+              top: 50%;
+              transform: translate(50%, -50%);
+              display: flex;
+              flex-wrap: wrap;
+              gap: 3px;
+              max-width: 120px;
+              justify-content: center;
+              z-index: 10;
+            `
+          });
+
+          // Add player tribe survivors (left side)
+          playerSurvivors.forEach(survivor => {
+            const avatar = createElement('img', {
+              src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+              style: `
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
+                background-color: white;
+              `,
+              onload: () => {
+                console.log(`Player avatar loaded: ${survivor.firstName}`);
+              },
+              onerror: () => {
+                console.error(`Failed to load player avatar: ${survivor.firstName}`);
+              }
+            });
+            leftContainer.appendChild(avatar);
+          });
+
+          // Add opposing tribe survivors (right side)
+          opposingTribe1Survivors.forEach(survivor => {
+            const avatar = createElement('img', {
+              src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
+              style: `
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid ${this._getTribeColorHex(opposingTribes[0].tribeColor || opposingTribes[0].color)};
+                background-color: white;
+              `,
+              onload: () => {
+                console.log(`Opposing avatar loaded: ${survivor.firstName}`);
+              },
+              onerror: () => {
+                console.error(`Failed to load opposing avatar: ${survivor.firstName}`);
+              }
+            });
+            rightContainer.appendChild(avatar);
+          });
+
+          matchupContainer.appendChild(matchupBg);
+          matchupContainer.appendChild(leftContainer);
+          matchupContainer.appendChild(rightContainer);
+        }
       }
 
       stageContainer.appendChild(stageName);
