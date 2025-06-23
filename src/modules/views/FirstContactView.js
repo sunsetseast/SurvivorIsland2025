@@ -81,6 +81,8 @@ const FirstContactView = {
   },
 
   _animateStage(stage) {
+    console.log(`Starting animation for stage: ${stage.name}`);
+
     // Build vertical "tracks" for each tribe
     const laneCount = this.allTribes.length;
     const containerWidth = this.container.clientWidth;
@@ -111,7 +113,7 @@ const FirstContactView = {
         const maxAvatarsPerRow = Math.floor((laneWidth - padding * 2) / (avatarSize + 5));
         const row = Math.floor(i / maxAvatarsPerRow);
         const col = i % maxAvatarsPerRow;
-        
+
         // Center the avatars in the lane
         const totalWidth = Math.min(stageParticipants.length, maxAvatarsPerRow) * (avatarSize + 5) - 5;
         const startX = (laneWidth - totalWidth) / 2;
@@ -138,37 +140,54 @@ const FirstContactView = {
       });
     });
 
-    // Animate avatars from bottom → top
-    requestAnimationFrame(() => {
-      const maxAbility = Math.max(...avatars.map(a => a.survivor._fc_ability));
-      const maxDuration = Math.max(...avatars.map(({ survivor }) => {
-        const normalizedAbility = survivor._fc_ability / maxAbility;
-        return 1500 + (normalizedAbility * 2000);
-      }));
+    // Ensure we have avatars before proceeding
+    if (avatars.length === 0) {
+      console.warn(`No avatars found for stage ${stage.name}, proceeding to Jeff commentary`);
+      setTimeout(() => this._showJeffCommentary(stage), 1000);
+      return;
+    }
 
-      avatars.forEach(({ survivor, avatar, tribe }) => {
-        const normalizedAbility = survivor._fc_ability / maxAbility;
-        const duration = 1500 + (normalizedAbility * 2000);
+    // Animate avatars from bottom → top
+    setTimeout(() => {
+      console.log(`Starting avatar animations for ${avatars.length} avatars`);
+
+      const maxAbility = Math.max(...avatars.map(a => a.survivor._fc_ability));
+      console.log(`Max ability for stage: ${maxAbility}`);
+
+      // Calculate all durations first
+      const durations = avatars.map(({ survivor }) => {
+        const normalizedAbility = maxAbility > 0 ? survivor._fc_ability / maxAbility : 0.5;
+        return 1500 + (normalizedAbility * 2000);
+      });
+
+      const maxDuration = Math.max(...durations);
+      console.log(`Animation durations: ${durations.join(', ')}, max: ${maxDuration}`);
+
+      // Apply animations
+      avatars.forEach(({ survivor, avatar }, index) => {
+        const normalizedAbility = maxAbility > 0 ? survivor._fc_ability / maxAbility : 0.5;
+        const duration = durations[index];
         const distance = this.container.clientHeight - 120; // Leave space at top
 
         avatar.style.transition = `transform ${duration}ms ease-out`;
         avatar.style.transform = `translateY(-${distance * normalizedAbility}px)`;
       });
 
-      // Wait for all animations to complete, then keep avatars visible for 2 seconds before showing Jeff
+      // Wait for all animations to complete, then show Jeff
+      const totalWaitTime = maxDuration + 2000; // Animation + 2 second pause
+      console.log(`Setting timeout for ${totalWaitTime}ms before showing Jeff commentary`);
+
       setTimeout(() => {
-        console.log(`Animation complete for ${stage.name}, showing Jeff commentary in 2 seconds`);
-        setTimeout(() => {
-          console.log(`Calling Jeff commentary for ${stage.name}`);
-          this._showJeffCommentary(stage);
-        }, 2000);
-      }, maxDuration + 100); // Small buffer after longest animation
-    });
+        console.log(`Timeout completed for ${stage.name}, showing Jeff commentary now`);
+        this._showJeffCommentary(stage);
+      }, totalWaitTime);
+
+    }, 100); // Small delay to ensure DOM is ready
   },
 
   _showJeffCommentary(stage) {
     console.log(`Showing Jeff commentary for stage: ${stage.name}`);
-    
+
     // Clear existing avatars but keep background
     const tracks = this.container.querySelectorAll('.fc-track');
     tracks.forEach(track => track.remove());
@@ -176,6 +195,11 @@ const FirstContactView = {
 
     // Determine stage winner
     const scores = this.context.stageScores[stage.id];
+    if (!scores) {
+      console.error(`No scores found for stage ${stage.id}`);
+      return;
+    }
+
     const sorted = Object.entries(scores)
       .sort(([,a],[,b]) => b - a)
       .map(([tribeId, score]) => ({ 
@@ -263,25 +287,29 @@ const FirstContactView = {
       `
     }, 'Click anywhere to continue...');
 
-    // Add pulse animation
-    const style = createElement('style', {}, `
-      @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-      }
-    `);
-    document.head.appendChild(style);
+    // Add pulse animation if not already present
+    if (!document.querySelector('#pulse-animation')) {
+      const style = createElement('style', { id: 'pulse-animation' }, `
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+      `);
+      document.head.appendChild(style);
+    }
 
     jeffBubble.append(jeffName, jeffMessage, clickHint);
     jeffOverlay.appendChild(jeffBubble);
-    
+
     // Make sure the overlay is appended properly
-    this.container.appendChild(jeffOverlay);
-    console.log('Jeff overlay appended to container');
+    document.body.appendChild(jeffOverlay); // Changed from container to body for fixed positioning
+    console.log('Jeff overlay appended to document body');
   },
 
   _showStageSummary(stage) {
+    console.log(`Showing stage summary for: ${stage.name}`);
+
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
 
@@ -372,6 +400,7 @@ const FirstContactView = {
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
+        console.log(`Next button clicked, advancing from stage ${this.stageIndex}`);
         this.stageIndex++;
         this.runNextStage();
       },
@@ -449,7 +478,7 @@ const FirstContactView = {
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         const result = {
           challengeName: this.config.name || 'First Contact',
           challengeType: 'tribal',
