@@ -81,10 +81,10 @@ const FirstContactView = {
   },
 
   _animateStage(stage) {
-    // Build horizontal “tracks” for each tribe
+    // Build vertical "tracks" for each tribe
     const laneCount = this.allTribes.length;
-    const containerHeight = this.container.clientHeight;
-    const laneHeight = containerHeight / laneCount;
+    const containerWidth = this.container.clientWidth;
+    const laneWidth = containerWidth / laneCount;
     const avatars = [];
 
     this.allTribes.forEach((tribe, tIndex) => {
@@ -92,8 +92,11 @@ const FirstContactView = {
       const track = createElement('div', {
         className: 'fc-track',
         style: `
-          top: ${tIndex * laneHeight}px;
-          height: ${laneHeight}px;
+          position: absolute;
+          left: ${tIndex * laneWidth}px;
+          width: ${laneWidth}px;
+          height: 100%;
+          border-right: ${tIndex < laneCount - 1 ? '2px solid rgba(255,255,255,0.3)' : 'none'};
         `,
       });
       this.container.appendChild(track);
@@ -106,58 +109,155 @@ const FirstContactView = {
             className: 'fc-avatar',
             src: survivor.avatarUrl || `Assets/Avatars/${survivor.firstName.toLowerCase()}.jpeg`,
             style: `
-              left: ${10 + i * 60}px;
-              top: ${(laneHeight - 50) / 2}px;
+              position: absolute;
+              width: 50px;
+              height: 50px;
+              border-radius: 50%;
+              object-fit: cover;
+              border: 3px solid ${tribe.tribeColor || '#fff'};
+              left: ${(laneWidth - 50) / 2 + i * 15}px;
+              bottom: 10px;
+              z-index: ${10 + i};
             `,
           });
           track.appendChild(avatar);
-          avatars.push({ survivor, avatar });
+          avatars.push({ survivor, avatar, tribe });
         });
     });
 
-    // Animate avatars from left → right
+    // Animate avatars from bottom → top
     requestAnimationFrame(() => {
       const maxAbility = Math.max(...avatars.map(a => a.survivor._fc_ability));
-      avatars.forEach(({ survivor, avatar }) => {
-        const duration = 1000 + ((survivor._fc_ability / maxAbility) * 2000);
+      avatars.forEach(({ survivor, avatar, tribe }) => {
+        const normalizedAbility = survivor._fc_ability / maxAbility;
+        const duration = 1500 + (normalizedAbility * 2000);
+        const distance = this.container.clientHeight - 120; // Leave space at top
+
         avatar.style.transition = `transform ${duration}ms ease-out`;
-        // move to right edge:
-        avatar.style.transform = `translateX(${this.container.clientWidth - 80}px)`;
+        avatar.style.transform = `translateY(-${distance * normalizedAbility}px)`;
       });
     });
 
-    // When the slowest avatar finishes, show summary
-    setTimeout(() => this._showStageSummary(stage), 3300);
+    // When the animation finishes, show Jeff commentary
+    setTimeout(() => this._showJeffCommentary(stage), 4000);
+  },
+
+  _showJeffCommentary(stage) {
+    // Clear existing avatars but keep background
+    const tracks = this.container.querySelectorAll('.fc-track');
+    tracks.forEach(track => track.remove());
+
+    // Determine stage winner
+    const scores = this.context.stageScores[stage.id];
+    const sorted = Object.entries(scores)
+      .sort(([,a],[,b]) => b - a)
+      .map(([tribeId, score]) => ({ 
+        tribe: this.allTribes.find(t => t.id === tribeId), 
+        score 
+      }));
+
+    const winner = sorted[0];
+    const playerRank = sorted.findIndex(entry => entry.tribe.id === this.playerTribe.id);
+
+    let jeffText;
+    if (playerRank === 0) {
+      jeffText = `${this.playerTribe.tribeName} takes the lead in ${stage.name}!`;
+    } else {
+      jeffText = `${winner.tribe.tribeName} emerges first in ${stage.name}! ${this.playerTribe.tribeName} needs to catch up!`;
+    }
+
+    // Jeff commentary overlay - clickable
+    const jeffOverlay = createElement('div', {
+      style: `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 100;
+      `,
+      onclick: () => {
+        jeffOverlay.remove();
+        this._showStageSummary(stage);
+      }
+    });
+
+    const jeffBubble = createElement('div', {
+      style: `
+        background: rgba(139, 69, 19, 0.9);
+        border: 3px solid #f39c12;
+        border-radius: 15px;
+        padding: 20px 30px;
+        max-width: 500px;
+        text-align: center;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.3rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        position: relative;
+      `
+    });
+
+    const jeffName = createElement('div', {
+      style: `
+        font-size: 1rem;
+        color: #f39c12;
+        margin-bottom: 10px;
+        font-weight: bold;
+      `
+    }, 'JEFF PROBST:');
+
+    const jeffMessage = createElement('div', {}, jeffText);
+
+    const clickHint = createElement('div', {
+      style: `
+        font-size: 0.9rem;
+        color: #ccc;
+        margin-top: 15px;
+        font-style: italic;
+      `
+    }, 'Click to continue...');
+
+    jeffBubble.append(jeffName, jeffMessage, clickHint);
+    jeffOverlay.appendChild(jeffBubble);
+    this.container.appendChild(jeffOverlay);
   },
 
   _showStageSummary(stage) {
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
 
-    // “Jeff” commentary above parchment
-    const jeffMsg = this.isThreeTribe
-      ? `Jeff: ${stage.name} shakes up all three tribes!`
-      : `Jeff: Only two tribes left—this ${stage.name.toLowerCase()} matters!`;
-    const jeffDiv = createElement('div', {
-      className: 'jeff-commentary',
-    }, jeffMsg);
-    this.container.appendChild(jeffDiv);
-
-    // Build summary text
+    // Build summary text with specific tribe results
     const scores = this.context.stageScores[stage.id];
     const sorted = Object.entries(scores)
       .sort(([,a],[,b]) => b - a)
-      .map(([tribeId]) => this.allTribes.find(t => t.id === tribeId));
+      .map(([tribeId, score]) => ({ 
+        tribe: this.allTribes.find(t => t.id === tribeId), 
+        score: Math.round(score * 10) / 10 
+      }));
 
-    const rank = sorted.findIndex(t => t.id === this.playerTribe.id);
+    const playerRank = sorted.findIndex(entry => entry.tribe.id === this.playerTribe.id);
+    const winner = sorted[0];
+
     let text;
-    if (rank === 0) {
-      text = `Your tribe rockets ahead in the ${stage.name.toLowerCase()}!`;
-    } else if (this.isThreeTribe && rank === 1) {
-      text = `Your tribe holds strong for second place in the ${stage.name.toLowerCase()}.`;
+    let detailText = '';
+
+    if (playerRank === 0) {
+      text = `${this.playerTribe.tribeName} dominates ${stage.name}!`;
+      detailText = `Strong performance gives you the edge going into the next stage.`;
     } else {
-      const leader = sorted[0].tribeName;
-      text = `Tough run—${leader} outpaces you in the ${stage.name.toLowerCase()}.`;
+      text = `${winner.tribe.tribeName} wins ${stage.name}`;
+      if (this.isThreeTribe && playerRank === 1) {
+        detailText = `${this.playerTribe.tribeName} finishes second - still in the fight!`;
+      } else {
+        const scoreDiff = Math.round((winner.score - sorted[playerRank].score) * 10) / 10;
+        detailText = `${this.playerTribe.tribeName} trails by ${scoreDiff} points. Time to make up ground!`;
+      }
     }
 
     // Parchment summary
@@ -167,16 +267,34 @@ const FirstContactView = {
         top: 35%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 300px;
-        padding: 20px;
+        width: 350px;
+        padding: 25px;
         background: url('Assets/parch-landscape.png') center/cover no-repeat;
         text-align: center;
         color: white;
         font-family: 'Survivant', sans-serif;
         text-shadow: 1px 1px 2px black;
         z-index: 10;
-      `,
+      `
+    });
+
+    const titleText = createElement('div', {
+      style: `
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #f39c12;
+      `
     }, text);
+
+    const detailDiv = createElement('div', {
+      style: `
+        font-size: 0.95rem;
+        line-height: 1.4;
+      `
+    }, detailText);
+
+    parchment.append(titleText, detailDiv);
 
     // Next button
     const nextBtn = createElement('button', {
@@ -280,7 +398,7 @@ const FirstContactView = {
               gameManager.advanceGamePhase();
               gameManager.setGameState('camp');
               screenManager.showScreen('camp');
-              
+
               if (window.campScreen && typeof window.campScreen.loadView === 'function') {
                 window.campScreen.loadView('flag');
               }
