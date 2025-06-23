@@ -255,9 +255,87 @@ const FirstContactView = {
 
     console.log(`Creating Jeff commentary with parchment layout`);
 
-    this._createJeffParchment(jeffText, () => {
-      this._showStageSummary(stage);
+    // Parchment wrapper for Jeff's message (matching intro view structure)
+    const parchmentWrapper = createElement('div', {
+      style: `
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 320px;
+        z-index: 2;
+      `
     });
+
+    const parchment = createElement('img', {
+      src: 'Assets/parch-landscape.png',
+      style: `
+        width: 100%;
+        max-width: 320px;
+        max-height: 180px;
+        display: block;
+        margin: 0 auto;
+      `
+    });
+
+    const jeffTextElement = createElement('div', {
+      className: 'parchment-text',
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        margin: -160px auto 0;
+        max-width: 260px;
+        font-size: 0.9rem;
+        line-height: 1.2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 120px;
+        text-shadow:
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+        white-space: pre-line;
+      `
+    }, jeffText);
+
+    parchmentWrapper.append(parchment, jeffTextElement);
+
+    // Next button (matching intro view structure)
+    const nextButton = createElement('button', {
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1.15rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        console.log('Jeff commentary next button clicked - proceeding to stage summary');
+        this._showStageSummary(stage);
+      }
+    }, 'Next');
+
+    this.container.append(parchmentWrapper, nextButton);
+    console.log(`Jeff commentary parchment layout created successfully`);
   },
 
   _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
