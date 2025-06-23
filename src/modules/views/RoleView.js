@@ -1303,7 +1303,7 @@ const RoleView = {
             style: `
               position: absolute;
               left: 25%;
-              top: 75%;
+              top: 25%;
               transform: translate(-50%, -50%);
               display: flex;
               flex-wrap: wrap;
@@ -1318,7 +1318,7 @@ const RoleView = {
             style: `
               position: absolute;
               left: 50%;
-              top: 25%;
+              top: 75%;
               transform: translate(-50%, -50%);
               display: flex;
               flex-direction: column;
@@ -1332,7 +1332,7 @@ const RoleView = {
             style: `
               position: absolute;
               right: 25%;
-              top: 75%;
+              top: 25%;
               transform: translate(50%, -50%);
               display: flex;
               flex-wrap: wrap;
