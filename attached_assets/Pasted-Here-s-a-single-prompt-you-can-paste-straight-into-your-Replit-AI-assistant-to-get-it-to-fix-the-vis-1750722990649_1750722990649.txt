@@ -1,0 +1,55 @@
+Here’s a single prompt you can paste straight into your Replit AI assistant to get it to fix the visibility issue in FirstContactView.js:
+
+In my Survivor Island project I have a `FirstContactView.js` that, when Jeff’s commentary appears, should display:
+1. The Jeff background image (`Assets/jeff-screen.png`)
+2. A parchment overlay with Jeff’s lines centered on it
+3. A “Next” button fixed at the bottom center of the game area
+
+Right now the text is being pushed off-screen by negative margins and the “Next” button never shows up because:
+- The game container is never set to `position: relative`, so all of our `position: absolute` children float off into the page instead of inside the game area.
+- The Jeff‐text `<div>` uses `position: relative` + a `margin-top: -160px`, which yanks it out of view.
+- The “Next” button is also absolutely positioned but relative to the entire browser window, not the game container.
+
+**Please update the entire `FirstContactView.js`** so that:
+- **At the top of `render(container)`** you set:
+  ```js
+  container.style.position = 'relative';
+  container.style.width    = '100%';
+  container.style.height   = '100%';
+
+	•	In _createJeffParchment(text, onNext):
+	•	Make parchmentWrapper absolutely positioned inside this.container (e.g. top: 30px; left: 50%; transform: translateX(-50%); z-index: 1000;).
+	•	Append the parchment image and then a new jeffTextElement styled with:
+
+position: absolute;
+top: 50%; left: 50%;
+transform: translate(-50%, -50%);
+width: 80%; max-width: 260px;
+color: white;
+font-family: 'Survivant', sans-serif;
+font-size: 0.85rem;
+font-weight: bold;
+line-height: 1.2;
+text-align: center;
+text-shadow: 0 1px 0 #000, 0 2px 0 #000, 0 3px 0 #000, 0 4px 4px rgba(0,0,0,0.5);
+z-index: 1002;
+
+
+	•	Create the Next button with:
+
+position: absolute;
+bottom: 40px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 1003;
+width: 130px; height: 60px;
+background: url('Assets/rect-button.png') center/cover no-repeat;
+/* plus your existing font & text styles */
+
+
+	•	Remove all negative margins or position: relative on the text element.
+	•	Double-check that Assets/parch-landscape.png and Assets/rect-button.png paths match exactly (including capitalization).
+	•	Bump any z-indices if something else is still covering the overlay.
+
+Return the full updated FirstContactView.js file so I can drop it in and instantly see the parchment with Jeff’s lines and the Next button centered on top of the Jeff background. Thanks!
+
