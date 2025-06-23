@@ -1149,13 +1149,13 @@ const RoleView = {
         `
       }, stage.name);
 
-      // Matchup container with proper sizing
+      // Matchup container with proper sizing - larger for three tribe mode
       const matchupContainer = createElement('div', {
         style: `
           position: relative;
           width: 100%;
-          max-width: 500px;
-          height: 100px;
+          max-width: ${isThreeTribeMode ? '600px' : '500px'};
+          height: ${isThreeTribeMode ? '140px' : '100px'};
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1217,7 +1217,7 @@ const RoleView = {
               position: absolute;
               left: 50%;
               top: 50%;
-              transform: translate(-50%, -50%);
+              transform: translate(-50%, -50%) rotate(-90deg);
               color: white;
               font-family: 'Survivant', sans-serif;
               font-size: 0.9rem;
@@ -1227,8 +1227,9 @@ const RoleView = {
               z-index: 10;
               padding: 5px 8px;
               border-radius: 5px;
+              white-space: nowrap;
             `
-          }, 'Entire Tribe');
+          }, 'ENTIRE TRIBE');
 
           const rightText = createElement('div', {
             style: `
@@ -1317,7 +1318,7 @@ const RoleView = {
             style: `
               position: absolute;
               left: 50%;
-              top: 50%;
+              top: 65%;
               transform: translate(-50%, -50%);
               display: flex;
               flex-direction: column;
