@@ -260,11 +260,33 @@ const FirstContactView = {
         z-index: 10;
       `,
       onclick: () => {
-        window.challengeScreen.completeChallenge({
-          challengeName: this.config.name,
+        const result = {
+          challengeName: this.config.name || 'First Contact',
+          challengeType: 'tribal',
           stageScores: this.context.stageScores,
-          totalScores: this.context.totalScores
-        });
+          totalScores: this.context.totalScores,
+          completed: true,
+          completedAt: new Date().toISOString()
+        };
+
+        // Try to use challenge screen's completion method
+        if (window.challengeScreen && typeof window.challengeScreen.completeChallenge === 'function') {
+          window.challengeScreen.completeChallenge(result);
+        } else {
+          // Fallback method
+          console.log('Challenge completed:', result);
+          import('../core/GameManager.js').then(({ default: gameManager }) => {
+            import('../core/ScreenManager.js').then(({ default: screenManager }) => {
+              gameManager.advanceGamePhase();
+              gameManager.setGameState('camp');
+              screenManager.showScreen('camp');
+              
+              if (window.campScreen && typeof window.campScreen.loadView === 'function') {
+                window.campScreen.loadView('flag');
+              }
+            });
+          });
+        }
       }
     }, 'Return to Camp');
 

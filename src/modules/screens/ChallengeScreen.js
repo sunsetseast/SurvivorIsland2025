@@ -17,6 +17,9 @@ export default class ChallengeScreen {
     console.log('ChallengeScreen setup');
     this.container = document.getElementById('challenge-screen');
 
+    // Expose this instance globally for challenge views to access
+    window.challengeScreen = this;
+
     if (!this.container) {
       console.error('Challenge screen container not found');
       return;
@@ -75,6 +78,18 @@ export default class ChallengeScreen {
     clearChildren(this.container);
 
     const challengeType = this.currentChallenge.type;
+    const challengeDay = this.currentChallenge.day;
+
+    // Load specific challenge views based on day/name
+    if (challengeDay === 1 || this.currentChallenge.name === 'First Contact') {
+      // Load FirstContactView for the first challenge
+      import('../views/FirstContactView.js').then(({ default: FirstContactView }) => {
+        FirstContactView.render(this.container, this.currentChallenge);
+        this.currentView = 'first-contact-challenge';
+        console.log(`Loaded First Contact challenge view`);
+      });
+      return;
+    }
 
     switch (challengeType) {
       case 'tribal':
