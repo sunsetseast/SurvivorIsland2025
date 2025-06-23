@@ -1198,7 +1198,7 @@ const RoleView = {
             style: `
               position: absolute;
               left: 25%;
-              top: 75%;
+              top: 65%;
               transform: translate(-50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
@@ -1216,7 +1216,7 @@ const RoleView = {
             style: `
               position: absolute;
               left: 50%;
-              top: 25%;
+              top: 35%;
               transform: translate(-50%, -50%) rotate(-90deg);
               color: white;
               font-family: 'Survivant', sans-serif;
@@ -1235,7 +1235,7 @@ const RoleView = {
             style: `
               position: absolute;
               right: 25%;
-              top: 75%;
+              top: 65%;
               transform: translate(50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
@@ -1263,13 +1263,13 @@ const RoleView = {
               transform: translate(-50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
-              font-size: 1.4rem;
+              font-size: 1.1rem;
               font-weight: bold;
               text-shadow: 2px 2px 4px black;
               text-align: center;
               z-index: 10;
-              padding: 8px 15px;
-              border-radius: 8px;
+              padding: 6px 12px;
+              border-radius: 6px;
             `
           }, 'ENTIRE TRIBE');
 
@@ -1281,13 +1281,13 @@ const RoleView = {
               transform: translate(50%, -50%);
               color: white;
               font-family: 'Survivant', sans-serif;
-              font-size: 1.4rem;
+              font-size: 1.1rem;
               font-weight: bold;
               text-shadow: 2px 2px 4px black;
               text-align: center;
               z-index: 10;
-              padding: 8px 15px;
-              border-radius: 8px;
+              padding: 6px 12px;
+              border-radius: 6px;
             `
           }, 'ENTIRE TRIBE');
 
