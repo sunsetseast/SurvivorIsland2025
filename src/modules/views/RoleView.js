@@ -112,25 +112,25 @@ const RoleView = {
     container.style.backgroundPosition = 'center';
     container.style.backgroundRepeat = 'no-repeat';
 
-    // Challenge stages data
+    // Challenge stages data - IDs must match FirstContactView stage IDs
     const challengeStages = [
       {
-        id: 'mud-crawl',
+        id: 'mud',
         name: 'Mud Crawl',
         cardImage: 'Assets/Challenge/mud-crawl-card.png'
       },
       {
-        id: 'untie-knots',
+        id: 'knots',
         name: 'Untie Knots',
         cardImage: 'Assets/Challenge/untie-knots-card.png'
       },
       {
-        id: 'bean-bag-toss',
+        id: 'toss',
         name: 'Bean Bag Toss',
         cardImage: 'Assets/Challenge/bean-bag-toss-card.png'
       },
       {
-        id: 'vertical-puzzle',
+        id: 'puzzle',
         name: 'Vertical Puzzle',
         cardImage: 'Assets/Challenge/vertical-puzzle-card.png'
       }
@@ -190,7 +190,7 @@ const RoleView = {
       `,
       onclick: () => {
         console.log('Confirm button clicked, assigned roles:', this.assignedRoles);
-        const challengeStages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
+        const challengeStages = ['mud', 'knots', 'toss', 'puzzle'];
         const allAssigned = challengeStages.every(stageId => {
           const assignment = this.assignedRoles.get(stageId);
           const maxAssignments = this._getMaxAssignmentsForStage(stageId);
@@ -369,7 +369,7 @@ const RoleView = {
     }, this._getStageNameById(stageId));
     cardBack.appendChild(stageName);
 
-    if (stageId === 'mud-crawl') {
+    if (stageId === 'mud') {
       // Special handling for mud crawl - just text and assign button
       const messageText = createElement('div', {
         style: `
@@ -455,9 +455,9 @@ const RoleView = {
     const playerTribe = gameManager.getPlayerTribe();
     const assignedSurvivorIds = new Set();
     
-    // Get all survivors already assigned to other stages (excluding mud-crawl)
+    // Get all survivors already assigned to other stages (excluding mud)
     for (const [stageId, assignment] of this.assignedRoles) {
-      if (stageId !== currentStageId && stageId !== 'mud-crawl') {
+      if (stageId !== currentStageId && stageId !== 'mud') {
         if (Array.isArray(assignment)) {
           assignment.forEach(id => assignedSurvivorIds.add(id));
         } else {
@@ -466,7 +466,7 @@ const RoleView = {
       }
     }
     
-    // Return survivors not assigned to other non-mud-crawl stages
+    // Return survivors not assigned to other non-mud stages
     return playerTribe.members.filter(survivor => !assignedSurvivorIds.has(survivor.id));
   },
 
@@ -686,7 +686,7 @@ const RoleView = {
     });
 
     assignButton.addEventListener('click', () => {
-      if (stageId === 'mud-crawl') {
+      if (stageId === 'mud') {
         // Mud crawl assigns all survivors
         const playerTribe = gameManager.getPlayerTribe();
         const allSurvivorIds = playerTribe.members.map(s => s.id);
@@ -774,7 +774,7 @@ const RoleView = {
         cursor: pointer;
       `,
       onclick: () => {
-        if (stageId === 'mud-crawl') {
+        if (stageId === 'mud') {
           this.assignedRoles.delete(stageId);
         } else {
           const assignment = this.assignedRoles.get(stageId);
@@ -832,7 +832,7 @@ const RoleView = {
 
   _updateConfirmButton(mainContainer) {
     const confirmButton = mainContainer.querySelector('#confirm-roles-button'); // Target the confirm button specifically
-    const challengeStages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
+    const challengeStages = ['mud', 'knots', 'toss', 'puzzle'];
     
     if (confirmButton) {
       // Check if all stages have the required number of assignments
@@ -876,7 +876,7 @@ const RoleView = {
     const playerTribe = gameManager.getPlayerTribe();
     const tribeSize = playerTribe.members.length;
     
-    if (stageId === 'mud-crawl') {
+    if (stageId === 'mud') {
       return tribeSize; // All survivors
     }
     
@@ -884,15 +884,15 @@ const RoleView = {
     if (tribeSize >= 9) {
       return 3; // 3 on each
     } else if (tribeSize === 8) {
-      return stageId === 'untie-knots' ? 2 : 3; // 2 on untie, 3 on others
+      return stageId === 'knots' ? 2 : 3; // 2 on untie, 3 on others
     } else if (tribeSize === 7) {
-      return stageId === 'untie-knots' ? 2 : 3; // 2 on untie, 3 on others  
+      return stageId === 'knots' ? 2 : 3; // 2 on untie, 3 on others  
     } else if (tribeSize === 6) {
       return 2; // 2 on each
     } else if (tribeSize === 5) {
-      return stageId === 'untie-knots' ? 1 : 2; // 1 on untie, 2 on others
+      return stageId === 'knots' ? 1 : 2; // 1 on untie, 2 on others
     } else if (tribeSize === 4) {
-      return stageId === 'vertical-puzzle' ? 2 : 1; // 2 on puzzle, 1 on others
+      return stageId === 'puzzle' ? 2 : 1; // 2 on puzzle, 1 on others
     } else if (tribeSize === 3) {
       return 1; // 1 on each
     } else if (tribeSize === 2) {
@@ -905,10 +905,10 @@ const RoleView = {
   _getHighlightedTraitsForStage(stageId) {
     // Based on the challenge stage requirements from the attached image
     const stageTraits = {
-      'mud-crawl': ['strength', 'endurance', 'dexterity', 'balance'],
-      'untie-knots': ['dexterity', 'puzzles', 'focus', 'endurance'],
-      'bean-bag-toss': ['dexterity', 'focus', 'strength'],
-      'vertical-puzzle': ['puzzles', 'memory', 'focus']
+      'mud': ['strength', 'endurance', 'dexterity', 'balance'],
+      'knots': ['dexterity', 'puzzles', 'focus', 'endurance'],
+      'toss': ['dexterity', 'focus', 'strength'],
+      'puzzle': ['puzzles', 'memory', 'focus']
     };
     return stageTraits[stageId] || [];
   },
@@ -929,7 +929,7 @@ const RoleView = {
   },
 
   _getStageIdByIndex(index) {
-    const stages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
+    const stages = ['mud', 'knots', 'toss', 'puzzle'];
     return stages[index];
   },
 
@@ -944,10 +944,10 @@ const RoleView = {
     // Assign roles based on stage assignments
     for (const [stageId, assignedSurvivorIds] of this.assignedRoles) {
       const roleMap = {
-        'mud-crawl': 'mud',
-        'untie-knots': 'knots', 
-        'bean-bag-toss': 'toss',
-        'vertical-puzzle': 'puzzle'
+        'mud': 'mud',
+        'knots': 'knots', 
+        'toss': 'toss',
+        'puzzle': 'puzzle'
       };
       
       const role = roleMap[stageId];
@@ -1016,13 +1016,13 @@ const RoleView = {
 
       // Define traits for each stage
       const stageTraits = {
-        'untie-knots': ['dexterity', 'puzzles', 'focus', 'endurance'],
-        'bean-bag-toss': ['dexterity', 'focus', 'strength'],
-        'vertical-puzzle': ['puzzles', 'memory', 'focus']
+        'knots': ['dexterity', 'puzzles', 'focus', 'endurance'],
+        'toss': ['dexterity', 'focus', 'strength'],
+        'puzzle': ['puzzles', 'memory', 'focus']
       };
 
       // Assign other roles based on trait scores
-      ['untie-knots', 'bean-bag-toss', 'vertical-puzzle'].forEach(stageId => {
+      ['knots', 'toss', 'puzzle'].forEach(stageId => {
         const count = assignmentCounts[stageId] || 0;
         const role = roleMap[stageId];
         const traits = stageTraits[stageId] || [];
