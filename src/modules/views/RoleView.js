@@ -1,10 +1,9 @@
-
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 
 const RoleView = {
   assignedRoles: new Map(), // stage-id -> survivor-id mapping (or array for multi-survivor stages)
-  
+
   render(container, onComplete = null) {
     if (!container) {
       console.error('RoleView: No container provided');
@@ -13,7 +12,7 @@ const RoleView = {
 
     this.onComplete = onComplete;
     this.assignedRoles.clear(); // Reset assignments for new challenge
-    
+
     // Show initial popup first
     this.showInitialPopup(container);
   },
@@ -48,7 +47,7 @@ const RoleView = {
     });
 
     const playerTribe = gameManager.getPlayerTribe();
-    
+
     // Container for tribe portrait and text overlay
     const portraitContainer = createElement('div', {
       style: `
@@ -227,7 +226,7 @@ const RoleView = {
           const maxAssignments = this._getMaxAssignmentsForStage(stageId);
           return assignment && Array.isArray(assignment) && assignment.length === maxAssignments;
         });
-        
+
         if (allAssigned) {
           console.log('All roles properly assigned, proceeding to matchup screen');
           this._assignRolesToSurvivors();
@@ -366,7 +365,7 @@ const RoleView = {
     }
 
     const playerTribe = gameManager.getPlayerTribe();
-    
+
     // Add tribe banner background, stretched to fit card
     const bannerBg = createElement('div', {
       style: `
@@ -473,7 +472,7 @@ const RoleView = {
 
       // Get available survivors (not already assigned to other non-mud-crawl roles)
       const availableSurvivors = this._getAvailableSurvivors(stageId);
-      
+
       availableSurvivors.forEach(survivor => {
         const survivorWrapper = this._createSurvivorAvatar(survivor, stageId, mainContainer);
         survivorGrid.appendChild(survivorWrapper);
@@ -486,7 +485,7 @@ const RoleView = {
   _getAvailableSurvivors(currentStageId) {
     const playerTribe = gameManager.getPlayerTribe();
     const assignedSurvivorIds = new Set();
-    
+
     // Get all survivors already assigned to other stages (excluding mud-crawl)
     for (const [stageId, assignment] of this.assignedRoles) {
       if (stageId !== currentStageId && stageId !== 'mud-crawl') {
@@ -497,7 +496,7 @@ const RoleView = {
         }
       }
     }
-    
+
     // Return survivors not assigned to other non-mud-crawl stages
     return playerTribe.members.filter(survivor => !assignedSurvivorIds.has(survivor.id));
   },
@@ -507,7 +506,7 @@ const RoleView = {
     const isAssigned = Array.isArray(assignment) ? 
       assignment.includes(survivor.id) : 
       assignment === survivor.id;
-    
+
     const avatarWrapper = createElement('div', {
       style: `
         display: flex;
@@ -576,7 +575,7 @@ const RoleView = {
 
   _showTraitsPopup(survivor, stageId, mainContainer) {
     console.log('Creating traits popup for:', survivor.firstName);
-    
+
     // Create overlay similar to ShelterView technique
     const overlay = createElement('div', {
       id: 'traits-popup',
@@ -728,7 +727,7 @@ const RoleView = {
         // Other stages - check if we can assign more survivors
         const currentAssignment = this.assignedRoles.get(stageId) || [];
         const maxAssignments = this._getMaxAssignmentsForStage(stageId);
-        
+
         if (Array.isArray(currentAssignment)) {
           if (currentAssignment.length < maxAssignments) {
             currentAssignment.push(survivor.id);
@@ -740,7 +739,7 @@ const RoleView = {
           console.log(`Assigned ${survivor.firstName} to ${stageId}: [${survivor.id}]`);
         }
       }
-      
+
       document.body.removeChild(overlay);
       // Refresh ALL card backs to update avatar grids across all open cards
       this._refreshAllCardBacks(mainContainer);
@@ -758,7 +757,7 @@ const RoleView = {
     buttonsContainer.appendChild(assignButton);
     traitsCardWrapper.appendChild(buttonsContainer);
     overlay.appendChild(traitsCardWrapper);
-    
+
     console.log('Appending traits popup to document body');
     document.body.appendChild(overlay);
   },
@@ -865,13 +864,13 @@ const RoleView = {
   _updateConfirmButton(mainContainer) {
     const confirmButton = mainContainer.querySelector('#confirm-roles-button'); // Target the confirm button specifically
     const challengeStages = ['mud-crawl', 'untie-knots', 'bean-bag-toss', 'vertical-puzzle'];
-    
+
     if (confirmButton) {
       // Check if all stages have the required number of assignments
       const allAssigned = challengeStages.every(stageId => {
         const assignment = this.assignedRoles.get(stageId);
         const maxAssignments = this._getMaxAssignmentsForStage(stageId);
-        
+
         if (assignment && Array.isArray(assignment)) {
           const isValid = assignment.length === maxAssignments;
           console.log(`Stage ${stageId}: assigned ${assignment.length}, required ${maxAssignments}, valid: ${isValid}`);
@@ -880,7 +879,7 @@ const RoleView = {
         console.log(`Stage ${stageId}: no valid assignment found, assignment:`, assignment);
         return false;
       });
-      
+
       console.log('All stages assigned:', allAssigned, 'Total assignments:', this.assignedRoles.size);
       confirmButton.style.opacity = allAssigned ? '1' : '0.5';
       confirmButton.style.pointerEvents = allAssigned ? 'auto' : 'none';
@@ -907,11 +906,11 @@ const RoleView = {
   _getMaxAssignmentsForStage(stageId) {
     const playerTribe = gameManager.getPlayerTribe();
     const tribeSize = playerTribe.members.length;
-    
+
     if (stageId === 'mud-crawl') {
       return tribeSize; // All survivors
     }
-    
+
     // Distribution rules for other three stages
     if (tribeSize >= 9) {
       return 3; // 3 on each
@@ -930,7 +929,7 @@ const RoleView = {
     } else if (tribeSize === 2) {
       return 1; // 1 survivor will need to be assigned twice
     }
-    
+
     return 1; // Default fallback
   },
 
@@ -967,7 +966,7 @@ const RoleView = {
 
   _assignRolesToSurvivors() {
     const playerTribe = gameManager.getPlayerTribe();
-    
+
     // Clear existing roles for all tribe members
     playerTribe.members.forEach(survivor => {
       survivor.roles = [];
@@ -981,7 +980,7 @@ const RoleView = {
         'bean-bag-toss': 'toss',
         'vertical-puzzle': 'puzzle'
       };
-      
+
       const role = roleMap[stageId];
       if (role && Array.isArray(assignedSurvivorIds)) {
         assignedSurvivorIds.forEach(survivorId => {
@@ -998,7 +997,7 @@ const RoleView = {
     // Use the suggested approach for better tribe detection
     const tribes = gameManager.getTribes();
     const playerTribe = gameManager.getPlayerTribe();
-    
+
     if (!tribes || !playerTribe) {
       console.error('Could not find tribes for role assignment');
       return;
@@ -1008,8 +1007,8 @@ const RoleView = {
     console.log('Found opposing tribes:', opposingTribes.length);
 
     opposingTribes.forEach(tribe => {
-      console.log(`Assigning roles to opposing tribe: ${tribe.tribeName || tribe.name} with ${tribe.members.length} members`);
-      
+      console.log(`Assigning roles to opposing tribe: ${tribe.name} with ${tribe.members.length} members`);
+
       // Clear existing roles
       tribe.members.forEach(survivor => {
         survivor.roles = [];
@@ -1058,13 +1057,13 @@ const RoleView = {
         const count = assignmentCounts[stageId] || 0;
         const role = roleMap[stageId];
         const traits = stageTraits[stageId] || [];
-        
+
         if (count > 0) {
           // Sort members by trait score for this stage (excluding those already assigned to non-mud roles)
           const availableMembers = tribe.members.filter(survivor => 
             !survivor.roles.some(r => r !== 'mud')
           );
-          
+
           const sortedMembers = availableMembers
             .map(survivor => ({
               survivor,
@@ -1104,7 +1103,7 @@ const RoleView = {
     const isThreeTribeMode = tribes.length === 3;
 
     console.log('All tribes:', tribes.length);
-    console.log('Player tribe:', playerTribe?.tribeName || playerTribe?.name);
+    console.log('Player tribe:', playerTribe?.name);
     console.log('Opposing tribes found:', opposingTribes.length);
     console.log('Is three tribe mode:', isThreeTribeMode);
     console.log('Player tribe members:', playerTribe?.members?.map(s => `${s.firstName}: roles=${s.roles}`));
@@ -1158,7 +1157,7 @@ const RoleView = {
 
     stages.forEach((stage, index) => {
       console.log(`Creating stage ${index + 1}: ${stage.name} with role ${stage.role}`);
-      
+
       const stageContainer = createElement('div', {
         style: `
           display: flex;
@@ -1384,7 +1383,7 @@ const RoleView = {
                 height: 36px;
                 border-radius: 50%;
                 object-fit: cover;
-                border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
+                border: 2px solid ${this._getTribeColorHex(playerTribe.color)};
                 background-color: white;
               `,
               onload: () => {
@@ -1406,7 +1405,7 @@ const RoleView = {
                 height: 36px;
                 border-radius: 50%;
                 object-fit: cover;
-                border: 2px solid ${this._getTribeColorHex(opposingTribes[0].tribeColor || opposingTribes[0].color)};
+                border: 2px solid ${this._getTribeColorHex(opposingTribes[0].color)};
                 background-color: white;
               `,
               onload: () => {
@@ -1428,7 +1427,7 @@ const RoleView = {
                 height: 36px;
                 border-radius: 50%;
                 object-fit: cover;
-                border: 2px solid ${this._getTribeColorHex(opposingTribes[1].tribeColor || opposingTribes[1].color)};
+                border: 2px solid ${this._getTribeColorHex(opposingTribes[1].color)};
                 background-color: white;
               `,
               onload: () => {
@@ -1486,7 +1485,7 @@ const RoleView = {
                 height: 32px;
                 border-radius: 50%;
                 object-fit: cover;
-                border: 2px solid ${this._getTribeColorHex(playerTribe.tribeColor || playerTribe.color)};
+                border: 2px solid ${this._getTribeColorHex(playerTribe.color)};
                 background-color: white;
               `,
               onload: () => {
@@ -1508,7 +1507,7 @@ const RoleView = {
                 height: 32px;
                 border-radius: 50%;
                 object-fit: cover;
-                border: 2px solid ${this._getTribeColorHex(opposingTribes[0].tribeColor || opposingTribes[0].color)};
+                border: 2px solid ${this._getTribeColorHex(opposingTribes[0].color)};
                 background-color: white;
               `,
               onload: () => {
@@ -1611,13 +1610,13 @@ const RoleView = {
     ['untie-knots', 'bean-bag-toss', 'vertical-puzzle'].forEach(stageId => {
       const count = assignmentCounts[stageId] || 0;
       const traits = stageTraits[stageId] || [];
-      
+
       if (count > 0) {
         // Get available members (not already assigned to non-mud roles)
         const availableMembers = playerTribe.members.filter(survivor => 
           !assignedSurvivors.has(survivor.id)
         );
-        
+
         // Sort members by trait score for this stage
         const sortedMembers = availableMembers
           .map(survivor => ({
