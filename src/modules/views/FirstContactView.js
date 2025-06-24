@@ -7,12 +7,12 @@ const FirstContactView = {
   render(container, config = {}) {
     this.container = container;
     this.config = config;
-    
+
     // Make container a containing block for absolutely positioned elements
     this.container.style.position = 'relative';
     this.container.style.width = '100%';
     this.container.style.height = '100%';
-    
+
     this.playerTribe = gameManager.getPlayerTribe();
     this.allTribes = gameManager.getTribes();
     this.isThreeTribe = this.allTribes.length === 3;
@@ -226,14 +226,14 @@ const FirstContactView = {
 
     // Clear all existing elements first
     clearChildren(this.container);
-    
+
     // Change background to Jeff screen
     this.container.style.backgroundImage = `url('Assets/jeff-screen.png')`;
 
     // Determine stage winner
     const scores = this.context.stageScores[stage.id];
     console.log(`Stage scores for ${stage.id}:`, scores);
-    
+
     if (!scores) {
       console.error(`No scores found for stage ${stage.id}`);
       // If no scores, proceed to next stage
@@ -324,7 +324,7 @@ const FirstContactView = {
 
   _createJeffParchment(text, onNext) {
     console.log('Creating Jeff parchment with text:', text);
-    
+
     // Parchment wrapper positioned absolutely within the container
     const parchmentWrapper = createElement('div', {
       style: `
@@ -400,7 +400,7 @@ const FirstContactView = {
 
     console.log('Appending parchment wrapper and next button to container');
     this.container.append(parchmentWrapper, nextButton);
-    
+
     // Force a repaint to ensure elements are visible
     setTimeout(() => {
       console.log('Parchment elements should now be visible');
@@ -418,7 +418,7 @@ const FirstContactView = {
     // Get survivor performances for this stage
     const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
     console.log(`Stage performances for ${stage.id}:`, stagePerfs.length, stagePerfs);
-    
+
     if (stagePerfs.length === 0) {
       console.error(`No performance data found for stage ${stage.id}`);
       // Create a fallback message
@@ -537,7 +537,7 @@ const FirstContactView = {
 
     // Get all survivors from this stage and sort them by performance
     const allSurvivorPerfs = this.context.survivorStagePerformances[stage.id] || [];
-    
+
     console.log(`Creating survivor ranking display for stage:`, stage.name);
     console.log(`Stage ${stage.id} performances:`, allSurvivorPerfs.length);
     console.log(`Full performance data:`, allSurvivorPerfs);
@@ -710,7 +710,7 @@ const FirstContactView = {
       const winner2 = winners[1].tribe.tribeName;
       const loser = losers[0].tribe.tribeName;
 
-      if (losers[0].tribe.id === this.playerTribe.id) {
+      if ((losers[0].tribe.id || losers[0].tribe.name) === (this.playerTribe.id || this.playerTribe.name)) {
         finalCommentary = `${winner1} and ${winner2} have won immunity! ${this.playerTribe.tribeName}, you struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
       } else {
         finalCommentary = `${winner1} and ${winner2} have won immunity and are safe from tonight's vote! ${loser}, I'll be seeing you at Tribal Council where one of your tribe members will become the first person voted out.`;
@@ -719,7 +719,7 @@ const FirstContactView = {
       const winner = winners[0].tribe.tribeName;
       const loser = losers[0].tribe.tribeName;
 
-      if (losers[0].tribe.id === this.playerTribe.id) {
+      if ((losers[0].tribe.id || losers[0].tribe.name) === (this.playerTribe.id || this.playerTribe.name)) {
         finalCommentary = `${winner} wins immunity! ${this.playerTribe.tribeName}, you have nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
       } else {
         finalCommentary = `${this.playerTribe.tribeName} wins immunity! ${loser}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
