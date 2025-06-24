@@ -286,6 +286,7 @@ const FirstContactView = {
       console.log('Jeff commentary next button clicked - proceeding to stage summary');
       console.log(`Stage object being passed to summary:`, stage);
       console.log(`Current stage index:`, this.stageIndex);
+      console.log(`Available performance data:`, Object.keys(this.context.survivorStagePerformances));
       this._showStageSummary(stage);
     });
   },
@@ -443,49 +444,58 @@ const FirstContactView = {
     console.log(`Container exists:`, !!this.container);
     console.log(`Stage object:`, stage);
 
-    clearChildren(this.container);
-    this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
+    try {
+      clearChildren(this.container);
+      this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
 
-    // Get survivor performances for this stage
-    const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
-    console.log(`Stage performances for ${stage.id}:`, stagePerfs.length, stagePerfs);
+      // Get survivor performances for this stage
+      const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
+      console.log(`Stage performances for ${stage.id}:`, stagePerfs.length, stagePerfs);
 
-    if (stagePerfs.length === 0) {
-      console.error(`No performance data found for stage ${stage.id}`);
-      console.log(`Available performance data keys:`, Object.keys(this.context.survivorStagePerformances));
+      if (stagePerfs.length === 0) {
+        console.error(`No performance data found for stage ${stage.id}`);
+        console.log(`Available performance data keys:`, Object.keys(this.context.survivorStagePerformances));
 
-      // Try to find performances with a similar stage name
-      const availableKeys = Object.keys(this.context.survivorStagePerformances);
-      const matchingKey = availableKeys.find(key => 
-        key.includes(stage.id) || 
-        stage.id.includes(key) || 
-        key.toLowerCase().includes(stage.name.toLowerCase().replace(/\s+/g, ''))
-      );
+        // Try to find performances with a similar stage name
+        const availableKeys = Object.keys(this.context.survivorStagePerformances);
+        const matchingKey = availableKeys.find(key => 
+          key.includes(stage.id) || 
+          stage.id.includes(key) || 
+          key.toLowerCase().includes(stage.name.toLowerCase().replace(/\s+/g, ''))
+        );
 
-      if (matchingKey) {
-        console.log(`Found matching key: ${matchingKey}, using that instead`);
-        const fallbackPerfs = this.context.survivorStagePerformances[matchingKey];
-        this._createSurvivorRankingDisplay(stage, this.allTribes.map(tribe => ({
-          tribe,
-          survivors: fallbackPerfs.filter(p => p.tribe.id === tribe.id)
-        })));
+        if (matchingKey) {
+          console.log(`Found matching key: ${matchingKey}, using that instead`);
+          const fallbackPerfs = this.context.survivorStagePerformances[matchingKey];
+          this._createSurvivorRankingDisplay(stage, this.allTribes.map(tribe => ({
+            tribe,
+            survivors: fallbackPerfs.filter(p => p.tribe.id === tribe.id)
+          })));
+          return;
+        }
+
+        // Create a fallback message
+        console.log(`Creating fallback summary for stage: ${stage.name}`);
+        this._createFallbackSummary(stage);
         return;
       }
 
-      // Create a fallback message
+      const tribesData = this.allTribes.map(tribe => ({
+        tribe,
+        survivors: stagePerfs.filter(p => (p.tribe.id === tribe.id || p.tribe.name === tribe.name))
+      }));
+
+      console.log(`Tribes data:`, tribesData);
+
+      // Create ranking display
+      console.log(`Creating survivor ranking display...`);
+      this._createSurvivorRankingDisplay(stage, tribesData);
+      console.log(`Survivor ranking display created successfully`);
+    } catch (error) {
+      console.error(`Error in _showStageSummary:`, error);
+      // Force create fallback summary on error
       this._createFallbackSummary(stage);
-      return;
     }
-
-    const tribesData = this.allTribes.map(tribe => ({
-      tribe,
-      survivors: stagePerfs.filter(p => (p.tribe.id === tribe.id || p.tribe.name === tribe.name))
-    }));
-
-    console.log(`Tribes data:`, tribesData);
-
-    // Create ranking display
-    this._createSurvivorRankingDisplay(stage, tribesData);
   },
 
   _createFallbackSummary(stage) {
