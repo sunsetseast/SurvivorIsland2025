@@ -232,6 +232,8 @@ const FirstContactView = {
 
     // Determine stage winner
     const scores = this.context.stageScores[stage.id];
+    console.log(`Stage scores for ${stage.id}:`, scores);
+    
     if (!scores) {
       console.error(`No scores found for stage ${stage.id}`);
       // If no scores, proceed to next stage
@@ -247,16 +249,20 @@ const FirstContactView = {
         score 
       }));
 
+    console.log('Sorted tribe results:', sorted.map(s => ({ name: s.tribe?.tribeName, score: s.score })));
+
     const winner = sorted[0];
     const loser = sorted[sorted.length - 1];
     const scoreDiff = winner.score - loser.score;
     const isClose = scoreDiff < 2.0; // Consider it close if less than 2 points difference
 
-    const playerRank = sorted.findIndex(entry => entry.tribe.id === this.playerTribe.id);
+    const playerRank = sorted.findIndex(entry => entry.tribe?.id === this.playerTribe?.id);
+    console.log(`Player tribe rank: ${playerRank}`);
 
     // Generate dynamic Jeff commentary based on the results
     let jeffText = this._generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank);
 
+    console.log(`Jeff text generated: "${jeffText}"`);
     console.log(`Creating Jeff commentary with parchment layout`);
 
     // Use the exact same method as ChallengeIntroView for Jeff commentary
@@ -267,16 +273,26 @@ const FirstContactView = {
   },
 
   _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
-    const winnerName = winner.tribe.tribeName;
-    const loserName = loser.tribe.tribeName;
-    const playerName = this.playerTribe.tribeName;
-    const stageDesc = stage.description;
+    const winnerName = winner?.tribe?.tribeName || 'Unknown Tribe';
+    const loserName = loser?.tribe?.tribeName || 'Unknown Tribe';
+    const playerName = this.playerTribe?.tribeName || 'Your Tribe';
+    const stageDesc = stage?.description || 'this challenge';
+
+    console.log('Generating Jeff commentary:', {
+      stageName: stage?.name,
+      winnerName,
+      loserName,
+      playerName,
+      playerRank,
+      isClose,
+      isThreeTribe: this.isThreeTribe
+    });
 
     let commentary = "";
 
-    if (this.isThreeTribe) {
+    if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
-      const middleName = middle.tribe.tribeName;
+      const middleName = middle?.tribe?.tribeName || 'Middle Tribe';
 
       if (isClose) {
         commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
@@ -290,7 +306,7 @@ const FirstContactView = {
         }
       }
     } else {
-      // Two tribe scenario
+      // Two tribe scenario or fallback
       if (isClose) {
         commentary = `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
       } else {
@@ -302,6 +318,7 @@ const FirstContactView = {
       }
     }
 
+    console.log('Generated commentary:', commentary);
     return commentary;
   },
 
