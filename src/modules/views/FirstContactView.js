@@ -77,9 +77,13 @@ const FirstContactView = {
     this.context.survivorStagePerformances[stage.id] = [];
 
     this.allTribes.forEach(tribe => {
+      console.log(`Processing tribe:`, tribe);
+      console.log(`Tribe properties:`, Object.keys(tribe));
+      const tribeName = tribe.name || `Tribe-${tribe.id}`;
+
       const participants = tribe.members.filter(s => s.roles && s.roles.includes(stage.id));
-      console.log(`${tribe.tribeName || tribe.name} participants for ${stage.id}:`, participants.map(p => p.firstName));
-      console.log(`All tribe member roles for ${tribe.tribeName || tribe.name}:`, tribe.members.map(m => `${m.firstName}: ${m.roles}`));
+      console.log(`${tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
+      console.log(`All tribe member roles for ${tribeName}:`, tribe.members.map(m => `${m.firstName}: ${m.roles}`));
 
       let totalAbility = 0;
       participants.forEach(survivor => {
@@ -106,6 +110,7 @@ const FirstContactView = {
       const finalPoints = basePoints * (0.95 + Math.random() * 0.10);
       this.context.stageScores[stage.id] = this.context.stageScores[stage.id] || {};
       const tribeKey = tribe.id || tribe.name;
+      console.log(`Storing score for tribe key: ${tribeKey}, points: ${finalPoints}`);
       this.context.stageScores[stage.id][tribeKey] = finalPoints;
       this.context.totalScores[tribeKey] = (this.context.totalScores[tribeKey] || 0) + finalPoints;
     });
@@ -173,7 +178,7 @@ const FirstContactView = {
             height: ${avatarSize}px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid ${tribe.tribeColor || '#fff'};
+            border: 3px solid ${tribe.color || '#fff'};
             left: ${Math.max(padding, Math.min(xPos, laneWidth - avatarSize - padding))}px;
             bottom: ${10 + yOffset}px;
             z-index: ${10 + i};
@@ -286,9 +291,9 @@ const FirstContactView = {
   },
 
   _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
-    const winnerName = winner?.tribe?.tribeName || 'Unknown Tribe';
-    const loserName = loser?.tribe?.tribeName || 'Unknown Tribe';
-    const playerName = this.playerTribe?.tribeName || 'Your Tribe';
+    const winnerName = winner?.tribe?.name || 'Unknown Tribe';
+    const loserName = loser?.tribe?.name || 'Unknown Tribe';
+    const playerName = this.playerTribe?.name || 'Your Tribe';
     const stageDesc = stage?.description || 'this challenge';
 
     console.log('Generating Jeff commentary:', {
@@ -305,7 +310,7 @@ const FirstContactView = {
 
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
-      const middleName = middle?.tribe?.tribeName || 'Middle Tribe';
+      const middleName = middle?.tribe?.name || 'Middle Tribe';
 
       if (isClose) {
         commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
@@ -618,7 +623,7 @@ const FirstContactView = {
             padding: 12px;
             background: ${isPlayerTribe ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
             border-radius: 8px;
-            border-left: 4px solid ${perf.tribe.tribeColor || perf.tribe.color || '#fff'};
+            border-left: 4px solid ${perf.tribe.color || perf.tribe.tribeColor || '#fff'};
             ${isPlayerTribe ? 'box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);' : ''}
           `
         });
@@ -644,7 +649,7 @@ const FirstContactView = {
             height: 35px;
             border-radius: 50%;
             margin-right: 12px;
-            border: 2px solid ${perf.tribe.tribeColor || perf.tribe.color || '#fff'};
+            border: 2px solid ${perf.tribe.color || perf.tribe.tribeColor || '#fff'};
           `
         });
 
@@ -669,12 +674,12 @@ const FirstContactView = {
 
         const tribeElement = createElement('div', {
           style: `
-            color: ${perf.tribe.tribeColor || perf.tribe.color || '#ccc'};
+            color: ${perf.tribe.color || perf.tribe.tribeColor || '#ccc'};
             font-family: 'Survivant', sans-serif;
             font-size: 0.8rem;
             text-shadow: 1px 1px 1px black;
           `
-        }, perf.tribe.tribeName || perf.tribe.name);
+        }, perf.tribe.name || perf.tribe.tribeName);
 
         infoContainer.append(nameElement, tribeElement);
 
@@ -751,23 +756,23 @@ const FirstContactView = {
     // Generate final Jeff commentary
     let finalCommentary;
     if (this.isThreeTribe) {
-      const winner1 = winners[0].tribe.tribeName;
-      const winner2 = winners[1].tribe.tribeName;
-      const loser = losers[0].tribe.tribeName;
+      const winner1 = winners[0].tribe.name;
+      const winner2 = winners[1].tribe.name;
+      const loser = losers[0].tribe.name;
 
       if ((losers[0].tribe.id || losers[0].tribe.name) === (this.playerTribe.id || this.playerTribe.name)) {
-        finalCommentary = `${winner1} and ${winner2} have won immunity! ${this.playerTribe.tribeName}, you struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
+        finalCommentary = `${winner1} and ${winner2} have won immunity! ${this.playerTribe.name}, you struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
       } else {
         finalCommentary = `${winner1} and ${winner2} have won immunity and are safe from tonight's vote! ${loser}, I'll be seeing you at Tribal Council where one of your tribe members will become the first person voted out.`;
       }
     } else {
-      const winner = winners[0].tribe.tribeName;
-      const loser = losers[0].tribe.tribeName;
+      const winner = winners[0].tribe.name;
+      const loser = losers[0].tribe.name;
 
       if ((losers[0].tribe.id || losers[0].tribe.name) === (this.playerTribe.id || this.playerTribe.name)) {
-        finalCommentary = `${winner} wins immunity! ${this.playerTribe.tribeName}, you have nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
+        finalCommentary = `${winner} wins immunity! ${this.playerTribe.name}, you have nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
       } else {
-        finalCommentary = `${this.playerTribe.tribeName} wins immunity! ${loser}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
+        finalCommentary = `${this.playerTribe.name} wins immunity! ${loser}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
       }
     }
 
@@ -781,7 +786,7 @@ const FirstContactView = {
     this.container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
 
     const winners = sortedTribes.slice(0, this.isThreeTribe ? 2 : 1);
-    const winnerNames = winners.map(t => t.tribe.tribeName).join(' and ');
+    const winnerNames = winners.map(t => t.tribe.name).join(' and ');
     const text = `${winnerNames} win immunity in First Contact!`;
 
     const parchment = createElement('div', {
