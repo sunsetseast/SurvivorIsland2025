@@ -23,7 +23,7 @@ const FirstContactView = {
       survivorStagePerformances: {} // Track individual performances
     };
 
-    // Define the four stages
+    // Define the four stages - IDs must match the role names from RoleView
     this.stages = [
       {
         id: 'mud',
@@ -77,8 +77,9 @@ const FirstContactView = {
     this.context.survivorStagePerformances[stage.id] = [];
 
     this.allTribes.forEach(tribe => {
-      const participants = tribe.members.filter(s => s.roles.includes(stage.id));
+      const participants = tribe.members.filter(s => s.roles && s.roles.includes(stage.id));
       console.log(`${tribe.tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
+      console.log(`All tribe member roles for ${tribe.tribeName}:`, tribe.members.map(m => `${m.firstName}: ${m.roles}`));
       
       let totalAbility = 0;
       participants.forEach(survivor => {
