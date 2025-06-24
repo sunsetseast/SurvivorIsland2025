@@ -78,8 +78,8 @@ const FirstContactView = {
 
     this.allTribes.forEach(tribe => {
       const participants = tribe.members.filter(s => s.roles && s.roles.includes(stage.id));
-      console.log(`${tribe.tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
-      console.log(`All tribe member roles for ${tribe.tribeName}:`, tribe.members.map(m => `${m.firstName}: ${m.roles}`));
+      console.log(`${tribe.tribeName || tribe.name} participants for ${stage.id}:`, participants.map(p => p.firstName));
+      console.log(`All tribe member roles for ${tribe.tribeName || tribe.name}:`, tribe.members.map(m => `${m.firstName}: ${m.roles}`));
 
       let totalAbility = 0;
       participants.forEach(survivor => {
@@ -105,8 +105,9 @@ const FirstContactView = {
       const basePoints = (totalAbility / maxPossible) * 25;
       const finalPoints = basePoints * (0.95 + Math.random() * 0.10);
       this.context.stageScores[stage.id] = this.context.stageScores[stage.id] || {};
-      this.context.stageScores[stage.id][tribe.id] = finalPoints;
-      this.context.totalScores[tribe.id] = (this.context.totalScores[tribe.id] || 0) + finalPoints;
+      const tribeKey = tribe.id || tribe.name;
+      this.context.stageScores[stage.id][tribeKey] = finalPoints;
+      this.context.totalScores[tribeKey] = (this.context.totalScores[tribeKey] || 0) + finalPoints;
     });
 
     // Normalize individual scores for ranking
@@ -254,8 +255,8 @@ const FirstContactView = {
 
     const sorted = Object.entries(scores)
       .sort(([,a],[,b]) => b - a)
-      .map(([tribeId, score]) => ({ 
-        tribe: this.allTribes.find(t => t.id === tribeId), 
+      .map(([tribeKey, score]) => ({ 
+        tribe: this.allTribes.find(t => (t.id || t.name) === tribeKey), 
         score 
       }));
 
@@ -725,8 +726,8 @@ const FirstContactView = {
     // Determine final standings
     const sorted = Object.entries(this.context.totalScores)
       .sort(([,a],[,b]) => b - a)
-      .map(([tribeId, score]) => ({ 
-        tribe: this.allTribes.find(t => t.id === tribeId), 
+      .map(([tribeKey, score]) => ({ 
+        tribe: this.allTribes.find(t => (t.id || t.name) === tribeKey), 
         score 
       }));
 
