@@ -162,6 +162,37 @@ const RoleView = {
 
     container.appendChild(scrollableCardWrapper);
 
+    // Add auto assign button
+    const autoAssignButton = createElement('button', {
+      style: `
+        position: absolute;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        padding: 0;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        console.log('Auto assign button clicked');
+        this._autoAssignRoles();
+        this._refreshAllCardBacks(container);
+        this._updateConfirmButton(container);
+      }
+    }, 'Auto Assign');
+
     // Add confirm roles button
     const confirmButton = createElement('button', {
       id: 'confirm-roles-button',
@@ -208,6 +239,7 @@ const RoleView = {
       }
     }, 'Confirm Roles');
 
+    container.appendChild(autoAssignButton);
     container.appendChild(confirmButton);
   },
 
@@ -1534,6 +1566,85 @@ const RoleView = {
     }, 'Survivors Ready?');
 
     container.appendChild(readyButton);
+  },
+
+  _autoAssignRoles() {
+    const playerTribe = gameManager.getPlayerTribe();
+    if (!playerTribe || !playerTribe.members) {
+      console.error('No player tribe found for auto assignment');
+      return;
+    }
+
+    // Clear existing assignments
+    this.assignedRoles.clear();
+
+    // Assign all members to mud crawl
+    const allSurvivorIds = playerTribe.members.map(s => s.id);
+    this.assignedRoles.set('mud-crawl', allSurvivorIds);
+    console.log('Auto-assigned all survivors to mud crawl:', allSurvivorIds);
+
+    // Get trait score calculation function
+    const getTraitScore = (survivor, traits) => {
+      return traits.reduce((sum, trait) => sum + (survivor[trait] || 0), 0);
+    };
+
+    // Define traits for each stage
+    const stageTraits = {
+      'untie-knots': ['dexterity', 'puzzles', 'focus', 'endurance'],
+      'bean-bag-toss': ['dexterity', 'focus', 'strength'],
+      'vertical-puzzle': ['puzzles', 'memory', 'focus']
+    };
+
+    // Get assignment counts needed for each stage
+    const assignmentCounts = {
+      'untie-knots': this._getMaxAssignmentsForStage('untie-knots'),
+      'bean-bag-toss': this._getMaxAssignmentsForStage('bean-bag-toss'),
+      'vertical-puzzle': this._getMaxAssignmentsForStage('vertical-puzzle')
+    };
+
+    console.log('Assignment counts needed:', assignmentCounts);
+
+    // Track assigned survivors (excluding mud crawl since everyone does that)
+    const assignedSurvivors = new Set();
+
+    // Assign other roles based on trait scores
+    ['untie-knots', 'bean-bag-toss', 'vertical-puzzle'].forEach(stageId => {
+      const count = assignmentCounts[stageId] || 0;
+      const traits = stageTraits[stageId] || [];
+      
+      if (count > 0) {
+        // Get available members (not already assigned to non-mud roles)
+        const availableMembers = playerTribe.members.filter(survivor => 
+          !assignedSurvivors.has(survivor.id)
+        );
+        
+        // Sort members by trait score for this stage
+        const sortedMembers = availableMembers
+          .map(survivor => ({
+            survivor,
+            score: getTraitScore(survivor, traits)
+          }))
+          .sort((a, b) => b.score - a.score)
+          .map(item => item.survivor);
+
+        // Assign the top members for this role
+        const assignedToStage = [];
+        for (let i = 0; i < Math.min(count, sortedMembers.length); i++) {
+          const survivor = sortedMembers[i];
+          if (survivor) {
+            assignedToStage.push(survivor.id);
+            assignedSurvivors.add(survivor.id);
+            console.log(`Auto-assigned ${survivor.firstName} to ${stageId} with trait score:`, getTraitScore(survivor, traits));
+          }
+        }
+
+        if (assignedToStage.length > 0) {
+          this.assignedRoles.set(stageId, assignedToStage);
+        }
+      }
+    });
+
+    console.log('Auto assignment complete:', this.assignedRoles);
   },
 
   _getTribeColorHex(colorName) {
