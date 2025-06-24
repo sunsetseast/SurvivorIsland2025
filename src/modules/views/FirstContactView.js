@@ -409,19 +409,86 @@ const FirstContactView = {
 
   _showStageSummary(stage) {
     console.log(`Showing stage summary for: ${stage.name}`);
+    console.log(`Stage ID: ${stage.id}`);
+    console.log(`All performance data:`, this.context.survivorStagePerformances);
 
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
 
     // Get survivor performances for this stage
     const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
+    console.log(`Stage performances for ${stage.id}:`, stagePerfs.length, stagePerfs);
+    
+    if (stagePerfs.length === 0) {
+      console.error(`No performance data found for stage ${stage.id}`);
+      // Create a fallback message
+      this._createFallbackSummary(stage);
+      return;
+    }
+
     const tribesData = this.allTribes.map(tribe => ({
       tribe,
       survivors: stagePerfs.filter(p => p.tribe.id === tribe.id)
     }));
 
+    console.log(`Tribes data:`, tribesData);
+
     // Create ranking display
     this._createSurvivorRankingDisplay(stage, tribesData);
+  },
+
+  _createFallbackSummary(stage) {
+    const wrapper = createElement('div', {
+      style: `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        border-radius: 10px;
+        padding: 20px;
+        color: white;
+        text-align: center;
+        font-family: 'Survivant', sans-serif;
+      `
+    });
+
+    const title = createElement('div', {
+      style: `
+        color: #f39c12;
+        font-size: 1.3rem;
+        margin-bottom: 20px;
+      `
+    }, `${stage.name} Results`);
+
+    const message = createElement('div', {
+      style: `
+        color: white;
+        margin-bottom: 20px;
+      `
+    }, 'No performance data available for this stage.');
+
+    const nextBtn = createElement('button', {
+      style: `
+        width: 140px;
+        height: 50px;
+        background: url('Assets/rect-button.png') center/cover no-repeat;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+      `,
+      onclick: () => {
+        console.log(`Fallback next button clicked, advancing from stage ${this.stageIndex}`);
+        this.stageIndex++;
+        this.runNextStage();
+      }
+    }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Final Results');
+
+    wrapper.append(title, message, nextBtn);
+    this.container.appendChild(wrapper);
   },
 
   _createSurvivorRankingDisplay(stage, tribesData) {
@@ -471,7 +538,9 @@ const FirstContactView = {
     // Get all survivors from this stage and sort them by performance
     const allSurvivorPerfs = this.context.survivorStagePerformances[stage.id] || [];
     
+    console.log(`Creating survivor ranking display for stage:`, stage.name);
     console.log(`Stage ${stage.id} performances:`, allSurvivorPerfs.length);
+    console.log(`Full performance data:`, allSurvivorPerfs);
 
     if (allSurvivorPerfs.length === 0) {
       const noDataMsg = createElement('div', {
