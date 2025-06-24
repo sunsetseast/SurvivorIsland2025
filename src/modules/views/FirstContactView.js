@@ -279,6 +279,8 @@ const FirstContactView = {
     // Use the exact same method as ChallengeIntroView for Jeff commentary
     this._createJeffParchment(jeffText, () => {
       console.log('Jeff commentary next button clicked - proceeding to stage summary');
+      console.log(`Stage object being passed to summary:`, stage);
+      console.log(`Current stage index:`, this.stageIndex);
       this._showStageSummary(stage);
     });
   },
@@ -406,7 +408,16 @@ const FirstContactView = {
         padding: 0;
         cursor: pointer;
       `,
-      onclick: onNext
+      onclick: (e) => {
+        console.log('Jeff parchment next button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof onNext === 'function') {
+          onNext();
+        } else {
+          console.error('onNext callback is not a function:', onNext);
+        }
+      }
     }, 'Next');
 
     console.log('Appending parchment wrapper and next button to container');
@@ -419,10 +430,13 @@ const FirstContactView = {
   },
 
   _showStageSummary(stage) {
+    console.log(`=== SHOWING STAGE SUMMARY ===`);
     console.log(`Showing stage summary for: ${stage.name}`);
     console.log(`Stage ID: ${stage.id}`);
     console.log(`All performance data:`, this.context.survivorStagePerformances);
     console.log(`Available stage IDs:`, Object.keys(this.context.survivorStagePerformances));
+    console.log(`Container exists:`, !!this.container);
+    console.log(`Stage object:`, stage);
 
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
