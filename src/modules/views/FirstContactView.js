@@ -71,11 +71,15 @@ const FirstContactView = {
   },
 
   _calculateStage(stage) {
+    console.log(`Calculating stage: ${stage.name} with ID: ${stage.id}`);
+    
     // Store individual survivor performances for this stage
     this.context.survivorStagePerformances[stage.id] = [];
 
     this.allTribes.forEach(tribe => {
       const participants = tribe.members.filter(s => s.roles.includes(stage.id));
+      console.log(`${tribe.tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
+      
       let totalAbility = 0;
       participants.forEach(survivor => {
         const healthFactor = ((survivor.health || 100) / 100);
@@ -106,11 +110,16 @@ const FirstContactView = {
 
     // Normalize individual scores for ranking
     const stagePerfs = this.context.survivorStagePerformances[stage.id];
-    const maxAbility = Math.max(...stagePerfs.map(p => p.ability));
-    stagePerfs.forEach(perf => {
-      perf.normalizedScore = (perf.ability / maxAbility) * 100;
-    });
-    stagePerfs.sort((a, b) => b.normalizedScore - a.normalizedScore);
+    if (stagePerfs && stagePerfs.length > 0) {
+      const maxAbility = Math.max(...stagePerfs.map(p => p.ability));
+      stagePerfs.forEach(perf => {
+        perf.normalizedScore = (perf.ability / maxAbility) * 100;
+      });
+      stagePerfs.sort((a, b) => b.normalizedScore - a.normalizedScore);
+      console.log(`Stage ${stage.id} performances stored:`, stagePerfs.length);
+    } else {
+      console.warn(`No performances found for stage ${stage.id}`);
+    }
   },
 
   _animateStage(stage) {
@@ -411,6 +420,7 @@ const FirstContactView = {
     console.log(`Showing stage summary for: ${stage.name}`);
     console.log(`Stage ID: ${stage.id}`);
     console.log(`All performance data:`, this.context.survivorStagePerformances);
+    console.log(`Available stage IDs:`, Object.keys(this.context.survivorStagePerformances));
 
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
@@ -421,6 +431,26 @@ const FirstContactView = {
 
     if (stagePerfs.length === 0) {
       console.error(`No performance data found for stage ${stage.id}`);
+      console.log(`Available performance data keys:`, Object.keys(this.context.survivorStagePerformances));
+      
+      // Try to find performances with a similar stage name
+      const availableKeys = Object.keys(this.context.survivorStagePerformances);
+      const matchingKey = availableKeys.find(key => 
+        key.includes(stage.id) || 
+        stage.id.includes(key) || 
+        key.toLowerCase().includes(stage.name.toLowerCase().replace(/\s+/g, ''))
+      );
+      
+      if (matchingKey) {
+        console.log(`Found matching key: ${matchingKey}, using that instead`);
+        const fallbackPerfs = this.context.survivorStagePerformances[matchingKey];
+        this._createSurvivorRankingDisplay(stage, this.allTribes.map(tribe => ({
+          tribe,
+          survivors: fallbackPerfs.filter(p => p.tribe.id === tribe.id)
+        })));
+        return;
+      }
+      
       // Create a fallback message
       this._createFallbackSummary(stage);
       return;
@@ -428,7 +458,7 @@ const FirstContactView = {
 
     const tribesData = this.allTribes.map(tribe => ({
       tribe,
-      survivors: stagePerfs.filter(p => p.tribe.id === tribe.id)
+      survivors: stagePerfs.filter(p => (p.tribe.id === tribe.id || p.tribe.name === tribe.name))
     }));
 
     console.log(`Tribes data:`, tribesData);
