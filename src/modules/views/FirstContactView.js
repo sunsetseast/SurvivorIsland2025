@@ -425,9 +425,6 @@ const FirstContactView = {
   },
 
   _createSurvivorRankingDisplay(stage, tribesData) {
-    console.log('Creating survivor ranking display for stage:', stage.name);
-    console.log('Tribes data:', tribesData);
-    
     // Create a scrollable container that takes the full height
     const scrollContainer = createElement('div', {
       style: `
@@ -447,7 +444,7 @@ const FirstContactView = {
     const wrapper = createElement('div', {
       style: `
         width: 100%;
-        max-width: 400px;
+        max-width: 600px;
         margin: 0 auto;
         background: rgba(0, 0, 0, 0.8);
         border-radius: 10px;
@@ -492,7 +489,7 @@ const FirstContactView = {
         style: `
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 8px;
         `
       });
 
@@ -504,11 +501,11 @@ const FirstContactView = {
           style: `
             display: flex;
             align-items: center;
-            padding: 8px 12px;
+            padding: 12px;
             background: ${isPlayerTribe ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
-            border-radius: 6px;
-            border-left: 3px solid ${perf.tribe.tribeColor || '#fff'};
-            ${isPlayerTribe ? 'box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);' : ''}
+            border-radius: 8px;
+            border-left: 4px solid ${perf.tribe.tribeColor || '#fff'};
+            ${isPlayerTribe ? 'box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);' : ''}
           `
         });
 
@@ -517,10 +514,10 @@ const FirstContactView = {
           style: `
             color: #f39c12;
             font-family: 'Survivant', sans-serif;
-            font-size: 0.9rem;
+            font-size: 1.1rem;
             font-weight: bold;
-            margin-right: 10px;
-            min-width: 20px;
+            margin-right: 12px;
+            min-width: 25px;
             text-align: center;
           `
         }, `${position}.`);
@@ -529,43 +526,56 @@ const FirstContactView = {
         const avatar = createElement('img', {
           src: perf.survivor.avatarUrl || `Assets/Avatars/${perf.survivor.firstName.toLowerCase()}.jpeg`,
           style: `
-            width: 30px;
-            height: 30px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
-            margin-right: 10px;
+            margin-right: 12px;
             border: 2px solid ${perf.tribe.tribeColor || '#fff'};
-            object-fit: cover;
-          `,
-          onerror: function() {
-            this.style.display = 'none';
-          }
+          `
         });
 
-        // Name
-        const nameElement = createElement('div', {
+        // Name and tribe info
+        const infoContainer = createElement('div', {
           style: `
             flex: 1;
+            display: flex;
+            flex-direction: column;
+          `
+        });
+
+        const nameElement = createElement('div', {
+          style: `
             color: white;
             font-family: 'Survivant', sans-serif;
-            font-size: 0.9rem;
+            font-size: 1rem;
             font-weight: bold;
             text-shadow: 1px 1px 1px black;
           `
         }, perf.survivor.firstName);
+
+        const tribeElement = createElement('div', {
+          style: `
+            color: ${perf.tribe.tribeColor || '#ccc'};
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.8rem;
+            text-shadow: 1px 1px 1px black;
+          `
+        }, perf.tribe.tribeName);
+
+        infoContainer.append(nameElement, tribeElement);
 
         // Score
         const scoreElement = createElement('div', {
           style: `
             color: #f39c12;
             font-family: 'Survivant', sans-serif;
-            font-size: 0.9rem;
+            font-size: 1rem;
             font-weight: bold;
             text-shadow: 1px 1px 1px black;
-            margin-left: 10px;
           `
         }, Math.round(perf.normalizedScore));
 
-        survivorDiv.append(positionElement, avatar, nameElement, scoreElement);
+        survivorDiv.append(positionElement, avatar, infoContainer, scoreElement);
         allSurvivorsContainer.appendChild(survivorDiv);
       });
 
@@ -575,24 +585,24 @@ const FirstContactView = {
     // Next button - positioned within the wrapper so it scrolls with content
     const nextBtn = createElement('button', {
       style: `
-        width: 120px;
-        height: 45px;
+        width: 140px;
+        height: 50px;
         background: url('Assets/rect-button.png') center/cover no-repeat;
         border: none;
         color: white;
         font-family: 'Survivant', sans-serif;
-        font-size: 0.9rem;
+        font-size: 1rem;
         font-weight: bold;
         text-shadow: 1px 1px 2px black;
         cursor: pointer;
-        margin: 20px auto 0;
+        margin: 30px auto 0;
         display: block;
         transition: all 0.2s ease;
       `,
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`Next button clicked, advancing from stage ${this.stageIndex} to ${this.stageIndex + 1}`);
+        console.log(`Next button clicked, advancing from stage ${this.stageIndex}`);
         this.stageIndex++;
         this.runNextStage();
       },
