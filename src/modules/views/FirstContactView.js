@@ -23,31 +23,31 @@ const FirstContactView = {
       survivorStagePerformances: {} // Track individual performances
     };
 
-    // Define the four stages
+    // Define the four stages - IDs must match the role assignments from RoleView
     this.stages = [
       {
-        id: 'mud',
+        id: 'mud-crawl',
         name: 'Mud Crawl',
         weights: { strength: 0.30, endurance: 0.30, dexterity: 0.20, balance: 0.20 },
         background: 'Assets/Challenge/mud-crawl.png',
         description: 'crawling through thick mud'
       },
       {
-        id: 'knots',
+        id: 'untie-knots',
         name: 'Untie Knots',
         weights: { dexterity: 0.45, puzzles: 0.25, focus: 0.20, endurance: 0.10 },
         background: 'Assets/Challenge/untie-knots.png',
         description: 'untying complex rope knots'
       },
       {
-        id: 'toss',
+        id: 'bean-bag-toss',
         name: 'Bean-Bag Toss',
         weights: { dexterity: 0.50, focus: 0.30, strength: 0.20 },
         background: 'Assets/Challenge/bean-bag-toss.png',
         description: 'landing bean bags on targets'
       },
       {
-        id: 'puzzle',
+        id: 'vertical-puzzle',
         name: 'Vertical Puzzle',
         weights: { puzzles: 0.50, memory: 0.30, focus: 0.20 },
         background: 'Assets/Challenge/vertical-puzzle.png',
@@ -77,8 +77,17 @@ const FirstContactView = {
     this.context.survivorStagePerformances[stage.id] = [];
 
     this.allTribes.forEach(tribe => {
-      const participants = tribe.members.filter(s => s.roles.includes(stage.id));
-      console.log(`${tribe.tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
+      // Map the stage IDs to the role names used in role assignment
+      const roleMap = {
+        'mud-crawl': 'mud',
+        'untie-knots': 'knots', 
+        'bean-bag-toss': 'toss',
+        'vertical-puzzle': 'puzzle'
+      };
+      
+      const roleId = roleMap[stage.id] || stage.id;
+      const participants = tribe.members.filter(s => s.roles && s.roles.includes(roleId));
+      console.log(`${tribe.tribeName} participants for ${stage.id} (role: ${roleId}):`, participants.map(p => p.firstName));
       
       let totalAbility = 0;
       participants.forEach(survivor => {
