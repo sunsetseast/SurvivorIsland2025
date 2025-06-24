@@ -425,18 +425,31 @@ const FirstContactView = {
   },
 
   _createSurvivorRankingDisplay(stage, tribesData) {
-    const wrapper = createElement('div', {
+    // Create a scrollable container that takes the full height
+    const scrollContainer = createElement('div', {
       style: `
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 90%;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 10;
+        padding: 20px;
+        box-sizing: border-box;
+      `
+    });
+
+    const wrapper = createElement('div', {
+      style: `
+        width: 100%;
         max-width: 600px;
+        margin: 0 auto;
         background: rgba(0, 0, 0, 0.8);
         border-radius: 10px;
         padding: 20px;
-        z-index: 10;
+        margin-bottom: 100px;
       `
     });
 
@@ -455,88 +468,123 @@ const FirstContactView = {
 
     wrapper.appendChild(title);
 
-    // Create columns for each tribe
-    const tribesContainer = createElement('div', {
-      style: `
-        display: flex;
-        justify-content: space-around;
-        gap: 20px;
-      `
-    });
+    // Get all survivors from this stage and sort them by performance
+    const allSurvivorPerfs = this.context.survivorStagePerformances[stage.id] || [];
+    
+    console.log(`Stage ${stage.id} performances:`, allSurvivorPerfs.length);
 
-    tribesData.forEach(({ tribe, survivors }) => {
-      const tribeColumn = createElement('div', {
+    if (allSurvivorPerfs.length === 0) {
+      const noDataMsg = createElement('div', {
         style: `
-          flex: 1;
+          color: white;
           text-align: center;
+          font-family: 'Survivant', sans-serif;
+          margin: 20px 0;
+        `
+      }, 'No performance data available for this stage.');
+      wrapper.appendChild(noDataMsg);
+    } else {
+      // Create a single list of all survivors sorted by performance
+      const allSurvivorsContainer = createElement('div', {
+        style: `
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         `
       });
 
-      // Tribe name
-      const tribeName = createElement('div', {
-        style: `
-          color: ${tribe.tribeColor || '#fff'};
-          font-family: 'Survivant', sans-serif;
-          font-size: 1.1rem;
-          font-weight: bold;
-          margin-bottom: 15px;
-          text-shadow: 1px 1px 2px black;
-        `
-      }, tribe.tribeName);
+      allSurvivorPerfs.forEach((perf, index) => {
+        const position = index + 1;
+        const isPlayerTribe = perf.tribe.id === this.playerTribe?.id;
 
-      tribeColumn.appendChild(tribeName);
-
-      // Survivors ranked by performance
-      survivors.forEach((perf, index) => {
         const survivorDiv = createElement('div', {
           style: `
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin-bottom: 10px;
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            border-left: 4px solid ${tribe.tribeColor || '#fff'};
+            padding: 12px;
+            background: ${isPlayerTribe ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+            border-radius: 8px;
+            border-left: 4px solid ${perf.tribe.tribeColor || '#fff'};
+            ${isPlayerTribe ? 'box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);' : ''}
           `
         });
 
+        // Position number
+        const positionElement = createElement('div', {
+          style: `
+            color: #f39c12;
+            font-family: 'Survivant', sans-serif;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-right: 12px;
+            min-width: 25px;
+            text-align: center;
+          `
+        }, `${position}.`);
+
+        // Avatar
         const avatar = createElement('img', {
           src: perf.survivor.avatarUrl || `Assets/Avatars/${perf.survivor.firstName.toLowerCase()}.jpeg`,
           style: `
-            width: 30px;
-            height: 30px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
-            margin-right: 8px;
-            border: 2px solid ${tribe.tribeColor || '#fff'};
+            margin-right: 12px;
+            border: 2px solid ${perf.tribe.tribeColor || '#fff'};
           `
         });
 
-        const nameScore = createElement('div', {
+        // Name and tribe info
+        const infoContainer = createElement('div', {
+          style: `
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+          `
+        });
+
+        const nameElement = createElement('div', {
           style: `
             color: white;
             font-family: 'Survivant', sans-serif;
-            font-size: 0.9rem;
+            font-size: 1rem;
+            font-weight: bold;
             text-shadow: 1px 1px 1px black;
           `
-        }, `${perf.survivor.firstName} (${Math.round(perf.normalizedScore)})`);
+        }, perf.survivor.firstName);
 
-        survivorDiv.append(avatar, nameScore);
-        tribeColumn.appendChild(survivorDiv);
+        const tribeElement = createElement('div', {
+          style: `
+            color: ${perf.tribe.tribeColor || '#ccc'};
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.8rem;
+            text-shadow: 1px 1px 1px black;
+          `
+        }, perf.tribe.tribeName);
+
+        infoContainer.append(nameElement, tribeElement);
+
+        // Score
+        const scoreElement = createElement('div', {
+          style: `
+            color: #f39c12;
+            font-family: 'Survivant', sans-serif;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 1px black;
+          `
+        }, Math.round(perf.normalizedScore));
+
+        survivorDiv.append(positionElement, avatar, infoContainer, scoreElement);
+        allSurvivorsContainer.appendChild(survivorDiv);
       });
 
-      tribesContainer.appendChild(tribeColumn);
-    });
+      wrapper.appendChild(allSurvivorsContainer);
+    }
 
-    wrapper.appendChild(tribesContainer);
-
-    // Next button
+    // Next button - positioned within the wrapper so it scrolls with content
     const nextBtn = createElement('button', {
       style: `
-        position: absolute;
-        bottom: -60px;
-        left: 50%;
-        transform: translateX(-50%);
         width: 140px;
         height: 50px;
         background: url('Assets/rect-button.png') center/cover no-repeat;
@@ -547,7 +595,8 @@ const FirstContactView = {
         font-weight: bold;
         text-shadow: 1px 1px 2px black;
         cursor: pointer;
-        z-index: 10;
+        margin: 30px auto 0;
+        display: block;
         transition: all 0.2s ease;
       `,
       onclick: (e) => {
@@ -558,15 +607,16 @@ const FirstContactView = {
         this.runNextStage();
       },
       onmouseover: (e) => {
-        e.target.style.transform = 'translateX(-50%) scale(1.05)';
+        e.target.style.transform = 'scale(1.05)';
       },
       onmouseout: (e) => {
-        e.target.style.transform = 'translateX(-50%) scale(1)';
+        e.target.style.transform = 'scale(1)';
       }
     }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Final Results');
 
     wrapper.appendChild(nextBtn);
-    this.container.appendChild(wrapper);
+    scrollContainer.appendChild(wrapper);
+    this.container.appendChild(scrollContainer);
   },
 
   _showFinalResults() {
