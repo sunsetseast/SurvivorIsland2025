@@ -308,7 +308,7 @@ const FirstContactView = {
   _createJeffParchment(text, onNext) {
     console.log('Creating Jeff parchment with text:', text);
     
-    // Parchment wrapper for Jeff's message with much higher z-index
+    // Parchment wrapper positioned absolutely within the container
     const parchmentWrapper = createElement('div', {
       style: `
         position: absolute;
@@ -334,35 +334,31 @@ const FirstContactView = {
       `
     });
 
+    // Text positioned absolutely on top of the parchment
     const jeffTextElement = createElement('div', {
       className: 'parchment-text',
       style: `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80%;
+        max-width: 260px;
         color: white;
         font-family: 'Survivant', sans-serif;
-        font-weight: bold;
-        text-align: center;
-        margin: -160px auto 0;
-        max-width: 260px;
         font-size: 0.85rem;
+        font-weight: bold;
         line-height: 1.2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 120px;
-        text-shadow:
-          0 1px 0 #000,
-          0 2px 0 #000,
-          0 3px 0 #000,
-          0 4px 4px rgba(0, 0, 0, 0.5);
-        white-space: pre-line;
+        text-align: center;
+        text-shadow: 0 1px 0 #000, 0 2px 0 #000, 0 3px 0 #000, 0 4px 4px rgba(0,0,0,0.5);
         z-index: 1002;
-        position: relative;
+        white-space: pre-line;
       `
     }, text);
 
     parchmentWrapper.append(parchment, jeffTextElement);
 
-    // Next button with high z-index
+    // Next button positioned at bottom center of the game container
     const nextButton = createElement('button', {
       style: `
         position: absolute;
@@ -372,10 +368,7 @@ const FirstContactView = {
         z-index: 1003;
         width: 130px;
         height: 60px;
-        background-image: url('Assets/rect-button.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
+        background: url('Assets/rect-button.png') center/cover no-repeat;
         border: none;
         color: white;
         font-family: 'Survivant', sans-serif;
