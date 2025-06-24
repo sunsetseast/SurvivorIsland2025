@@ -79,7 +79,7 @@ const FirstContactView = {
     this.allTribes.forEach(tribe => {
       console.log(`Processing tribe:`, tribe);
       console.log(`Tribe properties:`, Object.keys(tribe));
-      const tribeName = tribe.name || `Tribe-${tribe.id}`;
+      const tribeName = tribe.name || tribe.tribeName || `Tribe-${tribe.id}`;
 
       const participants = tribe.members.filter(s => s.roles && s.roles.includes(stage.id));
       console.log(`${tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
@@ -109,7 +109,7 @@ const FirstContactView = {
       const basePoints = (totalAbility / maxPossible) * 25;
       const finalPoints = basePoints * (0.95 + Math.random() * 0.10);
       this.context.stageScores[stage.id] = this.context.stageScores[stage.id] || {};
-      const tribeKey = tribe.id || tribe.name;
+      const tribeKey = tribe.id || tribe.name || tribe.tribeName;
       console.log(`Storing score for tribe key: ${tribeKey}, points: ${finalPoints}`);
       this.context.stageScores[stage.id][tribeKey] = finalPoints;
       this.context.totalScores[tribeKey] = (this.context.totalScores[tribeKey] || 0) + finalPoints;
@@ -261,7 +261,7 @@ const FirstContactView = {
     const sorted = Object.entries(scores)
       .sort(([,a],[,b]) => b - a)
       .map(([tribeKey, score]) => ({ 
-        tribe: this.allTribes.find(t => (t.id || t.name) === tribeKey), 
+        tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
         score 
       }));
 
@@ -291,9 +291,9 @@ const FirstContactView = {
   },
 
   _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
-    const winnerName = winner?.tribe?.name || 'Unknown Tribe';
-    const loserName = loser?.tribe?.name || 'Unknown Tribe';
-    const playerName = this.playerTribe?.name || 'Your Tribe';
+    const winnerName = winner?.tribe?.name || winner?.tribe?.tribeName || 'Unknown Tribe';
+    const loserName = loser?.tribe?.name || loser?.tribe?.tribeName || 'Unknown Tribe';
+    const playerName = this.playerTribe?.name || this.playerTribe?.tribeName || 'Your Tribe';
     const stageDesc = stage?.description || 'this challenge';
 
     console.log('Generating Jeff commentary:', {
@@ -310,7 +310,7 @@ const FirstContactView = {
 
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
-      const middleName = middle?.tribe?.name || 'Middle Tribe';
+      const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
 
       if (isClose) {
         commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
@@ -746,7 +746,7 @@ const FirstContactView = {
     const sorted = Object.entries(this.context.totalScores)
       .sort(([,a],[,b]) => b - a)
       .map(([tribeKey, score]) => ({ 
-        tribe: this.allTribes.find(t => (t.id || t.name) === tribeKey), 
+        tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
         score 
       }));
 
@@ -756,23 +756,23 @@ const FirstContactView = {
     // Generate final Jeff commentary
     let finalCommentary;
     if (this.isThreeTribe) {
-      const winner1 = winners[0].tribe.name;
-      const winner2 = winners[1].tribe.name;
-      const loser = losers[0].tribe.name;
+      const winner1 = winners[0].tribe.name || winners[0].tribe.tribeName;
+      const winner2 = winners[1].tribe.name || winners[1].tribe.tribeName;
+      const loser = losers[0].tribe.name || losers[0].tribe.tribeName;
 
-      if ((losers[0].tribe.id || losers[0].tribe.name) === (this.playerTribe.id || this.playerTribe.name)) {
-        finalCommentary = `${winner1} and ${winner2} have won immunity! ${this.playerTribe.name}, you struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
+      if ((losers[0].tribe.id || losers[0].tribe.name || losers[0].tribe.tribeName) === (this.playerTribe.id || this.playerTribe.name || this.playerTribe.tribeName)) {
+        finalCommentary = `${winner1} and ${winner2} have won immunity! ${this.playerTribe.name || this.playerTribe.tribeName}, you struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
       } else {
         finalCommentary = `${winner1} and ${winner2} have won immunity and are safe from tonight's vote! ${loser}, I'll be seeing you at Tribal Council where one of your tribe members will become the first person voted out.`;
       }
     } else {
-      const winner = winners[0].tribe.name;
-      const loser = losers[0].tribe.name;
+      const winner = winners[0].tribe.name || winners[0].tribe.tribeName;
+      const loser = losers[0].tribe.name || losers[0].tribe.tribeName;
 
-      if ((losers[0].tribe.id || losers[0].tribe.name) === (this.playerTribe.id || this.playerTribe.name)) {
-        finalCommentary = `${winner} wins immunity! ${this.playerTribe.name}, you have nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
+      if ((losers[0].tribe.id || losers[0].tribe.name || losers[0].tribe.tribeName) === (this.playerTribe.id || this.playerTribe.name || this.playerTribe.tribeName)) {
+        finalCommentary = `${winner} wins immunity! ${this.playerTribe.name || this.playerTribe.tribeName}, you have nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
       } else {
-        finalCommentary = `${this.playerTribe.name} wins immunity! ${loser}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
+        finalCommentary = `${this.playerTribe.name || this.playerTribe.tribeName} wins immunity! ${loser}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
       }
     }
 
@@ -786,7 +786,7 @@ const FirstContactView = {
     this.container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
 
     const winners = sortedTribes.slice(0, this.isThreeTribe ? 2 : 1);
-    const winnerNames = winners.map(t => t.tribe.name).join(' and ');
+    const winnerNames = winners.map(t => t.tribe.name || t.tribe.tribeName).join(' and ');
     const text = `${winnerNames} win immunity in First Contact!`;
 
     const parchment = createElement('div', {
