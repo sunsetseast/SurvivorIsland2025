@@ -535,7 +535,6 @@ const FirstContactView = {
 
     wrapper.appendChild(title);
 
-    // Get all survivors from this stage and sort them by performance
     const allSurvivorPerfs = this.context.survivorStagePerformances[stage.id] || [];
 
     console.log(`Creating survivor ranking display for stage:`, stage.name);
@@ -564,7 +563,7 @@ const FirstContactView = {
 
       allSurvivorPerfs.forEach((perf, index) => {
         const position = index + 1;
-        const isPlayerTribe = perf.tribe.id === this.playerTribe?.id;
+        const isPlayerTribe = (perf.tribe.id || perf.tribe.name) === (this.playerTribe?.id || this.playerTribe?.name);
 
         const survivorDiv = createElement('div', {
           style: `
@@ -573,7 +572,7 @@ const FirstContactView = {
             padding: 12px;
             background: ${isPlayerTribe ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
             border-radius: 8px;
-            border-left: 4px solid ${perf.tribe.tribeColor || '#fff'};
+            border-left: 4px solid ${perf.tribe.tribeColor || perf.tribe.color || '#fff'};
             ${isPlayerTribe ? 'box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);' : ''}
           `
         });
@@ -599,7 +598,7 @@ const FirstContactView = {
             height: 35px;
             border-radius: 50%;
             margin-right: 12px;
-            border: 2px solid ${perf.tribe.tribeColor || '#fff'};
+            border: 2px solid ${perf.tribe.tribeColor || perf.tribe.color || '#fff'};
           `
         });
 
@@ -624,12 +623,12 @@ const FirstContactView = {
 
         const tribeElement = createElement('div', {
           style: `
-            color: ${perf.tribe.tribeColor || '#ccc'};
+            color: ${perf.tribe.tribeColor || perf.tribe.color || '#ccc'};
             font-family: 'Survivant', sans-serif;
             font-size: 0.8rem;
             text-shadow: 1px 1px 1px black;
           `
-        }, perf.tribe.tribeName);
+        }, perf.tribe.tribeName || perf.tribe.name);
 
         infoContainer.append(nameElement, tribeElement);
 
