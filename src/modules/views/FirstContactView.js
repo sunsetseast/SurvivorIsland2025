@@ -72,7 +72,7 @@ const FirstContactView = {
 
   _calculateStage(stage) {
     console.log(`Calculating stage: ${stage.name} with ID: ${stage.id}`);
-    
+
     // Store individual survivor performances for this stage
     this.context.survivorStagePerformances[stage.id] = [];
 
@@ -80,7 +80,7 @@ const FirstContactView = {
       const participants = tribe.members.filter(s => s.roles && s.roles.includes(stage.id));
       console.log(`${tribe.tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
       console.log(`All tribe member roles for ${tribe.tribeName}:`, tribe.members.map(m => `${m.firstName}: ${m.roles}`));
-      
+
       let totalAbility = 0;
       participants.forEach(survivor => {
         const healthFactor = ((survivor.health || 100) / 100);
@@ -433,7 +433,7 @@ const FirstContactView = {
     if (stagePerfs.length === 0) {
       console.error(`No performance data found for stage ${stage.id}`);
       console.log(`Available performance data keys:`, Object.keys(this.context.survivorStagePerformances));
-      
+
       // Try to find performances with a similar stage name
       const availableKeys = Object.keys(this.context.survivorStagePerformances);
       const matchingKey = availableKeys.find(key => 
@@ -441,7 +441,7 @@ const FirstContactView = {
         stage.id.includes(key) || 
         key.toLowerCase().includes(stage.name.toLowerCase().replace(/\s+/g, ''))
       );
-      
+
       if (matchingKey) {
         console.log(`Found matching key: ${matchingKey}, using that instead`);
         const fallbackPerfs = this.context.survivorStagePerformances[matchingKey];
@@ -451,7 +451,7 @@ const FirstContactView = {
         })));
         return;
       }
-      
+
       // Create a fallback message
       this._createFallbackSummary(stage);
       return;
