@@ -212,8 +212,42 @@ export default function renderTribeFlag(container) {
       window.campScreen.loadView('campfire');
     });
 
+    // Testing button to reset clock timer to zero
+    const testButton = createElement('button', {
+      style: `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 120px;
+        height: 40px;
+        background-color: rgba(255, 0, 0, 0.8);
+        border: 2px solid #fff;
+        border-radius: 5px;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        cursor: pointer;
+        z-index: 1000;
+      `,
+      onclick: () => {
+        console.log('Test button clicked - setting timer to zero');
+        if (gameManager && typeof gameManager.setDayTimer === 'function') {
+          gameManager.setDayTimer(0);
+          console.log('Timer set to zero for testing');
+        } else if (gameManager && gameManager.dayTimer !== undefined) {
+          gameManager.dayTimer = 0;
+          console.log('Timer manually set to zero for testing');
+        } else {
+          console.warn('Could not access game timer');
+        }
+      }
+    }, 'SKIP TIME');
+
     actionButtons.appendChild(leftButton);
     actionButtons.appendChild(rightButton);
+    wrapper.appendChild(testButton);
   }
 
   addDebugBanner('Tribe flag view rendered!', 'limegreen', 170);
