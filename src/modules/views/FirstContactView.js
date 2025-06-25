@@ -239,42 +239,88 @@ const FirstContactView = {
           setTimeout(() => {
             console.log('Starting phase 2 - moving winning tribe to finish line');
             
-            // Find winning tribe for this stage
+            // Find winning tribe(s) for this stage
             const stageScores = this.context.stageScores[stage.id];
             if (stageScores) {
               const sortedScores = Object.entries(stageScores)
                 .sort(([,a],[,b]) => b - a);
               
               if (sortedScores.length > 0) {
-                const winningTribeKey = sortedScores[0][0];
-                const winningTribe = this.allTribes.find(t => 
-                  (t.id || t.name || t.tribeName) === winningTribeKey
-                );
-                
-                console.log(`Winning tribe: ${winningTribeKey}`, winningTribe);
-                
-                // Phase 2: Move only winning tribe avatars the remaining 25%
                 const phase2Distance = fullDistance * 0.25;
                 const phase2Duration = 1000; // 1 second for final push
                 
-                avatars.forEach(({ survivor, avatar, tribe }) => {
-                  const tribeKey = tribe.id || tribe.name || tribe.tribeName;
-                  if (tribeKey === winningTribeKey) {
-                    const ability = Math.max(0, survivor._fc_ability || 0);
-                    const normalizedAbility = ability / maxAbility;
-                    const currentDistance = phase1Distance * normalizedAbility;
-                    const finalDistance = currentDistance + phase2Distance;
+                if (this.isThreeTribe && sortedScores.length >= 2) {
+                  // Three tribe mode: winner moves first, then second place
+                  const winningTribeKey = sortedScores[0][0];
+                  const secondPlaceTribeKey = sortedScores[1][0];
+                  
+                  console.log(`Three tribe mode - Winner: ${winningTribeKey}, Second: ${secondPlaceTribeKey}`);
+                  
+                  // Phase 2a: Move winning tribe avatars the remaining 25%
+                  avatars.forEach(({ survivor, avatar, tribe }) => {
+                    const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                    if (tribeKey === winningTribeKey) {
+                      const ability = Math.max(0, survivor._fc_ability || 0);
+                      const normalizedAbility = ability / maxAbility;
+                      const currentDistance = phase1Distance * normalizedAbility;
+                      const finalDistance = currentDistance + phase2Distance;
+                      
+                      avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
+                      avatar.style.transform = `translateY(-${finalDistance}px)`;
+                    }
+                  });
+                  
+                  // Wait for winner to finish, then move second place
+                  setTimeout(() => {
+                    console.log('Winner finished, moving second place tribe');
                     
-                    avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
-                    avatar.style.transform = `translateY(-${finalDistance}px)`;
-                  }
-                });
-                
-                // Wait for phase 2 to complete before showing Jeff commentary
-                setTimeout(() => {
-                  console.log('Phase 2 complete, showing Jeff commentary');
-                  this._showJeffCommentary(stage);
-                }, phase2Duration + 500);
+                    // Phase 2b: Move second place tribe avatars the remaining 25%
+                    avatars.forEach(({ survivor, avatar, tribe }) => {
+                      const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                      if (tribeKey === secondPlaceTribeKey) {
+                        const ability = Math.max(0, survivor._fc_ability || 0);
+                        const normalizedAbility = ability / maxAbility;
+                        const currentDistance = phase1Distance * normalizedAbility;
+                        const finalDistance = currentDistance + phase2Distance;
+                        
+                        avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
+                        avatar.style.transform = `translateY(-${finalDistance}px)`;
+                      }
+                    });
+                    
+                    // Wait for second place to finish before showing Jeff commentary
+                    setTimeout(() => {
+                      console.log('Second place finished, showing Jeff commentary');
+                      this._showJeffCommentary(stage);
+                    }, phase2Duration + 500);
+                    
+                  }, phase2Duration + 300); // Small delay between winner and second place
+                  
+                } else {
+                  // Two tribe mode: only winner moves
+                  const winningTribeKey = sortedScores[0][0];
+                  console.log(`Two tribe mode - Winner: ${winningTribeKey}`);
+                  
+                  // Phase 2: Move only winning tribe avatars the remaining 25%
+                  avatars.forEach(({ survivor, avatar, tribe }) => {
+                    const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                    if (tribeKey === winningTribeKey) {
+                      const ability = Math.max(0, survivor._fc_ability || 0);
+                      const normalizedAbility = ability / maxAbility;
+                      const currentDistance = phase1Distance * normalizedAbility;
+                      const finalDistance = currentDistance + phase2Distance;
+                      
+                      avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
+                      avatar.style.transform = `translateY(-${finalDistance}px)`;
+                    }
+                  });
+                  
+                  // Wait for phase 2 to complete before showing Jeff commentary
+                  setTimeout(() => {
+                    console.log('Phase 2 complete, showing Jeff commentary');
+                    this._showJeffCommentary(stage);
+                  }, phase2Duration + 500);
+                }
               } else {
                 console.warn('No stage scores found for puzzle stage');
                 this._showJeffCommentary(stage);
