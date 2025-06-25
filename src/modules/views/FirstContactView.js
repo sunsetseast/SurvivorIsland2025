@@ -333,7 +333,7 @@ const FirstContactView = {
         }, maxDuration + 1000);
         
       } else {
-        // Regular animation for all other stages
+        // Regular animation for all other stages (1-3)
         avatars.forEach(({ survivor, avatar }, index) => {
           const ability = Math.max(0, survivor._fc_ability || 0);
           const normalizedAbility = ability / maxAbility;
@@ -344,17 +344,89 @@ const FirstContactView = {
           avatar.style.transform = `translateY(-${distance * normalizedAbility}px)`;
         });
 
-        // FIXED: Ensure positive timeout value with minimum
-        const totalWaitTime = Math.max(4000, maxDuration + 2000);
-        console.log(`Setting timeout for ${totalWaitTime}ms before showing Jeff commentary`);
-
+        // Wait for main animation to complete, then do ranking animation
         setTimeout(() => {
-          console.log(`Timeout completed for ${stage.name}, showing Jeff commentary now`);
-          this._showJeffCommentary(stage);
-        }, totalWaitTime);
+          console.log(`Main animation complete for ${stage.name}, starting ranking animation`);
+          this._animateRankingArrangement(stage, avatars, maxAbility);
+        }, maxDuration + 1000);
       }
 
     }, 100); // Small delay to ensure DOM is ready
+  },
+
+  _animateRankingArrangement(stage, avatars, maxAbility) {
+    console.log(`Starting ranking arrangement animation for ${stage.name}`);
+    
+    // Get stage performances and sort by ability
+    const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
+    if (stagePerfs.length === 0) {
+      console.warn(`No performance data for ranking animation, proceeding to Jeff commentary`);
+      this._showJeffCommentary(stage);
+      return;
+    }
+
+    // Sort avatars by their survivor's ability (highest first)
+    const sortedAvatars = avatars.slice().sort((a, b) => {
+      const abilityA = Math.max(0, a.survivor._fc_ability || 0);
+      const abilityB = Math.max(0, b.survivor._fc_ability || 0);
+      return abilityB - abilityA;
+    });
+
+    // Calculate center positions for vertical ranking
+    const containerHeight = this.container.clientHeight;
+    const containerWidth = this.container.clientWidth;
+    const centerX = containerWidth / 2 - 25; // Center horizontally (avatar width is 50px)
+    const startY = containerHeight * 0.2; // Start 20% from top
+    const spacing = 60; // Space between avatars
+
+    // Animate each avatar to their ranking position
+    sortedAvatars.forEach((avatarData, rankIndex) => {
+      const { avatar, survivor } = avatarData;
+      const targetY = startY + (rankIndex * spacing);
+      
+      setTimeout(() => {
+        avatar.style.transition = 'all 800ms ease-in-out';
+        avatar.style.transform = `translate(${centerX - parseFloat(avatar.style.left || 0)}px, ${-targetY}px)`;
+        avatar.style.zIndex = 100 + rankIndex; // Ensure proper layering
+        
+        // Add ranking indicator
+        const rankBadge = avatar.parentElement.querySelector('.rank-badge');
+        if (!rankBadge) {
+          const badge = createElement('div', {
+            className: 'rank-badge',
+            style: `
+              position: absolute;
+              top: -10px;
+              right: -10px;
+              width: 24px;
+              height: 24px;
+              background: gold;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-family: 'Survivant', sans-serif;
+              font-size: 0.8rem;
+              font-weight: bold;
+              color: black;
+              z-index: 200;
+              border: 2px solid white;
+            `
+          }, (rankIndex + 1).toString());
+          avatar.parentElement.appendChild(badge);
+        }
+      }, rankIndex * 200); // Stagger the animations
+    });
+
+    // Wait for all ranking animations to complete, pause, then show Jeff commentary
+    const totalRankingTime = (sortedAvatars.length * 200) + 800; // Stagger time + animation duration
+    setTimeout(() => {
+      console.log(`Ranking animation complete for ${stage.name}, pausing before Jeff commentary`);
+      setTimeout(() => {
+        console.log(`Pause complete, showing Jeff commentary for ${stage.name}`);
+        this._showJeffCommentary(stage);
+      }, 2000); // 2 second pause
+    }, totalRankingTime);
   },
 
   _showJeffCommentary(stage) {
