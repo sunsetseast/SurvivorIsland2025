@@ -777,31 +777,37 @@ const FirstContactView = {
   },
 
   _createSurvivorRankingDisplay(stage, tribesData) {
-    // Create a scrollable container that takes the full height
+    // Create a fixed container that covers the full viewport and centers content
     const scrollContainer = createElement('div', {
       style: `
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
         overflow-y: auto;
         overflow-x: hidden;
-        z-index: 10;
-        padding: 20px;
+        z-index: 1000;
+        padding: 15px;
         box-sizing: border-box;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
       `
     });
 
     const wrapper = createElement('div', {
       style: `
         width: 100%;
-        max-width: 600px;
-        margin: 0 auto;
-        background: rgba(0, 0, 0, 0.8);
+        max-width: min(95vw, 400px);
+        background: rgba(0, 0, 0, 0.9);
         border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 100px;
+        padding: 15px;
+        margin-top: 20px;
+        margin-bottom: 40px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-sizing: border-box;
       `
     });
 
