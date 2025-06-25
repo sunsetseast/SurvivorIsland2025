@@ -421,21 +421,9 @@ const FirstContactView = {
         const { avatar, survivor } = avatarData;
         const targetY = startY + (rankIndex * spacing);
         
-        // Get current avatar position
-        const currentLeft = parseFloat(avatar.style.left || 0);
-        const avatarSize = parseFloat(avatar.style.width || 50);
-        
-        // Calculate safe center position within lane bounds
-        const padding = Math.max(5, Math.floor(laneWidth * 0.05));
-        const safeCenterX = laneLeft + (laneWidth / 2) - (avatarSize / 2);
-        const clampedCenterX = Math.max(laneLeft + padding, Math.min(safeCenterX, laneLeft + laneWidth - avatarSize - padding));
-        
-        // Calculate the translation needed from current position to safe center
-        const translateX = clampedCenterX - currentLeft;
-        
         setTimeout(() => {
           avatar.style.transition = 'all 800ms ease-in-out';
-          avatar.style.transform = `translate(${translateX}px, ${-targetY}px)`;
+          avatar.style.transform = `translate(${laneCenterX - parseFloat(avatar.style.left || 0)}px, ${-targetY}px)`;
           avatar.style.zIndex = 100 + rankIndex; // Ensure proper layering
           
           // Add ranking indicator within tribe
