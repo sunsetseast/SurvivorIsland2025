@@ -214,25 +214,99 @@ const FirstContactView = {
       const maxDuration = Math.max(3000, ...durations); // Ensure minimum 3 seconds
       console.log(`Animation durations: ${durations.join(', ')}, max: ${maxDuration}`);
 
-      // Apply animations
-      avatars.forEach(({ survivor, avatar }, index) => {
-        const ability = Math.max(0, survivor._fc_ability || 0);
-        const normalizedAbility = ability / maxAbility;
-        const duration = durations[index];
-        const distance = this.container.clientHeight - 120; // Leave space at top
+      // Special handling for Stage 4 (puzzle stage)
+      if (stage.id === 'puzzle') {
+        console.log('Stage 4 detected - implementing special two-phase animation');
+        
+        // Phase 1: All avatars animate to 75% of track height
+        const fullDistance = this.container.clientHeight - 120;
+        const phase1Distance = fullDistance * 0.75;
+        
+        avatars.forEach(({ survivor, avatar }, index) => {
+          const ability = Math.max(0, survivor._fc_ability || 0);
+          const normalizedAbility = ability / maxAbility;
+          const duration = durations[index];
 
-        avatar.style.transition = `transform ${duration}ms ease-out`;
-        avatar.style.transform = `translateY(-${distance * normalizedAbility}px)`;
-      });
+          avatar.style.transition = `transform ${duration}ms ease-out`;
+          avatar.style.transform = `translateY(-${phase1Distance * normalizedAbility}px)`;
+        });
 
-      // FIXED: Ensure positive timeout value with minimum
-      const totalWaitTime = Math.max(4000, maxDuration + 2000);
-      console.log(`Setting timeout for ${totalWaitTime}ms before showing Jeff commentary`);
+        // Wait for phase 1 to complete, then pause, then phase 2
+        setTimeout(() => {
+          console.log('Phase 1 complete, starting pause before phase 2');
+          
+          // 1.5 second pause
+          setTimeout(() => {
+            console.log('Starting phase 2 - moving winning tribe to finish line');
+            
+            // Find winning tribe for this stage
+            const stageScores = this.context.stageScores[stage.id];
+            if (stageScores) {
+              const sortedScores = Object.entries(stageScores)
+                .sort(([,a],[,b]) => b - a);
+              
+              if (sortedScores.length > 0) {
+                const winningTribeKey = sortedScores[0][0];
+                const winningTribe = this.allTribes.find(t => 
+                  (t.id || t.name || t.tribeName) === winningTribeKey
+                );
+                
+                console.log(`Winning tribe: ${winningTribeKey}`, winningTribe);
+                
+                // Phase 2: Move only winning tribe avatars the remaining 25%
+                const phase2Distance = fullDistance * 0.25;
+                const phase2Duration = 1000; // 1 second for final push
+                
+                avatars.forEach(({ survivor, avatar, tribe }) => {
+                  const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                  if (tribeKey === winningTribeKey) {
+                    const ability = Math.max(0, survivor._fc_ability || 0);
+                    const normalizedAbility = ability / maxAbility;
+                    const currentDistance = phase1Distance * normalizedAbility;
+                    const finalDistance = currentDistance + phase2Distance;
+                    
+                    avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
+                    avatar.style.transform = `translateY(-${finalDistance}px)`;
+                  }
+                });
+                
+                // Wait for phase 2 to complete before showing Jeff commentary
+                setTimeout(() => {
+                  console.log('Phase 2 complete, showing Jeff commentary');
+                  this._showJeffCommentary(stage);
+                }, phase2Duration + 500);
+              } else {
+                console.warn('No stage scores found for puzzle stage');
+                this._showJeffCommentary(stage);
+              }
+            } else {
+              console.warn('No stage scores available for puzzle stage');
+              this._showJeffCommentary(stage);
+            }
+          }, 1500); // 1.5 second pause
+        }, maxDuration + 1000);
+        
+      } else {
+        // Regular animation for all other stages
+        avatars.forEach(({ survivor, avatar }, index) => {
+          const ability = Math.max(0, survivor._fc_ability || 0);
+          const normalizedAbility = ability / maxAbility;
+          const duration = durations[index];
+          const distance = this.container.clientHeight - 120; // Leave space at top
 
-      setTimeout(() => {
-        console.log(`Timeout completed for ${stage.name}, showing Jeff commentary now`);
-        this._showJeffCommentary(stage);
-      }, totalWaitTime);
+          avatar.style.transition = `transform ${duration}ms ease-out`;
+          avatar.style.transform = `translateY(-${distance * normalizedAbility}px)`;
+        });
+
+        // FIXED: Ensure positive timeout value with minimum
+        const totalWaitTime = Math.max(4000, maxDuration + 2000);
+        console.log(`Setting timeout for ${totalWaitTime}ms before showing Jeff commentary`);
+
+        setTimeout(() => {
+          console.log(`Timeout completed for ${stage.name}, showing Jeff commentary now`);
+          this._showJeffCommentary(stage);
+        }, totalWaitTime);
+      }
 
     }, 100); // Small delay to ensure DOM is ready
   },
