@@ -135,20 +135,27 @@ const FirstContactView = {
     // Build vertical "tracks" for each tribe
     const laneCount = this.allTribes.length;
     const containerWidth = this.container.clientWidth;
-    const laneWidth = containerWidth / laneCount;
+    const containerHeight = this.container.clientHeight;
+    const laneWidth = Math.floor(containerWidth / laneCount);
     const avatars = [];
 
     this.allTribes.forEach((tribe, tIndex) => {
-      // Track container
+      // Ensure lane positioning stays within container bounds
+      const laneLeft = Math.min(tIndex * laneWidth, containerWidth - laneWidth);
+      
+      // Track container with proper bounds
       const track = createElement('div', {
         className: 'fc-track',
         style: `
           position: absolute;
-          left: ${tIndex * laneWidth}px;
+          left: ${laneLeft}px;
           width: ${laneWidth}px;
           height: 100%;
+          top: 0;
+          bottom: 0;
           border-right: ${tIndex < laneCount - 1 ? '2px solid rgba(255,255,255,0.3)' : 'none'};
           overflow: hidden;
+          box-sizing: border-box;
         `,
       });
       this.container.appendChild(track);
@@ -156,18 +163,23 @@ const FirstContactView = {
       // Survivors on this track
       const stageParticipants = tribe.members.filter(s => s.roles.includes(stage.id));
       stageParticipants.forEach((survivor, i) => {
-        // Calculate safe positioning within the lane
-        const avatarSize = 50;
-        const padding = 10;
-        const maxAvatarsPerRow = Math.floor((laneWidth - padding * 2) / (avatarSize + 5));
+        // Calculate safe positioning within the lane with proper bounds checking
+        const avatarSize = Math.min(50, Math.floor(laneWidth / 3)); // Scale avatar size to lane
+        const padding = Math.max(5, Math.floor(laneWidth * 0.05)); // 5% padding
+        const availableWidth = laneWidth - (padding * 2);
+        const maxAvatarsPerRow = Math.max(1, Math.floor(availableWidth / (avatarSize + 5)));
         const row = Math.floor(i / maxAvatarsPerRow);
         const col = i % maxAvatarsPerRow;
 
-        // Center the avatars in the lane
-        const totalWidth = Math.min(stageParticipants.length, maxAvatarsPerRow) * (avatarSize + 5) - 5;
-        const startX = (laneWidth - totalWidth) / 2;
+        // Center the avatars in the lane with bounds checking
+        const actualAvatarsInRow = Math.min(stageParticipants.length - (row * maxAvatarsPerRow), maxAvatarsPerRow);
+        const totalRowWidth = actualAvatarsInRow * avatarSize + (actualAvatarsInRow - 1) * 5;
+        const startX = Math.max(padding, (laneWidth - totalRowWidth) / 2);
         const xPos = startX + col * (avatarSize + 5);
         const yOffset = row * 10; // Slight vertical offset for multiple rows
+
+        // Ensure avatar stays within lane bounds
+        const finalX = Math.max(padding, Math.min(xPos, laneWidth - avatarSize - padding));
 
         const avatar = createElement('img', {
           className: 'fc-avatar',
@@ -179,7 +191,7 @@ const FirstContactView = {
             border-radius: 50%;
             object-fit: cover;
             border: 3px solid ${tribe.color || '#fff'};
-            left: ${Math.max(padding, Math.min(xPos, laneWidth - avatarSize - padding))}px;
+            left: ${finalX}px;
             bottom: ${10 + yOffset}px;
             z-index: ${10 + i};
           `,
@@ -384,11 +396,11 @@ const FirstContactView = {
       });
     });
 
-    // Calculate lane properties
+    // Calculate lane properties with proper bounds
     const laneCount = this.allTribes.length;
     const containerWidth = this.container.clientWidth;
     const containerHeight = this.container.clientHeight;
-    const laneWidth = containerWidth / laneCount;
+    const laneWidth = Math.floor(containerWidth / laneCount);
 
     // Animate each tribe's avatars to ranking positions within their lane
     let animationDelay = 0;
@@ -399,8 +411,9 @@ const FirstContactView = {
       
       if (tribeAvatars.length === 0) return;
 
-      // Calculate lane center and vertical positions
-      const laneCenterX = (tribeIndex * laneWidth) + (laneWidth / 2) - 25; // Center in lane (avatar width is 50px)
+      // Calculate lane center with bounds checking
+      const laneLeft = Math.min(tribeIndex * laneWidth, containerWidth - laneWidth);
+      const laneCenterX = laneLeft + (laneWidth / 2) - 25; // Center in lane (avatar width is 50px)
       const startY = containerHeight * 0.15; // Start 15% from top
       const spacing = Math.min(70, (containerHeight * 0.6) / Math.max(1, tribeAvatars.length - 1)); // Dynamic spacing based on number of avatars
 
