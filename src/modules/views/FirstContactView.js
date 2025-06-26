@@ -621,6 +621,24 @@ const FirstContactView = {
     const playerName = this.playerTribe?.name || this.playerTribe?.tribeName || 'Your Tribe';
     const stageDesc = stage?.description || 'this challenge';
 
+    // Get overall standings to provide context
+    const overallStandings = Object.entries(this.context.totalScores)
+      .sort(([,a],[,b]) => b - a)
+      .map(([tribeKey, score]) => ({ 
+        tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
+        score,
+        tribeKey 
+      }));
+
+    // Determine if this stage changed the overall lead
+    const overallLeader = overallStandings[0];
+    const overallLeaderName = overallLeader?.tribe?.name || overallLeader?.tribe?.tribeName || 'Unknown';
+    const stageWinnerKey = winner?.tribe?.id || winner?.tribe?.name || winner?.tribe?.tribeName;
+    const overallLeaderKey = overallLeader?.tribe?.id || overallLeader?.tribe?.name || overallLeader?.tribe?.tribeName;
+    
+    const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
+    const isFirstStage = this.stageIndex === 0;
+
     console.log('Generating Jeff commentary:', {
       stageName: stage?.name,
       winnerName,
@@ -628,7 +646,10 @@ const FirstContactView = {
       playerName,
       playerRank,
       isClose,
-      isThreeTribe: this.isThreeTribe
+      isThreeTribe: this.isThreeTribe,
+      overallLeaderName,
+      stageWinnerIsOverallLeader,
+      isFirstStage
     });
 
     let commentary = "";
@@ -636,27 +657,89 @@ const FirstContactView = {
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
       const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
+      
+      // Find overall positions
+      const overallWinnerRank = overallStandings.findIndex(s => s.tribeKey === stageWinnerKey);
+      const overallMiddleRank = overallStandings.findIndex(s => s.tribeKey === (middle?.tribe?.id || middle?.tribe?.name || middle?.tribe?.tribeName));
+      const overallLoserRank = overallStandings.findIndex(s => s.tribeKey === (loser?.tribe?.id || loser?.tribe?.name || loser?.tribe?.tribeName));
 
-      if (isClose) {
-        commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
-      } else {
-        if (playerRank === 0) {
-          commentary = `${playerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
-        } else if (playerRank === 1) {
-          commentary = `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
+      if (isFirstStage) {
+        // First stage - focus on stage performance
+        if (isClose) {
+          commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
         } else {
-          commentary = `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
+          if (playerRank === 0) {
+            commentary = `${playerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
+          } else if (playerRank === 1) {
+            commentary = `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
+          } else {
+            commentary = `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
+          }
+        }
+      } else {
+        // Later stages - consider overall context
+        if (stageWinnerIsOverallLeader) {
+          if (overallWinnerRank === 0) {
+            commentary = `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
+          }
+        } else {
+          // Stage winner is not overall leader - comeback story
+          if (overallWinnerRank === 1) {
+            commentary = `${winnerName} wins ${stageDesc} and closes the gap on overall leader ${overallLeaderName}! This challenge is far from over - ${winnerName} is making their move!`;
+          } else if (overallWinnerRank === 2) {
+            commentary = `${winnerName} makes a huge comeback in ${stageDesc}! They're fighting their way back from last place, but will it be enough to catch ${overallLeaderName}? Every second counts now!`;
+          }
+        }
+
+        // Add context about player tribe's situation
+        if (playerRank !== 0) {
+          const playerOverallRank = overallStandings.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
+          if (playerOverallRank === 2) {
+            commentary += ` ${playerName}, you're in last place overall - you need to turn this around immediately!`;
+          } else if (playerOverallRank === 1 && overallStandings[0].score - overallStandings[1].score > 1.5) {
+            commentary += ` ${playerName}, you're falling behind ${overallLeaderName} - time is running out!`;
+          }
         }
       }
     } else {
-      // Two tribe scenario or fallback
-      if (isClose) {
-        commentary = `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
-      } else {
-        if (playerRank === 0) {
-          commentary = `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
+      // Two tribe scenario
+      if (isFirstStage) {
+        // First stage - focus on stage performance
+        if (isClose) {
+          commentary = `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
         } else {
-          commentary = `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}. If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
+          if (playerRank === 0) {
+            commentary = `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
+          } else {
+            commentary = `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}. If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
+          }
+        }
+      } else {
+        // Later stages - consider overall context
+        const overallGap = Math.abs(overallStandings[0].score - overallStandings[1].score);
+        const isCloseOverall = overallGap < 2.0;
+
+        if (stageWinnerIsOverallLeader) {
+          if (isCloseOverall) {
+            commentary = `${winnerName} maintains their overall lead with a win in ${stageDesc}! But ${loserName} is still right there - this challenge could go either way!`;
+          } else {
+            commentary = `${winnerName} extends their commanding overall lead! They dominate ${stageDesc} while ${loserName} continues to struggle. This is looking like a runaway!`;
+          }
+        } else {
+          // Comeback situation
+          if (isCloseOverall) {
+            commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${loserName} had been leading but now they're behind. Everything has changed!`;
+          } else {
+            commentary = `${winnerName} wins ${stageDesc} and makes up significant ground! They're fighting back from a big deficit against ${overallLeaderName}. Can they complete the comeback?`;
+          }
+        }
+
+        // Add player-specific context
+        if (playerRank !== 0) {
+          const playerOverallRank = overallStandings.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
+          if (playerOverallRank === 1 && !isCloseOverall) {
+            commentary += ` ${playerName}, you're in serious trouble - you need something special in the remaining stages!`;
+          }
         }
       }
     }
