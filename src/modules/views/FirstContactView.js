@@ -412,6 +412,16 @@ const FirstContactView = {
     const performanceRange = maxPerformance - minPerformance;
     const availableHeight = containerHeight - 150; // Leave space at top and bottom
 
+    // Group survivors by their normalized score to handle ties
+    const scoreGroups = {};
+    stagePerfs.forEach((perf, index) => {
+      const score = perf.normalizedScore.toFixed(2);
+      if (!scoreGroups[score]) {
+        scoreGroups[score] = [];
+      }
+      scoreGroups[score].push({ ...perf, originalIndex: index });
+    });
+
     // Animate each avatar to its performance-based position
     stagePerfs.forEach((perf, overallRank) => {
       // Find the corresponding avatar
@@ -423,13 +433,33 @@ const FirstContactView = {
       // Calculate position based on normalized performance score
       const performanceRatio = performanceRange > 0 ? 
         (maxPerformance - perf.normalizedScore) / performanceRange : 0;
-      const targetY = startY + (performanceRatio * availableHeight);
-      const targetX = centerX - (avatarSize / 2);
+      let targetY = startY + (performanceRatio * availableHeight);
+      
+      // Find if this survivor is tied with others
+      const score = perf.normalizedScore.toFixed(2);
+      const tiedSurvivors = scoreGroups[score];
+      let horizontalOffset = 0;
+      
+      if (tiedSurvivors.length > 1) {
+        // Find this survivor's position within the tied group
+        const positionInTie = tiedSurvivors.findIndex(s => s.survivor.id === perf.survivor.id);
+        const totalTied = tiedSurvivors.length;
+        
+        // Add small vertical offset to prevent exact overlap
+        targetY += positionInTie * 3;
+        
+        // Calculate horizontal offset to spread tied survivors
+        const spacing = 60; // Space between tied avatars
+        const startOffset = -(totalTied - 1) * spacing / 2;
+        horizontalOffset = startOffset + (positionInTie * spacing);
+      }
+      
+      const targetX = centerX - (avatarSize / 2) + horizontalOffset;
 
       // Higher performers get higher z-index (lower overallRank = higher z-index)
       const zIndex = 1200 - overallRank;
 
-      console.log(`Animating ${survivor.firstName} (rank ${overallRank + 1}, score ${perf.normalizedScore.toFixed(2)}) to Y: ${targetY}, z-index: ${zIndex}`);
+      console.log(`Animating ${survivor.firstName} (rank ${overallRank + 1}, score ${perf.normalizedScore.toFixed(2)}) to Y: ${targetY}, X: ${targetX}, z-index: ${zIndex}`);
 
       setTimeout(() => {
         // Remove avatar from its current parent and add to ranking container
