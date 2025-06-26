@@ -2213,7 +2213,7 @@ body {
   position: absolute;
   left: 0;
   width: 100%;
-  border-top: 2px dashed rgba(255,255,255,0.3);
+  border-top: 2px dashed rgb(255, 106, 0,0.3);
 }
 
 /* survivor avatars */

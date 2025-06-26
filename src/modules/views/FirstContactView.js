@@ -422,8 +422,13 @@ const FirstContactView = {
         const targetY = startY + (rankIndex * spacing);
         
         setTimeout(() => {
+          const avatarRect = avatar.getBoundingClientRect();
+          const containerRect = this.container.getBoundingClientRect();
+          const avatarLeftInContainer = avatarRect.left - containerRect.left;
+          const translateX = laneCenterX - avatarLeftInContainer;
+
           avatar.style.transition = 'all 800ms ease-in-out';
-          avatar.style.transform = `translate(${laneCenterX - parseFloat(avatar.style.left || 0)}px, ${-targetY}px)`;
+          avatar.style.transform = `translate(${translateX}px, ${-targetY}px)`;
           avatar.style.zIndex = 100 + rankIndex; // Ensure proper layering
           
           // Add ranking indicator within tribe
