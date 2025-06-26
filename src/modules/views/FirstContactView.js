@@ -369,7 +369,7 @@ const FirstContactView = {
   _animateRankingArrangement(stage, avatars, maxAbility) {
     console.log(`Starting ranking arrangement animation for ${stage.name}`);
     
-    // Get stage performances and sort by ability
+    // Get stage performances and sort by ability across all tribes
     const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
     if (stagePerfs.length === 0) {
       console.warn(`No performance data for ranking animation, proceeding to Jeff commentary`);
@@ -377,101 +377,105 @@ const FirstContactView = {
       return;
     }
 
-    // Group avatars by tribe and sort within each tribe by ability
-    const tribeGroups = {};
-    avatars.forEach(avatarData => {
-      const tribeKey = avatarData.tribe.id || avatarData.tribe.name || avatarData.tribe.tribeName;
-      if (!tribeGroups[tribeKey]) {
-        tribeGroups[tribeKey] = [];
-      }
-      tribeGroups[tribeKey].push(avatarData);
-    });
+    console.log(`Overall ranking order:`, stagePerfs.map((perf, i) => `${i + 1}. ${perf.survivor.firstName} (${perf.ability.toFixed(2)})`));
 
-    // Sort each tribe's avatars by ability (highest first)
-    Object.keys(tribeGroups).forEach(tribeKey => {
-      tribeGroups[tribeKey].sort((a, b) => {
-        const abilityA = Math.max(0, a.survivor._fc_ability || 0);
-        const abilityB = Math.max(0, b.survivor._fc_ability || 0);
-        return abilityB - abilityA;
-      });
-    });
+    // Clear the lane structure and create a new unified container for ranking
+    const existingTracks = this.container.querySelectorAll('.fc-track');
+    existingTracks.forEach(track => track.remove());
 
-    // Calculate lane properties with proper bounds
-    const laneCount = this.allTribes.length;
+    // Create a new unified container for the ranking animation
+    const rankingContainer = createElement('div', {
+      className: 'ranking-container',
+      style: `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        overflow: visible;
+      `
+    });
+    this.container.appendChild(rankingContainer);
+
+    // Move all avatars to the new container and reset their positioning
     const containerWidth = this.container.clientWidth;
     const containerHeight = this.container.clientHeight;
-    const laneWidth = Math.floor(containerWidth / laneCount);
+    const centerX = containerWidth / 2;
+    const avatarSize = 50;
+    const startY = 50; // Start from actual top of screen
+    const spacing = Math.min(25, (containerHeight - 100) / Math.max(1, stagePerfs.length - 1));
 
-    // Animate each tribe's avatars to ranking positions within their lane
-    let animationDelay = 0;
-    
-    this.allTribes.forEach((tribe, tribeIndex) => {
-      const tribeKey = tribe.id || tribe.name || tribe.tribeName;
-      const tribeAvatars = tribeGroups[tribeKey] || [];
-      
-      if (tribeAvatars.length === 0) return;
+    // Animate each avatar to its overall ranking position
+    stagePerfs.forEach((perf, overallRank) => {
+      // Find the corresponding avatar
+      const avatarData = avatars.find(a => a.survivor.id === perf.survivor.id);
+      if (!avatarData) return;
 
-      // Calculate lane center with bounds checking
-      const laneLeft = Math.min(tribeIndex * laneWidth, containerWidth - laneWidth);
-      const laneCenterX = laneLeft + (laneWidth / 2) - 25; // Center in lane (avatar width is 50px)
-      const startY = containerHeight * 0.15; // Start 15% from top
-      const spacing = Math.min(70, (containerHeight * 0.6) / Math.max(1, tribeAvatars.length - 1)); // Dynamic spacing based on number of avatars
+      const { avatar, survivor } = avatarData;
+      const targetY = startY + (overallRank * spacing);
+      const targetX = centerX - (avatarSize / 2);
 
-      tribeAvatars.forEach((avatarData, rankIndex) => {
-        const { avatar, survivor } = avatarData;
-        const targetY = startY + (rankIndex * spacing);
+      console.log(`Animating ${survivor.firstName} to overall rank ${overallRank + 1} at Y: ${targetY}`);
+
+      setTimeout(() => {
+        // Remove avatar from its current parent and add to ranking container
+        if (avatar.parentElement) {
+          avatar.parentElement.removeChild(avatar);
+        }
         
-        setTimeout(() => {
-          const avatarRect = avatar.getBoundingClientRect();
-          const containerRect = this.container.getBoundingClientRect();
-          const avatarLeftInContainer = avatarRect.left - containerRect.left;
-          const translateX = laneCenterX - avatarLeftInContainer;
+        // Reset avatar positioning to be absolutely positioned within ranking container
+        avatar.style.position = 'absolute';
+        avatar.style.left = `${targetX}px`;
+        avatar.style.top = `${targetY}px`;
+        avatar.style.transform = 'none';
+        avatar.style.transition = 'all 800ms ease-in-out';
+        avatar.style.zIndex = 1100 + overallRank;
+        avatar.style.width = `${avatarSize}px`;
+        avatar.style.height = `${avatarSize}px`;
+        avatar.style.borderRadius = '50%';
+        avatar.style.border = `3px solid ${perf.tribe.color || '#fff'}`;
+        
+        rankingContainer.appendChild(avatar);
 
-          avatar.style.transition = 'all 800ms ease-in-out';
-          avatar.style.transform = `translate(${translateX}px, ${-targetY}px)`;
-          avatar.style.zIndex = 100 + rankIndex; // Ensure proper layering
-          
-          // Add ranking indicator within tribe
-          const existingBadge = avatar.parentElement.querySelector('.rank-badge');
-          if (existingBadge) {
-            existingBadge.remove();
-          }
-          
-          const badge = createElement('div', {
-            className: 'rank-badge',
-            style: `
-              position: absolute;
-              top: -10px;
-              right: -10px;
-              width: 24px;
-              height: 24px;
-              background: ${rankIndex === 0 ? 'gold' : rankIndex === 1 ? 'silver' : '#cd7f32'};
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-family: 'Survivant', sans-serif;
-              font-size: 0.8rem;
-              font-weight: bold;
-              color: ${rankIndex < 2 ? 'black' : 'white'};
-              z-index: 200;
-              border: 2px solid white;
-            `
-          }, (rankIndex + 1).toString());
-          avatar.parentElement.appendChild(badge);
-        }, animationDelay + (rankIndex * 150)); // Stagger within tribe
-      });
-      
-      // Update delay for next tribe
-      animationDelay += tribeAvatars.length * 150 + 200; // Delay between tribes
+        // Add overall ranking badge
+        const existingBadge = rankingContainer.querySelector(`.rank-badge-${survivor.id}`);
+        if (existingBadge) {
+          existingBadge.remove();
+        }
+        
+        const badge = createElement('div', {
+          className: `rank-badge rank-badge-${survivor.id}`,
+          style: `
+            position: absolute;
+            left: ${targetX + avatarSize + 5}px;
+            top: ${targetY + (avatarSize / 2) - 12}px;
+            width: 24px;
+            height: 24px;
+            background: ${overallRank === 0 ? 'gold' : overallRank === 1 ? 'silver' : overallRank === 2 ? '#cd7f32' : '#666'};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: ${overallRank < 3 ? 'black' : 'white'};
+            z-index: 1200;
+            border: 2px solid white;
+          `
+        }, (overallRank + 1).toString());
+        
+        rankingContainer.appendChild(badge);
+
+      }, overallRank * 150); // Stagger animations
     });
 
-    // Calculate total animation time
-    const maxTribeSize = Math.max(...Object.values(tribeGroups).map(group => group.length));
-    const totalRankingTime = (laneCount * 200) + (maxTribeSize * 150) + 800;
+    // Calculate total animation time and proceed to Jeff commentary
+    const totalRankingTime = stagePerfs.length * 150 + 800;
     
     setTimeout(() => {
-      console.log(`Ranking animation complete for ${stage.name}, pausing before Jeff commentary`);
+      console.log(`Overall ranking animation complete for ${stage.name}, pausing before Jeff commentary`);
       setTimeout(() => {
         console.log(`Pause complete, showing Jeff commentary for ${stage.name}`);
         this._showJeffCommentary(stage);
