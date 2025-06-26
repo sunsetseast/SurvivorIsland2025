@@ -406,17 +406,30 @@ const FirstContactView = {
     const startY = 50; // Start from actual top of screen
     const spacing = Math.min(25, (containerHeight - 100) / Math.max(1, stagePerfs.length - 1));
 
-    // Animate each avatar to its overall ranking position
+    // Calculate performance-based positioning
+    const maxPerformance = Math.max(...stagePerfs.map(p => p.normalizedScore));
+    const minPerformance = Math.min(...stagePerfs.map(p => p.normalizedScore));
+    const performanceRange = maxPerformance - minPerformance;
+    const availableHeight = containerHeight - 150; // Leave space at top and bottom
+
+    // Animate each avatar to its performance-based position
     stagePerfs.forEach((perf, overallRank) => {
       // Find the corresponding avatar
       const avatarData = avatars.find(a => a.survivor.id === perf.survivor.id);
       if (!avatarData) return;
 
       const { avatar, survivor } = avatarData;
-      const targetY = startY + (overallRank * spacing);
+      
+      // Calculate position based on normalized performance score
+      const performanceRatio = performanceRange > 0 ? 
+        (maxPerformance - perf.normalizedScore) / performanceRange : 0;
+      const targetY = startY + (performanceRatio * availableHeight);
       const targetX = centerX - (avatarSize / 2);
 
-      console.log(`Animating ${survivor.firstName} to overall rank ${overallRank + 1} at Y: ${targetY}`);
+      // Higher performers get higher z-index (lower overallRank = higher z-index)
+      const zIndex = 1200 - overallRank;
+
+      console.log(`Animating ${survivor.firstName} (rank ${overallRank + 1}, score ${perf.normalizedScore.toFixed(2)}) to Y: ${targetY}, z-index: ${zIndex}`);
 
       setTimeout(() => {
         // Remove avatar from its current parent and add to ranking container
@@ -430,7 +443,7 @@ const FirstContactView = {
         avatar.style.top = `${targetY}px`;
         avatar.style.transform = 'none';
         avatar.style.transition = 'all 800ms ease-in-out';
-        avatar.style.zIndex = 1100 + overallRank;
+        avatar.style.zIndex = zIndex;
         avatar.style.width = `${avatarSize}px`;
         avatar.style.height = `${avatarSize}px`;
         avatar.style.borderRadius = '50%';
@@ -461,7 +474,7 @@ const FirstContactView = {
             font-size: 0.8rem;
             font-weight: bold;
             color: ${overallRank < 3 ? 'black' : 'white'};
-            z-index: 1200;
+            z-index: ${zIndex + 100};
             border: 2px solid white;
           `
         }, (overallRank + 1).toString());
