@@ -514,16 +514,51 @@ const FirstContactView = {
       }, overallRank * 150); // Stagger animations
     });
 
-    // Calculate total animation time and proceed to Jeff commentary
+    // Calculate total animation time and show continue button
     const totalRankingTime = stagePerfs.length * 150 + 800;
     
     setTimeout(() => {
-      console.log(`Overall ranking animation complete for ${stage.name}, pausing before Jeff commentary`);
-      setTimeout(() => {
-        console.log(`Pause complete, showing Jeff commentary for ${stage.name}`);
-        this._showJeffCommentary(stage);
-      }, 2000); // 2 second pause
+      console.log(`Overall ranking animation complete for ${stage.name}, showing continue button`);
+      this._showRankingContinueButton(stage, rankingContainer);
     }, totalRankingTime);
+  },
+
+  _showRankingContinueButton(stage, rankingContainer) {
+    // Add continue button at the bottom of the ranking container
+    const continueBtn = createElement('button', {
+      style: `
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140px;
+        height: 50px;
+        background: url('Assets/rect-button.png') center/cover no-repeat;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        cursor: pointer;
+        z-index: 1500;
+        transition: all 0.2s ease;
+      `,
+      onclick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`Continue button clicked for ${stage.name}, showing Jeff commentary`);
+        this._showJeffCommentary(stage);
+      },
+      onmouseover: (e) => {
+        e.target.style.transform = 'translateX(-50%) scale(1.05)';
+      },
+      onmouseout: (e) => {
+        e.target.style.transform = 'translateX(-50%) scale(1)';
+      }
+    }, 'Continue');
+
+    rankingContainer.appendChild(continueBtn);
   },
 
   _showJeffCommentary(stage) {
@@ -800,6 +835,7 @@ const FirstContactView = {
         color: white;
         text-align: center;
         font-family: 'Survivant', sans-serif;
+        max-width: 300px;
       `
     });
 
@@ -811,12 +847,68 @@ const FirstContactView = {
       `
     }, `${stage.name} Results`);
 
-    const message = createElement('div', {
+    // Create tribal standings based on total scores
+    const sortedTribes = Object.entries(this.context.totalScores)
+      .sort(([,a],[,b]) => b - a)
+      .map(([tribeKey, score]) => ({ 
+        tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
+        score 
+      }));
+
+    const standingsContainer = createElement('div', {
       style: `
-        color: white;
         margin-bottom: 20px;
+        text-align: left;
       `
-    }, 'No performance data available for this stage.');
+    });
+
+    const standingsTitle = createElement('div', {
+      style: `
+        color: #f39c12;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+        text-align: center;
+      `
+    }, 'Current Tribal Standings:');
+
+    standingsContainer.appendChild(standingsTitle);
+
+    sortedTribes.forEach((entry, index) => {
+      const position = index + 1;
+      const tribeName = entry.tribe?.name || entry.tribe?.tribeName || 'Unknown Tribe';
+      const tribeColor = entry.tribe?.tribeColor || entry.tribe?.color || '#fff';
+      
+      const rankingDiv = createElement('div', {
+        style: `
+          display: flex;
+          align-items: center;
+          margin-bottom: 8px;
+          padding: 8px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 5px;
+        `
+      });
+
+      const positionElement = createElement('span', {
+        style: `
+          color: #f39c12;
+          font-weight: bold;
+          margin-right: 10px;
+          min-width: 20px;
+        `
+      }, `${position}.`);
+
+      const tribeElement = createElement('span', {
+        style: `
+          color: ${tribeColor};
+          font-weight: bold;
+          text-shadow: 1px 1px 1px black;
+        `
+      }, tribeName);
+
+      rankingDiv.append(positionElement, tribeElement);
+      standingsContainer.appendChild(rankingDiv);
+    });
 
     const nextBtn = createElement('button', {
       style: `
@@ -837,7 +929,7 @@ const FirstContactView = {
       }
     }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Final Results');
 
-    wrapper.append(title, message, nextBtn);
+    wrapper.append(title, standingsContainer, nextBtn);
     this.container.appendChild(wrapper);
   },
 
