@@ -681,46 +681,59 @@ const FirstContactView = {
 
     const overallLeaderKey = overallStandings[0]?.tribeKey;
 
-    // --- New: detect 3 consecutive losses for winnerKey ---
-    let threeLosses = false;
-    if (this.stageIndex >= 3) {
-      let lossCount = 0;
-      for (let i = this.stageIndex - 3; i < this.stageIndex; i++) {
+    // Check for stage ties
+    const stageScores = this.context.stageScores[stage.id] || {};
+    const stageHasTies = Object.values(stageScores).some((score, i, arr) => 
+      arr.filter(s => Math.abs(s - score) < 0.01).length > 1
+    );
+
+    // Check for overall ties
+    const overallHasTies = overallStandings.some((standing, i, arr) => 
+      i > 0 && Math.abs(standing.score - arr[i-1].score) < 0.01
+    );
+
+    // --- Fixed: detect losing streak and breaks ---
+    let lossStreakInfo = null;
+    if (this.stageIndex >= 2) {
+      let consecutiveLosses = 0;
+      let hadStreak = false;
+      
+      // Check backwards from previous stage to see how many losses in a row
+      for (let i = this.stageIndex - 1; i >= 0; i--) {
         const prevStage = this.stages[i];
-        const prevScores= this.context.stageScores[prevStage.id] || {};
-        const prevWinner= Object.entries(prevScores).reduce((a,b)=>prevScores[a[0]]>prevScores[b[0]]?a:b)[0];
-        if (prevWinner !== winnerKey) lossCount++;
+        const prevScores = this.context.stageScores[prevStage.id] || {};
+        const prevWinners = this.isThreeTribe ? 
+          Object.entries(prevScores).sort(([,a],[,b]) => b - a).slice(0, 2).map(([key]) => key) :
+          [Object.entries(prevScores).reduce((a,b) => prevScores[a[0]] > prevScores[b[0]] ? a : b)[0]];
+        
+        if (!prevWinners.includes(winnerKey)) {
+          consecutiveLosses++;
+        } else {
+          break;
+        }
       }
-      threeLosses = lossCount >= 3;
-    }
-
-    // --- New: detect last→first huge jump in this stage ---
-    let bigJump = false;
-    if (this.stageIndex > 0) {
-      const prevStage = this.stages[this.stageIndex - 1];
-      const prevPerfs = this.context.survivorStagePerformances[prevStage.id] || [];
-      const prevRankMap = Object.fromEntries(prevPerfs.map((p,i)=>[getTribeKey(p.tribe), i]));
-      const prevRank = prevRankMap[winnerKey];
-      if (prevRank > 0 && overallLeaderKey === winnerKey) {
-        bigJump = true;
+      
+      hadStreak = consecutiveLosses >= 2;
+      
+      // Current stage winners
+      const currentWinners = this.isThreeTribe ? 
+        sorted.slice(0, 2).map(s => getTribeKey(s.tribe)) :
+        [winnerKey];
+      
+      const justWon = currentWinners.includes(winnerKey);
+      
+      if (hadStreak && justWon) {
+        lossStreakInfo = { type: 'break', count: consecutiveLosses };
+      } else if (hadStreak && !justWon) {
+        lossStreakInfo = { type: 'continue', count: consecutiveLosses + 1 };
       }
     }
 
-    // --- New: detect standout tribe (won every stage so far) ---
-    let standout = false;
-    if (this.stageIndex > 0) {
-      const wins = this.stages.slice(0, this.stageIndex + 1).filter(s => {
-        const scores = this.context.stageScores[s.id] || {};
-        const top = Object.entries(scores).reduce((a,b)=>scores[a[0]]>scores[b[0]]?a:b)[0];
-        return top === winnerKey;
-      }).length;
-      standout = wins === (this.stageIndex + 1);
-    }
-
-    // Check if tribe took the lead after this stage (for stages 2-3)
+    // --- Fixed: improve tookTheLead logic with rank comparison ---
     let tookTheLead = false;
     let previousLeaderName = '';
-    if (this.stageIndex >= 1 && this.stageIndex <= 2) { // stages 2-3 (0-indexed)
+    let rankChangeInfo = null;
+    if (this.stageIndex >= 1) {
       // Get previous overall standings (before this stage)
       const previousTotalScores = {};
       Object.keys(this.context.totalScores).forEach(tribeKey => {
@@ -729,7 +742,7 @@ const FirstContactView = {
       });
 
       const previousStandings = Object.entries(previousTotalScores)
-        .filter(([, score]) => score > 0) // Only include tribes that had previous scores
+        .filter(([, score]) => score > 0)
         .sort(([,a],[,b]) => b - a)
         .map(([tribeKey, score]) => ({ 
           tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
@@ -737,22 +750,90 @@ const FirstContactView = {
           tribeKey 
         }));
 
-      const previousLeaderKey = previousStandings[0]?.tribeKey;
-      previousLeaderName = previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName || 'Unknown';
+      // Find previous and current ranks for the stage winner
+      const previousRank = previousStandings.findIndex(s => s.tribeKey === winnerKey);
+      const currentRank = overallStandings.findIndex(s => s.tribeKey === winnerKey);
       
-      // Check if the current overall leader is different from the previous leader
-      tookTheLead = previousLeaderKey !== overallLeaderKey;
+      if (previousRank > currentRank && currentRank === 0) {
+        tookTheLead = true;
+        previousLeaderName = previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName || 'Unknown';
+      }
+      
+      if (previousRank !== currentRank) {
+        rankChangeInfo = { 
+          previousRank: previousRank + 1, 
+          currentRank: currentRank + 1,
+          previousLeader: previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName
+        };
+      }
+    }
+
+    // --- Fixed: standout logic for 3-tribe mode ---
+    let standout = false;
+    if (this.stageIndex > 0) {
+      let topFinishes = 0;
+      for (let i = 0; i <= this.stageIndex; i++) {
+        const stageScores = this.context.stageScores[this.stages[i].id] || {};
+        const stageSorted = Object.entries(stageScores).sort(([,a],[,b]) => b - a);
+        
+        if (this.isThreeTribe) {
+          // In 3-tribe mode, check if tribe finished in top 2
+          const topTwo = stageSorted.slice(0, 2).map(([key]) => key);
+          if (topTwo.includes(winnerKey)) topFinishes++;
+        } else {
+          // In 2-tribe mode, check if tribe won
+          if (stageSorted[0] && stageSorted[0][0] === winnerKey) topFinishes++;
+        }
+      }
+      standout = topFinishes === (this.stageIndex + 1);
+    }
+
+    // --- New: detect big jump ---
+    let bigJump = false;
+    if (rankChangeInfo && rankChangeInfo.previousRank >= 3 && rankChangeInfo.currentRank === 1) {
+      bigJump = true;
+    }
+
+    // --- New: find MVP for this stage ---
+    let mvpInfo = null;
+    const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
+    if (stagePerfs.length > 0) {
+      const topPerformer = stagePerfs[0]; // Already sorted by performance
+      if (topPerformer && topPerformer.normalizedScore > 85) { // Only if they performed exceptionally well
+        mvpInfo = {
+          name: topPerformer.survivor.firstName,
+          tribe: topPerformer.tribe?.name || topPerformer.tribe?.tribeName,
+          score: topPerformer.normalizedScore
+        };
+      }
     }
 
     // Begin building commentary
     let commentary = "";
 
-    // Inject the three-losses scenario
-    if (threeLosses) {
-      commentary += `Tough streak for ${winnerName}! Three stages in a row and no win—time to shake things up! `;
+    // Handle loss streak information
+    if (lossStreakInfo) {
+      if (lossStreakInfo.type === 'break') {
+        commentary += `That win breaks a ${lossStreakInfo.count}-stage losing streak for ${winnerName}! `;
+      } else if (lossStreakInfo.type === 'continue') {
+        commentary += `${winnerName} extends their losing streak to ${lossStreakInfo.count} stages! `;
+      }
     }
 
-    // Base two-tribe vs three-tribe logic (preserved from your original)
+    // Handle ties first
+    if (stageHasTies) {
+      const tiedTribes = Object.entries(this.context.stageScores[stage.id])
+        .filter(([,score]) => Math.abs(score - winner.score) < 0.01)
+        .map(([key]) => this.allTribes.find(t => getTribeKey(t) === key)?.name || getTribeKey(t));
+      
+      if (tiedTribes.length === 2) {
+        commentary += `It's a dead tie in ${stageDesc}! ${tiedTribes.join(' and ')} are completely even! `;
+      } else if (tiedTribes.length > 2) {
+        commentary += `Incredible three-way tie in ${stageDesc}! All tribes are dead even! `;
+      }
+    }
+
+    // Base two-tribe vs three-tribe logic (enhanced)
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
       const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
@@ -772,31 +853,28 @@ const FirstContactView = {
 
       if (isFirst) {
         // First stage - focus on stage performance
-        if (isClose) {
-          commentary += `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
-        } else {
-          if (playerRank === 0) {
-            commentary += `${winnerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
-          } else if (playerRank === 1) {
-            commentary += `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
+        if (!stageHasTies) {
+          if (isClose) {
+            commentary += `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
           } else {
-            commentary += `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
+            if (playerRank === 0) {
+              commentary += `${winnerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
+            } else if (playerRank === 1) {
+              commentary += `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
+            } else {
+              commentary += `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
+            }
           }
         }
       } else {
         // Later stages - consider overall context
-        if (tookTheLead) {
-          // Tribe took the lead after this stage
-          if (stageWinnerIsOverallLeader) {
-            commentary += `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading, but now ${winnerName} is in front!`;
-          } else {
-            commentary += `${winnerName} wins ${stageDesc}, but it's ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName} who takes the overall lead! The standings have completely shifted after this stage!`;
-          }
-        } else if (stageWinnerIsOverallLeader) {
+        if (tookTheLead && !stageHasTies) {
+          commentary += `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading, but now ${winnerName} is in front!`;
+        } else if (stageWinnerIsOverallLeader && !stageHasTies) {
           if (overallWinnerRank === 0) {
             commentary += `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
           }
-        } else {
+        } else if (!stageHasTies) {
           // Stage winner is not overall leader - comeback story
           if (overallWinnerRank === 1) {
             commentary += `${winnerName} wins ${stageDesc} and closes the gap on overall leader ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}! This challenge is far from over - ${winnerName} is making their move!`;
@@ -806,7 +884,7 @@ const FirstContactView = {
         }
 
         // Add context about player tribe's situation
-        if (playerRank !== 0) {
+        if (playerRank !== 0 && !stageHasTies) {
           const playerOverallRank = overallStandings2.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
           if (playerOverallRank === 2) {
             commentary += ` ${playerName}, you're in last place overall - you need to turn this around immediately!`;
@@ -816,12 +894,12 @@ const FirstContactView = {
         }
       }
 
-      // After that, inject bigJump and standout:
-      if (bigJump) {
+      // Special achievements
+      if (bigJump && !stageHasTies) {
         commentary += ` Unbelievable comeback by ${winnerName}! From behind to first in a single stage—spectacular!`;
       }
       if (standout) {
-        commentary += ` ${winnerName} has now won every single stage—dominance personified!`;
+        commentary += ` ${winnerName} has been in the top 2 every single stage—dominant performance!`;
       }
     } else {
       // Two tribe scenario
@@ -835,13 +913,15 @@ const FirstContactView = {
 
       if (isFirst) {
         // First stage - focus on stage performance
-        if (isClose) {
-          commentary += `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
-        } else {
-          if (playerRank === 0) {
-            commentary += `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
+        if (!stageHasTies) {
+          if (isClose) {
+            commentary += `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
           } else {
-            commentary += `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}! If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
+            if (playerRank === 0) {
+              commentary += `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
+            } else {
+              commentary += `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}! If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
+            }
           }
         }
       } else {
@@ -850,16 +930,15 @@ const FirstContactView = {
         const isCloseOverall = overallGap < 2.0;
         const stageWinnerIsOverallLeader = winnerKey === overallLeaderKey;
 
-        if (stageWinnerIsOverallLeader) {
+        if (stageWinnerIsOverallLeader && !stageHasTies) {
           if (isCloseOverall) {
             commentary += `${winnerName} maintains their overall lead with a win in ${stageDesc}! But ${loserName} is still right there - this challenge could go either way!`;
           } else {
             commentary += `${winnerName} extends their commanding overall lead! They dominate ${stageDesc} while ${loserName} continues to struggle. This is looking like a runaway!`;
           }
-        } else {
+        } else if (!stageHasTies) {
           // Comeback situation
           if (tookTheLead) {
-            // Tribe took the lead after this stage
             commentary += `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading but now ${winnerName} is in front. Everything has changed!`;
           } else if (isCloseOverall) {
             commentary += `${winnerName} wins ${stageDesc} and closes the gap significantly! They're making up ground on ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}. This challenge is getting tight!`;
@@ -869,15 +948,15 @@ const FirstContactView = {
         }
 
         // Add player-specific context
-        if (playerRank !== 0) {
+        if (playerRank !== 0 && !isCloseOverall && !stageHasTies) {
           const playerOverallRank = overallStandings2.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
-          if (playerOverallRank === 1 && !isCloseOverall) {
+          if (playerOverallRank === 1) {
             commentary += ` ${playerName}, you're in serious trouble - you need something special in the remaining stages!`;
           }
         }
       }
 
-      if (bigJump) {
+      if (bigJump && !stageHasTies) {
         commentary += ` What a turnaround! ${winnerName} leaps from trailing to leading in one fell swoop!`;
       }
       if (standout) {
@@ -885,8 +964,18 @@ const FirstContactView = {
       }
     }
 
+    // MVP callout
+    if (mvpInfo && !stageHasTies) {
+      commentary += ` ${mvpInfo.name} was absolutely dominant in this stage!`;
+    }
+
+    // Handle overall ties
+    if (overallHasTies && !isFirst) {
+      commentary += ` We have a tie in the overall standings - this challenge couldn't be closer!`;
+    }
+
     // Finally, always append player-specific note if needed
-    if (playerRank !== 0 && !isFirst) {
+    if (playerRank !== 0 && !isFirst && !stageHasTies) {
       commentary += ` Heads up, Your Tribe—you're not on top. Time to dig deep in the next round!`;
     }
 
