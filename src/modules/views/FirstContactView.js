@@ -1314,24 +1314,272 @@ const FirstContactView = {
 
     const winners = sortedTribes.slice(0, this.isThreeTribe ? 2 : 1);
     const winnerNames = winners.map(t => t.tribe.name || t.tribe.tribeName).join(' and ');
-    const text = `${winnerNames} win immunity in First Contact!`;
+    
+    // Get all individual performances across all stages
+    const allPerformances = [];
+    Object.values(this.context.survivorStagePerformances).forEach(stagePerfs => {
+      stagePerfs.forEach(perf => {
+        const existingPerf = allPerformances.find(p => p.survivor.id === perf.survivor.id);
+        if (existingPerf) {
+          existingPerf.totalScore += perf.normalizedScore;
+          existingPerf.stageCount++;
+        } else {
+          allPerformances.push({
+            survivor: perf.survivor,
+            tribe: perf.tribe,
+            totalScore: perf.normalizedScore,
+            stageCount: 1
+          });
+        }
+      });
+    });
 
-    const parchment = createElement('div', {
+    // Calculate average performance and sort
+    allPerformances.forEach(perf => {
+      perf.averageScore = perf.totalScore / perf.stageCount;
+    });
+    allPerformances.sort((a, b) => b.averageScore - a.averageScore);
+
+    // Determine how many to show based on total survivors
+    const totalSurvivors = allPerformances.length;
+    const showTop = totalSurvivors <= 6 ? 2 : 3;
+    const showBottom = totalSurvivors <= 6 ? 2 : 3;
+
+    const topPerformers = allPerformances.slice(0, showTop);
+    const bottomPerformers = allPerformances.slice(-showBottom).reverse();
+
+    // Apply threat adjustments
+    const threatAdjustments = totalSurvivors <= 6 ? [5, 3] : [5, 3, 1];
+    
+    topPerformers.forEach((perf, index) => {
+      const adjustment = threatAdjustments[index] || 0;
+      perf.survivor.threat = Math.min(10, (perf.survivor.threat || 5) + adjustment);
+      perf.threatChange = `+${adjustment}`;
+    });
+
+    bottomPerformers.forEach((perf, index) => {
+      const adjustment = threatAdjustments[index] || 0;
+      perf.survivor.threat = Math.max(0, (perf.survivor.threat || 5) - adjustment);
+      perf.threatChange = `-${adjustment}`;
+    });
+
+    // Create main parchment container with portrait orientation
+    const parchmentContainer = createElement('div', {
       style: `
         position: absolute;
-        top: 40%;
+        top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 320px;
-        padding: 25px;
-        background: url('Assets/parch-landscape.png') center/cover no-repeat;
-        text-align: center;
+        width: 280px;
+        height: 480px;
+        background: url('Assets/parch-portrait.png') center/cover no-repeat;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 30px 20px;
+        box-sizing: border-box;
+      `
+    });
+
+    // Title
+    const title = createElement('div', {
+      style: `
         color: white;
         font-family: 'Survivant', sans-serif;
+        font-size: 1.1rem;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px black;
+        text-align: center;
+        margin-bottom: 15px;
+        line-height: 1.2;
+      `
+    }, `${winnerNames} wins immunity in First Contact!`);
+
+    // Challenge Performances header
+    const performancesHeader = createElement('div', {
+      style: `
+        color: #f39c12;
+        font-family: 'Survivant', sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px black;
+        text-align: center;
+        margin-bottom: 12px;
+      `
+    }, 'Challenge Performances');
+
+    // Best performers section
+    const bestSection = createElement('div', {
+      style: `
+        width: 100%;
+        margin-bottom: 15px;
+      `
+    });
+
+    const bestHeader = createElement('div', {
+      style: `
+        color: #22c55e;
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.9rem;
+        font-weight: bold;
         text-shadow: 1px 1px 2px black;
-        z-index: 10;
-      `,
-    }, text);
+        text-align: center;
+        margin-bottom: 8px;
+      `
+    }, 'Best');
+
+    topPerformers.forEach((perf, index) => {
+      const performerDiv = createElement('div', {
+        style: `
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 6px;
+          padding: 4px 8px;
+          background: rgba(34, 197, 94, 0.1);
+          border-radius: 4px;
+        `
+      });
+
+      const leftSide = createElement('div', {
+        style: `
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        `
+      });
+
+      const rank = createElement('span', {
+        style: `
+          color: #f39c12;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.8rem;
+          font-weight: bold;
+          min-width: 15px;
+        `
+      }, `${index + 1}.`);
+
+      const avatar = createElement('img', {
+        src: perf.survivor.avatarUrl || `Assets/Avatars/${perf.survivor.firstName.toLowerCase()}.jpeg`,
+        style: `
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 2px solid ${perf.tribe.color || perf.tribe.tribeColor || '#fff'};
+        `
+      });
+
+      const name = createElement('span', {
+        style: `
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.8rem;
+          text-shadow: 1px 1px 2px black;
+        `
+      }, perf.survivor.firstName);
+
+      const threatChange = createElement('span', {
+        style: `
+          color: #22c55e;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.7rem;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px black;
+        `
+      }, perf.threatChange);
+
+      leftSide.append(rank, avatar, name);
+      performerDiv.append(leftSide, threatChange);
+      bestSection.appendChild(performerDiv);
+    });
+
+    // Worst performers section
+    const worstSection = createElement('div', {
+      style: `
+        width: 100%;
+        margin-bottom: 15px;
+      `
+    });
+
+    const worstHeader = createElement('div', {
+      style: `
+        color: #ef4444;
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black;
+        text-align: center;
+        margin-bottom: 8px;
+      `
+    }, 'Worst');
+
+    bottomPerformers.forEach((perf, index) => {
+      const performerDiv = createElement('div', {
+        style: `
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 6px;
+          padding: 4px 8px;
+          background: rgba(239, 68, 68, 0.1);
+          border-radius: 4px;
+        `
+      });
+
+      const leftSide = createElement('div', {
+        style: `
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        `
+      });
+
+      const rank = createElement('span', {
+        style: `
+          color: #f39c12;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.8rem;
+          font-weight: bold;
+          min-width: 15px;
+        `
+      }, `${allPerformances.length - bottomPerformers.length + index + 1}.`);
+
+      const avatar = createElement('img', {
+        src: perf.survivor.avatarUrl || `Assets/Avatars/${perf.survivor.firstName.toLowerCase()}.jpeg`,
+        style: `
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 2px solid ${perf.tribe.color || perf.tribe.tribeColor || '#fff'};
+        `
+      });
+
+      const name = createElement('span', {
+        style: `
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.8rem;
+          text-shadow: 1px 1px 2px black;
+        `
+      }, perf.survivor.firstName);
+
+      const threatChange = createElement('span', {
+        style: `
+          color: #ef4444;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.7rem;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px black;
+        `
+      }, perf.threatChange);
+
+      leftSide.append(rank, avatar, name);
+      performerDiv.append(leftSide, threatChange);
+      worstSection.appendChild(performerDiv);
+    });
+
+    parchmentContainer.append(title, performancesHeader, bestSection, worstSection);
 
     const doneBtn = createElement('button', {
       style: `
@@ -1392,7 +1640,12 @@ const FirstContactView = {
       }
     }, 'Return to Camp');
 
-    this.container.append(parchment, doneBtn);
+    this.container.append(parchmentContainer, doneBtn);
+
+    console.log('Threat adjustments applied:', {
+      topPerformers: topPerformers.map(p => ({ name: p.survivor.firstName, change: p.threatChange, newThreat: p.survivor.threat })),
+      bottomPerformers: bottomPerformers.map(p => ({ name: p.survivor.firstName, change: p.threatChange, newThreat: p.survivor.threat }))
+    });
   },
 };
 
