@@ -142,7 +142,7 @@ const FirstContactView = {
     this.allTribes.forEach((tribe, tIndex) => {
       // Ensure lane positioning stays within container bounds
       const laneLeft = Math.min(tIndex * laneWidth, containerWidth - laneWidth);
-      
+
       // Track container with proper bounds
       const track = createElement('div', {
         className: 'fc-track',
@@ -229,11 +229,11 @@ const FirstContactView = {
       // Special handling for Stage 4 (puzzle stage)
       if (stage.id === 'puzzle') {
         console.log('Stage 4 detected - implementing special two-phase animation');
-        
+
         // Phase 1: All avatars animate to 75% of track height
         const fullDistance = this.container.clientHeight - 120;
         const phase1Distance = fullDistance * 0.75;
-        
+
         avatars.forEach(({ survivor, avatar }, index) => {
           const ability = Math.max(0, survivor._fc_ability || 0);
           const normalizedAbility = ability / maxAbility;
@@ -246,28 +246,28 @@ const FirstContactView = {
         // Wait for phase 1 to complete, then pause, then phase 2
         setTimeout(() => {
           console.log('Phase 1 complete, starting pause before phase 2');
-          
+
           // 1.5 second pause
           setTimeout(() => {
             console.log('Starting phase 2 - moving winning tribe to finish line');
-            
+
             // Find winning tribe(s) for this stage
             const stageScores = this.context.stageScores[stage.id];
             if (stageScores) {
               const sortedScores = Object.entries(stageScores)
                 .sort(([,a],[,b]) => b - a);
-              
+
               if (sortedScores.length > 0) {
                 const phase2Distance = fullDistance * 0.25;
                 const phase2Duration = 1000; // 1 second for final push
-                
+
                 if (this.isThreeTribe && sortedScores.length >= 2) {
                   // Three tribe mode: winner moves first, then second place
                   const winningTribeKey = sortedScores[0][0];
                   const secondPlaceTribeKey = sortedScores[1][0];
-                  
+
                   console.log(`Three tribe mode - Winner: ${winningTribeKey}, Second: ${secondPlaceTribeKey}`);
-                  
+
                   // Phase 2a: Move winning tribe avatars the remaining 25%
                   avatars.forEach(({ survivor, avatar, tribe }) => {
                     const tribeKey = tribe.id || tribe.name || tribe.tribeName;
@@ -276,16 +276,16 @@ const FirstContactView = {
                       const normalizedAbility = ability / maxAbility;
                       const currentDistance = phase1Distance * normalizedAbility;
                       const finalDistance = currentDistance + phase2Distance;
-                      
+
                       avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
                       avatar.style.transform = `translateY(-${finalDistance}px)`;
                     }
                   });
-                  
+
                   // Wait for winner to finish, then move second place
                   setTimeout(() => {
                     console.log('Winner finished, moving second place tribe');
-                    
+
                     // Phase 2b: Move second place tribe avatars the remaining 25%
                     avatars.forEach(({ survivor, avatar, tribe }) => {
                       const tribeKey = tribe.id || tribe.name || tribe.tribeName;
@@ -294,25 +294,25 @@ const FirstContactView = {
                         const normalizedAbility = ability / maxAbility;
                         const currentDistance = phase1Distance * normalizedAbility;
                         const finalDistance = currentDistance + phase2Distance;
-                        
+
                         avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
                         avatar.style.transform = `translateY(-${finalDistance}px)`;
                       }
                     });
-                    
-                    // Wait for second place to finish before showing Jeff commentary
+
+                    // Wait for second place to finish before showing final results
                     setTimeout(() => {
-                      console.log('Second place finished, showing Jeff commentary');
-                      this._showJeffCommentary(stage);
+                      console.log('Second place finished, going directly to final results');
+                      this._showFinalResults();
                     }, phase2Duration + 500);
-                    
+
                   }, phase2Duration + 300); // Small delay between winner and second place
-                  
+
                 } else {
                   // Two tribe mode: only winner moves
                   const winningTribeKey = sortedScores[0][0];
                   console.log(`Two tribe mode - Winner: ${winningTribeKey}`);
-                  
+
                   // Phase 2: Move only winning tribe avatars the remaining 25%
                   avatars.forEach(({ survivor, avatar, tribe }) => {
                     const tribeKey = tribe.id || tribe.name || tribe.tribeName;
@@ -321,16 +321,16 @@ const FirstContactView = {
                       const normalizedAbility = ability / maxAbility;
                       const currentDistance = phase1Distance * normalizedAbility;
                       const finalDistance = currentDistance + phase2Distance;
-                      
+
                       avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
                       avatar.style.transform = `translateY(-${finalDistance}px)`;
                     }
                   });
-                  
-                  // Wait for phase 2 to complete before showing Jeff commentary
+
+                  // Wait for second place to finish before showing final results
                   setTimeout(() => {
-                    console.log('Phase 2 complete, showing Jeff commentary');
-                    this._showJeffCommentary(stage);
+                    console.log('Second place finished, going directly to final results');
+                    this._showFinalResults();
                   }, phase2Duration + 500);
                 }
               } else {
@@ -343,7 +343,7 @@ const FirstContactView = {
             }
           }, 1500); // 1.5 second pause
         }, maxDuration + 1000);
-        
+
       } else {
         // Regular animation for all other stages (1-3)
         avatars.forEach(({ survivor, avatar }, index) => {
@@ -368,7 +368,7 @@ const FirstContactView = {
 
   _animateRankingArrangement(stage, avatars, maxAbility) {
     console.log(`Starting ranking arrangement animation for ${stage.name}`);
-    
+
     // Get stage performances and sort by ability across all tribes
     const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
     if (stagePerfs.length === 0) {
@@ -429,31 +429,31 @@ const FirstContactView = {
       if (!avatarData) return;
 
       const { avatar, survivor } = avatarData;
-      
+
       // Calculate position based on normalized performance score
       const performanceRatio = performanceRange > 0 ? 
         (maxPerformance - perf.normalizedScore) / performanceRange : 0;
       let targetY = startY + (performanceRatio * availableHeight);
-      
+
       // Find if this survivor is tied with others
       const score = perf.normalizedScore.toFixed(2);
       const tiedSurvivors = scoreGroups[score];
       let horizontalOffset = 0;
-      
+
       if (tiedSurvivors.length > 1) {
         // Find this survivor's position within the tied group
         const positionInTie = tiedSurvivors.findIndex(s => s.survivor.id === perf.survivor.id);
         const totalTied = tiedSurvivors.length;
-        
+
         // Add small vertical offset to prevent exact overlap
         targetY += positionInTie * 3;
-        
+
         // Calculate horizontal offset to spread tied survivors
         const spacing = 60; // Space between tied avatars
         const startOffset = -(totalTied - 1) * spacing / 2;
         horizontalOffset = startOffset + (positionInTie * spacing);
       }
-      
+
       const targetX = centerX - (avatarSize / 2) + horizontalOffset;
 
       // Higher performers get higher z-index (lower overallRank = higher z-index)
@@ -466,7 +466,7 @@ const FirstContactView = {
         if (avatar.parentElement) {
           avatar.parentElement.removeChild(avatar);
         }
-        
+
         // Reset avatar positioning to be absolutely positioned within ranking container
         avatar.style.position = 'absolute';
         avatar.style.left = `${targetX}px`;
@@ -478,7 +478,7 @@ const FirstContactView = {
         avatar.style.height = `${avatarSize}px`;
         avatar.style.borderRadius = '50%';
         avatar.style.border = `3px solid ${perf.tribe.color || '#fff'}`;
-        
+
         rankingContainer.appendChild(avatar);
 
         // Add overall ranking badge
@@ -486,7 +486,7 @@ const FirstContactView = {
         if (existingBadge) {
           existingBadge.remove();
         }
-        
+
         const badge = createElement('div', {
           className: `rank-badge rank-badge-${survivor.id}`,
           style: `
@@ -508,7 +508,7 @@ const FirstContactView = {
             border: 2px solid white;
           `
         }, (overallRank + 1).toString());
-        
+
         rankingContainer.appendChild(badge);
 
       }, overallRank * 150); // Stagger animations
@@ -516,7 +516,7 @@ const FirstContactView = {
 
     // Calculate total animation time and show continue button
     const totalRankingTime = stagePerfs.length * 150 + 800;
-    
+
     setTimeout(() => {
       console.log(`Overall ranking animation complete for ${stage.name}, showing continue button`);
       this._showRankingContinueButton(stage, rankingContainer);
@@ -635,7 +635,7 @@ const FirstContactView = {
     const overallLeaderName = overallLeader?.tribe?.name || overallLeader?.tribe?.tribeName || 'Unknown';
     const stageWinnerKey = winner?.tribe?.id || winner?.tribe?.name || winner?.tribe?.tribeName;
     const overallLeaderKey = overallLeader?.tribe?.id || overallLeader?.tribe?.name || overallLeader?.tribe?.tribeName;
-    
+
     const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
     const isFirstStage = this.stageIndex === 0;
 
@@ -657,7 +657,7 @@ const FirstContactView = {
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
       const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
-      
+
       // Find overall positions
       const overallWinnerRank = overallStandings.findIndex(s => s.tribeKey === stageWinnerKey);
       const overallMiddleRank = overallStandings.findIndex(s => s.tribeKey === (middle?.tribe?.id || middle?.tribe?.name || middle?.tribe?.tribeName));
@@ -711,7 +711,7 @@ const FirstContactView = {
           if (playerRank === 0) {
             commentary = `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
           } else {
-            commentary = `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}. If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
+            commentary = `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}! If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
           }
         }
       } else {
@@ -960,7 +960,7 @@ const FirstContactView = {
       const position = index + 1;
       const tribeName = entry.tribe?.name || entry.tribe?.tribeName || 'Unknown Tribe';
       const tribeColor = entry.tribe?.tribeColor || entry.tribe?.color || '#fff';
-      
+
       const rankingDiv = createElement('div', {
         style: `
           display: flex;
