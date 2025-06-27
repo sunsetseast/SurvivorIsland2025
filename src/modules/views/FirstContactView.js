@@ -1313,7 +1313,16 @@ const FirstContactView = {
     this.container.style.backgroundImage = `url('Assets/Screens/challenge.png')`;
 
     const winners = sortedTribes.slice(0, this.isThreeTribe ? 2 : 1);
+    const losers = sortedTribes.slice(this.isThreeTribe ? 2 : 1);
     const winnerNames = winners.map(t => t.tribe.name || t.tribe.tribeName).join(' and ');
+    
+    // Mark immunity status for all tribes
+    this.allTribes.forEach(tribe => {
+      const isWinner = winners.some(w => (w.tribe.id || w.tribe.name || w.tribe.tribeName) === (tribe.id || tribe.name || tribe.tribeName));
+      tribe.hasImmunity = isWinner;
+      tribe.immunityStatus = isWinner ? 'immune' : 'vulnerable';
+      console.log(`${tribe.name || tribe.tribeName} immunity status: ${tribe.immunityStatus}`);
+    });
     
     // Get all individual performances across all stages
     const allPerformances = [];
@@ -1347,6 +1356,7 @@ const FirstContactView = {
 
     const topPerformers = allPerformances.slice(0, showTop);
     const bottomPerformers = allPerformances.slice(-showBottom).reverse();
+    const middlePerformers = allPerformances.slice(showTop, -showBottom);
 
     // Apply threat adjustments
     const threatAdjustments = totalSurvivors <= 6 ? [5, 3] : [5, 3, 1];
@@ -1354,13 +1364,18 @@ const FirstContactView = {
     topPerformers.forEach((perf, index) => {
       const adjustment = threatAdjustments[index] || 0;
       perf.survivor.threat = Math.min(10, (perf.survivor.threat || 5) + adjustment);
-      perf.threatChange = `+${adjustment}`;
+      perf.threatChange = `+${adjustment} threat`;
     });
 
     bottomPerformers.forEach((perf, index) => {
       const adjustment = threatAdjustments[index] || 0;
       perf.survivor.threat = Math.max(0, (perf.survivor.threat || 5) - adjustment);
-      perf.threatChange = `-${adjustment}`;
+      perf.threatChange = `-${adjustment} threat`;
+    });
+
+    // No change for middle performers
+    middlePerformers.forEach(perf => {
+      perf.threatChange = '-0 threat';
     });
 
     // Create main parchment container with portrait orientation
@@ -1370,14 +1385,14 @@ const FirstContactView = {
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 280px;
-        height: 480px;
+        width: 320px;
+        height: 520px;
         background: url('Assets/parch-portrait.png') center/cover no-repeat;
         z-index: 10;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 30px 20px;
+        padding: 25px 15px;
         box-sizing: border-box;
       `
     });
@@ -1387,11 +1402,11 @@ const FirstContactView = {
       style: `
         color: white;
         font-family: 'Survivant', sans-serif;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         font-weight: bold;
         text-shadow: 2px 2px 4px black;
         text-align: center;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
         line-height: 1.2;
       `
     }, `${winnerNames} wins immunity in First Contact!`);
@@ -1401,19 +1416,31 @@ const FirstContactView = {
       style: `
         color: #f39c12;
         font-family: 'Survivant', sans-serif;
-        font-size: 1rem;
+        font-size: 0.95rem;
         font-weight: bold;
         text-shadow: 2px 2px 4px black;
         text-align: center;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
       `
     }, 'Challenge Performances');
+
+    // Create scrollable content area
+    const scrollableContent = createElement('div', {
+      style: `
+        width: 100%;
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 5px;
+        margin-bottom: 10px;
+      `
+    });
 
     // Best performers section
     const bestSection = createElement('div', {
       style: `
         width: 100%;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
       `
     });
 
@@ -1421,11 +1448,11 @@ const FirstContactView = {
       style: `
         color: #22c55e;
         font-family: 'Survivant', sans-serif;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: bold;
         text-shadow: 1px 1px 2px black;
         text-align: center;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
       `
     }, 'Best');
 
@@ -1435,10 +1462,10 @@ const FirstContactView = {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 6px;
-          padding: 4px 8px;
+          margin-bottom: 5px;
+          padding: 3px 6px;
           background: rgba(34, 197, 94, 0.1);
-          border-radius: 4px;
+          border-radius: 3px;
         `
       });
 
@@ -1446,7 +1473,7 @@ const FirstContactView = {
         style: `
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
         `
       });
 
@@ -1454,17 +1481,18 @@ const FirstContactView = {
         style: `
           color: #f39c12;
           font-family: 'Survivant', sans-serif;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           font-weight: bold;
-          min-width: 15px;
+          min-width: 12px;
+          text-shadow: 1px 1px 2px black;
         `
       }, `${index + 1}.`);
 
       const avatar = createElement('img', {
         src: perf.survivor.avatarUrl || `Assets/Avatars/${perf.survivor.firstName.toLowerCase()}.jpeg`,
         style: `
-          width: 24px;
-          height: 24px;
+          width: 20px;
+          height: 20px;
           border-radius: 50%;
           border: 2px solid ${perf.tribe.color || perf.tribe.tribeColor || '#fff'};
         `
@@ -1474,7 +1502,7 @@ const FirstContactView = {
         style: `
           color: white;
           font-family: 'Survivant', sans-serif;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           text-shadow: 1px 1px 2px black;
         `
       }, perf.survivor.firstName);
@@ -1483,7 +1511,7 @@ const FirstContactView = {
         style: `
           color: #22c55e;
           font-family: 'Survivant', sans-serif;
-          font-size: 0.7rem;
+          font-size: 0.65rem;
           font-weight: bold;
           text-shadow: 1px 1px 2px black;
         `
@@ -1494,11 +1522,101 @@ const FirstContactView = {
       bestSection.appendChild(performerDiv);
     });
 
+    // Middle performers section (if any)
+    let middleSection = null;
+    if (middlePerformers.length > 0) {
+      middleSection = createElement('div', {
+        style: `
+          width: 100%;
+          margin-bottom: 12px;
+        `
+      });
+
+      const middleHeader = createElement('div', {
+        style: `
+          color: #fbbf24;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.85rem;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px black;
+          text-align: center;
+          margin-bottom: 6px;
+        `
+      }, 'Middle');
+
+      middlePerformers.forEach((perf, index) => {
+        const overallRank = showTop + index + 1;
+        const performerDiv = createElement('div', {
+          style: `
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 3px 6px;
+            background: rgba(251, 191, 36, 0.1);
+            border-radius: 3px;
+          `
+        });
+
+        const leftSide = createElement('div', {
+          style: `
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          `
+        });
+
+        const rank = createElement('span', {
+          style: `
+            color: #f39c12;
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.75rem;
+            font-weight: bold;
+            min-width: 12px;
+            text-shadow: 1px 1px 2px black;
+          `
+        }, `${overallRank}.`);
+
+        const avatar = createElement('img', {
+          src: perf.survivor.avatarUrl || `Assets/Avatars/${perf.survivor.firstName.toLowerCase()}.jpeg`,
+          style: `
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid ${perf.tribe.color || perf.tribe.tribeColor || '#fff'};
+          `
+        });
+
+        const name = createElement('span', {
+          style: `
+            color: white;
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.75rem;
+            text-shadow: 1px 1px 2px black;
+          `
+        }, perf.survivor.firstName);
+
+        const threatChange = createElement('span', {
+          style: `
+            color: #fbbf24;
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.65rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+          `
+        }, perf.threatChange);
+
+        leftSide.append(rank, avatar, name);
+        performerDiv.append(leftSide, threatChange);
+        middleSection.appendChild(performerDiv);
+      });
+    }
+
     // Worst performers section
     const worstSection = createElement('div', {
       style: `
         width: 100%;
-        margin-bottom: 15px;
+        margin-bottom: 5px;
       `
     });
 
@@ -1506,24 +1624,25 @@ const FirstContactView = {
       style: `
         color: #ef4444;
         font-family: 'Survivant', sans-serif;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: bold;
         text-shadow: 1px 1px 2px black;
         text-align: center;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
       `
     }, 'Worst');
 
     bottomPerformers.forEach((perf, index) => {
+      const overallRank = allPerformances.length - bottomPerformers.length + index + 1;
       const performerDiv = createElement('div', {
         style: `
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 6px;
-          padding: 4px 8px;
+          margin-bottom: 5px;
+          padding: 3px 6px;
           background: rgba(239, 68, 68, 0.1);
-          border-radius: 4px;
+          border-radius: 3px;
         `
       });
 
@@ -1531,7 +1650,7 @@ const FirstContactView = {
         style: `
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
         `
       });
 
@@ -1539,17 +1658,18 @@ const FirstContactView = {
         style: `
           color: #f39c12;
           font-family: 'Survivant', sans-serif;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           font-weight: bold;
-          min-width: 15px;
+          min-width: 12px;
+          text-shadow: 1px 1px 2px black;
         `
-      }, `${allPerformances.length - bottomPerformers.length + index + 1}.`);
+      }, `${overallRank}.`);
 
       const avatar = createElement('img', {
         src: perf.survivor.avatarUrl || `Assets/Avatars/${perf.survivor.firstName.toLowerCase()}.jpeg`,
         style: `
-          width: 24px;
-          height: 24px;
+          width: 20px;
+          height: 20px;
           border-radius: 50%;
           border: 2px solid ${perf.tribe.color || perf.tribe.tribeColor || '#fff'};
         `
@@ -1559,7 +1679,7 @@ const FirstContactView = {
         style: `
           color: white;
           font-family: 'Survivant', sans-serif;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           text-shadow: 1px 1px 2px black;
         `
       }, perf.survivor.firstName);
@@ -1568,7 +1688,7 @@ const FirstContactView = {
         style: `
           color: #ef4444;
           font-family: 'Survivant', sans-serif;
-          font-size: 0.7rem;
+          font-size: 0.65rem;
           font-weight: bold;
           text-shadow: 1px 1px 2px black;
         `
@@ -1579,7 +1699,14 @@ const FirstContactView = {
       worstSection.appendChild(performerDiv);
     });
 
-    parchmentContainer.append(title, performancesHeader, bestSection, worstSection);
+    // Append sections to scrollable content
+    scrollableContent.appendChild(bestSection);
+    if (middleSection) {
+      scrollableContent.appendChild(middleSection);
+    }
+    scrollableContent.appendChild(worstSection);
+
+    parchmentContainer.append(title, performancesHeader, scrollableContent);
 
     const doneBtn = createElement('button', {
       style: `
