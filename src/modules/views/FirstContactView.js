@@ -641,6 +641,14 @@ const FirstContactView = {
     const playerName = this.playerTribe?.name || this.playerTribe?.tribeName || 'Your Tribe';
     const stageDesc = stage?.description || 'this challenge';
 
+    console.log('Jeff commentary debug:', {
+      winnerName,
+      loserName,
+      playerName,
+      playerRank,
+      sortedTribes: sorted.map(s => ({ name: s.tribe?.name || s.tribe?.tribeName, score: s.score }))
+    });
+
     // Get overall standings to provide context
     const overallStandings = Object.entries(this.context.totalScores)
       .sort(([,a],[,b]) => b - a)
@@ -743,7 +751,7 @@ const FirstContactView = {
           commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
         } else {
           if (playerRank === 0) {
-            commentary = `${playerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
+            commentary = `${winnerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
           } else if (playerRank === 1) {
             commentary = `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
           } else {
