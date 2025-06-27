@@ -616,8 +616,13 @@ const FirstContactView = {
     const scoreDiff = winner.score - loser.score;
     const isClose = scoreDiff < 2.0; // Consider it close if less than 2 points difference
 
-    const playerRank = sorted.findIndex(entry => entry.tribe?.id === this.playerTribe?.id);
-    console.log(`Player tribe rank: ${playerRank}`);
+    const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
+    const playerRank = sorted.findIndex(entry => {
+      const entryTribeKey = entry.tribe?.id || entry.tribe?.name || entry.tribe?.tribeName;
+      return entryTribeKey === playerTribeKey;
+    });
+    console.log(`Player tribe key: ${playerTribeKey}, Player tribe rank: ${playerRank}`);
+    console.log(`Player tribe object:`, this.playerTribe);
 
     // Generate dynamic Jeff commentary based on the results
     let jeffText = this._generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank);
