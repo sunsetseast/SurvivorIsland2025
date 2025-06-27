@@ -801,98 +801,6 @@ const DEFAULT_SURVIVORS = [
   },
 ];
 
-const DEFAULT_CHALLENGES = {
-  immunity: [
-    {
-      id: 1,
-      name: "Balance Beam Puzzle",
-      description: "Survivors must cross a series of balance beams, collecting puzzle pieces along the way, then solve the puzzle.",
-      type: "individual",
-      attributes: ["physical", "mental"],
-      difficulty: 7
-    },
-    {
-      id: 2,
-      name: "Memory Match",
-      description: "Survivors must memorize a sequence of symbols and recreate them in order.",
-      type: "individual",
-      attributes: ["mental"],
-      difficulty: 6
-    },
-    {
-      id: 3,
-      name: "Water Carry",
-      description: "Tribes must transport water from the ocean to fill a container, using leaky buckets.",
-      type: "tribal",
-      attributes: ["physical", "teamwork"],
-      difficulty: 8
-    },
-    {
-      id: 4,
-      name: "Obstacle Course",
-      description: "Survivors must navigate a complex obstacle course, retrieving keys that unlock advantages in the final stage.",
-      type: "individual",
-      attributes: ["physical", "endurance"],
-      difficulty: 9
-    },
-    {
-      id: 5,
-      name: "Blind Maze",
-      description: "One tribe member must navigate a maze blindfolded, guided only by the calls of their tribemates.",
-      type: "tribal",
-      attributes: ["teamwork", "communication"],
-      difficulty: 7
-    }
-  ],
-  reward: [
-    {
-      id: 1,
-      name: "Coconut Bowling",
-      description: "Survivors must roll coconuts down a lane, trying to knock over wooden pins.",
-      type: "tribal",
-      attributes: ["physical", "precision"],
-      difficulty: 5,
-      reward: "Fishing kit"
-    },
-    {
-      id: 2,
-      name: "Auction",
-      description: "Survivors bid on covered items which may be food, advantages, or nothing at all.",
-      type: "individual",
-      attributes: ["strategy"],
-      difficulty: 3,
-      reward: "Various food items and advantages"
-    },
-    {
-      id: 3,
-      name: "Log Rolling",
-      description: "Survivors must roll a heavy log through an obstacle course as a team.",
-      type: "tribal",
-      attributes: ["physical", "teamwork"],
-      difficulty: 8,
-      reward: "Comfort items (pillows, blankets)"
-    },
-    {
-      id: 4,
-      name: "Rescue Mission",
-      description: "Tribes must rescue a 'stranded' team member by constructing a stretcher and carrying them through the jungle.",
-      type: "tribal",
-      attributes: ["physical", "ingenuity"],
-      difficulty: 7,
-      reward: "Barbecue feast"
-    },
-    {
-      id: 5,
-      name: "Survivor Quiz",
-      description: "Survivors answer questions about the island, survival skills, and their tribemates.",
-      type: "individual",
-      attributes: ["mental", "social"],
-      difficulty: 4,
-      reward: "Letters from home"
-    }
-  ]
-};
-
 const DEFAULT_TRIBE_NAMES = [
   "Tagi",
   "Moto",
@@ -914,33 +822,6 @@ const DEFAULT_TRIBE_NAMES = [
   "La Mina"
 ];
 
-const DEFAULT_LOCATIONS = {
-  Beach: {
-    description: "A long stretch of golden sand with crystal clear water. Perfect for swimming and finding seafood.",
-    resources: ["fish", "coconuts", "shells"],
-    activities: ["fishing", "swimming", "relaxing", "idol hunting"],
-    energyCost: 1
-  },
-  Jungle: {
-    description: "A dense tropical forest with tall trees, exotic plants, and hidden creatures.",
-    resources: ["fruits", "wood", "medicinal plants"],
-    activities: ["foraging", "exploring", "idol hunting"],
-    energyCost: 2
-  },
-  Camp: {
-    description: "Your tribe's home base, with a shelter, fire pit, and basic tools.",
-    resources: ["water", "fire", "shelter"],
-    activities: ["resting", "cooking", "socializing", "strategy", "idol hunting"],
-    energyCost: 0
-  },
-  "Private Area": {
-    description: "A secluded spot away from camp, perfect for private conversations and strategizing.",
-    resources: [],
-    activities: ["strategizing", "alliance building", "idol hunting"],
-    energyCost: 1
-  }
-};
-
 class GameData {
   constructor() {
     this.survivors = null;
@@ -952,9 +833,7 @@ class GameData {
 
   initializeDefaultData() {
     this.survivors = DEFAULT_SURVIVORS;
-    this.challenges = DEFAULT_CHALLENGES;
     this.tribeNames = DEFAULT_TRIBE_NAMES;
-    this.locations = DEFAULT_LOCATIONS;
   }
 
   getSurvivors() {
@@ -965,14 +844,6 @@ class GameData {
     this.survivors = survivors;
   }
 
-  getChallenges(type) {
-    return type ? this.challenges[type] || [] : this.challenges;
-  }
-
-  setChallenges(challenges) {
-    this.challenges = challenges;
-  }
-
   getTribeNames() {
     return this.tribeNames;
   }
@@ -981,13 +852,6 @@ class GameData {
     this.tribeNames = tribeNames;
   }
 
-  getLocations(locationName) {
-    return locationName ? this.locations[locationName] || null : this.locations;
-  }
-
-  setLocations(locations) {
-    this.locations = locations;
-  }
 }
 
 const gameData = new GameData();
