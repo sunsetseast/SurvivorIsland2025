@@ -639,6 +639,27 @@ const FirstContactView = {
     const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
     const isFirstStage = this.stageIndex === 0;
 
+    // Detect if a tribe is dominating (won multiple consecutive stages)
+    let isDominating = false;
+    if (this.stageIndex > 0) {
+      let consecutiveWins = 0;
+      for (let i = 0; i < this.stageIndex; i++) {
+        const prevStage = this.stages[i];
+        const prevScores = this.context.stageScores[prevStage.id];
+        if (prevScores) {
+          const prevWinnerKey = Object.keys(prevScores).reduce((a, b) => prevScores[a] > prevScores[b] ? a : b);
+          if (prevWinnerKey === stageWinnerKey) {
+            consecutiveWins++;
+          } else {
+            break; // Not consecutive
+          }
+        } else {
+          break; // No scores for previous stage
+        }
+      }
+      isDominating = consecutiveWins >= 2;
+    }
+
     console.log('Generating Jeff commentary:', {
       stageName: stage?.name,
       winnerName,
@@ -649,7 +670,8 @@ const FirstContactView = {
       isThreeTribe: this.isThreeTribe,
       overallLeaderName,
       stageWinnerIsOverallLeader,
-      isFirstStage
+      isFirstStage,
+      isDominating
     });
 
     let commentary = "";
