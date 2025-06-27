@@ -1370,10 +1370,16 @@ const FirstContactView = {
       const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
       const loserTribeKey = losers[0].tribeKey;
       
-      // Check if player tribe is among winners or losers
-      const playerIsWinner = winners.some(w => w.tribeKey === playerTribeKey);
+      console.log('Final commentary debug:', {
+        winner1Name, winner2Name, loserName,
+        playerTribeKey, loserTribeKey,
+        playerIsLoser: loserTribeKey === playerTribeKey,
+        winners: winners.map(w => ({ name: w.tribe?.name, key: w.tribeKey })),
+        losers: losers.map(l => ({ name: l.tribe?.name, key: l.tribeKey }))
+      });
       
-      if (!playerIsWinner) {
+      // Check if player tribe is the loser
+      if (loserTribeKey === playerTribeKey) {
         // Player tribe is the loser
         finalCommentary = `${winner1Name} and ${winner2Name} have won immunity! Your tribe struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
       } else {
