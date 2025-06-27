@@ -87,13 +87,29 @@ const FirstContactView = {
 
       let totalAbility = 0;
       participants.forEach(survivor => {
-        const healthFactor = ((survivor.health || 100) / 100);
-        let ability = 0;
+        // Individual health factor (0.7 to 1.0 based on health)
+        const healthFactor = 0.7 + ((survivor.health || 100) / 100) * 0.3;
+        
+        // Tribe health factor (average tribe health affects performance)
+        const tribeAvgHealth = tribe.members.reduce((sum, m) => sum + (m.health || 100), 0) / tribe.members.length;
+        const tribeHealthFactor = 0.9 + (tribeAvgHealth / 100) * 0.1;
+        
+        // Luck factor (±15% variation)
+        const luckFactor = 0.85 + Math.random() * 0.3;
+        
+        // Calculate base ability from traits (this is the main component)
+        let traitAbility = 0;
         for (let [trait, weight] of Object.entries(stage.weights)) {
-          ability += (survivor[trait] || 0) * weight * healthFactor;
+          traitAbility += (survivor[trait] || 0) * weight;
         }
+        
+        // Apply all factors: traits are most important, but modified by health and luck
+        const ability = traitAbility * healthFactor * tribeHealthFactor * luckFactor;
+        
         survivor._fc_ability = ability;
         totalAbility += ability;
+
+        console.log(`${survivor.firstName} - Traits: ${traitAbility.toFixed(2)}, Health: ${healthFactor.toFixed(2)}, Tribe Health: ${tribeHealthFactor.toFixed(2)}, Luck: ${luckFactor.toFixed(2)}, Final: ${ability.toFixed(2)}`);
 
         // Store individual performance
         this.context.survivorStagePerformances[stage.id].push({
@@ -103,11 +119,15 @@ const FirstContactView = {
           normalizedScore: ability // Will be normalized later
         });
       });
-      const maxPossible = participants.length
-        * Object.values(stage.weights).reduce((sum, w) => sum + w, 0)
-        * 100;
+      
+      // Calculate tribe score - use a more balanced approach
+      const maxPossible = participants.length * Object.values(stage.weights).reduce((sum, w) => sum + w, 0) * 10; // Scale down from 100
       const basePoints = (totalAbility / maxPossible) * 25;
-      const finalPoints = basePoints * (0.95 + Math.random() * 0.10);
+      
+      // Add a small tribe-level luck factor (±5%)
+      const tribeLuckFactor = 0.95 + Math.random() * 0.10;
+      const finalPoints = basePoints * tribeLuckFactor;
+      
       this.context.stageScores[stage.id] = this.context.stageScores[stage.id] || {};
       const tribeKey = tribe.id || tribe.name || tribe.tribeName;
       console.log(`Storing score for tribe key: ${tribeKey}, points: ${finalPoints}`);
@@ -661,7 +681,9 @@ const FirstContactView = {
       previousLeaderName = previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName || 'Unknown';
       
       // Check if the current overall leader is different from the previous leader
-      tookTheLead = previousLeaderKey !== overallLeaderKey && stageWinnerIsOverallLeader;
+      tookTheLead = previousLeaderKey !== overallLeaderKey;
+      
+      console.log(`Lead check - Previous leader: ${previousLeaderName}, Current leader: ${overallLeaderName}, Took lead: ${tookTheLead}`);
     }
 
     // Detect if a tribe is dominating (won multiple consecutive stages)
@@ -727,7 +749,11 @@ const FirstContactView = {
         // Later stages - consider overall context
         if (tookTheLead) {
           // Tribe took the lead after this stage
-          commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a turnaround! ${previousLeaderName} had been leading but now ${winnerName} is in front. The standings have completely shifted!`;
+          if (stageWinnerIsOverallLeader) {
+            commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading, but now ${winnerName} is in front!`;
+          } else {
+            commentary = `${winnerName} wins ${stageDesc}, but it's ${overallLeaderName} who takes the overall lead! The standings have completely shifted after this stage!`;
+          }
         } else if (stageWinnerIsOverallLeader) {
           if (overallWinnerRank === 0) {
             commentary = `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
