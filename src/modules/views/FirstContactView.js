@@ -665,19 +665,19 @@ const FirstContactView = {
 
   _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
     const winnerKey = getTribeKey(winner.tribe);
-    const loserKey  = getTribeKey(loser.tribe);
+    const loserKey = getTribeKey(loser.tribe);
     const playerKey = getTribeKey(this.playerTribe);
 
     const winnerName = winner?.tribe?.name || winner?.tribe?.tribeName || 'Unknown Tribe';
     const loserName = loser?.tribe?.name || loser?.tribe?.tribeName || 'Unknown Tribe';
     const playerName = this.playerTribe?.name || this.playerTribe?.tribeName || 'Your Tribe';
     const stageDesc = stage.description;
-    const isFirst   = this.stageIndex === 0;
+    const isFirst = this.stageIndex === 0;
 
     // Build overall standings
     const overallStandings = Object.entries(this.context.totalScores)
-      .sort(([,a],[,b])=>b-a)
-      .map(([tribeKey,score])=>({ tribeKey, score }));
+      .sort(([,a],[,b]) => b - a)
+      .map(([tribeKey, score]) => ({ tribeKey, score }));
 
     const overallLeaderKey = overallStandings[0]?.tribeKey;
 
@@ -687,18 +687,11 @@ const FirstContactView = {
       arr.filter(s => Math.abs(s - score) < 0.01).length > 1
     );
 
-    // Check for overall ties
-    const overallHasTies = overallStandings.some((standing, i, arr) => 
-      i > 0 && Math.abs(standing.score - arr[i-1].score) < 0.01
-    );
-
-    // --- Fixed: detect losing streak and breaks ---
+    // Fixed losing streak detection
     let lossStreakInfo = null;
     if (this.stageIndex >= 2) {
       let consecutiveLosses = 0;
-      let hadStreak = false;
       
-      // Check backwards from previous stage to see how many losses in a row
       for (let i = this.stageIndex - 1; i >= 0; i--) {
         const prevStage = this.stages[i];
         const prevScores = this.context.stageScores[prevStage.id] || {};
@@ -713,9 +706,7 @@ const FirstContactView = {
         }
       }
       
-      hadStreak = consecutiveLosses >= 2;
-      
-      // Current stage winners
+      const hadStreak = consecutiveLosses >= 2;
       const currentWinners = this.isThreeTribe ? 
         sorted.slice(0, 2).map(s => getTribeKey(s.tribe)) :
         [winnerKey];
@@ -729,12 +720,10 @@ const FirstContactView = {
       }
     }
 
-    // --- Fixed: improve tookTheLead logic with rank comparison ---
+    // Fixed took the lead logic
     let tookTheLead = false;
     let previousLeaderName = '';
-    let rankChangeInfo = null;
     if (this.stageIndex >= 1) {
-      // Get previous overall standings (before this stage)
       const previousTotalScores = {};
       Object.keys(this.context.totalScores).forEach(tribeKey => {
         const currentStageScore = this.context.stageScores[stage.id][tribeKey] || 0;
@@ -750,7 +739,6 @@ const FirstContactView = {
           tribeKey 
         }));
 
-      // Find previous and current ranks for the stage winner
       const previousRank = previousStandings.findIndex(s => s.tribeKey === winnerKey);
       const currentRank = overallStandings.findIndex(s => s.tribeKey === winnerKey);
       
@@ -758,17 +746,9 @@ const FirstContactView = {
         tookTheLead = true;
         previousLeaderName = previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName || 'Unknown';
       }
-      
-      if (previousRank !== currentRank) {
-        rankChangeInfo = { 
-          previousRank: previousRank + 1, 
-          currentRank: currentRank + 1,
-          previousLeader: previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName
-        };
-      }
     }
 
-    // --- Fixed: standout logic for 3-tribe mode ---
+    // Fixed standout logic for 3-tribe mode
     let standout = false;
     if (this.stageIndex > 0) {
       let topFinishes = 0;
@@ -777,29 +757,21 @@ const FirstContactView = {
         const stageSorted = Object.entries(stageScores).sort(([,a],[,b]) => b - a);
         
         if (this.isThreeTribe) {
-          // In 3-tribe mode, check if tribe finished in top 2
           const topTwo = stageSorted.slice(0, 2).map(([key]) => key);
           if (topTwo.includes(winnerKey)) topFinishes++;
         } else {
-          // In 2-tribe mode, check if tribe won
           if (stageSorted[0] && stageSorted[0][0] === winnerKey) topFinishes++;
         }
       }
       standout = topFinishes === (this.stageIndex + 1);
     }
 
-    // --- New: detect big jump ---
-    let bigJump = false;
-    if (rankChangeInfo && rankChangeInfo.previousRank >= 3 && rankChangeInfo.currentRank === 1) {
-      bigJump = true;
-    }
-
-    // --- New: find MVP for this stage ---
+    // Find MVP for this stage
     let mvpInfo = null;
     const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
     if (stagePerfs.length > 0) {
-      const topPerformer = stagePerfs[0]; // Already sorted by performance
-      if (topPerformer && topPerformer.normalizedScore > 85) { // Only if they performed exceptionally well
+      const topPerformer = stagePerfs[0];
+      if (topPerformer && topPerformer.normalizedScore > 85) {
         mvpInfo = {
           name: topPerformer.survivor.firstName,
           tribe: topPerformer.tribe?.name || topPerformer.tribe?.tribeName,
@@ -808,175 +780,93 @@ const FirstContactView = {
       }
     }
 
-    // Begin building commentary
+    // Build commentary - keep it concise
     let commentary = "";
-
-    // Handle loss streak information
-    if (lossStreakInfo) {
-      if (lossStreakInfo.type === 'break') {
-        commentary += `That win breaks a ${lossStreakInfo.count}-stage losing streak for ${winnerName}! `;
-      } else if (lossStreakInfo.type === 'continue') {
-        commentary += `${winnerName} extends their losing streak to ${lossStreakInfo.count} stages! `;
-      }
-    }
 
     // Handle ties first
     if (stageHasTies) {
       const tiedTribes = Object.entries(this.context.stageScores[stage.id])
         .filter(([,score]) => Math.abs(score - winner.score) < 0.01)
-        .map(([key]) => this.allTribes.find(t => getTribeKey(t) === key)?.name || getTribeKey(t));
+        .map(([key]) => this.allTribes.find(t => getTribeKey(t) === key)?.name || key);
       
-      if (tiedTribes.length === 2) {
-        commentary += `It's a dead tie in ${stageDesc}! ${tiedTribes.join(' and ')} are completely even! `;
-      } else if (tiedTribes.length > 2) {
-        commentary += `Incredible three-way tie in ${stageDesc}! All tribes are dead even! `;
+      commentary += `Dead tie! ${tiedTribes.join(' and ')} are completely even! `;
+      return commentary.trim();
+    }
+
+    // Loss streak info
+    if (lossStreakInfo) {
+      if (lossStreakInfo.type === 'break') {
+        commentary += `${winnerName} breaks their ${lossStreakInfo.count}-stage losing streak! `;
+      } else {
+        commentary += `${winnerName} now has ${lossStreakInfo.count} losses in a row! `;
       }
     }
 
-    // Base two-tribe vs three-tribe logic (enhanced)
+    // Main result commentary
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
       const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
 
-      // Find overall positions
-      const overallStandings2 = Object.entries(this.context.totalScores)
-        .sort(([,a],[,b]) => b - a)
-        .map(([tribeKey, score]) => ({ 
-          tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
-          score,
-          tribeKey 
-        }));
-
-      const stageWinnerKey = winner?.tribe?.id || winner?.tribe?.name || winner?.tribe?.tribeName;
-      const overallWinnerRank = overallStandings2.findIndex(s => s.tribeKey === stageWinnerKey);
-      const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
-
       if (isFirst) {
-        // First stage - focus on stage performance
-        if (!stageHasTies) {
-          if (isClose) {
-            commentary += `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
+        if (isClose) {
+          commentary += `All three tribes neck and neck! ${winnerName} edges out ${middleName} and ${loserName}.`;
+        } else {
+          if (playerRank === 0) {
+            commentary += `${winnerName} dominates ${stage.name}! Strong start for your tribe.`;
+          } else if (playerRank === 1) {
+            commentary += `${winnerName} leads, ${playerName} second, ${loserName} struggling.`;
           } else {
-            if (playerRank === 0) {
-              commentary += `${winnerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
-            } else if (playerRank === 1) {
-              commentary += `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
-            } else {
-              commentary += `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
-            }
+            commentary += `${winnerName} crushes it! Your tribe in serious trouble.`;
           }
         }
       } else {
-        // Later stages - consider overall context
-        if (tookTheLead && !stageHasTies) {
-          commentary += `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading, but now ${winnerName} is in front!`;
-        } else if (stageWinnerIsOverallLeader && !stageHasTies) {
-          if (overallWinnerRank === 0) {
-            commentary += `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
-          }
-        } else if (!stageHasTies) {
-          // Stage winner is not overall leader - comeback story
-          if (overallWinnerRank === 1) {
-            commentary += `${winnerName} wins ${stageDesc} and closes the gap on overall leader ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}! This challenge is far from over - ${winnerName} is making their move!`;
-          } else if (overallWinnerRank === 2) {
-            commentary += `${winnerName} makes a huge comeback in ${stageDesc}! They're fighting their way back from last place, but will it be enough to catch ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}? Every second counts now!`;
-          }
+        if (tookTheLead) {
+          commentary += `${winnerName} wins and takes the overall lead! What a comeback!`;
+        } else if (winnerKey === overallLeaderKey) {
+          commentary += `${winnerName} extends their lead! ${middleName} and ${loserName} falling behind.`;
+        } else {
+          commentary += `${winnerName} wins and closes the gap on the leader!`;
         }
-
-        // Add context about player tribe's situation
-        if (playerRank !== 0 && !stageHasTies) {
-          const playerOverallRank = overallStandings2.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
-          if (playerOverallRank === 2) {
-            commentary += ` ${playerName}, you're in last place overall - you need to turn this around immediately!`;
-          } else if (playerOverallRank === 1 && overallStandings2[0].score - overallStandings2[1].score > 1.5) {
-            commentary += ` ${playerName}, you're falling behind ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName} - time is running out!`;
-          }
-        }
-      }
-
-      // Special achievements
-      if (bigJump && !stageHasTies) {
-        commentary += ` Unbelievable comeback by ${winnerName}! From behind to first in a single stage—spectacular!`;
-      }
-      if (standout) {
-        commentary += ` ${winnerName} has been in the top 2 every single stage—dominant performance!`;
       }
     } else {
       // Two tribe scenario
-      const overallStandings2 = Object.entries(this.context.totalScores)
-        .sort(([,a],[,b]) => b - a)
-        .map(([tribeKey, score]) => ({ 
-          tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
-          score,
-          tribeKey 
-        }));
-
       if (isFirst) {
-        // First stage - focus on stage performance
-        if (!stageHasTies) {
-          if (isClose) {
-            commentary += `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
+        if (isClose) {
+          commentary += `Incredible battle! ${winnerName} barely edges out ${loserName}.`;
+        } else {
+          if (playerRank === 0) {
+            commentary += `Your tribe destroys ${loserName}! Complete domination!`;
           } else {
-            if (playerRank === 0) {
-              commentary += `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
-            } else {
-              commentary += `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}! If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
-            }
+            commentary += `${winnerName} takes command! You're in trouble!`;
           }
         }
       } else {
-        // Later stages - consider overall context
-        const overallGap = Math.abs(overallStandings2[0].score - overallStandings2[1].score);
-        const isCloseOverall = overallGap < 2.0;
-        const stageWinnerIsOverallLeader = winnerKey === overallLeaderKey;
-
-        if (stageWinnerIsOverallLeader && !stageHasTies) {
-          if (isCloseOverall) {
-            commentary += `${winnerName} maintains their overall lead with a win in ${stageDesc}! But ${loserName} is still right there - this challenge could go either way!`;
-          } else {
-            commentary += `${winnerName} extends their commanding overall lead! They dominate ${stageDesc} while ${loserName} continues to struggle. This is looking like a runaway!`;
-          }
-        } else if (!stageHasTies) {
-          // Comeback situation
-          if (tookTheLead) {
-            commentary += `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading but now ${winnerName} is in front. Everything has changed!`;
-          } else if (isCloseOverall) {
-            commentary += `${winnerName} wins ${stageDesc} and closes the gap significantly! They're making up ground on ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}. This challenge is getting tight!`;
-          } else {
-            commentary += `${winnerName} wins ${stageDesc} and makes up significant ground! They're fighting back from a big deficit against ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}. Can they complete the comeback?`;
-          }
-        }
-
-        // Add player-specific context
-        if (playerRank !== 0 && !isCloseOverall && !stageHasTies) {
-          const playerOverallRank = overallStandings2.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
-          if (playerOverallRank === 1) {
-            commentary += ` ${playerName}, you're in serious trouble - you need something special in the remaining stages!`;
-          }
+        if (tookTheLead) {
+          commentary += `${winnerName} wins and takes the lead! Everything's changed!`;
+        } else if (winnerKey === overallLeaderKey) {
+          commentary += `${winnerName} extends their lead! ${loserName} in trouble.`;
+        } else {
+          commentary += `${winnerName} wins and closes the gap!`;
         }
       }
+    }
 
-      if (bigJump && !stageHasTies) {
-        commentary += ` What a turnaround! ${winnerName} leaps from trailing to leading in one fell swoop!`;
-      }
-      if (standout) {
-        commentary += ` ${winnerName} is undefeated so far—can anyone stop them?`;
-      }
+    // Special achievements
+    if (standout) {
+      commentary += ` ${winnerName} has been dominant every stage!`;
     }
 
     // MVP callout
-    if (mvpInfo && !stageHasTies) {
-      commentary += ` ${mvpInfo.name} was absolutely dominant in this stage!`;
+    if (mvpInfo) {
+      commentary += ` ${mvpInfo.name} was a beast!`;
     }
 
-    // Handle overall ties
-    if (overallHasTies && !isFirst) {
-      commentary += ` We have a tie in the overall standings - this challenge couldn't be closer!`;
-    }
-
-    // Finally, always append player-specific note if needed
-    if (playerRank !== 0 && !isFirst && !stageHasTies) {
-      commentary += ` Heads up, Your Tribe—you're not on top. Time to dig deep in the next round!`;
+    // Player-specific warning (fix grammar)
+    if (playerRank !== 0 && !isFirst) {
+      const playerOverallRank = overallStandings.findIndex(s => s.tribeKey === playerKey);
+      if (playerOverallRank === (this.isThreeTribe ? 2 : 1)) {
+        commentary += ` You're in last place - turn this around now!`;
+      }
     }
 
     return commentary.trim();
@@ -985,90 +875,163 @@ const FirstContactView = {
   _createJeffParchment(text, onNext) {
     console.log('Creating Jeff parchment with text:', text);
 
-    // Parchment wrapper positioned absolutely within the container
-    const parchmentWrapper = createElement('div', {
-      style: `
-        position: absolute;
-        top: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 100%;
-        max-width: 320px;
-        z-index: 1000;
-      `
-    });
-
-    const parchment = createElement('img', {
-      src: 'Assets/parch-landscape.png',
-      style: `
-        width: 100%;
-        max-width: 320px;
-        max-height: 180px;
-        display: block;
-        margin: 0 auto;
-        z-index: 1001;
-        position: relative;
-      `
-    });
-
-    // Text positioned absolutely on top of the parchment
-    const jeffTextElement = createElement('div', {
-      className: 'parchment-text',
-      style: `
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 80%;
-        max-width: 260px;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 0.85rem;
-        font-weight: bold;
-        line-height: 1.2;
-        text-align: center;
-        text-shadow: 0 1px 0 #000, 0 2px 0 #000, 0 3px 0 #000, 0 4px 4px rgba(0,0,0,0.5);
-        z-index: 1002;
-        white-space: pre-line;
-      `
-    }, text);
-
-    parchmentWrapper.append(parchment, jeffTextElement);
-
-    // Next button positioned at bottom center of the game container
-    const nextButton = createElement('button', {
-      style: `
-        position: absolute;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1003;
-        width: 130px;
-        height: 60px;
-        background: url('Assets/rect-button.png') center/cover no-repeat;
-        border: none;
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 1.15rem;
-        font-weight: bold;
-        text-shadow: 1px 1px 2px black;
-        padding: 0;
-        cursor: pointer;
-      `,
-      onclick: (e) => {
-        console.log('Jeff parchment next button clicked');
-        e.preventDefault();
-        e.stopPropagation();
-        if (typeof onNext === 'function') {
-          onNext();
+    // Split text if it's too long (more than 150 characters)
+    const maxLength = 150;
+    let textParts = [];
+    
+    if (text.length <= maxLength) {
+      textParts = [text];
+    } else {
+      // Split by sentences first, then by character limit
+      const sentences = text.match(/[^\.!?]+[\.!?]+/g) || [text];
+      let currentPart = '';
+      
+      for (let sentence of sentences) {
+        if ((currentPart + sentence).length <= maxLength) {
+          currentPart += sentence;
         } else {
-          console.error('onNext callback is not a function:', onNext);
+          if (currentPart) {
+            textParts.push(currentPart.trim());
+            currentPart = sentence;
+          } else {
+            // If single sentence is too long, force split
+            textParts.push(sentence.substring(0, maxLength).trim());
+            currentPart = sentence.substring(maxLength);
+          }
         }
       }
-    }, 'Next');
+      
+      if (currentPart) {
+        textParts.push(currentPart.trim());
+      }
+    }
 
-    console.log('Appending parchment wrapper and next button to container');
-    this.container.append(parchmentWrapper, nextButton);
+    console.log('Text split into parts:', textParts.length, textParts);
+
+    let currentPartIndex = 0;
+
+    const showParchmentPart = () => {
+      // Clear existing parchment content
+      const existingParchments = this.container.querySelectorAll('.jeff-parchment-wrapper');
+      existingParchments.forEach(p => p.remove());
+
+      const currentText = textParts[currentPartIndex];
+      const isLastPart = currentPartIndex === textParts.length - 1;
+
+      // Parchment wrapper positioned absolutely within the container
+      const parchmentWrapper = createElement('div', {
+        className: 'jeff-parchment-wrapper',
+        style: `
+          position: absolute;
+          top: 30px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 100%;
+          max-width: 320px;
+          z-index: 1000;
+        `
+      });
+
+      const parchment = createElement('img', {
+        src: 'Assets/parch-landscape.png',
+        style: `
+          width: 100%;
+          max-width: 320px;
+          max-height: 180px;
+          display: block;
+          margin: 0 auto;
+          z-index: 1001;
+          position: relative;
+        `
+      });
+
+      // Text positioned absolutely on top of the parchment
+      const jeffTextElement = createElement('div', {
+        className: 'parchment-text',
+        style: `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 80%;
+          max-width: 260px;
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 0.85rem;
+          font-weight: bold;
+          line-height: 1.2;
+          text-align: center;
+          text-shadow: 0 1px 0 #000, 0 2px 0 #000, 0 3px 0 #000, 0 4px 4px rgba(0,0,0,0.5);
+          z-index: 1002;
+          white-space: pre-line;
+        `
+      }, currentText);
+
+      // Add part indicator if multiple parts
+      if (textParts.length > 1) {
+        const partIndicator = createElement('div', {
+          style: `
+            position: absolute;
+            bottom: 5px;
+            right: 15px;
+            color: #f39c12;
+            font-family: 'Survivant', sans-serif;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            z-index: 1003;
+          `
+        }, `${currentPartIndex + 1}/${textParts.length}`);
+        parchmentWrapper.appendChild(partIndicator);
+      }
+
+      parchmentWrapper.append(parchment, jeffTextElement);
+
+      // Next button positioned at bottom center of the game container
+      const nextButton = createElement('button', {
+        style: `
+          position: absolute;
+          bottom: 40px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 1003;
+          width: 130px;
+          height: 60px;
+          background: url('Assets/rect-button.png') center/cover no-repeat;
+          border: none;
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-size: 1.15rem;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px black;
+          padding: 0;
+          cursor: pointer;
+        `,
+        onclick: (e) => {
+          console.log('Jeff parchment next button clicked');
+          e.preventDefault();
+          e.stopPropagation();
+          
+          if (isLastPart) {
+            // Last part, proceed to next stage
+            if (typeof onNext === 'function') {
+              onNext();
+            } else {
+              console.error('onNext callback is not a function:', onNext);
+            }
+          } else {
+            // Show next part
+            currentPartIndex++;
+            showParchmentPart();
+          }
+        }
+      }, isLastPart ? 'Next' : 'Continue');
+
+      console.log('Appending parchment wrapper and next button to container');
+      this.container.append(parchmentWrapper, nextButton);
+    };
+
+    showParchmentPart();
 
     // Force a repaint to ensure elements are visible
     setTimeout(() => {
