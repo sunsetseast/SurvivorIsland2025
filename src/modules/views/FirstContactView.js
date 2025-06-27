@@ -639,30 +639,6 @@ const FirstContactView = {
     const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
     const isFirstStage = this.stageIndex === 0;
 
-    // Check if there was a lead change by comparing previous overall standings
-    let leadChanged = false;
-    let previousLeaderName = '';
-    if (!isFirstStage && this.stageIndex > 0) {
-      // Calculate what the standings were before this stage
-      const previousStandings = Object.entries(this.context.totalScores)
-        .map(([tribeKey, totalScore]) => {
-          const currentStageScore = this.context.stageScores[stage.id][tribeKey] || 0;
-          const previousTotal = totalScore - currentStageScore;
-          return {
-            tribeKey,
-            tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey),
-            previousTotal
-          };
-        })
-        .sort(([,a],[,b]) => b.previousTotal - a.previousTotal);
-
-      const previousLeader = previousStandings[0];
-      const previousLeaderKey = previousLeader?.tribe?.id || previousLeader?.tribe?.name || previousLeader?.tribe?.tribeName;
-      previousLeaderName = previousLeader?.tribe?.name || previousLeader?.tribe?.tribeName || 'Unknown';
-      
-      leadChanged = previousLeaderKey !== overallLeaderKey;
-    }
-
     // Detect if a tribe is dominating (won multiple consecutive stages)
     let isDominating = false;
     if (this.stageIndex > 0) {
@@ -695,9 +671,7 @@ const FirstContactView = {
       overallLeaderName,
       stageWinnerIsOverallLeader,
       isFirstStage,
-      isDominating,
-      leadChanged,
-      previousLeaderName
+      isDominating
     });
 
     let commentary = "";
@@ -725,14 +699,8 @@ const FirstContactView = {
           }
         }
       } else {
-        // Later stages - consider overall context and lead changes
-        if (leadChanged && stageWinnerIsOverallLeader) {
-          // New leader has emerged
-          commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a turnaround! ${previousLeaderName} had been in control, but ${winnerName} has seized command of this challenge!`;
-        } else if (isDominating && stageWinnerIsOverallLeader) {
-          // Tribe is dominating
-          commentary = `${winnerName} is absolutely dominating this challenge! They win ${stageDesc} and extend their commanding overall lead. ${middleName} and ${loserName} are struggling to keep pace with this dominant performance!`;
-        } else if (stageWinnerIsOverallLeader) {
+        // Later stages - consider overall context
+        if (stageWinnerIsOverallLeader) {
           if (overallWinnerRank === 0) {
             commentary = `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
           }
@@ -769,26 +737,20 @@ const FirstContactView = {
           }
         }
       } else {
-        // Later stages - consider overall context and lead changes
+        // Later stages - consider overall context
         const overallGap = Math.abs(overallStandings[0].score - overallStandings[1].score);
         const isCloseOverall = overallGap < 2.0;
 
-        if (leadChanged && stageWinnerIsOverallLeader) {
-          // Lead change occurred
-          commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading but now they're behind. Everything has changed!`;
-        } else if (isDominating && stageWinnerIsOverallLeader) {
-          // Tribe is dominating
-          commentary = `${winnerName} is absolutely dominating this challenge! They win ${stageDesc} and extend their commanding overall lead. This is looking like complete dominance!`;
-        } else if (stageWinnerIsOverallLeader) {
+        if (stageWinnerIsOverallLeader) {
           if (isCloseOverall) {
             commentary = `${winnerName} maintains their overall lead with a win in ${stageDesc}! But ${loserName} is still right there - this challenge could go either way!`;
           } else {
             commentary = `${winnerName} extends their commanding overall lead! They dominate ${stageDesc} while ${loserName} continues to struggle. This is looking like a runaway!`;
           }
         } else {
-          // Comeback situation but no lead change yet
+          // Comeback situation
           if (isCloseOverall) {
-            commentary = `${winnerName} wins ${stageDesc} and closes the gap significantly! ${overallLeaderName} still leads overall but barely - ${winnerName} is right on their heels!`;
+            commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${loserName} had been leading but now they're behind. Everything has changed!`;
           } else {
             commentary = `${winnerName} wins ${stageDesc} and makes up significant ground! They're fighting back from a big deficit against ${overallLeaderName}. Can they complete the comeback?`;
           }
@@ -966,8 +928,6 @@ const FirstContactView = {
   },
 
   _createFallbackSummary(stage) {
-    console.log(`Creating fallback summary for stage: ${stage.name}, current stage index: ${this.stageIndex}`);
-    
     const wrapper = createElement('div', {
       style: `
         position: absolute;
@@ -1055,7 +1015,6 @@ const FirstContactView = {
       standingsContainer.appendChild(rankingDiv);
     });
 
-    const isLastStage = this.stageIndex >= this.stages.length - 1;
     const nextBtn = createElement('button', {
       style: `
         width: 140px;
@@ -1069,16 +1028,11 @@ const FirstContactView = {
         cursor: pointer;
       `,
       onclick: () => {
-        console.log(`Fallback next button clicked, advancing from stage ${this.stageIndex}, isLastStage: ${isLastStage}`);
-        if (isLastStage) {
-          // Go directly to final Jeff commentary and results
-          this._showFinalResults();
-        } else {
-          this.stageIndex++;
-          this.runNextStage();
-        }
+        console.log(`Fallback next button clicked, advancing from stage ${this.stageIndex}`);
+        this.stageIndex++;
+        this.runNextStage();
       }
-    }, isLastStage ? 'Final Results' : 'Next Stage');
+    }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Final Results');
 
     wrapper.append(title, standingsContainer, nextBtn);
     this.container.appendChild(wrapper);
@@ -1244,7 +1198,6 @@ const FirstContactView = {
     }
 
     // Next button - positioned within the wrapper so it scrolls with content
-    const isLastStage = this.stageIndex >= this.stages.length - 1;
     const nextBtn = createElement('button', {
       style: `
         width: 140px;
@@ -1264,14 +1217,9 @@ const FirstContactView = {
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`Next button clicked, advancing from stage ${this.stageIndex}, isLastStage: ${isLastStage}`);
-        if (isLastStage) {
-          // Go directly to final Jeff commentary and results
-          this._showFinalResults();
-        } else {
-          this.stageIndex++;
-          this.runNextStage();
-        }
+        console.log(`Next button clicked, advancing from stage ${this.stageIndex}`);
+        this.stageIndex++;
+        this.runNextStage();
       },
       onmouseover: (e) => {
         e.target.style.transform = 'scale(1.05)';
@@ -1279,7 +1227,7 @@ const FirstContactView = {
       onmouseout: (e) => {
         e.target.style.transform = 'scale(1)';
       }
-    }, isLastStage ? 'Final Results' : 'Next Stage');
+    }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Final Results');
 
     wrapper.appendChild(nextBtn);
     scrollContainer.appendChild(wrapper);
