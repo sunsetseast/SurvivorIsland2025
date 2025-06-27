@@ -966,6 +966,8 @@ const FirstContactView = {
   },
 
   _createFallbackSummary(stage) {
+    console.log(`Creating fallback summary for stage: ${stage.name}, current stage index: ${this.stageIndex}`);
+    
     const wrapper = createElement('div', {
       style: `
         position: absolute;
@@ -1053,6 +1055,7 @@ const FirstContactView = {
       standingsContainer.appendChild(rankingDiv);
     });
 
+    const isLastStage = this.stageIndex >= this.stages.length - 1;
     const nextBtn = createElement('button', {
       style: `
         width: 140px;
@@ -1066,11 +1069,16 @@ const FirstContactView = {
         cursor: pointer;
       `,
       onclick: () => {
-        console.log(`Fallback next button clicked, advancing from stage ${this.stageIndex}`);
-        this.stageIndex++;
-        this.runNextStage();
+        console.log(`Fallback next button clicked, advancing from stage ${this.stageIndex}, isLastStage: ${isLastStage}`);
+        if (isLastStage) {
+          // Go directly to final Jeff commentary and results
+          this._showFinalResults();
+        } else {
+          this.stageIndex++;
+          this.runNextStage();
+        }
       }
-    }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Final Results');
+    }, isLastStage ? 'Final Results' : 'Next Stage');
 
     wrapper.append(title, standingsContainer, nextBtn);
     this.container.appendChild(wrapper);
@@ -1236,6 +1244,7 @@ const FirstContactView = {
     }
 
     // Next button - positioned within the wrapper so it scrolls with content
+    const isLastStage = this.stageIndex >= this.stages.length - 1;
     const nextBtn = createElement('button', {
       style: `
         width: 140px;
@@ -1255,9 +1264,14 @@ const FirstContactView = {
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`Next button clicked, advancing from stage ${this.stageIndex}`);
-        this.stageIndex++;
-        this.runNextStage();
+        console.log(`Next button clicked, advancing from stage ${this.stageIndex}, isLastStage: ${isLastStage}`);
+        if (isLastStage) {
+          // Go directly to final Jeff commentary and results
+          this._showFinalResults();
+        } else {
+          this.stageIndex++;
+          this.runNextStage();
+        }
       },
       onmouseover: (e) => {
         e.target.style.transform = 'scale(1.05)';
@@ -1265,7 +1279,7 @@ const FirstContactView = {
       onmouseout: (e) => {
         e.target.style.transform = 'scale(1)';
       }
-    }, this.stageIndex < this.stages.length - 1 ? 'Next Stage' : 'Final Results');
+    }, isLastStage ? 'Final Results' : 'Next Stage');
 
     wrapper.appendChild(nextBtn);
     scrollContainer.appendChild(wrapper);
