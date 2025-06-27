@@ -1314,7 +1314,16 @@ const FirstContactView = {
 
     const winners = sortedTribes.slice(0, this.isThreeTribe ? 2 : 1);
     const losers = sortedTribes.slice(this.isThreeTribe ? 2 : 1);
-    const winnerNames = winners.map(t => t.tribe.name || t.tribe.tribeName).join(' and ');
+    
+    // Check if player tribe is among winners and replace with "Your tribe"
+    const winnerNames = winners.map(w => {
+      const tribeKey = w.tribe.id || w.tribe.name || w.tribe.tribeName;
+      const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
+      if (tribeKey === playerTribeKey) {
+        return 'Your tribe';
+      }
+      return w.tribe.name || w.tribe.tribeName;
+    }).join(' and ');
     
     // Mark immunity status for all tribes
     this.allTribes.forEach(tribe => {
@@ -1367,8 +1376,10 @@ const FirstContactView = {
       perf.threatChange = `+${adjustment} threat`;
     });
 
+    // For bottom performers, reverse the order so worst gets highest penalty
     bottomPerformers.forEach((perf, index) => {
-      const adjustment = threatAdjustments[index] || 0;
+      const reverseIndex = bottomPerformers.length - 1 - index; // Reverse the index
+      const adjustment = threatAdjustments[reverseIndex] || 0;
       perf.survivor.threat = Math.max(0, (perf.survivor.threat || 5) - adjustment);
       perf.threatChange = `-${adjustment} threat`;
     });
