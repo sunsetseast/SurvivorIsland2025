@@ -3,6 +3,13 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 
+/**
+ * Helper to get a consistent tribe key
+ */
+function getTribeKey(tribe) {
+  return tribe.id ?? tribe.name ?? tribe.tribeName;
+}
+
 const FirstContactView = {
   render(container, config = {}) {
     this.container = container;
@@ -71,36 +78,33 @@ const FirstContactView = {
   },
 
   _calculateStage(stage) {
-    console.log(`Calculating stage: ${stage.name} with ID: ${stage.id}`);
+    console.log(`Calculating stage: ${stage.id}`);
 
-    // Store individual survivor performances for this stage
+    // Initialize storage
     this.context.survivorStagePerformances[stage.id] = [];
 
     this.allTribes.forEach(tribe => {
-      console.log(`Processing tribe:`, tribe);
-      console.log(`Tribe properties:`, Object.keys(tribe));
-      const tribeName = tribe.name || tribe.tribeName || `Tribe-${tribe.id}`;
+      const tribeKey = getTribeKey(tribe);
+      const participants = tribe.members.filter(s => s.roles?.includes(stage.id));
 
-      const participants = tribe.members.filter(s => s.roles && s.roles.includes(stage.id));
-      console.log(`${tribeName} participants for ${stage.id}:`, participants.map(p => p.firstName));
-      console.log(`All tribe member roles for ${tribeName}:`, tribe.members.map(m => `${m.firstName}: ${m.roles}`));
+      // ⚠️ Fallback for missing assignments
+      if (participants.length === 0) {
+        console.warn(`No participants for stage '${stage.id}' in tribe '${tribeKey}'`);
+      }
 
+      console.log(`${tribeKey} participants for ${stage.id}:`, participants.map(p => p.firstName));
+
+      // Compute totalAbility
       let totalAbility = 0;
       participants.forEach(survivor => {
-        // Individual health factor (0.7 to 1.0 based on health)
-        const healthFactor = 0.7 + ((survivor.health || 100) / 100) * 0.3;
-        
-        // Tribe health factor (average tribe health affects performance)
-        const tribeAvgHealth = tribe.members.reduce((sum, m) => sum + (m.health || 100), 0) / tribe.members.length;
-        const tribeHealthFactor = 0.9 + (tribeAvgHealth / 100) * 0.1;
-        
-        // Luck factor (±25% variation)
-        const luckFactor = 0.75 + Math.random() * 0.5;
-        
-        // Calculate base ability from traits (this is the main component)
+        const healthFactor     = 0.7 + ((survivor.health ?? 100) / 100) * 0.3;
+        const tribeAvgHealth   = tribe.members.reduce((sum,m)=>sum+(m.health??100),0)/tribe.members.length;
+        const tribeHealthFactor= 0.9 + (tribeAvgHealth/100)*0.1;
+        const luckFactor       = 0.75 + Math.random()*0.5;
+
         let traitAbility = 0;
         for (let [trait, weight] of Object.entries(stage.weights)) {
-          traitAbility += (survivor[trait] || 0) * weight;
+          traitAbility += (survivor[trait] ?? 0) * weight;
         }
         
         // Apply all factors: traits are most important, but modified by health and luck
@@ -111,42 +115,34 @@ const FirstContactView = {
 
         console.log(`${survivor.firstName} - Traits: ${traitAbility.toFixed(2)}, Health: ${healthFactor.toFixed(2)}, Tribe Health: ${tribeHealthFactor.toFixed(2)}, Luck: ${luckFactor.toFixed(2)}, Final: ${ability.toFixed(2)}`);
 
-        // Store individual performance
         this.context.survivorStagePerformances[stage.id].push({
           survivor,
           tribe,
           ability,
-          normalizedScore: ability // Will be normalized later
+          normalizedScore: ability
         });
       });
       
-      // Calculate tribe score - use a more balanced approach
-      const maxPossible = participants.length * Object.values(stage.weights).reduce((sum, w) => sum + w, 0) * 10; // Scale down from 100
-      const basePoints = (totalAbility / maxPossible) * 25;
-      
-      // Add a tribe-level luck factor (±10%)
-      const tribeLuckFactor = 0.90 + Math.random() * 0.20;
-      const finalPoints = basePoints * tribeLuckFactor;
-      
-      this.context.stageScores[stage.id] = this.context.stageScores[stage.id] || {};
-      const tribeKey = tribe.id || tribe.name || tribe.tribeName;
-      console.log(`Storing score for tribe key: ${tribeKey}, points: ${finalPoints}`);
+      // Scale tribe score
+      const maxPossible = participants.length * Object.values(stage.weights).reduce((a,b)=>a+b,0) * 10;
+      const basePoints  = maxPossible > 0 ? (totalAbility / maxPossible) * 25 : 0;
+      const tribeLuck   = 0.90 + Math.random()*0.20;
+      const finalPoints = basePoints * tribeLuck;
+
+      this.context.stageScores[stage.id]      = this.context.stageScores[stage.id] || {};
       this.context.stageScores[stage.id][tribeKey] = finalPoints;
-      this.context.totalScores[tribeKey] = (this.context.totalScores[tribeKey] || 0) + finalPoints;
+      this.context.totalScores[tribeKey]      = (this.context.totalScores[tribeKey] || 0) + finalPoints;
     });
 
-    // Normalize individual scores for ranking
-    const stagePerfs = this.context.survivorStagePerformances[stage.id];
-    if (stagePerfs && stagePerfs.length > 0) {
-      const maxAbility = Math.max(...stagePerfs.map(p => p.ability));
-      stagePerfs.forEach(perf => {
-        perf.normalizedScore = (perf.ability / maxAbility) * 100;
-      });
-      stagePerfs.sort((a, b) => b.normalizedScore - a.normalizedScore);
-      console.log(`Stage ${stage.id} performances stored:`, stagePerfs.length);
-    } else {
-      console.warn(`No performances found for stage ${stage.id}`);
-    }
+    // Normalize individual performances, with divide-by-zero check
+    const perfs = this.context.survivorStagePerformances[stage.id] || [];
+    const maxAbility = perfs.length ? Math.max(...perfs.map(p=>p.ability)) : 0;
+    perfs.forEach(p => {
+      p.normalizedScore = maxAbility > 0
+        ? (p.ability / maxAbility) * 100
+        : 0;
+    });
+    perfs.sort((a,b)=>b.normalizedScore - a.normalizedScore);
   },
 
   _animateStage(stage) {
@@ -668,36 +664,58 @@ const FirstContactView = {
   },
 
   _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
+    const winnerKey = getTribeKey(winner.tribe);
+    const loserKey  = getTribeKey(loser.tribe);
+    const playerKey = getTribeKey(this.playerTribe);
+
     const winnerName = winner?.tribe?.name || winner?.tribe?.tribeName || 'Unknown Tribe';
     const loserName = loser?.tribe?.name || loser?.tribe?.tribeName || 'Unknown Tribe';
     const playerName = this.playerTribe?.name || this.playerTribe?.tribeName || 'Your Tribe';
-    const stageDesc = stage?.description || 'this challenge';
+    const stageDesc = stage.description;
+    const isFirst   = this.stageIndex === 0;
 
-    console.log('Jeff commentary debug:', {
-      winnerName,
-      loserName,
-      playerName,
-      playerRank,
-      sortedTribes: sorted.map(s => ({ name: s.tribe?.name || s.tribe?.tribeName, score: s.score }))
-    });
-
-    // Get overall standings to provide context
+    // Build overall standings
     const overallStandings = Object.entries(this.context.totalScores)
-      .sort(([,a],[,b]) => b - a)
-      .map(([tribeKey, score]) => ({ 
-        tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
-        score,
-        tribeKey 
-      }));
+      .sort(([,a],[,b])=>b-a)
+      .map(([tribeKey,score])=>({ tribeKey, score }));
 
-    // Determine if this stage changed the overall lead
-    const overallLeader = overallStandings[0];
-    const overallLeaderName = overallLeader?.tribe?.name || overallLeader?.tribe?.tribeName || 'Unknown';
-    const stageWinnerKey = winner?.tribe?.id || winner?.tribe?.name || winner?.tribe?.tribeName;
-    const overallLeaderKey = overallLeader?.tribe?.id || overallLeader?.tribe?.name || overallLeader?.tribe?.tribeName;
+    const overallLeaderKey = overallStandings[0]?.tribeKey;
 
-    const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
-    const isFirstStage = this.stageIndex === 0;
+    // --- New: detect 3 consecutive losses for winnerKey ---
+    let threeLosses = false;
+    if (this.stageIndex >= 3) {
+      let lossCount = 0;
+      for (let i = this.stageIndex - 3; i < this.stageIndex; i++) {
+        const prevStage = this.stages[i];
+        const prevScores= this.context.stageScores[prevStage.id] || {};
+        const prevWinner= Object.entries(prevScores).reduce((a,b)=>prevScores[a[0]]>prevScores[b[0]]?a:b)[0];
+        if (prevWinner !== winnerKey) lossCount++;
+      }
+      threeLosses = lossCount >= 3;
+    }
+
+    // --- New: detect last→first huge jump in this stage ---
+    let bigJump = false;
+    if (this.stageIndex > 0) {
+      const prevStage = this.stages[this.stageIndex - 1];
+      const prevPerfs = this.context.survivorStagePerformances[prevStage.id] || [];
+      const prevRankMap = Object.fromEntries(prevPerfs.map((p,i)=>[getTribeKey(p.tribe), i]));
+      const prevRank = prevRankMap[winnerKey];
+      if (prevRank > 0 && overallLeaderKey === winnerKey) {
+        bigJump = true;
+      }
+    }
+
+    // --- New: detect standout tribe (won every stage so far) ---
+    let standout = false;
+    if (this.stageIndex > 0) {
+      const wins = this.stages.slice(0, this.stageIndex + 1).filter(s => {
+        const scores = this.context.stageScores[s.id] || {};
+        const top = Object.entries(scores).reduce((a,b)=>scores[a[0]]>scores[b[0]]?a:b)[0];
+        return top === winnerKey;
+      }).length;
+      standout = wins === (this.stageIndex + 1);
+    }
 
     // Check if tribe took the lead after this stage (for stages 2-3)
     let tookTheLead = false;
@@ -724,70 +742,45 @@ const FirstContactView = {
       
       // Check if the current overall leader is different from the previous leader
       tookTheLead = previousLeaderKey !== overallLeaderKey;
-      
-      console.log(`Lead check - Previous leader key: ${previousLeaderKey}, Current leader key: ${overallLeaderKey}`);
-      console.log(`Lead check - Previous leader: ${previousLeaderName}, Current leader: ${overallLeaderName}, Took lead: ${tookTheLead}`);
-      console.log(`Previous total scores:`, previousTotalScores);
-      console.log(`Current total scores:`, this.context.totalScores);
     }
 
-    // Detect if a tribe is dominating (won multiple consecutive stages)
-    let isDominating = false;
-    if (this.stageIndex > 0) {
-      let consecutiveWins = 0;
-      for (let i = 0; i < this.stageIndex; i++) {
-        const prevStage = this.stages[i];
-        const prevScores = this.context.stageScores[prevStage.id];
-        if (prevScores) {
-          const prevWinnerKey = Object.keys(prevScores).reduce((a, b) => prevScores[a] > prevScores[b] ? a : b);
-          if (prevWinnerKey === stageWinnerKey) {
-            consecutiveWins++;
-          } else {
-            break; // Not consecutive
-          }
-        } else {
-          break; // No scores for previous stage
-        }
-      }
-      isDominating = consecutiveWins >= 2;
-    }
-
-    console.log('Generating Jeff commentary:', {
-      stageName: stage?.name,
-      winnerName,
-      loserName,
-      playerName,
-      playerRank,
-      isClose,
-      isThreeTribe: this.isThreeTribe,
-      overallLeaderName,
-      stageWinnerIsOverallLeader,
-      isFirstStage,
-      isDominating
-    });
-
+    // Begin building commentary
     let commentary = "";
 
+    // Inject the three-losses scenario
+    if (threeLosses) {
+      commentary += `Tough streak for ${winnerName}! Three stages in a row and no win—time to shake things up! `;
+    }
+
+    // Base two-tribe vs three-tribe logic (preserved from your original)
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
       const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
 
       // Find overall positions
-      const overallWinnerRank = overallStandings.findIndex(s => s.tribeKey === stageWinnerKey);
-      const overallMiddleRank = overallStandings.findIndex(s => s.tribeKey === (middle?.tribe?.id || middle?.tribe?.name || middle?.tribe?.tribeName));
-      const overallLoserRank = overallStandings.findIndex(s => s.tribeKey === (loser?.tribe?.id || loser?.tribe?.name || loser?.tribe?.tribeName));
+      const overallStandings2 = Object.entries(this.context.totalScores)
+        .sort(([,a],[,b]) => b - a)
+        .map(([tribeKey, score]) => ({ 
+          tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
+          score,
+          tribeKey 
+        }));
 
-      if (isFirstStage) {
+      const stageWinnerKey = winner?.tribe?.id || winner?.tribe?.name || winner?.tribe?.tribeName;
+      const overallWinnerRank = overallStandings2.findIndex(s => s.tribeKey === stageWinnerKey);
+      const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
+
+      if (isFirst) {
         // First stage - focus on stage performance
         if (isClose) {
-          commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
+          commentary += `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
         } else {
           if (playerRank === 0) {
-            commentary = `${winnerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
+            commentary += `${winnerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
           } else if (playerRank === 1) {
-            commentary = `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
+            commentary += `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
           } else {
-            commentary = `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
+            commentary += `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
           }
         }
       } else {
@@ -795,81 +788,109 @@ const FirstContactView = {
         if (tookTheLead) {
           // Tribe took the lead after this stage
           if (stageWinnerIsOverallLeader) {
-            commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading, but now ${winnerName} is in front!`;
+            commentary += `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading, but now ${winnerName} is in front!`;
           } else {
-            commentary = `${winnerName} wins ${stageDesc}, but it's ${overallLeaderName} who takes the overall lead! The standings have completely shifted after this stage!`;
+            commentary += `${winnerName} wins ${stageDesc}, but it's ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName} who takes the overall lead! The standings have completely shifted after this stage!`;
           }
         } else if (stageWinnerIsOverallLeader) {
           if (overallWinnerRank === 0) {
-            commentary = `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
+            commentary += `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
           }
         } else {
           // Stage winner is not overall leader - comeback story
           if (overallWinnerRank === 1) {
-            commentary = `${winnerName} wins ${stageDesc} and closes the gap on overall leader ${overallLeaderName}! This challenge is far from over - ${winnerName} is making their move!`;
+            commentary += `${winnerName} wins ${stageDesc} and closes the gap on overall leader ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}! This challenge is far from over - ${winnerName} is making their move!`;
           } else if (overallWinnerRank === 2) {
-            commentary = `${winnerName} makes a huge comeback in ${stageDesc}! They're fighting their way back from last place, but will it be enough to catch ${overallLeaderName}? Every second counts now!`;
+            commentary += `${winnerName} makes a huge comeback in ${stageDesc}! They're fighting their way back from last place, but will it be enough to catch ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}? Every second counts now!`;
           }
         }
 
         // Add context about player tribe's situation
         if (playerRank !== 0) {
-          const playerOverallRank = overallStandings.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
+          const playerOverallRank = overallStandings2.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
           if (playerOverallRank === 2) {
             commentary += ` ${playerName}, you're in last place overall - you need to turn this around immediately!`;
-          } else if (playerOverallRank === 1 && overallStandings[0].score - overallStandings[1].score > 1.5) {
-            commentary += ` ${playerName}, you're falling behind ${overallLeaderName} - time is running out!`;
+          } else if (playerOverallRank === 1 && overallStandings2[0].score - overallStandings2[1].score > 1.5) {
+            commentary += ` ${playerName}, you're falling behind ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName} - time is running out!`;
           }
         }
       }
+
+      // After that, inject bigJump and standout:
+      if (bigJump) {
+        commentary += ` Unbelievable comeback by ${winnerName}! From behind to first in a single stage—spectacular!`;
+      }
+      if (standout) {
+        commentary += ` ${winnerName} has now won every single stage—dominance personified!`;
+      }
     } else {
       // Two tribe scenario
-      if (isFirstStage) {
+      const overallStandings2 = Object.entries(this.context.totalScores)
+        .sort(([,a],[,b]) => b - a)
+        .map(([tribeKey, score]) => ({ 
+          tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
+          score,
+          tribeKey 
+        }));
+
+      if (isFirst) {
         // First stage - focus on stage performance
         if (isClose) {
-          commentary = `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
+          commentary += `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
         } else {
           if (playerRank === 0) {
-            commentary = `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
+            commentary += `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
           } else {
-            commentary = `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}! If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
+            commentary += `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}! If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
           }
         }
       } else {
         // Later stages - consider overall context
-        const overallGap = Math.abs(overallStandings[0].score - overallStandings[1].score);
+        const overallGap = Math.abs(overallStandings2[0].score - overallStandings2[1].score);
         const isCloseOverall = overallGap < 2.0;
+        const stageWinnerIsOverallLeader = winnerKey === overallLeaderKey;
 
         if (stageWinnerIsOverallLeader) {
           if (isCloseOverall) {
-            commentary = `${winnerName} maintains their overall lead with a win in ${stageDesc}! But ${loserName} is still right there - this challenge could go either way!`;
+            commentary += `${winnerName} maintains their overall lead with a win in ${stageDesc}! But ${loserName} is still right there - this challenge could go either way!`;
           } else {
-            commentary = `${winnerName} extends their commanding overall lead! They dominate ${stageDesc} while ${loserName} continues to struggle. This is looking like a runaway!`;
+            commentary += `${winnerName} extends their commanding overall lead! They dominate ${stageDesc} while ${loserName} continues to struggle. This is looking like a runaway!`;
           }
         } else {
           // Comeback situation
           if (tookTheLead) {
             // Tribe took the lead after this stage
-            commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading but now ${winnerName} is in front. Everything has changed!`;
+            commentary += `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading but now ${winnerName} is in front. Everything has changed!`;
           } else if (isCloseOverall) {
-            commentary = `${winnerName} wins ${stageDesc} and closes the gap significantly! They're making up ground on ${overallLeaderName}. This challenge is getting tight!`;
+            commentary += `${winnerName} wins ${stageDesc} and closes the gap significantly! They're making up ground on ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}. This challenge is getting tight!`;
           } else {
-            commentary = `${winnerName} wins ${stageDesc} and makes up significant ground! They're fighting back from a big deficit against ${overallLeaderName}. Can they complete the comeback?`;
+            commentary += `${winnerName} wins ${stageDesc} and makes up significant ground! They're fighting back from a big deficit against ${overallStandings2[0]?.tribe?.name || overallStandings2[0]?.tribe?.tribeName}. Can they complete the comeback?`;
           }
         }
 
         // Add player-specific context
         if (playerRank !== 0) {
-          const playerOverallRank = overallStandings.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
+          const playerOverallRank = overallStandings2.findIndex(s => s.tribeKey === (this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName));
           if (playerOverallRank === 1 && !isCloseOverall) {
             commentary += ` ${playerName}, you're in serious trouble - you need something special in the remaining stages!`;
           }
         }
       }
+
+      if (bigJump) {
+        commentary += ` What a turnaround! ${winnerName} leaps from trailing to leading in one fell swoop!`;
+      }
+      if (standout) {
+        commentary += ` ${winnerName} is undefeated so far—can anyone stop them?`;
+      }
     }
 
-    console.log('Generated commentary:', commentary);
-    return commentary;
+    // Finally, always append player-specific note if needed
+    if (playerRank !== 0 && !isFirst) {
+      commentary += ` Heads up, Your Tribe—you're not on top. Time to dig deep in the next round!`;
+    }
+
+    return commentary.trim();
   },
 
   _createJeffParchment(text, onNext) {
