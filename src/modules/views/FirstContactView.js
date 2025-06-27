@@ -639,6 +639,31 @@ const FirstContactView = {
     const stageWinnerIsOverallLeader = stageWinnerKey === overallLeaderKey;
     const isFirstStage = this.stageIndex === 0;
 
+    // Check if tribe took the lead after this stage (for stages 2-3)
+    let tookTheLead = false;
+    let previousLeaderName = '';
+    if (this.stageIndex >= 1 && this.stageIndex <= 2) { // stages 2-3 (0-indexed)
+      // Get previous overall standings (before this stage)
+      const previousTotalScores = {};
+      Object.keys(this.context.totalScores).forEach(tribeKey => {
+        previousTotalScores[tribeKey] = this.context.totalScores[tribeKey] - (this.context.stageScores[stage.id][tribeKey] || 0);
+      });
+
+      const previousStandings = Object.entries(previousTotalScores)
+        .sort(([,a],[,b]) => b - a)
+        .map(([tribeKey, score]) => ({ 
+          tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
+          score,
+          tribeKey 
+        }));
+
+      const previousLeaderKey = previousStandings[0]?.tribeKey;
+      previousLeaderName = previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName || 'Unknown';
+      
+      // Check if the current overall leader is different from the previous leader
+      tookTheLead = previousLeaderKey !== overallLeaderKey && stageWinnerIsOverallLeader;
+    }
+
     // Detect if a tribe is dominating (won multiple consecutive stages)
     let isDominating = false;
     if (this.stageIndex > 0) {
@@ -700,7 +725,10 @@ const FirstContactView = {
         }
       } else {
         // Later stages - consider overall context
-        if (stageWinnerIsOverallLeader) {
+        if (tookTheLead) {
+          // Tribe took the lead after this stage
+          commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a turnaround! ${previousLeaderName} had been leading but now ${winnerName} is in front. The standings have completely shifted!`;
+        } else if (stageWinnerIsOverallLeader) {
           if (overallWinnerRank === 0) {
             commentary = `${winnerName} extends their overall lead with another strong performance in ${stageDesc}! ${middleName} and ${loserName} are running out of time to catch up. ${winnerName} is pulling away!`;
           }
@@ -749,8 +777,11 @@ const FirstContactView = {
           }
         } else {
           // Comeback situation
-          if (isCloseOverall) {
-            commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${loserName} had been leading but now they're behind. Everything has changed!`;
+          if (tookTheLead) {
+            // Tribe took the lead after this stage
+            commentary = `${winnerName} wins ${stageDesc} and takes the overall lead! What a comeback! ${previousLeaderName} had been leading but now ${winnerName} is in front. Everything has changed!`;
+          } else if (isCloseOverall) {
+            commentary = `${winnerName} wins ${stageDesc} and closes the gap significantly! They're making up ground on ${overallLeaderName}. This challenge is getting tight!`;
           } else {
             commentary = `${winnerName} wins ${stageDesc} and makes up significant ground! They're fighting back from a big deficit against ${overallLeaderName}. Can they complete the comeback?`;
           }
