@@ -666,10 +666,12 @@ const FirstContactView = {
       // Get previous overall standings (before this stage)
       const previousTotalScores = {};
       Object.keys(this.context.totalScores).forEach(tribeKey => {
-        previousTotalScores[tribeKey] = this.context.totalScores[tribeKey] - (this.context.stageScores[stage.id][tribeKey] || 0);
+        const currentStageScore = this.context.stageScores[stage.id][tribeKey] || 0;
+        previousTotalScores[tribeKey] = this.context.totalScores[tribeKey] - currentStageScore;
       });
 
       const previousStandings = Object.entries(previousTotalScores)
+        .filter(([, score]) => score > 0) // Only include tribes that had previous scores
         .sort(([,a],[,b]) => b - a)
         .map(([tribeKey, score]) => ({ 
           tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
@@ -683,7 +685,10 @@ const FirstContactView = {
       // Check if the current overall leader is different from the previous leader
       tookTheLead = previousLeaderKey !== overallLeaderKey;
       
+      console.log(`Lead check - Previous leader key: ${previousLeaderKey}, Current leader key: ${overallLeaderKey}`);
       console.log(`Lead check - Previous leader: ${previousLeaderName}, Current leader: ${overallLeaderName}, Took lead: ${tookTheLead}`);
+      console.log(`Previous total scores:`, previousTotalScores);
+      console.log(`Current total scores:`, this.context.totalScores);
     }
 
     // Detect if a tribe is dominating (won multiple consecutive stages)
