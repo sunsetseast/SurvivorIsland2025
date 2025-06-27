@@ -442,6 +442,27 @@ const FirstContactView = {
       scoreGroups[score].push({ ...perf, originalIndex: index });
     });
 
+    // Calculate better horizontal distribution to prevent overlaps
+    const getHorizontalPosition = (overallRank, totalCount) => {
+      // For large numbers of survivors, use a more distributed layout
+      if (totalCount > 12) {
+        // Use a grid-like approach for many survivors
+        const columns = 3;
+        const column = overallRank % columns;
+        const columnWidth = containerWidth / columns;
+        return (columnWidth * column) + (columnWidth / 2) - (avatarSize / 2);
+      } else if (totalCount > 6) {
+        // Use two columns for medium numbers
+        const columns = 2;
+        const column = overallRank % columns;
+        const columnWidth = containerWidth / columns;
+        return (columnWidth * column) + (columnWidth / 2) - (avatarSize / 2);
+      } else {
+        // Single column for small numbers, but with better spacing
+        return centerX - (avatarSize / 2);
+      }
+    };
+
     // Animate each avatar to its performance-based position
     stagePerfs.forEach((perf, overallRank) => {
       // Find the corresponding avatar
@@ -460,21 +481,26 @@ const FirstContactView = {
       const tiedSurvivors = scoreGroups[score];
       let horizontalOffset = 0;
 
+      // Get base horizontal position
+      let baseX = getHorizontalPosition(overallRank, stagePerfs.length);
+
       if (tiedSurvivors.length > 1) {
         // Find this survivor's position within the tied group
         const positionInTie = tiedSurvivors.findIndex(s => s.survivor.id === perf.survivor.id);
         const totalTied = tiedSurvivors.length;
 
         // Add small vertical offset to prevent exact overlap
-        targetY += positionInTie * 3;
+        targetY += positionInTie * 2;
 
         // Calculate horizontal offset to spread tied survivors
-        const spacing = 60; // Space between tied avatars
+        const spacing = Math.min(45, containerWidth / (totalTied + 2)); // Adaptive spacing
         const startOffset = -(totalTied - 1) * spacing / 2;
         horizontalOffset = startOffset + (positionInTie * spacing);
       }
 
-      const targetX = centerX - (avatarSize / 2) + horizontalOffset;
+      // Add some randomness to prevent perfect overlap for survivors with very similar scores
+      const jitter = (Math.random() - 0.5) * 8; // Small random offset
+      const targetX = Math.max(5, Math.min(containerWidth - avatarSize - 5, baseX + horizontalOffset + jitter));
 
       // Higher performers get higher z-index (lower overallRank = higher z-index)
       const zIndex = 1200 - overallRank;
@@ -501,7 +527,7 @@ const FirstContactView = {
 
         rankingContainer.appendChild(avatar);
 
-        // Add overall ranking badge
+        // Add overall ranking badge with black background for better visibility
         const existingBadge = rankingContainer.querySelector(`.rank-badge-${survivor.id}`);
         if (existingBadge) {
           existingBadge.remove();
@@ -511,27 +537,28 @@ const FirstContactView = {
           className: `rank-badge rank-badge-${survivor.id}`,
           style: `
             position: absolute;
-            left: ${targetX + avatarSize + 5}px;
+            left: ${targetX + avatarSize + 2}px;
             top: ${targetY + (avatarSize / 2) - 12}px;
             width: 24px;
             height: 24px;
-            background: ${overallRank === 0 ? 'gold' : overallRank === 1 ? 'silver' : overallRank === 2 ? '#cd7f32' : '#666'};
+            background: ${overallRank === 0 ? 'gold' : overallRank === 1 ? 'silver' : overallRank === 2 ? '#cd7f32' : '#333'};
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Survivant', sans-serif;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: bold;
             color: ${overallRank < 3 ? 'black' : 'white'};
             z-index: ${zIndex + 100};
             border: 2px solid white;
+            text-shadow: ${overallRank < 3 ? 'none' : '1px 1px 1px black'};
           `
         }, (overallRank + 1).toString());
 
         rankingContainer.appendChild(badge);
 
-      }, overallRank * 150); // Stagger animations
+      }, overallRank * 100); // Slightly faster stagger for better flow
     });
 
     // Calculate total animation time and show continue button
