@@ -1,0 +1,195 @@
+// src/views/FirstContactView.js
+
+import { createElement, clearChildren } from '../utils/DOMUtils.js';
+import gameManager from '../core/GameManager.js';
+
+/**
+ * Helper to get a consistent tribe key
+ */
+function getTribeKey(tribe) {
+  return tribe.id ?? tribe.name ?? tribe.tribeName;
+}
+
+const FirstContactView = {
+  render(container, config = {}) {
+    this.container = container;
+    this.config = config;
+
+    // ... your existing render setup unchanged ...
+
+    this.playerTribe = gameManager.getPlayerTribe();
+    this.allTribes    = gameManager.getTribes();
+    this.isThreeTribe = this.allTribes.length === 3;
+    this.stageIndex   = 0;
+    this.context      = {
+      stageScores: {},
+      totalScores: {},
+      survivorStagePerformances: {}
+    };
+
+    this.stages = [
+      { id: 'mud',    name: 'Mud Crawl',       weights: { strength:0.30, endurance:0.30, dexterity:0.20, balance:0.20 },   background: 'Assets/Challenge/mud-crawl.png',        description: 'crawling through thick mud' },
+      { id: 'knots',  name: 'Untie Knots',     weights: { dexterity:0.45, puzzles:0.25, focus:0.20, endurance:0.10 },   background: 'Assets/Challenge/untie-knots.png',     description: 'untying complex rope knots' },
+      { id: 'toss',   name: 'Bean-Bag Toss',   weights: { dexterity:0.50, focus:0.30, strength:0.20 },                   background: 'Assets/Challenge/bean-bag-toss.png',    description: 'landing bean bags on targets' },
+      { id: 'puzzle', name: 'Vertical Puzzle', weights: { puzzles:0.50, memory:0.30, focus:0.20 },                         background: 'Assets/Challenge/vertical-puzzle.png',  description: 'solving the vertical puzzle' },
+    ];
+
+    this.runNextStage();
+  },
+
+  _calculateStage(stage) {
+    console.log(`Calculating stage: ${stage.id}`);
+
+    // Initialize storage
+    this.context.survivorStagePerformances[stage.id] = [];
+
+    this.allTribes.forEach(tribe => {
+      const tribeKey = getTribeKey(tribe);
+      const participants = tribe.members.filter(s => s.roles?.includes(stage.id));
+
+      // ⚠️ Fallback for missing assignments
+      if (participants.length === 0) {
+        console.warn(`No participants for stage '${stage.id}' in tribe '${tribeKey}'`);
+      }
+
+      // Compute totalAbility
+      let totalAbility = 0;
+      participants.forEach(survivor => {
+        const healthFactor     = 0.7 + ((survivor.health ?? 100) / 100) * 0.3;
+        const tribeAvgHealth   = tribe.members.reduce((sum,m)=>sum+(m.health??100),0)/tribe.members.length;
+        const tribeHealthFactor= 0.9 + (tribeAvgHealth/100)*0.1;
+        const luckFactor       = 0.75 + Math.random()*0.5;
+
+        let traitAbility = 0;
+        for (let [trait, weight] of Object.entries(stage.weights)) {
+          traitAbility += (survivor[trait] ?? 0) * weight;
+        }
+
+        const ability = traitAbility * healthFactor * tribeHealthFactor * luckFactor;
+        survivor._fc_ability = ability;
+        totalAbility += ability;
+
+        this.context.survivorStagePerformances[stage.id].push({
+          survivor,
+          tribe,
+          ability,
+          normalizedScore: ability
+        });
+      });
+
+      // Scale tribe score
+      const maxPossible = participants.length * Object.values(stage.weights).reduce((a,b)=>a+b,0) * 10;
+      const basePoints  = maxPossible > 0 ? (totalAbility / maxPossible) * 25 : 0;
+      const tribeLuck   = 0.90 + Math.random()*0.20;
+      const finalPoints = basePoints * tribeLuck;
+
+      this.context.stageScores[stage.id]      = this.context.stageScores[stage.id] || {};
+      this.context.stageScores[stage.id][tribeKey] = finalPoints;
+      this.context.totalScores[tribeKey]      = (this.context.totalScores[tribeKey] || 0) + finalPoints;
+    });
+
+    // Normalize individual performances, with divide-by-zero check
+    const perfs = this.context.survivorStagePerformances[stage.id] || [];
+    const maxAbility = perfs.length ? Math.max(...perfs.map(p=>p.ability)) : 0;
+    perfs.forEach(p => {
+      p.normalizedScore = maxAbility > 0
+        ? (p.ability / maxAbility) * 100
+        : 0;
+    });
+    perfs.sort((a,b)=>b.normalizedScore - a.normalizedScore);
+  },
+
+  // --- animations (completely untouched) ---
+
+  _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
+    const winnerKey = getTribeKey(winner.tribe);
+    const loserKey  = getTribeKey(loser.tribe);
+    const playerKey = getTribeKey(this.playerTribe);
+
+    const stageDesc = stage.description;
+    const isFirst   = this.stageIndex === 0;
+
+    // Build overall standings
+    const overallStandings = Object.entries(this.context.totalScores)
+      .sort(([,a],[,b])=>b-a)
+      .map(([tribeKey,score])=>({ tribeKey, score }));
+
+    const overallLeaderKey = overallStandings[0]?.tribeKey;
+
+    // --- New: detect 3 consecutive losses for winnerKey ---
+    let threeLosses = false;
+    if (this.stageIndex >= 3) {
+      let lossCount = 0;
+      for (let i = this.stageIndex - 3; i < this.stageIndex; i++) {
+        const prevStage = this.stages[i];
+        const prevScores= this.context.stageScores[prevStage.id] || {};
+        const prevWinner= Object.entries(prevScores).reduce((a,b)=>prevScores[a[0]]>prevScores[b[0]]?a:b)[0];
+        if (prevWinner !== winnerKey) lossCount++;
+      }
+      threeLosses = lossCount >= 3;
+    }
+
+    // --- New: detect last→first huge jump in this stage ---
+    let bigJump = false;
+    if (this.stageIndex > 0) {
+      const prevStage = this.stages[this.stageIndex - 1];
+      const prevPerfs = this.context.survivorStagePerformances[prevStage.id] || [];
+      const prevRankMap = Object.fromEntries(prevPerfs.map((p,i)=>[getTribeKey(p.tribe), i]));
+      const prevRank = prevRankMap[winnerKey];
+      if (prevRank > 0 && overallLeaderKey === winnerKey) {
+        bigJump = true;
+      }
+    }
+
+    // --- New: detect standout tribe (won every stage so far) ---
+    let standout = false;
+    if (this.stageIndex > 0) {
+      const wins = this.stages.slice(0, this.stageIndex + 1).filter(s => {
+        const scores = this.context.stageScores[s.id] || {};
+        const top = Object.entries(scores).reduce((a,b)=>scores[a[0]]>scores[b[0]]?a:b)[0];
+        return top === winnerKey;
+      }).length;
+      standout = wins === (this.stageIndex + 1);
+    }
+
+    // Begin building commentary
+    let commentary = "";
+
+    // Inject the three-losses scenario
+    if (threeLosses) {
+      commentary += `Tough streak for ${winner.tribe.name}! Three stages in a row and no win—time to shake things up! `;
+    }
+
+    // Base two-tribe vs three-tribe logic (preserved from your original)
+    if (this.isThreeTribe && sorted.length >= 3) {
+      // ... your original three-tribe commentary logic here ...
+      // After that, inject bigJump and standout:
+      if (bigJump) {
+        commentary += `Unbelievable comeback by ${winner.tribe.name}! From behind to first in a single stage—spectacular! `;
+      }
+      if (standout) {
+        commentary += `${winner.tribe.name} has now won every single stage—dominance personified! `;
+      }
+    } else {
+      // ... your original two-tribe commentary logic here ...
+      if (bigJump) {
+        commentary += `What a turnaround! ${winner.tribe.name} leaps from trailing to leading in one fell swoop! `;
+      }
+      if (standout) {
+        commentary += `${winner.tribe.name} is undefeated so far—can anyone stop them? `;
+      }
+    }
+
+    // Finally, always append player-specific note if needed
+    if (playerRank !== 0 && !isFirst) {
+      commentary += `Heads up, Your Tribe—you're not on top. Time to dig deep in the next round!`;
+    }
+
+    return commentary.trim();
+  },
+
+  // ... rest of your file (_createJeffParchment, _showStageSummary, etc.) unchanged ...
+
+};
+
+export default FirstContactView;
