@@ -106,10 +106,10 @@ const FirstContactView = {
         for (let [trait, weight] of Object.entries(stage.weights)) {
           traitAbility += (survivor[trait] ?? 0) * weight;
         }
-        
+
         // Apply all factors: traits are most important, but modified by health and luck
         const ability = traitAbility * healthFactor * tribeHealthFactor * luckFactor;
-        
+
         survivor._fc_ability = ability;
         totalAbility += ability;
 
@@ -122,7 +122,7 @@ const FirstContactView = {
           normalizedScore: ability
         });
       });
-      
+
       // Scale tribe score
       const maxPossible = participants.length * Object.values(stage.weights).reduce((a,b)=>a+b,0) * 10;
       const basePoints  = maxPossible > 0 ? (totalAbility / maxPossible) * 25 : 0;
@@ -691,28 +691,28 @@ const FirstContactView = {
     let lossStreakInfo = null;
     if (this.stageIndex >= 2) {
       let consecutiveLosses = 0;
-      
+
       for (let i = this.stageIndex - 1; i >= 0; i--) {
         const prevStage = this.stages[i];
         const prevScores = this.context.stageScores[prevStage.id] || {};
         const prevWinners = this.isThreeTribe ? 
           Object.entries(prevScores).sort(([,a],[,b]) => b - a).slice(0, 2).map(([key]) => key) :
           [Object.entries(prevScores).reduce((a,b) => prevScores[a[0]] > prevScores[b[0]] ? a : b)[0]];
-        
+
         if (!prevWinners.includes(winnerKey)) {
           consecutiveLosses++;
         } else {
           break;
         }
       }
-      
+
       const hadStreak = consecutiveLosses >= 2;
       const currentWinners = this.isThreeTribe ? 
         sorted.slice(0, 2).map(s => getTribeKey(s.tribe)) :
         [winnerKey];
-      
+
       const justWon = currentWinners.includes(winnerKey);
-      
+
       if (hadStreak && justWon) {
         lossStreakInfo = { type: 'break', count: consecutiveLosses };
       } else if (hadStreak && !justWon) {
@@ -733,7 +733,7 @@ const FirstContactView = {
       const previousStandings = Object.entries(previousTotalScores)
         .filter(([, score]) => score > 0)
         .sort(([,a],[,b]) => b - a)
-        .map(([tribeKey, score]) => ({ 
+        .map(([tribeKey,<previous_generation>score]) => ({ 
           tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
           score,
           tribeKey 
@@ -741,7 +741,7 @@ const FirstContactView = {
 
       const previousRank = previousStandings.findIndex(s => s.tribeKey === winnerKey);
       const currentRank = overallStandings.findIndex(s => s.tribeKey === winnerKey);
-      
+
       if (previousRank > currentRank && currentRank === 0) {
         tookTheLead = true;
         previousLeaderName = previousStandings[0]?.tribe?.name || previousStandings[0]?.tribe?.tribeName || 'Unknown';
@@ -755,7 +755,7 @@ const FirstContactView = {
       for (let i = 0; i <= this.stageIndex; i++) {
         const stageScores = this.context.stageScores[this.stages[i].id] || {};
         const stageSorted = Object.entries(stageScores).sort(([,a],[,b]) => b - a);
-        
+
         if (this.isThreeTribe) {
           const topTwo = stageSorted.slice(0, 2).map(([key]) => key);
           if (topTwo.includes(winnerKey)) topFinishes++;
@@ -788,7 +788,7 @@ const FirstContactView = {
       const tiedTribes = Object.entries(this.context.stageScores[stage.id])
         .filter(([,score]) => Math.abs(score - winner.score) < 0.01)
         .map(([key]) => this.allTribes.find(t => getTribeKey(t) === key)?.name || key);
-      
+
       commentary += `Dead tie! ${tiedTribes.join(' and ')} are completely even! `;
       return commentary.trim();
     }
@@ -823,11 +823,22 @@ const FirstContactView = {
         if (tookTheLead) {
           commentary += `${winnerName} wins and takes the overall lead! What a comeback!`;
         } else if (winnerKey === overallLeaderKey) {
-          commentary += `${winnerName} extends their lead! ${middleName} and ${loserName} falling behind.`;
-        } else {
-          commentary += `${winnerName} wins and closes the gap on the leader!`;
+            commentary += `${winnerName} extends their lead! ${middleName} and ${loserName} falling behind.`;
+          } else {
+            // Get current overall standings to be more accurate
+            const currentWinnerRank = overallStandings.findIndex(s => s.tribeKey === winnerKey);
+            const leaderName = this.allTribes.find(t => getTribeKey(t) === overallLeaderKey)?.name || 
+                              this.allTribes.find(t => getTribeKey(t) === overallLeaderKey)?.tribeName || 'Leader';
+
+            if (currentWinnerRank === 0) {
+              commentary += `${winnerName} wins and takes the overall lead from ${leaderName}!`;
+            } else if (currentWinnerRank === 1) {
+              commentary += `${winnerName} wins and moves into second place overall, closing the gap on leader ${leaderName}!`;
+            } else {
+              commentary += `${winnerName} wins but remains in last place overall. They need to keep fighting to catch up to ${leaderName}!`;
+            }
+          }
         }
-      }
     } else {
       // Two tribe scenario
       if (isFirst) {
@@ -878,14 +889,14 @@ const FirstContactView = {
     // Split text if it's too long (more than 150 characters)
     const maxLength = 150;
     let textParts = [];
-    
+
     if (text.length <= maxLength) {
       textParts = [text];
     } else {
       // Split by sentences first, then by character limit
       const sentences = text.match(/[^\.!?]+[\.!?]+/g) || [text];
       let currentPart = '';
-      
+
       for (let sentence of sentences) {
         if ((currentPart + sentence).length <= maxLength) {
           currentPart += sentence;
@@ -900,7 +911,7 @@ const FirstContactView = {
           }
         }
       }
-      
+
       if (currentPart) {
         textParts.push(currentPart.trim());
       }
@@ -1011,7 +1022,7 @@ const FirstContactView = {
           console.log('Jeff parchment next button clicked');
           e.preventDefault();
           e.stopPropagation();
-          
+
           if (isLastPart) {
             // Last part, proceed to next stage
             if (typeof onNext === 'function') {
@@ -1439,10 +1450,10 @@ const FirstContactView = {
       const winner1Name = winners[0].tribe?.name || winners[0].tribe?.tribeName;
       const winner2Name = winners[1].tribe?.name || winners[1].tribe?.tribeName;
       const loserName = losers[0].tribe?.name || losers[0].tribe?.tribeName;
-      
+
       const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
       const loserTribeKey = losers[0].tribeKey;
-      
+
       console.log('Final commentary debug:', {
         winner1Name, winner2Name, loserName,
         playerTribeKey, loserTribeKey,
@@ -1450,7 +1461,7 @@ const FirstContactView = {
         winners: winners.map(w => ({ name: w.tribe?.name, key: w.tribeKey })),
         losers: losers.map(l => ({ name: l.tribe?.name, key: l.tribeKey }))
       });
-      
+
       // Check if player tribe is the loser
       if (loserTribeKey === playerTribeKey) {
         // Player tribe is the loser
@@ -1462,10 +1473,10 @@ const FirstContactView = {
     } else {
       const winnerName = winners[0].tribe?.name || winners[0].tribe?.tribeName;
       const loserName = losers[0].tribe?.name || losers[0].tribe?.tribeName;
-      
+
       const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
       const loserTribeKey = losers[0].tribeKey;
-      
+
       if (loserTribeKey === playerTribeKey) {
         // Player tribe lost
         finalCommentary = `${winnerName} wins immunity! Your tribe has nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
@@ -1488,7 +1499,7 @@ const FirstContactView = {
 
     const winners = sortedTribes.slice(0, this.isThreeTribe ? 2 : 1);
     const losers = sortedTribes.slice(this.isThreeTribe ? 2 : 1);
-    
+
     console.log('Final summary - Winners:', winners.map(w => ({ 
       name: w.tribe?.name || w.tribe?.tribeName, 
       key: w.tribeKey, 
@@ -1499,7 +1510,7 @@ const FirstContactView = {
       key: l.tribeKey, 
       score: l.score 
     })));
-    
+
     // Check if player tribe is among winners and replace with "Your tribe"
     const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
     const winnerNames = winners.map(w => {
@@ -1508,7 +1519,7 @@ const FirstContactView = {
       }
       return w.tribe?.name || w.tribe?.tribeName;
     }).join(' and ');
-    
+
     // Mark immunity status for all tribes
     this.allTribes.forEach(tribe => {
       const isWinner = winners.some(w => (w.tribe.id || w.tribe.name || w.tribe.tribeName) === (tribe.id || tribe.name || tribe.tribeName));
@@ -1516,7 +1527,7 @@ const FirstContactView = {
       tribe.immunityStatus = isWinner ? 'immune' : 'vulnerable';
       console.log(`${tribe.name || tribe.tribeName} immunity status: ${tribe.immunityStatus}`);
     });
-    
+
     // Get all individual performances across all stages
     const allPerformances = [];
     Object.values(this.context.survivorStagePerformances).forEach(stagePerfs => {
@@ -1553,7 +1564,7 @@ const FirstContactView = {
 
     // Apply threat adjustments
     const threatAdjustments = totalSurvivors <= 6 ? [5, 3] : [5, 3, 1];
-    
+
     topPerformers.forEach((perf, index) => {
       const adjustment = threatAdjustments[index] || 0;
       perf.survivor.threat = Math.min(10, (perf.survivor.threat || 5) + adjustment);
