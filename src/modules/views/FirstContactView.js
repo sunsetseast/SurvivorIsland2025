@@ -816,7 +816,7 @@ const FirstContactView = {
           } else if (playerRank === 1) {
             commentary += `${winnerName} leads, ${playerName} second, ${loserName} struggling.`;
           } else {
-            commentary += `${winnerName} crushes it! Your tribe in serious trouble.`;
+            commentary += `${winnerName} crushes it! Your tribe is in serious trouble.`;
           }
         }
       } else {
