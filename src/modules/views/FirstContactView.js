@@ -208,13 +208,99 @@ const FirstContactView = {
       return;
     }
 
-    // Animate avatars from bottom → top
-    setTimeout(() => {
-      console.log(`Starting avatar animations for ${avatars.length} avatars`);
+    // Show countdown for first stage only
+    if (this.stageIndex === 0) {
+      this._showCountdown(() => {
+        this._startAvatarAnimation(avatars, stage);
+      });
+    } else {
+      // For other stages, start animation immediately
+      setTimeout(() => {
+        this._startAvatarAnimation(avatars, stage);
+      }, 100);
+    }
+  },
 
-      const abilities = avatars.map(a => a.survivor._fc_ability || 0);
-      const maxAbility = Math.max(1, ...abilities); // Ensure minimum of 1 to avoid division by zero
-      console.log(`Max ability for stage: ${maxAbility}, all abilities:`, abilities);
+  _showCountdown(callback) {
+    console.log('Starting countdown sequence');
+    
+    // Create countdown overlay
+    const countdownOverlay = createElement('div', {
+      style: `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.3);
+      `
+    });
+
+    const countdownText = createElement('div', {
+      style: `
+        font-family: 'Survivant', sans-serif;
+        font-size: 4rem;
+        font-weight: bold;
+        text-align: center;
+        text-shadow: 3px 3px 6px black;
+        opacity: 0;
+        transition: all 0.3s ease;
+      `
+    });
+
+    countdownOverlay.appendChild(countdownText);
+    this.container.appendChild(countdownOverlay);
+
+    const sequence = [
+      { text: 'Survivors Ready?', color: '#9333ea', duration: 1500 }, // purple
+      { text: '3', color: '#f97316', duration: 800 }, // orange
+      { text: '2', color: '#3b82f6', duration: 800 }, // blue  
+      { text: '1', color: '#22c55e', duration: 800 }, // green
+      { text: 'Go!', color: '#ef4444', duration: 1000 } // red
+    ];
+
+    let currentIndex = 0;
+
+    const showNext = () => {
+      if (currentIndex >= sequence.length) {
+        // Remove countdown and start animation
+        countdownOverlay.remove();
+        if (callback) callback();
+        return;
+      }
+
+      const current = sequence[currentIndex];
+      
+      // Update text and color
+      countdownText.textContent = current.text;
+      countdownText.style.color = current.color;
+      
+      // Flash effect
+      countdownText.style.opacity = '0';
+      countdownText.style.transform = 'scale(0.8)';
+      
+      setTimeout(() => {
+        countdownText.style.opacity = '1';
+        countdownText.style.transform = 'scale(1)';
+      }, 50);
+
+      currentIndex++;
+      setTimeout(showNext, current.duration);
+    };
+
+    showNext();
+  },
+
+  _startAvatarAnimation(avatars, stage) {
+    console.log(`Starting avatar animations for ${avatars.length} avatars`);
+
+    const abilities = avatars.map(a => a.survivor._fc_ability || 0);
+    const maxAbility = Math.max(1, ...abilities); // Ensure minimum of 1 to avoid division by zero
+    console.log(`Max ability for stage: ${maxAbility}, all abilities:`, abilities);
 
       // Calculate durations with safety checks
       const durations = avatars.map(({ survivor }) => {
