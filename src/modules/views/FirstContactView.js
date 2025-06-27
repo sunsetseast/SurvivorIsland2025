@@ -1340,39 +1340,63 @@ const FirstContactView = {
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('Assets/jeff-screen.png')`;
 
-    // Determine final standings
+    // Determine final standings - sort by total scores descending
     const sorted = Object.entries(this.context.totalScores)
       .sort(([,a],[,b]) => b - a)
       .map(([tribeKey, score]) => ({ 
         tribe: this.allTribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
-        score 
+        score,
+        tribeKey 
       }));
+
+    console.log('Final standings:', sorted.map(s => ({ 
+      name: s.tribe?.name || s.tribe?.tribeName, 
+      score: s.score.toFixed(2) 
+    })));
 
     const winners = sorted.slice(0, this.isThreeTribe ? 2 : 1);
     const losers = sorted.slice(this.isThreeTribe ? 2 : 1);
 
+    console.log('Winners:', winners.map(w => w.tribe?.name || w.tribe?.tribeName));
+    console.log('Losers:', losers.map(l => l.tribe?.name || l.tribe?.tribeName));
+
     // Generate final Jeff commentary
     let finalCommentary;
     if (this.isThreeTribe) {
-      const winner1 = winners[0].tribe.name || winners[0].tribe.tribeName;
-      const winner2 = winners[1].tribe.name || winners[1].tribe.tribeName;
-      const loser = losers[0].tribe.name || losers[0].tribe.tribeName;
-
-      if ((losers[0].tribe.id || losers[0].tribe.name || losers[0].tribe.tribeName) === (this.playerTribe.id || this.playerTribe.name || this.playerTribe.tribeName)) {
-        finalCommentary = `${winner1} and ${winner2} have won immunity! ${this.playerTribe.name || this.playerTribe.tribeName}, you struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
+      const winner1Name = winners[0].tribe?.name || winners[0].tribe?.tribeName;
+      const winner2Name = winners[1].tribe?.name || winners[1].tribe?.tribeName;
+      const loserName = losers[0].tribe?.name || losers[0].tribe?.tribeName;
+      
+      const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
+      const loserTribeKey = losers[0].tribeKey;
+      
+      // Check if player tribe is among winners or losers
+      const playerIsWinner = winners.some(w => w.tribeKey === playerTribeKey);
+      
+      if (!playerIsWinner) {
+        // Player tribe is the loser
+        finalCommentary = `${winner1Name} and ${winner2Name} have won immunity! Your tribe struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
       } else {
-        finalCommentary = `${winner1} and ${winner2} have won immunity and are safe from tonight's vote! ${loser}, I'll be seeing you at Tribal Council where one of your tribe members will become the first person voted out.`;
+        // Player tribe is a winner
+        finalCommentary = `${winner1Name} and ${winner2Name} have won immunity and are safe from tonight's vote! ${loserName}, I'll be seeing you at Tribal Council where one of your tribe members will become the first person voted out.`;
       }
     } else {
-      const winner = winners[0].tribe.name || winners[0].tribe.tribeName;
-      const loser = losers[0].tribe.name || losers[0].tribe.tribeName;
-
-      if ((losers[0].tribe.id || losers[0].tribe.name || losers[0].tribe.tribeName) === (this.playerTribe.id || this.playerTribe.name || this.playerTribe.tribeName)) {
-        finalCommentary = `${winner} wins immunity! ${this.playerTribe.name || this.playerTribe.tribeName}, you have nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
+      const winnerName = winners[0].tribe?.name || winners[0].tribe?.tribeName;
+      const loserName = losers[0].tribe?.name || losers[0].tribe?.tribeName;
+      
+      const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
+      const loserTribeKey = losers[0].tribeKey;
+      
+      if (loserTribeKey === playerTribeKey) {
+        // Player tribe lost
+        finalCommentary = `${winnerName} wins immunity! Your tribe has nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
       } else {
-        finalCommentary = `${this.playerTribe.name || this.playerTribe.tribeName} wins immunity! ${loser}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
+        // Player tribe won
+        finalCommentary = `Your tribe wins immunity! ${loserName}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
       }
     }
+
+    console.log('Final Jeff commentary:', finalCommentary);
 
     this._createJeffParchment(finalCommentary, () => {
       this._showFinalSummary(sorted);
@@ -1386,14 +1410,24 @@ const FirstContactView = {
     const winners = sortedTribes.slice(0, this.isThreeTribe ? 2 : 1);
     const losers = sortedTribes.slice(this.isThreeTribe ? 2 : 1);
     
+    console.log('Final summary - Winners:', winners.map(w => ({ 
+      name: w.tribe?.name || w.tribe?.tribeName, 
+      key: w.tribeKey, 
+      score: w.score 
+    })));
+    console.log('Final summary - Losers:', losers.map(l => ({ 
+      name: l.tribe?.name || l.tribe?.tribeName, 
+      key: l.tribeKey, 
+      score: l.score 
+    })));
+    
     // Check if player tribe is among winners and replace with "Your tribe"
+    const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
     const winnerNames = winners.map(w => {
-      const tribeKey = w.tribe.id || w.tribe.name || w.tribe.tribeName;
-      const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
-      if (tribeKey === playerTribeKey) {
+      if (w.tribeKey === playerTribeKey) {
         return 'Your tribe';
       }
-      return w.tribe.name || w.tribe.tribeName;
+      return w.tribe?.name || w.tribe?.tribeName;
     }).join(' and ');
     
     // Mark immunity status for all tribes
