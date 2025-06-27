@@ -94,8 +94,8 @@ const FirstContactView = {
         const tribeAvgHealth = tribe.members.reduce((sum, m) => sum + (m.health || 100), 0) / tribe.members.length;
         const tribeHealthFactor = 0.9 + (tribeAvgHealth / 100) * 0.1;
         
-        // Luck factor (±15% variation)
-        const luckFactor = 0.85 + Math.random() * 0.3;
+        // Luck factor (±25% variation)
+        const luckFactor = 0.75 + Math.random() * 0.5;
         
         // Calculate base ability from traits (this is the main component)
         let traitAbility = 0;
@@ -124,8 +124,8 @@ const FirstContactView = {
       const maxPossible = participants.length * Object.values(stage.weights).reduce((sum, w) => sum + w, 0) * 10; // Scale down from 100
       const basePoints = (totalAbility / maxPossible) * 25;
       
-      // Add a small tribe-level luck factor (±5%)
-      const tribeLuckFactor = 0.95 + Math.random() * 0.10;
+      // Add a tribe-level luck factor (±10%)
+      const tribeLuckFactor = 0.90 + Math.random() * 0.20;
       const finalPoints = basePoints * tribeLuckFactor;
       
       this.context.stageScores[stage.id] = this.context.stageScores[stage.id] || {};
