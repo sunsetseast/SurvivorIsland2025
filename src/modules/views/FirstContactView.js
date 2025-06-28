@@ -933,28 +933,38 @@ const FirstContactView = {
   _createJeffParchment(text, onNext) {
     console.log('Creating Jeff parchment with text:', text);
 
-    // Split text if it's too long (more than 150 characters)
-    const maxLength = 150;
+    // Increase character limit and improve splitting to handle HTML tags
+    const maxLength = 250;
     let textParts = [];
     
     if (text.length <= maxLength) {
       textParts = [text];
     } else {
-      // Split by sentences first, then by character limit
+      // Split by sentences first, preserving HTML tags
       const sentences = text.match(/[^\.!?]+[\.!?]+/g) || [text];
       let currentPart = '';
       
       for (let sentence of sentences) {
-        if ((currentPart + sentence).length <= maxLength) {
+        const potentialLength = this._getTextLengthWithoutTags(currentPart + sentence);
+        
+        if (potentialLength <= maxLength) {
           currentPart += sentence;
         } else {
           if (currentPart) {
             textParts.push(currentPart.trim());
             currentPart = sentence;
           } else {
-            // If single sentence is too long, force split
-            textParts.push(sentence.substring(0, maxLength).trim());
-            currentPart = sentence.substring(maxLength);
+            // If single sentence is too long, try to split at a natural break
+            const naturalBreak = this._findNaturalBreak(sentence, maxLength);
+            if (naturalBreak > 0) {
+              textParts.push(sentence.substring(0, naturalBreak).trim());
+              currentPart = sentence.substring(naturalBreak);
+            } else {
+              // Force split as last resort, but try to avoid breaking HTML tags
+              const safeBreak = this._findSafeBreakPoint(sentence, maxLength);
+              textParts.push(sentence.substring(0, safeBreak).trim());
+              currentPart = sentence.substring(safeBreak);
+            }
           }
         }
       }
@@ -1098,6 +1108,62 @@ const FirstContactView = {
     setTimeout(() => {
       console.log('Parchment elements should now be visible');
     }, 100);
+  },
+
+  // Helper method to get text length without HTML tags
+  _getTextLengthWithoutTags(text) {
+    return text.replace(/<[^>]*>/g, '').length;
+  },
+
+  // Helper method to find natural break points (spaces, punctuation)
+  _findNaturalBreak(text, maxLength) {
+    const textWithoutTags = text.replace(/<[^>]*>/g, '');
+    if (textWithoutTags.length <= maxLength) return text.length;
+    
+    // Look for natural breaks like spaces or punctuation
+    const breakChars = [' ', ',', ';', ':', '!', '?'];
+    let bestBreak = -1;
+    let charCount = 0;
+    let inTag = false;
+    
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '<') {
+        inTag = true;
+      } else if (text[i] === '>') {
+        inTag = false;
+      } else if (!inTag) {
+        charCount++;
+        if (breakChars.includes(text[i]) && charCount <= maxLength) {
+          bestBreak = i + 1;
+        }
+        if (charCount >= maxLength) {
+          break;
+        }
+      }
+    }
+    
+    return bestBreak > 0 ? bestBreak : -1;
+  },
+
+  // Helper method to find safe break point that doesn't split HTML tags
+  _findSafeBreakPoint(text, maxLength) {
+    let charCount = 0;
+    let inTag = false;
+    
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '<') {
+        inTag = true;
+      } else if (text[i] === '>') {
+        inTag = false;
+      } else if (!inTag) {
+        charCount++;
+        if (charCount >= maxLength && !inTag) {
+          return i;
+        }
+      }
+    }
+    
+    return text.length;
   },
 
   _showStageSummary(stage) {
