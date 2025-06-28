@@ -674,6 +674,31 @@ const FirstContactView = {
     const stageDesc = stage.description;
     const isFirst = this.stageIndex === 0;
 
+    // Helper function to get hex color from tribe color name
+    const getTribeColorHex = (colorName) => {
+      const colorMap = {
+        'red': '#FF0000',
+        'blue': '#0066FF',
+        'orange': '#FF8C00',
+        'green': '#228B22',
+        'purple': '#8A2BE2'
+      };
+      return colorMap[colorName] || '#FFFFFF';
+    };
+
+    // Helper function to wrap tribe names with color
+    const colorTribeName = (tribeName, tribe) => {
+      const color = getTribeColorHex(tribe?.color || tribe?.tribeColor);
+      return `<span style="color: ${color}; font-weight: bold; text-shadow: 1px 1px 2px black;">${tribeName}</span>`;
+    };
+
+    // Helper function to wrap survivor names with their tribe color
+    const colorSurvivorName = (survivorName, tribe) => {
+      const color = getTribeColorHex(tribe?.color || tribe?.tribeColor);
+      const tribeName = tribe?.name || tribe?.tribeName || 'Unknown';
+      return `<span style="color: ${color}; font-weight: bold; text-shadow: 1px 1px 2px black;">${survivorName} from ${tribeName}</span>`;
+    };
+
     // Build overall standings
     const overallStandings = Object.entries(this.context.totalScores)
       .sort(([,a],[,b]) => b - a)
@@ -780,7 +805,7 @@ const FirstContactView = {
         performanceInfo = {
           type: 'mvp',
           name: topPerformer.survivor.firstName,
-          tribe: topPerformer.tribe?.name || topPerformer.tribe?.tribeName,
+          tribe: topPerformer.tribe,
           score: topPerformer.normalizedScore
         };
       }
@@ -789,7 +814,7 @@ const FirstContactView = {
         performanceInfo = {
           type: 'worst',
           name: worstPerformer.survivor.firstName,
-          tribe: worstPerformer.tribe?.name || worstPerformer.tribe?.tribeName,
+          tribe: worstPerformer.tribe,
           score: worstPerformer.normalizedScore
         };
       }
@@ -802,7 +827,11 @@ const FirstContactView = {
     if (stageHasTies) {
       const tiedTribes = Object.entries(this.context.stageScores[stage.id])
         .filter(([,score]) => Math.abs(score - winner.score) < 0.01)
-        .map(([key]) => this.allTribes.find(t => getTribeKey(t) === key)?.name || key);
+        .map(([key]) => {
+          const tribe = this.allTribes.find(t => getTribeKey(t) === key);
+          const name = tribe?.name || key;
+          return colorTribeName(name, tribe);
+        });
       
       commentary += `Dead tie! ${tiedTribes.join(' and ')} are completely even! `;
       return commentary.trim();
@@ -811,9 +840,9 @@ const FirstContactView = {
     // Loss streak info
     if (lossStreakInfo) {
       if (lossStreakInfo.type === 'break') {
-        commentary += `${winnerName} breaks their ${lossStreakInfo.count}-stage losing streak! `;
+        commentary += `${colorTribeName(winnerName, winner.tribe)} breaks their ${lossStreakInfo.count}-stage losing streak! `;
       } else {
-        commentary += `${winnerName} now has ${lossStreakInfo.count} losses in a row! `;
+        commentary += `${colorTribeName(winnerName, winner.tribe)} now has ${lossStreakInfo.count} losses in a row! `;
       }
     }
 
@@ -824,27 +853,27 @@ const FirstContactView = {
 
       if (isFirst) {
         if (isClose) {
-          commentary += `All three tribes neck and neck! ${winnerName} edges out ${middleName} and ${loserName}.`;
+          commentary += `All three tribes neck and neck! ${colorTribeName(winnerName, winner.tribe)} edges out ${colorTribeName(middleName, middle.tribe)} and ${colorTribeName(loserName, loser.tribe)}.`;
         } else {
           if (playerRank === 0) {
-            commentary += `${winnerName} dominates ${stage.name}! Strong start for your tribe.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} dominates ${stage.name}! Strong start for your tribe.`;
           } else if (playerRank === 1) {
-            commentary += `${winnerName} leads, ${playerName} second, ${loserName} struggling.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} leads, ${colorTribeName(playerName, this.playerTribe)} second, ${colorTribeName(loserName, loser.tribe)} struggling.`;
           } else {
-            commentary += `${winnerName} crushes it! Your tribe is in serious trouble.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} crushes it! Your tribe is in serious trouble.`;
           }
         }
       } else {
         if (tookTheLead) {
-          commentary += `${winnerName} takes the stage and seizes the overall lead! What a comeback!`;
+          commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and seizes the overall lead! What a comeback!`;
         } else if (winnerKey === overallLeaderKey) {
-          commentary += `${winnerName} extends their lead! ${middleName} and ${loserName} falling behind.`;
+          commentary += `${colorTribeName(winnerName, winner.tribe)} extends their lead! ${colorTribeName(middleName, middle.tribe)} and ${colorTribeName(loserName, loser.tribe)} falling behind.`;
         } else {
           // More accurate messaging based on actual position
           if (winnerOverallRank === 0) {
-            commentary += `${winnerName} takes the stage but still trails overall.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage but still trails overall.`;
           } else {
-            commentary += `${winnerName} takes the stage and makes up significant ground!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and makes up significant ground!`;
           }
         }
       }
@@ -852,25 +881,25 @@ const FirstContactView = {
       // Two tribe scenario
       if (isFirst) {
         if (isClose) {
-          commentary += `Incredible battle! ${winnerName} barely edges out ${loserName}.`;
+          commentary += `Incredible battle! ${colorTribeName(winnerName, winner.tribe)} barely edges out ${colorTribeName(loserName, loser.tribe)}.`;
         } else {
           if (playerRank === 0) {
-            commentary += `Your tribe destroys ${loserName}! Complete domination!`;
+            commentary += `Your tribe destroys ${colorTribeName(loserName, loser.tribe)}! Complete domination!`;
           } else {
-            commentary += `${winnerName} takes command! You're in trouble!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} takes command! You're in trouble!`;
           }
         }
       } else {
         if (tookTheLead) {
-          commentary += `${winnerName} takes the stage and grabs the lead! Everything's changed!`;
+          commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and grabs the lead! Everything's changed!`;
         } else if (winnerKey === overallLeaderKey) {
-          commentary += `${winnerName} extends their lead! ${loserName} in trouble.`;
+          commentary += `${colorTribeName(winnerName, winner.tribe)} extends their lead! ${colorTribeName(loserName, loser.tribe)} in trouble.`;
         } else {
           // More accurate for tribe behind overall
           if (winnerOverallRank === 0) {
-            commentary += `${winnerName} takes the stage but still trails overall!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage but still trails overall!`;
           } else {
-            commentary += `${winnerName} takes the stage and closes the gap significantly!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and closes the gap significantly!`;
           }
         }
       }
@@ -878,15 +907,15 @@ const FirstContactView = {
 
     // Special achievements
     if (standout) {
-      commentary += ` ${winnerName} has been dominant every stage!`;
+      commentary += ` ${colorTribeName(winnerName, winner.tribe)} has been dominant every stage!`;
     }
 
     // Performance callouts - more selective
     if (performanceInfo) {
       if (performanceInfo.type === 'mvp') {
-        commentary += ` ${performanceInfo.name} was absolutely dominant!`;
+        commentary += ` ${colorSurvivorName(performanceInfo.name, performanceInfo.tribe)} was absolutely dominant!`;
       } else if (performanceInfo.type === 'worst') {
-        commentary += ` ${performanceInfo.name} is really struggling!`;
+        commentary += ` ${colorSurvivorName(performanceInfo.name, performanceInfo.tribe)} is really struggling!`;
       }
     }
 
@@ -994,7 +1023,10 @@ const FirstContactView = {
           z-index: 1002;
           white-space: pre-line;
         `
-      }, currentText);
+      });
+      
+      // Use innerHTML to support HTML color tags
+      jeffTextElement.innerHTML = currentText;
 
       // Add part indicator if multiple parts
       if (textParts.length > 1) {
@@ -1462,6 +1494,24 @@ const FirstContactView = {
     console.log('Winners:', winners.map(w => w.tribe?.name || w.tribe?.tribeName));
     console.log('Losers:', losers.map(l => l.tribe?.name || l.tribe?.tribeName));
 
+    // Helper function to get hex color from tribe color name
+    const getTribeColorHex = (colorName) => {
+      const colorMap = {
+        'red': '#FF0000',
+        'blue': '#0066FF',
+        'orange': '#FF8C00',
+        'green': '#228B22',
+        'purple': '#8A2BE2'
+      };
+      return colorMap[colorName] || '#FFFFFF';
+    };
+
+    // Helper function to wrap tribe names with color
+    const colorTribeName = (tribeName, tribe) => {
+      const color = getTribeColorHex(tribe?.color || tribe?.tribeColor);
+      return `<span style="color: ${color}; font-weight: bold; text-shadow: 1px 1px 2px black;">${tribeName}</span>`;
+    };
+
     // Generate final Jeff commentary
     let finalCommentary;
     if (this.isThreeTribe) {
@@ -1483,10 +1533,10 @@ const FirstContactView = {
       // Check if player tribe is the loser
       if (loserTribeKey === playerTribeKey) {
         // Player tribe is the loser
-        finalCommentary = `${winner1Name} and ${winner2Name} have won immunity! Your tribe struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
+        finalCommentary = `${colorTribeName(winner1Name, winners[0].tribe)} and ${colorTribeName(winner2Name, winners[1].tribe)} have won immunity! Your tribe struggled in this challenge and will be heading to Tribal Council tonight where one of you will become the first person voted out of Survivor Island.`;
       } else {
         // Player tribe is a winner
-        finalCommentary = `${winner1Name} and ${winner2Name} have won immunity and are safe from tonight's vote! ${loserName}, I'll be seeing you at Tribal Council where one of your tribe members will become the first person voted out.`;
+        finalCommentary = `${colorTribeName(winner1Name, winners[0].tribe)} and ${colorTribeName(winner2Name, winners[1].tribe)} have won immunity and are safe from tonight's vote! ${colorTribeName(loserName, losers[0].tribe)}, I'll be seeing you at Tribal Council where one of your tribe members will become the first person voted out.`;
       }
     } else {
       const winnerName = winners[0].tribe?.name || winners[0].tribe?.tribeName;
@@ -1497,10 +1547,10 @@ const FirstContactView = {
       
       if (loserTribeKey === playerTribeKey) {
         // Player tribe lost
-        finalCommentary = `${winnerName} wins immunity! Your tribe has nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
+        finalCommentary = `${colorTribeName(winnerName, winners[0].tribe)} wins immunity! Your tribe has nothing to protect you tonight. One of you will become the first person voted out of Survivor Island.`;
       } else {
         // Player tribe won
-        finalCommentary = `Your tribe wins immunity! ${loserName}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
+        finalCommentary = `Your tribe wins immunity! ${colorTribeName(loserName, losers[0].tribe)}, grab your torches and head to Tribal Council. One of you will be voted out tonight.`;
       }
     }
 
@@ -1529,13 +1579,32 @@ const FirstContactView = {
       score: l.score 
     })));
     
+    // Helper function to get hex color from tribe color name
+    const getTribeColorHex = (colorName) => {
+      const colorMap = {
+        'red': '#FF0000',
+        'blue': '#0066FF',
+        'orange': '#FF8C00',
+        'green': '#228B22',
+        'purple': '#8A2BE2'
+      };
+      return colorMap[colorName] || '#FFFFFF';
+    };
+
+    // Helper function to wrap tribe names with color
+    const colorTribeName = (tribeName, tribe) => {
+      const color = getTribeColorHex(tribe?.color || tribe?.tribeColor);
+      return `<span style="color: ${color}; font-weight: bold; text-shadow: 1px 1px 2px black;">${tribeName}</span>`;
+    };
+
     // Check if player tribe is among winners and replace with "Your tribe"
     const playerTribeKey = this.playerTribe?.id || this.playerTribe?.name || this.playerTribe?.tribeName;
     const winnerNames = winners.map(w => {
       if (w.tribeKey === playerTribeKey) {
         return 'Your tribe';
       }
-      return w.tribe?.name || w.tribe?.tribeName;
+      const tribeName = w.tribe?.name || w.tribe?.tribeName;
+      return colorTribeName(tribeName, w.tribe);
     }).join(' and ');
     
     // Mark immunity status for all tribes
@@ -1633,7 +1702,10 @@ const FirstContactView = {
         margin-bottom: 12px;
         line-height: 1.2;
       `
-    }, `${winnerNames} wins immunity in First Contact!`);
+    });
+    
+    // Use innerHTML to support HTML color tags
+    title.innerHTML = `${winnerNames} wins immunity in First Contact!`;
 
     // Challenge Performances header
     const performancesHeader = createElement('div', {
