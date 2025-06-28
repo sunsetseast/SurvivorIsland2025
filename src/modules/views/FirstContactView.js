@@ -680,6 +680,8 @@ const FirstContactView = {
       .map(([tribeKey, score]) => ({ tribeKey, score }));
 
     const overallLeaderKey = overallStandings[0]?.tribeKey;
+    const winnerOverallRank = overallStandings.findIndex(s => s.tribeKey === winnerKey);
+    const loserOverallRank = overallStandings.findIndex(s => s.tribeKey === loserKey);
 
     // Check for stage ties
     const stageScores = this.context.stageScores[stage.id] || {};
@@ -766,16 +768,29 @@ const FirstContactView = {
       standout = topFinishes === (this.stageIndex + 1);
     }
 
-    // Find MVP for this stage
-    let mvpInfo = null;
+    // Find performance standouts (MVP and worst) for this stage - be more selective
+    let performanceInfo = null;
     const stagePerfs = this.context.survivorStagePerformances[stage.id] || [];
     if (stagePerfs.length > 0) {
       const topPerformer = stagePerfs[0];
-      if (topPerformer && topPerformer.normalizedScore > 85) {
-        mvpInfo = {
+      const worstPerformer = stagePerfs[stagePerfs.length - 1];
+      
+      // Only call someone a beast if they're significantly better (95+ score)
+      if (topPerformer && topPerformer.normalizedScore >= 95) {
+        performanceInfo = {
+          type: 'mvp',
           name: topPerformer.survivor.firstName,
           tribe: topPerformer.tribe?.name || topPerformer.tribe?.tribeName,
           score: topPerformer.normalizedScore
+        };
+      }
+      // Call out worst performer if they're significantly bad (under 30) and there are multiple performers
+      else if (worstPerformer && worstPerformer.normalizedScore <= 30 && stagePerfs.length > 2) {
+        performanceInfo = {
+          type: 'worst',
+          name: worstPerformer.survivor.firstName,
+          tribe: worstPerformer.tribe?.name || worstPerformer.tribe?.tribeName,
+          score: worstPerformer.normalizedScore
         };
       }
     }
@@ -802,7 +817,7 @@ const FirstContactView = {
       }
     }
 
-    // Main result commentary
+    // Main result commentary - be more accurate about overall position
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
       const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
@@ -821,11 +836,16 @@ const FirstContactView = {
         }
       } else {
         if (tookTheLead) {
-          commentary += `${winnerName} wins and takes the overall lead! What a comeback!`;
+          commentary += `${winnerName} takes the stage and seizes the overall lead! What a comeback!`;
         } else if (winnerKey === overallLeaderKey) {
           commentary += `${winnerName} extends their lead! ${middleName} and ${loserName} falling behind.`;
         } else {
-          commentary += `${winnerName} wins and closes the gap on the leader!`;
+          // More accurate messaging based on actual position
+          if (winnerOverallRank === 0) {
+            commentary += `${winnerName} takes the stage but still trails overall.`;
+          } else {
+            commentary += `${winnerName} takes the stage and makes up significant ground!`;
+          }
         }
       }
     } else {
@@ -842,11 +862,16 @@ const FirstContactView = {
         }
       } else {
         if (tookTheLead) {
-          commentary += `${winnerName} wins and takes the lead! Everything's changed!`;
+          commentary += `${winnerName} takes the stage and grabs the lead! Everything's changed!`;
         } else if (winnerKey === overallLeaderKey) {
           commentary += `${winnerName} extends their lead! ${loserName} in trouble.`;
         } else {
-          commentary += `${winnerName} wins and closes the gap!`;
+          // More accurate for tribe behind overall
+          if (winnerOverallRank === 0) {
+            commentary += `${winnerName} takes the stage but still trails overall!`;
+          } else {
+            commentary += `${winnerName} takes the stage and closes the gap significantly!`;
+          }
         }
       }
     }
@@ -856,9 +881,13 @@ const FirstContactView = {
       commentary += ` ${winnerName} has been dominant every stage!`;
     }
 
-    // MVP callout
-    if (mvpInfo) {
-      commentary += ` ${mvpInfo.name} was a beast!`;
+    // Performance callouts - more selective
+    if (performanceInfo) {
+      if (performanceInfo.type === 'mvp') {
+        commentary += ` ${performanceInfo.name} was absolutely dominant!`;
+      } else if (performanceInfo.type === 'worst') {
+        commentary += ` ${performanceInfo.name} is really struggling!`;
+      }
     }
 
     // Player-specific warning (fix grammar)
