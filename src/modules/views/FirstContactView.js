@@ -3,7 +3,125 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 
+/**
+ * Helper to get a consistent tribe key
+ */
+function getTribeKey(tribe) {
+  return tribe.id ?? tribe.name ?? tribe.tribeName;
+}
+
 const FirstContactView = {
+  // === Rich Jeff Commentary System ===
+  commentaryMemory: {
+    standoutPerformers: new Map(),      // survivor.id -> [{ stageId, type: 'star'|'flop' }]
+    consistentPerformers: new Set(),    // survivor.id
+    comebackPlayers: new Set(),         // survivor.id
+    strugglingPlayers: new Set()        // survivor.id
+  },
+
+  jeffPhrases: {
+    stageIntros: [
+      "Here we go with {stageName}!",
+      "Time for {stageName} — this could change everything!",
+      "Next up: {stageName}. Who's got what it takes?",
+      "Moving on to {stageName}. The pressure's building!",
+      "{stageName} is up next — let's see who steps up!"
+    ],
+    closeWins: [
+      "That was neck and neck! Just inches separating these tribes!",
+      "What a photo finish! These tribes are evenly matched!",
+      "That's as close as it gets, folks! Neither tribe giving an inch!",
+      "Razor-thin margins here — every second counts!",
+      "Dead heat! These survivors are leaving it all out there!"
+    ],
+    blowouts: [
+      "{winnerTribe} absolutely crushing it here!",
+      "This is complete domination by {winnerTribe}!",
+      "{winnerTribe} making this look effortless!",
+      "What a steamroll! {winnerTribe} is firing on all cylinders!",
+      "{loserTribe} getting left in the dust by {winnerTribe}!"
+    ],
+    comebacks: [
+      "{tribe} mounting an incredible comeback!",
+      "Don't count {tribe} out yet — they're surging back!",
+      "{tribe} clawing their way back into this thing!",
+      "What a turnaround from {tribe}! They're not done yet!",
+      "{tribe} showing tremendous heart with this rally!"
+    ],
+    takingLead: [
+      "{tribe} takes the overall lead!",
+      "And just like that, {tribe} is in the driver's seat!",
+      "{tribe} seizes control of this challenge!",
+      "The momentum has shifted — {tribe} now leads!",
+      "{tribe} moves into first place!"
+    ],
+    losingLead: [
+      "{tribe} loses their grip on the lead!",
+      "That lead just evaporated for {tribe}!",
+      "{tribe} falls from the top spot!",
+      "The tables have turned on {tribe}!",
+      "{tribe} can't hold their advantage!"
+    ],
+    individualStars: [
+      "{player} was absolutely on fire in {stage}!",
+      "{player} crushed that {stage} — what a performance!",
+      "{player} showing why they're here to win in {stage}!",
+      "Incredible effort from {player} in {stage}!",
+      "{player} just blazed through {stage}!",
+      "{player} making it look easy in {stage}!",
+      "Standout performance from {player} in {stage}!"
+    ],
+    individualFlops: [
+      "{player} really struggled in {stage} — costing their tribe!",
+      "{player} had trouble with {stage}, falling way behind!",
+      "{player} couldn't find their rhythm in {stage}!",
+      "That was a tough {stage} for {player} — way off the pace!",
+      "{player} completely choked on {stage}!",
+      "{player} looking lost in {stage}!"
+    ],
+    consistency: [
+      "{player} has been rock solid throughout!",
+      "Another strong showing for {player} — proving to be a real asset!",
+      "{player} is the definition of consistent performance!",
+      "{player} just keeps delivering for their tribe!"
+    ],
+    struggles: [
+      "That's {count} bad stages in a row for {player} — they gotta get it together!",
+      "{player} is having a rough challenge — their tribe needs more from them!",
+      "{player} can't seem to find their groove today!"
+    ],
+    finalResults: {
+      winners: [
+        "{winnerTribe} wins the first immunity challenge!",
+        "Victory goes to {winnerTribe} in a {closeness} challenge!",
+        "{winnerTribe} earns their spot in the next round!",
+        "{winnerTribe} takes home the first immunity of the season!"
+      ],
+      losers: [
+        "{loserTribe} will be heading to the first Tribal Council!",
+        "The puzzle wasn't enough to save {loserTribe} — they're going to Tribal!",
+        "{loserTribe} falls short and will face elimination tonight!",
+        "Someone from {loserTribe} will be the first person voted out!"
+      ],
+      narratives: {
+        comeback: [
+          "An incredible comeback story across four stages!",
+          "What a rally from behind to secure the win!",
+          "They were down but never out — amazing turnaround!"
+        ],
+        consistent: [
+          "Consistent performances from {tribe} earn them the win!",
+          "{tribe} stayed steady throughout — that's how you win challenges!",
+          "Methodical, consistent effort pays off for {tribe}!"
+        ],
+        collapse: [
+          "{tribe} had the lead but couldn't hold on!",
+          "A late collapse costs {tribe} their chance at immunity!",
+          "{tribe} was so close but fell apart at the end!"
+        ]
+      }
+    }
+  },
   render(container, config = {}) {
     this.container = container;
     this.config = config;
@@ -64,6 +182,7 @@ const FirstContactView = {
       clearChildren(this.container);
       this.container.style.backgroundImage = `url('${stage.background}')`;
       this._calculateStage(stage);
+      this._updateCommentaryMemory(stage.id);
       this._animateStage(stage);
     } else {
       this._showFinalResults();
@@ -533,54 +652,140 @@ const FirstContactView = {
     });
   },
 
-  _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
-    const winnerName = winner?.tribe?.name || winner?.tribe?.tribeName || 'Unknown Tribe';
-    const loserName = loser?.tribe?.name || loser?.tribe?.tribeName || 'Unknown Tribe';
-    const playerName = this.playerTribe?.name || this.playerTribe?.tribeName || 'Your Tribe';
-    const stageDesc = stage?.description || 'this challenge';
-
-    console.log('Generating Jeff commentary:', {
-      stageName: stage?.name,
-      winnerName,
-      loserName,
-      playerName,
-      playerRank,
-      isClose,
-      isThreeTribe: this.isThreeTribe
-    });
-
-    let commentary = "";
-
-    if (this.isThreeTribe && sorted.length >= 3) {
-      const middle = sorted[1];
-      const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
-
-      if (isClose) {
-        commentary = `Incredible! All three tribes are neck and neck in ${stageDesc}! ${winnerName} edges out by mere seconds, with ${middleName} right behind them, and ${loserName} struggling to keep up. This challenge is anyone's game!`;
-      } else {
-        if (playerRank === 0) {
-          commentary = `${playerName} dominates the ${stage.name} stage! Your tribe makes ${stageDesc} look effortless while ${middleName} and ${loserName} fall behind. Strong start!`;
-        } else if (playerRank === 1) {
-          commentary = `${winnerName} takes a commanding lead in ${stageDesc}! ${playerName} fights hard for second place, but ${loserName} is already struggling. The gap is widening!`;
-        } else {
-          commentary = `${winnerName} crushes the ${stage.name} stage! ${middleName} manages to stay competitive, but ${playerName} is in serious trouble. You need to turn this around fast!`;
+  // === Commentary Memory Hook ===
+  _updateCommentaryMemory(stageId) {
+    const perfs = this.context.survivorStagePerformances[stageId] || [];
+    perfs.forEach(({ survivor, tribe, normalizedScore }) => {
+      const id = survivor.id;
+      if (!this.commentaryMemory.standoutPerformers.has(id)) {
+        this.commentaryMemory.standoutPerformers.set(id, []);
+      }
+      const record = this.commentaryMemory.standoutPerformers.get(id);
+      // Star if ≥95, flop if ≤30
+      if (normalizedScore >= 95) {
+        record.push({ stageId, type: 'star' });
+        if (record.filter(r => r.type === 'star').length >= 2) {
+          this.commentaryMemory.consistentPerformers.add(id);
+        }
+      } else if (normalizedScore <= 30) {
+        record.push({ stageId, type: 'flop' });
+        if (record.filter(r => r.type === 'flop').length >= 2) {
+          this.commentaryMemory.strugglingPlayers.add(id);
         }
       }
-    } else {
-      // Two tribe scenario or fallback
-      if (isClose) {
-        commentary = `What a battle! Both tribes are giving everything they have in ${stageDesc}! ${winnerName} barely edges out ${loserName} by the slimmest of margins. This is going to be a fight to the finish!`;
-      } else {
-        if (playerRank === 0) {
-          commentary = `${playerName} absolutely destroys ${loserName} in the ${stage.name} stage! Your tribe makes ${stageDesc} look easy while ${loserName} struggles badly. Complete domination!`;
-        } else {
-          commentary = `${winnerName} takes a commanding lead! ${playerName} is falling behind badly in ${stageDesc}. If you don't turn this around, you'll be seeing me at Tribal Council tonight!`;
-        }
+      // Comeback: last was flop, now star
+      const lastTwo = record.slice(-2);
+      if (lastTwo.length === 2 && lastTwo[0].type === 'flop' && lastTwo[1].type === 'star') {
+        this.commentaryMemory.comebackPlayers.add(id);
+      }
+    });
+  },
+
+  _generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
+    const { jeffPhrases, commentaryMemory } = this;
+    const getPhrase = (path) => {
+      const arr = path.split('.').reduce((o, k) => o && o[k], jeffPhrases);
+      return Array.isArray(arr) ? arr[Math.floor(Math.random()*arr.length)] : '';
+    };
+    const stageName = stage.name;
+    let lines = [];
+
+    // Intro
+    lines.push(
+      getPhrase('stageIntros')
+        .replace('{stageName}', stageName)
+    );
+
+    // Close vs Blowout
+    const diff = winner.score - loser.score;
+    if (diff < 2) {
+      lines.push(getPhrase('closeWins'));
+    } else if (diff > 10) {
+      lines.push(
+        getPhrase('blowouts')
+          .replace('{winnerTribe}', getTribeKey(winner.tribe))
+          .replace('{loserTribe}', getTribeKey(loser.tribe))
+      );
+    }
+
+    // Individual MVP
+    const perfs = this.context.survivorStagePerformances[stage.id] || [];
+    if (perfs.length) {
+      const best = perfs[0], worst = perfs[perfs.length-1];
+      if (best.normalizedScore >= 95) {
+        lines.push(
+          getPhrase('individualStars')
+            .replace('{player}', best.survivor.firstName)
+            .replace('{stage}', stageName)
+        );
+      }
+      if (worst.normalizedScore <= 30 && Math.random()>0.5) {
+        lines.push(
+          getPhrase('individualFlops')
+            .replace('{player}', worst.survivor.firstName)
+            .replace('{stage}', stageName)
+        );
       }
     }
 
-    console.log('Generated commentary:', commentary);
-    return commentary;
+    // Memory-driven callouts
+    // Consistent
+    for (let id of commentaryMemory.consistentPerformers) {
+      const s = perfs.find(p=>p.survivor.id===id);
+      if (s) {
+        lines.push(
+          getPhrase('consistency')
+            .replace('{player}', s.survivor.firstName)
+        );
+        break;
+      }
+    }
+    // Struggles
+    for (let id of commentaryMemory.strugglingPlayers) {
+      const s = perfs.find(p=>p.survivor.id===id);
+      if (s) {
+        const flopCount = commentaryMemory.standoutPerformers.get(id)
+          .filter(r=>r.type==='flop').length;
+        lines.push(
+          getPhrase('struggles')
+            .replace('{player}', s.survivor.firstName)
+            .replace('{count}', flopCount.toString())
+        );
+        break;
+      }
+    }
+    // Comebacks
+    for (let id of commentaryMemory.comebackPlayers) {
+      const tribeName = this.allTribes.find(t=>t.members.some(m=>m.id===id)).name;
+      lines.push(
+        getPhrase('comebacks')
+          .replace('{tribe}', tribeName)
+      );
+      break;
+    }
+
+    // Taking or losing lead
+    const overall = Object.entries(this.context.totalScores)
+      .sort(([,a],[,b])=>b-a)
+      .map(([k])=>k);
+    const currLead = overall[0], prevLead = this._previousLeader;
+    if (this._previousLeader && currLead !== this._previousLeader) {
+      if (currLead === getTribeKey(winner.tribe)) {
+        lines.push(
+          getPhrase('takingLead')
+            .replace('{tribe}', currLead)
+        );
+      } else {
+        lines.push(
+          getPhrase('losingLead')
+            .replace('{tribe}', this._previousLeader)
+        );
+      }
+    }
+    this._previousLeader = currLead;
+
+    // Join and return
+    return lines.join(' ');
   },
 
   _createJeffParchment(text, onNext) {
