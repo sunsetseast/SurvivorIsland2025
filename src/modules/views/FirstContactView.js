@@ -283,16 +283,24 @@ const FirstContactView = {
                   const secondPlaceTribeKey = sortedScores[1][0];
 
                   console.log(`Three tribe mode - Winner: ${winningTribeKey}, Second: ${secondPlaceTribeKey}`);
+                  console.log(`Available avatars by tribe:`, avatars.map(a => ({ 
+                    name: a.survivor.firstName, 
+                    tribeKey: getTribeKey(a.tribe),
+                    tribeId: a.tribe.id,
+                    tribeName: a.tribe.name 
+                  })));
 
                   // Phase 2a: Move winning tribe avatars the remaining 25%
                   avatars.forEach(({ survivor, avatar, tribe }) => {
-                    const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                    const tribeKey = getTribeKey(tribe);
+                    console.log(`Checking ${survivor.firstName} from tribe ${tribeKey} against winner ${winningTribeKey}`);
                     if (tribeKey === winningTribeKey) {
                       const ability = Math.max(0, survivor._fc_ability || 0);
                       const normalizedAbility = ability / maxAbility;
                       const currentDistance = phase1Distance * normalizedAbility;
                       const finalDistance = currentDistance + phase2Distance;
 
+                      console.log(`Moving winner ${survivor.firstName} from ${tribeKey} to finish line`);
                       avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
                       avatar.style.transform = `translateY(-${finalDistance}px)`;
                     }
@@ -304,13 +312,15 @@ const FirstContactView = {
 
                     // Phase 2b: Move second place tribe avatars the remaining 25%
                     avatars.forEach(({ survivor, avatar, tribe }) => {
-                      const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                      const tribeKey = getTribeKey(tribe);
+                      console.log(`Checking ${survivor.firstName} from tribe ${tribeKey} against second place ${secondPlaceTribeKey}`);
                       if (tribeKey === secondPlaceTribeKey) {
                         const ability = Math.max(0, survivor._fc_ability || 0);
                         const normalizedAbility = ability / maxAbility;
                         const currentDistance = phase1Distance * normalizedAbility;
                         const finalDistance = currentDistance + phase2Distance;
 
+                        console.log(`Moving second place ${survivor.firstName} from ${tribeKey} to finish line`);
                         avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
                         avatar.style.transform = `translateY(-${finalDistance}px)`;
                       }
@@ -328,24 +338,30 @@ const FirstContactView = {
                   // Two tribe mode: only winner moves
                   const winningTribeKey = sortedScores[0][0];
                   console.log(`Two tribe mode - Winner: ${winningTribeKey}`);
+                  console.log(`Available avatars by tribe:`, avatars.map(a => ({ 
+                    name: a.survivor.firstName, 
+                    tribeKey: getTribeKey(a.tribe) 
+                  })));
 
                   // Phase 2: Move only winning tribe avatars the remaining 25%
                   avatars.forEach(({ survivor, avatar, tribe }) => {
-                    const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                    const tribeKey = getTribeKey(tribe);
+                    console.log(`Checking ${survivor.firstName} from tribe ${tribeKey} against winner ${winningTribeKey}`);
                     if (tribeKey === winningTribeKey) {
                       const ability = Math.max(0, survivor._fc_ability || 0);
                       const normalizedAbility = ability / maxAbility;
                       const currentDistance = phase1Distance * normalizedAbility;
                       const finalDistance = currentDistance + phase2Distance;
 
+                      console.log(`Moving winner ${survivor.firstName} from ${tribeKey} to finish line`);
                       avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
                       avatar.style.transform = `translateY(-${finalDistance}px)`;
                     }
                   });
 
-                  // Wait for second place to finish before showing final results
+                  // Wait for winner to finish before showing final results
                   setTimeout(() => {
-                    console.log('Second place finished, going directly to final results');
+                    console.log('Winner finished, going directly to final results');
                     this._showFinalResults();
                   }, phase2Duration + 500);
                 }
