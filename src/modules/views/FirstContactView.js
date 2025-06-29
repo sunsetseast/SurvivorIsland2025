@@ -199,8 +199,9 @@ class FirstContactView {
         position: relative;
         margin: 20px;
         display: flex;
-        justify-content: space-around;
-        align-items: center;
+        justify-content: stretch;
+        align-items: stretch;
+        min-height: 400px;
       `
     });
 
@@ -212,50 +213,73 @@ class FirstContactView {
   }
 
   _createTribePositions(container) {
+    // Create lanes for each tribe
     this.context.tribes.forEach((tribe, index) => {
-      const tribeContainer = createElement('div', {
-        className: `tribe-container tribe-${tribe.name.toLowerCase()}`,
+      const laneContainer = createElement('div', {
+        className: `tribe-lane tribe-lane-${tribe.name.toLowerCase()}`,
         style: `
+          width: ${100 / this.context.tribes.length}%;
+          height: 100%;
+          position: relative;
           display: flex;
           flex-direction: column;
           align-items: center;
-          position: relative;
+          justify-content: flex-start;
+          padding: 20px 10px;
+          border-right: ${index < this.context.tribes.length - 1 ? '2px solid rgba(141, 85, 36, 0.3)' : 'none'};
         `
       });
 
-      // Tribe banner
+      // Tribe banner at top
       const banner = createElement('div', {
         className: 'tribe-banner',
         textContent: tribe.name,
         style: `
           background-color: ${tribe.color};
           color: white;
-          padding: 10px 20px;
+          padding: 8px 16px;
           border-radius: 5px;
           font-weight: bold;
-          margin-bottom: 20px;
+          margin-bottom: 30px;
           box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+          font-size: 1.2em;
+          min-width: 120px;
+          text-align: center;
         `
       });
 
-      // Survivors area
+      // Starting line area
+      const startingLine = createElement('div', {
+        className: 'starting-line',
+        style: `
+          width: 100%;
+          height: 3px;
+          background-color: rgba(141, 85, 36, 0.8);
+          margin-bottom: 20px;
+          position: relative;
+        `
+      });
+
+      // Survivors area - positioned at starting line
       const survivorsArea = createElement('div', {
         className: 'survivors-area',
         style: `
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 8px;
           justify-content: center;
-          max-width: 300px;
+          max-width: 200px;
+          position: relative;
         `
       });
 
-      tribe.members.forEach(survivor => {
+      // Create survivor avatars
+      tribe.members.forEach((survivor, memberIndex) => {
         const survivorElement = createElement('div', {
           className: `survivor survivor-${survivor.id}`,
           style: `
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             background-image: url('${survivor.avatar}');
             background-size: cover;
@@ -264,6 +288,7 @@ class FirstContactView {
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             transition: all 0.3s ease;
             position: relative;
+            cursor: pointer;
           `
         });
 
@@ -272,14 +297,15 @@ class FirstContactView {
           textContent: survivor.name,
           style: `
             position: absolute;
-            bottom: -25px;
+            bottom: -20px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.8em;
+            font-size: 0.7em;
             font-weight: bold;
             color: #8d5524;
             text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
             white-space: nowrap;
+            pointer-events: none;
           `
         });
 
@@ -287,9 +313,26 @@ class FirstContactView {
         survivorsArea.appendChild(survivorElement);
       });
 
-      tribeContainer.appendChild(banner);
-      tribeContainer.appendChild(survivorsArea);
-      container.appendChild(tribeContainer);
+      // Performance track - visual indicator of progress
+      const performanceTrack = createElement('div', {
+        className: 'performance-track',
+        style: `
+          width: 80%;
+          height: 200px;
+          margin-top: 40px;
+          border: 2px dashed rgba(141, 85, 36, 0.4);
+          position: relative;
+          background: linear-gradient(to top, rgba(255,0,0,0.1) 0%, rgba(255,255,0,0.1) 50%, rgba(0,255,0,0.1) 100%);
+        `
+      });
+
+      // Assemble lane
+      laneContainer.appendChild(banner);
+      laneContainer.appendChild(startingLine);
+      laneContainer.appendChild(survivorsArea);
+      laneContainer.appendChild(performanceTrack);
+      
+      container.appendChild(laneContainer);
     });
   }
 
@@ -462,23 +505,40 @@ class FirstContactView {
   }
 
   _animateTribeMembers(tribe, distance, ability) {
-    const tribeContainer = this.container.querySelector(`.tribe-${tribe.name.toLowerCase()}`);
-    if (!tribeContainer) return;
+    const tribeLane = this.container.querySelector(`.tribe-lane-${tribe.name.toLowerCase()}`);
+    if (!tribeLane) {
+      console.warn(`Could not find tribe lane for ${tribe.name}`);
+      return;
+    }
 
-    const survivors = tribeContainer.querySelectorAll('.survivor');
+    const survivorsArea = tribeLane.querySelector('.survivors-area');
+    const survivors = tribeLane.querySelectorAll('.survivor');
 
+    if (!survivors.length) {
+      console.warn(`No survivors found for ${tribe.name}`);
+      return;
+    }
+
+    // Animate the entire survivors area
+    setTimeout(() => {
+      survivorsArea.style.transform = `translateY(-${distance}px)`;
+      survivorsArea.style.transition = 'transform 1.5s ease-out';
+    }, 300);
+
+    // Individual survivor effects
     survivors.forEach((survivorEl, index) => {
       setTimeout(() => {
-        survivorEl.style.transform = `translateY(-${distance}px)`;
-        survivorEl.style.transition = 'transform 1.5s ease-out';
-
         // Add performance-based visual effects
         if (distance > 80) {
           survivorEl.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.6)'; // Green glow for good performance
+          survivorEl.style.border = `3px solid rgba(0, 255, 0, 0.8)`;
         } else if (distance < 30) {
           survivorEl.style.boxShadow = '0 0 15px rgba(255, 0, 0, 0.6)'; // Red glow for poor performance
+          survivorEl.style.border = `3px solid rgba(255, 0, 0, 0.8)`;
+        } else {
+          survivorEl.style.boxShadow = '0 0 10px rgba(255, 255, 0, 0.4)'; // Yellow glow for average
         }
-      }, index * 200);
+      }, index * 100);
     });
   }
 
@@ -490,23 +550,34 @@ class FirstContactView {
 
     this.context.tribes.forEach((tribe, index) => {
       const finalPosition = sortedTribes.indexOf(tribe.name);
-      const finalDistance = (this.context.tribes.length - finalPosition - 1) * 120;
+      const finalDistance = (this.context.tribes.length - finalPosition - 1) * 150 + 50;
 
-      const tribeContainer = this.container.querySelector(`.tribe-${tribe.name.toLowerCase()}`);
-      if (!tribeContainer) return;
+      const tribeLane = this.container.querySelector(`.tribe-lane-${tribe.name.toLowerCase()}`);
+      if (!tribeLane) return;
 
-      const survivors = tribeContainer.querySelectorAll('.survivor');
+      const survivorsArea = tribeLane.querySelector('.survivors-area');
+      const survivors = tribeLane.querySelectorAll('.survivor');
 
+      // Animate survivors area to final position
+      setTimeout(() => {
+        survivorsArea.style.transform = `translateY(-${finalDistance}px)`;
+        survivorsArea.style.transition = 'transform 2s ease-in-out';
+      }, 500);
+
+      // Add winner effects
       survivors.forEach((survivorEl, memberIndex) => {
         setTimeout(() => {
-          survivorEl.style.transform = `translateY(-${finalDistance}px)`;
-          survivorEl.style.transition = 'transform 2s ease-in-out';
-
-          // Winner effects
           if (finalPosition === 0) {
-            survivorEl.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.8)'; // Gold glow for winners
+            // Winner effects
+            survivorEl.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.8)';
+            survivorEl.style.border = '3px solid rgba(255, 215, 0, 1)';
+            survivorEl.style.transform = 'scale(1.1)';
+          } else if (finalPosition === sortedTribes.length - 1) {
+            // Loser effects
+            survivorEl.style.boxShadow = '0 0 15px rgba(255, 0, 0, 0.6)';
+            survivorEl.style.filter = 'brightness(0.8)';
           }
-        }, memberIndex * 150);
+        }, memberIndex * 100);
       });
     });
 
