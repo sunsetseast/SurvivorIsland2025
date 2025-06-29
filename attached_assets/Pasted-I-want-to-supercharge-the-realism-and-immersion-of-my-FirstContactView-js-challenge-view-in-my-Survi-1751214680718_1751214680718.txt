@@ -1,0 +1,52 @@
+I want to supercharge the realism and immersion of my FirstContactView.js challenge view in my Survivor Island game. Please review the full file and improve it based on the following detailed goals:
+
+1. Jeff’s Commentary Overhaul:
+	•	Add significantly more variation to Jeff’s language. Avoid overusing terms like “dominant” or “struggling”.
+	•	Implement a Jeff Commentary Phrase Library with multiple interchangeable sentence templates for every scenario:
+	•	Close wins
+	•	Blowouts
+	•	Comebacks
+	•	Taking or losing the overall lead
+	•	Losing streaks
+	•	Individual MVPs and flops
+	•	Player tribe situations
+	•	Use Math.random() to pick variations dynamically each time, so Jeff never sounds robotic or repetitive.
+
+2. Individual Performance-Based Commentary:
+	•	Highlight individual standout performances per stage in Jeff’s speech, not just overall:
+	•	Example: “Zoe was on fire in the mud crawl, blazing ahead while others sank!”
+	•	Example: “Marcus completely choked on the bean bags — costing his tribe valuable time.”
+	•	Let Jeff call out survivors who:
+	•	Crushed the stage (normalized score ≥ 95)
+	•	Did the worst (normalized score ≤ 30)
+	•	Significantly improved from previous stage
+	•	Had the best performance in a losing tribe
+
+3. Commentary Memory (Optional but ideal):
+	•	Track standout survivors from earlier stages and let Jeff call it out:
+	•	“Another strong showing for Maya — she’s proving to be a real asset.”
+	•	“That’s two bad stages in a row for John. He’s gotta get it together.”
+	•	This can be tracked using a this.context.commentaryMemory object that logs standout/failure IDs with stage indices.
+
+4. Final Animation Logic (STAGE 4):
+	•	In the “vertical puzzle” stage (stage 4), ensure:
+	•	First avatar animation reflects stage 4 ability
+	•	Second animation, after the pause, moves winning tribe avatars to the top based on totalScores (overall challenge winners)
+	•	Double-check that both animation sets reflect performance accurately.
+
+5. Jeff’s Final Results Commentary (Stage 4):
+	•	Enhance the _showFinalResults() and _generateJeffCommentary() to also mention:
+	•	“The puzzle wasn’t enough to save [tribe]. They’ll be heading to Tribal.”
+	•	“An incredible comeback across four stages!”
+	•	“Consistent performances from [tribe] earn them the win!”
+	•	Let Jeff call out consistency, comebacks, and collapse narratives.
+
+6. General Code Enhancements:
+	•	Clean up and modularize commentary-related helper functions.
+	•	Replace hardcoded phrases with arrays of templates and randomized selectors.
+	•	Avoid bloated if/else commentary trees by using data-driven commentary builders where possible.
+
+Be sure to test and verify that:
+	•	Commentary logic works in both two-tribe and three-tribe modes
+	•	All animation distances and durations in _animateStage() are still accurate to calculated performance
+	•	Commentary never feels repetitive or mismatched to the action on screen
