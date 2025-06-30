@@ -293,11 +293,11 @@ const RoleView = {
         transform: translate(-50%, -50%);
         width: 80%;
         height: 80%;
-        background: rgba(255, 0, 0, 0.1);
-        border: 2px solid red;
+        background: transparent;
+        border: none;
         cursor: pointer;
         z-index: 10;
-        color: white;
+        color: transparent;
         font-family: 'Survivant', sans-serif;
         font-weight: bold;
         font-size: 1.2rem;

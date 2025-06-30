@@ -1123,13 +1123,13 @@ const FirstContactView = {
       const nextButton = createElement('button', {
         style: `
           position: absolute;
-          bottom: 40px;
+          bottom: 60px;
           left: 50%;
           transform: translateX(-50%);
           z-index: 1003;
           width: 130px;
           height: 60px;
-          background: url('Assets/rect-button.png') center/cover no-repeat;
+          background: url('Assets/rect-button.png') center/contain no-repeat;
           border: none;
           color: white;
           font-family: 'Survivant', sans-serif;
