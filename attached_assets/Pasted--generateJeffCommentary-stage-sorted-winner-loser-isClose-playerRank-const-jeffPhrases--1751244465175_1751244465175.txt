@@ -1,0 +1,100 @@
+_generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
+  const { jeffPhrases, commentaryMemory } = this;
+  const getPhrase = (path) => {
+    const arr = path.split('.').reduce((o, k) => o && o[k], jeffPhrases);
+    return Array.isArray(arr) ? arr[Math.floor(Math.random() * arr.length)] : '';
+  };
+  const stageName = stage.name;
+  let lines = [];
+
+  // === Stage Outcome First ===
+  const diff = winner.score - loser.score;
+  if (diff < 2) {
+    lines.push(getPhrase('closeWins'));
+  } else if (diff > 10) {
+    lines.push(
+      getPhrase('blowouts')
+        .replace('{winnerTribe}', getTribeKey(winner.tribe))
+        .replace('{loserTribe}', getTribeKey(loser.tribe))
+    );
+  }
+
+  // === MVP and Flop ===
+  const perfs = this.context.survivorStagePerformances[stage.id] || [];
+  if (perfs.length) {
+    const best = perfs[0], worst = perfs[perfs.length - 1];
+    if (best.normalizedScore >= 95) {
+      lines.push(
+        getPhrase('individualStars')
+          .replace('{player}', best.survivor.firstName)
+          .replace('{stage}', stageName)
+      );
+    }
+    if (worst.normalizedScore <= 30 && Math.random() > 0.5) {
+      lines.push(
+        getPhrase('individualFlops')
+          .replace('{player}', worst.survivor.firstName)
+          .replace('{stage}', stageName)
+      );
+    }
+  }
+
+  // === Consistency
+  for (let id of commentaryMemory.consistentPerformers) {
+    const s = perfs.find(p => p.survivor.id === id);
+    if (s) {
+      lines.push(
+        getPhrase('consistency')
+          .replace('{player}', s.survivor.firstName)
+      );
+      break;
+    }
+  }
+
+  // === Struggles
+  for (let id of commentaryMemory.strugglingPlayers) {
+    const s = perfs.find(p => p.survivor.id === id);
+    if (s) {
+      const flopCount = commentaryMemory.standoutPerformers.get(id)
+        .filter(r => r.type === 'flop').length;
+      lines.push(
+        getPhrase('struggles')
+          .replace('{player}', s.survivor.firstName)
+          .replace('{count}', flopCount.toString())
+      );
+      break;
+    }
+  }
+
+  // === Comebacks
+  for (let id of commentaryMemory.comebackPlayers) {
+    const tribeName = this.allTribes.find(t => t.members.some(m => m.id === id)).name;
+    lines.push(
+      getPhrase('comebacks')
+        .replace('{tribe}', tribeName)
+    );
+    break;
+  }
+
+  // === Lead Change
+  const overall = Object.entries(this.context.totalScores)
+    .sort(([, a], [, b]) => b - a)
+    .map(([k]) => k);
+  const currLead = overall[0], prevLead = this._previousLeader;
+  if (this._previousLeader && currLead !== this._previousLeader) {
+    if (currLead === getTribeKey(winner.tribe)) {
+      lines.push(
+        getPhrase('takingLead')
+          .replace('{tribe}', currLead)
+      );
+    } else {
+      lines.push(
+        getPhrase('losingLead')
+          .replace('{tribe}', this._previousLeader)
+      );
+    }
+  }
+  this._previousLeader = currLead;
+
+  return lines.join(' ');
+}
