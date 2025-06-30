@@ -861,7 +861,7 @@ const FirstContactView = {
 
     // Performance descriptors to vary language
     const performanceDescriptors = {
-      excellent: ['crushed it', 'was unstoppable', 'absolutely shined', 'put on a clinic', 'was phenomenal', 'was brilliant', 'excelled beyond belief'],
+      excellent: ['crushed it', 'was unstoppable', 'absolutely shined', 'was phenomenal', 'was brilliant', 'excelled beyond belief'],
       poor: ['struggled mightily', 'had a rough go', 'couldn\'t find their rhythm', 'was completely lost', 'fell apart', 'looked overwhelmed']
     };
 
@@ -966,7 +966,7 @@ const FirstContactView = {
 
     // Special achievements with varied language
     if (standout) {
-      const perfectPhrases = ['perfect challenge performance', 'flawless execution', 'masterful display', 'clinic in every stage'];
+      const perfectPhrases = ['perfect challenge performance', 'flawless execution', 'masterful display'];
       commentary += ` ${colorTribeName(winnerName, winner.tribe)} showing a ${perfectPhrases[Math.floor(Math.random() * perfectPhrases.length)]}!`;
     } else if (isConsistent && this.stageIndex > 1) {
       const consistentPhrases = ['staying consistently strong', 'maintaining their excellence', 'proving their reliability'];
