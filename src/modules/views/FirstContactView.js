@@ -714,6 +714,11 @@ const FirstContactView = {
       arr.filter(s => Math.abs(s - score) < 0.01).length > 1
     );
 
+    // Calculate score difference for dynamic reactions
+    const scoreDiff = winner.score - loser.score;
+    const isBlowout = scoreDiff > 8;
+    const isNailBiter = scoreDiff < 2;
+
     // Fixed losing streak detection
     let lossStreakInfo = null;
     if (this.stageIndex >= 2) {
@@ -777,6 +782,7 @@ const FirstContactView = {
 
     // Fixed standout logic for 3-tribe mode
     let standout = false;
+    let isConsistent = false;
     if (this.stageIndex > 0) {
       let topFinishes = 0;
       for (let i = 0; i <= this.stageIndex; i++) {
@@ -791,6 +797,7 @@ const FirstContactView = {
         }
       }
       standout = topFinishes === (this.stageIndex + 1);
+      isConsistent = topFinishes >= Math.ceil((this.stageIndex + 1) * 0.75); // 75% or more top finishes
     }
 
     // Find performance standouts (MVP and worst) for this stage - be more selective
@@ -820,7 +827,45 @@ const FirstContactView = {
       }
     }
 
-    // Build commentary - keep it concise
+    // Varied opening reactions based on what just happened
+    const openingReactions = {
+      blowout: [
+        `That was a beatdown!`,
+        `Wow! Total annihilation!`,
+        `Absolutely brutal!`,
+        `That wasn't even close!`,
+        `Complete demolition!`
+      ],
+      nailbiter: [
+        `What a battle!`,
+        `Incredible finish!`,
+        `That couldn't have been closer!`,
+        `Down to the wire!`,
+        `Heart-stopping finish!`,
+        `Photo finish!`
+      ],
+      comeback: [
+        `What a turnaround!`,
+        `Stunning reversal!`,
+        `That's how you bounce back!`,
+        `From zero to hero!`,
+        `Incredible comeback!`
+      ],
+      streakBreaker: [
+        `Finally!`,
+        `The streak is over!`,
+        `That's what we've been waiting for!`,
+        `Breakthrough performance!`
+      ]
+    };
+
+    // Performance descriptors to vary language
+    const performanceDescriptors = {
+      excellent: ['crushed it', 'was unstoppable', 'absolutely shined', 'put on a clinic', 'was phenomenal', 'was brilliant', 'excelled beyond belief'],
+      poor: ['struggled mightily', 'had a rough go', 'couldn\'t find their rhythm', 'was completely lost', 'fell apart', 'looked overwhelmed']
+    };
+
+    // Build commentary starting with dynamic reaction
     let commentary = "";
 
     // Handle ties first
@@ -833,8 +878,19 @@ const FirstContactView = {
           return colorTribeName(name, tribe);
         });
 
-      commentary += `Dead tie! ${tiedTribes.join(' and ')} are completely even! `;
+      commentary += `${openingReactions.nailbiter[Math.floor(Math.random() * openingReactions.nailbiter.length)]} ${tiedTribes.join(' and ')} are deadlocked!`;
       return commentary.trim();
+    }
+
+    // Start with immediate reaction to what just happened
+    if (lossStreakInfo?.type === 'break') {
+      commentary += `${openingReactions.streakBreaker[Math.floor(Math.random() * openingReactions.streakBreaker.length)]} `;
+    } else if (tookTheLead) {
+      commentary += `${openingReactions.comeback[Math.floor(Math.random() * openingReactions.comeback.length)]} `;
+    } else if (isBlowout) {
+      commentary += `${openingReactions.blowout[Math.floor(Math.random() * openingReactions.blowout.length)]} `;
+    } else if (isNailBiter) {
+      commentary += `${openingReactions.nailbiter[Math.floor(Math.random() * openingReactions.nailbiter.length)]} `;
     }
 
     // Loss streak info
@@ -842,88 +898,98 @@ const FirstContactView = {
       if (lossStreakInfo.type === 'break') {
         commentary += `${colorTribeName(winnerName, winner.tribe)} breaks their ${lossStreakInfo.count}-stage losing streak! `;
       } else {
-        commentary += `${colorTribeName(winnerName, winner.tribe)} now has ${lossStreakInfo.count} losses in a row! `;
+        commentary += `${colorTribeName(winnerName, winner.tribe)} extends their losing streak to ${lossStreakInfo.count}! `;
       }
     }
 
-    // Main result commentary - be more accurate about overall position
+    // Main result commentary with varied phrasing
     if (this.isThreeTribe && sorted.length >= 3) {
       const middle = sorted[1];
       const middleName = middle?.tribe?.name || middle?.tribe?.tribeName || 'Middle Tribe';
 
       if (isFirst) {
-        if (isClose) {
-          commentary += `All three tribes neck and neck! ${colorTribeName(winnerName, winner.tribe)} edges out ${colorTribeName(middleName, middle.tribe)} and ${colorTribeName(loserName, loser.tribe)}.`;
-        } else {
+        if (isNailBiter) {
+          commentary += `All three tribes trading blows! ${colorTribeName(winnerName, winner.tribe)} sneaks ahead of ${colorTribeName(middleName, middle.tribe)} and ${colorTribeName(loserName, loser.tribe)}.`;
+        } else if (isBlowout) {
           if (playerRank === 0) {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} dominates ${stage.name}! Strong start for your tribe.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} sets the tone early! Your tribe looks unstoppable.`;
           } else if (playerRank === 1) {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} leads, ${colorTribeName(playerName, this.playerTribe)} second, ${colorTribeName(loserName, loser.tribe)} struggling.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} takes charge while ${colorTribeName(playerName, this.playerTribe)} holds steady and ${colorTribeName(loserName, loser.tribe)} falls behind.`;
           } else {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} crushes it! Your tribe is in serious trouble.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} storms ahead! Your tribe needs to regroup fast.`;
           }
+        } else {
+          commentary += `${colorTribeName(winnerName, winner.tribe)} takes the early advantage over ${colorTribeName(middleName, middle.tribe)} and ${colorTribeName(loserName, loser.tribe)}.`;
         }
       } else {
         if (tookTheLead) {
-          commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and seizes the overall lead! What a comeback!`;
+          commentary += `${colorTribeName(winnerName, winner.tribe)} wins the stage and seizes the overall lead! Game changer!`;
         } else if (winnerKey === overallLeaderKey) {
-          commentary += `${colorTribeName(winnerName, winner.tribe)} extends their lead! ${colorTribeName(middleName, middle.tribe)} and ${colorTribeName(loserName, loser.tribe)} falling behind.`;
+          const extendPhrases = ['pulls further ahead', 'extends their advantage', 'builds on their lead', 'increases the gap'];
+          commentary += `${colorTribeName(winnerName, winner.tribe)} ${extendPhrases[Math.floor(Math.random() * extendPhrases.length)]}! ${colorTribeName(middleName, middle.tribe)} and ${colorTribeName(loserName, loser.tribe)} need to step up.`;
         } else {
-          // More accurate messaging based on actual position
           if (winnerOverallRank === 0) {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage but still trails overall.`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} wins the stage but the overall race remains tight!`;
           } else {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and makes up significant ground!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} wins and cuts into the deficit!`;
           }
         }
       }
     } else {
       // Two tribe scenario
       if (isFirst) {
-        if (isClose) {
-          commentary += `Incredible battle! ${colorTribeName(winnerName, winner.tribe)} barely edges out ${colorTribeName(loserName, loser.tribe)}.`;
-        } else {
+        if (isNailBiter) {
+          commentary += `Hair-raising start! ${colorTribeName(winnerName, winner.tribe)} barely escapes with the win over ${colorTribeName(loserName, loser.tribe)}.`;
+        } else if (isBlowout) {
           if (playerRank === 0) {
-            commentary += `Your tribe destroys ${colorTribeName(loserName, loser.tribe)}! Complete domination!`;
+            commentary += `Your tribe makes a statement! ${colorTribeName(loserName, loser.tribe)} got steamrolled!`;
           } else {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} takes command! You're in trouble!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} makes an emphatic statement! You're in deep trouble!`;
           }
+        } else {
+          commentary += `${colorTribeName(winnerName, winner.tribe)} establishes early control over ${colorTribeName(loserName, loser.tribe)}.`;
         }
       } else {
         if (tookTheLead) {
-          commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and grabs the lead! Everything's changed!`;
+          commentary += `${colorTribeName(winnerName, winner.tribe)} wins and takes the overall lead! Complete momentum shift!`;
         } else if (winnerKey === overallLeaderKey) {
-          commentary += `${colorTribeName(winnerName, winner.tribe)} extends their lead! ${colorTribeName(loserName, loser.tribe)} in trouble.`;
+          commentary += `${colorTribeName(winnerName, winner.tribe)} stays in control! ${colorTribeName(loserName, loser.tribe)} falling further behind.`;
         } else {
-          // More accurate for tribe behind overall
           if (winnerOverallRank === 0) {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage but still trails overall!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} wins the stage but still chasing overall!`;
           } else {
-            commentary += `${colorTribeName(winnerName, winner.tribe)} takes the stage and closes the gap significantly!`;
+            commentary += `${colorTribeName(winnerName, winner.tribe)} fights back and narrows the gap!`;
           }
         }
       }
     }
 
-    // Special achievements
+    // Special achievements with varied language
     if (standout) {
-      commentary += ` ${colorTribeName(winnerName, winner.tribe)} has been dominant every stage!`;
+      const perfectPhrases = ['perfect challenge performance', 'flawless execution', 'masterful display', 'clinic in every stage'];
+      commentary += ` ${colorTribeName(winnerName, winner.tribe)} showing a ${perfectPhrases[Math.floor(Math.random() * perfectPhrases.length)]}!`;
+    } else if (isConsistent && this.stageIndex > 1) {
+      const consistentPhrases = ['staying consistently strong', 'maintaining their excellence', 'proving their reliability'];
+      commentary += ` ${colorTribeName(winnerName, winner.tribe)} ${consistentPhrases[Math.floor(Math.random() * consistentPhrases.length)]}!`;
     }
 
-    // Performance callouts - more selective
+    // Performance callouts with varied language
     if (performanceInfo) {
       if (performanceInfo.type === 'mvp') {
-        commentary += ` ${colorSurvivorName(performanceInfo.name, performanceInfo.tribe)} was absolutely dominant!`;
+        const excellentDesc = performanceDescriptors.excellent[Math.floor(Math.random() * performanceDescriptors.excellent.length)];
+        commentary += ` ${colorSurvivorName(performanceInfo.name, performanceInfo.tribe)} ${excellentDesc}!`;
       } else if (performanceInfo.type === 'worst') {
-        commentary += ` ${colorSurvivorName(performanceInfo.name, performanceInfo.tribe)} is really struggling!`;
+        const poorDesc = performanceDescriptors.poor[Math.floor(Math.random() * performanceDescriptors.poor.length)];
+        commentary += ` ${colorSurvivorName(performanceInfo.name, performanceInfo.tribe)} ${poorDesc}!`;
       }
     }
 
-    // Player-specific warning (fix grammar)
+    // Player-specific commentary with varied phrasing
     if (playerRank !== 0 && !isFirst) {
       const playerOverallRank = overallStandings.findIndex(s => s.tribeKey === playerKey);
       if (playerOverallRank === (this.isThreeTribe ? 2 : 1)) {
-        commentary += ` You're in last place - turn this around now!`;
+        const urgentPhrases = ['You\'re in last place - time to turn this around!', 'Dead last! Something\'s got to change!', 'Bottom of the standings - this is critical!'];
+        commentary += ` ${urgentPhrases[Math.floor(Math.random() * urgentPhrases.length)]}`;
       }
     }
 
