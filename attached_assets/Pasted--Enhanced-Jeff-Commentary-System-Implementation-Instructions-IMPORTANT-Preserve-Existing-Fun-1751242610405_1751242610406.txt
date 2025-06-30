@@ -1,0 +1,270 @@
+# Enhanced Jeff Commentary System - Implementation Instructions
+
+## IMPORTANT: Preserve Existing Functionality
+
+- **DO NOT** remove or modify any existing methods, especially `_showJeffCommentary`, `_createJeffParchment`, or any styling/animation code
+- **KEEP** all tribe color text functionality during commentary display
+- **MAINTAIN** all existing stage calculation, animation, and UI logic
+- Only **ENHANCE** the `jeffPhrases` object and `_generateJeffCommentary` method
+
+## Changes to Implement
+
+### 1. Replace the `jeffPhrases.stageIntros` Array
+
+The current intro phrases sound like the stage is about to start, but commentary comes AFTER the stage. Replace with:
+
+```javascript
+stageIntros: [
+  "What a finish to {stageName}!",
+  "{stageName} is complete — and what a battle that was!",
+  "That {stageName} stage is done — let's break it down!",
+  "The {stageName} results are in, and wow!",
+  "{stageName} just wrapped up with some incredible performances!",
+  "After that {stageName} stage, here's what stood out:",
+  "The dust has settled on {stageName} — what a stage!"
+],
+```
+
+### 2. Add New Commentary Categories
+
+Add these new phrase categories to the `jeffPhrases` object:
+
+```javascript
+// Add after existing categories
+momentum: [
+  "{tribe} is building serious momentum right now!",
+  "You can feel the energy shift toward {tribe}!",
+  "{tribe} has found their rhythm — they're dangerous now!",
+  "The momentum is all {tribe}'s right now!",
+  "{tribe} is riding a wave of confidence!"
+],
+
+clutchPerformances: [
+  "{player} came through when {tribe} needed it most!",
+  "That's what champions do — {player} delivered under pressure!",
+  "{player} stepped up big time for {tribe} in that stage!",
+  "Clutch performance from {player} when it mattered!",
+  "{player} proving they're a difference-maker for {tribe}!"
+],
+
+teamwork: [
+  "{tribe} is working like a well-oiled machine!",
+  "Perfect teamwork from {tribe} in that stage!",
+  "{tribe} showing what happens when everyone's on the same page!",
+  "That's championship-level coordination from {tribe}!",
+  "{tribe} executed that flawlessly as a unit!"
+],
+
+pressure: [
+  "The pressure is mounting on {tribe} — they need to respond!",
+  "{tribe} feeling the heat after that performance!",
+  "All eyes are on {tribe} now — can they bounce back?",
+  "The spotlight is on {tribe} — time to step up!",
+  "{tribe} is in a tough spot — they need something special!"
+]
+```
+
+### 3. Enhanced Commentary Memory System
+
+Add this new method to track tribal momentum:
+
+```javascript
+// Add to commentaryMemory object
+tribalMomentum: new Map(), // tribe.name -> consecutive good/bad stages
+
+// Add this method after _updateCommentaryMemory
+_updateTribalMomentum(stageId) {
+  const stageResults = Object.entries(this.context.stageScores[stageId] || {})
+    .sort(([,a], [,b]) => b - a);
+  
+  if (stageResults.length >= 2) {
+    const winner = stageResults[0][0];
+    const loser = stageResults[stageResults.length - 1][0];
+    
+    // Update momentum tracking
+    if (!this.commentaryMemory.tribalMomentum.has(winner)) {
+      this.commentaryMemory.tribalMomentum.set(winner, 0);
+    }
+    if (!this.commentaryMemory.tribalMomentum.has(loser)) {
+      this.commentaryMemory.tribalMomentum.set(loser, 0);
+    }
+    
+    // Increase winner momentum, reset loser momentum
+    this.commentaryMemory.tribalMomentum.set(winner, 
+      Math.max(0, this.commentaryMemory.tribalMomentum.get(winner)) + 1);
+    this.commentaryMemory.tribalMomentum.set(loser, 
+      Math.min(0, this.commentaryMemory.tribalMomentum.get(loser)) - 1);
+  }
+},
+```
+
+### 4. Enhanced _generateJeffCommentary Method
+
+Replace the existing `_generateJeffCommentary` method with this improved version:
+
+```javascript
+_generateJeffCommentary(stage, sorted, winner, loser, isClose, playerRank) {
+  const { jeffPhrases, commentaryMemory } = this;
+  const getPhrase = (path) => {
+    const arr = path.split('.').reduce((o, k) => o && o[k], jeffPhrases);
+    return Array.isArray(arr) ? arr[Math.floor(Math.random()*arr.length)] : '';
+  };
+  const stageName = stage.name;
+  let lines = [];
+
+  // Intro (now reflects stage completion)
+  lines.push(
+    getPhrase('stageIntros')
+      .replace('{stageName}', stageName)
+  );
+
+  // Performance analysis
+  const diff = winner.score - loser.score;
+  if (diff < 2) {
+    lines.push(getPhrase('closeWins'));
+  } else if (diff > 10) {
+    lines.push(
+      getPhrase('blowouts')
+        .replace('{winnerTribe}', getTribeKey(winner.tribe))
+        .replace('{loserTribe}', getTribeKey(loser.tribe))
+    );
+  }
+
+  // Individual standouts
+  const perfs = this.context.survivorStagePerformances[stage.id] || [];
+  if (perfs.length) {
+    const best = perfs[0], worst = perfs[perfs.length-1];
+    
+    // Star performance
+    if (best.normalizedScore >= 95) {
+      const tribeName = getTribeKey(best.tribe);
+      if (Math.random() > 0.5) {
+        lines.push(
+          getPhrase('clutchPerformances')
+            .replace('{player}', best.survivor.firstName)
+            .replace('{tribe}', tribeName)
+        );
+      } else {
+        lines.push(
+          getPhrase('individualStars')
+            .replace('{player}', best.survivor.firstName)
+            .replace('{stage}', stageName)
+        );
+      }
+    }
+    
+    // Poor performance (less frequent)
+    if (worst.normalizedScore <= 30 && Math.random() > 0.7) {
+      lines.push(
+        getPhrase('individualFlops')
+          .replace('{player}', worst.survivor.firstName)
+          .replace('{stage}', stageName)
+      );
+    }
+  }
+
+  // Momentum and storylines
+  const winnerTribeName = getTribeKey(winner.tribe);
+  const loserTribeName = getTribeKey(loser.tribe);
+  
+  const winnerMomentum = commentaryMemory.tribalMomentum.get(winnerTribeName) || 0;
+  const loserMomentum = commentaryMemory.tribalMomentum.get(loserTribeName) || 0;
+  
+  // Hot streak commentary
+  if (winnerMomentum >= 2) {
+    lines.push(
+      getPhrase('momentum')
+        .replace('{tribe}', winnerTribeName)
+    );
+  }
+  
+  // Struggling team commentary
+  if (loserMomentum <= -2) {
+    lines.push(
+      getPhrase('pressure')
+        .replace('{tribe}', loserTribeName)
+    );
+  }
+
+  // Individual consistency/struggles (existing logic but enhanced)
+  for (let id of commentaryMemory.consistentPerformers) {
+    const s = perfs.find(p=>p.survivor.id===id);
+    if (s && Math.random() > 0.4) {
+      lines.push(
+        getPhrase('consistency')
+          .replace('{player}', s.survivor.firstName)
+      );
+      break;
+    }
+  }
+
+  // Comeback stories
+  for (let id of commentaryMemory.comebackPlayers) {
+    const s = perfs.find(p=>p.survivor.id===id);
+    if (s) {
+      const tribeName = getTribeKey(s.tribe);
+      lines.push(
+        getPhrase('comebacks')
+          .replace('{tribe}', tribeName)
+      );
+      commentaryMemory.comebackPlayers.delete(id); // Don't repeat
+      break;
+    }
+  }
+
+  // Overall standings shifts
+  const overall = Object.entries(this.context.totalScores)
+    .sort(([,a],[,b])=>b-a)
+    .map(([k])=>k);
+  const currLead = overall[0];
+  
+  if (this._previousLeader && currLead !== this._previousLeader) {
+    if (currLead === winnerTribeName) {
+      lines.push(
+        getPhrase('takingLead')
+          .replace('{tribe}', currLead)
+      );
+    } else {
+      lines.push(
+        getPhrase('losingLead')
+          .replace('{tribe}', this._previousLeader)
+      );
+    }
+  }
+  this._previousLeader = currLead;
+
+  // Ensure we don't have too many lines (max 4 for readability)
+  if (lines.length > 4) {
+    lines = lines.slice(0, 4);
+  }
+
+  return lines.join(' ');
+},
+```
+
+### 5. Update the runNextStage Method
+
+Make sure tribal momentum is updated. Find the `runNextStage` method and ensure this line is added after `_updateCommentaryMemory`:
+
+```javascript
+this._updateTribalMomentum(stage.id);
+```
+
+## Implementation Checklist
+
+- [ ] Replace `stageIntros` array with post-stage phrases
+- [ ] Add new phrase categories (momentum, clutchPerformances, teamwork, pressure)
+- [ ] Add `tribalMomentum` to commentaryMemory object
+- [ ] Add `_updateTribalMomentum` method
+- [ ] Replace `_generateJeffCommentary` method with enhanced version
+- [ ] Update `runNextStage` to call `_updateTribalMomentum`
+- [ ] Test that tribe colors still appear in commentary
+- [ ] Verify all existing functionality works
+
+## Notes
+
+- The commentary will now feel more like post-stage analysis rather than pre-stage hype
+- Tribal momentum tracking adds storylines about hot streaks and struggles
+- Individual callouts are more varied and contextual
+- Commentary length is capped at 4 lines for better readability
+- All existing styling, animations, and tribe color functionality should remain intact
