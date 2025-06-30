@@ -267,27 +267,44 @@ const FirstContactView = {
           setTimeout(() => {
             console.log('Starting phase 2 - moving winning tribe to finish line');
 
-            // Find winning tribe(s) for this stage
-            const stageScores = this.context.stageScores[stage.id];
-            if (stageScores) {
-              const sortedScores = Object.entries(stageScores)
-                .sort(([,a],[,b]) => b - a);
+            // Find winning tribe(s) based on overall total scores (not just this stage)
+            const overallStandings = Object.entries(this.context.totalScores)
+              .sort(([,a],[,b]) => b - a)
+              .map(([tribeKey, score]) => ({ tribeKey, score }));
 
-              if (sortedScores.length > 0) {
-                const phase2Distance = fullDistance * 0.25;
-                const phase2Duration = 1000; // 1 second for final push
+            if (overallStandings.length > 0) {
+              const phase2Distance = fullDistance * 0.25;
+              const phase2Duration = 1000; // 1 second for final push
 
-                if (this.isThreeTribe && sortedScores.length >= 2) {
-                  // Three tribe mode: winner moves first, then second place
-                  const winningTribeKey = sortedScores[0][0];
-                  const secondPlaceTribeKey = sortedScores[1][0];
+              if (this.isThreeTribe && overallStandings.length >= 2) {
+                // Three tribe mode: overall winner moves first, then overall second place
+                const overallWinnerKey = overallStandings[0].tribeKey;
+                const overallSecondKey = overallStandings[1].tribeKey;
 
-                  console.log(`Three tribe mode - Winner: ${winningTribeKey}, Second: ${secondPlaceTribeKey}`);
+                console.log(`Three tribe mode - Overall Winner: ${overallWinnerKey}, Overall Second: ${overallSecondKey}`);
 
-                  // Phase 2a: Move winning tribe avatars the remaining 25%
+                // Phase 2a: Move overall winning tribe avatars the remaining 25%
+                avatars.forEach(({ survivor, avatar, tribe }) => {
+                  const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                  if (tribeKey === overallWinnerKey) {
+                    const ability = Math.max(0, survivor._fc_ability || 0);
+                    const normalizedAbility = ability / maxAbility;
+                    const currentDistance = phase1Distance * normalizedAbility;
+                    const finalDistance = currentDistance + phase2Distance;
+
+                    avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
+                    avatar.style.transform = `translateY(-${finalDistance}px)`;
+                  }
+                });
+
+                // Wait for overall winner to finish, then move overall second place
+                setTimeout(() => {
+                  console.log('Overall winner finished, moving overall second place tribe');
+
+                  // Phase 2b: Move overall second place tribe avatars the remaining 25%
                   avatars.forEach(({ survivor, avatar, tribe }) => {
                     const tribeKey = tribe.id || tribe.name || tribe.tribeName;
-                    if (tribeKey === winningTribeKey) {
+                    if (tribeKey === overallSecondKey) {
                       const ability = Math.max(0, survivor._fc_ability || 0);
                       const normalizedAbility = ability / maxAbility;
                       const currentDistance = phase1Distance * normalizedAbility;
@@ -298,63 +315,41 @@ const FirstContactView = {
                     }
                   });
 
-                  // Wait for winner to finish, then move second place
+                  // Wait for overall second place to finish before showing final results
                   setTimeout(() => {
-                    console.log('Winner finished, moving second place tribe');
-
-                    // Phase 2b: Move second place tribe avatars the remaining 25%
-                    avatars.forEach(({ survivor, avatar, tribe }) => {
-                      const tribeKey = tribe.id || tribe.name || tribe.tribeName;
-                      if (tribeKey === secondPlaceTribeKey) {
-                        const ability = Math.max(0, survivor._fc_ability || 0);
-                        const normalizedAbility = ability / maxAbility;
-                        const currentDistance = phase1Distance * normalizedAbility;
-                        const finalDistance = currentDistance + phase2Distance;
-
-                        avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
-                        avatar.style.transform = `translateY(-${finalDistance}px)`;
-                      }
-                    });
-
-                    // Wait for second place to finish before showing final results
-                    setTimeout(() => {
-                      console.log('Second place finished, going directly to final results');
-                      this._showFinalResults();
-                    }, phase2Duration + 500);
-
-                  }, phase2Duration + 300); // Small delay between winner and second place
-
-                } else {
-                  // Two tribe mode: only winner moves
-                  const winningTribeKey = sortedScores[0][0];
-                  console.log(`Two tribe mode - Winner: ${winningTribeKey}`);
-
-                  // Phase 2: Move only winning tribe avatars the remaining 25%
-                  avatars.forEach(({ survivor, avatar, tribe }) => {
-                    const tribeKey = tribe.id || tribe.name || tribe.tribeName;
-                    if (tribeKey === winningTribeKey) {
-                      const ability = Math.max(0, survivor._fc_ability || 0);
-                      const normalizedAbility = ability / maxAbility;
-                      const currentDistance = phase1Distance * normalizedAbility;
-                      const finalDistance = currentDistance + phase2Distance;
-
-                      avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
-                      avatar.style.transform = `translateY(-${finalDistance}px)`;
-                    }
-                  });
-
-                  // Wait for second place to finish before showing final results
-                  setTimeout(() => {
-                    console.log('Second place finished, going directly to final results');
+                    console.log('Overall second place finished, going directly to final results');
                     this._showFinalResults();
                   }, phase2Duration + 500);
-                }
+
+                }, phase2Duration + 300); // Small delay between winner and second place
+
               } else {
-                console.warn('No stage scores found for puzzle stage');
-                this._showJeffCommentary(stage);
+                // Two tribe mode: only overall winner moves
+                const overallWinnerKey = overallStandings[0].tribeKey;
+                console.log(`Two tribe mode - Overall Winner: ${overallWinnerKey}`);
+
+                // Phase 2: Move only overall winning tribe avatars the remaining 25%
+                avatars.forEach(({ survivor, avatar, tribe }) => {
+                  const tribeKey = tribe.id || tribe.name || tribe.tribeName;
+                  if (tribeKey === overallWinnerKey) {
+                    const ability = Math.max(0, survivor._fc_ability || 0);
+                    const normalizedAbility = ability / maxAbility;
+                    const currentDistance = phase1Distance * normalizedAbility;
+                    const finalDistance = currentDistance + phase2Distance;
+
+                    avatar.style.transition = `transform ${phase2Duration}ms ease-out`;
+                    avatar.style.transform = `translateY(-${finalDistance}px)`;
+                  }
+                });
+
+                // Wait for overall winner to finish before showing final results
+                setTimeout(() => {
+                  console.log('Overall winner finished, going directly to final results');
+                  this._showFinalResults();
+                }, phase2Duration + 500);
               }
             } else {
-              console.warn('No stage scores available for puzzle stage');
+              console.warn('No overall standings available for puzzle stage');
               this._showJeffCommentary(stage);
             }
           }, 1500); // 1.5 second pause
