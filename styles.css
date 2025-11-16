@@ -2242,3 +2242,46 @@ body {
 /* --- Character Selection flip guards --- */
 #survivor-stack.lock-scroll { overflow-y: hidden !important; }
 #survivor-stack.no-snap { scroll-snap-type: none !important; } /* if you use snap */
+
+/* --------------------------------------------- */
+/* NPC ICONS (left vertical stack) */
+/* --------------------------------------------- */
+
+.npc-icon-container {
+  position: absolute;
+  top: 100px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 999;
+}
+
+.npc-icon {
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.npc-icon:hover {
+  transform: scale(1.05);
+}
+
+.npc-icon-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid gold;
+}
+
+.npc-icon-label {
+  font-size: 12px;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+  margin-top: 4px;
+  text-align: center;
+}

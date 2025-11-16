@@ -6,6 +6,11 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 
+/* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
+/* ------------------------------------------------------------ */
+
 export default function renderMountainTrail(container) {
   console.log('renderMountainTrail() called');
   addDebugBanner('renderMountainTrail() called', 'sienna', 40);
@@ -46,12 +51,16 @@ export default function renderMountainTrail(container) {
       z-index: 2;
       opacity: 1;
       transition: opacity 1s ease;
-      transform: scaleX(${fromTreeMail ? -1 : 1}); /* Unflip the message */
+      transform: scaleX(${fromTreeMail ? -1 : 1});
     `
   }, 'You begin your ascent up the Mountain Trail...');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+
+  /* ⭐ NEW NPC RENDERING -------------------------------------------------- */
+  renderNPCsAtMountainTrail(container);
+  /* ---------------------------------------------------------------------- */
 
   // Fade out message after a delay
   setTimeout(() => {
@@ -103,7 +112,6 @@ export default function renderMountainTrail(container) {
     const upButton = fromTreeMail
       ? createIconButton('Assets/Buttons/up.png', 'Up', () => {
           console.log('Up: go to Fork2 (from TreeMail)');
-          // Reset transform before navigating
           document.getElementById('camp-content').style.transform = 'scaleX(1)';
           window.campScreen.loadView('fork2');
         })
@@ -114,16 +122,14 @@ export default function renderMountainTrail(container) {
 
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', () => {
       console.log('Center: go to ShakeView');
-      // Always reset transform when going to ShakeView to prevent mirror image
       document.getElementById('camp-content').style.transform = 'scaleX(1)';
-      window.previousCampView = 'mountainTrail'; // Set consistent previous view
+      window.previousCampView = 'mountainTrail';
       window.campScreen.loadView('shake');
     });
 
     const downButton = fromTreeMail
       ? createIconButton('Assets/Buttons/down.png', 'Down', () => {
           console.log('Down: back to Tree Mail (from TreeMail)');
-          // Reset transform before navigating back
           document.getElementById('camp-content').style.transform = 'scaleX(1)';
           window.campScreen.loadView('treemail');
         })
@@ -139,3 +145,26 @@ export default function renderMountainTrail(container) {
 
   addDebugBanner('Mountain Trail view rendered!', 'sienna', 170);
 }
+
+/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR THIS LOCATION ------------------ */
+function renderNPCsAtMountainTrail(container) {
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("MountainTrailView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log("Clicked NPC:", survivor.name);
+      // TODO: conversation UI
+    });
+
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
+}
+/* ---------------------------------------------------------------------- */

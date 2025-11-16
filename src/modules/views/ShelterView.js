@@ -8,6 +8,8 @@ import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import activityTracker from '../utils/ActivityTracker.js';
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
 
 let selectedCoBuilder = null;
 let bambooAdded = 0;
@@ -104,6 +106,8 @@ export default function renderShelter(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+  // ⭐ Render NPCs located at the shelter
+  renderNPCsAtShelter(container);
 
   // Fade out after 3 seconds (3000ms)
   setTimeout(() => {
@@ -1256,4 +1260,30 @@ function showTeamPlayerAnimation() {
     animationElement.remove();
     style.remove();
   }, 3000);
+}
+
+/* --------------------------------------------------------------
+   ⭐ NEW: NPC RENDER FUNCTION FOR SHELTER VIEW
+-------------------------------------------------------------- */
+function renderNPCsAtShelter(container) {
+  // Remove old NPC container if it exists
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  // Create fresh container for NPC icons
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  // Get survivors located at ShelterView
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("ShelterView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log("Clicked NPC at Shelter:", survivor.name);
+      // TODO: open conversation UI (later step)
+    });
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
 }

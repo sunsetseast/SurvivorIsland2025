@@ -6,6 +6,11 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 
+/* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
+/* ------------------------------------------------------------ */
+
 export default function renderJungleTrail(container) {
   console.log('renderJungleTrail() called');
   addDebugBanner('renderJungleTrail() called', 'green', 40);
@@ -53,6 +58,10 @@ export default function renderJungleTrail(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+
+  /* ⭐ NEW NPC RENDERING -------------------------------------- */
+  renderNPCsAtJungleTrail(container);
+  /* ----------------------------------------------------------- */
 
   // Fade out message after a delay
   setTimeout(() => {
@@ -211,3 +220,25 @@ export default function renderJungleTrail(container) {
 
   addDebugBanner('Jungle Trail view rendered!', 'green', 170);
 }
+
+/* ⭐⭐ NEW: NPC RENDER FUNCTION ---------------------------------- */
+function renderNPCsAtJungleTrail(container) {
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("JungleTrailView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log(`Clicked NPC: ${survivor.name}`);
+      // TODO: trigger conversation UI
+    });
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
+}
+/* -------------------------------------------------------------- */

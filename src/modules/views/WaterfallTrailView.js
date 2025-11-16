@@ -6,6 +6,11 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 
+/* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
+/* ------------------------------------------------------------- */
+
 export default function renderWaterfallTrail(container) {
   console.log('renderWaterfallTrail() called');
   addDebugBanner('renderWaterfallTrail() called', 'dodgerblue', 40);
@@ -46,13 +51,17 @@ export default function renderWaterfallTrail(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
+  /* ⭐ NEW: NPC Rendering for this view ------------------------- */
+  renderNPCsAtWaterfallTrail(container);
+  /* ------------------------------------------------------------- */
+
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
-    if (actionButtons) {
-      clearChildren(actionButtons);
+  if (actionButtons) {
+    clearChildren(actionButtons);
 
-      actionButtons.style.justifyContent = 'space-between';
-      actionButtons.style.padding = '0 40px';
+    actionButtons.style.justifyContent = 'space-between';
+    actionButtons.style.padding = '0 40px';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -87,10 +96,10 @@ export default function renderWaterfallTrail(container) {
       window.campScreen.loadView('treemail');
     });
 
-      const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-        console.log('Right button clicked - going to Water Well');
-        window.campScreen.loadView('waterWell');
-      });
+    const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
+      console.log('Right button clicked - going to Water Well');
+      window.campScreen.loadView('waterWell');
+    });
 
     actionButtons.appendChild(leftButton);
     actionButtons.appendChild(rightButton);
@@ -98,3 +107,28 @@ export default function renderWaterfallTrail(container) {
 
   addDebugBanner('Waterfall Trail view rendered!', 'dodgerblue', 170);
 }
+
+/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR WATERFALL TRAIL ------- */
+function renderNPCsAtWaterfallTrail(container) {
+  // Remove old NPC container
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  // Get NPCs whose location is "WaterfallTrailView"
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("WaterfallTrailView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log("Clicked NPC at Waterfall Trail:", survivor.name);
+      // TODO: Conversation UI later
+    });
+
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
+}
+/* ------------------------------------------------------------- */

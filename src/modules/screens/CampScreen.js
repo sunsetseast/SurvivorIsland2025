@@ -22,6 +22,7 @@ import renderFishingView from '../views/FishingView.js';
 import renderFireView from '../views/FireView.js';
 import renderSummary from '../views/SummaryView.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import eventManager, { GameEvents } from '../core/EventManager.js';
 
 const campViews = {
   flag: renderTribeFlag,
@@ -64,15 +65,24 @@ export default class CampScreen {
   }
 
   loadView(viewName) {
-    const viewContainer = getElement('camp-content');
-    clearChildren(viewContainer);
-    window.previousCampView = this.currentView || null;
-    this.currentView = viewName;
-    const renderFn = campViews[viewName];
-    if (renderFn) {
-      renderFn(viewContainer);
-      refreshMenuCard();
-    }
+      const viewContainer = getElement('camp-content');
+
+      clearChildren(viewContainer);
+
+      window.previousCampView = this.currentView || null;
+      this.currentView = viewName;
+
+      const renderFn = campViews[viewName];
+      if (renderFn) {
+        renderFn(viewContainer);
+        refreshMenuCard();
+
+        // 🔥 NEW: Notify NPC Auto Renderer
+        eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
+          viewName,
+          container: viewContainer
+        });
+      }
   }
 
   triggerTreeMailEvent() {

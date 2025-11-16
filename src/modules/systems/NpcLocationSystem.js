@@ -6,183 +6,187 @@
  */
 
 import gameManager from "../core/GameManager.js";
-import { randomInt } from "../utils/CommonUtils.js";
-import eventManager, { GameEvents } from "../core/EventManager.js";
+import { getRandomInt } from "../utils/CommonUtils.js";
+import eventManager from "../core/EventManager.js";
+
+// We will NOT import GameEvents here,
+// because your EventManager does NOT define
+// NPC_LOCATIONS_ASSIGNED or NPC_CONFRONTATION yet.
+// We will emit plain string events instead.
 
 export const CAMP_LOCATION_WEIGHTS = {
-    // Tier 1 — Hubs (highest traffic, most group activity)
-    BeachView: 4,
-    ShelterView: 4,
-
-    // Tier 2 — Common social areas
-    CampfireView: 3,
-    WaterWellView: 3,
-
-    // Tier 3 — Suspicious / alone zones
-    RockyShoreView: 1,
-    JungleTrailView: 1,
-    MountainTrailView: 1,
-    WaterfallTrailView: 1,
+  BeachView: 4,
+  ShelterView: 4,
+  CampfireView: 3,
+  WaterWellView: 3,
+  RockyShoreView: 1,
+  JungleTrailView: 1,
+  MountainTrailView: 1,
+  WaterfallTrailView: 1,
 };
 
 export const CAMP_LOCATIONS = Object.keys(CAMP_LOCATION_WEIGHTS);
 
 class NpcLocationSystem {
-    constructor() {
-        this.locations = {}; // survivorId → viewName
-        this.phaseAssigned = false;
+  constructor() {
+    this.locations = {}; // survivorId → viewName
+    this.phaseAssigned = false;
+
+    this.lastFights = []; // store confrontations internally
+  }
+
+  reset() {
+    this.locations = {};
+    this.phaseAssigned = false;
+    this.lastFights = [];
+  }
+
+  /**
+   * MAIN ENTRY — Assign NPCs to locations at the start of each camp phase.
+   */
+  assignLocationsForPhase(survivors) {
+    this.locations = {};
+    this.phaseAssigned = true;
+    this.lastFights = [];
+
+    if (!survivors || survivors.length === 0) return;
+
+    const npcs = survivors.filter(s => !s.isPlayer);
+
+    // Shuffle NPCs to avoid ordering bias
+    const shuffled = [...npcs].sort(() => Math.random() - 0.5);
+
+    for (let npc of shuffled) {
+      const loc = this._chooseLocationForSurvivor(npc, shuffled);
+      this.locations[npc.id] = loc;
     }
 
-    reset() {
-        this.locations = {};
-        this.phaseAssigned = false;
+    // Detect rare fight events
+    this._evaluatePotentialConfrontations(shuffled);
+
+    // Publish basic event (string-based, safe, no GameEvents needed)
+    eventManager.publish("NPC_LOCATIONS_ASSIGNED", {
+      locations: this.locations
+    });
+  }
+
+  /**
+   * Weighted location choice with relationship + personality modifiers.
+   */
+  _chooseLocationForSurvivor(npc, allNpcs) {
+    // Step 1 — base weights
+    const scores = {};
+    for (let loc of CAMP_LOCATIONS) {
+      scores[loc] = CAMP_LOCATION_WEIGHTS[loc];
     }
 
-    /**
-     * MAIN ENTRY — Assign NPCs to locations at the start of each camp phase.
-     * This uses weighted random selection + relationship adjustments.
-     */
-    assignLocationsForPhase(survivors) {
-        this.locations = {};
-        this.phaseAssigned = true;
+    // Step 2 — relationships with NPCs already placed
+    for (let other of allNpcs) {
+      if (other.id === npc.id) continue;
 
-        // Exclude the player from NPC spawning
-        const npcs = survivors.filter(s => !s.isPlayer);
+      const otherLoc = this.locations[other.id];
+      if (!otherLoc) continue;
 
-        // Shuffle NPCs to avoid ordering bias
-        const shuffled = [...npcs].sort(() => Math.random() - 0.5);
+      const trust = gameManager.getRelationshipValue(npc.id, other.id);
 
-        for (let npc of shuffled) {
-            const location = this._chooseLocationForSurvivor(npc, shuffled);
-            this.locations[npc.id] = location;
-        }
-
-        // After all placements: check for fights
-        this._evaluatePotentialConfrontations(shuffled);
-
-        eventManager.publish(GameEvents.NPC_LOCATIONS_ASSIGNED, {
-            locations: this.locations,
-        });
+      if (trust > 70) scores[otherLoc] += 1.5;
+      if (trust < 30) scores[otherLoc] -= 1.5;
     }
 
-    /**
-     * Weighted location choice with relationship and personality modifiers.
-     */
-    _chooseLocationForSurvivor(npc, allNpcs) {
-        // Step 1: Start with base weights
-        let locationScores = {};
-        for (let loc of CAMP_LOCATIONS) {
-            locationScores[loc] = CAMP_LOCATION_WEIGHTS[loc];
-        }
+    // Step 3 — personality modifiers
+    const traits = npc.personalityTraits || [];
 
-        // Step 2: Relationship influence
-        for (let other of allNpcs) {
-            if (other.id === npc.id) continue;
-
-            const npcLoc = this.locations[other.id];
-            if (!npcLoc) continue;
-
-            const trust = gameManager.getRelationshipValue(npc.id, other.id);
-
-            if (trust > 70) {
-                // Allies cluster
-                locationScores[npcLoc] += 1.5;
-            }
-            if (trust < 30) {
-                // Enemies avoid each other
-                locationScores[npcLoc] -= 1.5;
-            }
-        }
-
-        // Step 3: Personality modifiers (if defined)
-        if (npc.personalityTraits) {
-            if (npc.personalityTraits.includes("paranoid")) {
-                locationScores.WaterWellView += 1;
-                locationScores.JungleTrailView += 1;
-            }
-            if (npc.personalityTraits.includes("idol_hunter")) {
-                locationScores.JungleTrailView += 2;
-                locationScores.MountainTrailView += 2;
-                locationScores.WaterfallTrailView += 2;
-            }
-            if (npc.personalityTraits.includes("social")) {
-                locationScores.BeachView += 2;
-                locationScores.ShelterView += 2;
-            }
-            if (npc.personalityTraits.includes("loner")) {
-                locationScores.RockyShoreView += 2;
-                locationScores.WaterfallTrailView += 1;
-            }
-        }
-
-        // Step 4: Convert to weighted pool
-        const weightedPool = [];
-        for (let [loc, score] of Object.entries(locationScores)) {
-            const normalized = Math.max(0, Math.round(score));
-            for (let i = 0; i < normalized; i++) {
-                weightedPool.push(loc);
-            }
-        }
-
-        // Step 5: Choose location
-        if (weightedPool.length === 0) return "ShelterView";
-        return weightedPool[randomInt(0, weightedPool.length - 1)];
+    if (traits.includes("paranoid")) {
+      scores.WaterWellView += 1;
+      scores.JungleTrailView += 1;
     }
 
-    /**
-     * Rare confrontation events — only 10–20% chance between enemies
-     */
-    _evaluatePotentialConfrontations(npcs) {
-        const fights = [];
+    if (traits.includes("idol_hunter")) {
+      scores.JungleTrailView += 2;
+      scores.MountainTrailView += 2;
+      scores.WaterfallTrailView += 2;
+    }
 
-        for (let npcA of npcs) {
-            for (let npcB of npcs) {
-                if (npcA.id >= npcB.id) continue;
+    if (traits.includes("social")) {
+      scores.BeachView += 2;
+      scores.ShelterView += 2;
+    }
 
-                const locA = this.locations[npcA.id];
-                const locB = this.locations[npcB.id];
+    if (traits.includes("loner")) {
+      scores.RockyShoreView += 2;
+      scores.WaterfallTrailView += 1;
+    }
 
-                if (locA !== locB) continue; // must be in same location
+    // Step 4 — build weighted selection pool
+    const pool = [];
 
-                const trust = gameManager.getRelationshipValue(npcA.id, npcB.id);
-                const reverseTrust = gameManager.getRelationshipValue(npcB.id, npcA.id);
+    for (let [loc, score] of Object.entries(scores)) {
+      const count = Math.max(0, Math.round(score));
+      for (let i = 0; i < count; i++) pool.push(loc);
+    }
 
-                if (trust < 25 && reverseTrust < 25) {
-                    // Roll chance for fight: 10–20%
-                    const chance = Math.random();
-                    if (chance < 0.15) {
-                        fights.push({
-                            type: "confrontation",
-                            npcA,
-                            npcB,
-                            location: locA,
-                            intensity: randomInt(1, 3),
-                        });
-                    }
-                }
-            }
+    if (pool.length === 0) return "ShelterView";
+
+    const index = getRandomInt(0, pool.length - 1);
+    return pool[index];
+  }
+
+  /**
+   * Rare confrontation events (10–20% chance)
+   */
+  _evaluatePotentialConfrontations(npcs) {
+    const fights = [];
+
+    for (let i = 0; i < npcs.length; i++) {
+      for (let j = i + 1; j < npcs.length; j++) {
+        const npcA = npcs[i];
+        const npcB = npcs[j];
+
+        const locA = this.locations[npcA.id];
+        const locB = this.locations[npcB.id];
+
+        if (!locA || locA !== locB) continue;
+
+        const trustAB = gameManager.getRelationshipValue(npcA.id, npcB.id);
+        const trustBA = gameManager.getRelationshipValue(npcB.id, npcA.id);
+
+        if (trustAB < 25 && trustBA < 25) {
+          if (Math.random() < 0.15) {
+            const confrontation = {
+              type: "confrontation",
+              npcAId: npcA.id,
+              npcBId: npcB.id,
+              location: locA,
+              intensity: getRandomInt(1, 3)
+            };
+            fights.push(confrontation);
+          }
         }
-
-        if (fights.length > 0) {
-            eventManager.publish(GameEvents.NPC_CONFRONTATION, { fights });
-        }
+      }
     }
 
-    /**
-     * Returns where a survivor is located this phase.
-     */
-    getLocation(id) {
-        return this.locations[id] || null;
+    this.lastFights = fights;
+
+    if (fights.length > 0) {
+      // Publish simple string event to avoid requiring GameEvents update
+      eventManager.publish("NPC_CONFRONTATION", { fights });
+    }
+  }
+
+  getLocation(id) {
+    return this.locations[id] || null;
+  }
+
+  getSurvivorsAtLocation(locationName) {
+    const list = [];
+    const all = gameManager.survivors || [];
+
+    for (let s of all) {
+      if (this.locations[s.id] === locationName) list.push(s);
     }
 
-    /**
-     * Returns all survivors in a given location.
-     */
-    getSurvivorsAtLocation(locationName) {
-        return Object.entries(this.locations)
-            .filter(([_, loc]) => loc === locationName)
-            .map(([id]) => gameManager.survivors.find(s => s.id == id));
-    }
+    return list;
+  }
 }
 
 const npcLocationSystem = new NpcLocationSystem();

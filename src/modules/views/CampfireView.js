@@ -7,6 +7,11 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 
+/* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
+/* ---------------------------------------------------------------- */
+
 export default function renderCampfire(container) {
   console.log('renderCampfire() called');
   addDebugBanner('renderCampfire() called', 'orangered', 40);
@@ -17,7 +22,7 @@ export default function renderCampfire(container) {
   const playerTribe = gameManager.getPlayerTribe();
   const tribeFireValue = playerTribe ? playerTribe.fire : 0;
 
-  // Use different backgrounds based on fire level (CampfireView uses +1 offset)
+  // Use different backgrounds based on fire level
   let backgroundImage;
   if (tribeFireValue >= 3) {
     backgroundImage = "url('Assets/Screens/fire4.png')";
@@ -70,7 +75,11 @@ export default function renderCampfire(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
-  // Fade out after 3 seconds (3000ms)  [oai_citation:0‡JungleTrailView.js](file-service://file-La9ibWCFvF9icVYDgQu4YA)
+  /* ⭐ NEW NPC RENDERING CALL ------------------------------------- */
+  renderNPCsAtCampfire(container);
+  /* -------------------------------------------------------------- */
+
+  // Fade out after 3 seconds
   setTimeout(() => {
     const msgEl = document.getElementById('campfire-message');
     if (msgEl) {
@@ -78,7 +87,7 @@ export default function renderCampfire(container) {
     }
   }, 3000);
 
-  // Remove the message from DOM after 4 seconds (4000ms)  [oai_citation:1‡JungleTrailView.js](file-service://file-La9ibWCFvF9icVYDgQu4YA)
+  // Remove message after fade
   setTimeout(() => {
     const msgEl = document.getElementById('campfire-message');
     if (msgEl) {
@@ -93,7 +102,7 @@ export default function renderCampfire(container) {
 
     actionButtons.style.justifyContent = 'center';
     actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0'; // No extra side padding
+    actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -132,7 +141,7 @@ export default function renderCampfire(container) {
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
       console.log('Blank button clicked - launching Fire view');
-      window.previousCampView = 'campfire'; // ← Set previous view
+      window.previousCampView = 'campfire';
       window.campScreen.loadView('fire');
     });
 
@@ -148,3 +157,29 @@ export default function renderCampfire(container) {
 
   addDebugBanner('Campfire view rendered!', 'orangered', 170);
 }
+
+/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR CAMPFIRE ---------------- */
+function renderNPCsAtCampfire(container) {
+  // Remove old NPC container
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  // Create fresh icon container
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  // Get NPCs located at CampfireView
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("CampfireView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log("Clicked NPC:", survivor.name);
+      // TODO: conversationUI.startConversation(survivor);
+    });
+
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
+}
+/* ---------------------------------------------------------------- */

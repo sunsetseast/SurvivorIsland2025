@@ -6,6 +6,11 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager, screenManager } from '../core/index.js';
 
+/* ⭐ NEW IMPORTS FOR NPC ICON SYSTEM -------------------------------- */
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
+/* ------------------------------------------------------------------- */
+
 export default function renderBeach(container) {
   console.log('renderBeach() called');
   addDebugBanner('renderBeach() called', 'skyblue', 40);
@@ -45,6 +50,10 @@ export default function renderBeach(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+
+  /* ⭐ NEW NPC RENDERING LOGIC -------------------------------------- */
+  renderNPCsAtBeach(container);
+  /* ---------------------------------------------------------------- */
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
@@ -105,3 +114,28 @@ export default function renderBeach(container) {
 
   addDebugBanner('Beach view rendered!', 'deepskyblue', 170);
 }
+
+/* ⭐⭐ NEW FUNCTION ADDED: Renders NPC Icons for BeachView ----------- */
+function renderNPCsAtBeach(container) {
+  // Remove old NPC container if it exists
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  // Fetch survivors located at BeachView
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("BeachView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log("Clicked NPC:", survivor.name);
+      // TODO: Launch conversation UI
+      // conversationUI.startConversation(survivor);
+    });
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
+}
+/* ------------------------------------------------------------------- */

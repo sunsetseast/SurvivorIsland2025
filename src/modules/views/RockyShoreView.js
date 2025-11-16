@@ -6,6 +6,11 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 
+/* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
+/* ---------------------------------------------------------------- */
+
 export default function renderRockyShore(container) {
   console.log('renderRockyShore() called');
   addDebugBanner('renderRockyShore() called', 'slategray', 40);
@@ -46,7 +51,10 @@ export default function renderRockyShore(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
-  // --- Action Bar Buttons ---
+  /* ⭐ NEW NPC RENDERING CALL ------------------------------------- */
+  renderNPCsAtRocky(container);
+  /* -------------------------------------------------------------- */
+
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
@@ -92,6 +100,33 @@ export default function renderRockyShore(container) {
 
     actionButtons.appendChild(downButton);
   }
-  
+
   addDebugBanner('Rocky Shore view rendered!', 'darkslategray', 170);
 }
+
+
+/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR ROCKY SHORE ------------- */
+function renderNPCsAtRocky(container) {
+  // Remove old NPC container
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  // Create fresh icon container
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  // Get NPCs located at RockyShoreView
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("RockyShoreView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log("Clicked NPC:", survivor.name);
+      // TODO: conversationUI.startConversation(survivor);
+    });
+
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
+}
+/* --------------------------------------------------------------- */

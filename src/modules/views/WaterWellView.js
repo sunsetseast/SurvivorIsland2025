@@ -8,6 +8,11 @@ import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { MAX_WATER } from '../data/GameData.js';
 import activityTracker from '../utils/ActivityTracker.js';
 
+/* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
+import npcLocationSystem from "../systems/NpcLocationSystem.js";
+import { createNpcIcon } from "../ui/NpcIcon.js";
+/* ------------------------------------------------------------- */
+
 export default function renderWaterWell(container) {
   console.log('renderWaterWell() called');
   addDebugBanner('renderWaterWell() called', 'dodgerblue', 40);
@@ -52,6 +57,10 @@ export default function renderWaterWell(container) {
 
   setTimeout(() => message.style.opacity = '0', 3000);
   setTimeout(() => message.remove(), 4000);
+
+  /* ⭐ ADD NPC ICONS HERE -------------------------------------- */
+  renderNPCsAtWaterWell(container);
+  /* ------------------------------------------------------------ */
 
   function showWaterInfoPopup() {
     const infoPopup = createElement('div', {
@@ -219,10 +228,9 @@ export default function renderWaterWell(container) {
     effect.appendChild(icon);
     target.appendChild(effect);
 
-    // Match the timeout to the animation duration
     setTimeout(() => {
       effect.remove();
-    }, 2500); // Changed from 2000 to 2500 to match animation duration
+    }, 2500);
   }
 
   function showYourselfParchment() {
@@ -337,7 +345,6 @@ export default function renderWaterWell(container) {
     const player = gameManager.getPlayerSurvivor();
     if (!player) return;
 
-    // Do nothing if player already has max water
     if ((player.water || 0) >= MAX_WATER) {
       console.log('Player already has max water.');
       waterPopup.style.display = 'none';
@@ -351,18 +358,14 @@ export default function renderWaterWell(container) {
     flashClockRed();
 
     player.water = Math.min(MAX_WATER, (player.water || 0) + 100);
-    
-    // Track water gathering for self
+
     activityTracker.trackWaterGathering(100, false);
-    
+
     showWaterEffect(container);
-    
-    // Show parchment popup after water effect
+
     setTimeout(() => {
       showYourselfParchment();
     }, 500);
-    
-    console.log(`Player's water is now ${player.water}`);
   });
 
   forTribeButton.addEventListener('click', () => {
@@ -380,57 +383,44 @@ export default function renderWaterWell(container) {
 
     waterPopup.style.display = 'none';
 
-    // Calculate other members (excluding player) FIRST
     const otherMembers = tribe.members.filter(m => m.id !== player.id);
     const otherMembersCount = otherMembers.length;
 
-    // Deduct time and update UI
     const totalSeconds = tribe.members.length * 300;
     gameManager.deductTime(totalSeconds);
     updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
     flashClockRed();
 
-    // Fill water for all tribe members
     tribe.members.forEach(member => {
       member.water = Math.min(MAX_WATER, (member.water || 0) + 100);
     });
 
-    // Track water gathering for entire tribe
     activityTracker.trackWaterGathering(100, true);
 
-  // Increase player's teamPlayer value by the number of OTHER tribe members
-  if (otherMembersCount > 0) {
-    if (typeof player.teamPlayer !== 'number') {
-      player.teamPlayer = 50; // Initialize to default value from GameData
+    if (otherMembersCount > 0) {
+      if (typeof player.teamPlayer !== 'number') {
+        player.teamPlayer = 50;
+      }
+      player.teamPlayer += otherMembersCount;
+
+      import('../utils/MenuUtils.js').then(({ refreshMenuCard }) => {
+        refreshMenuCard();
+      });
     }
-    player.teamPlayer += otherMembersCount;
-    console.log(`teamPlayer is now ${player.teamPlayer}`);
-    
-    // Refresh menu card to update teamPlayer display
-    import('../utils/MenuUtils.js').then(({ refreshMenuCard }) => {
-      refreshMenuCard();
-    });
-  }
 
-  // Show visual effects
-  showWaterEffect(container);
+    showWaterEffect(container);
 
-  // Show teamPlayer effect if applicable
-  if (otherMembersCount > 0) {
-    // Add a small delay to make both effects visible
+    if (otherMembersCount > 0) {
+      setTimeout(() => {
+        showTeamPlayerEffect(container, otherMembersCount);
+      }, 300);
+    }
+
     setTimeout(() => {
-      showTeamPlayerEffect(container, otherMembersCount);
-    }, 300);
-  }
-
-  // Show parchment popup after effects
-  setTimeout(() => {
-    showTribeParchment();
-  }, 1000);
-
-  console.log('Tribe watered (only those under 100 got more).');
+      showTribeParchment();
+    }, 1000);
   });
-  
+
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
@@ -485,4 +475,26 @@ export default function renderWaterWell(container) {
   }
 
   addDebugBanner('Water Well view rendered!', 'dodgerblue', 170);
+}
+
+/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR WATER WELL ----------- */
+function renderNPCsAtWaterWell(container) {
+  const old = container.querySelector(".npc-icon-container");
+  if (old) old.remove();
+
+  const npcContainer = document.createElement("div");
+  npcContainer.classList.add("npc-icon-container");
+
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("WaterWellView");
+
+  survivorsHere.forEach(survivor => {
+    const icon = createNpcIcon(survivor, () => {
+      console.log("Clicked NPC at Water Well:", survivor.name);
+      // TODO: Dialogue system later
+    });
+
+    npcContainer.appendChild(icon);
+  });
+
+  container.appendChild(npcContainer);
 }

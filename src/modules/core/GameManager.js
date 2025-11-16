@@ -14,6 +14,7 @@ import RelationshipSystem from '../systems/RelationshipSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import npcLocationSystem from '../systems/NpcLocationSystem.js';
+import npcAutoRenderer from "../ui/NpcAutoRenderer.js";
 
 // Game states
 export const GameState = {
@@ -74,6 +75,7 @@ class GameManager {
     eventManager.clear();
     eventManager.setDebug(false);
     screenManager.initialize();
+    npcAutoRenderer.initialize();
     timerManager.clearAll();
 
     // Initialize relationship system

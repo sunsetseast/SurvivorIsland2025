@@ -34,6 +34,9 @@ export const GameEvents = {
   CAMP_ACTIVITY_COMPLETED: 'camp:activityCompleted',
   RESOURCE_GATHERED: 'resource:gathered',
   RESOURCE_USED: 'resource:used',
+  CAMP_VIEW_LOADED: 'camp:viewLoaded',
+  NPC_LOCATIONS_ASSIGNED: 'npc:locationsAssigned',
+  NPC_CONFRONTATION: 'npc:confrontation',
   
   // Challenge events
   CHALLENGE_STARTED: 'challenge:started',
