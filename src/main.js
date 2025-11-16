@@ -14,6 +14,7 @@ import {
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
 import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOverlay.js';
+import npcAutoRenderer from './modules/ui/NpcAutoRenderer.js';
 
 window.mainJsLoaded = true;
 window.openRelationshipsOverlay = openRelationshipsOverlay; // ✅ Make it globally accessible
@@ -54,6 +55,7 @@ function init() {
 
   screenManager.initialize();
   screenManager.showScreen('welcome');
+  npcAutoRenderer.initialize();
 
   // Register systems
   gameManager.registerSystem('dialogueSystem', new systems.DialogueSystem(gameManager));
