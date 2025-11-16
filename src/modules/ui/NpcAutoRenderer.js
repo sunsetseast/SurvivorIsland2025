@@ -16,10 +16,15 @@ class NpcAutoRenderer {
     initialize() {
         this.active = true;
 
+        console.log('🔵 NpcAutoRenderer.initialize() called');
+        
         // Listen to the actual event fired by CampScreen
         eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName, container }) => {
+            console.log('🟢 CAMP_VIEW_LOADED event received!', { viewName, container });
             this.renderNPCs(viewName, container);
         });
+        
+        console.log('🔵 NpcAutoRenderer subscribed to CAMP_VIEW_LOADED');
     }
 
     renderNPCs(viewName, container) {
