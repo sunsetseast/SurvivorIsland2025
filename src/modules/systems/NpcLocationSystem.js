@@ -39,29 +39,19 @@ class NpcLocationSystem {
    * MAIN ENTRY — Runs at the start of each camp phase.
    */
   assignLocationsForPhase(survivors) {
-    console.log(`📍 NpcLocationSystem: assignLocationsForPhase called with ${survivors?.length || 0} survivors`);
-    
     this.locations = {};
     this.phaseAssigned = true;
     this.lastFights = [];
 
-    if (!survivors || survivors.length === 0) {
-      console.log(`⚠️ No survivors provided to assignLocationsForPhase`);
-      return;
-    }
+    if (!survivors || survivors.length === 0) return;
 
     const npcs = survivors.filter(s => !s.isPlayer);
-    console.log(`👥 Found ${npcs.length} NPCs to assign locations`);
-    
     const shuffled = [...npcs].sort(() => Math.random() - 0.5);
 
     for (let npc of shuffled) {
       const loc = this._chooseLocationForSurvivor(npc, shuffled);
       this.locations[npc.id] = loc;
-      console.log(`  ➜ ${npc.firstName} assigned to: ${loc}`);
     }
-
-    console.log(`📋 Final location assignments:`, this.locations);
 
     // Trigger rare fight events
     this._evaluatePotentialConfrontations(shuffled);

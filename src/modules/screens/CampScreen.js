@@ -78,7 +78,6 @@ export default class CampScreen {
         refreshMenuCard();
 
         // 🔥 NEW: Notify NPC Auto Renderer
-        console.log(`📢 CampScreen publishing CAMP_VIEW_LOADED for: "${viewName}"`);
         eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
           viewName,
           container: viewContainer
