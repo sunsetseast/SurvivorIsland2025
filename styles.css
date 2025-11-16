@@ -2238,3 +2238,7 @@ body {
   text-align: center;
   z-index: 11;
 }
+
+/* --- Character Selection flip guards --- */
+#survivor-stack.lock-scroll { overflow-y: hidden !important; }
+#survivor-stack.no-snap { scroll-snap-type: none !important; } /* if you use snap */

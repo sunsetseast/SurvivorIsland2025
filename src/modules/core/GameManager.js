@@ -11,6 +11,9 @@ import { deepCopy } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
+import socialEngine from '../systems/SocialEngine.js';
+import socialMemorySystem from '../systems/SocialMemorySystem.js';
+import npcLocationSystem from '../systems/NpcLocationSystem.js';
 
 // Game states
 export const GameState = {
@@ -67,6 +70,7 @@ class GameManager {
 
   initialize() {
     if (this.isInitialized) return;
+
     eventManager.clear();
     eventManager.setDebug(false);
     screenManager.initialize();
@@ -76,9 +80,57 @@ class GameManager {
     this.systems.relationshipSystem = new RelationshipSystem(this);
     this.systems.relationshipSystem.initialize();
 
+    // Initialize social systems
+    this.systems.socialMemorySystem = socialMemorySystem;
+    this.systems.socialEngine = socialEngine;
+    // Initialize NPC location system
+    this.systems.npcLocationSystem = npcLocationSystem;
+
     this.gameState = GameState.WELCOME;
     this.isInitialized = true;
     eventManager.publish(GameEvents.GAME_INITIALIZED);
+  }
+
+  // ----------------------------
+  // NPC LOCATION PHASE HOOK
+  // ----------------------------
+  attachNpcLocationPhaseHook() {
+    eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, ({ phase }) => {
+
+      // Only assign NPC positions once player is actually in CAMP
+      if (this.gameState !== GameState.CAMP) return;
+
+      // PRE-CHALLENGE (morning camp)
+      if (phase === GamePhase.PRE_CHALLENGE) {
+        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
+      }
+
+      // POST-CHALLENGE (strategy camp)
+      if (phase === GamePhase.POST_CHALLENGE) {
+        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
+      }
+    });
+  }
+
+  // ----------------------------------
+  // SOCIAL ENGINE PHASE HOOK
+  // ----------------------------------
+  // This triggers SocialEngine ONLY when in CAMP and phase changes
+  // (Prevents accidental NPC conversations on the Welcome screen)
+  // ----------------------------------
+  attachSocialEnginePhaseHook() {
+    eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, ({ phase }) => {
+      // Only activate inside the camp
+      if (this.gameState !== GameState.CAMP) return;
+
+      if (phase === GamePhase.PRE_CHALLENGE) {
+        this.systems.socialEngine.resetForNewPhase("pre");
+      }
+
+      if (phase === GamePhase.POST_CHALLENGE) {
+        this.systems.socialEngine.resetForNewPhase("post");
+      }
+    });
   }
 
   registerSystem(systemName, system) {
@@ -91,6 +143,8 @@ class GameManager {
     this.tribeCount = this.gameSettings.tribeCount;
     this.resetGameState();
     this.survivors = [...GameData.getSurvivors()];
+    this.attachSocialEnginePhaseHook(); // Attach phase listener at game start
+    this.attachNpcLocationPhaseHook();
     this.setGameState(GameState.CHARACTER_SELECTION);
     eventManager.publish(GameEvents.GAME_STARTED, { settings: this.gameSettings });
   }
@@ -117,6 +171,22 @@ class GameManager {
     if (!Object.values(GameState).includes(newState)) return;
     const oldState = this.gameState;
     this.gameState = newState;
+
+    // If entering camp, activate social engine + NPC placement immediately
+    if (newState === GameState.CAMP) {
+
+      // Assign NPCs locations for the current phase
+      this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
+
+      // Activate Social Engine for this phase
+      if (this.gamePhase === GamePhase.PRE_CHALLENGE) {
+        this.systems.socialEngine.resetForNewPhase("pre");
+      }
+      if (this.gamePhase === GamePhase.POST_CHALLENGE) {
+        this.systems.socialEngine.resetForNewPhase("post");
+      }
+    }
+
     this._updateScreenForState(newState);
     eventManager.publish(GameEvents.GAME_STATE_CHANGED, { oldState, newState });
   }
@@ -240,7 +310,6 @@ class GameManager {
     switch (this.gamePhase) {
       case 'preChallenge':
         this.gamePhase = 'challenge';
-        // Don't auto-trigger screen change - let Tree Mail handle it
         this._triggerTreeMail();
         break;
       case 'challenge':
@@ -252,7 +321,7 @@ class GameManager {
       case 'tribalCouncil':
         this.day++;
         this.gamePhase = 'preChallenge';
-        this.dayTimer = 7200; // Reset timer for new day
+        this.dayTimer = 7200;
         break;
       default:
         console.warn(`Unknown game phase: ${this.gamePhase}`);
@@ -486,10 +555,8 @@ class GameManager {
     const rest = survivor.rest || 0;
 
     // Health calculation: average of water, hunger, and rest
-    // Each stat contributes equally to health
     const calculatedHealth = Math.round((water + hunger + rest) / 3);
 
-    // Ensure health stays within 0-100 bounds
     survivor.health = Math.max(0, Math.min(100, calculatedHealth));
 
     console.log(`Updated health for ${survivor.name}: ${survivor.health} (water: ${water}, hunger: ${hunger}, rest: ${rest})`);
