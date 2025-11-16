@@ -14,17 +14,27 @@ class NpcAutoRenderer {
     }
 
     initialize() {
-        if (this.active) return;
+        if (this.active) {
+            console.log(`⚠️ NpcAutoRenderer already initialized`);
+            return;
+        }
         this.active = true;
+        console.log(`✅ NpcAutoRenderer initialized and subscribed to CAMP_VIEW_LOADED`);
 
         // Listen to the actual event fired by CampScreen
         eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName, container }) => {
+            console.log(`🔔 CAMP_VIEW_LOADED event received for: "${viewName}"`);
             this.renderNPCs(viewName, container);
         });
     }
 
     renderNPCs(viewName, container) {
-        if (!container) return;
+        console.log(`🎯 NpcAutoRenderer.renderNPCs called for viewName: "${viewName}"`);
+        
+        if (!container) {
+            console.log(`❌ No container provided`);
+            return;
+        }
 
         // Clear old NPC icons
         const oldIcons = container.querySelectorAll(".npc-icon");
@@ -32,7 +42,12 @@ class NpcAutoRenderer {
 
         // Get NPCs assigned to this location
         const survivors = npcLocationSystem.getSurvivorsAtLocation(viewName);
-        if (!survivors || survivors.length === 0) return;
+        console.log(`📍 Survivors at location "${viewName}":`, survivors);
+        
+        if (!survivors || survivors.length === 0) {
+            console.log(`⚠️ No survivors at this location`);
+            return;
+        }
 
         // Create NPC icon stack
         const iconContainer = createElement("div", {
