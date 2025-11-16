@@ -5,7 +5,7 @@
 
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
 import { gameManager } from "../core/index.js";
-import eventManager from "../core/EventManager.js";
+import eventManager, { GameEvents } from "../core/EventManager.js";
 import { createElement } from "../utils/DOMUtils.js";
 
 class NpcAutoRenderer {
@@ -17,8 +17,8 @@ class NpcAutoRenderer {
         if (this.active) return;
         this.active = true;
 
-        // Listen to the string event actually fired by CampScreen
-        eventManager.subscribe("CAMP_VIEW_LOADED", ({ viewName, container }) => {
+        // Listen to the actual event fired by CampScreen
+        eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName, container }) => {
             this.renderNPCs(viewName, container);
         });
     }
