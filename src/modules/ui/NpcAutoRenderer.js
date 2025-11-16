@@ -14,7 +14,6 @@ class NpcAutoRenderer {
     }
 
     initialize() {
-        if (this.active) return;
         this.active = true;
 
         // Listen to the actual event fired by CampScreen

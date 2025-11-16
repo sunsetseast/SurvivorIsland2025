@@ -55,7 +55,6 @@ function init() {
 
   screenManager.initialize();
   screenManager.showScreen('welcome');
-  npcAutoRenderer.initialize();
 
   // Register systems
   gameManager.registerSystem('dialogueSystem', new systems.DialogueSystem(gameManager));
