@@ -77,9 +77,22 @@ class GameManager {
     eventManager.clear();
     eventManager.setDebug(false);
     screenManager.initialize();
+    
     console.log('🔍 About to call npcAutoRenderer.initialize()');
-    npcAutoRenderer.initialize();
-    console.log('🔍 Called npcAutoRenderer.initialize()');
+    console.log('🔍 npcAutoRenderer object:', npcAutoRenderer);
+    console.log('🔍 npcAutoRenderer.initialize type:', typeof npcAutoRenderer?.initialize);
+    
+    try {
+      if (npcAutoRenderer && typeof npcAutoRenderer.initialize === 'function') {
+        npcAutoRenderer.initialize();
+        console.log('✅ Called npcAutoRenderer.initialize()');
+      } else {
+        console.error('❌ npcAutoRenderer or initialize() is not available:', npcAutoRenderer);
+      }
+    } catch (error) {
+      console.error('❌ Error calling npcAutoRenderer.initialize():', error);
+    }
+    
     timerManager.clearAll();
 
     // Initialize relationship system
