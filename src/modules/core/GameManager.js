@@ -16,6 +16,8 @@ import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import npcLocationSystem from '../systems/NpcLocationSystem.js';
 import npcAutoRenderer from "../ui/NpcAutoRenderer.js";
 
+console.log('🔍 npcAutoRenderer imported:', npcAutoRenderer);
+
 // Game states
 export const GameState = {
   INITIALIZING: 'initializing',
@@ -75,7 +77,9 @@ class GameManager {
     eventManager.clear();
     eventManager.setDebug(false);
     screenManager.initialize();
+    console.log('🔍 About to call npcAutoRenderer.initialize()');
     npcAutoRenderer.initialize();
+    console.log('🔍 Called npcAutoRenderer.initialize()');
     timerManager.clearAll();
 
     // Initialize relationship system
