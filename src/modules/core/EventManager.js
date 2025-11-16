@@ -14,58 +14,60 @@ export const GameEvents = {
   GAME_SAVED: 'game:saved',
   GAME_LOADED: 'game:loaded',
   GAME_OVER: 'game:over',
-  
+
   // Screen events
   SCREEN_CHANGED: 'screen:changed',
-  
+
   // Character events
   CHARACTER_SELECTED: 'character:selected',
-  
+
   // Tribe events
   TRIBES_CREATED: 'tribes:created',
   TRIBES_MERGED: 'tribes:merged',
   TRIBE_SHUFFLED: 'tribes:shuffled',
-  
+
   // Day events
   DAY_STARTED: 'day:started',
   DAY_ADVANCED: 'day:advanced',
-  
+
   // Camp events
   CAMP_ACTIVITY_COMPLETED: 'camp:activityCompleted',
   RESOURCE_GATHERED: 'resource:gathered',
   RESOURCE_USED: 'resource:used',
+
+  // ⭐ NEW CAMP EVENTS ⭐
   CAMP_VIEW_LOADED: 'camp:viewLoaded',
   NPC_LOCATIONS_ASSIGNED: 'npc:locationsAssigned',
   NPC_CONFRONTATION: 'npc:confrontation',
-  
+
   // Challenge events
   CHALLENGE_STARTED: 'challenge:started',
   CHALLENGE_COMPLETED: 'challenge:completed',
   IMMUNITY_GRANTED: 'immunity:granted',
   REWARD_GRANTED: 'reward:granted',
-  
+
   // Tribal council events
   TRIBAL_COUNCIL_STARTED: 'tribalCouncil:started',
   VOTE_CAST: 'vote:cast',
   SURVIVOR_ELIMINATED: 'survivor:eliminated',
-  
+
   // Relationship events
   RELATIONSHIP_CHANGED: 'relationship:changed',
-  
+
   // Alliance events
   ALLIANCE_FORMED: 'alliance:formed',
   ALLIANCE_DISBANDED: 'alliance:disbanded',
   ALLIANCE_MEMBER_ADDED: 'alliance:memberAdded',
   ALLIANCE_MEMBER_REMOVED: 'alliance:memberRemoved',
-  
+
   // Idol events
   IDOL_FOUND: 'idol:found',
   IDOL_PLAYED: 'idol:played',
-  
+
   // Health events
   HEALTH_CHANGED: 'health:changed',
   ENERGY_CHANGED: 'energy:changed',
-  
+
   // UI events
   UI_UPDATED: 'ui:updated',
   DIALOGUE_SHOWN: 'dialogue:shown',

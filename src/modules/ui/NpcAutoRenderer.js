@@ -5,7 +5,7 @@
 
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
 import { gameManager } from "../core/index.js";
-import eventManager, { GameEvents } from "../core/EventManager.js";
+import eventManager from "../core/EventManager.js";
 import { createElement } from "../utils/DOMUtils.js";
 
 class NpcAutoRenderer {
@@ -17,7 +17,8 @@ class NpcAutoRenderer {
         if (this.active) return;
         this.active = true;
 
-        eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName, container }) => {
+        // Listen to the string event actually fired by CampScreen
+        eventManager.subscribe("CAMP_VIEW_LOADED", ({ viewName, container }) => {
             this.renderNPCs(viewName, container);
         });
     }
@@ -25,15 +26,15 @@ class NpcAutoRenderer {
     renderNPCs(viewName, container) {
         if (!container) return;
 
-        // (1) Clear old NPC icons
+        // Clear old NPC icons
         const oldIcons = container.querySelectorAll(".npc-icon");
         oldIcons.forEach(icon => icon.remove());
 
-        // (2) Get all survivors in this location
+        // Get NPCs assigned to this location
         const survivors = npcLocationSystem.getSurvivorsAtLocation(viewName);
         if (!survivors || survivors.length === 0) return;
 
-        // (3) Create NPC icons container
+        // Create NPC icon stack
         const iconContainer = createElement("div", {
             className: "npc-icon-container",
             style: `
@@ -63,7 +64,7 @@ class NpcAutoRenderer {
             });
 
             icon.addEventListener("click", () => {
-                eventManager.publish(GameEvents.NPC_ICON_CLICKED, {
+                eventManager.publish("NPC_ICON_CLICKED", {
                     survivor,
                     location: viewName
                 });
