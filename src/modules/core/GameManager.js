@@ -13,10 +13,12 @@ import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
-import npcLocationSystem from '../systems/NpcLocationSystem.js';
-import npcAutoRenderer from "../ui/NpcAutoRenderer.js";
 
-console.log('🔍 npcAutoRenderer imported:', npcAutoRenderer);
+// ⭐ SAFE SINGLETON IMPORT — NO circular dependency
+import { npcLocationSystem } from '../systems/index.js';
+
+// UI module — this one is fine
+import npcAutoRenderer from "../ui/NpcAutoRenderer.js";
 
 // Game states
 export const GameState = {
@@ -104,6 +106,7 @@ class GameManager {
     this.systems.socialEngine = socialEngine;
     // Initialize NPC location system
     this.systems.npcLocationSystem = npcLocationSystem;
+    this.systems.npcLocationSystem.initialize();   // ✅ ADD THIS
 
     this.gameState = GameState.WELCOME;
     this.isInitialized = true;

@@ -17,12 +17,9 @@ import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOv
 import npcAutoRenderer from './modules/ui/NpcAutoRenderer.js';
 
 window.mainJsLoaded = true;
-window.openRelationshipsOverlay = openRelationshipsOverlay; // ✅ Make it globally accessible
+window.openRelationshipsOverlay = openRelationshipsOverlay;
 
-// Game constants
-const GAME_TITLE = 'Survivor Island';
-const GAME_VERSION = '1.0.0';
-
+// Banner to confirm main.js is running
 const debugBanner = document.createElement('div');
 debugBanner.textContent = 'main.js is running!';
 debugBanner.style.position = 'fixed';
@@ -39,7 +36,7 @@ document.body.appendChild(debugBanner);
  * Initialize the game when the DOM is loaded
  */
 function init() {
-  console.log(`Initializing ${GAME_TITLE} v${GAME_VERSION}`);
+  console.log(`Initializing Survivor Island`);
 
   // Register screens
   screenManager.registerScreen('welcome', new WelcomeScreen());
@@ -49,7 +46,7 @@ function init() {
   const campScreenInstance = new CampScreen();
   screenManager.registerScreen('camp', campScreenInstance);
   window.campScreen = campScreenInstance;
-  
+
   const challengeScreenInstance = new ChallengeScreen();
   screenManager.registerScreen('challenge', challengeScreenInstance);
 
@@ -57,29 +54,41 @@ function init() {
   screenManager.showScreen('welcome');
 
   // Register systems
-  gameManager.registerSystem('dialogueSystem', new systems.DialogueSystem(gameManager));
-  gameManager.registerSystem('energySystem', new systems.EnergySystem(gameManager));
-  gameManager.registerSystem('idolSystem', new systems.IdolSystem(gameManager));
-  gameManager.registerSystem('relationshipSystem', new systems.RelationshipSystem(gameManager));
-  gameManager.registerSystem('allianceSystem', new systems.AllianceSystem(gameManager));
+  // Core systems (all created fresh because they depend on gameManager)
+  gameManager.registerSystem("dialogueSystem", new systems.DialogueSystem(gameManager));
+  gameManager.registerSystem("energySystem", new systems.EnergySystem(gameManager));
+  gameManager.registerSystem("idolSystem", new systems.IdolSystem(gameManager));
+  gameManager.registerSystem("relationshipSystem", new systems.RelationshipSystem(gameManager));
+  gameManager.registerSystem("allianceSystem", new systems.AllianceSystem(gameManager));
 
-  // Subscribe to game events
+  // ⭐ NPC LOCATION SYSTEM — USE THE SINGLETON, NOT A NEW INSTANCE
+  gameManager.registerSystem("npcLocationSystem", systems.npcLocationSystem);
+
+  // ⭐ Initialize NPC system if it has its own init logic
+  if (gameManager.systems.npcLocationSystem.initialize) {
+      gameManager.systems.npcLocationSystem.initialize();
+  }
+
+  // Subscribe to events
   eventManager.subscribe(GameEvents.GAME_INITIALIZED, handleGameInitialized);
   eventManager.subscribe(GameEvents.GAME_STARTED, handleGameStarted);
 
   // Initialize game
+  console.log("Calling gameManager.initialize()…");
   gameManager.initialize();
 
-  // Reveal "Continue Game" if save exists
+  // ⭐⭐⭐ CRITICAL LINE — ACTIVATE NPC RENDER SYSTEM ⭐⭐⭐
+  console.log("Initializing npcAutoRenderer…");
+  npcAutoRenderer.initialize();
+
+  // Show "continue game" if save exists
   const continueButton = document.getElementById('continue-game-button');
   if (gameManager.hasSavedGame() && continueButton) {
     continueButton.style.display = 'block';
   }
 
-  // Set up UI
   setupEventListeners();
   setupMenuToggle();
-
   console.log('Initialization complete');
 }
 
@@ -140,24 +149,21 @@ function updateInventoryUI() {
   const player = gameManager.getPlayerSurvivor();
   if (!player) return;
 
-  // Update individual fish types
-  const fish1Element = document.getElementById('value-fish1');
-  const fish2Element = document.getElementById('value-fish2');
-  const fish3Element = document.getElementById('value-fish3');
-  const coconutElement = document.getElementById('value-coconut');
-  const firewoodElement = document.getElementById('value-firewood');
-  const waterElement = document.getElementById('value-water');
-  const bambooElement = document.getElementById('value-bamboo');
-  const palmsElement = document.getElementById('value-palms');
+  const mapping = {
+    'value-fish1': player.fish1,
+    'value-fish2': player.fish2,
+    'value-fish3': player.fish3,
+    'value-coconut': player.coconuts,
+    'value-firewood': player.firewood,
+    'value-water': player.water,
+    'value-bamboo': player.bamboo,
+    'value-palms': player.palms
+  };
 
-  if (fish1Element) fish1Element.textContent = player.fish1 || 0;
-  if (fish2Element) fish2Element.textContent = player.fish2 || 0;
-  if (fish3Element) fish3Element.textContent = player.fish3 || 0;
-  if (coconutElement) coconutElement.textContent = player.coconuts || 0;
-  if (firewoodElement) firewoodElement.textContent = player.firewood || 0;
-  if (waterElement) waterElement.textContent = player.water || 0;
-  if (bambooElement) bambooElement.textContent = player.bamboo || 0;
-  if (palmsElement) palmsElement.textContent = player.palms || 0;
+  for (let id in mapping) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = mapping[id] || 0;
+  }
 }
 
 function setupMenuToggle() {
@@ -173,13 +179,9 @@ function setupMenuToggle() {
     menuCard.style.display = isVisible ? 'none' : 'block';
     overlay.style.display = isVisible ? 'none' : 'block';
 
-    // 🔁 Update all menu values when the menu is shown
     if (!isVisible) {
       updateInventoryUI();
-      // Also refresh character stats (hunger, rest, threat, etc.)
-      if (window.refreshMenuCard && typeof window.refreshMenuCard === 'function') {
-        window.refreshMenuCard();
-      }
+      if (window.refreshMenuCard) window.refreshMenuCard();
     }
   });
 

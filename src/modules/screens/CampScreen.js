@@ -23,6 +23,7 @@ import renderFireView from '../views/FireView.js';
 import renderSummary from '../views/SummaryView.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
+import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
 
 const campViews = {
   flag: renderTribeFlag,
@@ -67,22 +68,34 @@ export default class CampScreen {
   loadView(viewName) {
       const viewContainer = getElement('camp-content');
 
+      // Always clear old view first
       clearChildren(viewContainer);
 
+      // Track previous view
       window.previousCampView = this.currentView || null;
       this.currentView = viewName;
 
+      // 🔥 1) Publish event BEFORE rendering so renderer knows which view is coming
+      eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
+          viewName
+      });
+    window.debugBanner("CAMP VIEW LOADED", viewName);
+
+      // 🔥 2) Render the actual view
       const renderFn = campViews[viewName];
       if (renderFn) {
-        renderFn(viewContainer);
-        refreshMenuCard();
+          renderFn(viewContainer);
+      }
 
-        // 🔥 NEW: Notify NPC Auto Renderer
-        console.log('🟡 Publishing CAMP_VIEW_LOADED event', { viewName, container: viewContainer });
-        eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
-          viewName,
-          container: viewContainer
-        });
+      // 🔥 3) Force NPC renderer AFTER DOM exists
+      // (this is the critical step — without this, you see nothing)
+      if (npcAutoRenderer && typeof npcAutoRenderer.renderFor === "function") {
+          npcAutoRenderer.renderFor(viewName);
+      }
+
+      // 🔥 4) Update menu stats
+      if (typeof refreshMenuCard === "function") {
+          refreshMenuCard();
       }
   }
 

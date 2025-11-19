@@ -3,31 +3,27 @@
  * Consolidates and re-exports all game systems
  */
 
-// Export all system modules
+// Core systems
 export { default as DialogueSystem } from './DialogueSystem.js';
 export { default as EnergySystem } from './EnergySystem.js';
 export { default as IdolSystem } from './IdolSystem.js';
 export { default as RelationshipSystem, RelationshipType } from './RelationshipSystem.js';
 export { default as AllianceSystem } from './AllianceSystem.js';
-// Uncomment as these modules get implemented
-/*
-export { default as ChallengeSystem } from './ChallengeSystem.js';
-export { default as TribalCouncilSystem } from './TribalCouncilSystem.js';
-*/
 
-// Import all systems for convenient usage via the default export
+// ⭐ NEW: NPC SYSTEMS
+export { default as NpcLocationSystem } from './NpcLocationSystem.js';
+export { default as NpcAutoRenderer } from '../ui/NpcAutoRenderer.js';
+
+// Import everything for default export
 import DialogueSystem from './DialogueSystem.js';
 import EnergySystem from './EnergySystem.js';
 import IdolSystem from './IdolSystem.js';
 import RelationshipSystem, { RelationshipType } from './RelationshipSystem.js';
 import AllianceSystem from './AllianceSystem.js';
-// Uncomment as these modules get implemented
-/*
-import ChallengeSystem from './ChallengeSystem.js';
-import TribalCouncilSystem from './TribalCouncilSystem.js';
-*/
 
-// Default export for convenient importing
+import NpcLocationSystem from './NpcLocationSystem.js';
+import NpcAutoRenderer from '../ui/NpcAutoRenderer.js';
+
 export default {
   DialogueSystem,
   EnergySystem,
@@ -35,9 +31,8 @@ export default {
   RelationshipSystem,
   RelationshipType,
   AllianceSystem,
-  // Uncomment as these modules get implemented
-  /*
-  ChallengeSystem,
-  TribalCouncilSystem
-  */
+
+  // ⭐ NPC systems must be included here
+  NpcLocationSystem,
+  NpcAutoRenderer
 };

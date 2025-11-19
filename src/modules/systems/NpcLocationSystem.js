@@ -1,92 +1,118 @@
 /**
  * NpcLocationSystem.js
  * Handles NPC placement across camp locations for each camp phase.
- * Ensures location names match CampScreen view keys.
+ * Matches CampScreen view keys EXACTLY so NPCs always render.
  */
 
 import gameManager from "../core/GameManager.js";
 import { getRandomInt } from "../utils/CommonUtils.js";
 import eventManager from "../core/EventManager.js";
 
-// IMPORTANT — These MUST match campViews keys in CampScreen.js
+// Safe debug helper – uses global debugBanner if it exists
+const dbg = window.debugBanner || function () {};
+
+// ----------------------------------------------
+// ✔ MATCHES CampScreen.js VIEW KEYS
+// ----------------------------------------------
 export const CAMP_LOCATION_WEIGHTS = {
   beach: 4,
   shelter: 4,
   campfire: 3,
   waterWell: 3,
+
   rocky: 1,
   jungleTrail: 1,
   mountainTrail: 1,
   waterfallTrail: 1,
+
+  treemail: 1 // Player can walk here
 };
 
+// Dynamically derived key list
 export const CAMP_LOCATIONS = Object.keys(CAMP_LOCATION_WEIGHTS);
 
 class NpcLocationSystem {
   constructor() {
-    this.locations = {};     // survivorId -> viewName
+    this.locations = {};    // survivorId → viewName
     this.phaseAssigned = false;
-    this.lastFights = [];    // stores confrontations
+    this.lastFights = [];   // confrontation events
+  }
+
+  // So main.js can safely call initialize()
+  initialize() {
+    dbg("NpcLocationSystem.initialize called");
   }
 
   reset() {
     this.locations = {};
     this.phaseAssigned = false;
     this.lastFights = [];
+    dbg("NpcLocationSystem reset");
   }
 
   /**
-   * MAIN ENTRY — Runs at the start of each camp phase.
+   * MAIN ENTRY – assign locations for the current camp phase
    */
   assignLocationsForPhase(survivors) {
-    console.log('🟣 NpcLocationSystem.assignLocationsForPhase called', { survivorCount: survivors?.length });
-    
+    dbg("assignLocationsForPhase called", { total: survivors?.length });
+
     this.locations = {};
     this.phaseAssigned = true;
     this.lastFights = [];
 
     if (!survivors || survivors.length === 0) {
-      console.log('⚠️ No survivors to assign locations');
+      dbg("No survivors passed into assignLocationsForPhase");
       return;
     }
 
-    const npcs = survivors.filter(s => !s.isPlayer);
-    console.log('🟣 NPCs to assign:', npcs.length);
-    
+    // Only NPCs FROM PLAYER'S TRIBE
+    const tribe = gameManager.getPlayerTribe();
+    if (!tribe) {
+      dbg("No player tribe found – cannot assign NPC locations");
+      return;
+    }
+
+    const npcs = tribe.members.filter(s => !s.isPlayer);
+    dbg("NPCs in player tribe", npcs.map(n => n.firstName));
+
+    // Safe shuffle
     const shuffled = [...npcs].sort(() => Math.random() - 0.5);
 
+    // Assign locations
     for (let npc of shuffled) {
       const loc = this._chooseLocationForSurvivor(npc, shuffled);
       this.locations[npc.id] = loc;
-      console.log(`🟣 Assigned ${npc.firstName} to ${loc}`);
+      dbg("Assigned NPC location", { npc: npc.firstName, loc });
     }
 
-    // Trigger rare fight events
+    // Check for confrontations
     this._evaluatePotentialConfrontations(shuffled);
 
-    // String event = no need for GameEvents update
-    eventManager.publish("NPC_LOCATIONS_ASSIGNED", {
+    // Publish event so render system knows we’re ready
+    eventManager.publish("npc:locationsAssigned", {
       locations: this.locations
     });
+
+    dbg("Finished assignLocationsForPhase", this.locations);
   }
 
   /**
-   * Weighted + relationship + personality modifiers.
+   * LOCATION CHOOSING LOGIC
    */
   _chooseLocationForSurvivor(npc, allNpcs) {
+    // Start with base weights
     const scores = {};
-
-    // Base weights
     for (let loc of CAMP_LOCATIONS) {
       scores[loc] = CAMP_LOCATION_WEIGHTS[loc];
     }
 
-    // Relationship clustering
+    // RELATIONSHIP-based adjustments
     for (let other of allNpcs) {
       if (other.id === npc.id) continue;
 
       const otherLoc = this.locations[other.id];
       if (!otherLoc) continue;
+      if (scores[otherLoc] === undefined) continue; // safety
 
       const trust = gameManager.getRelationshipValue(npc.id, other.id);
 
@@ -94,7 +120,7 @@ class NpcLocationSystem {
       if (trust < 30) scores[otherLoc] -= 1.5;
     }
 
-    // Personality modifiers
+    // PERSONALITY modifiers
     const traits = npc.personalityTraits || [];
 
     if (traits.includes("paranoid")) {
@@ -114,52 +140,58 @@ class NpcLocationSystem {
     }
 
     if (traits.includes("loner")) {
-      scores.rocky += 2;
+      scores.rocky += 2;            // ✅ matches CAMP_LOCATION_WEIGHTS
       scores.waterfallTrail += 1;
     }
 
-    // Build weighted pool
+    // Weighted pool
     const pool = [];
-
-    for (let [loc, score] of Object.entries(scores)) {
-      const count = Math.max(0, Math.round(score));
+    for (let [loc, value] of Object.entries(scores)) {
+      const count = Math.max(0, Math.round(value));
       for (let i = 0; i < count; i++) pool.push(loc);
     }
 
-    if (pool.length === 0) return "shelter";
+    if (pool.length === 0) {
+      dbg("⚠ No weighted pool — defaulting to shelter for", npc.firstName);
+      return "shelter";
+    }
 
-    return pool[getRandomInt(0, pool.length - 1)];
+    const index = getRandomInt(0, pool.length - 1);
+    const picked = pool[index];
+
+    dbg("Location chosen", { npc: npc.firstName, picked });
+
+    return picked;
   }
 
   /**
-   * Rare confrontation events (10–20%).
+   * CONFRONTATION LOGIC
    */
   _evaluatePotentialConfrontations(npcs) {
+    dbg("Checking confrontation possibilities...");
+
     const fights = [];
 
     for (let i = 0; i < npcs.length; i++) {
       for (let j = i + 1; j < npcs.length; j++) {
-        const npcA = npcs[i];
-        const npcB = npcs[j];
+        const A = npcs[i];
+        const B = npcs[j];
 
-        const locA = this.locations[npcA.id];
-        const locB = this.locations[npcB.id];
-
+        const locA = this.locations[A.id];
+        const locB = this.locations[B.id];
         if (!locA || locA !== locB) continue;
 
-        const trustAB = gameManager.getRelationshipValue(npcA.id, npcB.id);
-        const trustBA = gameManager.getRelationshipValue(npcB.id, npcA.id);
+        const trustAB = gameManager.getRelationshipValue(A.id, B.id);
+        const trustBA = gameManager.getRelationshipValue(B.id, A.id);
 
-        if (trustAB < 25 && trustBA < 25) {
-          if (Math.random() < 0.15) {
-            fights.push({
-              type: "confrontation",
-              npcAId: npcA.id,
-              npcBId: npcB.id,
-              location: locA,
-              intensity: getRandomInt(1, 3)
-            });
-          }
+        if (trustAB < 25 && trustBA < 25 && Math.random() < 0.15) {
+          fights.push({
+            type: "confrontation",
+            npcAId: A.id,
+            npcBId: B.id,
+            location: locA,
+            intensity: getRandomInt(1, 3)
+          });
         }
       }
     }
@@ -167,17 +199,37 @@ class NpcLocationSystem {
     this.lastFights = fights;
 
     if (fights.length > 0) {
-      eventManager.publish("NPC_CONFRONTATION", { fights });
+      eventManager.publish("npc:confrontation", { fights });
+      dbg("⚠ CONFRONTATIONS HAPPENED", fights);
+    } else {
+      dbg("No confrontations this phase.");
     }
   }
 
+  /**
+   * PUBLIC HELPERS
+   */
   getLocation(id) {
     return this.locations[id] || null;
   }
 
   getSurvivorsAtLocation(locationName) {
-    const survivors = gameManager.survivors || [];
-    return survivors.filter(s => this.locations[s.id] === locationName);
+    const results = [];
+    const tribe = gameManager.getPlayerTribe();
+    if (!tribe) return results;
+
+    for (let s of tribe.members) {
+      if (!s.isPlayer && this.locations[s.id] === locationName) {
+        results.push(s);
+      }
+    }
+
+    dbg("getSurvivorsAtLocation", {
+      viewName: locationName,
+      results: results.map(r => r.firstName)
+    });
+
+    return results;
   }
 }
 

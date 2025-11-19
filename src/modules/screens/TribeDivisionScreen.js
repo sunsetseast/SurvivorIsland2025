@@ -9,7 +9,7 @@ import {
   addDebugBanner,
   timerManager
 } from '../utils/index.js';
-import { gameManager, screenManager } from '../core/index.js';
+import { gameManager, screenManager, eventManager, GameEvents } from '../core/index.js';
 import gameData from '../data/index.js';
 
 export default class TribeDivisionScreen {
@@ -316,6 +316,7 @@ export default class TribeDivisionScreen {
     gameManager.tribes = tribes;
     gameManager.survivors = tribes.flatMap(t => t.members);
     gameManager.player = gameManager.survivors.find(s => s.isPlayer);
+    
 
     const playerTribeIndex = tribes.findIndex(tribe =>
       tribe.members.some(m => playerSurvivor && m.id === playerSurvivor.id)
@@ -460,6 +461,12 @@ export default class TribeDivisionScreen {
             gameManager.advanceGamePhase();
           }
         }, 1000);
+
+        // ⭐ TELL THE GAME "TRIBES ARE FINAL" → NPCs can be placed now
+        eventManager.publish(GameEvents.TRIBES_CREATED, {
+          tribes: gameManager.tribes
+        });
+        addDebugBanner('TRIBES_CREATED fired from Begin Day 1', 'teal', 50);
 
         // Reveal hamburger icon
         const hamburger = document.getElementById('hamburger-icon');

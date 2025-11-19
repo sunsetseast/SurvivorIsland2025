@@ -551,7 +551,61 @@
     </script>
 
     
+    <script>
+    window.debugBanner = window.debugBanner || function(message, data) {
+      try {
+        let panel = document.getElementById("__debug_panel");
+        if (!panel) {
+          panel = document.createElement("div");
+          panel.id = "__debug_panel";
+          panel.style.position = "fixed";
+          panel.style.top = "0";                     /* <-- move to top */
+          panel.style.left = "0";
+          panel.style.right = "0";
+          panel.style.maxHeight = "35vh";
+          panel.style.overflowY = "auto";
+          panel.style.background = "rgba(0,0,0,0.75)";
+          panel.style.color = "white";
+          panel.style.padding = "6px";
+          panel.style.zIndex = "999999";
+          panel.style.fontFamily = "monospace";
 
-    <script type="module" src="src/main.js"></script>
-  </body>
+          /* Add collapse toggle */
+          const toggle = document.createElement("div");
+          toggle.textContent = "▼ Debug";
+          toggle.style.background = "#222";
+          toggle.style.padding = "4px 8px";
+          toggle.style.cursor = "pointer";
+          toggle.style.fontSize = "12px";
+          toggle.style.borderBottom = "1px solid #444";
+
+          toggle.addEventListener("click", () => {
+            panel.classList.toggle("collapsed");
+            if (panel.classList.contains("collapsed")) {
+              panel.style.height = "22px";
+              toggle.textContent = "▲ Debug";
+            } else {
+              panel.style.height = "";
+              toggle.textContent = "▼ Debug";
+            }
+          });
+
+          panel.appendChild(toggle);
+          document.body.appendChild(panel);
+        }
+
+        const line = document.createElement("div");
+        line.style.padding = "2px 0";
+        line.textContent = `[DEBUG] ${message}` + 
+           (data ? " " + JSON.stringify(data) : "");
+        panel.appendChild(line);
+      } catch (err) {
+        console.log("DebugBanner error:", err);
+      }
+    };
+    </script>
+
+<!-- MUST COME AFTER debugBanner so modules can use it -->
+<script type="module" src="src/main.js"></script>
+</body>
 </html>
