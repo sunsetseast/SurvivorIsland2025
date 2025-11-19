@@ -10,8 +10,8 @@ export { default as IdolSystem } from './IdolSystem.js';
 export { default as RelationshipSystem, RelationshipType } from './RelationshipSystem.js';
 export { default as AllianceSystem } from './AllianceSystem.js';
 
-// ⭐ NEW: NPC SYSTEMS
-export { default as NpcLocationSystem } from './NpcLocationSystem.js';
+// ⭐ NEW: NPC SYSTEMS (NpcLocationSystem default export is the singleton instance)
+export { default as npcLocationSystem } from './NpcLocationSystem.js';
 export { default as NpcAutoRenderer } from '../ui/NpcAutoRenderer.js';
 
 // Import everything for default export
@@ -21,7 +21,7 @@ import IdolSystem from './IdolSystem.js';
 import RelationshipSystem, { RelationshipType } from './RelationshipSystem.js';
 import AllianceSystem from './AllianceSystem.js';
 
-import NpcLocationSystem from './NpcLocationSystem.js';
+import npcLocationSystem from './NpcLocationSystem.js';
 import NpcAutoRenderer from '../ui/NpcAutoRenderer.js';
 
 export default {
@@ -33,6 +33,6 @@ export default {
   AllianceSystem,
 
   // ⭐ NPC systems must be included here
-  NpcLocationSystem,
+  npcLocationSystem,
   NpcAutoRenderer
 };
