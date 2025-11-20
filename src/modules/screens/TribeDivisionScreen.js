@@ -9,7 +9,8 @@ import {
   addDebugBanner,
   timerManager
 } from '../utils/index.js';
-import { gameManager, screenManager, eventManager, GameEvents } from '../core/index.js';
+import { gameManager, eventManager, GameEvents } from '../core/index.js';
+import { GamePhase, GameState } from '../core/GameManager.js';
 import gameData from '../data/index.js';
 
 export default class TribeDivisionScreen {
@@ -435,15 +436,23 @@ export default class TribeDivisionScreen {
     button.addEventListener('click', () => {
       console.log('Begin Day 1 clicked');
       addDebugBanner('Begin Day 1 clicked', 'purple', 40);
-      addDebugBanner('Starting game clock and loading camp screen', 'purple', 30);
+      addDebugBanner('Starting game clock and entering CAMP phase', 'purple', 30);
 
       try {
-        // Set phase and reset clock
-        gameManager.gamePhase = 'preChallenge'; // fixed: no setPhase method
+        // Set phase
+        gameManager.gamePhase = GamePhase.PRE_CHALLENGE;
         gameManager.dayTimer = 7200; // 2 in-game hours
         gameManager.timeSpeed = 8;   // 8 seconds per real second
 
-        // Start ticking the clock
+        // Move into CAMP using GameManager (this triggers correct events)
+        gameManager.setGameState(GameState.CAMP);
+
+        // Publish the phase change (ConversationSystem relies on this)
+        if (typeof gameManager._publishPhaseChange === 'function') {
+          gameManager._publishPhaseChange();
+        }
+
+        // Start the in-game day clock (keep your existing logic)
         timerManager.setInterval('dayClock', () => {
           gameManager.decreaseDayTimer();
 
@@ -472,12 +481,10 @@ export default class TribeDivisionScreen {
         const hamburger = document.getElementById('hamburger-icon');
         if (hamburger) hamburger.style.display = 'block';
 
-        // Transition to camp screen
-        screenManager.showScreen('camp');
-        addDebugBanner('screenManager.showScreen(camp) finished', 'gold', 50);
+        addDebugBanner('GameManager.setGameState(CAMP) executed', 'gold', 50);
       } catch (e) {
-        console.error('Error starting game clock or showing camp screen:', e);
-        addDebugBanner(`ERROR: ${e.message}`, 'red', 60);
+        console.error('Error starting camp phase:', e);
+        addDebugBanner('Error starting camp phase', 'red', 50);
       }
     });
 
