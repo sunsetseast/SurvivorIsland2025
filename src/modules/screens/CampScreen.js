@@ -48,6 +48,11 @@ const campViews = {
 };
 
 export default class CampScreen {
+  constructor() {
+    this.currentView = null;
+    window.campScreen = this;
+  }
+
   initialize() {
     console.log('CampScreen initialized');
   }
