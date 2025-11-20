@@ -174,17 +174,6 @@ class ConversationSystem {
     eventManager.subscribe(GameEvents.NPC_CONFRONTATION, this._handleNpcConfrontation.bind(this));
     eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, this._handlePhaseChange.bind(this));
     eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, this._handleCampViewLoaded.bind(this));
-    eventManager.subscribe(GameEvents.GAME_STATE_CHANGED, ({ newState }) => {
-      if (newState === GameState.CAMP) {
-        // If we arrive in camp mid-phase (e.g., after returning from a challenge), ensure invitations schedule.
-        this._bootstrapCampPhase();
-      } else {
-        this._clearPendingMeetings(true);
-      }
-    });
-
-    // Handle the case where the system initializes after the player is already in camp.
-    this._bootstrapCampPhase();
   }
 
   reset() {
@@ -220,16 +209,6 @@ class ConversationSystem {
       this._queuePhaseInvitations(phase);
     } else {
       this._clearPendingMeetings(true);
-    }
-  }
-
-  _bootstrapCampPhase() {
-    if (!this._isInCamp()) return;
-
-    const phase = this.gameManager.gamePhase;
-    if (phase === GamePhase.PRE_CHALLENGE || phase === GamePhase.POST_CHALLENGE) {
-      this._clearPendingMeetings(false);
-      this._queuePhaseInvitations(phase);
     }
   }
 
@@ -726,8 +705,7 @@ class ConversationSystem {
   }
 
   _isInCamp() {
-    const state = this.gameManager?.gameState || this.gameManager?.getGameState?.();
-    return state === GameState.CAMP || state === 'camp';
+    return this.gameManager.gameState === GameState.CAMP;
   }
 }
 
