@@ -103,6 +103,7 @@ class NpcAutoRenderer {
                 className: "npc-icon",
                 src: survivor.avatarUrl,
                 alt: survivor.firstName,
+                dataset: { npcId: survivor.id },
                 style: `
                     width: 55px;
                     height: 55px;
@@ -115,10 +116,13 @@ class NpcAutoRenderer {
             });
 
             icon.addEventListener("click", () => {
-                eventManager.publish("npc:iconClicked", {
+                const payload = {
                     survivor,
                     location: viewName
-                });
+                };
+
+                eventManager.publish(GameEvents.NPC_CONFRONTATION, payload);
+                eventManager.publish("npc:iconClicked", payload);
             });
 
             iconContainer.appendChild(icon);
