@@ -168,6 +168,7 @@ class ConversationSystem {
     this.activeOverlay = null;
     this.midPhaseTimerId = null;
     this.moods = new Map();
+    this.approachTimerId = null;
   }
 
   initialize() {
@@ -184,17 +185,25 @@ class ConversationSystem {
    * @param {Object} options - Additional optional data
    */
   startNpcConversation(survivor, type, options = {}) {
-    if (!survivor) return;
+    if (!survivor || !this._isInCamp()) return;
 
     const intent = this._mapSocialTypeToIntent(type);
     const location = options.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
 
-    this._startConversation(survivor, {
-      intentOverride: intent,
-      isPurpose: true,
-      meeting: null,
-      location
-    });
+    const beginConversation = () => {
+      this._startConversation(survivor, {
+        intentOverride: intent,
+        isPurpose: true,
+        meeting: null,
+        location
+      });
+    };
+
+    if (options.initiatedByNpc) {
+      this._showNpcApproachOverlay(survivor, location, beginConversation);
+    } else {
+      beginConversation();
+    }
   }
 
   reset() {
@@ -374,6 +383,70 @@ class ConversationSystem {
     overlay.querySelector('.conversation-center').appendChild(parchment);
   }
 
+  _showNpcApproachOverlay(survivor, location, onAccept) {
+    this._highlightNpcIcon(survivor.id, true);
+    const overlay = this._buildOverlayShell(survivor);
+    const locationLabel = this._formatLocation(location);
+
+    const parchment = this._buildParchment(
+      `${survivor.firstName} approaches you${locationLabel ? ` from the ${locationLabel}` : ''}. They want a word.`
+    );
+
+    const prompt = createElement('div', {
+      style: {
+        marginTop: '6px',
+        color: '#2b190a',
+        fontFamily: 'Survivant, sans-serif',
+        lineHeight: 1.4
+      }
+    }, 'You can talk now or wave them off—but they might take it personally.');
+    parchment.appendChild(prompt);
+
+    const buttons = createElement('div', {
+      style: {
+        display: 'flex',
+        gap: '10px',
+        marginTop: '12px',
+        justifyContent: 'center'
+      }
+    });
+
+    const accept = () => {
+      this._clearApproachTimer();
+      onAccept();
+    };
+
+    const talkBtn = createElement('button', {
+      className: 'rect-button',
+      onclick: accept
+    }, 'Talk now');
+
+    const dismissBtn = createElement('button', {
+      className: 'rect-button alt',
+      onclick: () => this._handleApproachDeclined(survivor)
+    }, 'Maybe later');
+
+    buttons.appendChild(talkBtn);
+    buttons.appendChild(dismissBtn);
+    parchment.appendChild(buttons);
+    overlay.querySelector('.conversation-center').appendChild(parchment);
+
+    this._clearApproachTimer();
+    this.approachTimerId = timerManager.setTimeout(`npc-approach-${survivor.id}`, accept, 1800);
+  }
+
+  _handleApproachDeclined(survivor) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    if (player && relationshipSystem && typeof relationshipSystem.changeRelationship === 'function') {
+      relationshipSystem.changeRelationship(player.id, survivor.id, -2);
+    }
+
+    this._shiftMood(survivor.id, 'irritated');
+    this._highlightNpcIcon(survivor.id, false);
+    this._clearOverlay();
+  }
+
   _startConversation(survivor, { intentOverride = null, isPurpose = false, meeting = null, location = null } = {}) {
     const intent = intentOverride || this._chooseIntent(survivor, isPurpose);
     const dialogue = this._buildDialogue(intent, survivor, { isPurpose, meeting, location });
@@ -414,6 +487,8 @@ class ConversationSystem {
 
     if (meeting) {
       this._highlightNpcIcon(meeting.npcId, false);
+    } else {
+      this._highlightNpcIcon(survivor.id, false);
     }
   }
 
@@ -736,10 +811,40 @@ class ConversationSystem {
   }
 
   _clearOverlay() {
+    this._clearApproachTimer();
     if (this.activeOverlay) {
       this.activeOverlay.remove();
       this.activeOverlay = null;
     }
+  }
+
+  _clearApproachTimer() {
+    if (this.approachTimerId) {
+      timerManager.clearTimeout(this.approachTimerId);
+      this.approachTimerId = null;
+    }
+  }
+
+  _formatLocation(location) {
+    if (!location) return '';
+    const labels = {
+      beach: 'beach',
+      shelter: 'shelter',
+      campfire: 'campfire',
+      waterWell: 'water well',
+      rocky: 'rocky shore',
+      fork1: 'jungle fork',
+      fork2: 'jungle path',
+      fork3: 'hidden trail',
+      treemail: 'tree mail',
+      mountainTrail: 'mountain trail',
+      jungleTrail: 'jungle trail',
+      waterfallTrail: 'waterfall trail',
+      firewood: 'firewood pile',
+      bamboo: 'bamboo grove',
+      fishing: 'fishing spot'
+    };
+    return labels[location] || location;
   }
 
   _isInCamp() {

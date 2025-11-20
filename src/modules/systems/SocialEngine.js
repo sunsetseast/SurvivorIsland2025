@@ -5,8 +5,9 @@
 // ===============================
 
 import socialMemorySystem from "./SocialMemorySystem.js";
-import relationshipSystem from "./RelationshipSystem.js"; 
-import gameManager from "../core/GameManager.js";
+import relationshipSystem from "./RelationshipSystem.js";
+import gameManager, { GameState } from "../core/GameManager.js";
+import npcLocationSystem from "./NpcLocationSystem.js";
 
 class SocialEngine {
     constructor() {
@@ -113,6 +114,7 @@ class SocialEngine {
     // Begin the conversation
     // =========================================
     startConversation(npc, type) {
+        if (gameManager.gameState !== GameState.CAMP) return;
         this.conversationsThisPhase++;
         this.startCooldown();
 
@@ -136,9 +138,14 @@ class SocialEngine {
     // =========================================
     showDialogue(npc, group, type) {
         const conversationSystem = gameManager.systems?.conversationSystem;
+        const location = npcLocationSystem.getLocation?.(npc.id) || window?.campScreen?.currentView || null;
 
         if (conversationSystem && typeof conversationSystem.startNpcConversation === "function") {
-            conversationSystem.startNpcConversation(npc, type, { group });
+            conversationSystem.startNpcConversation(npc, type, {
+                group,
+                initiatedByNpc: true,
+                location
+            });
             return;
         }
 
