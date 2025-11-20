@@ -210,6 +210,12 @@ class GameManager {
       if (this.gamePhase === GamePhase.POST_CHALLENGE) {
         this.systems.socialEngine.resetForNewPhase("post");
       }
+
+      if (this.gamePhase === GamePhase.PRE_CHALLENGE || this.gamePhase === GamePhase.POST_CHALLENGE) {
+        eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
+          phase: this.gamePhase
+        });
+      }
     }
 
     this._updateScreenForState(newState);

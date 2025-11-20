@@ -30,24 +30,24 @@ class SocialEngine {
         }
 
         this.phaseType = phaseType;
-        this.scheduleNPCApproach();
+        // Conversation scheduling is temporarily controlled by ConversationSystem.
+        // this.scheduleNPCApproach();
     }
 
     // Schedules NPC approach based on phase
     scheduleNPCApproach() {
-        // guaranteed first approach for both phases
-        setTimeout(() => this.triggerNPCInitiatedConversation(), 1000);
+        // Temporarily disabled so ConversationSystem fully controls conversations.
+        // setTimeout(() => this.triggerNPCInitiatedConversation(), 1000);
 
-        // optional 2nd approach for mid-phase (post challenge more likely)
-        const midTriggerTime = this.phaseType === "pre"
-            ? 20000 + Math.random() * 15000
-            : 15000 + Math.random() * 10000;
+        // const midTriggerTime = this.phaseType === "pre"
+        //     ? 20000 + Math.random() * 15000
+        //     : 15000 + Math.random() * 10000;
 
-        setTimeout(() => {
-            if (this.conversationsThisPhase < this.currentMaxConvos) {
-                this.triggerNPCInitiatedConversation();
-            }
-        }, midTriggerTime);
+        // setTimeout(() => {
+        //     if (this.conversationsThisPhase < this.currentMaxConvos) {
+        //         this.triggerNPCInitiatedConversation();
+        //     }
+        // }, midTriggerTime);
     }
 
     // =========================================

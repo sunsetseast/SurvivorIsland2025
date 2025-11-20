@@ -99,10 +99,8 @@ class NpcAutoRenderer {
         });
 
         survivors.forEach(survivor => {
-            const icon = createElement("img", {
+            const icon = createElement("div", {
                 className: "npc-icon",
-                src: survivor.avatarUrl,
-                alt: survivor.firstName,
                 dataset: { npcId: String(survivor.id) },
                 style: `
                     width: 55px;
@@ -112,19 +110,19 @@ class NpcAutoRenderer {
                     box-shadow: 0 0 6px rgba(0,0,0,0.65);
                     cursor: pointer;
                     background: rgba(0,0,0,0.25);
+                    background-image: url('${survivor.avatarUrl}');
+                    background-size: cover;
+                    background-position: center;
                 `
             });
 
             const currentViewName = viewName;
 
-            icon.addEventListener('click', () => {
-                const payload = {
+            icon.addEventListener("click", () => {
+                eventManager.publish(GameEvents.NPC_CONFRONTATION, {
                     survivor,
                     location: currentViewName
-                };
-
-                eventManager.publish(GameEvents.NPC_CONFRONTATION, payload);
-                eventManager.publish("npc:iconClicked", payload);
+                });
             });
 
             iconContainer.appendChild(icon);
