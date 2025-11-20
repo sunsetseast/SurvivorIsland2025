@@ -13,10 +13,9 @@ import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
-import ConversationSystem from '../systems/ConversationSystem.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
-import { npcLocationSystem } from '../systems/index.js';
+import { npcLocationSystem, ConversationSystem } from '../systems/index.js';
 
 // UI module — this one is fine
 import npcAutoRenderer from "../ui/NpcAutoRenderer.js";
