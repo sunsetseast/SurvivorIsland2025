@@ -2304,12 +2304,3 @@ body {
     background-repeat: no-repeat;
     box-shadow: 0 10px 20px rgba(0,0,0,0.45);
 }
-
-.rect-button {
-    padding: 10px 18px;
-    font-family: 'Survivant', sans-serif;
-    border: none;
-    color: #f5d7a0;
-    background-image: url('Assets/rect-button.png');
-    background-size: cover;
-}
