@@ -210,6 +210,14 @@ class GameManager {
     // If entering camp, activate social engine + NPC placement immediately
     if (newState === GameState.CAMP) {
 
+      // Set initial camp phase if not already set
+      this.gamePhase = this.gamePhase || GamePhase.PRE_CHALLENGE;
+
+      // Notify all systems that the camp phase has begun
+      eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
+        phase: this.gamePhase
+      });
+
       // Assign NPCs locations for the current phase
       this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
 
@@ -221,11 +229,6 @@ class GameManager {
         this.systems.socialEngine.resetForNewPhase("post");
       }
 
-      if (this.gamePhase === GamePhase.PRE_CHALLENGE || this.gamePhase === GamePhase.POST_CHALLENGE) {
-        eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
-          phase: this.gamePhase
-        });
-      }
     }
 
     this._updateScreenForState(newState);
@@ -355,6 +358,9 @@ class GameManager {
         break;
       case 'challenge':
         this.gamePhase = 'postChallenge';
+        eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
+          phase: GamePhase.POST_CHALLENGE
+        });
         break;
       case 'postChallenge':
         this.gamePhase = 'tribalCouncil';
