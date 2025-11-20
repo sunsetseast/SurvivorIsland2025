@@ -168,6 +168,16 @@ class GameManager {
     this.tribeCount = this.gameSettings.tribeCount;
     this.resetGameState();
     this.survivors = [...GameData.getSurvivors()];
+
+    // ⭐ Reinitialize ConversationSystem for the new game
+    if (this.systems.conversationSystem) {
+      if (typeof this.systems.conversationSystem.reset === "function") {
+        this.systems.conversationSystem.reset();
+      }
+      if (typeof this.systems.conversationSystem.initialize === "function") {
+        this.systems.conversationSystem.initialize();
+      }
+    }
     this.attachSocialEnginePhaseHook(); // Attach phase listener at game start
     this.attachNpcLocationPhaseHook();
     this.setGameState(GameState.CHARACTER_SELECTION);
