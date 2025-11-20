@@ -80,17 +80,17 @@ export default class CampScreen {
       window.previousCampView = this.currentView || null;
       this.currentView = viewName;
 
-      // 🔥 1) Publish event BEFORE rendering so renderer knows which view is coming
-      eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
-          viewName
-      });
-    window.debugBanner("CAMP VIEW LOADED", viewName);
-
-      // 🔥 2) Render the actual view
+      // 🔥 1) Render the actual view
       const renderFn = campViews[viewName];
       if (renderFn) {
           renderFn(viewContainer);
       }
+
+      // 🔥 2) Publish event AFTER rendering so subscribers know the DOM exists
+      eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
+          viewName
+      });
+    window.debugBanner("CAMP VIEW LOADED", viewName);
 
       // 🔥 3) Force NPC renderer AFTER DOM exists
       // (this is the critical step — without this, you see nothing)
