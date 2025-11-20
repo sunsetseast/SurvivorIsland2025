@@ -13,6 +13,7 @@ import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
+import ConversationSystem from '../systems/ConversationSystem.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
 import { npcLocationSystem } from '../systems/index.js';
@@ -104,6 +105,9 @@ class GameManager {
     // Initialize social systems
     this.systems.socialMemorySystem = socialMemorySystem;
     this.systems.socialEngine = socialEngine;
+    // Initialize conversation system
+    this.systems.conversationSystem = new ConversationSystem(this);
+    this.systems.conversationSystem.initialize();
     // Initialize NPC location system
     this.systems.npcLocationSystem = npcLocationSystem;
     this.systems.npcLocationSystem.initialize();   // ✅ ADD THIS
