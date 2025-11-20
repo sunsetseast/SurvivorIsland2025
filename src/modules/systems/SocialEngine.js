@@ -6,7 +6,6 @@
 
 import socialMemorySystem from "./SocialMemorySystem.js";
 import relationshipSystem from "./RelationshipSystem.js"; 
-import dialogueSystem from "./DialogueSystem.js";
 import gameManager from "../core/GameManager.js";
 
 class SocialEngine {
@@ -136,13 +135,16 @@ class SocialEngine {
     // Display dialogue via DialogueSystem
     // =========================================
     showDialogue(npc, group, type) {
-        dialogueSystem.startConversation({
-            speaker: npc,
-            group: group,
-            topic: type,
-            onChoice: (choice) => {
-                this.handlePlayerChoice(npc, group, type, choice);
-            }
+        const conversationSystem = gameManager.systems?.conversationSystem;
+
+        if (conversationSystem && typeof conversationSystem.startNpcConversation === "function") {
+            conversationSystem.startNpcConversation(npc, type, { group });
+            return;
+        }
+
+        console.error("Conversation system unavailable for NPC dialogue", {
+            hasConversationSystem: !!conversationSystem,
+            type
         });
     }
 

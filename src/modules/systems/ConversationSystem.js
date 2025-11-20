@@ -176,6 +176,27 @@ class ConversationSystem {
     eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, this._handleCampViewLoaded.bind(this));
   }
 
+  /**
+   * Allow other systems (e.g., SocialEngine) to start a conversation using
+   * the shared conversation UI and memory/relationship hooks.
+   * @param {Object} survivor - The NPC initiating the talk
+   * @param {string} type - High-level conversation type from SocialEngine
+   * @param {Object} options - Additional optional data
+   */
+  startNpcConversation(survivor, type, options = {}) {
+    if (!survivor) return;
+
+    const intent = this._mapSocialTypeToIntent(type);
+    const location = options.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
+
+    this._startConversation(survivor, {
+      intentOverride: intent,
+      isPurpose: true,
+      meeting: null,
+      location
+    });
+  }
+
   reset() {
     this._clearOverlay();
     this._clearPendingMeetings(true);
@@ -564,6 +585,23 @@ class ConversationSystem {
     }
 
     return this._weightedIntent(['bonding', 'fun', 'personal', 'lightStrategy', 'gossip', 'campTalk', 'moodCheck', 'wildcard'], mood, gameplayStyle);
+  }
+
+  _mapSocialTypeToIntent(type) {
+    switch (type) {
+      case 'softStrategy':
+        return 'lightStrategy';
+      case 'bonding':
+        return 'bonding';
+      case 'targeting':
+      case 'groupStrategy':
+        return 'hardStrategy';
+      case 'warning':
+      case 'idolSuspicion':
+        return 'warning';
+      default:
+        return 'bonding';
+    }
   }
 
   _weightedIntent(base, mood, gameplayStyle) {
