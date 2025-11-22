@@ -11,6 +11,7 @@ const TOPIC_TO_INTENT = {
   hardStrategy: 'hardStrategy',
   trust: 'trust',
   talkTarget: 'gossip',
+  deal: 'deal',
   confront: 'confrontation',
   apologize: 'apology',
   mood: 'moodCheck',
@@ -80,6 +81,10 @@ const INTENT_TEMPLATES = {
   wildcard: [
     'Out of nowhere, {npc} rambles about idols, storms, and goats.',
     '{npc} pivots between topics; the chaos is real.'
+  ],
+  deal: [
+    '{npc} narrows their eyes. "So you want to make a deal?"',
+    '{npc} folds their arms, weighing your offer carefully.'
   ]
 };
 
@@ -158,6 +163,11 @@ const RESPONSE_LIBRARY = {
     { label: 'Just roll with it', delta: 1, mood: 'fun', followup: 'Chaos shared is chaos loved.' },
     { label: 'Try to focus them', delta: -1, mood: 'neutral', followup: '{npc} drifts but tries.' },
     { label: 'Back away slowly', delta: -2, mood: 'irritated', followup: 'They notice you disengaging.' }
+  ],
+  deal: [
+    { label: 'Pitch it confidently', delta: 3, mood: 'focused', followup: '{npc} hears you out on {dealTopic}.' },
+    { label: 'Offer flexibility', delta: 2, mood: 'calm', followup: 'You make room for their concerns about {dealTopic}.' },
+    { label: 'Feel them out first', delta: 1, mood: 'neutral', followup: 'You probe gently to see if {npc} will accept {dealTopic}.' }
   ]
 };
 
@@ -169,6 +179,8 @@ class ConversationSystem {
     this.midPhaseTimerId = null;
     this.moods = new Map();
     this.approachTimerId = null;
+    this.activeConversationContext = null;
+    this._stylesInjected = false;
   }
 
   initialize() {
@@ -342,6 +354,7 @@ class ConversationSystem {
       { key: 'hardStrategy', label: 'Hard strategy' },
       { key: 'trust', label: 'Ask who they trust' },
       { key: 'talkTarget', label: 'Talk about someone specific' },
+      { key: 'deal', label: 'Offer a deal' },
       { key: 'confront', label: 'Confront them' },
       { key: 'apologize', label: 'Apologize' },
       { key: 'mood', label: 'Check on their mood' },
@@ -356,8 +369,11 @@ class ConversationSystem {
       style: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
-        marginTop: '12px'
+        gap: '8px',
+        marginTop: '8px',
+        maxHeight: '46vh',
+        overflowY: 'auto',
+        width: '100%'
       }
     });
 
@@ -366,6 +382,15 @@ class ConversationSystem {
         className: 'rect-button',
         onclick: () => {
           this._clearOverlay();
+          if (topic.key === 'talkTarget') {
+            this._promptTargetSelection(survivor, location);
+            return;
+          }
+          if (topic.key === 'deal') {
+            this._showDealMenu(survivor, location);
+            return;
+          }
+
           const intent = TOPIC_TO_INTENT[topic.key];
           this._startConversation(survivor, { intentOverride: intent, isPurpose: false, location });
         }
@@ -381,6 +406,179 @@ class ConversationSystem {
     buttonColumn.appendChild(closeBtn);
     parchment.appendChild(buttonColumn);
     overlay.querySelector('.conversation-center').appendChild(parchment);
+  }
+
+  _promptTargetSelection(survivor, location) {
+    const overlay = this._buildOverlayShell(survivor);
+    const parchment = this._buildParchment('Who do you want to talk about?');
+
+    const tribe = this.gameManager.getPlayerTribe?.();
+    const pool = tribe?.members || this.gameManager.survivors || [];
+    const targets = pool.filter(s => s.id !== survivor.id);
+
+    const buttonColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginTop: '8px',
+        maxHeight: '46vh',
+        overflowY: 'auto',
+        width: '100%'
+      }
+    });
+
+    targets.forEach(target => {
+      const btn = createElement('button', {
+        className: 'rect-button',
+        style: { padding: '8px 10px', width: '100%' },
+        onclick: () => {
+          this._clearOverlay();
+          this._startConversation(survivor, {
+            intentOverride: 'gossip',
+            isPurpose: false,
+            location,
+            context: { topicPerson: target.firstName }
+          });
+        }
+      }, target.firstName);
+      buttonColumn.appendChild(btn);
+    });
+
+    const closeBtn = createElement('button', {
+      className: 'rect-button alt',
+      style: { padding: '8px 10px', width: '100%' },
+      onclick: () => this._clearOverlay()
+    }, 'Cancel');
+
+    buttonColumn.appendChild(closeBtn);
+    parchment.appendChild(buttonColumn);
+    overlay.querySelector('.conversation-center').appendChild(parchment);
+  }
+
+  _showDealMenu(survivor, location) {
+    const overlay = this._buildOverlayShell(survivor);
+    const parchment = this._buildParchment('What kind of deal do you offer?');
+
+    const options = [
+      { key: 'mutualProtection', label: 'Mutual protection' },
+      { key: 'voteTogether', label: 'Vote together tonight' },
+      { key: 'recruit', label: 'Recruit someone' },
+      { key: 'info', label: 'Share information exchange' },
+      { key: 'longPact', label: 'Long-term pact' }
+    ];
+
+    const buttonColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginTop: '8px',
+        width: '100%'
+      }
+    });
+
+    options.forEach(opt => {
+      const btn = createElement('button', {
+        className: 'rect-button',
+        style: { padding: '8px 10px', width: '100%' },
+        onclick: () => {
+          this._clearOverlay();
+          if (opt.key === 'recruit') {
+            this._promptRecruitSelection(survivor, location);
+            return;
+          }
+
+          const dealContext = this._buildDealContext(opt.key, survivor);
+          this._startConversation(survivor, {
+            intentOverride: 'deal',
+            isPurpose: false,
+            location,
+            context: dealContext
+          });
+        }
+      }, opt.label);
+      buttonColumn.appendChild(btn);
+    });
+
+    const cancel = createElement('button', {
+      className: 'rect-button alt',
+      style: { padding: '8px 10px', width: '100%' },
+      onclick: () => this._clearOverlay()
+    }, 'Cancel');
+
+    buttonColumn.appendChild(cancel);
+    parchment.appendChild(buttonColumn);
+    overlay.querySelector('.conversation-center').appendChild(parchment);
+  }
+
+  _promptRecruitSelection(survivor, location) {
+    const overlay = this._buildOverlayShell(survivor);
+    const parchment = this._buildParchment('Who do you want to recruit?');
+    const tribe = this.gameManager.getPlayerTribe?.();
+    const pool = tribe?.members || this.gameManager.survivors || [];
+    const candidates = pool.filter(s => s.id !== survivor.id);
+
+    const buttonColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginTop: '8px',
+        maxHeight: '46vh',
+        overflowY: 'auto',
+        width: '100%'
+      }
+    });
+
+    candidates.forEach(target => {
+      const btn = createElement('button', {
+        className: 'rect-button',
+        style: { padding: '8px 10px', width: '100%' },
+        onclick: () => {
+          this._clearOverlay();
+          const dealContext = this._buildDealContext('recruit', survivor, target.firstName);
+          this._startConversation(survivor, {
+            intentOverride: 'deal',
+            isPurpose: false,
+            location,
+            context: dealContext
+          });
+        }
+      }, target.firstName);
+      buttonColumn.appendChild(btn);
+    });
+
+    const cancel = createElement('button', {
+      className: 'rect-button alt',
+      style: { padding: '8px 10px', width: '100%' },
+      onclick: () => this._clearOverlay()
+    }, 'Cancel');
+
+    buttonColumn.appendChild(cancel);
+    parchment.appendChild(buttonColumn);
+    overlay.querySelector('.conversation-center').appendChild(parchment);
+  }
+
+  _buildDealContext(key, survivor, recruitName = null) {
+    const preferredTarget = this._determinePreferredTarget(survivor);
+    switch (key) {
+      case 'mutualProtection':
+        return { dealType: 'mutualProtection', dealTopic: 'watching each other\'s backs', topicPerson: survivor.firstName };
+      case 'voteTogether':
+        return { dealType: 'voteTogether', dealTopic: `voting together${preferredTarget ? ` on ${preferredTarget}` : ''}`, topicPerson: preferredTarget };
+      case 'recruit':
+        return {
+          dealType: 'recruit',
+          dealTopic: `bringing ${recruitName} into an alliance`,
+          topicPerson: recruitName
+        };
+      case 'info':
+        return { dealType: 'info', dealTopic: 'trading information', topicPerson: preferredTarget };
+      case 'longPact':
+      default:
+        return { dealType: 'longPact', dealTopic: 'a longer-term pact', topicPerson: preferredTarget };
+    }
   }
 
   _showNpcApproachOverlay(survivor, location, onAccept) {
@@ -447,12 +645,24 @@ class ConversationSystem {
     this._clearOverlay();
   }
 
-  _startConversation(survivor, { intentOverride = null, isPurpose = false, meeting = null, location = null } = {}) {
+  _startConversation(
+    survivor,
+    { intentOverride = null, isPurpose = false, meeting = null, location = null, context = {} } = {}
+  ) {
     const intent = intentOverride || this._chooseIntent(survivor, isPurpose);
-    const dialogue = this._buildDialogue(intent, survivor, { isPurpose, meeting, location });
+    const conversationContext = { ...context, isPurpose, meeting, location };
+    const dialogue = this._buildDialogue(intent, survivor, conversationContext);
 
     const overlay = this._buildOverlayShell(survivor);
     const parchment = this._buildParchment(dialogue.text);
+
+    this.activeConversationContext = {
+      ...conversationContext,
+      topicPerson: dialogue.context?.topicPerson || conversationContext.topicPerson || null,
+      allyName: dialogue.context?.allyName || null,
+      targetName: dialogue.context?.targetName || null,
+      dealTopic: dialogue.context?.dealTopic || null
+    };
 
     const groupArea = createElement('div', {
       style: {
@@ -469,14 +679,21 @@ class ConversationSystem {
       style: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
-        marginTop: '10px'
+        gap: '8px',
+        marginTop: '10px',
+        maxHeight: '42vh',
+        overflowY: 'auto',
+        width: '100%'
       }
     });
 
     dialogue.responses.forEach(option => {
       const btn = createElement('button', {
         className: 'rect-button',
+        style: {
+          padding: '8px 10px',
+          width: '100%'
+        },
         onclick: () => this._handleResponse(survivor, intent, option, parchment, meeting)
       }, option.label);
       buttonColumn.appendChild(btn);
@@ -503,14 +720,28 @@ class ConversationSystem {
     this._shiftMood(survivor.id, option.mood);
     this._rememberConversation(survivor, intent, option, meeting);
 
-    const targetName = this._pickTargetName(survivor);
-    const allyName = this._pickTrustedAllyName(survivor);
+    const context = this.activeConversationContext || {};
+    const targetName = context.topicPerson || context.targetName || this._pickTargetName(survivor, context);
+    const allyName = context.allyName || this._pickTrustedAllyName(survivor);
+    const dealTopic = context.dealTopic || 'the deal';
 
     let followupText = option.followup || '';
     followupText = followupText
       .replace('{npc}', survivor.firstName)
       .replace('{target}', targetName || 'someone')
-      .replace('{ally}', allyName || 'someone');
+      .replace('{ally}', allyName || 'someone')
+      .replace('{dealTopic}', dealTopic);
+
+    const dealOutcome = intent === 'deal'
+      ? this._evaluateDealResponse(survivor, context, option)
+      : null;
+
+    if (dealOutcome) {
+      followupText = `${dealOutcome.summary}`;
+      if (dealOutcome.delta) {
+        relationshipSystem?.changeRelationship?.(player?.id, survivor.id, dealOutcome.delta);
+      }
+    }
 
     const summary = createElement('div', {
       style: {
@@ -524,11 +755,24 @@ class ConversationSystem {
     clearChildren(parchment);
     parchment.appendChild(summary);
 
+    if (dealOutcome && dealOutcome.counter) {
+      const counterEl = createElement('div', {
+        style: {
+          marginTop: '8px',
+          fontStyle: 'italic'
+        }
+      }, dealOutcome.counter);
+      parchment.appendChild(counterEl);
+    }
+
     const closeBtn = createElement('button', {
       className: 'rect-button alt',
-      style: { marginTop: '14px' },
+      style: { marginTop: '14px', padding: '8px 10px', width: '100%' },
       onclick: () => {
-        this._clearOverlay();
+        this._logConversationOutcome(survivor, intent, option, meeting, context, dealOutcome);
+        parchment.style.opacity = 0;
+        parchment.style.transform = 'translateY(6px) scale(0.98)';
+        setTimeout(() => this._clearOverlay(), 220);
         if (meeting) {
           this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
         }
@@ -540,6 +784,7 @@ class ConversationSystem {
 
   _buildOverlayShell(survivor) {
     this._clearOverlay();
+    this._injectConversationStyles();
 
     const overlay = createElement('div', {
       id: 'conversation-overlay',
@@ -553,8 +798,9 @@ class ConversationSystem {
         zIndex: 1100,
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'center',
-        paddingTop: '20px'
+        alignItems: 'flex-start',
+        paddingTop: '10px',
+        overflowY: 'auto'
       }
     });
 
@@ -565,7 +811,11 @@ class ConversationSystem {
         flexDirection: 'column',
         alignItems: 'center',
         gap: '12px',
-        width: 'min(720px, 94%)'
+        width: 'min(720px, 94%)',
+        maxWidth: '720px',
+        margin: '0 auto',
+        padding: '6px 10px',
+        boxSizing: 'border-box'
       }
     });
 
@@ -580,8 +830,10 @@ class ConversationSystem {
     const tribeColor = survivor.tribeColor || survivor.tribe?.tribeColor || '#f8e7c0';
     const avatar = createElement('div', {
       style: {
-        width: '110px',
-        height: '110px',
+        width: 'min(120px, 28vw)',
+        height: 'min(120px, 28vw)',
+        minWidth: '90px',
+        minHeight: '90px',
         borderRadius: '50%',
         overflow: 'hidden',
         border: `4px solid ${tribeColor}`,
@@ -630,16 +882,20 @@ class ConversationSystem {
         backgroundImage: "url('Assets/parch-portrait.png')",
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
-        padding: '20px 18px 16px',
-        width: '90%',
-        maxWidth: '380px',
+        padding: '22px 20px 18px',
+        width: 'min(92%, 380px)',
+        maxWidth: '420px',
         minHeight: '160px',
+        maxHeight: '70vh',
         margin: '0 auto',
         boxShadow: '0 10px 20px rgba(0,0,0,0.45)',
         color: '#2b190a',
         fontFamily: 'Survivant, sans-serif',
         fontSize: '1rem',
-        lineHeight: '1.4'
+        lineHeight: '1.4',
+        aspectRatio: '3 / 4',
+        overflowY: 'auto',
+        animation: 'parchmentFadeIn 0.35s ease'
       }
     });
 
@@ -734,28 +990,72 @@ class ConversationSystem {
     return weighted.length ? weighted[getRandomInt(0, weighted.length - 1)] : base[0];
   }
 
-  _buildDialogue(intent, survivor, context) {
+  _buildDialogue(intent, survivor, context = {}) {
     const templatePool = INTENT_TEMPLATES[intent] || ['{npc} talks about the game.'];
     let line = templatePool[getRandomInt(0, templatePool.length - 1)];
 
-    const targetName = this._pickTargetName(survivor);
-    const allyName = this._pickTrustedAllyName(survivor);
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const targetName = context.topicPerson || this._pickTargetName(survivor, context);
+    const allyName = context.allyName || this._pickTrustedAllyName(survivor);
 
-    line = line
-      .replace('{npc}', survivor.firstName)
-      .replace('{target}', targetName || 'someone')
-      .replace('{ally}', allyName || 'no one fully yet');
+    if (intent === 'trust' && allyName) {
+      context.allyName = allyName;
+    }
+    if (intent === 'gossip' && targetName) {
+      context.topicPerson = targetName;
+    }
+    if ((intent === 'hardStrategy' || intent === 'lightStrategy') && targetName) {
+      context.topicPerson = targetName;
+    }
+
+    if (intent === 'deal') {
+      const dealTopic = this._describeDeal(context, survivor);
+      context.dealTopic = dealTopic;
+      line = `${survivor.firstName} considers your pitch about ${dealTopic}.`;
+    } else {
+      line = line
+        .replace('{npc}', survivor.firstName)
+        .replace('{target}', targetName || 'someone')
+        .replace('{ally}', allyName || 'no one fully yet');
+    }
+
+    if (memory && typeof memory.getMemory === 'function') {
+      const mem = memory.getMemory(survivor.id);
+      const lastDeal = memory.getLatestDeal?.(survivor.id);
+      if (intent === 'deal' && lastDeal) {
+        line += ` They remember your last ${lastDeal.type} (${lastDeal.status}).`;
+      }
+      if (mem?.gossip?.length && intent === 'gossip' && context.topicPerson) {
+        line += ` They recall you bringing up ${context.topicPerson} before.`;
+      }
+    }
 
     const responses = RESPONSE_LIBRARY[intent] || RESPONSE_LIBRARY.bonding;
-    return { text: line, responses };
+    return { text: line, responses, context };
   }
 
-  _pickTargetName(survivor) {
+  _pickTargetName(survivor, context = {}) {
+    if (context.topicPerson) return context.topicPerson;
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const tribe = this.gameManager.getPlayerTribe?.();
-    const candidates = tribe?.members?.filter(s => s.id !== survivor.id && !s.isPlayer) || [];
+    const pool = tribe?.members || this.gameManager.survivors || [];
+    const alliance = Array.isArray(survivor.alliance) ? survivor.alliance : [];
+    const candidates = pool.filter(s => s.id !== survivor.id && !s.isPlayer);
     if (!candidates.length) return null;
-    const choice = candidates[getRandomInt(0, candidates.length - 1)];
-    return choice.firstName;
+
+    let worst = null;
+    let worstScore = Infinity;
+    candidates.forEach(other => {
+      if (alliance.includes(other.id)) return;
+      const rel = relationshipSystem?.getRelationship?.(survivor.id, other.id);
+      const value = typeof rel?.value === 'number' ? rel.value : relationshipSystem?.defaultValue || 50;
+      if (value < worstScore) {
+        worstScore = value;
+        worst = other;
+      }
+    });
+
+    return (worst && worst.firstName) || null;
   }
 
   _pickTrustedAllyName(survivor) {
@@ -789,6 +1089,119 @@ class ConversationSystem {
     return best.firstName;
   }
 
+  _describeDeal(context, survivor) {
+    switch (context.dealType) {
+      case 'mutualProtection':
+        return 'mutual protection until the vote';
+      case 'voteTogether': {
+        const target = context.topicPerson || this._determinePreferredTarget(survivor) || 'someone';
+        return `voting together on ${target}`;
+      }
+      case 'recruit':
+        return `bringing ${context.topicPerson || 'someone'} into a pact`;
+      case 'info':
+        return 'exchanging information and secrets';
+      case 'longPact':
+      default:
+        return 'a longer-term pact';
+    }
+  }
+
+  _determinePreferredTarget(survivor) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const tribe = this.gameManager.getPlayerTribe?.();
+    const pool = tribe?.members || this.gameManager.survivors || [];
+    const alliance = Array.isArray(survivor.alliance) ? survivor.alliance : [];
+    let choice = null;
+    let lowest = Infinity;
+    pool.forEach(other => {
+      if (other.id === survivor.id || other.isPlayer || alliance.includes(other.id)) return;
+      const rel = relationshipSystem?.getRelationship?.(survivor.id, other.id);
+      const value = typeof rel?.value === 'number' ? rel.value : relationshipSystem?.defaultValue || 50;
+      if (value < lowest) {
+        lowest = value;
+        choice = other.firstName;
+      }
+    });
+    return choice;
+  }
+
+  _relationshipBetween(aId, bId) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    if (!aId || !bId || !relationshipSystem?.getRelationship) {
+      return relationshipSystem?.defaultValue || 50;
+    }
+    const rel = relationshipSystem.getRelationship(aId, bId);
+    return typeof rel?.value === 'number' ? rel.value : relationshipSystem.defaultValue || 50;
+  }
+
+  _evaluateDealResponse(survivor, context, option) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const paranoia = survivor.paranoia || 0;
+    const awareness = survivor.awareness || 50;
+    let score = this._relationshipBetween(player?.id, survivor.id) + (option.delta || 0);
+
+    score -= paranoia * 0.35;
+    score += (awareness - 50) * 0.1;
+
+    const preferredTarget = this._determinePreferredTarget(survivor);
+    if (context.dealType === 'voteTogether') {
+      if (context.topicPerson && context.topicPerson === preferredTarget) score += 10;
+      else score -= 6;
+    }
+    if (context.dealType === 'mutualProtection') {
+      score += 5 - Math.max(0, paranoia * 0.2);
+    }
+    if (context.dealType === 'recruit' && context.topicPerson) {
+      const recruitRel = this._relationshipBetween(survivor.id, this._getSurvivorByName(context.topicPerson)?.id);
+      score += recruitRel > 55 ? 6 : -4;
+    }
+    if (context.dealType === 'info') {
+      score += awareness > 55 ? 4 : -2;
+    }
+    if (context.dealType === 'longPact') {
+      score += this._relationshipBetween(player?.id, survivor.id) > 60 ? 6 : -3;
+    }
+
+    const statuses = [
+      { threshold: 78, status: 'accepted', summary: `${survivor.firstName} nods firmly. "I\'m in on ${context.dealTopic}."`, delta: 4 },
+      {
+        threshold: 62,
+        status: 'tentative',
+        summary: `${survivor.firstName} cautiously agrees to ${context.dealTopic}, but wants proof.`,
+        delta: 2
+      },
+      {
+        threshold: 48,
+        status: 'declined_politely',
+        summary: `${survivor.firstName} declines ${context.dealTopic} without burning the bridge.`,
+        delta: -1
+      },
+      {
+        threshold: 35,
+        status: 'counter',
+        summary: `${survivor.firstName} seems unsure about ${context.dealTopic}.`,
+        delta: 0,
+        counter: '"What if we loop in someone else or wait a round?"'
+      }
+    ];
+
+    let outcome = statuses.find(s => score >= s.threshold);
+    if (!outcome) outcome = {
+      status: 'declined_suspicious',
+      summary: `${survivor.firstName} eyes you warily. "Feels risky. No deal."`,
+      delta: -4
+    };
+
+    return outcome;
+  }
+
+  _getSurvivorByName(name) {
+    if (!name) return null;
+    const pool = this.gameManager.survivors || [];
+    return pool.find(s => s.firstName === name) || null;
+  }
+
   _getRelationshipScore(survivor) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
@@ -818,6 +1231,47 @@ class ConversationSystem {
         response: option.label,
         meetingType: meeting?.type || 'ad-hoc'
       });
+    }
+  }
+
+  _logConversationOutcome(survivor, intent, option, meeting, context = {}, dealOutcome = null) {
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    if (!memory) return;
+    if (context.location) {
+      memory.recordMeetingContext(survivor.id, context.location);
+    }
+
+    const topic = context.topicPerson || context.targetName;
+    switch (intent) {
+      case 'trust':
+        if (context.allyName) memory.recordTrustStatement(survivor.id, context.allyName, 'player');
+        break;
+      case 'gossip':
+        if (topic) {
+          const stance = option.label.toLowerCase().includes('defend') ? 'defend' : 'share';
+          memory.recordGossip(survivor.id, topic, stance, 'player');
+        }
+        break;
+      case 'lightStrategy':
+      case 'hardStrategy':
+        if (topic) memory.recordTargetPreference(survivor.id, topic, intent === 'hardStrategy' ? 'high' : 'soft', 'player');
+        break;
+      case 'confrontation':
+        memory.recordConfrontation(survivor.id, this.gameManager.getPlayerSurvivor?.().id, 'tense');
+        break;
+      case 'apology':
+        memory.recordApology(survivor.id, this.gameManager.getPlayerSurvivor?.().id, 'sincere');
+        break;
+      case 'deal': {
+        const status = dealOutcome?.status || 'offered';
+        const involving = [];
+        if (context.topicPerson) involving.push(context.topicPerson);
+        memory.recordDeal(survivor.id, context.dealType || 'unspecified', status, involving);
+        if (status === 'accepted') memory.recordPromise(survivor.id, this.gameManager.getPlayerSurvivor?.().id, context.dealType);
+        break;
+      }
+      default:
+        break;
     }
   }
 
@@ -861,6 +1315,7 @@ class ConversationSystem {
       this.activeOverlay.remove();
       this.activeOverlay = null;
     }
+    this.activeConversationContext = null;
   }
 
   _clearApproachTimer() {
@@ -890,6 +1345,22 @@ class ConversationSystem {
       fishing: 'fishing spot'
     };
     return labels[location] || location;
+  }
+
+  _injectConversationStyles() {
+    if (this._stylesInjected || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes parchmentFadeIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      #conversation-overlay .rect-button { padding: 8px 10px; }
+      #conversation-overlay .conversation-parchment { max-width: 440px; }
+      @media (max-width: 600px) {
+        #conversation-overlay .conversation-parchment { width: 94%; padding: 18px 16px 16px; max-height: 66vh; }
+        #conversation-overlay .rect-button { font-size: 0.95rem; }
+      }
+    `;
+    document.head.appendChild(style);
+    this._stylesInjected = true;
   }
 
   _isInCamp() {
