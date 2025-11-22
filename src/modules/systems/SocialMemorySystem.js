@@ -238,12 +238,11 @@ class SocialMemorySystem {
     // ===============================
     // QUICK LOOKUPS
     // ===============================
-    getLatestDeal(npcId) {
-        this.initNPC(npcId);
-        const deals = this.memory[npcId].deals;
-        return deals.length ? deals[deals.length - 1] : null;
-    }
-}
+  getLatestDeal(npcId) {
+      this.initNPC(npcId);
+      const deals = this.memory[npcId].deals;
+      return deals.length ? deals[deals.length - 1] : null;
+  }
 }
 
 // GLOBAL EXPORT
