@@ -38,8 +38,8 @@ const INTENT_TEMPLATES = {
     'With intensity, {npc} pushes a plan and watches your reaction.'
   ],
   trust: [
-    '{npc} asks softly, "Who do you really trust out here?"',
-    '"Give it to me straight," {npc} says. "Who\'s got your back?"'
+    '{npc} thinks for a moment. "Honestly… I probably trust {ally} the most right now."',
+    '"If I\'m being straight with you, {ally} feels the most solid to me," {npc} admits.'
   ],
   gossip: [
     '{npc} lowers their voice: "Did you hear what {target} said?"',
@@ -96,7 +96,7 @@ const RESPONSE_LIBRARY = {
   ],
   lightStrategy: [
     { label: 'Offer a soft take', delta: 2, mood: 'calm', followup: 'You test the waters together.' },
-    { label: 'Ask who they are eyeing', delta: 1, mood: 'neutral', followup: '{npc} keeps cards close but shares a hint.' },
+    { label: 'Ask who they are eyeing', delta: 1, mood: 'neutral', followup: '{npc} glances around, then admits they\'re watching {target}.' },
     { label: 'Stay vague', delta: -2, mood: 'suspicious', followup: '{npc} isn\'t sure if you are with them.' }
   ],
   hardStrategy: [
@@ -105,14 +105,14 @@ const RESPONSE_LIBRARY = {
     { label: 'Refuse to commit', delta: -5, mood: 'irritated', followup: '{npc} questions your loyalty.' }
   ],
   trust: [
-    { label: 'Name a trusted ally', delta: 2, mood: 'calm', followup: 'You trade intel carefully.' },
-    { label: 'Claim they are your #1', delta: 4, mood: 'happy', followup: '{npc} feels reassured.' },
-    { label: 'Dodge the question', delta: -3, mood: 'suspicious', followup: 'Doubt creeps in.' }
+    { label: 'Name a trusted ally', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, I feel pretty good about {ally} too."' },
+    { label: 'Claim they are your #1', delta: 4, mood: 'happy', followup: '{npc} smiles, clearly liking that you trust them most.' },
+    { label: 'Dodge the question', delta: -3, mood: 'suspicious', followup: '{npc} raises a brow, clearly noticing you won\'t name anyone.' }
   ],
   gossip: [
-    { label: 'Lean into the tea', delta: 2, mood: 'fun', followup: 'You both gossip quietly.' },
-    { label: 'Defend the target', delta: -3, mood: 'irritated', followup: '{npc} wonders whose side you are on.' },
-    { label: 'Steer away', delta: -1, mood: 'neutral', followup: 'The moment fizzles out.' }
+    { label: 'Lean into the tea', delta: 2, mood: 'fun', followup: 'You both gossip quietly about {target}.' },
+    { label: 'Defend the target', delta: -3, mood: 'irritated', followup: 'You stick up for {target}. {npc} doesn\'t love that.' },
+    { label: 'Steer away', delta: -1, mood: 'neutral', followup: 'You change the subject and the moment fizzles out.' }
   ],
   confrontation: [
     { label: 'Stand your ground', delta: -4, mood: 'angry', followup: 'Tension spikes.' },
@@ -503,6 +503,15 @@ class ConversationSystem {
     this._shiftMood(survivor.id, option.mood);
     this._rememberConversation(survivor, intent, option, meeting);
 
+    const targetName = this._pickTargetName(survivor);
+    const allyName = this._pickTrustedAllyName(survivor);
+
+    let followupText = option.followup || '';
+    followupText = followupText
+      .replace('{npc}', survivor.firstName)
+      .replace('{target}', targetName || 'someone')
+      .replace('{ally}', allyName || 'someone');
+
     const summary = createElement('div', {
       style: {
         marginTop: '12px',
@@ -510,7 +519,7 @@ class ConversationSystem {
         fontFamily: 'Survivant, sans-serif',
         fontSize: '1rem'
       }
-    }, option.followup.replace('{npc}', survivor.firstName));
+    }, followupText);
 
     clearChildren(parchment);
     parchment.appendChild(summary);
@@ -544,8 +553,8 @@ class ConversationSystem {
         zIndex: 1100,
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'flex-start',
-        paddingTop: '40px'
+        alignItems: 'center',
+        paddingTop: '20px'
       }
     });
 
@@ -621,9 +630,11 @@ class ConversationSystem {
         backgroundImage: "url('Assets/parch-portrait.png')",
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
-        padding: '26px 24px 18px',
-        width: '100%',
-        minHeight: '180px',
+        padding: '20px 18px 16px',
+        width: '90%',
+        maxWidth: '380px',
+        minHeight: '160px',
+        margin: '0 auto',
         boxShadow: '0 10px 20px rgba(0,0,0,0.45)',
         color: '#2b190a',
         fontFamily: 'Survivant, sans-serif',
@@ -725,15 +736,18 @@ class ConversationSystem {
 
   _buildDialogue(intent, survivor, context) {
     const templatePool = INTENT_TEMPLATES[intent] || ['{npc} talks about the game.'];
-    const line = templatePool[getRandomInt(0, templatePool.length - 1)];
-    const target = this._pickTargetName(survivor);
+    let line = templatePool[getRandomInt(0, templatePool.length - 1)];
 
-    const text = line
+    const targetName = this._pickTargetName(survivor);
+    const allyName = this._pickTrustedAllyName(survivor);
+
+    line = line
       .replace('{npc}', survivor.firstName)
-      .replace('{target}', target || 'someone');
+      .replace('{target}', targetName || 'someone')
+      .replace('{ally}', allyName || 'no one fully yet');
 
     const responses = RESPONSE_LIBRARY[intent] || RESPONSE_LIBRARY.bonding;
-    return { text, responses };
+    return { text: line, responses };
   }
 
   _pickTargetName(survivor) {
@@ -742,6 +756,37 @@ class ConversationSystem {
     if (!candidates.length) return null;
     const choice = candidates[getRandomInt(0, candidates.length - 1)];
     return choice.firstName;
+  }
+
+  _pickTrustedAllyName(survivor) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const tribes = this.gameManager.getTribes?.() || [];
+    if (!relationshipSystem || !survivor) return null;
+
+    // Prefer same tribe if possible
+    const tribeMembers = tribes.flatMap(t => t.members || []);
+    const pool = (tribeMembers.length ? tribeMembers : (this.gameManager.survivors || []))
+      .filter(s => s && s.id !== survivor.id);
+
+    if (!pool.length) return null;
+
+    let best = null;
+    let bestScore = -Infinity;
+
+    pool.forEach(other => {
+      if (!other.id) return;
+      const rel = relationshipSystem.getRelationship
+        ? relationshipSystem.getRelationship(survivor.id, other.id)
+        : null;
+      const value = rel ? rel.value : (relationshipSystem.defaultValue || 50);
+      if (value > bestScore) {
+        bestScore = value;
+        best = other;
+      }
+    });
+
+    if (!best || bestScore < 55) return null;
+    return best.firstName;
   }
 
   _getRelationshipScore(survivor) {
