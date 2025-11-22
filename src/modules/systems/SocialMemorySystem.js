@@ -5,7 +5,7 @@
 
 class SocialMemorySystem {
     constructor() {
-        this.memory = {}; 
+        this.memory = {};
         // structure:
         // memory[npcId] = {
         //   targetRequests: [],
@@ -32,6 +32,13 @@ class SocialMemorySystem {
                 betrayals: [],
                 promises: [],
                 voteHistory: [],
+                gossip: [],
+                trustStatements: [],
+                targetPreferences: [],
+                deals: [],
+                confrontations: [],
+                apologies: [],
+                meetingNotes: [],
                 misc: []
             };
         }
@@ -153,6 +160,90 @@ class SocialMemorySystem {
         this.initNPC(npcId);
         return this.memory[npcId];
     }
+
+    // ===============================
+    // TRUST + TARGET PREFERENCES
+    // ===============================
+    recordTrustStatement(npcId, trustedId, source = "player") {
+        this.initNPC(npcId);
+        this.memory[npcId].trustStatements.push({
+            day: window.gameManager?.getCurrentDay() || 1,
+            trustedId,
+            source
+        });
+    }
+
+    recordTargetPreference(npcId, targetId, intensity = "normal", source = "player") {
+        this.initNPC(npcId);
+        this.memory[npcId].targetPreferences.push({
+            day: window.gameManager?.getCurrentDay() || 1,
+            targetId,
+            intensity,
+            source
+        });
+    }
+
+    // ===============================
+    // DEAL MAKING
+    // ===============================
+    recordDeal(npcId, type, status = "offered", involving = []) {
+        this.initNPC(npcId);
+        this.memory[npcId].deals.push({
+            day: window.gameManager?.getCurrentDay() || 1,
+            type,
+            status,
+            involving
+        });
+    }
+
+    // ===============================
+    // GOSSIP + SOCIAL BEATS
+    // ===============================
+    recordGossip(npcId, aboutWho, stance = "neutral", source = "player") {
+        this.initNPC(npcId);
+        this.memory[npcId].gossip.push({
+            day: window.gameManager?.getCurrentDay() || 1,
+            aboutWho,
+            stance,
+            source
+        });
+    }
+
+    recordConfrontation(npcId, withWho, tone = "tense") {
+        this.initNPC(npcId);
+        this.memory[npcId].confrontations.push({
+            day: window.gameManager?.getCurrentDay() || 1,
+            withWho,
+            tone
+        });
+    }
+
+    recordApology(npcId, withWho, sincerity = "uncertain") {
+        this.initNPC(npcId);
+        this.memory[npcId].apologies.push({
+            day: window.gameManager?.getCurrentDay() || 1,
+            withWho,
+            sincerity
+        });
+    }
+
+    recordMeetingContext(npcId, location) {
+        this.initNPC(npcId);
+        this.memory[npcId].meetingNotes.push({
+            day: window.gameManager?.getCurrentDay() || 1,
+            location
+        });
+    }
+
+    // ===============================
+    // QUICK LOOKUPS
+    // ===============================
+    getLatestDeal(npcId) {
+        this.initNPC(npcId);
+        const deals = this.memory[npcId].deals;
+        return deals.length ? deals[deals.length - 1] : null;
+    }
+}
 }
 
 // GLOBAL EXPORT
