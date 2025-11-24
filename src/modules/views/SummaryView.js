@@ -107,6 +107,10 @@ export default function renderSummary(container) {
   wrapper.appendChild(summaryContent);
   container.appendChild(wrapper);
 
+  if (window.campSocialChanges) {
+    applyConversationConsequences(window.campSocialChanges);
+  }
+
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
@@ -190,6 +194,16 @@ export default function renderSummary(container) {
 
     actionButtons.appendChild(continueButton);
   }
+
+  window.campSocialChanges = {
+    relationship: [],
+    trust: [],
+    suspicion: [],
+    deals: [],
+    gossip: [],
+    memory: [],
+    voteShifts: []
+  };
 
   addDebugBanner('Summary view rendered!', 'purple', 170);
 }
@@ -375,6 +389,46 @@ function generateSummaryText(data) {
   const player = gameManager.getPlayerSurvivor();
   let text = `<p><strong>The first two hours at ${playerTribe.name} camp have set the stage for the days ahead...</strong></p>`;
 
+  // Add real conversation results
+  if (window.campSocialChanges) {
+    text += "<h3>Social Interactions</h3>";
+
+    // Relationship
+    window.campSocialChanges.relationship.forEach(r => {
+      text += `<p>You and ${r.with} had a ${r.context} talk. <em>(Relationship ${r.amount > 0 ? '+' : ''}${r.amount})</em></p>`;
+    });
+
+    // Trust
+    window.campSocialChanges.trust.forEach(t => {
+      text += `<p>${t.with} now trusts you ${t.amount > 0 ? 'more' : 'less'}. <em>(Trust ${t.amount > 0 ? '+' : ''}${t.amount})</em></p>`;
+    });
+
+    // Suspicion
+    window.campSocialChanges.suspicion.forEach(s => {
+      text += `<p>${s.with} became ${s.amount > 0 ? 'more suspicious' : 'less suspicious'} of you. <em>(Suspicion ${s.amount})</em></p>`;
+    });
+
+    // Deals
+    window.campSocialChanges.deals.forEach(d => {
+      text += `<p>You and ${d.with} ${d.result} a deal.</p>`;
+    });
+
+    // Gossip
+    window.campSocialChanges.gossip.forEach(g => {
+      text += `<p>You and ${g.with} gossiped about ${g.about}. <em>(${g.effect})</em></p>`;
+    });
+
+    // Memory
+    window.campSocialChanges.memory.forEach(m => {
+      text += `<p>${m.with} will remember: ${m.tags.join(', ')}.</p>`;
+    });
+
+    // Vote Shifts
+    window.campSocialChanges.voteShifts.forEach(v => {
+      text += `<p>${v.with} is now ${v.weight > 0 ? 'more likely' : 'less likely'} to vote ${v.target}. <em>(Vote Weight ${v.weight})</em></p>`;
+    });
+  }
+
   // Leadership
   if (data.leadership.length > 0) {
     const leader = data.leadership[0];
@@ -553,6 +607,39 @@ function generateSummaryText(data) {
   text += `<p><strong>Tribe Status:</strong> ${playerTribe.name} ends their first day with ${fireStatus} and shelter level of ${data.currentShelter}. The foundation has been set for the challenges ahead.</p>`;
 
   return text;
+}
+
+function applyConversationConsequences(changes) {
+  const playerId = gameManager.getPlayerSurvivor()?.id;
+  if (!playerId || !changes) return;
+
+  const relSys = gameManager.systems.relationshipSystem;
+
+  changes.relationship.forEach(r => {
+    if (relSys?.adjustRelationship) {
+      relSys.adjustRelationship(playerId, r.id ?? r.with, r.amount);
+    } else if (relSys?.changeRelationship) {
+      relSys.changeRelationship(playerId, r.id ?? r.with, r.amount);
+    }
+  });
+
+  if (gameManager.systems.trustSystem) {
+    changes.trust.forEach(t => {
+      gameManager.systems.trustSystem.adjustTrust?.(playerId, t.id ?? t.with, t.amount);
+    });
+  }
+
+  if (gameManager.systems.suspicionSystem) {
+    changes.suspicion.forEach(s => {
+      gameManager.systems.suspicionSystem.adjustSuspicion?.(playerId, s.id ?? s.with, s.amount);
+    });
+  }
+
+  if (gameManager.systems.voteSystem) {
+    changes.voteShifts.forEach(v => {
+      gameManager.systems.voteSystem.adjustVotePreference?.(v.id ?? v.with, v.target, v.weight);
+    });
+  }
 }
 
 function applySummaryChanges(data) {
