@@ -44,6 +44,22 @@ class SocialMemorySystem {
         }
     }
 
+    storeMemory(survivorId, tag, data = null) {
+        this.initNPC?.(survivorId);
+        const entry = { tag, data, time: Date.now() };
+
+        if (!this.memory[survivorId]) {
+            this.memory[survivorId] = [];
+        }
+
+        if (Array.isArray(this.memory[survivorId])) {
+            this.memory[survivorId].push(entry);
+        } else {
+            this.memory[survivorId].misc = this.memory[survivorId].misc || [];
+            this.memory[survivorId].misc.push(entry);
+        }
+    }
+
     // ===============================
     // TARGETING MEMORY
     // ===============================

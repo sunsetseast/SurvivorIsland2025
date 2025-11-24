@@ -4,6 +4,18 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 
+if (!window.campSocialChanges) {
+  window.campSocialChanges = {
+    relationship: [],
+    trust: [],
+    suspicion: [],
+    deals: [],
+    gossip: [],
+    memory: [],
+    voteShifts: []
+  };
+}
+
 const TOPIC_TO_INTENT = {
   bonding: 'bonding',
   personal: 'personal',
@@ -717,10 +729,41 @@ class ConversationSystem {
       relationshipSystem.changeRelationship(player.id, survivor.id, option.delta || 0);
     }
 
+    const context = this.activeConversationContext || {};
+
+    // Log relationship
+    if (typeof option.relationshipDelta === 'number') {
+      window.campSocialChanges.relationship.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        amount: option.relationshipDelta,
+        context: context?.intent || 'interaction'
+      });
+    }
+
+    // Log trust
+    if (typeof option.trustDelta === 'number') {
+      window.campSocialChanges.trust.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        amount: option.trustDelta,
+        context: context?.intent || 'interaction'
+      });
+    }
+
+    // Log suspicion
+    if (typeof option.suspicionDelta === 'number') {
+      window.campSocialChanges.suspicion.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        amount: option.suspicionDelta,
+        context: context?.intent || 'interaction'
+      });
+    }
+
     this._shiftMood(survivor.id, option.mood);
     this._rememberConversation(survivor, intent, option, meeting);
 
-    const context = this.activeConversationContext || {};
     const targetName = context.topicPerson || context.targetName || this._pickTargetName(survivor, context);
     const allyName = context.allyName || this._pickTrustedAllyName(survivor);
     const dealTopic = context.dealTopic || 'the deal';
@@ -741,6 +784,53 @@ class ConversationSystem {
       if (dealOutcome.delta) {
         relationshipSystem?.changeRelationship?.(player?.id, survivor.id, dealOutcome.delta);
       }
+    }
+
+    // Log a deal
+    if (option.dealResult) {
+      window.campSocialChanges.deals.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        result: option.dealResult,
+        context: context?.intent
+      });
+    }
+
+    // Log gossip
+    if (context?.topicPerson && option.gossipEffect) {
+      window.campSocialChanges.gossip.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        about: context.topicPerson,
+        effect: option.gossipEffect
+      });
+    }
+
+    // Log memory tags
+    if (option.memoryTags && option.memoryTags.length > 0) {
+      window.campSocialChanges.memory.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        tags: option.memoryTags.slice()
+      });
+      const socialMemory = this.gameManager.systems?.socialMemory || this.gameManager.systems?.socialMemorySystem;
+      option.memoryTags.forEach(t => {
+        socialMemory?.storeMemory?.(
+          survivor.id,
+          t,
+          { fromPlayer: true }
+        );
+      });
+    }
+
+    // Log vote shifts
+    if (option.voteShift) {
+      window.campSocialChanges.voteShifts.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        target: option.voteShift.target,
+        weight: option.voteShift.weight
+      });
     }
 
     const summary = createElement('div', {
