@@ -23,6 +23,62 @@ if (!window.campActivityTracker) {
   };
 }
 
+function generateConversationRecapHTML() {
+  const socialChanges = window.campSocialChanges;
+
+  if (!socialChanges) {
+    return '';
+  }
+
+  const sections = [
+    { key: 'relationship', title: '--- Relationship Changes ---' },
+    { key: 'trust', title: '--- Trust Changes ---' },
+    { key: 'suspicion', title: '--- Suspicion ---' },
+    { key: 'deals', title: '--- Deals & Agreements ---' },
+    { key: 'gossip', title: '--- Gossip ---' },
+    { key: 'memory', title: '--- Things Survivors Will Remember ---' },
+    { key: 'voteShifts', title: '--- Vote Dynamics ---' }
+  ];
+
+  const formatEntry = (entry) => {
+    if (typeof entry === 'string') {
+      return entry;
+    }
+
+    if (!entry || typeof entry !== 'object') {
+      return '';
+    }
+
+    const candidates = ['text', 'description', 'summary', 'message', 'detail'];
+    for (const key of candidates) {
+      if (typeof entry[key] === 'string') {
+        return entry[key];
+      }
+    }
+
+    const firstString = Object.values(entry).find(value => typeof value === 'string');
+    return firstString || '';
+  };
+
+  let recapHTML = '';
+
+  sections.forEach(({ key, title }) => {
+    const entries = Array.isArray(socialChanges[key])
+      ? socialChanges[key].map(formatEntry).filter(Boolean)
+      : [];
+
+    if (entries.length > 0) {
+      recapHTML += `<div><p><strong>${title}</strong></p><ul>`;
+      entries.forEach(entry => {
+        recapHTML += `<li>${entry}</li>`;
+      });
+      recapHTML += '</ul></div>';
+    }
+  });
+
+  return recapHTML;
+}
+
 export default function renderSummary(container) {
   console.log('renderSummary() called');
   addDebugBanner('renderSummary() called', 'purple', 40);
@@ -95,6 +151,16 @@ export default function renderSummary(container) {
   // Create summary text
   let summaryText = generateSummaryText(summaryData);
 
+  const conversationRecapHTML = generateConversationRecapHTML();
+  if (conversationRecapHTML) {
+    const socialDynamicsIndex = summaryText.indexOf('<p><strong>Social Dynamics:</strong>');
+    if (socialDynamicsIndex !== -1) {
+      summaryText = summaryText.slice(0, socialDynamicsIndex) + conversationRecapHTML + summaryText.slice(socialDynamicsIndex);
+    } else {
+      summaryText += conversationRecapHTML;
+    }
+  }
+
   const textElement = createElement('div', {
     style: `
       text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
@@ -152,8 +218,8 @@ export default function renderSummary(container) {
     };
 
     // Add continue button at the bottom
-  const continueButton = createElement('div', {
-    style: `
+    const continueButton = createElement('div', {
+      style: `
           background-image: url('Assets/Buttons/blank.png');
           background-size: contain;
           background-repeat: no-repeat;
@@ -172,20 +238,29 @@ export default function renderSummary(container) {
           text-shadow: 2px 2px 4px black;
           text-align: center;
         `
-  }, 'Continue to Challenge');
+    }, 'Continue to Challenge');
 
-      continueButton.addEventListener('mouseenter', () => {
-        continueButton.style.transform = 'scale(1.05)';
-      });
+    continueButton.addEventListener('mouseenter', () => {
+      continueButton.style.transform = 'scale(1.05)';
+    });
 
-      continueButton.addEventListener('mouseleave', () => {
-        continueButton.style.transform = 'scale(1)';
-      });
+    continueButton.addEventListener('mouseleave', () => {
+      continueButton.style.transform = 'scale(1)';
+    });
 
     continueButton.addEventListener('click', () => {
       console.log('Continue to Challenge button clicked');
       gameManager.setGameState('challenge');
       screenManager.showScreen('challenge');
+      window.campSocialChanges = {
+        relationship: [],
+        trust: [],
+        suspicion: [],
+        deals: [],
+        gossip: [],
+        memory: [],
+        voteShifts: []
+      };
     });
 
     actionButtons.appendChild(continueButton);
