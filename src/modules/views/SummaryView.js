@@ -35,177 +35,193 @@ export default function renderSummary(container) {
     return;
   }
 
-  // Set background based on tribe color
-  const tribeColor = playerTribe.tribeColor;
-  container.style.backgroundImage = `url('Assets/Tribe/${tribeColor}-portrait.png')`;
-  container.style.backgroundSize = 'cover';
-  container.style.backgroundPosition = 'center';
-  container.style.backgroundRepeat = 'no-repeat';
-
-  // Generate summary content
   const summaryData = generateSummaryData();
-
-  // Apply all the changes to game state
   applySummaryChanges(summaryData);
 
-  const wrapper = createElement('div', {
-    className: 'summary-wrapper',
-    style: `
-      position: relative;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      overflow-y: auto;
-      padding: 20px;
-      background: rgba(0, 0, 0, 0.3);
-    `
+  const overlay = createElement('div', { id: 'summary-overlay' });
+  const parchment = createElement('div', {
+    id: 'summary-parchment',
+    style: {
+      backgroundImage: "url('Assets/parch-landscape.png')",
+      backgroundSize: 'cover',
+      backgroundRepeat: 'no-repeat',
+      padding: '24px 28px',
+      width: '90%',
+      maxWidth: '500px',
+      maxHeight: '70vh',
+      margin: '0 auto',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: '0 10px 32px rgba(0,0,0,0.55)',
+      borderRadius: '8px',
+      animation: 'fadeIn 0.35s ease-out'
+    }
+  });
+
+  const scrollArea = createElement('div', {
+    id: 'summary-scroll-area',
+    style: {
+      overflowY: 'auto',
+      paddingRight: '10px',
+      maxHeight: 'calc(70vh - 30px)',
+      fontFamily: 'Survivant, sans-serif',
+      color: '#2b190a',
+      lineHeight: '1.35',
+      scrollbarWidth: 'thin'
+    }
   });
 
   const title = createElement('h2', {
-    style: `
-      color: white;
-      text-shadow: 2px 2px 4px black;
-      font-size: 2.2rem;
-      font-family: 'Survivant', sans-serif;
-      text-align: center;
-      margin-bottom: 20px;
-      border-bottom: 2px solid white;
-      padding-bottom: 10px;
-    `
-  }, `Day 1 Summary - ${playerTribe.name} Tribe`);
+    id: 'summary-title'
+  }, `🔥 DAY ${gameManager.day} — CAMP SUMMARY 🔥`);
 
-  const summaryContent = createElement('div', {
-    style: `
-      background: #F5DEB3;
-      border-radius: 15px;
-      padding: 25px;
-      max-width: 800px;
-      color: #4A4A4A;
-      font-family: 'Survivant', sans-serif;
-      font-size: 1.1rem;
-      line-height: 1.6;
-      border: 2px solid #D2B48C;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    `
-  });
+  scrollArea.appendChild(title);
+  buildCampSummarySections(scrollArea, window.campSocialChanges || {});
 
-  // Create summary text
-  let summaryText = generateSummaryText(summaryData);
+  parchment.appendChild(scrollArea);
+  overlay.appendChild(parchment);
 
-  const textElement = createElement('div', {
-    style: `
-      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
-    `
-  });
-  textElement.innerHTML = summaryText;
-
-  summaryContent.appendChild(textElement);
-  wrapper.appendChild(title);
-  wrapper.appendChild(summaryContent);
-  container.appendChild(wrapper);
+  const nextButton = createElement('button', { id: 'summary-next-button' }, 'Next Day');
+  overlay.appendChild(nextButton);
+  container.appendChild(overlay);
 
   if (window.campSocialChanges) {
     applyConversationConsequences(window.campSocialChanges);
   }
 
-  // --- Action Bar Buttons ---
-  const actionButtons = document.getElementById('action-buttons');
-  if (actionButtons) {
-    clearChildren(actionButtons);
-
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0';
-
-    const createButton = (text, onClick) => {
-      const button = createElement('div', {
-        style: `
-          background-image: url('Assets/Buttons/blank.png');
-          background-size: contain;
-          background-repeat: no-repeat;
-          background-position: center;
-          width: 200px;
-          height: 100px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: transform 0.1s ease;
-          font-family: 'Survivant', sans-serif;
-          font-size: 1rem;
-          color: white;
-          font-weight: bold;
-          text-shadow: 2px 2px 4px black;
-          text-align: center;
-        `
-      }, text);
-
-      button.addEventListener('mouseenter', () => {
-        button.style.transform = 'scale(1.05)';
-      });
-
-      button.addEventListener('mouseleave', () => {
-        button.style.transform = 'scale(1)';
-      });
-
-      if (onClick) button.addEventListener('click', onClick);
-      return button;
-    };
-
-    // Add continue button at the bottom
-  const continueButton = createElement('div', {
-    style: `
-          background-image: url('Assets/Buttons/blank.png');
-          background-size: contain;
-          background-repeat: no-repeat;
-          background-position: center;
-          width: 200px;
-          height: 100px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: transform 0.1s ease;
-          font-family: 'Survivant', sans-serif;
-          font-size: 1rem;
-          color: white;
-          font-weight: bold;
-          text-shadow: 2px 2px 4px black;
-          text-align: center;
-        `
-  }, 'Continue to Challenge');
-
-      continueButton.addEventListener('mouseenter', () => {
-        continueButton.style.transform = 'scale(1.05)';
-      });
-
-      continueButton.addEventListener('mouseleave', () => {
-        continueButton.style.transform = 'scale(1)';
-      });
-
-    continueButton.addEventListener('click', () => {
-      console.log('Continue to Challenge button clicked');
-      gameManager.setGameState('challenge');
-      screenManager.showScreen('challenge');
-    });
-
-    actionButtons.appendChild(continueButton);
-  }
-
-  window.campSocialChanges = {
-    relationship: [],
-    trust: [],
-    suspicion: [],
-    deals: [],
-    gossip: [],
-    memory: [],
-    voteShifts: []
+  const closeSummary = () => {
+    overlay.remove();
   };
 
+  document.getElementById('summary-next-button')
+    .addEventListener('click', () => {
+      window.campSocialChanges = {
+        relationship: [],
+        trust: [],
+        suspicion: [],
+        deals: [],
+        gossip: [],
+        memory: [],
+        voteShifts: []
+      };
+      closeSummary();
+    });
+
   addDebugBanner('Summary view rendered!', 'purple', 170);
+}
+
+function buildCampSummarySections(container, changes) {
+  const summarySections = [
+    {
+      key: 'relationship',
+      title: 'Social Interactions',
+      icon: '🔥',
+      entries: () => (changes.relationship || []).map(r => ({
+        text: `You and ${r.with} had a ${r.context} talk`,
+        amount: r.amount
+      }))
+    },
+    {
+      key: 'deals',
+      title: 'Deals / Promises',
+      icon: '🤝',
+      entries: () => (changes.deals || []).map(d => ({
+        text: `You and ${d.with} ${d.result} a deal`,
+        tone: 'neutral'
+      }))
+    },
+    {
+      key: 'gossip',
+      title: 'Gossip & Rumors',
+      icon: '🗣️',
+      entries: () => (changes.gossip || []).map(g => ({
+        text: `You and ${g.with} gossiped about ${g.about}${g.effect ? ` (${g.effect})` : ''}`,
+        tone: 'neutral'
+      }))
+    },
+    {
+      key: 'trust_suspicion',
+      title: 'Suspicion & Trust',
+      icon: '🕵️',
+      entries: () => {
+        const trustEntries = (changes.trust || []).map(t => ({
+          text: `${t.with} now trusts you ${t.amount > 0 ? 'more' : 'less'}`,
+          amount: t.amount
+        }));
+        const suspicionEntries = (changes.suspicion || []).map(s => ({
+          text: `${s.with} became ${s.amount > 0 ? 'more suspicious' : 'less suspicious'} of you`,
+          amount: s.amount
+        }));
+        return [...trustEntries, ...suspicionEntries];
+      }
+    },
+    {
+      key: 'voteShifts',
+      title: 'Vote Dynamics',
+      icon: '🗳️',
+      entries: () => (changes.voteShifts || []).map(v => ({
+        text: `${v.with} is now ${v.weight > 0 ? 'more likely' : 'less likely'} to vote ${v.target}`,
+        amount: v.weight
+      }))
+    },
+    {
+      key: 'memory',
+      title: 'What Survivors Remember',
+      icon: '🧠',
+      entries: () => (changes.memory || []).map(m => ({
+        text: `${m.with} will remember: ${Array.isArray(m.tags) ? m.tags.join(', ') : m.tags || ''}`,
+        tone: 'neutral'
+      }))
+    }
+  ];
+
+  summarySections.forEach(section => {
+    const entries = section.entries();
+    if (!entries || entries.length === 0) return;
+
+    const header = createElement('h3', { className: 'summary-section-header' }, [
+      createElement('span', { className: 'summary-icon' }, section.icon),
+      section.title
+    ]);
+
+    const divider = createElement('hr', { className: 'summary-divider' });
+    container.appendChild(header);
+    container.appendChild(divider);
+
+    entries.forEach(entry => {
+      const entryElement = createElement('p', { className: 'summary-entry' });
+
+      const bullet = createElement('span', { className: 'summary-bullet' }, '•');
+      entryElement.appendChild(bullet);
+
+      const textNode = document.createTextNode(` ${entry.text} `);
+      entryElement.appendChild(textNode);
+
+      if (entry.amount !== undefined && entry.amount !== null) {
+        const toneClass = getToneClass(entry.amount, entry.tone);
+        const changeText = `(${entry.amount > 0 ? '+' : ''}${entry.amount})`;
+        const changeSpan = createElement('span', { className: toneClass }, changeText);
+        entryElement.appendChild(changeSpan);
+      } else if (entry.tone) {
+        const toneClass = getToneClass(0, entry.tone);
+        const changeSpan = createElement('span', { className: toneClass }, '(neutral)');
+        entryElement.appendChild(changeSpan);
+      }
+
+      container.appendChild(entryElement);
+    });
+  });
+}
+
+function getToneClass(amount = 0, presetTone) {
+  if (presetTone === 'positive') return 'summary-positive';
+  if (presetTone === 'negative') return 'summary-negative';
+  if (presetTone === 'neutral') return 'summary-neutral';
+
+  if (amount > 0) return 'summary-positive';
+  if (amount < 0) return 'summary-negative';
+  return 'summary-neutral';
 }
 
 function generateSummaryData() {
