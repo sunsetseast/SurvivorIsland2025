@@ -24,59 +24,86 @@ if (!window.campActivityTracker) {
 }
 
 function generateConversationRecapHTML() {
-  const socialChanges = window.campSocialChanges;
+  const c = window.campSocialChanges;
+  if (!c) return "";
 
-  if (!socialChanges) {
-    return '';
+  let html = "";
+
+  const addHeader = (title) =>
+    html += `<p><strong>${title}</strong></p><ul>`;
+
+  const closeList = () => html += `</ul>`;
+
+  // Relationship
+  if (c.relationship?.length > 0) {
+    addHeader('--- Relationship Changes ---');
+    c.relationship.forEach(r =>
+      html += `<li>You and <b>${r.with}</b> had a ${r.context} interaction 
+      (<span style="color:${r.amount > 0 ? 'green' : 'red'}">
+      ${r.amount > 0 ? '+' : ''}${r.amount}</span>)</li>`
+    );
+    closeList();
   }
 
-  const sections = [
-    { key: 'relationship', title: '--- Relationship Changes ---' },
-    { key: 'trust', title: '--- Trust Changes ---' },
-    { key: 'suspicion', title: '--- Suspicion ---' },
-    { key: 'deals', title: '--- Deals & Agreements ---' },
-    { key: 'gossip', title: '--- Gossip ---' },
-    { key: 'memory', title: '--- Things Survivors Will Remember ---' },
-    { key: 'voteShifts', title: '--- Vote Dynamics ---' }
-  ];
+  // Trust
+  if (c.trust?.length > 0) {
+    addHeader('--- Trust Changes ---');
+    c.trust.forEach(t =>
+      html += `<li><b>${t.with}</b> now ${t.amount > 0 ? 'trusts you more' : 'trusts you less'} 
+      (<span style="color:${t.amount > 0 ? 'green' : 'red'}">
+      ${t.amount > 0 ? '+' : ''}${t.amount}</span>)</li>`
+    );
+    closeList();
+  }
 
-  const formatEntry = (entry) => {
-    if (typeof entry === 'string') {
-      return entry;
-    }
+  // Suspicion
+  if (c.suspicion?.length > 0) {
+    addHeader('--- Suspicion ---');
+    c.suspicion.forEach(s =>
+      html += `<li><b>${s.with}</b> is now ${s.amount > 0 ? 'more suspicious of you' : 'less suspicious'}
+      (<span style="color:${s.amount > 0 ? 'red' : 'green'}">${s.amount}</span>)</li>`
+    );
+    closeList();
+  }
 
-    if (!entry || typeof entry !== 'object') {
-      return '';
-    }
+  // Deals
+  if (c.deals?.length > 0) {
+    addHeader('--- Deals & Agreements ---');
+    c.deals.forEach(d =>
+      html += `<li>You and <b>${d.with}</b> ${d.result}</li>`
+    );
+    closeList();
+  }
 
-    const candidates = ['text', 'description', 'summary', 'message', 'detail'];
-    for (const key of candidates) {
-      if (typeof entry[key] === 'string') {
-        return entry[key];
-      }
-    }
+  // Gossip
+  if (c.gossip?.length > 0) {
+    addHeader('--- Gossip ---');
+    c.gossip.forEach(g =>
+      html += `<li>You and <b>${g.with}</b> gossiped about <b>${g.about}</b> (${g.effect})</li>`
+    );
+    closeList();
+  }
 
-    const firstString = Object.values(entry).find(value => typeof value === 'string');
-    return firstString || '';
-  };
+  // Memory
+  if (c.memory?.length > 0) {
+    addHeader('--- Things Survivors Will Remember ---');
+    c.memory.forEach(m =>
+      html += `<li><b>${m.with}</b> will remember: <i>${m.tags.join(', ')}</i></li>`
+    );
+    closeList();
+  }
 
-  let recapHTML = '';
+  // Vote shifts
+  if (c.voteShifts?.length > 0) {
+    addHeader('--- Vote Dynamics ---');
+    c.voteShifts.forEach(v =>
+      html += `<li><b>${v.with}</b> is now ${v.weight > 0 ? 'more likely' : 'less likely'} to vote <b>${v.target}</b>
+      (<span style="color:${v.weight > 0 ? 'red' : 'green'}">${v.weight}</span>)</li>`
+    );
+    closeList();
+  }
 
-  sections.forEach(({ key, title }) => {
-    const entries = Array.isArray(socialChanges[key])
-      ? socialChanges[key].map(formatEntry).filter(Boolean)
-      : [];
-
-    if (entries.length > 0) {
-      recapHTML += `<div><p><strong>${title}</strong></p><ul>`;
-      entries.forEach(entry => {
-        recapHTML += `<li>${entry}</li>`;
-      });
-      recapHTML += '</ul></div>';
-    }
-  });
-
-  return recapHTML;
+  return html;
 }
 
 export default function renderSummary(container) {
