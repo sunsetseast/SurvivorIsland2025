@@ -27,10 +27,10 @@ const CFG = {
   alpha: 0.040,         // trait influence scaling
   tickHz: 30,           // update rate
   errPause: [180, 420], // ms pause on small “error” event
-  stagePauseMs: 1400,
+  stagePauseMs: 700,
   leadPauseMs: 1600,
   closePauseMs: 1600,
-  finishPauseMs: 2000,
+  finishPauseMs: 900,
   avatar: { size: 48, labelSize: 10 },
   sidelineOffsetX: 14,
   bleachersYPad: 40
@@ -106,6 +106,10 @@ const FirstContactView = {
       lastSegIdx: {},
       totalScores: {},
       stageScores: SEGMENTS.reduce((m,s)=> (m[s.id]={}, m), {}),
+      globalLastAnnouncedSegIdx: -1,
+      lastLeadKey: null,
+      lastNarrationAt: 0,
+      narrationCooldownMs: 2200,
       events: []
     };
     this.tribes.forEach(t => {
@@ -200,17 +204,19 @@ const FirstContactView = {
     root.append(orderEl, rowsEl);
     this.container.appendChild(root);
 
-    this._stageDots = {};  // [tribeKey][segIdx] -> dot
-    this._stageBadge = {}; // [tribeKey] -> span
+    this._stageDots = {};   // [tribeKey][segIdx] -> dot
+    this._statusBadge = {}; // [tribeKey] -> span
 
     this.tribes.forEach(t => {
       const key = getKey(t);
-      const wrap = createElement('div', { style:`display:flex; align-items:center; gap:6px;` });
+      const wrap = createElement('div', { style:`display:flex; align-items:center; gap:10px; min-width:170px;` });
       const name = t.tribeName || t.name || `Tribe ${t.id}`;
+      const textCol = createElement('div', { style:`display:flex; flex-direction:column; gap:2px;` });
       const label = createElement('span', { style:`color:${t.color || t.tribeColor || '#fff'}; text-shadow:1px 1px 2px #000;` }, name);
-      const badge = createElement('span', { style:`margin-left:6px; padding:2px 6px; border-radius:6px; background:rgba(0,0,0,.4); color:#fff; font-size:.75rem;` }, 'START');
-      this._stageBadge[key] = badge;
-      wrap.append(label, badge);
+      const badge = createElement('span', { style:`padding:2px 6px; border-radius:6px; background:rgba(0,0,0,.4); color:#fff; font-size:.75rem; align-self:flex-start;` }, 'WAITING: MUD');
+      this._statusBadge[key] = badge;
+      textCol.append(label, badge);
+      wrap.append(textCol);
       this._stageDots[key] = {};
       for (let i=0;i<4;i++){
         const dot = createElement('div', { style:`width:12px; height:12px; border-radius:50%; background:#555; border:2px solid ${t.color || t.tribeColor || '#fff'};` });
@@ -232,9 +238,17 @@ const FirstContactView = {
         const text = idx===0 ? `1) ${name}` : `${idx+1}) ${name}  ${gap>0?`+${gap.toFixed(1)}%`:''}`;
         orderEl.appendChild(createElement('span', { style:`color:${tribe?.color || tribe?.tribeColor || '#fff'};` }, text));
 
-        const i = this.state.lastSegIdx[k];
-        const label = ['MUD','KNOTS','TOSS','PUZZLE'][Math.max(0,i)];
-        this._stageBadge[k].textContent = label;
+        const progress = this.state.progressByTribe[k] || 0;
+        const segIdx = this._segmentIndexFromProgress(progress);
+        const labels = ['MUD','KNOTS','TOSS','PUZZLE'];
+        const seg = segIdx >= 0 ? SEGMENTS[segIdx] : null;
+        const epsilon = 0.0001;
+        let statusText = 'FINISHED';
+        if (progress < 1 && seg) {
+          const running = progress > (seg.start + epsilon) && progress < (seg.end - epsilon);
+          statusText = `${running ? 'RUNNING' : 'WAITING'}: ${labels[segIdx]}`;
+        }
+        this._statusBadge[k].textContent = statusText;
       });
     };
   },
@@ -320,6 +334,10 @@ const FirstContactView = {
     const top = (r.topPct/100) * H;
     const height = (r.heightPct/100) * H;
     return { top, height };
+  },
+
+  _segmentIndexFromProgress(progress) {
+    return SEGMENTS.findIndex(s => progress < s.end);
   },
 
   _placeInSideline(ms, segIdx) {
@@ -412,10 +430,8 @@ const FirstContactView = {
         }
       });
 
-      // stage entry commentary once per tribe per stage
       if (this.state.lastSegIdx[key] !== segIdx) {
         this.state.lastSegIdx[key] = segIdx;
-        this._announce(pick(this.lines.enter[SEGMENTS[segIdx].id] || ["Go!"]), CFG.stagePauseMs);
         const dot = this._stageDots[key]?.[segIdx];
         if (dot) dot.style.background = '#0f0';
       }
@@ -449,23 +465,42 @@ const FirstContactView = {
   _announce(text, pauseMs) {
     this.jeff.show(text);
     const now = performance.now();
-    this.state.pausedUntil = now + (pauseMs || CFG.stagePauseMs);
+    const pause = pauseMs ?? CFG.stagePauseMs;
+    this.state.pausedUntil = pause > 0 ? now + pause : now;
     this.jeff.onResume = () => { this.state.pausedUntil = 0; this.jeff.hide(); };
   },
 
-  _maybeLeadChange() {
-    const order = Object.entries(this.state.progressByTribe).sort(([,a],[,b])=>b-a).map(([k])=>k);
-    const leader = order[0];
-    if (leader !== this._prevLeader && this._prevLeader != null) {
-      this._announce(pick(this.lines.lead), CFG.leadPauseMs);
+  _handleNarration() {
+    const entries = Object.entries(this.state.progressByTribe);
+    if (!entries.length) return;
+
+    const sorted = [...entries].sort(([,a],[,b]) => b - a);
+    const leaderKey = sorted[0][0];
+    const leaderProgress = sorted[0][1];
+    const leaderSegIdx = this._segmentIndexFromProgress(leaderProgress);
+    const secondProgress = sorted[1]?.[1];
+    const gap = secondProgress == null ? 1 : Math.abs(leaderProgress - secondProgress);
+    const now = performance.now();
+
+    if (leaderSegIdx > this.state.globalLastAnnouncedSegIdx && leaderSegIdx >= 0) {
+      this.state.globalLastAnnouncedSegIdx = leaderSegIdx;
+      this.state.lastNarrationAt = now;
+      this._announce(pick(this.lines.enter[SEGMENTS[leaderSegIdx].id]), CFG.stagePauseMs);
     }
-    if (order.length>=2) {
-      const gap = Math.abs(this.state.progressByTribe[order[0]] - this.state.progressByTribe[order[1]]);
-      if (this.state.progressByTribe[order[0]] > 0.75 && gap < 0.03) {
-        this._announce(pick(this.lines.close), CFG.closePauseMs);
-      }
+
+    if (this.state.lastLeadKey == null) this.state.lastLeadKey = leaderKey;
+    const cooldownPassed = now - this.state.lastNarrationAt >= this.state.narrationCooldownMs;
+
+    if (leaderKey !== this.state.lastLeadKey && cooldownPassed) {
+      this.state.lastLeadKey = leaderKey;
+      this.state.lastNarrationAt = now;
+      this._announce(pick(this.lines.lead), 0);
     }
-    this._prevLeader = leader;
+
+    if (secondProgress != null && leaderProgress > 0.05 && gap < 0.03 && cooldownPassed) {
+      this.state.lastNarrationAt = now;
+      this._announce(pick(this.lines.close), 0);
+    }
   },
 
   _tick() {
@@ -544,7 +579,7 @@ const FirstContactView = {
 
     // HUD & lead logic
     this._updateScoreboard();
-    this._maybeLeadChange();
+    this._handleNarration();
 
     // end?
     const allDone = this.tribes.every(t => this.state.progressByTribe[getKey(t)] >= 1);
@@ -554,6 +589,40 @@ const FirstContactView = {
   },
 
   // ---------- final summary ----------
+  _computeStagePerformance() {
+    const stats = {};
+    SEGMENTS.forEach((seg, idx) => {
+      const perfs = [];
+      this.tribes.forEach(tribe => {
+        const key = getKey(tribe);
+        (this.participants[key][idx]||[]).forEach(s => {
+          const score = this._legScore(s, seg);
+          perfs.push({ survivor:s, tribe, score });
+        });
+      });
+      perfs.sort((a,b)=>b.score-a.score);
+      stats[seg.id] = { mvp: perfs[0] || null, lvp: perfs[perfs.length-1] || null };
+    });
+    return stats;
+  },
+
+  _buildResults() {
+    const stagePerformance = this._computeStagePerformance();
+    const stagePerformanceCompact = {};
+    Object.entries(stagePerformance).forEach(([segId, info]) => {
+      stagePerformanceCompact[segId] = {
+        mvp: info.mvp ? { survivorId: info.mvp.survivor.id, tribeKey: getKey(info.mvp.tribe) } : null,
+        lvp: info.lvp ? { survivorId: info.lvp.survivor.id, tribeKey: getKey(info.lvp.tribe) } : null
+      };
+    });
+
+    return {
+      finishedOrder: [...this.state.finishedOrder],
+      winningTribeKey: this.state.finishedOrder[0],
+      stagePerformance: stagePerformanceCompact
+    };
+  },
+
   _showFinalResults() {
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('Assets/jeff-screen.png')`;
@@ -595,7 +664,15 @@ const FirstContactView = {
     const btnRow = createElement('div', { style:`position:absolute; top:220px; left:50%; transform:translateX(-50%); display:flex; gap:12px;` });
     const nextBtn = createElement('button', {
       style:`width:140px; height:50px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`,
-      onclick:()=>{ /* your flow to next screen */ }
+      onclick:()=>{
+        const results = this._buildResults();
+        if (window.challengeScreen && typeof window.challengeScreen.completeChallenge === 'function') {
+          window.challengeScreen.completeChallenge(results);
+        } else {
+          gameManager.advanceGamePhase();
+          gameManager.setGameState('camp');
+        }
+      }
     }, 'Continue');
     const brkBtn = createElement('button', {
       style:`width:200px; height:50px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`,
@@ -614,21 +691,12 @@ const FirstContactView = {
     close.onclick = ()=> overlay.remove();
 
     const content = createElement('div', { style:`display:flex; flex-direction:column; gap:10px;` });
+    const stagePerformance = this._computeStagePerformance();
     SEGMENTS.forEach((seg,idx)=> {
       const row = createElement('div', { style:`background:rgba(255,255,255,.08); border-radius:10px; padding:10px;` });
       row.appendChild(createElement('div', { style:`font-size:1rem; margin-bottom:6px; color:#f3d37a;` }, seg.name));
 
-      // MVP/LVP heuristic: best/worst legScore among assigned
-      const perfs = [];
-      this.tribes.forEach(tribe => {
-        const key = getKey(tribe);
-        (this.participants[key][idx]||[]).forEach(s => {
-          const score = this._legScore(s, seg);
-          perfs.push({ survivor:s, tribe, score });
-        });
-      });
-      perfs.sort((a,b)=>b.score-a.score);
-      const mvp = perfs[0], lvp = perfs[perfs.length-1];
+      const { mvp, lvp } = stagePerformance[seg.id] || {};
 
       const line = createElement('div', { style:`display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;` });
       const mk = (tag, p) => `${tag}: ${p?.survivor?.firstName || '—'} (${p?.tribe?.tribeName || p?.tribe?.name || ''})`;
