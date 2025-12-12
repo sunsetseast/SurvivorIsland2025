@@ -25,6 +25,7 @@ function jitter(id, spread = 6) {
 const CFG = {
   base: 0.050,          // base movement per second
   alpha: 0.040,         // trait influence scaling
+  speedMult: 1.45,
   tickHz: 30,           // update rate
   errPause: [180, 420], // ms pause on small “error” event
   stagePauseMs: 700,
@@ -127,8 +128,27 @@ const FirstContactView = {
         toss:  ["Bean-bag toss—touch matters.", "Every miss is a gift to the other tribe."],
         puzzle:["Final puzzle—everything on the line.", "It always comes down to the puzzle!"]
       },
-      lead: ["Lead change! Momentum swing!", "New leaders—what a surge!", "Bang—lead flips!"],
-      close: ["Neck and neck—photo finish coming!", "Nothing in it!", "Dead even!"],
+      lead: [
+        "{leader} takes the lead!",
+        "{leader} surges in front—{trailer} falling behind!",
+        "{leader} out in front now!"
+      ],
+      struggle: [
+        "{trailer} is losing time—gotta pick it up!",
+        "{trailer} struggling here—this is where they’re bleeding time!"
+      ],
+      close: [
+        "Neck and neck—{leader} barely ahead!",
+        "This is tight! {leader} by inches!"
+      ],
+      carry: [
+        "{name} is flying for {tribe}!",
+        "{tribe} getting a huge push from {name}!"
+      ],
+      drag: [
+        "{name} is struggling for {tribe}—they’re losing ground!",
+        "{tribe} needs more out of {name} right now!"
+      ],
       finish: ["{tribe} hits the mat! Immunity!", "{tribe} locks it in!"]
     };
 
@@ -136,6 +156,49 @@ const FirstContactView = {
     this._announce(`Three… two… one… GO!`, CFG.stagePauseMs);
     this._setRunningForCurrentStage();
     this._tick();
+  },
+
+  _handleSurvivorCallouts(now, cooldownPassed) {
+    if (!cooldownPassed) return;
+
+    for (const tribe of this.tribes) {
+      const key = getKey(tribe);
+      const progress = this.state.progressByTribe[key] || 0;
+      const segIdx = this._segmentIndexFromProgress(progress);
+      if (segIdx < 0) continue;
+
+      const parts = (this.participants[key]?.[segIdx] || [])
+        .map(p => this.memberMap[key].find(ms => ms.survivor.id === p.id))
+        .filter(Boolean);
+      const running = parts.filter(ms => ms.status === 'running' && ms.runningIdx === segIdx && typeof ms._lastSpeed === 'number');
+      if (!running.length) continue;
+
+      const avg = running.reduce((sum, ms) => sum + ms._lastSpeed, 0) / running.length;
+      if (avg <= 0) continue;
+
+      const best = running.reduce((m, ms) => (ms._lastSpeed > m._lastSpeed ? ms : m), running[0]);
+      const worst = running.reduce((m, ms) => (ms._lastSpeed < m._lastSpeed ? ms : m), running[0]);
+
+      const tribeName = tribe.tribeName || tribe.name || `Tribe ${tribe.id}`;
+
+      if (best && best._lastSpeed > avg * 1.2) {
+        this.state.lastNarrationAt = now;
+        const text = pick(this.lines.carry)
+          .replace('{name}', best.survivor.firstName || 'Survivor')
+          .replace('{tribe}', tribeName);
+        this._announce(text, 0);
+        return;
+      }
+
+      if (worst && worst._lastSpeed < avg * 0.8) {
+        this.state.lastNarrationAt = now;
+        const text = pick(this.lines.drag)
+          .replace('{name}', worst.survivor.firstName || 'Survivor')
+          .replace('{tribe}', tribeName);
+        this._announce(text, 0);
+        return;
+      }
+    }
   },
 
   // ---------- layout ----------
@@ -170,6 +233,7 @@ const FirstContactView = {
     this.sidelines = {};      // [tribeKey][segIdx] -> {x,y,count}
     this.bleachersY = (this.container.clientHeight||600) * (1 - SEGMENTS[3].end) + CFG.bleachersYPad;
     this.bleachersSlots = {}; // [tribeKey] -> counter
+    this.finishedSlots = {};  // [tribeKey] -> counter
 
     this.tribes.forEach((tribe, i) => {
       const lane = createElement('div', { style:`
@@ -203,6 +267,8 @@ const FirstContactView = {
     const rowsEl  = createElement('div', { style:`display:flex; justify-content:center; gap:14px; margin-top:6px; flex-wrap:wrap;` });
     root.append(orderEl, rowsEl);
     this.container.appendChild(root);
+    this.scoreboardEl = root;
+    this.scoreboardDock = 'top';
 
     this._stageDots = {};   // [tribeKey][segIdx] -> dot
     this._statusBadge = {}; // [tribeKey] -> span
@@ -251,6 +317,18 @@ const FirstContactView = {
         this._statusBadge[k].textContent = statusText;
       });
     };
+  },
+
+  _maybeDockScoreboardBottom() {
+    if (this.scoreboardDock === 'bottom') return;
+    const mudDone = this.tribes.every(t => (this.state.progressByTribe[getKey(t)] || 0) >= SEGMENTS[0].end);
+    if (!mudDone) return;
+
+    this.scoreboardDock = 'bottom';
+    if (this.scoreboardEl) {
+      this.scoreboardEl.style.top = 'auto';
+      this.scoreboardEl.style.bottom = '8px';
+    }
   },
 
   // ---------- assignments & spawn ----------
@@ -364,6 +442,44 @@ const FirstContactView = {
     ms.label.style.top = `${y + CFG.avatar.size + 2}px`;
   },
 
+  _placeFinished(ms) {
+    const tribeIdx = this.tribes.findIndex(t => getKey(t) === getKey(ms.tribe));
+    const key = getKey(ms.tribe);
+    if (this.finishedSlots[key] == null) this.finishedSlots[key] = 0;
+
+    const slot = this.finishedSlots[key]++;
+    const W = this.container.clientWidth || 800;
+    const H = this.container.clientHeight || 600;
+    const pad = 8;
+
+    const setPos = (x, y) => {
+      ms.avatar.style.left = `${x}px`;
+      ms.avatar.style.top = `${y}px`;
+      ms.label.style.left = `${x}px`;
+      ms.label.style.top = `${y + CFG.avatar.size + 2}px`;
+    };
+
+    if (!this.isThree) {
+      const x = tribeIdx === 0 ? pad : (W - CFG.avatar.size - pad);
+      const y = 60 + slot * (CFG.avatar.size + 10);
+      setPos(x, y);
+      return;
+    }
+
+    if (tribeIdx === 0 || tribeIdx === 2) {
+      const x = tribeIdx === 0 ? pad : (W - CFG.avatar.size - pad);
+      const y = 60 + slot * (CFG.avatar.size + 10);
+      setPos(x, y);
+      return;
+    }
+
+    const scoreboardBottomY = H - 8;
+    const y = scoreboardBottomY - 90;
+    const xStart = Math.floor(W * 0.25);
+    const x = xStart + slot * (CFG.avatar.size + 8);
+    setPos(x, y);
+  },
+
   // ---------- sim math ----------
   _traitBlend(survivor, weights) {
     let sum = 0;
@@ -406,7 +522,7 @@ const FirstContactView = {
     const C = this._pressureFactor(seg.id, s);
     if (ms.legLuck[seg.id] == null) ms.legLuck[seg.id] = lerp(0.97, 1.03, Math.random());
     const L = ms.legLuck[seg.id] * lerp(0.985, 1.015, Math.random());
-    return (CFG.base * (1 + CFG.alpha*T)) * R * F * C * L;
+    return (CFG.base * (1 + CFG.alpha*T)) * R * F * C * L * CFG.speedMult;
   },
 
   // ---------- race control ----------
@@ -481,6 +597,11 @@ const FirstContactView = {
     const secondProgress = sorted[1]?.[1];
     const gap = secondProgress == null ? 1 : Math.abs(leaderProgress - secondProgress);
     const now = performance.now();
+    const leaderTribe = this.tribes.find(t => getKey(t) === leaderKey);
+    const trailerKey = sorted[1]?.[0];
+    const trailerTribe = trailerKey ? this.tribes.find(t => getKey(t) === trailerKey) : null;
+    const leaderName = leaderTribe?.tribeName || leaderTribe?.name || `Tribe ${leaderTribe?.id ?? ''}`;
+    const trailerName = trailerTribe?.tribeName || trailerTribe?.name || `Tribe ${trailerTribe?.id ?? ''}`;
 
     if (leaderSegIdx > this.state.globalLastAnnouncedSegIdx && leaderSegIdx >= 0) {
       this.state.globalLastAnnouncedSegIdx = leaderSegIdx;
@@ -494,13 +615,29 @@ const FirstContactView = {
     if (leaderKey !== this.state.lastLeadKey && cooldownPassed) {
       this.state.lastLeadKey = leaderKey;
       this.state.lastNarrationAt = now;
-      this._announce(pick(this.lines.lead), 0);
+      const text = pick(this.lines.lead)
+        .replace('{leader}', leaderName)
+        .replace('{trailer}', trailerName);
+      this._announce(text, 0);
     }
 
     if (secondProgress != null && leaderProgress > 0.05 && gap < 0.03 && cooldownPassed) {
       this.state.lastNarrationAt = now;
-      this._announce(pick(this.lines.close), 0);
+      const text = pick(this.lines.close)
+        .replace('{leader}', leaderName)
+        .replace('{trailer}', trailerName);
+      this._announce(text, 0);
     }
+
+    if (secondProgress != null && leaderProgress > 0.05 && gap > 0.08 && cooldownPassed) {
+      this.state.lastNarrationAt = now;
+      const text = pick(this.lines.struggle)
+        .replace('{leader}', leaderName)
+        .replace('{trailer}', trailerName);
+      this._announce(text, 0);
+    }
+
+    this._handleSurvivorCallouts(now, cooldownPassed);
   },
 
   _tick() {
@@ -532,6 +669,7 @@ const FirstContactView = {
 
         // progress & position
         const speed = this._speed(ms, seg) * dt;
+        ms._lastSpeed = speed;
         ms.perLeg[segIdx] = clamp((ms.perLeg[segIdx]||0) + speed, 0, 1);
 
         const r = this._segmentRect(segIdx);
@@ -550,7 +688,7 @@ const FirstContactView = {
             const isAssigned = this.participants[key][i]?.some(p => p.id===ms.survivor.id);
             if (isAssigned){ nextIdx = i; break; }
           }
-          if (nextIdx===-1) this._placeInBleachers(ms);
+          if (nextIdx===-1) this._placeFinished(ms);
           else this._placeInSideline(ms, nextIdx);
         }
       });
@@ -579,6 +717,7 @@ const FirstContactView = {
 
     // HUD & lead logic
     this._updateScoreboard();
+    this._maybeDockScoreboardBottom();
     this._handleNarration();
 
     // end?
