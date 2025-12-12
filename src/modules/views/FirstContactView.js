@@ -12,8 +12,18 @@ import gameManager from '../core/GameManager.js';
 // ---------- tiny helpers ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const getKey = (tribe) => tribe?.id ?? tribe?.name ?? tribe?.tribeName;
+
+const renderTemplate = (str, ctx = {}) =>
+  str
+    .replaceAll('{leader}', ctx.leader || '')
+    .replaceAll('{trailer}', ctx.trailer || '')
+    .replaceAll('{winner}', ctx.winner || '')
+    .replaceAll('{winnerA}', ctx.winnerA || '')
+    .replaceAll('{winnerB}', ctx.winnerB || '')
+    .replaceAll('{loser}', ctx.loser || '')
+    .replaceAll('{tribe}', ctx.tribe || '')
+    .replaceAll('{name}', ctx.name || '');
 
 // stable jitter per id (keeps stacks from overlapping)
 function jitter(id, spread = 6) {
@@ -105,61 +115,161 @@ const FirstContactView = {
       finishedOrder: [],
       progressByTribe: {},
       lastSegIdx: {},
-      totalScores: {},
       stageScores: SEGMENTS.reduce((m,s)=> (m[s.id]={}, m), {}),
       globalLastAnnouncedSegIdx: -1,
       lastLeadKey: null,
       lastNarrationAt: 0,
       narrationCooldownMs: 2200,
-      events: []
+      events: [],
+      lastLineGlobal: null,
+      lastLineByCategory: {},
+      pendingLead: null,
+      neckAndNeckSegs: {},
+      segmentCallouts: {},
+      lastSurvivorCalloutId: null,
+      lastMomentumGap: null,
+      puzzleUnified: false,
+      puzzleAllInFired: false,
+      finishSoonCalled: false
     };
     this.tribes.forEach(t => {
       const k = getKey(t);
       this.state.progressByTribe[k] = 0;
       this.state.lastSegIdx[k] = -1;
-      this.state.totalScores[k] = 0;
     });
 
     // lines
     this.lines = {
+      start: [
+        "Survivors ready?! This is for reward and immunity—GO!",
+        "This challenge sets the tone—immunity is on the line—GO!",
+        "First challenge of the game—everybody wants momentum—GO!",
+        "Immunity up for grabs—let’s find out who came to play—GO!"
+      ],
+
       enter: {
-        mud:   ["Into the mud—pure grit!", "Crawl, fight, claw—welcome to the mud."],
-        knots: ["Knots now—dexterity and patience.", "Hands shaking, minds racing—untie it!"],
-        toss:  ["Bean-bag toss—touch matters.", "Every miss is a gift to the other tribe."],
-        puzzle:["Final puzzle—everything on the line.", "It always comes down to the puzzle!"]
+        mud: [
+          "{leader} hits the mud first—dig deep!",
+          "{leader} out in front—straight into the mud!",
+          "{leader} first to the mud crawl—this is where it gets ugly!",
+          "{leader} takes the early advantage—mud crawl underway!"
+        ],
+        knots: [
+          "{leader} first to the knots—this is all about focus!",
+          "{leader} now at the knots—don’t rush it!",
+          "{leader} hits the knots station—precision matters here!",
+          "{leader} in the lead—and now it’s knots!"
+        ],
+        toss: [
+          "{leader} first to the toss—this can swing fast!",
+          "{leader} at the toss—one mistake and you’re chasing!",
+          "{leader} leads into the toss—this is a pressure moment!",
+          "{leader} first to the toss—here we go!"
+        ],
+        puzzle: [
+          "{leader} first to the puzzle—this is where you can win it!",
+          "{leader} hits the puzzle first—this is the finish line!",
+          "{leader} to the puzzle—can they close it out?",
+          "{leader} leads them to the puzzle—now it’s brains and nerves!"
+        ]
       },
-      lead: [
+
+      leadChange: [
         "{leader} takes the lead!",
-        "{leader} surges in front—{trailer} falling behind!",
-        "{leader} out in front now!"
+        "{leader} surges in front—{trailer} now chasing!",
+        "{leader} jumps ahead—momentum shift!",
+        "{leader} out in front now—big swing!",
+        "{leader} takes over—{trailer} has to respond!",
+        "{leader} seizes the advantage—{trailer} falling behind!"
       ],
-      struggle: [
-        "{trailer} is losing time—gotta pick it up!",
-        "{trailer} struggling here—this is where they’re bleeding time!"
+
+      neckAndNeck: [
+        "Neck and neck—this is tight!",
+        "Nobody giving an inch—this is dead even!",
+        "This is close—every second matters!",
+        "Toe to toe—one clean moment could decide it!",
+        "This is a straight-up race—no separation!"
       ],
-      close: [
-        "Neck and neck—{leader} barely ahead!",
-        "This is tight! {leader} by inches!"
+
+      widening: [
+        "{leader} is opening it up—{trailer} running out of time!",
+        "{leader} starting to pull away!",
+        "{leader} creating distance—{trailer} has to find another gear!",
+        "{leader} stretching the lead—{trailer} in trouble!",
+        "{leader} pulling ahead in a big way!"
       ],
+
+      struggleTribe: [
+        "{trailer} is losing time right here!",
+        "{trailer} struggling—this is where they’re bleeding seconds!",
+        "{trailer} can’t afford this—immunity is slipping away!",
+        "{trailer} has to clean this up fast!",
+        "{trailer} stuck—this is costly!"
+      ],
+
       carry: [
-        "{name} is flying for {tribe}!",
-        "{tribe} getting a huge push from {name}!"
+        "{name} is a machine for {tribe} right now!",
+        "{tribe} getting a huge push from {name}!",
+        "{name} is flying—{tribe} loves what they’re getting!",
+        "{name} is bringing it—big effort for {tribe}!",
+        "That’s the pace you want—{name} powering {tribe}!"
       ],
+
       drag: [
-        "{name} is struggling for {tribe}—they’re losing ground!",
-        "{tribe} needs more out of {name} right now!"
+        "{name} struggling for {tribe}—they’re losing ground!",
+        "{tribe} needs more out of {name} right now!",
+        "{name} looks rattled—{tribe} paying for it!",
+        "{name} cannot find the rhythm—{tribe} falling behind!",
+        "{tribe} is getting slowed down by {name}!"
       ],
-      finish: ["{tribe} hits the mat! Immunity!", "{tribe} locks it in!"]
+
+      comeback: [
+        "{trailer} is closing the gap!",
+        "{trailer} making a move—this is getting interesting!",
+        "{trailer} creeping back in—don’t count them out!",
+        "{trailer} clawing their way back into it!",
+        "{trailer} responding—this race isn’t over!"
+      ],
+
+      puzzleAllIn: [
+        "All tribes on the puzzle—this is where it’s decided!",
+        "Everybody at the puzzle—now it’s pure execution!",
+        "This is it—all on the puzzle—who wants it more?",
+        "No more running—all puzzle—immunity is right here!"
+      ],
+
+      finishSoon: [
+        "{leader} on the verge—can they finish?",
+        "{leader} is right there—don’t blow it now!",
+        "{leader} is one step away!",
+        "{leader} can taste it—finish this!",
+        "{leader} so close—close it out!"
+      ],
+
+      winOne: [
+        "{winner} wins immunity!",
+        "{winner} takes it—immunity is theirs!",
+        "{winner} wins! {loser} will head back to camp without immunity!",
+        "{winner} gets it done—immunity for {winner}!"
+      ],
+
+      winTwo: [
+        "{winnerA} and {winnerB} win immunity!",
+        "{winnerA} and {winnerB} are safe tonight!",
+        "{winnerA} and {winnerB} pull it off—immunity for both tribes!"
+      ]
     };
 
     // GO
-    this._announce(`Three… two… one… GO!`, CFG.stagePauseMs);
+    this._speakLine('start', this.lines.start, {}, CFG.stagePauseMs);
     this._setRunningForCurrentStage();
     this._tick();
   },
 
   _handleSurvivorCallouts(now, cooldownPassed) {
     if (!cooldownPassed) return;
+
+    const playerId = gameManager.getPlayerSurvivor()?.id;
 
     for (const tribe of this.tribes) {
       const key = getKey(tribe);
@@ -176,26 +286,38 @@ const FirstContactView = {
       const avg = running.reduce((sum, ms) => sum + ms._lastSpeed, 0) / running.length;
       if (avg <= 0) continue;
 
+      if (!this.state.segmentCallouts[segIdx]) this.state.segmentCallouts[segIdx] = { carry: 0, drag: 0 };
+
       const best = running.reduce((m, ms) => (ms._lastSpeed > m._lastSpeed ? ms : m), running[0]);
       const worst = running.reduce((m, ms) => (ms._lastSpeed < m._lastSpeed ? ms : m), running[0]);
 
       const tribeName = tribe.tribeName || tribe.name || `Tribe ${tribe.id}`;
+      const bestName = best?.survivor?.firstName || 'Survivor';
+      const bestDisplay = best?.survivor?.id === playerId ? `${bestName} (You)` : bestName;
+      const worstName = worst?.survivor?.firstName || 'Survivor';
+      const worstDisplay = worst?.survivor?.id === playerId ? `${worstName} (You)` : worstName;
 
-      if (best && best._lastSpeed > avg * 1.2) {
-        this.state.lastNarrationAt = now;
-        const text = pick(this.lines.carry)
-          .replace('{name}', best.survivor.firstName || 'Survivor')
-          .replace('{tribe}', tribeName);
-        this._announce(text, 0);
+      if (
+        best &&
+        best._lastSpeed > avg * 1.2 &&
+        this.state.segmentCallouts[segIdx].carry < 1 &&
+        best.survivor.id !== this.state.lastSurvivorCalloutId
+      ) {
+        this.state.segmentCallouts[segIdx].carry += 1;
+        this.state.lastSurvivorCalloutId = best.survivor.id;
+        this._speakLine('carry', this.lines.carry, { name: bestDisplay, tribe: tribeName }, 0);
         return;
       }
 
-      if (worst && worst._lastSpeed < avg * 0.8) {
-        this.state.lastNarrationAt = now;
-        const text = pick(this.lines.drag)
-          .replace('{name}', worst.survivor.firstName || 'Survivor')
-          .replace('{tribe}', tribeName);
-        this._announce(text, 0);
+      if (
+        worst &&
+        worst._lastSpeed < avg * 0.8 &&
+        this.state.segmentCallouts[segIdx].drag < 1 &&
+        worst.survivor.id !== this.state.lastSurvivorCalloutId
+      ) {
+        this.state.segmentCallouts[segIdx].drag += 1;
+        this.state.lastSurvivorCalloutId = worst.survivor.id;
+        this._speakLine('drag', this.lines.drag, { name: worstDisplay, tribe: tribeName }, 0);
         return;
       }
     }
@@ -205,7 +327,9 @@ const FirstContactView = {
   _buildBands() {
     const bands = createElement('div', { style:`position:absolute; inset:0; z-index:1;` });
     this.container.appendChild(bands);
+    this.bandsRoot = bands;
     this.bandRects = [];
+    this.bandEls = [];
     SEGMENTS.forEach(seg => {
       const topPct = (1 - seg.end) * 100;
       const heightPct = (seg.end - seg.start) * 100;
@@ -220,6 +344,7 @@ const FirstContactView = {
         background:rgba(0,0,0,.35); padding:2px 6px; border-radius:6px; z-index:2;
       `}, seg.name);
       bands.append(el, label);
+      this.bandEls.push(el, label);
       this.bandRects.push({ topPct, heightPct });
     });
   },
@@ -586,6 +711,57 @@ const FirstContactView = {
     this.jeff.onResume = () => { this.state.pausedUntil = 0; this.jeff.hide(); };
   },
 
+  _maybeUnifyPuzzle(now) {
+    if (this.state.puzzleUnified) return;
+    const puzzleStart = SEGMENTS[3].start;
+    const allAtPuzzle = this.tribes.every(t => (this.state.progressByTribe[getKey(t)] || 0) >= puzzleStart);
+    if (!allAtPuzzle) return;
+
+    this.state.puzzleUnified = true;
+    if (this.bandsRoot) this.bandsRoot.style.display = 'none';
+    if (this.bandEls) this.bandEls.forEach(el => el.style.display = 'none');
+    this.container.style.backgroundImage = `url('${SEGMENTS[3].bg}')`;
+    this.container.style.backgroundSize = 'cover';
+
+    if (!this.state.puzzleAllInFired && (now - this.state.lastNarrationAt >= this.state.narrationCooldownMs)) {
+      this.state.puzzleAllInFired = true;
+      this._speakLine('puzzleAllIn', this.lines.puzzleAllIn, {}, CFG.stagePauseMs);
+    }
+  },
+
+  _pickLine(categoryKey, lines, context = {}) {
+    if (!lines || !lines.length) return null;
+    const lastIdx = this.state.lastLineByCategory[categoryKey];
+    const lastGlobal = this.state.lastLineGlobal;
+    let idx = Math.floor(Math.random() * lines.length);
+    let attempts = 0;
+
+    const chooseRendered = (i) => renderTemplate(lines[i], context);
+
+    while (attempts < lines.length * 2) {
+      const rendered = chooseRendered(idx);
+      if (idx !== lastIdx && rendered !== lastGlobal) {
+        this.state.lastLineByCategory[categoryKey] = idx;
+        this.state.lastLineGlobal = rendered;
+        return rendered;
+      }
+      idx = (idx + 1) % lines.length;
+      attempts++;
+    }
+
+    const rendered = chooseRendered(idx);
+    this.state.lastLineByCategory[categoryKey] = idx;
+    this.state.lastLineGlobal = rendered;
+    return rendered;
+  },
+
+  _speakLine(categoryKey, lines, context = {}, pauseMs) {
+    const text = this._pickLine(categoryKey, lines, context);
+    if (!text) return;
+    this.state.lastNarrationAt = performance.now();
+    this._announce(text, pauseMs);
+  },
+
   _handleNarration() {
     const entries = Object.entries(this.state.progressByTribe);
     if (!entries.length) return;
@@ -602,39 +778,62 @@ const FirstContactView = {
     const trailerTribe = trailerKey ? this.tribes.find(t => getKey(t) === trailerKey) : null;
     const leaderName = leaderTribe?.tribeName || leaderTribe?.name || `Tribe ${leaderTribe?.id ?? ''}`;
     const trailerName = trailerTribe?.tribeName || trailerTribe?.name || `Tribe ${trailerTribe?.id ?? ''}`;
-
-    if (leaderSegIdx > this.state.globalLastAnnouncedSegIdx && leaderSegIdx >= 0) {
-      this.state.globalLastAnnouncedSegIdx = leaderSegIdx;
-      this.state.lastNarrationAt = now;
-      this._announce(pick(this.lines.enter[SEGMENTS[leaderSegIdx].id]), CFG.stagePauseMs);
-    }
-
-    if (this.state.lastLeadKey == null) this.state.lastLeadKey = leaderKey;
     const cooldownPassed = now - this.state.lastNarrationAt >= this.state.narrationCooldownMs;
 
-    if (leaderKey !== this.state.lastLeadKey && cooldownPassed) {
+    // segment entry beat (leader reaching new segment)
+    if (leaderSegIdx > this.state.globalLastAnnouncedSegIdx && leaderSegIdx >= 0) {
+      this.state.globalLastAnnouncedSegIdx = leaderSegIdx;
+      this._speakLine(`enter-${SEGMENTS[leaderSegIdx].id}`, this.lines.enter[SEGMENTS[leaderSegIdx].id], { leader: leaderName }, CFG.stagePauseMs);
+      return;
+    }
+
+    // debounce lead changes
+    if (!this.state.pendingLead || this.state.pendingLead.leaderKey !== leaderKey) {
+      this.state.pendingLead = { leaderKey, since: now };
+    }
+
+    if (this.state.pendingLead && this.state.pendingLead.leaderKey === leaderKey && gap >= 0.02 && (now - this.state.pendingLead.since) >= 2000 && cooldownPassed && this.state.lastLeadKey !== leaderKey) {
       this.state.lastLeadKey = leaderKey;
-      this.state.lastNarrationAt = now;
-      const text = pick(this.lines.lead)
-        .replace('{leader}', leaderName)
-        .replace('{trailer}', trailerName);
-      this._announce(text, 0);
+      this._speakLine('leadChange', this.lines.leadChange, { leader: leaderName, trailer: trailerName }, CFG.leadPauseMs);
+      return;
     }
 
-    if (secondProgress != null && leaderProgress > 0.05 && gap < 0.03 && cooldownPassed) {
-      this.state.lastNarrationAt = now;
-      const text = pick(this.lines.close)
-        .replace('{leader}', leaderName)
-        .replace('{trailer}', trailerName);
-      this._announce(text, 0);
+    // neck and neck once per segment
+    if (secondProgress != null && gap < 0.02 && cooldownPassed && leaderSegIdx >= 0 && !this.state.neckAndNeckSegs[leaderSegIdx]) {
+      this.state.neckAndNeckSegs[leaderSegIdx] = true;
+      this._speakLine('neckAndNeck', this.lines.neckAndNeck, {}, CFG.closePauseMs);
+      return;
     }
 
-    if (secondProgress != null && leaderProgress > 0.05 && gap > 0.08 && cooldownPassed) {
-      this.state.lastNarrationAt = now;
-      const text = pick(this.lines.struggle)
-        .replace('{leader}', leaderName)
-        .replace('{trailer}', trailerName);
-      this._announce(text, 0);
+    // momentum swings
+    if (secondProgress != null) {
+      const lastGap = this.state.lastMomentumGap;
+      if (lastGap != null && Math.abs(gap - lastGap) >= 0.04 && cooldownPassed) {
+        if (gap > lastGap && gap >= 0.05) {
+          this._speakLine('widening', this.lines.widening, { leader: leaderName, trailer: trailerName }, CFG.leadPauseMs);
+          this.state.lastMomentumGap = gap;
+          return;
+        }
+        if (gap < lastGap && gap <= 0.12) {
+          this._speakLine('comeback', this.lines.comeback, { leader: leaderName, trailer: trailerName }, CFG.leadPauseMs);
+          this.state.lastMomentumGap = gap;
+          return;
+        }
+      }
+      this.state.lastMomentumGap = gap;
+    }
+
+    // struggle call when gap is significant
+    if (secondProgress != null && gap > 0.1 && cooldownPassed) {
+      this._speakLine('struggleTribe', this.lines.struggleTribe, { trailer: trailerName, leader: leaderName }, CFG.leadPauseMs);
+      return;
+    }
+
+    // finish line tease
+    if (!this.state.finishSoonCalled && leaderProgress >= 0.9 && cooldownPassed) {
+      this.state.finishSoonCalled = true;
+      this._speakLine('finishSoon', this.lines.finishSoon, { leader: leaderName }, CFG.finishPauseMs);
+      return;
     }
 
     this._handleSurvivorCallouts(now, cooldownPassed);
@@ -711,9 +910,11 @@ const FirstContactView = {
       if (this.state.progressByTribe[key] >= 1 && !this.state.finishedOrder.includes(key)) {
         this.state.finishedOrder.push(key);
         const tname = tribe.tribeName || tribe.name || `Tribe ${tribe.id}`;
-        this._announce(pick(this.lines.finish).replace('{tribe}', tname), CFG.finishPauseMs);
+        this._announce(`${tname} hits the mat!`, CFG.finishPauseMs);
       }
     });
+
+    this._maybeUnifyPuzzle(now);
 
     // HUD & lead logic
     this._updateScoreboard();
@@ -758,6 +959,7 @@ const FirstContactView = {
     return {
       finishedOrder: [...this.state.finishedOrder],
       winningTribeKey: this.state.finishedOrder[0],
+      winningTribeKeys: this.isThree ? this.state.finishedOrder.slice(0,2) : this.state.finishedOrder.slice(0,1),
       stagePerformance: stagePerformanceCompact
     };
   },
@@ -766,16 +968,10 @@ const FirstContactView = {
     clearChildren(this.container);
     this.container.style.backgroundImage = `url('Assets/jeff-screen.png')`;
 
-    const sorted = Object.entries(this.state.totalScores)
-      .sort(([,a],[,b]) => b - a)
-      .map(([tribeKey, score]) => ({ 
-        tribe: this.tribes.find(t => (t.id || t.name || t.tribeName) === tribeKey), 
-        score,
-        tribeKey 
-      }));
-
-    const winners = sorted.slice(0, this.isThree ? 2 : 1);
-    const losers  = sorted.slice(this.isThree ? 2 : 1);
+    const winnersKeys = this.isThree ? this.state.finishedOrder.slice(0, 2) : this.state.finishedOrder.slice(0, 1);
+    const loserKeys = this.tribes.map(t => getKey(t)).filter(k => !winnersKeys.includes(k));
+    const winners = winnersKeys.map(k => this.tribes.find(t => getKey(t) === k)).filter(Boolean);
+    const losers = loserKeys.map(k => this.tribes.find(t => getKey(t) === k)).filter(Boolean);
 
     const colorHex = (name)=>({ red:'#FF0000', blue:'#0066FF', orange:'#FF8C00', green:'#228B22', purple:'#8A2BE2' }[name] || '#FFFFFF');
     const colorTribe = (tribe) => {
@@ -786,11 +982,20 @@ const FirstContactView = {
 
     let text;
     if (this.isThree) {
-      const w1=winners[0]?.tribe, w2=winners[1]?.tribe, l=losers[0]?.tribe;
-      text = `${colorTribe(w1)} and ${colorTribe(w2)} win immunity! ${colorTribe(l)}, I’ll be seeing you at Tribal Council.`;
+      const w1 = winners[0], w2 = winners[1], l = losers[0];
+      const rendered = this._pickLine('winTwo', this.lines.winTwo, {
+        winnerA: w1?.tribeName || w1?.name || 'Tribe',
+        winnerB: w2?.tribeName || w2?.name || 'Tribe'
+      });
+      const base = rendered || `${colorTribe(w1)} and ${colorTribe(w2)} win immunity!`;
+      text = `${base} ${l ? `${colorTribe(l)}, I’ll be seeing you at Tribal Council.` : ''}`;
     } else {
-      const w=winners[0]?.tribe, l=losers[0]?.tribe;
-      text = `${colorTribe(w)} wins immunity! ${colorTribe(l)}, grab your torches and head to Tribal Council.`;
+      const w = winners[0], l = losers[0];
+      const rendered = this._pickLine('winOne', this.lines.winOne, {
+        winner: w?.tribeName || w?.name || 'Tribe',
+        loser: l?.tribeName || l?.name || 'Tribe'
+      });
+      text = rendered || `${colorTribe(w)} wins immunity! ${l ? `${colorTribe(l)}, grab your torches and head to Tribal Council.` : ''}`;
     }
 
     // parchment
@@ -831,6 +1036,7 @@ const FirstContactView = {
 
     const content = createElement('div', { style:`display:flex; flex-direction:column; gap:10px;` });
     const stagePerformance = this._computeStagePerformance();
+    const playerId = gameManager.getPlayerSurvivor()?.id;
     SEGMENTS.forEach((seg,idx)=> {
       const row = createElement('div', { style:`background:rgba(255,255,255,.08); border-radius:10px; padding:10px;` });
       row.appendChild(createElement('div', { style:`font-size:1rem; margin-bottom:6px; color:#f3d37a;` }, seg.name));
@@ -838,7 +1044,13 @@ const FirstContactView = {
       const { mvp, lvp } = stagePerformance[seg.id] || {};
 
       const line = createElement('div', { style:`display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;` });
-      const mk = (tag, p) => `${tag}: ${p?.survivor?.firstName || '—'} (${p?.tribe?.tribeName || p?.tribe?.name || ''})`;
+      const mk = (tag, p) => {
+        if (!p) return `${tag}: —`;
+        const baseName = p?.survivor?.firstName || 'Survivor';
+        const name = p?.survivor?.id === playerId ? `${baseName} (You)` : baseName;
+        const tribeText = p?.tribe?.tribeName || p?.tribe?.name || '';
+        return `${tag}: ${name} (${tribeText})`;
+      };
       line.append(createElement('div', {}, mk('MVP', mvp)), createElement('div', {}, mk('LVP', lvp)));
       row.appendChild(line);
 
