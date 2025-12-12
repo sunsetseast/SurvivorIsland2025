@@ -55,19 +55,23 @@ const SEGMENTS = [
   { id:'puzzle', name:'VERTICAL PUZZLE',start:0.75, end:1.00, bg:'Assets/Challenge/vertical-puzzle.png',weights:{ puzzles:.50, memory:.30, focus:.20 },                      combine:'max' }
 ];
 
-// ---------- Jeff bubble (centered; shows only during pauses) ----------
+// ---------- Jeff bubble (docked near scoreboard; shows only during pauses) ----------
 class JeffBubble {
   constructor(root) {
     this.root = root;
+    this.mode = 'topBelowScoreboard';
+    this.scoreboardEl = null;
     this.wrap = createElement('div', { style:`
-      position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:4000;
-      pointer-events:auto;
+      position:absolute; left:50%; transform:translate(-50%, 0);
+      display:none; z-index:4000; pointer-events:none;
+      transition: top 280ms ease, bottom 280ms ease, transform 280ms ease, opacity 180ms ease;
     `});
     const panel = createElement('div', { style:`
       display:flex; gap:12px; align-items:center; max-width:min(85vw,720px);
       background:rgba(0,0,0,.75); color:#fff; border-radius:14px; padding:14px 18px;
       box-shadow:0 8px 24px rgba(0,0,0,.55); text-shadow:1px 1px 2px #000;
       font-family:'Survivant',sans-serif; font-weight:bold; line-height:1.25; font-size:1.05rem;
+      pointer-events:auto;
     `});
     const img = createElement('img', { src:'Assets/jeff-screen.png', style:`
       width:64px; height:64px; border-radius:50%; object-fit:cover; object-position:center 30%; border:2px solid #fff;
@@ -77,12 +81,43 @@ class JeffBubble {
     this.wrap.appendChild(panel);
     root.appendChild(this.wrap);
 
-    this.wrap.addEventListener('click', () => {
+    panel.addEventListener('click', () => {
       this.hide();
       if (this.onResume) this.onResume();
     });
   }
-  show(text) { this.textEl.textContent = text; this.wrap.style.display = 'flex'; }
+  setDock(mode = 'topBelowScoreboard', scoreboardEl = this.scoreboardEl) {
+    this.mode = mode;
+    this.scoreboardEl = scoreboardEl;
+    if (!this.scoreboardEl) return;
+
+    const wasHidden = this.wrap.style.display === 'none';
+    const containerRect = this.root.getBoundingClientRect();
+    const prevTop = (!wasHidden && this.wrap.offsetParent) ? (this.wrap.getBoundingClientRect().top - containerRect.top) : null;
+
+    const sb = this.scoreboardEl;
+    this.wrap.style.top = 'auto';
+    this.wrap.style.bottom = 'auto';
+
+    if (mode === 'topBelowScoreboard') {
+      const top = sb.offsetTop + sb.offsetHeight + 8;
+      this.wrap.style.top = `${top}px`;
+    } else {
+      const bottom = sb.offsetHeight + 16;
+      this.wrap.style.bottom = `${bottom}px`;
+    }
+
+    if (prevTop != null) {
+      const newTop = this.wrap.getBoundingClientRect().top - containerRect.top;
+      const delta = prevTop - newTop;
+      this.wrap.style.transform = `translate(-50%, ${delta}px)`;
+      this.wrap.getBoundingClientRect();
+      this.wrap.style.transform = 'translate(-50%, 0)';
+    } else {
+      this.wrap.style.transform = 'translate(-50%, 0)';
+    }
+  }
+  show(text) { this.textEl.textContent = text; this.wrap.style.display = 'block'; this.setDock(this.mode); }
   hide() { this.wrap.style.display = 'none'; }
 }
 
@@ -103,6 +138,13 @@ const FirstContactView = {
     this._buildLanes();
     this._buildScoreboard();
     this.jeff = new JeffBubble(container);
+    this.jeff.setDock('topBelowScoreboard', this.scoreboardEl);
+
+    this._onResize = () => {
+      if (this.jeff) this.jeff.setDock(this.jeff.mode, this.scoreboardEl);
+    };
+    window.addEventListener('resize', this._onResize);
+    window.addEventListener('orientationchange', this._onResize);
 
     // assignments + spawn
     this._assignParticipants();
@@ -444,16 +486,29 @@ const FirstContactView = {
     };
   },
 
-  _maybeDockScoreboardBottom() {
-    if (this.scoreboardDock === 'bottom') return;
-    const mudDone = this.tribes.every(t => (this.state.progressByTribe[getKey(t)] || 0) >= SEGMENTS[0].end);
-    if (!mudDone) return;
+  _maybeDockHudForLaterLegs() {
+    const allPastKnots = this.tribes.every(t => (this.state.progressByTribe[getKey(t)] || 0) >= SEGMENTS[1].end);
 
-    this.scoreboardDock = 'bottom';
-    if (this.scoreboardEl) {
-      this.scoreboardEl.style.top = 'auto';
-      this.scoreboardEl.style.bottom = '8px';
+    if (!allPastKnots) {
+      if (this.scoreboardDock !== 'top') {
+        this.scoreboardDock = 'top';
+        if (this.scoreboardEl) {
+          this.scoreboardEl.style.bottom = 'auto';
+          this.scoreboardEl.style.top = '8px';
+        }
+      }
+      if (this.jeff) this.jeff.setDock('topBelowScoreboard', this.scoreboardEl);
+      return;
     }
+
+    if (this.scoreboardDock !== 'bottom') {
+      this.scoreboardDock = 'bottom';
+      if (this.scoreboardEl) {
+        this.scoreboardEl.style.top = 'auto';
+        this.scoreboardEl.style.bottom = '8px';
+      }
+    }
+    if (this.jeff) this.jeff.setDock('aboveBottomScoreboard', this.scoreboardEl);
   },
 
   // ---------- assignments & spawn ----------
@@ -510,7 +565,7 @@ const FirstContactView = {
         });
         const label = createElement('div', {
           style:`position:absolute; font-family:'Survivant',sans-serif; font-size:${CFG.avatar.labelSize}px;
-                 color:#fff; text-shadow:1px 1px 2px #000; z-index:11;`
+                 color:${ms.tribe.color || ms.tribe.tribeColor || '#fff'}; text-shadow:1px 1px 2px #000; z-index:11;`
         }, (ms.survivor.firstName || '').split(' ')[0]);
         this.container.append(img,label);
         ms.avatar = img; ms.label = label;
@@ -918,7 +973,7 @@ const FirstContactView = {
 
     // HUD & lead logic
     this._updateScoreboard();
-    this._maybeDockScoreboardBottom();
+    this._maybeDockHudForLaterLegs();
     this._handleNarration();
 
     // end?
@@ -1045,13 +1100,24 @@ const FirstContactView = {
 
       const line = createElement('div', { style:`display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;` });
       const mk = (tag, p) => {
-        if (!p) return `${tag}: —`;
+        const wrap = createElement('div', { style:`display:flex; align-items:center; gap:6px; flex-wrap:wrap;` });
+        wrap.appendChild(createElement('span', { style:'font-weight:bold;' }, `${tag}:`));
+        if (!p) { wrap.appendChild(createElement('span', {}, '—')); return wrap; }
+
         const baseName = p?.survivor?.firstName || 'Survivor';
-        const name = p?.survivor?.id === playerId ? `${baseName} (You)` : baseName;
+        const tribeColor = p?.tribe?.color || p?.tribe?.tribeColor || '#fff';
+        const nameIsPlayer = p?.survivor?.id === playerId;
+        const nameStyle = nameIsPlayer ? 'color:#f3d37a; text-shadow:1px 1px 2px #000;' : `color:${tribeColor}; text-shadow:1px 1px 2px #000;`;
+        const name = nameIsPlayer ? `${baseName} (You)` : baseName;
         const tribeText = p?.tribe?.tribeName || p?.tribe?.name || '';
-        return `${tag}: ${name} (${tribeText})`;
+
+        wrap.append(
+          createElement('span', { style:nameStyle }, name),
+          createElement('span', { style:`color:${tribeColor}; text-shadow:1px 1px 2px #000;` }, `(${tribeText})`)
+        );
+        return wrap;
       };
-      line.append(createElement('div', {}, mk('MVP', mvp)), createElement('div', {}, mk('LVP', lvp)));
+      line.append(mk('MVP', mvp), mk('LVP', lvp));
       row.appendChild(line);
 
       content.appendChild(row);
