@@ -86,11 +86,13 @@ function buildSocialRecapSection() {
     });
 
     items.forEach(item => {
-      list.appendChild(createElement('li', {
+      const li = createElement('li', {
         style: {
           marginBottom: '4px'
         }
-      }, formatter(item)));
+      });
+      li.innerHTML = formatter(item);   // IMPORTANT: render <b>/<span> as HTML
+      list.appendChild(li);
     });
 
     section.appendChild(list);
