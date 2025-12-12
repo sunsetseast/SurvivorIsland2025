@@ -4,17 +4,22 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 
-if (!window.campSocialChanges) {
-  window.campSocialChanges = {
-    relationship: [],
-    trust: [],
-    suspicion: [],
-    deals: [],
-    gossip: [],
-    memory: [],
-    voteShifts: []
-  };
+function ensureCampSocialChanges() {
+  if (!window.campSocialChanges) {
+    window.campSocialChanges = {};
+  }
+
+  const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts'];
+  buckets.forEach(key => {
+    if (!Array.isArray(window.campSocialChanges[key])) {
+      window.campSocialChanges[key] = [];
+    }
+  });
+
+  return window.campSocialChanges;
 }
+
+ensureCampSocialChanges();
 
 const TOPIC_TO_INTENT = {
   bonding: 'bonding',
@@ -724,6 +729,7 @@ class ConversationSystem {
   _handleResponse(survivor, intent, option, parchment, meeting) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const socialLog = ensureCampSocialChanges();
 
     if (player && relationshipSystem && typeof relationshipSystem.changeRelationship === 'function' && typeof survivor?.id !== 'undefined') {
       relationshipSystem.changeRelationship(player.id, survivor.id, option.delta || 0);
@@ -731,33 +737,44 @@ class ConversationSystem {
 
     const context = this.activeConversationContext || {};
 
-    // Log relationship
-    if (typeof option.relationshipDelta === 'number') {
-      window.campSocialChanges.relationship.push({
+    const relationshipDelta = typeof option.relationshipDelta === 'number'
+      ? option.relationshipDelta
+      : (typeof option.delta === 'number' ? option.delta : null);
+
+    if (relationshipDelta !== null) {
+      socialLog.relationship.push({
         id: survivor.id,
         with: survivor.firstName,
-        amount: option.relationshipDelta,
-        context: context?.intent || 'interaction'
+        amount: relationshipDelta,
+        context: context?.intent || intent || 'interaction'
       });
     }
 
-    // Log trust
-    if (typeof option.trustDelta === 'number') {
-      window.campSocialChanges.trust.push({
+    const trustDelta = typeof option.trustDelta === 'number'
+      ? option.trustDelta
+      : (intent === 'trust' && typeof option.delta === 'number' ? option.delta : null);
+
+    if (trustDelta !== null) {
+      socialLog.trust.push({
         id: survivor.id,
         with: survivor.firstName,
-        amount: option.trustDelta,
-        context: context?.intent || 'interaction'
+        amount: trustDelta,
+        context: context?.intent || intent || 'interaction'
       });
     }
 
-    // Log suspicion
-    if (typeof option.suspicionDelta === 'number') {
-      window.campSocialChanges.suspicion.push({
+    const suspicionDelta = typeof option.suspicionDelta === 'number'
+      ? option.suspicionDelta
+      : ((intent === 'gossip' || intent === 'warning' || intent === 'confrontation') && typeof option.delta === 'number'
+        ? option.delta
+        : null);
+
+    if (suspicionDelta !== null) {
+      socialLog.suspicion.push({
         id: survivor.id,
         with: survivor.firstName,
-        amount: option.suspicionDelta,
-        context: context?.intent || 'interaction'
+        amount: suspicionDelta,
+        context: context?.intent || intent || 'interaction'
       });
     }
 
@@ -788,7 +805,7 @@ class ConversationSystem {
 
     // Log a deal
     if (option.dealResult) {
-      window.campSocialChanges.deals.push({
+      socialLog.deals.push({
         id: survivor.id,
         with: survivor.firstName,
         result: option.dealResult,
@@ -798,7 +815,7 @@ class ConversationSystem {
 
     // Log gossip
     if (context?.topicPerson && option.gossipEffect) {
-      window.campSocialChanges.gossip.push({
+      socialLog.gossip.push({
         id: survivor.id,
         with: survivor.firstName,
         about: context.topicPerson,
@@ -808,7 +825,7 @@ class ConversationSystem {
 
     // Log memory tags
     if (option.memoryTags && option.memoryTags.length > 0) {
-      window.campSocialChanges.memory.push({
+      socialLog.memory.push({
         id: survivor.id,
         with: survivor.firstName,
         tags: option.memoryTags.slice()
@@ -825,7 +842,7 @@ class ConversationSystem {
 
     // Log vote shifts
     if (option.voteShift) {
-      window.campSocialChanges.voteShifts.push({
+      socialLog.voteShifts.push({
         id: survivor.id,
         with: survivor.firstName,
         target: option.voteShift.target,
