@@ -23,87 +23,128 @@ if (!window.campActivityTracker) {
   };
 }
 
-function generateConversationRecapHTML() {
-  const c = window.campSocialChanges;
-  if (!c) return "";
+function normalizeCampSocialChanges() {
+  if (!window.campSocialChanges) return null;
+  const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts'];
+  const normalized = {};
 
-  let html = "";
+  buckets.forEach(key => {
+    normalized[key] = Array.isArray(window.campSocialChanges[key])
+      ? window.campSocialChanges[key]
+      : [];
+  });
 
-  const addHeader = (title) =>
-    html += `<p><strong>${title}</strong></p><ul>`;
+  return normalized;
+}
 
-  const closeList = () => html += `</ul>`;
+function buildSocialRecapSection() {
+  const socialLog = normalizeCampSocialChanges();
+  if (!socialLog) return null;
 
-  // Relationship
-  if (c.relationship?.length > 0) {
-    addHeader('--- Relationship Changes ---');
-    c.relationship.forEach(r =>
-      html += `<li>You and <b>${r.with}</b> had a ${r.context} interaction 
-      (<span style="color:${r.amount > 0 ? 'green' : 'red'}">
-      ${r.amount > 0 ? '+' : ''}${r.amount}</span>)</li>`
-    );
-    closeList();
-  }
+  const hasEntries = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts']
+    .some(key => Array.isArray(socialLog[key]) && socialLog[key].length > 0);
 
-  // Trust
-  if (c.trust?.length > 0) {
-    addHeader('--- Trust Changes ---');
-    c.trust.forEach(t =>
-      html += `<li><b>${t.with}</b> now ${t.amount > 0 ? 'trusts you more' : 'trusts you less'} 
-      (<span style="color:${t.amount > 0 ? 'green' : 'red'}">
-      ${t.amount > 0 ? '+' : ''}${t.amount}</span>)</li>`
-    );
-    closeList();
-  }
+  if (!hasEntries) return null;
 
-  // Suspicion
-  if (c.suspicion?.length > 0) {
-    addHeader('--- Suspicion ---');
-    c.suspicion.forEach(s =>
-      html += `<li><b>${s.with}</b> is now ${s.amount > 0 ? 'more suspicious of you' : 'less suspicious'}
-      (<span style="color:${s.amount > 0 ? 'red' : 'green'}">${s.amount}</span>)</li>`
-    );
-    closeList();
-  }
+  const section = createElement('div', {
+    style: `
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #fff8e1;
+      border: 1px solid #d2b48c;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    `
+  });
 
-  // Deals
-  if (c.deals?.length > 0) {
-    addHeader('--- Deals & Agreements ---');
-    c.deals.forEach(d =>
-      html += `<li>You and <b>${d.with}</b> ${d.result}</li>`
-    );
-    closeList();
-  }
+  section.appendChild(createElement('h3', {
+    style: `
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: #4a2c0a;
+      font-size: 1.4rem;
+      text-align: center;
+    `
+  }, 'Social & Conversation Recap'));
 
-  // Gossip
-  if (c.gossip?.length > 0) {
-    addHeader('--- Gossip ---');
-    c.gossip.forEach(g =>
-      html += `<li>You and <b>${g.with}</b> gossiped about <b>${g.about}</b> (${g.effect})</li>`
-    );
-    closeList();
-  }
+  const addCategory = (title, items, formatter) => {
+    if (!items || items.length === 0) return;
 
-  // Memory
-  if (c.memory?.length > 0) {
-    addHeader('--- Things Survivors Will Remember ---');
-    c.memory.forEach(m =>
-      html += `<li><b>${m.with}</b> will remember: <i>${m.tags.join(', ')}</i></li>`
-    );
-    closeList();
-  }
+    section.appendChild(createElement('h4', {
+      style: `
+        margin: 10px 0 6px;
+        color: #5d3b0c;
+      `
+    }, title));
 
-  // Vote shifts
-  if (c.voteShifts?.length > 0) {
-    addHeader('--- Vote Dynamics ---');
-    c.voteShifts.forEach(v =>
-      html += `<li><b>${v.with}</b> is now ${v.weight > 0 ? 'more likely' : 'less likely'} to vote <b>${v.target}</b>
-      (<span style="color:${v.weight > 0 ? 'red' : 'green'}">${v.weight}</span>)</li>`
-    );
-    closeList();
-  }
+    const list = createElement('ul', {
+      style: `
+        margin: 0 0 10px 18px;
+        padding: 0;
+        color: #2b190a;
+      `
+    });
 
-  return html;
+    items.forEach(item => {
+      list.appendChild(createElement('li', {
+        style: {
+          marginBottom: '4px'
+        }
+      }, formatter(item)));
+    });
+
+    section.appendChild(list);
+  };
+
+  addCategory('Relationship Changes', socialLog.relationship, change => {
+    const delta = change.amount || 0;
+    const deltaColor = delta >= 0 ? 'green' : 'red';
+    const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
+    return `You and <b>${change.with}</b> had a ${change.context || 'camp'} interaction ` +
+      `(<span style="color:${deltaColor}">${deltaText}</span>)`;
+  });
+
+  addCategory('Trust Changes', socialLog.trust, change => {
+    const delta = change.amount || 0;
+    const deltaColor = delta >= 0 ? 'green' : 'red';
+    const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
+    const direction = delta >= 0 ? 'trusts you more' : 'trusts you less';
+    return `<b>${change.with}</b> ${direction} ` +
+      `(<span style="color:${deltaColor}">${deltaText}</span>)`;
+  });
+
+  addCategory('Suspicion', socialLog.suspicion, change => {
+    const delta = change.amount || 0;
+    const deltaColor = delta >= 0 ? 'red' : 'green';
+    const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
+    const direction = delta >= 0 ? 'more suspicious of you' : 'less suspicious of you';
+    return `<b>${change.with}</b> is now ${direction} ` +
+      `(<span style="color:${deltaColor}">${deltaText}</span>)`;
+  });
+
+  addCategory('Deals & Agreements', socialLog.deals, deal => {
+    const summary = deal.result || 'talked through a possible pact';
+    return `You and <b>${deal.with}</b> ${summary}`;
+  });
+
+  addCategory('Gossip', socialLog.gossip, gossip => {
+    return `You and <b>${gossip.with}</b> gossiped about <b>${gossip.about}</b> (${gossip.effect || 'speculation'})`;
+  });
+
+  addCategory('What Survivors Will Remember', socialLog.memory, memory => {
+    const tags = Array.isArray(memory.tags) ? memory.tags.join(', ') : '';
+    return `<b>${memory.with}</b> will remember: <i>${tags}</i>`;
+  });
+
+  addCategory('Vote Dynamics', socialLog.voteShifts, vote => {
+    const direction = vote.weight >= 0 ? 'more likely' : 'less likely';
+    const deltaText = vote.weight >= 0 ? `+${vote.weight}` : `${vote.weight}`;
+    const deltaColor = vote.weight >= 0 ? 'red' : 'green';
+    return `<b>${vote.with}</b> is now ${direction} to vote <b>${vote.target}</b> ` +
+      `(<span style="color:${deltaColor}">${deltaText}</span>)`;
+  });
+
+  return section;
 }
 
 export default function renderSummary(container) {
@@ -178,16 +219,6 @@ export default function renderSummary(container) {
   // Create summary text
   let summaryText = generateSummaryText(summaryData);
 
-  const conversationRecapHTML = generateConversationRecapHTML();
-  if (conversationRecapHTML) {
-    const socialDynamicsIndex = summaryText.indexOf('<p><strong>Social Dynamics:</strong>');
-    if (socialDynamicsIndex !== -1) {
-      summaryText = summaryText.slice(0, socialDynamicsIndex) + conversationRecapHTML + summaryText.slice(socialDynamicsIndex);
-    } else {
-      summaryText += conversationRecapHTML;
-    }
-  }
-
   const textElement = createElement('div', {
     style: `
       text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
@@ -196,6 +227,10 @@ export default function renderSummary(container) {
   textElement.innerHTML = summaryText;
 
   summaryContent.appendChild(textElement);
+  const socialRecap = buildSocialRecapSection();
+  if (socialRecap) {
+    summaryContent.appendChild(socialRecap);
+  }
   wrapper.appendChild(title);
   wrapper.appendChild(summaryContent);
   container.appendChild(wrapper);
