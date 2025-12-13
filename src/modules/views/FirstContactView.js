@@ -25,6 +25,47 @@ const renderTemplate = (str, ctx = {}) =>
     .replaceAll('{tribe}', ctx.tribe || '')
     .replaceAll('{name}', ctx.name || '');
 
+const isHexColor = (val) => typeof val === 'string' && /^#([0-9a-fA-F]{6})$/.test(val.trim());
+const TRIBE_COLOR_MAP = {
+  red: '#FF0000',
+  blue: '#0066FF',
+  orange: '#FF8C00',
+  green: '#228B22',
+  purple: '#8A2BE2',
+  yellow: '#FFD700',
+  gold: '#FFD700',
+  pink: '#FF69B4'
+};
+
+const getTribeName = (tribe) => tribe?.tribeName || tribe?.name || 'Tribe';
+const getTribeColor = (tribe) => {
+  const direct = tribe?.color;
+  if (isHexColor(direct)) return direct.trim();
+  const alt = tribe?.tribeColor;
+  if (isHexColor(alt)) return alt.trim();
+
+  const name = getTribeName(tribe).toLowerCase();
+  if (TRIBE_COLOR_MAP[name]) return TRIBE_COLOR_MAP[name];
+
+  if (typeof direct === 'string' && TRIBE_COLOR_MAP[direct.toLowerCase()]) return TRIBE_COLOR_MAP[direct.toLowerCase()];
+  if (typeof alt === 'string' && TRIBE_COLOR_MAP[alt.toLowerCase()]) return TRIBE_COLOR_MAP[alt.toLowerCase()];
+
+  return '#fff';
+};
+
+const tribeSpan = (tribe, textOverride) => {
+  const text = textOverride || getTribeName(tribe);
+  const color = getTribeColor(tribe);
+  return `<span style="color:${color}; font-weight:900; text-shadow: 1px 1px 2px #000;">${text}</span>`;
+};
+
+const survivorSpan = (survivor, tribe, isYou = false) => {
+  const base = survivor?.firstName || survivor?.name || 'Survivor';
+  const text = isYou ? `${base} (You)` : base;
+  const color = getTribeColor(tribe);
+  return `<span style="color:${color}; font-weight:900; text-shadow: 1px 1px 2px #000;">${text}</span>`;
+};
+
 // stable jitter per id (keeps stacks from overlapping)
 function jitter(id, spread = 6) {
   const x = Math.sin(id * 999) * 43758.5453;
@@ -35,7 +76,7 @@ function jitter(id, spread = 6) {
 const CFG = {
   base: 0.050,          // base movement per second
   alpha: 0.040,         // trait influence scaling
-  speedMult: 1.45,
+  speedMult: 1.60,
   tickHz: 30,           // update rate
   errPause: [180, 420], // ms pause on small “error” event
   stagePauseMs: 700,
@@ -117,7 +158,7 @@ class JeffBubble {
       this.wrap.style.transform = 'translate(-50%, 0)';
     }
   }
-  show(text) { this.textEl.textContent = text; this.wrap.style.display = 'block'; this.setDock(this.mode); }
+  show(text) { this.textEl.innerHTML = text; this.wrap.style.display = 'block'; this.setDock(this.mode); }
   hide() { this.wrap.style.display = 'none'; }
 }
 
@@ -333,11 +374,9 @@ const FirstContactView = {
       const best = running.reduce((m, ms) => (ms._lastSpeed > m._lastSpeed ? ms : m), running[0]);
       const worst = running.reduce((m, ms) => (ms._lastSpeed < m._lastSpeed ? ms : m), running[0]);
 
-      const tribeName = tribe.tribeName || tribe.name || `Tribe ${tribe.id}`;
-      const bestName = best?.survivor?.firstName || 'Survivor';
-      const bestDisplay = best?.survivor?.id === playerId ? `${bestName} (You)` : bestName;
-      const worstName = worst?.survivor?.firstName || 'Survivor';
-      const worstDisplay = worst?.survivor?.id === playerId ? `${worstName} (You)` : worstName;
+      const tribeDisplay = tribeSpan(tribe);
+      const bestDisplay = best ? survivorSpan(best.survivor, tribe, best?.survivor?.id === playerId) : survivorSpan(null, tribe);
+      const worstDisplay = worst ? survivorSpan(worst.survivor, tribe, worst?.survivor?.id === playerId) : survivorSpan(null, tribe);
 
       if (
         best &&
@@ -347,7 +386,7 @@ const FirstContactView = {
       ) {
         this.state.segmentCallouts[segIdx].carry += 1;
         this.state.lastSurvivorCalloutId = best.survivor.id;
-        this._speakLine('carry', this.lines.carry, { name: bestDisplay, tribe: tribeName }, 0);
+        this._speakLine('carry', this.lines.carry, { name: bestDisplay, tribe: tribeDisplay }, 0);
         return;
       }
 
@@ -359,7 +398,7 @@ const FirstContactView = {
       ) {
         this.state.segmentCallouts[segIdx].drag += 1;
         this.state.lastSurvivorCalloutId = worst.survivor.id;
-        this._speakLine('drag', this.lines.drag, { name: worstDisplay, tribe: tribeName }, 0);
+        this._speakLine('drag', this.lines.drag, { name: worstDisplay, tribe: tribeDisplay }, 0);
         return;
       }
     }
@@ -831,8 +870,8 @@ const FirstContactView = {
     const leaderTribe = this.tribes.find(t => getKey(t) === leaderKey);
     const trailerKey = sorted[1]?.[0];
     const trailerTribe = trailerKey ? this.tribes.find(t => getKey(t) === trailerKey) : null;
-    const leaderName = leaderTribe?.tribeName || leaderTribe?.name || `Tribe ${leaderTribe?.id ?? ''}`;
-    const trailerName = trailerTribe?.tribeName || trailerTribe?.name || `Tribe ${trailerTribe?.id ?? ''}`;
+    const leaderName = tribeSpan(leaderTribe);
+    const trailerName = trailerTribe ? tribeSpan(trailerTribe) : tribeSpan(null);
     const cooldownPassed = now - this.state.lastNarrationAt >= this.state.narrationCooldownMs;
 
     // segment entry beat (leader reaching new segment)
@@ -964,7 +1003,7 @@ const FirstContactView = {
       // finished tribe?
       if (this.state.progressByTribe[key] >= 1 && !this.state.finishedOrder.includes(key)) {
         this.state.finishedOrder.push(key);
-        const tname = tribe.tribeName || tribe.name || `Tribe ${tribe.id}`;
+        const tname = tribeSpan(tribe);
         this._announce(`${tname} hits the mat!`, CFG.finishPauseMs);
       }
     });
@@ -1028,29 +1067,22 @@ const FirstContactView = {
     const winners = winnersKeys.map(k => this.tribes.find(t => getKey(t) === k)).filter(Boolean);
     const losers = loserKeys.map(k => this.tribes.find(t => getKey(t) === k)).filter(Boolean);
 
-    const colorHex = (name)=>({ red:'#FF0000', blue:'#0066FF', orange:'#FF8C00', green:'#228B22', purple:'#8A2BE2' }[name] || '#FFFFFF');
-    const colorTribe = (tribe) => {
-      const name = tribe?.name || tribe?.tribeName || 'Tribe';
-      const hex = colorHex(tribe?.color || tribe?.tribeColor);
-      return `<span style="color:${hex}; font-weight:bold; text-shadow:1px 1px 2px black;">${name}</span>`;
-    };
-
     let text;
     if (this.isThree) {
       const w1 = winners[0], w2 = winners[1], l = losers[0];
       const rendered = this._pickLine('winTwo', this.lines.winTwo, {
-        winnerA: w1?.tribeName || w1?.name || 'Tribe',
-        winnerB: w2?.tribeName || w2?.name || 'Tribe'
+        winnerA: tribeSpan(w1),
+        winnerB: tribeSpan(w2)
       });
-      const base = rendered || `${colorTribe(w1)} and ${colorTribe(w2)} win immunity!`;
-      text = `${base} ${l ? `${colorTribe(l)}, I’ll be seeing you at Tribal Council.` : ''}`;
+      const base = rendered || `${tribeSpan(w1)} and ${tribeSpan(w2)} win immunity!`;
+      text = `${base} ${l ? `${tribeSpan(l)}, I’ll be seeing you at Tribal Council.` : ''}`;
     } else {
       const w = winners[0], l = losers[0];
       const rendered = this._pickLine('winOne', this.lines.winOne, {
-        winner: w?.tribeName || w?.name || 'Tribe',
-        loser: l?.tribeName || l?.name || 'Tribe'
+        winner: tribeSpan(w),
+        loser: tribeSpan(l)
       });
-      text = rendered || `${colorTribe(w)} wins immunity! ${l ? `${colorTribe(l)}, grab your torches and head to Tribal Council.` : ''}`;
+      text = rendered || `${tribeSpan(w)} wins immunity! ${l ? `${tribeSpan(l)}, grab your torches and head to Tribal Council.` : ''}`;
     }
 
     // parchment
