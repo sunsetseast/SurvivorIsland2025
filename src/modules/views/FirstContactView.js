@@ -213,7 +213,8 @@ const FirstContactView = {
       lastMomentumGap: null,
       puzzleUnified: false,
       puzzleAllInFired: false,
-      finishSoonCalled: false
+      finishSoonCalled: false,
+      challengeThreatApplied: false
     };
     this.tribes.forEach(t => {
       const k = getKey(t);
@@ -1017,12 +1018,54 @@ const FirstContactView = {
 
     // end?
     const allDone = this.tribes.every(t => this.state.progressByTribe[getKey(t)] >= 1);
-    if (allDone) { setTimeout(()=> this._showFinalResults(), 800); return; }
+    if (allDone) {
+      this._applyChallengeThreatAdjustments();
+      setTimeout(()=> this._showFinalResults(), 800);
+      return;
+    }
 
     requestAnimationFrame(() => this._tick());
   },
 
   // ---------- final summary ----------
+  _findSurvivorById(id) {
+    if (!id) return null;
+    const direct = gameManager.survivors?.find(s => s.id === id);
+    if (direct) return direct;
+
+    for (const tribe of this.tribes || []) {
+      const found = (tribe.members || []).find(s => s.id === id);
+      if (found) return found;
+    }
+
+    return null;
+  },
+
+  _applyChallengeThreatAdjustments() {
+    if (this.state.challengeThreatApplied) return;
+
+    const stagePerformance = this._computeStagePerformance();
+    const playerId = gameManager.getPlayerSurvivor()?.id;
+
+    const applyDelta = (perf, delta) => {
+      if (!perf?.survivor?.id) return;
+      const survivor = this._findSurvivorById(perf.survivor.id);
+      if (!survivor) return;
+
+      const updated = (survivor.challengeThreat ?? 50) + delta;
+      survivor.challengeThreat = Math.max(0, Math.min(100, updated));
+
+      if (survivor.id === playerId) window.refreshMenuCard?.();
+    };
+
+    Object.values(stagePerformance).forEach(({ mvp, lvp }) => {
+      applyDelta(mvp, 3);
+      applyDelta(lvp, -3);
+    });
+
+    this.state.challengeThreatApplied = true;
+  },
+
   _computeStagePerformance() {
     const stats = {};
     SEGMENTS.forEach((seg, idx) => {
