@@ -59,6 +59,9 @@ export const GameEvents = {
   ALLIANCE_DISBANDED: 'alliance:disbanded',
   ALLIANCE_MEMBER_ADDED: 'alliance:memberAdded',
   ALLIANCE_MEMBER_REMOVED: 'alliance:memberRemoved',
+  ALLIANCE_CREATED: 'alliance:created',
+  ALLIANCE_UPDATED: 'alliance:updated',
+  ALLIANCE_DEAL_MADE: 'alliance:dealMade',
 
   // Idol events
   IDOL_FOUND: 'idol:found',
