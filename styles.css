@@ -1566,18 +1566,11 @@ body {
   perspective: 1000px; /* Enables 3D transform for children */
     height: 600px;
     scroll-snap-align: center;
-}
-
-.card-wrapper .survivor-card,
-.card-wrapper .avatar-frame {
-  transition: transform 0.6s ease;
   transform-style: preserve-3d;
-  position: relative;
+  transition: transform 0.6s ease;
 }
 
-/* Flip both card and avatar when wrapper is flipped */
-.card-wrapper.flipped .survivor-card,
-.card-wrapper.flipped .avatar-frame {
+.card-wrapper.flipped {
   transform: rotateY(180deg);
 }
 
@@ -1591,6 +1584,7 @@ body {
   width: 100%;
   height: 100%;
   backface-visibility: hidden;
+  transform-style: preserve-3d;
   border-radius: 12px;
   padding: 15px;
   background-size: cover;
@@ -1678,10 +1672,25 @@ body {
   opacity: 1 !important;
   transform: none !important;
   margin: 0 auto !important;
+  width: 100%;
+  height: 100%;
+  max-width: none;
 }
 
 .survivor-card-overlay .card-wrapper {
+  width: 420px;
   height: 600px;
+}
+
+.survivor-card-overlay .card-button {
+  width: 120px;
+  height: 60px;
+  font-size: 16px;
+}
+
+.survivor-card-overlay .survivor-card:hover {
+  transform: none !important;
+  box-shadow: inherit !important;
 }
 
 .survivor-card-overlay__content {
