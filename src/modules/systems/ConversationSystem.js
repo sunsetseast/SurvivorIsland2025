@@ -237,13 +237,15 @@ class ConversationSystem {
 
     const intent = this._mapSocialTypeToIntent(type);
     const location = options.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
+    const initiator = options.initiatedByNpc ? 'npc' : (options.initiator || 'player');
 
     const beginConversation = () => {
       this._startConversation(survivor, {
         intentOverride: intent,
         isPurpose: true,
         meeting: null,
-        location
+        location,
+        context: { ...(options.context || {}), initiator }
       });
     };
 
@@ -269,7 +271,7 @@ class ConversationSystem {
     const pending = this.pendingMeetings.find(meeting => meeting.npcId === survivor.id && meeting.location === location && !meeting.hasTriggered);
     if (pending) {
       pending.hasTriggered = true;
-      this._startConversation(survivor, { isPurpose: true, meeting: pending, location });
+      this._startConversation(survivor, { isPurpose: true, meeting: pending, location, context: { initiator: 'npc' } });
       return;
     }
 
@@ -298,7 +300,7 @@ class ConversationSystem {
       meeting.hasTriggered = true;
       const survivor = this._getSurvivorById(meeting.npcId);
       if (survivor) {
-        this._startConversation(survivor, { isPurpose: true, meeting, location: viewName });
+        this._startConversation(survivor, { isPurpose: true, meeting, location: viewName, context: { initiator: 'npc' } });
       }
     }
   }
@@ -462,13 +464,7 @@ class ConversationSystem {
         title: 'Who do you want to push?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'push' } })
-      }));
-      addOption('Counter with another target', () => this.promptSurvivorPicker({
-        title: 'Counter with who?',
-        tribeOnly: true,
-        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'counter' } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'push', initiator: 'player' } })
       }));
       addOption('Offer a deal', () => this._showDealMenu(survivor, location));
       addOption('Ask who they trust', () => this.promptSurvivorPicker({
@@ -789,7 +785,8 @@ class ConversationSystem {
     { intentOverride = null, isPurpose = false, meeting = null, location = null, context = {} } = {}
   ) {
     const intent = intentOverride || this._chooseIntent(survivor, isPurpose);
-    const conversationContext = { ...context, isPurpose, meeting, location };
+    const initiator = context.initiator || 'player';
+    const conversationContext = { ...context, initiator, isPurpose, meeting, location };
     const dialogue = this._buildDialogue(intent, survivor, conversationContext);
 
     if (intent === 'hardStrategy' && !dialogue.context?.topicPerson) {
@@ -1240,6 +1237,8 @@ class ConversationSystem {
   _buildDialogue(intent, survivor, context = {}) {
     const templatePool = INTENT_TEMPLATES[intent] || ['{npc} talks about the game.'];
     const memory = this.gameManager.systems?.socialMemorySystem;
+    const initiator = context.initiator || 'player';
+    context.initiator = initiator;
     let line = templatePool[getRandomInt(0, templatePool.length - 1)];
     let safety = 0;
     while (memory?.recentlyUsed?.(survivor.id, line) && safety < 3) {
@@ -1259,10 +1258,15 @@ class ConversationSystem {
       context.topicPerson = targetName;
     }
 
+    let responses = RESPONSE_LIBRARY[intent] || RESPONSE_LIBRARY.bonding;
+
     if (intent === 'deal') {
       const dealTopic = this._describeDeal(context, survivor);
       context.dealTopic = dealTopic;
       line = `${survivor.firstName} considers your pitch about ${dealTopic}.`;
+    } else if (intent === 'hardStrategy') {
+      line = this._buildHardStrategyLine(line, initiator, survivor, targetName, allyName, context);
+      responses = this._buildHardStrategyResponses(initiator, context);
     } else {
       line = line
         .replace('{npc}', survivor.firstName)
@@ -1281,9 +1285,43 @@ class ConversationSystem {
       }
     }
 
-    const responses = RESPONSE_LIBRARY[intent] || RESPONSE_LIBRARY.bonding;
     memory?.rememberBeat?.(survivor.id, intent, line);
     return { text: line, responses, context };
+  }
+
+  _buildHardStrategyLine(baseLine, initiator, survivor, targetName, allyName, context) {
+    const safeTarget = targetName || 'someone';
+    if (initiator === 'player') {
+      context.npcPitchedTarget = false;
+      if (context.stance === 'push') {
+        return `You float ${safeTarget} as a potential vote. ${survivor.firstName} reacts, weighing your pitch.`;
+      }
+      return `You steer the talk toward ${safeTarget}. ${survivor.firstName} listens carefully.`;
+    }
+
+    context.npcPitchedTarget = true;
+    return baseLine
+      .replace('{npc}', survivor.firstName)
+      .replace('{target}', safeTarget)
+      .replace('{ally}', allyName || 'no one fully yet');
+  }
+
+  _buildHardStrategyResponses(initiator, context) {
+    if (initiator === 'player') {
+      return [
+        { label: 'Press the idea', delta: 3, mood: 'focused', followup: 'You push harder on {target}. {npc} gauges your intensity.' },
+        { label: 'Play it casual', delta: 1, mood: 'neutral', followup: 'You float {target} more lightly, watching {npc}\'s reaction.' },
+        { label: 'Back off', delta: -2, mood: 'calm', followup: 'You ease off the pitch about {target}. {npc} notes your flexibility.' },
+        { label: 'Ask who they trust', delta: 0, mood: 'curious', followup: 'You pivot to ask who {npc} trusts right now.' }
+      ];
+    }
+
+    const base = RESPONSE_LIBRARY.hardStrategy || [];
+    if (context.npcPitchedTarget) {
+      return base;
+    }
+
+    return base.filter(option => option.label !== 'Counter with another target');
   }
 
   _pickTargetName(survivor, context = {}) {
