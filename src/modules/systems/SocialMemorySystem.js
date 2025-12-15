@@ -42,6 +42,7 @@ class SocialMemorySystem {
                 apologies: [],
                 meetingNotes: [],
                 intel: [],
+                namedIntel: [],
                 misc: [],
                 lastTopics: [],
                 lastLines: []
@@ -282,6 +283,30 @@ class SocialMemorySystem {
             this.initNPC(npcId);
             this.memory[npcId].intel = this.memory[npcId].intel || [];
             this.memory[npcId].intel.push(entry);
+        });
+    }
+
+    recordNamedIntel({ about, context, from, day }) {
+        if (!about || !context) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const entry = { about, context, from: from || 'Unknown', day: dayValue };
+        let keys = Object.keys(this.memory || {});
+
+        if (keys.length === 0) {
+            const survivors = window.gameManager?.survivors || [];
+            if (survivors.length) {
+                survivors.forEach(s => this.initNPC(s.id));
+            } else if (from) {
+                keys.push(from);
+            }
+        }
+
+        keys = Object.keys(this.memory || {});
+
+        keys.forEach(npcId => {
+            this.initNPC(npcId);
+            this.memory[npcId].namedIntel = this.memory[npcId].namedIntel || [];
+            this.memory[npcId].namedIntel.push(entry);
         });
     }
 

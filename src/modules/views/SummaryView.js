@@ -124,16 +124,53 @@ function buildSocialRecapSection() {
       `(<span style="color:${deltaColor}">${deltaText}</span>)`;
   });
 
+  const mentionEntries = (socialLog.memory || []).filter(m => m && (m.type === 'mention' || m.type === 'strategic_context'));
+
+  addCategory('Names Mentioned & Strategic Intel', mentionEntries, entry => {
+    const speaker = entry.speaker || 'Someone';
+    const toneSuffix = entry.tone === 'hedging'
+      ? ' <i>(seemed unsure)</i>'
+      : entry.tone === 'deceptive'
+        ? ' <i>(may not have been honest)</i>'
+        : '';
+    if (entry.type === 'strategic_context') {
+      return `${speaker} discussed voting dynamics but avoided naming a target${toneSuffix}`;
+    }
+
+    const about = entry.about || 'someone';
+    switch (entry.context) {
+      case 'pushed_target':
+        return `${speaker === 'Player' ? 'You' : speaker} pushed a plan to vote out <b>${about}</b>${toneSuffix}`;
+      case 'warned_about':
+        return `${speaker === 'Player' ? 'You' : speaker} warned you about <b>${about}</b>${toneSuffix}`;
+      case 'gossip':
+        return `${speaker === 'Player' ? 'You' : speaker} gossiped about <b>${about}</b>${toneSuffix}`;
+      case 'deal_proposed':
+        return `${speaker === 'Player' ? 'You' : speaker} brought up <b>${about}</b> while talking deals${toneSuffix}`;
+      case 'counter_target':
+        if (speaker === 'Player') return `You redirected the target toward <b>${about}</b>${toneSuffix}`;
+        return `${speaker} reacted to targeting <b>${about}</b>${toneSuffix}`;
+      case 'alliance_talk':
+        return `${speaker === 'Player' ? 'You' : speaker} discussed alliance talk around <b>${about}</b>${toneSuffix}`;
+      case 'suspicion':
+        return `${speaker === 'Player' ? 'You' : speaker} voiced suspicion about <b>${about}</b>${toneSuffix}`;
+      default:
+        return `${speaker === 'Player' ? 'You' : speaker} mentioned <b>${about}</b>${toneSuffix}`;
+    }
+  });
+
   addCategory('Deals & Agreements', socialLog.deals, deal => {
-    const summary = deal.result || 'talked through a possible pact';
-    return `You and <b>${deal.with}</b> ${summary}`;
+    const label = deal.dealType === 'voteTogether' ? 'voting together' : deal.dealType === 'protection' ? 'mutual protection' : deal.dealType === 'information' ? 'sharing information' : 'alliance interest';
+    const targetSuffix = deal.dealType === 'protection' ? '' : (deal.target ? ` on <b>${deal.target}</b>` : ' tonight');
+    return `You and <b>${deal.with}</b> discussed ${label}${targetSuffix} (${deal.outcome || 'noncommittal'})`;
   });
 
   addCategory('Gossip', socialLog.gossip, gossip => {
     return `You and <b>${gossip.with}</b> gossiped about <b>${gossip.about}</b> (${gossip.effect || 'speculation'})`;
   });
 
-  addCategory('What Survivors Will Remember', socialLog.memory, memory => {
+  const memoryItems = (socialLog.memory || []).filter(m => !m.type && m.tags);
+  addCategory('What Survivors Will Remember', memoryItems, memory => {
     const tags = Array.isArray(memory.tags) ? memory.tags.join(', ') : '';
     return `<b>${memory.with}</b> will remember: <i>${tags}</i>`;
   });
