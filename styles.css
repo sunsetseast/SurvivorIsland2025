@@ -47,6 +47,11 @@ html, body {
   transform: scale(1.05);
 }
 
+.rect-button.full {
+  width: 100%;
+  background-size: 100% 100%;
+}
+
 .rect-button.small {
   width: 180px;
   height: 50px;
