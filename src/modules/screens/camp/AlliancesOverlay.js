@@ -1,7 +1,62 @@
+import { gameManager } from '../../core/index.js';
+import { openCreateAllianceOverlay } from './CreateAllianceOverlay.js';
+import { openManageAllianceOverlay } from './ManageAllianceOverlay.js';
+
 const alliancesState = {
   initialized: false,
   slotCount: 6,
 };
+
+function getAllianceSystem() {
+  return gameManager?.systems?.allianceSystem || null;
+}
+
+function getRelationshipValue(playerId, memberId) {
+  const relationshipSystem = gameManager?.systems?.relationshipSystem;
+  if (!relationshipSystem) return 0;
+
+  if (typeof relationshipSystem.getRelationshipValue === 'function') {
+    return relationshipSystem.getRelationshipValue(playerId, memberId) ?? 0;
+  }
+
+  const relationship = relationshipSystem.getRelationship?.(playerId, memberId);
+  if (relationship && typeof relationship.value === 'number') {
+    return relationship.value;
+  }
+
+  return 0;
+}
+
+function isAlreadyAllied(playerId, memberId) {
+  const allianceSystem = getAllianceSystem();
+  if (!allianceSystem || !playerId || !memberId) return false;
+
+  if (typeof allianceSystem.areAllied === 'function') {
+    return allianceSystem.areAllied(playerId, memberId);
+  }
+
+  const alliances = allianceSystem.getAlliancesForSurvivor?.(playerId) || [];
+  return alliances.some(alliance => alliance.memberIds?.includes?.(memberId));
+}
+
+function determineEligibleSurvivors() {
+  const player = gameManager?.getPlayerSurvivor?.() || gameManager?.player;
+  const tribe = gameManager?.getPlayerTribe?.();
+  const allianceSystem = getAllianceSystem();
+
+  if (!player || !tribe || !Array.isArray(tribe.members)) {
+    return [];
+  }
+
+  const tribeMembers = tribe.members.filter(member => member.id !== player.id);
+  const threshold = allianceSystem?.minRelationshipForInvite ?? 60;
+
+  return tribeMembers.filter(member => {
+    const relationshipValue = getRelationshipValue(player.id, member.id);
+    const eligible = relationshipValue >= threshold && !isAlreadyAllied(player.id, member.id);
+    return eligible;
+  });
+}
 
 function handleBackdropClick(event) {
   const overlay = document.getElementById('alliances-overlay');
@@ -24,9 +79,14 @@ function setupAlliancesOverlay() {
 
   const overlay = document.getElementById('alliances-overlay');
   const closeButton = document.getElementById('alliances-close-button');
+  const panel = document.getElementById('alliances-panel');
 
   if (overlay) {
     overlay.addEventListener('click', handleBackdropClick);
+  }
+
+  if (panel) {
+    panel.addEventListener('click', (event) => event.stopPropagation());
   }
 
   if (closeButton) {
@@ -43,14 +103,67 @@ export function renderAlliancesGrid() {
   if (!grid) return;
 
   grid.innerHTML = '';
-  const slotsToRender = Math.max(4, alliancesState.slotCount);
+  const allianceSystem = getAllianceSystem();
+  const player = gameManager?.getPlayerSurvivor?.() || gameManager?.player;
+  const alliances = (player && allianceSystem?.getAlliancesForSurvivor?.(player.id))
+    || allianceSystem?.getAlliances?.()
+    || allianceSystem?.getAllAlliances?.()
+    || [];
+  const activeAlliances = alliances.filter(alliance => alliance?.active !== false && (!player || alliance.memberIds?.includes?.(player.id)));
+
+  const slotsToRender = Math.max(Math.max(activeAlliances.length + 1, 4), alliancesState.slotCount);
+
+  const getSurvivorById = (id) => gameManager?.survivors?.find?.(survivor => survivor.id === id) || null;
 
   for (let i = 0; i < slotsToRender; i += 1) {
-    const slot = i === 0 ? document.createElement('button') : document.createElement('div');
-    slot.className = i === 0 ? 'alliance-slot alliance-add-slot' : 'alliance-slot';
+    if (i < activeAlliances.length) {
+      const alliance = activeAlliances[i];
+      const slot = document.createElement('button');
+      slot.type = 'button';
+      slot.className = 'alliance-slot alliance-existing-slot';
+      slot.title = alliance.name;
 
-    if (i === 0) {
+      const membersWrapper = document.createElement('div');
+      membersWrapper.className = 'alliance-slot-members';
+      const members = alliance.memberIds?.map?.(id => getSurvivorById(id)).filter(Boolean) || [];
+      const membersToShow = members.slice(0, 4);
+
+      membersToShow.forEach((member) => {
+        const avatar = document.createElement('img');
+        avatar.src = member.avatarUrl || `Assets/Avatars/${member.firstName?.toLowerCase?.() || 'unknown'}.jpeg`;
+        avatar.alt = member.firstName || member.name || 'Member';
+        avatar.className = 'alliance-slot-avatar';
+        membersWrapper.appendChild(avatar);
+      });
+
+      if (members.length > 4) {
+        const extra = document.createElement('div');
+        extra.className = 'alliance-slot-extra';
+        extra.textContent = `+${members.length - 4}`;
+        membersWrapper.appendChild(extra);
+      }
+
+      const label = document.createElement('div');
+      label.className = 'alliance-slot-name';
+      label.textContent = alliance.name || 'Alliance';
+
+      slot.appendChild(membersWrapper);
+      slot.appendChild(label);
+
+      slot.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openManageAllianceOverlay(alliance.id);
+      });
+
+      grid.appendChild(slot);
+      continue;
+    }
+
+    if (i === activeAlliances.length) {
+      const slot = document.createElement('button');
+      slot.className = 'alliance-slot alliance-add-slot';
       slot.id = 'alliances-add-button';
+      slot.type = 'button';
 
       const addImage = document.createElement('img');
       addImage.src = 'Assets/Buttons/add.png';
@@ -59,14 +172,24 @@ export function renderAlliancesGrid() {
       slot.appendChild(addImage);
       slot.addEventListener('click', (event) => {
         event.stopPropagation();
-        if (typeof window !== 'undefined' && window.dialogueSystem && typeof window.dialogueSystem.showMessage === 'function') {
-          window.dialogueSystem.showMessage('Alliance creation coming next!');
-        } else {
-          alert('Alliance creation coming next!');
+        const eligible = determineEligibleSurvivors();
+        if (!eligible.length) {
+          if (typeof window !== 'undefined' && window.dialogueSystem && typeof window.dialogueSystem.showMessage === 'function') {
+            window.dialogueSystem.showMessage('No one trusts you enough yet to form an alliance.');
+          } else {
+            alert('No one trusts you enough yet to form an alliance.');
+          }
+          return;
         }
+        openCreateAllianceOverlay(eligible);
       });
+
+      grid.appendChild(slot);
+      continue;
     }
 
+    const slot = document.createElement('div');
+    slot.className = 'alliance-slot';
     grid.appendChild(slot);
   }
 }

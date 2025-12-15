@@ -7,6 +7,14 @@ class AllianceSystem {
     this.alliances = [];
     this.relationshipSystem = gameManager?.systems?.relationshipSystem || null;
     this.socialMemorySystem = gameManager?.systems?.socialMemorySystem || (typeof window !== 'undefined' ? window.socialMemorySystem : null);
+    this.minRelationshipForInvite = 60;
+  }
+
+  initialize() {
+    console.log('Initializing AllianceSystem');
+    if (!Array.isArray(this.alliances)) {
+      this.alliances = [];
+    }
   }
 
   _getCurrentDay() {
@@ -101,7 +109,7 @@ class AllianceSystem {
         survivorId
       });
       if (alliance.memberIds.length < 2) {
-        this.disbandAlliance(allianceId, 'too_small');
+        this.deleteAlliance(allianceId, 'too_small');
       } else {
         alliance.cohesion = this.computeCohesion(alliance.memberIds);
         this._emitAllianceUpdated(alliance);
@@ -110,12 +118,38 @@ class AllianceSystem {
     return alliance;
   }
 
+  deleteAlliance(allianceId, reason = '') {
+    const index = this.alliances.findIndex(alliance => alliance.id === allianceId);
+    if (index === -1) return null;
+
+    const [removed] = this.alliances.splice(index, 1);
+    eventManager.publish(GameEvents.ALLIANCE_DISBANDED, { alliance: removed, reason });
+    this._emitAllianceUpdated(removed);
+    return removed;
+  }
+
   getAlliance(allianceId) {
     return this.alliances.find(alliance => alliance.id === allianceId) || null;
   }
 
+  getAlliances({ includeInactive = false } = {}) {
+    if (includeInactive) {
+      return [...this.alliances];
+    }
+    return this.alliances.filter(alliance => alliance.active !== false);
+  }
+
   getAllAlliances() {
     return [...this.alliances];
+  }
+
+  updateAllianceName(allianceId, newName) {
+    const alliance = this.getAlliance(allianceId);
+    if (!alliance || !newName) return null;
+
+    alliance.name = newName;
+    this._emitAllianceUpdated(alliance);
+    return alliance;
   }
 
   getAlliancesForSurvivor(survivorId) {

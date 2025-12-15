@@ -99,11 +99,20 @@ class GameManager {
     timerManager.clearAll();
 
     // Initialize relationship system
-    this.systems.relationshipSystem = new RelationshipSystem(this);
-    this.systems.relationshipSystem.initialize();
+    if (!this.systems.relationshipSystem) {
+      this.systems.relationshipSystem = new RelationshipSystem(this);
+    }
+    if (typeof this.systems.relationshipSystem.initialize === 'function') {
+      this.systems.relationshipSystem.initialize();
+    }
 
     // Initialize alliance system
-    this.systems.allianceSystem = new AllianceSystem(this);
+    if (!this.systems.allianceSystem) {
+      this.systems.allianceSystem = new AllianceSystem(this);
+    }
+    if (typeof this.systems.allianceSystem.initialize === 'function') {
+      this.systems.allianceSystem.initialize();
+    }
 
     // Initialize social systems
     this.systems.socialMemorySystem = socialMemorySystem;
