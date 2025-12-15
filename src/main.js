@@ -14,11 +14,17 @@ import {
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
 import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOverlay.js';
+import { openSocialMenuOverlay, closeSocialMenuOverlay } from './modules/screens/camp/SocialMenuOverlay.js';
+import { openAlliancesOverlay, closeAlliancesOverlay } from './modules/screens/camp/AlliancesOverlay.js';
 import npcAutoRenderer from './modules/ui/NpcAutoRenderer.js';
 import { initOverlaysController } from './modules/ui/OverlaysController.js';
 
 window.mainJsLoaded = true;
 window.openRelationshipsOverlay = openRelationshipsOverlay;
+window.openSocialMenuOverlay = openSocialMenuOverlay;
+window.closeSocialMenuOverlay = closeSocialMenuOverlay;
+window.openAlliancesOverlay = openAlliancesOverlay;
+window.closeAlliancesOverlay = closeAlliancesOverlay;
 
 // Banner to confirm main.js is running
 const debugBanner = document.createElement('div');

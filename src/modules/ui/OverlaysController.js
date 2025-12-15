@@ -24,11 +24,10 @@ function handleBagClick() {
 function handleHandshakeClick() {
   hideMenuAndOverlay();
 
-  if (typeof window.openRelationshipsOverlay === 'function') {
-    window.resetRelationshipsOverlayToPlayer = true;
-    window.openRelationshipsOverlay();
+  if (typeof window.openSocialMenuOverlay === 'function') {
+    window.openSocialMenuOverlay();
   } else {
-    console.error('openRelationshipsOverlay is not defined.');
+    console.error('openSocialMenuOverlay is not defined.');
   }
 }
 
