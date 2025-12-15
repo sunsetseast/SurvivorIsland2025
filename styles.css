@@ -2476,3 +2476,128 @@ body {
 .alliance-add-slot:active {
   transform: scale(0.98);
 }
+
+.alliance-slot-members {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.alliance-slot-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.alliance-slot-extra {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  padding: 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.alliance-slot-name {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: white;
+  text-align: center;
+}
+
+.alliance-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alliance-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 10px;
+}
+
+.alliance-chip {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.alliance-chip img {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: black;
+}
+
+.alliance-chip.selected {
+  border-color: #f7c800;
+  box-shadow: 0 0 10px rgba(247, 200, 0, 0.6);
+}
+
+.alliance-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alliance-member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.alliance-member-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: black;
+}
+
+.alliance-member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: white;
+}
+
+.alliance-member-name {
+  font-weight: bold;
+}
+
+.alliance-member-strength {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.overlay-panel-buttons.row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}

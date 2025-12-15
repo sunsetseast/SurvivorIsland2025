@@ -316,6 +316,36 @@
           <button id="alliances-close-button" class="rect-button small">Close</button>
         </div>
       </div>
+      <!-- Create Alliance Overlay -->
+      <div id="create-alliance-overlay" class="overlay-backdrop" style="display: none">
+        <div class="overlay-panel" id="create-alliance-panel">
+          <h2>CREATE ALLIANCE</h2>
+          <div class="alliance-form-body">
+            <div id="create-alliance-members" class="alliance-chip-grid"></div>
+            <div class="overlay-panel-buttons row">
+              <button id="create-alliance-create-button" class="rect-button" disabled>Create</button>
+              <button id="create-alliance-cancel-button" class="rect-button secondary">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manage Alliance Overlay -->
+      <div id="manage-alliance-overlay" class="overlay-backdrop" style="display: none">
+        <div class="overlay-panel" id="manage-alliance-panel">
+          <h2 id="manage-alliance-title">Alliance</h2>
+          <div class="alliance-form-body">
+            <label class="input-label" for="manage-alliance-name-input">Alliance Name</label>
+            <input id="manage-alliance-name-input" type="text" class="text-input" placeholder="Alliance Name" />
+            <div id="manage-alliance-members" class="alliance-member-list"></div>
+            <div class="overlay-panel-buttons row">
+              <button id="manage-alliance-save-button" class="rect-button">Save Name</button>
+              <button id="manage-alliance-leave-button" class="rect-button danger">Leave Alliance</button>
+              <button id="manage-alliance-close-button" class="rect-button secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <!-- Relationships Overlay -->
       <div
         id="relationships-overlay"
