@@ -99,6 +99,38 @@ function ensureCampSocialChanges() {
 
 ensureCampSocialChanges();
 
+function mapToneFromOutcome(outcome) {
+  switch (outcome) {
+    case 'playAlong':
+    case 'tentative':
+      return 'hedging';
+    case 'declined_suspicious':
+      return 'deceptive';
+    case 'accepted':
+    case 'agree':
+      return 'truthful';
+    default:
+      return 'unknown';
+  }
+}
+
+function normalizeDealType(dealType) {
+  switch (dealType) {
+    case 'voteTogether':
+      return 'voteTogether';
+    case 'mutualProtection':
+    case 'protection':
+      return 'protection';
+    case 'info':
+      return 'information';
+    case 'recruit':
+    case 'longPact':
+      return 'allianceInterest';
+    default:
+      return 'voteTogether';
+  }
+}
+
 const TOPIC_TO_INTENT = {
   bonding: 'bonding',
   personal: 'personal',
@@ -1129,12 +1161,24 @@ class ConversationSystem {
     }
 
     // Log a deal
-    if (option.dealResult) {
+    if (dealOutcome || option.dealResult) {
+      const dealStatus = dealOutcome?.status || option.dealResult;
+      const outcomeMap = {
+        accepted: 'agreed',
+        agree: 'agreed',
+        tentative: 'played_along',
+        playAlong: 'played_along',
+        declined_politely: 'rejected',
+        declined_suspicious: 'rejected',
+        counter: 'noncommittal'
+      };
+      const outcome = outcomeMap[dealStatus] || 'noncommittal';
+      const targetName = context?.topicPerson || null;
       socialLog.deals.push({
-        id: survivor.id,
         with: survivor.firstName,
-        result: option.dealResult,
-        context: context?.intent
+        dealType: normalizeDealType(context?.dealType || context?.intent || 'voteTogether'),
+        target: targetName || null,
+        outcome
       });
     }
 
@@ -1335,6 +1379,13 @@ class ConversationSystem {
         const counterContext = { ...this.activeConversationContext, counterTarget: pick.firstName };
         const reaction = this._evaluateCounterPitch(survivor, counterContext);
 
+        this._recordMention({
+          speaker: 'Player',
+          about: pick.firstName,
+          context: 'counter_target',
+          tone: 'truthful'
+        });
+
         if (player && relationshipSystem && typeof reaction.relationshipDelta === 'number') {
           relationshipSystem.changeRelationship(player.id, survivor.id, reaction.relationshipDelta);
           socialLog.relationship.push({ id: survivor.id, with: survivor.firstName, amount: reaction.relationshipDelta, context: 'counter_pitch' });
@@ -1364,6 +1415,13 @@ class ConversationSystem {
           }
         }, `${reaction.npcLine}`);
         parchmentNode.appendChild(summary);
+
+        this._recordMention({
+          speaker: survivor.firstName,
+          about: pick.firstName,
+          context: 'counter_target',
+          tone: mapToneFromOutcome(reaction.outcome)
+        });
 
         const column = createElement('div', {
           style: {
@@ -1888,6 +1946,40 @@ class ConversationSystem {
     return this.moods.get(npcId) || 'neutral';
   }
 
+  _recordMention({ speaker, about, context, tone = 'unknown', dayOverride }) {
+    if (!about && context !== 'vague_vote') return;
+    const socialLog = ensureCampSocialChanges();
+    const entry = {
+      type: 'mention',
+      speaker: speaker || 'Unknown',
+      about: about || null,
+      context,
+      tone
+    };
+    socialLog.memory.push(entry);
+
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    if (memory && typeof memory.recordNamedIntel === 'function' && about) {
+      memory.recordNamedIntel({
+        about,
+        context,
+        from: entry.speaker,
+        day: dayOverride || this.gameManager.getCurrentDay?.() || this.gameManager.day || 1
+      });
+    }
+  }
+
+  _recordStrategicContext({ speaker, context }) {
+    if (!context) return;
+    const socialLog = ensureCampSocialChanges();
+    socialLog.memory.push({
+      type: 'strategic_context',
+      speaker: speaker || 'Unknown',
+      context,
+      tone: 'unknown'
+    });
+  }
+
   _npcHonestyCheck(survivor) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationship = this._relationshipBetween(player?.id, survivor?.id) || 50;
@@ -1933,6 +2025,21 @@ class ConversationSystem {
     const playerId = player?.id;
     const targetId = topicSurvivor?.id;
     const ally = this._getSurvivorByName(context.allyName);
+    const speakerName = context?.initiator === 'player' ? 'Player' : survivor.firstName;
+
+    if (topicName) {
+      if (intent === 'hardStrategy' || intent === 'lightStrategy') {
+        this._recordMention({ speaker: speakerName, about: topicName, context: 'pushed_target', tone: 'truthful' });
+      } else if (intent === 'warning') {
+        this._recordMention({ speaker: speakerName, about: topicName, context: 'warned_about', tone: 'truthful' });
+      } else if (intent === 'gossip') {
+        this._recordMention({ speaker: speakerName, about: topicName, context: 'gossip', tone: 'unknown' });
+      } else if (intent === 'deal') {
+        this._recordMention({ speaker: speakerName, about: topicName, context: 'deal_proposed', tone: mapToneFromOutcome(dealOutcome?.status) });
+      }
+    } else if (intent === 'lightStrategy' || intent === 'hardStrategy') {
+      this._recordStrategicContext({ speaker: speakerName, context: 'vague_vote' });
+    }
     switch (intent) {
       case 'trust':
         if (ally?.id) memory.recordTrustStatement(playerId || survivor.id, ally.id, 'positive', 'player_prompt');
