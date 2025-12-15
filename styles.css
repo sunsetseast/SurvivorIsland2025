@@ -2454,23 +2454,25 @@ body {
   justify-content: center;
   background: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
-.alliance-add-button {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 28px;
-  height: 28px;
-  background: transparent;
+.alliance-add-slot {
+  appearance: none;
   border: none;
+  background: transparent;
   padding: 0;
   cursor: pointer;
 }
 
-.alliance-add-button img {
+.alliance-add-slot img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  pointer-events: none;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.alliance-add-slot:active {
+  transform: scale(0.98);
 }
