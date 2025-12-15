@@ -31,6 +31,10 @@ export function createSurvivorCard(survivor, options = {}) {
 
   // Card body
   const card = createElement('div', { className: 'survivor-card' });
+  if (mode === 'view') {
+    card.classList.add('reveal');
+    card.style.margin = '0 auto';
+  }
   card.dataset.id = survivor.id;
 
   // FRONT
