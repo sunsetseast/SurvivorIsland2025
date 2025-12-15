@@ -41,6 +41,8 @@ class SocialMemorySystem {
                 confrontations: [],
                 apologies: [],
                 meetingNotes: [],
+                allianceInvites: [],
+                playerSecrets: [],
                 intel: [],
                 namedIntel: [],
                 misc: [],
@@ -358,6 +360,47 @@ class SocialMemorySystem {
       this.initNPC(npcId);
       const holder = this.memory[npcId];
       return holder.lastLines.includes(line);
+  }
+
+  recordAllianceInvite({ day, location, npcId, playerId, outcome, pickedThirdId = null, isFake = false }) {
+      const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+      const gm = window.gameManager;
+      const getName = (id) => {
+          if (!id) return null;
+          const survivor = gm?.survivors?.find(s => s.id === id);
+          return survivor?.firstName || null;
+      };
+
+      const entry = {
+          day: dayValue,
+          location: location || 'camp',
+          npcId,
+          npcName: getName(npcId) || 'Unknown',
+          playerId,
+          playerName: getName(playerId) || 'You',
+          outcome,
+          pickedThirdId: pickedThirdId || null,
+          pickedThirdName: getName(pickedThirdId) || null,
+          isFake: !!isFake
+      };
+
+      if (npcId) {
+          this.initNPC(npcId);
+          this.memory[npcId].allianceInvites.push(entry);
+      }
+
+      if (playerId) {
+          this.initNPC(playerId);
+          this.memory[playerId].allianceInvites.push({ ...entry, perspective: 'player' });
+          if (isFake) {
+              this.memory[playerId].playerSecrets.push({
+                  day: dayValue,
+                  type: 'fake_alliance_accept',
+                  npcId,
+                  npcName: entry.npcName
+              });
+          }
+      }
   }
 }
 

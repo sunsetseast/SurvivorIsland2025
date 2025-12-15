@@ -217,6 +217,9 @@ const INTENT_TEMPLATES = {
     'Out of nowhere, {npc} rambles about idols, storms, and goats.',
     '{npc} pivots between topics; the chaos is real.'
   ],
+  allianceInvite: [
+    '{npc} glances around, voice low. "Look… I think you and I could work together. Want to lock something in?"'
+  ],
   deal: [
     '{npc} narrows their eyes. "So you want to make a deal?"',
     '{npc} folds their arms, weighing your offer carefully.'
@@ -320,6 +323,13 @@ const RESPONSE_LIBRARY = {
     { label: 'Pitch it confidently', delta: 3, mood: 'focused', followup: '{npc} hears you out on {dealTopic}.' },
     { label: 'Offer flexibility', delta: 2, mood: 'calm', followup: 'You make room for their concerns about {dealTopic}.' },
     { label: 'Feel them out first', delta: 1, mood: 'neutral', followup: 'You probe gently to see if {npc} will accept {dealTopic}.' }
+  ],
+  allianceInvite: [
+    { key: 'acceptFaithful', label: 'I’m in. Let’s work together.' },
+    { key: 'acceptFake', label: 'Sure… I’m in.' },
+    { key: 'conditional', label: 'Only if we pull in one more person.' },
+    { key: 'softDecline', label: 'Not right now.' },
+    { key: 'hardDecline', label: 'No chance.' }
   ]
 };
 
@@ -583,6 +593,7 @@ class ConversationSystem {
         onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'push', initiator: 'player' } })
       }));
       addOption('Offer a deal', () => this._showDealMenu(survivor, location));
+      addOption('Propose an alliance', () => this._startConversation(survivor, { intentOverride: 'allianceInvite', location, context: { initiator: 'player' } }));
       addOption('Ask who they trust', () => this.promptSurvivorPicker({
         title: 'Who do they trust?',
         tribeOnly: true,
@@ -1082,6 +1093,23 @@ class ConversationSystem {
       parchment.appendChild(buttonColumn);
     };
 
+    if (intent === 'allianceInvite') {
+      this._handleAllianceInviteResponse({
+        survivor,
+        option,
+        parchment,
+        meeting,
+        context,
+        socialLog,
+        relationshipSystem,
+        player,
+        applyContextPatch,
+        renderMenu,
+        endConversation
+      });
+      return;
+    }
+
     if (player && relationshipSystem && typeof relationshipSystem.changeRelationship === 'function' && typeof survivor?.id !== 'undefined') {
       relationshipSystem.changeRelationship(player.id, survivor.id, option.delta || 0);
     }
@@ -1468,6 +1496,223 @@ class ConversationSystem {
     });
   }
 
+  _handleAllianceInviteResponse({
+    survivor,
+    option,
+    parchment,
+    meeting,
+    context,
+    socialLog,
+    relationshipSystem,
+    player,
+    applyContextPatch,
+    renderMenu,
+    endConversation
+  }) {
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const socialMemory = this.gameManager.systems?.socialMemorySystem;
+    const playerId = player?.id;
+    const location = (this.activeConversationContext?.location || context?.location || null);
+    const day = this.gameManager.getCurrentDay?.();
+    const alreadyAllied = allianceSystem?.areAllied?.(playerId, survivor.id);
+
+    const logMemory = ({ outcome, pickedThirdId = null, isFake = false }) => {
+      socialMemory?.recordAllianceInvite?.({
+        day,
+        location,
+        npcId: survivor.id,
+        playerId,
+        outcome,
+        pickedThirdId,
+        isFake
+      });
+    };
+
+    const bumpRelationship = (fromId, toId, delta, logName) => {
+      if (typeof delta !== 'number') return;
+      if (relationshipSystem?.changeRelationship && fromId && toId) {
+        relationshipSystem.changeRelationship(fromId, toId, delta);
+      }
+      socialLog.relationship.push({ id: toId, with: logName, amount: delta, context: 'allianceInvite' });
+    };
+
+    const createAlliance = (memberIds = []) => {
+      if (!allianceSystem?.createAlliance) return null;
+      const tribeId = this.gameManager.getPlayerTribe?.()?.id || null;
+      const name = this._generateAllianceName();
+      return allianceSystem.createAlliance({
+        name,
+        memberIds,
+        tribeId,
+        leaderId: survivor.id
+      });
+    };
+
+    const renderSimpleMenu = (text, buttons = [{ label: 'End conversation', end: true }]) => {
+      renderMenu({ text, buttons });
+    };
+
+    const endWithMemory = (outcome) => {
+      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+      logMemory(outcome);
+      endConversation();
+    };
+
+    const npcName = survivor.firstName;
+
+    if (option.key === 'alreadyAllied' || alreadyAllied) {
+      renderSimpleMenu(`${npcName} nods. "We’re already locked in. Let’s keep it quiet."`);
+      endWithMemory({ outcome: 'already_allied' });
+      return;
+    }
+
+    if (option.key === 'acceptFaithful') {
+      createAlliance([playerId, survivor.id]);
+      bumpRelationship(playerId, survivor.id, 6, npcName);
+      renderSimpleMenu(`${npcName} grins. "Good. We move together."`);
+      logMemory({ outcome: 'faithful' });
+      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+      this._shiftMood(survivor.id, 'happy');
+      endConversation();
+      return;
+    }
+
+    if (option.key === 'acceptFake') {
+      createAlliance([playerId, survivor.id]);
+      bumpRelationship(playerId, survivor.id, 3, npcName);
+      renderSimpleMenu(`${npcName} smiles, satisfied. "Alright, let’s watch each other’s backs."`);
+      logMemory({ outcome: 'fake', isFake: true });
+      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+      this._shiftMood(survivor.id, 'calm');
+      endConversation();
+      return;
+    }
+
+    if (option.key === 'conditional') {
+      const exclude = [survivor.id];
+      if (playerId) exclude.push(playerId);
+      this.promptSurvivorPicker({
+        title: 'Who do you want to loop in?',
+        tribeOnly: true,
+        excludeIds: exclude,
+        onPick: pick => {
+          const thirdId = pick.id;
+          const rel = relationshipSystem?.getRelationship?.(survivor.id, thirdId);
+          const threshold = allianceSystem?.minRelationshipForInvite || 60;
+          const value = typeof rel?.value === 'number' ? rel.value : 50;
+          const accepts = value >= threshold;
+
+          if (accepts) {
+            createAlliance([playerId, survivor.id, thirdId]);
+            bumpRelationship(playerId, survivor.id, 5, npcName);
+            bumpRelationship(playerId, thirdId, 2, pick.firstName);
+            bumpRelationship(survivor.id, thirdId, 2, pick.firstName);
+            renderSimpleMenu(`${npcName} nods. "${pick.firstName} works. Let’s lock this in."`);
+            logMemory({ outcome: 'conditional_accepted', pickedThirdId: thirdId });
+            this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+            this._shiftMood(survivor.id, 'focused');
+            endConversation();
+            return;
+          }
+
+          applyContextPatch({ topicPerson: pick.firstName });
+          renderMenu({
+            text: `${npcName} shakes their head. "I don’t trust ${pick.firstName}… not yet."`,
+            buttons: [
+              {
+                label: 'Fine, just us.',
+                onSelect: () => {
+                  createAlliance([playerId, survivor.id]);
+                  bumpRelationship(playerId, survivor.id, 5, npcName);
+                  logMemory({ outcome: 'conditional_refused_duo', pickedThirdId: thirdId });
+                  this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+                  this._shiftMood(survivor.id, 'focused');
+                  endConversation();
+                }
+              },
+              {
+                label: 'Then never mind.',
+                alt: true,
+                onSelect: () => {
+                  bumpRelationship(playerId, survivor.id, -2, npcName);
+                  logMemory({ outcome: 'conditional_refused_decline', pickedThirdId: thirdId });
+                  this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+                  this._shiftMood(survivor.id, 'irritated');
+                  endConversation();
+                }
+              }
+            ]
+          });
+        },
+        onCancel: () => {
+          this._startConversation(survivor, {
+            intentOverride: 'allianceInvite',
+            location,
+            context: { ...(this.activeConversationContext || {}), initiator: this.activeConversationContext?.initiator || 'npc' }
+          });
+        }
+      });
+      return;
+    }
+
+    if (option.key === 'softDecline') {
+      bumpRelationship(playerId, survivor.id, -2, npcName);
+      renderSimpleMenu(`${npcName} exhales. "Alright, maybe another time."`);
+      logMemory({ outcome: 'soft_decline' });
+      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+      this._shiftMood(survivor.id, 'neutral');
+      endConversation();
+      return;
+    }
+
+    if (option.key === 'hardDecline') {
+      bumpRelationship(playerId, survivor.id, -6, npcName);
+      renderSimpleMenu(`${npcName} narrows their eyes. "Got it. I’ll remember that."`);
+      logMemory({ outcome: 'hard_decline' });
+      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+      this._shiftMood(survivor.id, 'irritated');
+      endConversation();
+    }
+  }
+
+  _buildAllianceInviteDialogue(survivor, context = {}) {
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const alreadyAllied = allianceSystem?.areAllied?.(player?.id, survivor.id);
+    const initiator = context.initiator || 'player';
+    const text = alreadyAllied
+      ? `${survivor.firstName} grins. "We’re already good, right?"`
+      : (initiator === 'player'
+        ? `You pull ${survivor.firstName} aside. "I think we should lock something in. You game?"`
+        : INTENT_TEMPLATES.allianceInvite[0].replace('{npc}', survivor.firstName));
+
+    const playerInitiatedResponses = [
+      { key: 'acceptFaithful', label: 'Ask for a tight alliance together.' },
+      { key: 'acceptFake', label: 'Propose working together but keep it casual.' },
+      { key: 'conditional', label: 'Suggest looping in one more person.' },
+      { key: 'softDecline', label: 'Back off for now.' },
+      { key: 'hardDecline', label: 'Never mind, not a fit.' }
+    ];
+
+    const responses = alreadyAllied
+      ? [{ key: 'alreadyAllied', label: 'Right, we’re solid.' }]
+      : (initiator === 'player' ? playerInitiatedResponses : RESPONSE_LIBRARY.allianceInvite);
+
+    return { text, responses, context: { ...context, intent: 'allianceInvite', location: context.location, alreadyAllied } };
+  }
+
+  _generateAllianceName() {
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const alliances = allianceSystem?.getAllAlliances?.() || allianceSystem?.alliances || [];
+    let maxNum = 0;
+    alliances.forEach(a => {
+      const match = typeof a?.name === 'string' ? a.name.match(/Alliance\s+(\d+)/i) : null;
+      const num = match ? parseInt(match[1], 10) : 0;
+      if (num > maxNum) maxNum = num;
+    });
+    return `Alliance ${maxNum + 1}`;
+  }
+
   _buildOverlayShell(survivor) {
     this._clearOverlay();
     this._injectConversationStyles();
@@ -1619,6 +1864,8 @@ class ConversationSystem {
     switch (type) {
       case 'softStrategy':
         return 'lightStrategy';
+      case 'allianceInvite':
+        return 'allianceInvite';
       case 'bonding':
         return 'bonding';
       case 'targeting':
@@ -1677,6 +1924,10 @@ class ConversationSystem {
   }
 
   _buildDialogue(intent, survivor, context = {}) {
+    if (intent === 'allianceInvite') {
+      return this._buildAllianceInviteDialogue(survivor, context);
+    }
+
     const templatePool = INTENT_TEMPLATES[intent] || ['{npc} talks about the game.'];
     const memory = this.gameManager.systems?.socialMemorySystem;
     const initiator = context.initiator || 'player';

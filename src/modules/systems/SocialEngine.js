@@ -103,6 +103,15 @@ class SocialEngine {
     }
 
     pickPostStrategyType(npc) {
+        const player = gameManager.getPlayerSurvivor?.();
+        const allianceSystem = gameManager.systems?.allianceSystem;
+        const relValue = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value ?? 50;
+        const alreadyAllied = allianceSystem?.areAllied?.(player?.id, npc?.id);
+
+        if (!alreadyAllied && relValue >= 60 && Math.random() < 0.12) {
+            return "allianceInvite";
+        }
+
         const r = Math.random();
         if (r < 0.40) return "targeting";
         if (r < 0.65) return "warning";
