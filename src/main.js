@@ -15,6 +15,7 @@ import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
 import { openRelationshipsOverlay } from './modules/screens/camp/RelationshipsOverlay.js';
 import npcAutoRenderer from './modules/ui/NpcAutoRenderer.js';
+import { initOverlaysController } from './modules/ui/OverlaysController.js';
 
 window.mainJsLoaded = true;
 window.openRelationshipsOverlay = openRelationshipsOverlay;
@@ -52,6 +53,8 @@ function init() {
 
   screenManager.initialize();
   screenManager.showScreen('welcome');
+
+  initOverlaysController();
 
   // Register systems
   // Core systems (all created fresh because they depend on gameManager)

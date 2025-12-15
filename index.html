@@ -130,19 +130,16 @@
           id="menu-map-button"
           class="menu-action-button"
           style="top: 65px; right: 40px"
-          onclick="handleMapClick()"
         ></button>
         <button
           id="menu-bag-button"
           class="menu-action-button"
           style="top: 136px; right: 40px"
-          onclick="handleBagClick()"
         ></button>
         <button
           id="menu-handshake-button"
           class="menu-action-button"
           style="top: 205px; right: 40px"
-          onclick="handleHandshakeClick()"
         ></button>
         <!-- Stats Display -->
         <div
@@ -201,34 +198,34 @@
 
         <!-- Temporary visible hotspot buttons -->
         <button
-          class="menu-action-button"
+          class="menu-action-button map-hotspot"
           style="top: 13%; left: 15%; background: transparent; border: none"
-          onclick="goToView('rocky')"
+          data-view="rocky"
         ></button>
         <button
-          class="menu-action-button"
+          class="menu-action-button map-hotspot"
           style="top: 27%; left: 10%; background: transparent; border: none"
-          onclick="goToView('beach')"
+          data-view="beach"
         ></button>
         <button
-          class="menu-action-button"
+          class="menu-action-button map-hotspot"
           style="top: 25%; left: 55%; background: transparent; border: none"
-          onclick="goToView('campfire')"
+          data-view="campfire"
         ></button>
         <button
-          class="menu-action-button"
+          class="menu-action-button map-hotspot"
           style="top: 40%; left: 53%; background: transparent; border: none"
-          onclick="goToView('fork1')"
+          data-view="fork1"
         ></button>
         <button
-          class="menu-action-button"
+          class="menu-action-button map-hotspot"
           style="top: 72%; left: 70%; background: transparent; border: none"
-          onclick="goToView('treemail')"
+          data-view="treemail"
         ></button>
         <button
-          class="menu-action-button"
+          class="menu-action-button map-hotspot"
           style="top: 51%; left: 15%; background: transparent; border: none"
-          onclick="goToView('waterWell')"
+          data-view="waterWell"
         ></button>
       </div>
 
@@ -290,7 +287,6 @@
                   background: transparent;
                   border: none;
                 "
-                onclick="toggleInventoryPage()"
               ></button>
           </div>
         </div>
@@ -394,164 +390,6 @@
       }, 2000);
     </script>
 
-    <script>
-      function handleMapClick() {
-        const menu = document.getElementById("menu-card");
-        const overlay = document.getElementById("menu-overlay");
-        const mapOverlay = document.getElementById("map-overlay");
-
-        if (menu) menu.style.display = "none";
-        if (overlay) overlay.style.display = "none";
-        if (mapOverlay) mapOverlay.style.display = "block";
-      }
-
-      function handleBagClick() {
-        const menu = document.getElementById("menu-card");
-        const overlay = document.getElementById("menu-overlay");
-        const inventoryOverlay = document.getElementById("inventory-overlay");
-
-        if (menu) menu.style.display = "none";
-        if (overlay) overlay.style.display = "none";
-        if (inventoryOverlay) inventoryOverlay.style.display = "block";
-      }
-
-      function addItemToInventory(itemElement) {
-        const inventory = document.getElementById("inventory-items");
-        if (!inventory) return;
-
-        const slot = document.createElement("div");
-        slot.style.width = "60px";
-        slot.style.height = "60px";
-        slot.style.border = "2px solid white";
-        slot.style.borderRadius = "6px";
-        slot.style.backgroundColor = "rgba(255,255,255,0.1)";
-        slot.style.display = "flex";
-        slot.style.alignItems = "center";
-        slot.style.justifyContent = "center";
-        slot.appendChild(itemElement);
-
-        inventory.appendChild(slot);
-      }
-
-      let currentInventoryPage = 1; // Track which inventory page we're on
-
-      function toggleInventoryPage() {
-        const inventoryImage = document.getElementById("inventory-image");
-        const inventoryValues = document.getElementById("inventory-values");
-
-        if (currentInventoryPage === 1) {
-          // Switch to inventory2.png
-          inventoryImage.src = "Assets/inventory2.png";
-          inventoryValues.style.display = "none"; // Hide resource values on page 2
-          currentInventoryPage = 2;
-        } else {
-          // Switch back to inventory1.png
-          inventoryImage.src = "Assets/inventory1.png";
-          inventoryValues.style.display = "block"; // Show resource values on page 1
-          currentInventoryPage = 1;
-        }
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        const inventoryOverlay = document.getElementById("inventory-overlay");
-        const inventoryNavButton = document.getElementById("inventory-nav-button");
-
-        if (inventoryOverlay) {
-          inventoryOverlay.addEventListener("click", (e) => {
-            // Don't close if clicking the navigation button
-            if (!inventoryNavButton || !inventoryNavButton.contains(e.target)) {
-              inventoryOverlay.style.display = "none";
-              // Reset to page 1 when closing
-              const inventoryImage = document.getElementById("inventory-image");
-              const inventoryValues = document.getElementById("inventory-values");
-              if (inventoryImage) inventoryImage.src = "Assets/inventory1.png";
-              if (inventoryValues) inventoryValues.style.display = "block";
-              currentInventoryPage = 1;
-            }
-          });
-        }
-      });
-    </script>
-
-    <script>
-      function handleHandshakeClick() {
-        const menuCard = document.getElementById("menu-card");
-        const menuOverlay = document.getElementById("menu-overlay");
-        if (menuCard) menuCard.style.display = "none";
-        if (menuOverlay) menuOverlay.style.display = "none";
-
-        if (typeof openRelationshipsOverlay === "function") {
-          window.resetRelationshipsOverlayToPlayer = true;  // flag to force reset
-          openRelationshipsOverlay();
-        } else {
-          console.error("openRelationshipsOverlay is not defined.");
-        }
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        const relationshipsOverlay = document.getElementById("relationships-overlay");
-        const relationshipsGrid = document.getElementById("relationships-grid");
-
-        if (relationshipsOverlay) {
-          relationshipsOverlay.addEventListener("click", (e) => {
-            // Check if the click target is NOT within the avatar grid
-            if (!relationshipsGrid || !relationshipsGrid.contains(e.target)) {
-              relationshipsOverlay.style.display = "none";
-            }
-          });
-
-          // Prevent clicks on avatar images from bubbling up
-          if (relationshipsGrid) {
-            relationshipsGrid.addEventListener("click", (e) => {
-              e.stopPropagation();
-            });
-          }
-
-          // Escape key support
-          document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && relationshipsOverlay.style.display === "block") {
-              relationshipsOverlay.style.display = "none";
-            }
-          });
-        }
-      });
-
-      // Function to set tribe name in relationships overlay
-      window.setRelationshipsTribeName = function(tribeName) {
-        const tribeNameElement = document.getElementById('relationships-tribe-name');
-        if (tribeNameElement) {
-          tribeNameElement.textContent = tribeName.toUpperCase();
-        }
-      };
-    </script>
-
-    <script>
-      function goToView(viewName) {
-        // Close menu and overlay
-        document.getElementById("menu-card").style.display = "none";
-        document.getElementById("menu-overlay").style.display = "none";
-        document.getElementById("map-overlay").style.display = "none";
-
-        // Always reset any flip transformation when teleporting via map
-        const campContent = document.getElementById('camp-content');
-        if (campContent) {
-          campContent.style.transform = 'scaleX(1)';
-        }
-
-        // Clear the previous view tracking since we're teleporting
-        window.previousCampView = null;
-
-        // Load the selected camp view
-        if (
-          window.campScreen &&
-          typeof window.campScreen.loadView === "function"
-        ) {
-          window.campScreen.loadView(viewName);
-        }
-      }
-    </script>
-
-    
     <script>
     window.debugBanner = window.debugBanner || function(message, data) {
       try {
