@@ -79,6 +79,10 @@ class AllianceSystem {
 
     if (!alliance.memberIds.includes(survivorId)) {
       alliance.memberIds.push(survivorId);
+      eventManager.publish(GameEvents.ALLIANCE_MEMBER_ADDED, {
+        allianceId,
+        survivorId
+      });
       alliance.cohesion = this.computeCohesion(alliance.memberIds);
       this._emitAllianceUpdated(alliance);
     }
@@ -92,8 +96,16 @@ class AllianceSystem {
     const beforeLength = alliance.memberIds.length;
     alliance.memberIds = alliance.memberIds.filter(id => id !== survivorId);
     if (alliance.memberIds.length !== beforeLength) {
-      alliance.cohesion = this.computeCohesion(alliance.memberIds);
-      this._emitAllianceUpdated(alliance);
+      eventManager.publish(GameEvents.ALLIANCE_MEMBER_REMOVED, {
+        allianceId,
+        survivorId
+      });
+      if (alliance.memberIds.length < 2) {
+        this.disbandAlliance(allianceId, 'too_small');
+      } else {
+        alliance.cohesion = this.computeCohesion(alliance.memberIds);
+        this._emitAllianceUpdated(alliance);
+      }
     }
     return alliance;
   }
@@ -112,8 +124,11 @@ class AllianceSystem {
     );
   }
 
-  getTribeAlliances(tribeId) {
-    return this.alliances.filter(alliance => alliance.tribeId === tribeId);
+  getTribeAlliances(tribeId, { includeInactive = false } = {}) {
+    return this.alliances.filter(
+      alliance =>
+        alliance.tribeId === tribeId && (includeInactive || alliance.active)
+    );
   }
 
   getGlobalAlliances() {
