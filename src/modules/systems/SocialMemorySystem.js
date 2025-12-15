@@ -32,18 +32,19 @@ class SocialMemorySystem {
                 betrayals: [],
                 promises: [],
                 voteHistory: [],
-                gossip: [],
-                trustStatements: [],
-                targetPreferences: [],
-                deals: [],
-                confrontations: [],
-                apologies: [],
-                meetingNotes: [],
-                misc: [],
-                lastTopics: [],
-                lastLines: []
-            };
-        }
+            gossip: [],
+            trustStatements: [],
+            targetPreferences: [],
+            deals: [],
+            confrontations: [],
+            apologies: [],
+            meetingNotes: [],
+            intel: [],
+            misc: [],
+            lastTopics: [],
+            lastLines: []
+        };
+    }
     }
 
     storeMemory(survivorId, tag, data = null) {
@@ -232,6 +233,26 @@ class SocialMemorySystem {
             aboutId,
             topicTag,
             reliability
+        });
+    }
+
+    recordIntel({ from, kind, claimedTarget = null, outcome = "evade", day = 1, verified = false }) {
+        if (from) {
+            this.initNPC(from);
+        }
+
+        const keys = Object.keys(this.memory);
+        if (keys.length === 0 && from) {
+            keys.push(from);
+        }
+
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const entry = { from, kind, claimedTarget, outcome, day: dayValue, verified };
+
+        keys.forEach(npcId => {
+            this.initNPC(npcId);
+            this.memory[npcId].intel = this.memory[npcId].intel || [];
+            this.memory[npcId].intel.push(entry);
         });
     }
 

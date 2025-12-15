@@ -4,6 +4,84 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 
+function resolveNpcDisclosure({ npc, player, kind, context = {} }) {
+  const relationshipSystem = context.relationshipSystem || player?.gameManager?.systems?.relationshipSystem || npc?.gameManager?.systems?.relationshipSystem;
+  const baseRelationship = typeof relationshipSystem?.getRelationship === 'function'
+    ? (relationshipSystem.getRelationship(player?.id, npc?.id)?.value ?? 50)
+    : (typeof npc?.trust === 'number' ? npc.trust : 50);
+
+  const trustScore = Math.max(0, Math.min(100, baseRelationship));
+  const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
+
+  let evadeChance = trustScore < 40 ? 0.45 : 0.2;
+  let truthChance = trustScore > 70 ? 0.55 : 0.35;
+  let lieChance = 1 - (evadeChance + truthChance);
+
+  if (personality.includes('deceptive') || personality.includes('strategic')) {
+    lieChance += 0.12;
+    evadeChance -= 0.05;
+  }
+
+  if (personality.includes('loyal') || personality.includes('honest')) {
+    lieChance -= 0.1;
+    evadeChance += 0.08;
+  }
+
+  if (trustScore > 80) {
+    truthChance += 0.1;
+    lieChance -= 0.05;
+  } else if (trustScore < 30) {
+    lieChance += 0.1;
+    truthChance -= 0.05;
+  }
+
+  const normalize = (v) => Math.max(0, v);
+  evadeChance = normalize(evadeChance);
+  lieChance = normalize(lieChance);
+  truthChance = normalize(truthChance);
+  const total = evadeChance + lieChance + truthChance;
+  evadeChance /= total;
+  lieChance /= total;
+  truthChance /= total;
+
+  const roll = Math.random();
+  let outcome = 'evade';
+  if (roll < evadeChance) {
+    outcome = 'evade';
+  } else if (roll < evadeChance + truthChance) {
+    outcome = 'truth';
+  } else {
+    outcome = 'lie';
+  }
+
+  const availableTargets = context.availableTargets || [];
+  const trueTarget = context.trueTarget || context.topicPerson || context.targetName || null;
+  let claimedTarget = trueTarget;
+
+  if (outcome === 'lie') {
+    const filtered = availableTargets.filter(t => t && t !== trueTarget);
+    claimedTarget = filtered.length > 0 ? filtered[getRandomInt(0, filtered.length - 1)] : trueTarget || null;
+  }
+
+  if (outcome === 'evade') {
+    claimedTarget = null;
+  }
+
+  let reasonTag = 'neutral_disclosure';
+  if (trustScore < 30) {
+    reasonTag = 'low_trust';
+  } else if (trustScore > 75) {
+    reasonTag = 'high_trust';
+  }
+  if (outcome === 'lie' && personality.includes('deceptive')) {
+    reasonTag = 'deceptive_tendency';
+  } else if (outcome === 'evade' && personality.includes('loyal')) {
+    reasonTag = 'cautious_loyalty';
+  }
+
+  return { outcome, claimedTarget, trueTarget, reasonTag };
+}
+
 function ensureCampSocialChanges() {
   if (!window.campSocialChanges) {
     window.campSocialChanges = {};
@@ -126,7 +204,7 @@ const RESPONSE_LIBRARY = {
   ],
   lightStrategy: [
     { label: 'Offer a soft take', delta: 2, mood: 'calm', followup: 'You test the waters together.' },
-    { label: 'Ask who they are eyeing', delta: 1, mood: 'neutral', followup: '{npc} glances around, then admits they\'re watching {target}.' },
+    { label: 'Ask who they are eyeing', delta: 1, mood: 'neutral', disclosureKind: 'whoAreYouEyeing', followup: '{npc} glances around, then admits they\'re watching {target}.' },
     { label: 'Stay vague', delta: -2, mood: 'suspicious', followup: '{npc} isn\'t sure if you are with them.' }
   ],
   hardStrategy: [
@@ -861,12 +939,86 @@ class ConversationSystem {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const socialLog = ensureCampSocialChanges();
+    const context = { ...(this.activeConversationContext || {}) };
+
+    const applyContextPatch = patch => {
+      if (!patch) return;
+      this.activeConversationContext = { ...(this.activeConversationContext || {}), ...patch };
+    };
+
+    let finalDealOutcome = null;
+
+    const endConversation = () => {
+      this._logConversationOutcome(survivor, intent, option, meeting, this.activeConversationContext || context, finalDealOutcome);
+      parchment.style.opacity = 0;
+      parchment.style.transform = 'translateY(6px) scale(0.98)';
+      setTimeout(() => this._clearOverlay(), 220);
+      if (meeting) {
+        this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
+      }
+    };
+
+    const renderMenu = (menu) => {
+      clearChildren(parchment);
+
+      const summary = createElement('div', {
+        style: {
+          marginTop: '12px',
+          color: '#2b190a',
+          fontFamily: 'Survivant, sans-serif',
+          fontSize: '1rem'
+        }
+      }, menu.text || '');
+
+      parchment.appendChild(summary);
+
+      if (menu.additionalText) {
+        const extra = createElement('div', { style: { marginTop: '8px', fontStyle: 'italic' } }, menu.additionalText);
+        parchment.appendChild(extra);
+      }
+
+      const buttonColumn = createElement('div', {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          marginTop: '12px',
+          maxHeight: '46vh',
+          overflowY: 'auto',
+          width: '100%'
+        }
+      });
+
+      const buttons = menu.buttons && menu.buttons.length > 0 ? menu.buttons : [
+        { label: 'End Conversation', alt: true, end: true }
+      ];
+
+      buttons.forEach(btn => {
+        const buttonEl = createElement('button', {
+          className: `rect-button full${btn.alt ? ' alt' : ''}`,
+          onclick: () => {
+            if (btn.nextContextPatch) applyContextPatch(btn.nextContextPatch);
+            if (typeof btn.onSelect === 'function') {
+              btn.onSelect();
+            }
+            if (btn.nextMenu) {
+              renderMenu({ text: btn.nextMenu.text || menu.text, buttons: btn.nextMenu.buttons || [] });
+              return;
+            }
+            if (btn.end) {
+              endConversation();
+            }
+          }
+        }, btn.label);
+        buttonColumn.appendChild(buttonEl);
+      });
+
+      parchment.appendChild(buttonColumn);
+    };
 
     if (player && relationshipSystem && typeof relationshipSystem.changeRelationship === 'function' && typeof survivor?.id !== 'undefined') {
       relationshipSystem.changeRelationship(player.id, survivor.id, option.delta || 0);
     }
-
-    const context = this.activeConversationContext || {};
 
     const relationshipDelta = typeof option.relationshipDelta === 'number'
       ? option.relationshipDelta
@@ -929,6 +1081,8 @@ class ConversationSystem {
       ? this._evaluateDealResponse(survivor, context, option)
       : null;
 
+    finalDealOutcome = dealOutcome;
+
     if (!honestyRoll && intent === 'deal' && player?.id) {
       this.gameManager.systems?.socialMemorySystem?.recordLie(survivor.id, player.id, 'fake_agreement', followupText);
     }
@@ -987,43 +1141,170 @@ class ConversationSystem {
       });
     }
 
-    const summary = createElement('div', {
-      style: {
-        marginTop: '12px',
-        color: '#2b190a',
-        fontFamily: 'Survivant, sans-serif',
-        fontSize: '1rem'
-      }
-    }, followupText);
+    let menu = { text: option.nextMenu?.text || followupText, buttons: option.nextMenu?.buttons || null };
 
-    clearChildren(parchment);
-    parchment.appendChild(summary);
-
-    if (dealOutcome && dealOutcome.counter) {
-      const counterEl = createElement('div', {
-        style: {
-          marginTop: '8px',
-          fontStyle: 'italic'
-        }
-      }, dealOutcome.counter);
-      parchment.appendChild(counterEl);
+    if (option.nextContextPatch) {
+      applyContextPatch(option.nextContextPatch);
     }
 
-    const closeBtn = createElement('button', {
-      className: 'rect-button alt',
-      style: { marginTop: '14px', padding: '8px 10px', width: '100%' },
-      onclick: () => {
-        this._logConversationOutcome(survivor, intent, option, meeting, context, dealOutcome);
-        parchment.style.opacity = 0;
-        parchment.style.transform = 'translateY(6px) scale(0.98)';
-        setTimeout(() => this._clearOverlay(), 220);
+    if (option.disclosureKind) {
+      const pool = (this.gameManager.getPlayerTribe?.()?.members || this.gameManager.survivors || [])
+        .filter(s => s.firstName !== survivor.firstName && !s.isPlayer)
+        .map(s => s.firstName);
+      const disclosure = resolveNpcDisclosure({
+        npc: survivor,
+        player,
+        kind: option.disclosureKind,
+        context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
+      });
+      const claimTarget = disclosure.claimedTarget || 'anyone yet';
+
+      if (disclosure.outcome === 'truth') {
+        menu.text = `${survivor.firstName} lowers their voice. "If it's me, it's ${claimTarget}."`;
+      } else if (disclosure.outcome === 'lie') {
+        menu.text = `${survivor.firstName} glances around. "Honestly? ${claimTarget}."`;
+      } else {
+        menu.text = `${survivor.firstName} shakes their head. "I'm not putting names out yet."`;
+      }
+
+      if (disclosure.claimedTarget) {
+        applyContextPatch({ topicPerson: disclosure.claimedTarget });
+      }
+
+      this.gameManager.systems?.socialMemorySystem?.recordIntel?.({
+        from: survivor.firstName,
+        kind: 'targetClaim',
+        claimedTarget: disclosure.claimedTarget,
+        outcome: disclosure.outcome,
+        day: this.gameManager.getCurrentDay?.(),
+        verified: false
+      });
+
+      const followButtons = disclosure.outcome === 'evade'
+        ? [
+            { label: 'Reassure them', end: true },
+            { label: 'Back off', end: true },
+            { label: 'Try a different angle', end: true },
+            { label: 'End conversation', alt: true, end: true }
+          ]
+        : [
+            { label: 'Encourage the idea (no commitment)', end: true },
+            { label: 'Commit to the plan', end: true },
+            { label: 'Question it / ask why', end: true },
+            { label: 'Counter with another target', onSelect: () => this._handleCounterTarget(survivor, parchment, meeting, context), end: false },
+            { label: 'End conversation', alt: true, end: true }
+          ];
+
+      menu = { text: menu.text, buttons: followButtons };
+    }
+
+    if (option.requiresCounterTarget) {
+      this._handleCounterTarget(survivor, parchment, meeting, context);
+      return;
+    }
+
+    if (dealOutcome && dealOutcome.counter) {
+      menu.additionalText = dealOutcome.counter;
+    }
+
+    renderMenu(menu);
+  }
+
+  _handleCounterTarget(survivor, parchment, meeting, context = {}) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const exclude = [survivor.id];
+    if (player?.id) exclude.push(player.id);
+
+    this.promptSurvivorPicker({
+      title: 'Counter with who?',
+      tribeOnly: true,
+      excludeIds: exclude,
+      onPick: pick => {
+        this.activeConversationContext = {
+          ...(this.activeConversationContext || {}),
+          ...context,
+          topicPerson: pick.firstName,
+          stance: 'counter',
+          initiator: 'player'
+        };
+
+        const overlay = this._buildOverlayShell(survivor);
+        const parchmentNode = this._buildParchment(`You counter with ${pick.firstName} instead. ${survivor.firstName} studies you carefully…`);
+
+        const renderCounterMenu = (text, buttons) => {
+          clearChildren(parchmentNode);
+          const summary = createElement('div', {
+            style: {
+              marginTop: '12px',
+              color: '#2b190a',
+              fontFamily: 'Survivant, sans-serif',
+              fontSize: '1rem'
+            }
+          }, text);
+          parchmentNode.appendChild(summary);
+
+          const column = createElement('div', {
+            style: {
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              marginTop: '12px',
+              maxHeight: '46vh',
+              overflowY: 'auto',
+              width: '100%'
+            }
+          });
+
+          const endConversation = () => {
+            this._logConversationOutcome(survivor, 'counter_followup', { label: 'counter' }, meeting, this.activeConversationContext, null);
+            this._clearOverlay();
+            if (meeting) {
+              this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
+            }
+          };
+
+          const ensureButtons = buttons && buttons.length ? buttons : [{ label: 'End conversation', alt: true, end: true }];
+
+          ensureButtons.forEach(btn => {
+            const btnEl = createElement('button', {
+              className: `rect-button full${btn.alt ? ' alt' : ''}`,
+              onclick: () => {
+                if (btn.nextContextPatch) {
+                  this.activeConversationContext = { ...(this.activeConversationContext || {}), ...btn.nextContextPatch };
+                }
+                if (btn.nextText) {
+                  renderCounterMenu(btn.nextText, [{ label: 'End conversation', alt: true, end: true }]);
+                  return;
+                }
+                if (btn.end) {
+                  endConversation();
+                }
+              }
+            }, btn.label);
+            column.appendChild(btnEl);
+          });
+
+          parchmentNode.appendChild(column);
+        };
+
+        renderCounterMenu(
+          `You counter with ${pick.firstName} instead. ${survivor.firstName} studies you carefully…`,
+          [
+            { label: 'Press the idea', nextText: `${survivor.firstName} weighs it. You keep applying pressure.`, end: true },
+            { label: 'Play it casual', nextText: `You float ${pick.firstName}'s name lightly. ${survivor.firstName} gives a cautious nod.`, end: true },
+            { label: 'Back off', nextText: `You ease off for now. ${survivor.firstName} files it away.`, end: true },
+            { label: 'End conversation', alt: true, end: true }
+          ]
+        );
+
+        overlay.querySelector('.conversation-center').appendChild(parchmentNode);
         if (meeting) {
-          this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
+          this._highlightNpcIcon(meeting.npcId, false);
+        } else {
+          this._highlightNpcIcon(survivor.id, false);
         }
       }
-    }, 'End Conversation');
-
-    parchment.appendChild(closeBtn);
+    });
   }
 
   _buildOverlayShell(survivor) {
