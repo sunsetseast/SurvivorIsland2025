@@ -87,7 +87,7 @@ function ensureCampSocialChanges() {
     window.campSocialChanges = {};
   }
 
-  const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts'];
+  const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts', 'reliability'];
   buckets.forEach(key => {
     if (!Array.isArray(window.campSocialChanges[key])) {
       window.campSocialChanges[key] = [];
@@ -209,7 +209,13 @@ const RESPONSE_LIBRARY = {
   ],
   hardStrategy: [
     { label: 'Agree to push the plan', delta: 3, mood: 'focused', followup: 'A pact forms for now.' },
-    { label: 'Counter with another target', delta: 1, mood: 'neutral', followup: 'You redirect the heat elsewhere.' },
+    {
+      label: 'Counter with another target',
+      delta: 1,
+      mood: 'neutral',
+      followup: 'You redirect the heat elsewhere.',
+      requiresCounterTarget: true
+    },
     { label: 'Refuse to commit', delta: -5, mood: 'irritated', followup: '{npc} questions your loyalty.' }
   ],
   trust: [
@@ -586,7 +592,7 @@ class ConversationSystem {
     overlay.querySelector('.conversation-center').appendChild(parchment);
   }
 
-  promptSurvivorPicker({ title, tribeOnly = true, excludeIds = [], onPick }) {
+  promptSurvivorPicker({ title, tribeOnly = true, excludeIds = [], onPick, onCancel }) {
     const overlay = this._buildOverlayShell({ firstName: 'Choose' });
     const parchment = this._buildParchment(title || 'Pick a survivor');
 
@@ -619,7 +625,10 @@ class ConversationSystem {
 
     const cancel = createElement('button', {
       className: 'rect-button alt full',
-      onclick: () => this._clearOverlay()
+      onclick: () => {
+        this._clearOverlay();
+        if (onCancel) onCancel();
+      }
     }, 'Cancel');
 
     buttonColumn.appendChild(cancel);
@@ -676,6 +685,7 @@ class ConversationSystem {
   _showDealMenu(survivor, location) {
     const overlay = this._buildOverlayShell(survivor);
     const parchment = this._buildParchment('What kind of deal do you offer?');
+    const player = this.gameManager.getPlayerSurvivor?.();
 
     const options = [
       { key: 'mutualProtection', label: 'Mutual protection' },
@@ -702,6 +712,27 @@ class ConversationSystem {
           this._clearOverlay();
           if (opt.key === 'recruit') {
             this._promptRecruitSelection(survivor, location);
+            return;
+          }
+
+          if (opt.key === 'voteTogether') {
+            const excludeIds = [survivor.id];
+            if (player?.id) excludeIds.push(player.id);
+            this.promptSurvivorPicker({
+              title: 'Vote together on who?',
+              tribeOnly: true,
+              excludeIds,
+              onPick: pick => {
+                const dealContext = this._buildDealContext('voteTogether', survivor, null, pick.firstName);
+                this._startConversation(survivor, {
+                  intentOverride: 'deal',
+                  isPurpose: false,
+                  location,
+                  context: dealContext
+                });
+              },
+              onCancel: () => this._showDealMenu(survivor, location)
+            });
             return;
           }
 
@@ -773,13 +804,16 @@ class ConversationSystem {
     overlay.querySelector('.conversation-center').appendChild(parchment);
   }
 
-  _buildDealContext(key, survivor, recruitName = null) {
-    const preferredTarget = this._determinePreferredTarget(survivor);
+  _buildDealContext(key, survivor, recruitName = null, voteTarget = null) {
     switch (key) {
       case 'mutualProtection':
         return { dealType: 'mutualProtection', dealTopic: 'watching each other\'s backs', topicPerson: survivor.firstName };
       case 'voteTogether':
-        return { dealType: 'voteTogether', dealTopic: `voting together${preferredTarget ? ` on ${preferredTarget}` : ''}`, topicPerson: preferredTarget };
+        return {
+          dealType: 'voteTogether',
+          dealTopic: voteTarget ? `voting together tonight on ${voteTarget}` : 'voting together tonight',
+          topicPerson: voteTarget || null
+        };
       case 'recruit':
         return {
           dealType: 'recruit',
@@ -787,10 +821,10 @@ class ConversationSystem {
           topicPerson: recruitName
         };
       case 'info':
-        return { dealType: 'info', dealTopic: 'trading information', topicPerson: preferredTarget };
+        return { dealType: 'info', dealTopic: 'trading information', topicPerson: null };
       case 'longPact':
       default:
-        return { dealType: 'longPact', dealTopic: 'a longer-term pact', topicPerson: preferredTarget };
+        return { dealType: 'longPact', dealTopic: 'a longer-term pact', topicPerson: null };
     }
   }
 
@@ -1210,8 +1244,78 @@ class ConversationSystem {
     renderMenu(menu);
   }
 
+  _evaluateCounterPitch(npc, context = {}) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const relationship = this._relationshipBetween(player?.id, npc?.id) || 50;
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const trustScore = memory?.getTrust?.(npc?.id) ?? 50;
+    const reliabilityScore = memory?.getReliability?.(npc?.id) ?? 50;
+    const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
+    const deceptive = personality.includes('deceptive') || personality.includes('strategic');
+    const loyal = personality.includes('loyal') || personality.includes('honest');
+
+    let score = (relationship * 0.6) + (trustScore * 0.4) + ((reliabilityScore - 50) * 0.15);
+    if (context.npcPitchedTarget) score -= 5;
+    if (context.counterTarget === context.topicPerson) score += 6;
+    score += getRandomInt(-10, 12);
+
+    const roll = Math.random();
+    let outcome = 'reject';
+    if (score >= 72) {
+      outcome = 'agree';
+    } else if (score >= 48) {
+      if (deceptive && roll < 0.65) outcome = 'playAlong';
+      else if (loyal && roll < 0.35) outcome = 'agree';
+      else outcome = 'playAlong';
+    }
+
+    const agreeLines = [
+      `Okay… I can get behind that. But we keep it quiet.`,
+      `Fine. ${context.counterTarget} can go. I\'ll push it carefully.`,
+      `Sure, that works. Let\'s make it happen.`
+    ];
+    const hedgeLines = [
+      `Maybe. I\'m not promising anything yet—let\'s see how today goes.`,
+      `I hear you. I\'ll float it, but I\'m keeping options open.`,
+      `Interesting. I\'ll nod along for now, no guarantees.`
+    ];
+    const rejectLines = [
+      `No. That\'s not happening. I\'m set on my name.`,
+      `Not buying it. I\'m sticking with my plan.`,
+      `I can\'t co-sign that. Pick someone else.`
+    ];
+
+    const pickLine = (lines) => lines[getRandomInt(0, lines.length - 1)];
+
+    const outcomeMap = {
+      agree: {
+        npcLine: pickLine(agreeLines),
+        relationshipDelta: 3,
+        trustDelta: 4,
+        reliabilityDelta: 3
+      },
+      playAlong: {
+        npcLine: pickLine(hedgeLines),
+        relationshipDelta: 1,
+        trustDelta: 1,
+        reliabilityDelta: 2
+      },
+      reject: {
+        npcLine: pickLine(rejectLines),
+        relationshipDelta: -3,
+        trustDelta: -3,
+        reliabilityDelta: -1
+      }
+    };
+
+    return { outcome, ...outcomeMap[outcome] };
+  }
+
   _handleCounterTarget(survivor, parchment, meeting, context = {}) {
     const player = this.gameManager.getPlayerSurvivor?.();
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const socialMemory = this.gameManager.systems?.socialMemorySystem;
+    const socialLog = ensureCampSocialChanges();
     const exclude = [survivor.id];
     if (player?.id) exclude.push(player.id);
 
@@ -1228,74 +1332,73 @@ class ConversationSystem {
           initiator: 'player'
         };
 
+        const counterContext = { ...this.activeConversationContext, counterTarget: pick.firstName };
+        const reaction = this._evaluateCounterPitch(survivor, counterContext);
+
+        if (player && relationshipSystem && typeof reaction.relationshipDelta === 'number') {
+          relationshipSystem.changeRelationship(player.id, survivor.id, reaction.relationshipDelta);
+          socialLog.relationship.push({ id: survivor.id, with: survivor.firstName, amount: reaction.relationshipDelta, context: 'counter_pitch' });
+        }
+
+        if (typeof reaction.trustDelta === 'number') {
+          socialMemory?.adjustTrust?.(survivor.id, reaction.trustDelta);
+          socialLog.trust.push({ id: survivor.id, with: survivor.firstName, amount: reaction.trustDelta, context: 'counter_pitch' });
+        }
+
+        if (typeof reaction.reliabilityDelta === 'number') {
+          socialMemory?.adjustReliability?.(survivor.id, reaction.reliabilityDelta);
+          socialLog.reliability.push({ id: survivor.id, with: survivor.firstName, amount: reaction.reliabilityDelta, context: 'counter_pitch' });
+        }
+
         const overlay = this._buildOverlayShell(survivor);
-        const parchmentNode = this._buildParchment(`You counter with ${pick.firstName} instead. ${survivor.firstName} studies you carefully…`);
+        const parchmentNode = this._buildParchment(
+          `You counter with ${pick.firstName} instead. ${survivor.firstName} studies you carefully…`
+        );
 
-        const renderCounterMenu = (text, buttons) => {
-          clearChildren(parchmentNode);
-          const summary = createElement('div', {
-            style: {
-              marginTop: '12px',
-              color: '#2b190a',
-              fontFamily: 'Survivant, sans-serif',
-              fontSize: '1rem'
-            }
-          }, text);
-          parchmentNode.appendChild(summary);
+        const summary = createElement('div', {
+          style: {
+            marginTop: '12px',
+            color: '#2b190a',
+            fontFamily: 'Survivant, sans-serif',
+            fontSize: '1rem'
+          }
+        }, `${reaction.npcLine}`);
+        parchmentNode.appendChild(summary);
 
-          const column = createElement('div', {
-            style: {
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              marginTop: '12px',
-              maxHeight: '46vh',
-              overflowY: 'auto',
-              width: '100%'
-            }
-          });
+        const column = createElement('div', {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            marginTop: '12px',
+            maxHeight: '46vh',
+            overflowY: 'auto',
+            width: '100%'
+          }
+        });
 
-          const endConversation = () => {
-            this._logConversationOutcome(survivor, 'counter_followup', { label: 'counter' }, meeting, this.activeConversationContext, null);
-            this._clearOverlay();
-            if (meeting) {
-              this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
-            }
-          };
-
-          const ensureButtons = buttons && buttons.length ? buttons : [{ label: 'End conversation', alt: true, end: true }];
-
-          ensureButtons.forEach(btn => {
-            const btnEl = createElement('button', {
-              className: `rect-button full${btn.alt ? ' alt' : ''}`,
-              onclick: () => {
-                if (btn.nextContextPatch) {
-                  this.activeConversationContext = { ...(this.activeConversationContext || {}), ...btn.nextContextPatch };
-                }
-                if (btn.nextText) {
-                  renderCounterMenu(btn.nextText, [{ label: 'End conversation', alt: true, end: true }]);
-                  return;
-                }
-                if (btn.end) {
-                  endConversation();
-                }
-              }
-            }, btn.label);
-            column.appendChild(btnEl);
-          });
-
-          parchmentNode.appendChild(column);
+        const endConversation = () => {
+          this._logConversationOutcome(survivor, 'counter_followup', { label: `counter_${reaction.outcome}` }, meeting, this.activeConversationContext, null);
+          this._clearOverlay();
+          if (meeting) {
+            this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
+          }
         };
 
-        renderCounterMenu(
-          `You counter with ${pick.firstName} instead. ${survivor.firstName} studies you carefully…`,
-          [
-            { label: 'Press the idea', nextText: `${survivor.firstName} weighs it. You keep applying pressure.`, end: true },
-            { label: 'Play it casual', nextText: `You float ${pick.firstName}'s name lightly. ${survivor.firstName} gives a cautious nod.`, end: true },
-            { label: 'Back off', nextText: `You ease off for now. ${survivor.firstName} files it away.`, end: true },
-            { label: 'End conversation', alt: true, end: true }
-          ]
-        );
+        const buttons = [
+          { label: 'Lock it in and move on', end: true },
+          { label: 'Leave it open for now', alt: true, end: true }
+        ];
+
+        buttons.forEach(btn => {
+          const btnEl = createElement('button', {
+            className: `rect-button full${btn.alt ? ' alt' : ''}`,
+            onclick: endConversation
+          }, btn.label);
+          column.appendChild(btnEl);
+        });
+
+        parchmentNode.appendChild(column);
 
         overlay.querySelector('.conversation-center').appendChild(parchmentNode);
         if (meeting) {
@@ -1665,8 +1768,8 @@ class ConversationSystem {
       case 'mutualProtection':
         return 'mutual protection until the vote';
       case 'voteTogether': {
-        const target = context.topicPerson || this._determinePreferredTarget(survivor) || 'someone';
-        return `voting together on ${target}`;
+        const target = context.topicPerson;
+        return target ? `voting together on ${target}` : 'voting together tonight';
       }
       case 'recruit':
         return `bringing ${context.topicPerson || 'someone'} into a pact`;

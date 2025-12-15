@@ -32,19 +32,48 @@ class SocialMemorySystem {
                 betrayals: [],
                 promises: [],
                 voteHistory: [],
-            gossip: [],
-            trustStatements: [],
-            targetPreferences: [],
-            deals: [],
-            confrontations: [],
-            apologies: [],
-            meetingNotes: [],
-            intel: [],
-            misc: [],
-            lastTopics: [],
-            lastLines: []
-        };
+                trust: 50,
+                reliability: 50,
+                gossip: [],
+                trustStatements: [],
+                targetPreferences: [],
+                deals: [],
+                confrontations: [],
+                apologies: [],
+                meetingNotes: [],
+                intel: [],
+                misc: [],
+                lastTopics: [],
+                lastLines: []
+            };
+        }
     }
+
+    clampValue(value) {
+        const num = typeof value === 'number' ? value : 0;
+        return Math.max(0, Math.min(100, num));
+    }
+
+    adjustTrust(npcId, delta = 0) {
+        this.initNPC(npcId);
+        const current = this.memory[npcId].trust ?? 50;
+        this.memory[npcId].trust = this.clampValue(current + delta);
+    }
+
+    adjustReliability(npcId, delta = 0) {
+        this.initNPC(npcId);
+        const current = this.memory[npcId].reliability ?? 50;
+        this.memory[npcId].reliability = this.clampValue(current + delta);
+    }
+
+    getTrust(npcId) {
+        this.initNPC(npcId);
+        return this.clampValue(this.memory[npcId].trust ?? 50);
+    }
+
+    getReliability(npcId) {
+        this.initNPC(npcId);
+        return this.clampValue(this.memory[npcId].reliability ?? 50);
     }
 
     storeMemory(survivorId, tag, data = null) {
