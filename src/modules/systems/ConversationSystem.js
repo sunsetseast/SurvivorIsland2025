@@ -593,6 +593,7 @@ class ConversationSystem {
         onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'push', initiator: 'player' } })
       }));
       addOption('Offer a deal', () => this._showDealMenu(survivor, location));
+      addOption('Propose an alliance', () => this._startConversation(survivor, { intentOverride: 'allianceInvite', location, context: { initiator: 'player' } }));
       addOption('Ask who they trust', () => this.promptSurvivorPicker({
         title: 'Who do they trust?',
         tribeOnly: true,
@@ -1678,13 +1679,24 @@ class ConversationSystem {
     const allianceSystem = this.gameManager.systems?.allianceSystem;
     const player = this.gameManager.getPlayerSurvivor?.();
     const alreadyAllied = allianceSystem?.areAllied?.(player?.id, survivor.id);
+    const initiator = context.initiator || 'player';
     const text = alreadyAllied
       ? `${survivor.firstName} grins. "We’re already good, right?"`
-      : INTENT_TEMPLATES.allianceInvite[0].replace('{npc}', survivor.firstName);
+      : (initiator === 'player'
+        ? `You pull ${survivor.firstName} aside. "I think we should lock something in. You game?"`
+        : INTENT_TEMPLATES.allianceInvite[0].replace('{npc}', survivor.firstName));
+
+    const playerInitiatedResponses = [
+      { key: 'acceptFaithful', label: 'Ask for a tight alliance together.' },
+      { key: 'acceptFake', label: 'Propose working together but keep it casual.' },
+      { key: 'conditional', label: 'Suggest looping in one more person.' },
+      { key: 'softDecline', label: 'Back off for now.' },
+      { key: 'hardDecline', label: 'Never mind, not a fit.' }
+    ];
 
     const responses = alreadyAllied
       ? [{ key: 'alreadyAllied', label: 'Right, we’re solid.' }]
-      : RESPONSE_LIBRARY.allianceInvite;
+      : (initiator === 'player' ? playerInitiatedResponses : RESPONSE_LIBRARY.allianceInvite);
 
     return { text, responses, context: { ...context, intent: 'allianceInvite', location: context.location, alreadyAllied } };
   }
