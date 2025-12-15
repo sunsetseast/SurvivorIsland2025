@@ -1674,6 +1674,16 @@ body {
   overflow: auto;
 }
 
+.survivor-card-overlay .survivor-card {
+  opacity: 1 !important;
+  transform: none !important;
+  margin: 0 auto !important;
+}
+
+.survivor-card-overlay .card-wrapper {
+  height: 600px;
+}
+
 .survivor-card-overlay__content {
   display: flex;
   flex-direction: column;
