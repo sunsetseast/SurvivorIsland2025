@@ -2394,3 +2394,83 @@ body {
   from { transform: scale(0.85); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+/* Overlay styles */
+.overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1003;
+}
+
+.overlay-panel {
+  background: rgba(15, 10, 6, 0.9);
+  border: 2px solid #d4a668;
+  border-radius: 12px;
+  padding: 24px;
+  width: min(90vw, 420px);
+  color: white;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  position: relative;
+  animation: scaleIn 0.2s ease-out;
+}
+
+.overlay-panel h2 {
+  margin-bottom: 16px;
+  letter-spacing: 2px;
+}
+
+.overlay-panel-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Alliances */
+.alliances-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 16px;
+  justify-items: center;
+  margin: 12px 0 20px;
+}
+
+.alliance-slot {
+  width: 90px;
+  height: 90px;
+  border: 3px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.alliance-add-button {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.alliance-add-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
