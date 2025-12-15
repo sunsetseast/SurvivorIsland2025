@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import screenManager from '../core/ScreenManager.js';
+import { createSurvivorCard } from '../ui/SurvivorCardFactory.js';
 
 export default function renderTribeFlag(container) {
   console.log('renderTribeFlag() called');
@@ -17,6 +18,8 @@ export default function renderTribeFlag(container) {
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
+
+  document.querySelectorAll('.survivor-card-overlay').forEach(el => el.remove());
 
   const playerSurvivor = gameManager.getPlayerSurvivor();
   if (!playerSurvivor) {
@@ -120,6 +123,41 @@ export default function renderTribeFlag(container) {
     `
   }, 'Click a Survivor to see more information about them.');
 
+  let activeOverlay = null;
+
+  const closeOverlay = () => {
+    if (activeOverlay) {
+      activeOverlay.remove();
+      activeOverlay = null;
+    }
+  };
+
+  const openOverlay = (member) => {
+    closeOverlay();
+
+    const overlay = createElement('div', { className: 'survivor-card-overlay' });
+    const content = createElement('div', { className: 'survivor-card-overlay__content' });
+
+    const card = createSurvivorCard(member, { mode: 'view' });
+    const closeButton = createElement('button', {
+      className: 'rect-button overlay-close',
+      onclick: () => closeOverlay()
+    }, 'Back');
+
+    content.appendChild(card);
+    content.appendChild(closeButton);
+    overlay.appendChild(content);
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) {
+        closeOverlay();
+      }
+    });
+
+    document.body.appendChild(overlay);
+    activeOverlay = overlay;
+  };
+
   playerTribe.members.forEach(member => {
     const avatarWrapper = createElement('div', {
       style: 'display: flex; flex-direction: column; align-items: center; cursor: pointer;'
@@ -156,9 +194,7 @@ export default function renderTribeFlag(container) {
     avatarWrapper.appendChild(avatar);
     avatarWrapper.appendChild(name);
 
-    avatarWrapper.addEventListener('click', () => {
-      alert(`${member.firstName} ${member.lastName}'s stats coming soon!`);
-    });
+    avatarWrapper.addEventListener('click', () => openOverlay(member));
 
     avatarGrid.appendChild(avatarWrapper);
   });
