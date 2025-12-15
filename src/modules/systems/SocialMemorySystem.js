@@ -39,7 +39,9 @@ class SocialMemorySystem {
                 confrontations: [],
                 apologies: [],
                 meetingNotes: [],
-                misc: []
+                misc: [],
+                lastTopics: [],
+                lastLines: []
             };
         }
     }
@@ -63,12 +65,13 @@ class SocialMemorySystem {
     // ===============================
     // TARGETING MEMORY
     // ===============================
-    recordTargetRequest(npcId, requesterId, targetId, intensity = "normal", stance = "agree") {
-        this.initNPC(npcId);
-        this.memory[npcId].targetRequests.push({
+    recordTargetRequest(speakerId, listenerId, targetId, intensity = "normal", stance = "agree") {
+        this.initNPC(listenerId);
+        this.memory[listenerId].targetRequests.push({
             day: window.gameManager?.getCurrentDay() || 1,
-            requester: requesterId,
-            target: targetId,
+            speakerId,
+            listenerId,
+            targetId,
             intensity,
             stance,
             revealedTo: [],
@@ -91,13 +94,15 @@ class SocialMemorySystem {
     // ===============================
     // LIE MEMORY
     // ===============================
-    recordLie(npcId, liedBy, topic) {
-        this.initNPC(npcId);
+    recordLie(liarId, targetId, lieType = "generic", details = "") {
+        this.initNPC(liarId);
 
-        this.memory[npcId].lies.push({
+        this.memory[liarId].lies.push({
             day: window.gameManager?.getCurrentDay() || 1,
-            liar: liedBy,
-            topic,
+            liarId,
+            targetId,
+            lieType,
+            details,
             discovered: false
         });
     }
@@ -105,7 +110,7 @@ class SocialMemorySystem {
     markLieDiscovered(npcId, liarId, topic) {
         this.initNPC(npcId);
         const lie = this.memory[npcId].lies.find(
-            l => l.liar === liarId && l.topic === topic && !l.discovered
+            l => l.liarId === liarId && l.lieType === topic && !l.discovered
         );
         if (lie) {
             lie.discovered = true;
@@ -180,48 +185,53 @@ class SocialMemorySystem {
     // ===============================
     // TRUST + TARGET PREFERENCES
     // ===============================
-    recordTrustStatement(npcId, trustedId, source = "player") {
-        this.initNPC(npcId);
-        this.memory[npcId].trustStatements.push({
+    recordTrustStatement(speakerId, targetId, trustLevel = "neutral", contextTag = "general") {
+        this.initNPC(speakerId);
+        this.memory[speakerId].trustStatements.push({
             day: window.gameManager?.getCurrentDay() || 1,
-            trustedId,
-            source
+            targetId,
+            trustLevel,
+            contextTag
         });
     }
 
-    recordTargetPreference(npcId, targetId, intensity = "normal", source = "player") {
-        this.initNPC(npcId);
-        this.memory[npcId].targetPreferences.push({
+    recordTargetPreference(speakerId, targetId, strength = "normal", reasonTag = "") {
+        this.initNPC(speakerId);
+        this.memory[speakerId].targetPreferences.push({
             day: window.gameManager?.getCurrentDay() || 1,
             targetId,
-            intensity,
-            source
+            strength,
+            reasonTag
         });
     }
 
     // ===============================
     // DEAL MAKING
     // ===============================
-    recordDeal(npcId, type, status = "offered", involving = []) {
-        this.initNPC(npcId);
-        this.memory[npcId].deals.push({
+    recordDeal(offererId, receiverId, dealType, targetId = null, accepted = false) {
+        this.initNPC(offererId);
+        this.memory[offererId].deals.push({
             day: window.gameManager?.getCurrentDay() || 1,
-            type,
-            status,
-            involving
+            offererId,
+            receiverId,
+            dealType,
+            targetId,
+            accepted
         });
     }
 
     // ===============================
     // GOSSIP + SOCIAL BEATS
     // ===============================
-    recordGossip(npcId, aboutWho, stance = "neutral", source = "player") {
-        this.initNPC(npcId);
-        this.memory[npcId].gossip.push({
+    recordGossip(sourceId, receiverId, aboutId, topicTag = "general", reliability = "unknown") {
+        this.initNPC(receiverId);
+        this.memory[receiverId].gossip.push({
             day: window.gameManager?.getCurrentDay() || 1,
-            aboutWho,
-            stance,
-            source
+            sourceId,
+            receiverId,
+            aboutId,
+            topicTag,
+            reliability
         });
     }
 
@@ -258,6 +268,21 @@ class SocialMemorySystem {
       this.initNPC(npcId);
       const deals = this.memory[npcId].deals;
       return deals.length ? deals[deals.length - 1] : null;
+  }
+
+  rememberBeat(npcId, topicKey, line) {
+      this.initNPC(npcId);
+      const holder = this.memory[npcId];
+      holder.lastTopics.push(topicKey);
+      holder.lastLines.push(line);
+      if (holder.lastTopics.length > 3) holder.lastTopics.shift();
+      if (holder.lastLines.length > 3) holder.lastLines.shift();
+  }
+
+  recentlyUsed(npcId, line) {
+      this.initNPC(npcId);
+      const holder = this.memory[npcId];
+      return holder.lastLines.includes(line);
   }
 }
 
