@@ -1548,43 +1548,52 @@ class ConversationSystem {
       });
     };
 
-    const renderSimpleMenu = (text, buttons = [{ label: 'End conversation', end: true }]) => {
-      renderMenu({ text, buttons });
-    };
+    const finishAllianceMenu = ({ text, buttons = [], memoryOutcomePatch = null }) => {
+      if (memoryOutcomePatch) {
+        logMemory(memoryOutcomePatch);
+      }
 
-    const endWithMemory = (outcome) => {
-      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-      logMemory(outcome);
-      endConversation();
+      const finalButtons = Array.isArray(buttons) ? [...buttons] : [];
+      const hasEndConversation = finalButtons.some(btn => btn?.end && btn?.label === 'End Conversation');
+      if (!hasEndConversation) {
+        finalButtons.push({ label: 'End Conversation', alt: true, end: true });
+      }
+
+      renderMenu({ text, buttons: finalButtons });
     };
 
     const npcName = survivor.firstName;
 
     if (option.key === 'alreadyAllied' || alreadyAllied) {
-      renderSimpleMenu(`${npcName} nods. "We’re already locked in. Let’s keep it quiet."`);
-      endWithMemory({ outcome: 'already_allied' });
+      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+      finishAllianceMenu({
+        text: `${npcName} nods. "We’re already locked in. Let’s keep it quiet."`,
+        memoryOutcomePatch: { outcome: 'already_allied' }
+      });
       return;
     }
 
     if (option.key === 'acceptFaithful') {
       createAlliance([playerId, survivor.id]);
       bumpRelationship(playerId, survivor.id, 6, npcName);
-      renderSimpleMenu(`${npcName} grins. "Good. We move together."`);
-      logMemory({ outcome: 'faithful' });
       this._rememberConversation(survivor, 'allianceInvite', option, meeting);
       this._shiftMood(survivor.id, 'happy');
-      endConversation();
+      finishAllianceMenu({
+        text: `${npcName} grins. "Good. We move together."`,
+        memoryOutcomePatch: { outcome: 'faithful' }
+      });
       return;
     }
 
     if (option.key === 'acceptFake') {
       createAlliance([playerId, survivor.id]);
       bumpRelationship(playerId, survivor.id, 3, npcName);
-      renderSimpleMenu(`${npcName} smiles, satisfied. "Alright, let’s watch each other’s backs."`);
-      logMemory({ outcome: 'fake', isFake: true });
       this._rememberConversation(survivor, 'allianceInvite', option, meeting);
       this._shiftMood(survivor.id, 'calm');
-      endConversation();
+      finishAllianceMenu({
+        text: `${npcName} smiles, satisfied. "Alright, let’s watch each other’s backs."`,
+        memoryOutcomePatch: { outcome: 'fake', isFake: true }
+      });
       return;
     }
 
@@ -1607,11 +1616,12 @@ class ConversationSystem {
             bumpRelationship(playerId, survivor.id, 5, npcName);
             bumpRelationship(playerId, thirdId, 2, pick.firstName);
             bumpRelationship(survivor.id, thirdId, 2, pick.firstName);
-            renderSimpleMenu(`${npcName} nods. "${pick.firstName} works. Let’s lock this in."`);
-            logMemory({ outcome: 'conditional_accepted', pickedThirdId: thirdId });
             this._rememberConversation(survivor, 'allianceInvite', option, meeting);
             this._shiftMood(survivor.id, 'focused');
-            endConversation();
+            finishAllianceMenu({
+              text: `${npcName} nods. "${pick.firstName} works. Let’s lock this in."`,
+              memoryOutcomePatch: { outcome: 'conditional_accepted', pickedThirdId: thirdId }
+            });
             return;
           }
 
@@ -1624,10 +1634,12 @@ class ConversationSystem {
                 onSelect: () => {
                   createAlliance([playerId, survivor.id]);
                   bumpRelationship(playerId, survivor.id, 5, npcName);
-                  logMemory({ outcome: 'conditional_refused_duo', pickedThirdId: thirdId });
                   this._rememberConversation(survivor, 'allianceInvite', option, meeting);
                   this._shiftMood(survivor.id, 'focused');
-                  endConversation();
+                  finishAllianceMenu({
+                    text: `${npcName} exhales. "Just us then. Let’s stay tight."`,
+                    memoryOutcomePatch: { outcome: 'conditional_refused_duo', pickedThirdId: thirdId }
+                  });
                 }
               },
               {
@@ -1635,10 +1647,12 @@ class ConversationSystem {
                 alt: true,
                 onSelect: () => {
                   bumpRelationship(playerId, survivor.id, -2, npcName);
-                  logMemory({ outcome: 'conditional_refused_decline', pickedThirdId: thirdId });
                   this._rememberConversation(survivor, 'allianceInvite', option, meeting);
                   this._shiftMood(survivor.id, 'irritated');
-                  endConversation();
+                  finishAllianceMenu({
+                    text: `${npcName} shrugs. "Then let’s drop it."`,
+                    memoryOutcomePatch: { outcome: 'conditional_refused_decline', pickedThirdId: thirdId }
+                  });
                 }
               }
             ]
@@ -1657,21 +1671,23 @@ class ConversationSystem {
 
     if (option.key === 'softDecline') {
       bumpRelationship(playerId, survivor.id, -2, npcName);
-      renderSimpleMenu(`${npcName} exhales. "Alright, maybe another time."`);
-      logMemory({ outcome: 'soft_decline' });
       this._rememberConversation(survivor, 'allianceInvite', option, meeting);
       this._shiftMood(survivor.id, 'neutral');
-      endConversation();
+      finishAllianceMenu({
+        text: `${npcName} exhales. "Alright, maybe another time."`,
+        memoryOutcomePatch: { outcome: 'soft_decline' }
+      });
       return;
     }
 
     if (option.key === 'hardDecline') {
       bumpRelationship(playerId, survivor.id, -6, npcName);
-      renderSimpleMenu(`${npcName} narrows their eyes. "Got it. I’ll remember that."`);
-      logMemory({ outcome: 'hard_decline' });
       this._rememberConversation(survivor, 'allianceInvite', option, meeting);
       this._shiftMood(survivor.id, 'irritated');
-      endConversation();
+      finishAllianceMenu({
+        text: `${npcName} narrows their eyes. "Got it. I’ll remember that."`,
+        memoryOutcomePatch: { outcome: 'hard_decline' }
+      });
     }
   }
 
