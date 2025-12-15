@@ -11,6 +11,7 @@ import { deepCopy } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
+import AllianceSystem from '../systems/AllianceSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
 
@@ -100,6 +101,9 @@ class GameManager {
     // Initialize relationship system
     this.systems.relationshipSystem = new RelationshipSystem(this);
     this.systems.relationshipSystem.initialize();
+
+    // Initialize alliance system
+    this.systems.allianceSystem = new AllianceSystem(this);
 
     // Initialize social systems
     this.systems.socialMemorySystem = socialMemorySystem;
