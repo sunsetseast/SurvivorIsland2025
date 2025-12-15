@@ -46,20 +46,18 @@ export function renderAlliancesGrid() {
   const slotsToRender = Math.max(4, alliancesState.slotCount);
 
   for (let i = 0; i < slotsToRender; i += 1) {
-    const slot = document.createElement('div');
-    slot.className = 'alliance-slot';
+    const slot = i === 0 ? document.createElement('button') : document.createElement('div');
+    slot.className = i === 0 ? 'alliance-slot alliance-add-slot' : 'alliance-slot';
 
     if (i === 0) {
-      const addButton = document.createElement('button');
-      addButton.id = 'alliances-add-button';
-      addButton.className = 'alliance-add-button';
+      slot.id = 'alliances-add-button';
 
       const addImage = document.createElement('img');
       addImage.src = 'Assets/Buttons/add.png';
       addImage.alt = 'Add Alliance';
 
-      addButton.appendChild(addImage);
-      addButton.addEventListener('click', (event) => {
+      slot.appendChild(addImage);
+      slot.addEventListener('click', (event) => {
         event.stopPropagation();
         if (typeof window !== 'undefined' && window.dialogueSystem && typeof window.dialogueSystem.showMessage === 'function') {
           window.dialogueSystem.showMessage('Alliance creation coming next!');
@@ -67,8 +65,6 @@ export function renderAlliancesGrid() {
           alert('Alliance creation coming next!');
         }
       });
-
-      slot.appendChild(addButton);
     }
 
     grid.appendChild(slot);
