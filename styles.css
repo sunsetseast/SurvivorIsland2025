@@ -20,10 +20,11 @@ html, body {
 }
 
 .rect-button {
-  background-image: url('Assets/rect-button.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  background: transparent !important;
+  background-image: url('Assets/rect-button.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 100% 100% !important;
   width: 250px;
   height: 70px;
   display: flex;
@@ -37,10 +38,12 @@ html, body {
         0 2px 0 #000,
         0 3px 0 #000,
         0 4px 4px rgba(0, 0, 0, 0.5); /* bold 3D stacked effect */
-  border: none;
+  border: none !important;
   cursor: pointer;
   transition: transform 0.2s;
     margin: 0 0 0.2rem 0;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .rect-button:hover {
@@ -49,7 +52,7 @@ html, body {
 
 .rect-button.full {
   width: 100%;
-  background-size: 100% 100%;
+  background-size: 100% 100% !important;
 }
 
 .rect-button.small {
@@ -60,15 +63,19 @@ html, body {
 
 .rect-button.alt {
     box-shadow: none;
-  background-image: url('Assets/rect-button-1.png');
-  background-size: 100% 100%;
+  background: transparent !important;
+  background-image: url('Assets/rect-button-1.png') !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
   height: 120px;
   width: 220px;
   font-size: 18px;
   font-family: 'Survivant', sans-serif;
 }
 
-button, .rect-button {
+.rect-button,
+button.rect-button {
   font-family: 'Survivant', sans-serif !important;
 }
 
