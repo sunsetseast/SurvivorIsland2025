@@ -333,6 +333,9 @@ const RESPONSE_LIBRARY = {
   ]
 };
 
+const DEFAULT_ALLIANCE_INVITE_THRESHOLD = 60;
+const DEFAULT_ALLIANCE_ACCEPT_SCORE_TARGET = 65;
+
 class ConversationSystem {
   constructor(gameManager) {
     this.gameManager = gameManager;
@@ -1496,6 +1499,55 @@ class ConversationSystem {
     });
   }
 
+  computeAllianceAcceptChance(npc, player, context = {}) {
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const socialMemory = this.gameManager.systems?.socialMemorySystem;
+    const relationship = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value;
+    let score = typeof relationship === 'number' ? relationship : DEFAULT_ALLIANCE_ACCEPT_SCORE_TARGET;
+
+    if (this.gameManager?.gamePhase === GamePhase.POST_CHALLENGE) {
+      score += 10;
+    }
+
+    if (context.initiatedByNpc || context.initiator === 'npc') {
+      score += 5;
+    }
+
+    const alliances = allianceSystem?.getAlliancesForSurvivor?.(npc?.id) || [];
+    const hasOtherAlliance = alliances.some(alliance => !alliance.memberIds.includes(player?.id));
+    if (hasOtherAlliance) {
+      score -= 10;
+    }
+
+    const day = this.gameManager.getCurrentDay?.();
+    const recentMemory = socialMemory?.getMemory?.(npc?.id)?.allianceInvites || [];
+    const recentRefusal = [...recentMemory].reverse().find(entry => entry.playerId === player?.id && (entry.accepted === false || entry.declineType || (typeof entry.outcome === 'string' && entry.outcome.includes('decline'))));
+    if (recentRefusal) {
+      const dayDiff = typeof day === 'number' && typeof recentRefusal.day === 'number'
+        ? day - recentRefusal.day
+        : null;
+      if (dayDiff === null || dayDiff <= 2) {
+        score -= 15;
+      }
+    }
+
+    score = Math.max(0, Math.min(100, score));
+
+    let chance = 0.1;
+    if (score >= 80) {
+      chance = 0.95;
+    } else if (score >= 70) {
+      chance = 0.8;
+    } else if (score >= 60) {
+      chance = 0.6;
+    } else if (score >= 50) {
+      chance = 0.3;
+    }
+
+    return { score, chance };
+  }
+
   _handleAllianceInviteResponse({
     survivor,
     option,
@@ -1515,8 +1567,16 @@ class ConversationSystem {
     const location = (this.activeConversationContext?.location || context?.location || null);
     const day = this.gameManager.getCurrentDay?.();
     const alreadyAllied = allianceSystem?.areAllied?.(playerId, survivor.id);
+    const initiator = context.initiator || this.activeConversationContext?.initiator || (context.initiatedByNpc ? 'npc' : 'player');
+    const initiatedByNpc = initiator === 'npc';
+    const relationshipValue = relationshipSystem?.getRelationship?.(playerId, survivor.id)?.value ?? DEFAULT_ALLIANCE_ACCEPT_SCORE_TARGET;
+    const computeChance = () => this.computeAllianceAcceptChance(
+      survivor,
+      player,
+      { ...context, initiator, initiatedByNpc }
+    );
 
-    const logMemory = ({ outcome, pickedThirdId = null, isFake = false }) => {
+    const logMemory = ({ outcome, pickedThirdId = null, isFake = false, accepted = false, declineType = null, pitchType = null }) => {
       socialMemory?.recordAllianceInvite?.({
         day,
         location,
@@ -1524,7 +1584,11 @@ class ConversationSystem {
         playerId,
         outcome,
         pickedThirdId,
-        isFake
+        isFake,
+        accepted,
+        declineType,
+        pitchType,
+        proposedBy: initiator
       });
     };
 
@@ -1564,40 +1628,77 @@ class ConversationSystem {
 
     const npcName = survivor.firstName;
 
+    const refuseAlliance = ({ text, declineType = 'soft_decline', pitchType = null }) => {
+      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
+      this._shiftMood(survivor.id, declineType === 'hard_decline' ? 'irritated' : 'neutral');
+      finishAllianceMenu({
+        text,
+        memoryOutcomePatch: { outcome: declineType, accepted: false, declineType, pitchType }
+      });
+    };
+
+    const gateAndRollAcceptance = (pitchType = null) => {
+      const rel = relationshipValue;
+      if (rel < 40 && !(initiatedByNpc && rel >= 30)) {
+        refuseAlliance({
+          text: `${npcName} shakes their head. "I’m not there with you yet."`,
+          declineType: 'hard_decline',
+          pitchType
+        });
+        return false;
+      }
+
+      const { chance } = computeChance();
+      const roll = Math.random();
+      if (roll >= chance) {
+        const refusalLine = rel < DEFAULT_ALLIANCE_INVITE_THRESHOLD
+          ? `${npcName} frowns. "That’s moving too fast. I don’t fully trust this."`
+          : `${npcName} hesitates. "Not sure this is the right move."`;
+        refuseAlliance({ text: refusalLine, declineType: 'soft_decline', pitchType });
+        return false;
+      }
+      return true;
+    };
+
     if (option.key === 'alreadyAllied' || alreadyAllied) {
       this._rememberConversation(survivor, 'allianceInvite', option, meeting);
       finishAllianceMenu({
         text: `${npcName} nods. "We’re already locked in. Let’s keep it quiet."`,
-        memoryOutcomePatch: { outcome: 'already_allied' }
+        memoryOutcomePatch: { outcome: 'already_allied', accepted: true, pitchType: 'existing' }
       });
       return;
     }
 
     if (option.key === 'acceptFaithful') {
+      if (!gateAndRollAcceptance('tight')) return;
       createAlliance([playerId, survivor.id]);
       bumpRelationship(playerId, survivor.id, 6, npcName);
       this._rememberConversation(survivor, 'allianceInvite', option, meeting);
       this._shiftMood(survivor.id, 'happy');
       finishAllianceMenu({
-        text: `${npcName} grins. "Good. We move together."`,
-        memoryOutcomePatch: { outcome: 'faithful' }
+        text: relationshipValue >= 75
+          ? `${npcName} leans in. "I’m with you. Tight."`
+          : `${npcName} nods. "Yeah. Let’s do it — quietly."`,
+        memoryOutcomePatch: { outcome: 'faithful', accepted: true, pitchType: 'tight' }
       });
       return;
     }
 
     if (option.key === 'acceptFake') {
+      if (!gateAndRollAcceptance('casual')) return;
       createAlliance([playerId, survivor.id]);
       bumpRelationship(playerId, survivor.id, 3, npcName);
       this._rememberConversation(survivor, 'allianceInvite', option, meeting);
       this._shiftMood(survivor.id, 'calm');
       finishAllianceMenu({
         text: `${npcName} smiles, satisfied. "Alright, let’s watch each other’s backs."`,
-        memoryOutcomePatch: { outcome: 'fake', isFake: true }
+        memoryOutcomePatch: { outcome: 'fake', isFake: true, accepted: true, pitchType: 'casual' }
       });
       return;
     }
 
     if (option.key === 'conditional') {
+      if (!gateAndRollAcceptance('conditional')) return;
       const exclude = [survivor.id];
       if (playerId) exclude.push(playerId);
       this.promptSurvivorPicker({
@@ -1620,7 +1721,7 @@ class ConversationSystem {
             this._shiftMood(survivor.id, 'focused');
             finishAllianceMenu({
               text: `${npcName} nods. "${pick.firstName} works. Let’s lock this in."`,
-              memoryOutcomePatch: { outcome: 'conditional_accepted', pickedThirdId: thirdId }
+              memoryOutcomePatch: { outcome: 'conditional_accepted', pickedThirdId: thirdId, accepted: true, pitchType: 'conditional' }
             });
             return;
           }
@@ -1638,7 +1739,7 @@ class ConversationSystem {
                   this._shiftMood(survivor.id, 'focused');
                   finishAllianceMenu({
                     text: `${npcName} exhales. "Just us then. Let’s stay tight."`,
-                    memoryOutcomePatch: { outcome: 'conditional_refused_duo', pickedThirdId: thirdId }
+                    memoryOutcomePatch: { outcome: 'conditional_refused_duo', pickedThirdId: thirdId, accepted: true, pitchType: 'duo' }
                   });
                 }
               },
@@ -1651,7 +1752,7 @@ class ConversationSystem {
                   this._shiftMood(survivor.id, 'irritated');
                   finishAllianceMenu({
                     text: `${npcName} shrugs. "Then let’s drop it."`,
-                    memoryOutcomePatch: { outcome: 'conditional_refused_decline', pickedThirdId: thirdId }
+                    memoryOutcomePatch: { outcome: 'conditional_refused_decline', pickedThirdId: thirdId, accepted: false, declineType: 'soft_decline', pitchType: 'conditional' }
                   });
                 }
               }
@@ -1675,7 +1776,7 @@ class ConversationSystem {
       this._shiftMood(survivor.id, 'neutral');
       finishAllianceMenu({
         text: `${npcName} exhales. "Alright, maybe another time."`,
-        memoryOutcomePatch: { outcome: 'soft_decline' }
+        memoryOutcomePatch: { outcome: 'soft_decline', accepted: false, declineType: 'soft_decline' }
       });
       return;
     }
@@ -1686,7 +1787,7 @@ class ConversationSystem {
       this._shiftMood(survivor.id, 'irritated');
       finishAllianceMenu({
         text: `${npcName} narrows their eyes. "Got it. I’ll remember that."`,
-        memoryOutcomePatch: { outcome: 'hard_decline' }
+        memoryOutcomePatch: { outcome: 'hard_decline', accepted: false, declineType: 'hard_decline' }
       });
     }
   }
