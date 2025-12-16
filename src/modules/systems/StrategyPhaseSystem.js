@@ -35,6 +35,15 @@ class StrategyPhaseSystem {
     });
   }
 
+  normalizeViewKey(viewName) {
+    if (!viewName) return '';
+    return String(viewName)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/view$/i, '');
+  }
+
   reset() {
     this.isActive = false;
     this.playerTribeSafe = false;
@@ -160,7 +169,7 @@ class StrategyPhaseSystem {
       return members.filter((m) => m != null);
     };
 
-    const meetingSpots = ['beach', 'shelter', 'campfire', 'waterWell', 'rocky', 'fork1', 'fork2', 'fork3'];
+    const meetingSpots = ['ShelterView', 'CampfireView', 'WaterWellView', 'BeachView', 'Fork1View', 'Fork2View', 'Fork3View'];
 
     this.pendingAllianceMeetings = alliances
       .map((alliance) => {
@@ -170,7 +179,9 @@ class StrategyPhaseSystem {
         const allianceId = alliance.id ?? alliance.allianceId ?? `alliance-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const spot = meetingSpots[Math.floor(Math.random() * meetingSpots.length)];
         this.logFact({ type: 'allianceMeetingStart', allianceId, location: spot });
-        return { allianceId, alliance, locationView: spot, memberIds };
+        const locationKey = this.normalizeViewKey(spot);
+        window.debugBanner?.('ALLIANCE-MEETING', `locationView: ${spot} | locationKey: ${locationKey}`);
+        return { allianceId, alliance, locationView: spot, locationKey, memberIds };
       })
       .filter(Boolean);
 
@@ -203,7 +214,18 @@ class StrategyPhaseSystem {
     button.textContent = 'Go Now';
     button.addEventListener('click', () => {
       document.body.removeChild(toast);
-      window.campScreen?.loadView?.(next.locationView);
+      const tryKeys = [
+        next.locationView,
+        `${next.locationView}View`,
+        `${next.locationView.charAt(0).toUpperCase()}${next.locationView.slice(1)}View`,
+      ];
+
+      for (const k of tryKeys) {
+        try {
+          window.campScreen?.loadView?.(k);
+          break;
+        } catch (e) {}
+      }
     });
 
     toast.appendChild(button);
@@ -215,10 +237,13 @@ class StrategyPhaseSystem {
   }
 
   handleCampViewNavigation(viewName) {
-    const pendingIndex = this.pendingAllianceMeetings.findIndex((m) => m.locationView === viewName);
+    const loadedKey = this.normalizeViewKey(viewName);
+    const pendingIndex = this.pendingAllianceMeetings.findIndex((m) => m.locationKey === loadedKey);
+    const pendingKeys = this.pendingAllianceMeetings.map((m) => m.locationKey).join(', ');
+    window.debugBanner?.('CAMP-NAV', `view: ${viewName} | loadedKey: ${loadedKey} | pendingKeys: ${pendingKeys}`);
     const pending = pendingIndex >= 0 ? this.pendingAllianceMeetings[pendingIndex] : null;
     if (!pending) return;
-    const meetingKey = `${pending.allianceId}-${viewName}`;
+    const meetingKey = `${pending.allianceId}-${pending.locationKey || loadedKey}`;
     if (this.completedAllianceMeetings.has(meetingKey)) return;
 
     const alliance = pending.alliance || this.resolveAllianceById(pending.allianceId);

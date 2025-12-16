@@ -2823,6 +2823,16 @@ body {
   border: 3px solid #8b5a2b;
   max-width: 720px;
   margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.post-challenge-summary-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px;
 }
 
 .summary-list {
