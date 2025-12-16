@@ -15,6 +15,8 @@ class AllianceSystem {
     if (!Array.isArray(this.alliances)) {
       this.alliances = [];
     }
+
+    this.ensureNpcCommitments();
   }
 
   _getCurrentDay() {
@@ -67,6 +69,8 @@ class AllianceSystem {
     console.log(`[AllianceSystem] Created alliance ${alliance.name} (${alliance.id})`);
     eventManager.publish(GameEvents.ALLIANCE_CREATED, { alliance });
 
+    this.ensureNpcCommitments();
+
     return alliance;
   }
 
@@ -93,6 +97,7 @@ class AllianceSystem {
       });
       alliance.cohesion = this.computeCohesion(alliance.memberIds);
       this._emitAllianceUpdated(alliance);
+      this.ensureNpcCommitments();
     }
     return alliance;
   }
@@ -114,6 +119,10 @@ class AllianceSystem {
         alliance.cohesion = this.computeCohesion(alliance.memberIds);
         this._emitAllianceUpdated(alliance);
       }
+      if (this.getCommittedAllianceId(survivorId) === allianceId) {
+        this.clearCommitment(survivorId);
+      }
+      this.ensureNpcCommitments();
     }
     return alliance;
   }
@@ -152,9 +161,10 @@ class AllianceSystem {
     return alliance;
   }
 
-  getAlliancesForSurvivor(survivorId) {
+  getAlliancesForSurvivor(survivorId, { includeInactive = false } = {}) {
     return this.alliances.filter(
-      alliance => alliance.active && alliance.memberIds.includes(survivorId)
+      alliance =>
+        alliance.memberIds.includes(survivorId) && (includeInactive || alliance.active)
     );
   }
 
@@ -207,6 +217,32 @@ class AllianceSystem {
     return alliance.cohesion;
   }
 
+  getAllianceDisplayName(allianceId) {
+    const alliance = this.getAlliance(allianceId);
+    return alliance?.name || 'Unnamed Alliance';
+  }
+
+  getCommittedAllianceId(survivorId) {
+    this._ensureSocialMemorySystem();
+    return this.socialMemorySystem?.getCommittedAllianceId?.(survivorId) ?? null;
+  }
+
+  commitToAlliance({ survivorId, allianceId }) {
+    const alliance = this.getAlliance(allianceId);
+    if (!alliance || !alliance.memberIds?.includes?.(survivorId)) {
+      return { ok: false, reason: 'not_member' };
+    }
+
+    this._ensureSocialMemorySystem();
+    this.socialMemorySystem?.setCommittedAllianceId?.(survivorId, allianceId);
+    return { ok: true };
+  }
+
+  clearCommitment(survivorId) {
+    this._ensureSocialMemorySystem();
+    this.socialMemorySystem?.setCommittedAllianceId?.(survivorId, null);
+  }
+
   getTribeAlliancesForTarget(tribeId, targetId) {
     return this.alliances.filter(
       alliance =>
@@ -248,6 +284,40 @@ class AllianceSystem {
     eventManager.publish(GameEvents.ALLIANCE_DEAL_MADE, { offererId, receiverId, targetId, alliance });
 
     return alliance;
+  }
+
+  ensureNpcCommitments() {
+    this._ensureSocialMemorySystem();
+    const survivors = this.gameManager?.survivors || [];
+
+    survivors.forEach((survivor) => {
+      if (!survivor || survivor.isPlayer) return;
+
+      const alliances = this.getAlliancesForSurvivor(survivor.id) || [];
+      if (!alliances.length) {
+        this.socialMemorySystem?.setCommittedAllianceId?.(survivor.id, null);
+        return;
+      }
+
+      const ranked = [...alliances].sort((a, b) => {
+        const cohesionA = a?.cohesion ?? 0;
+        const cohesionB = b?.cohesion ?? 0;
+        if (cohesionA !== cohesionB) return cohesionB - cohesionA;
+
+        const leaderA = a?.leaderId === survivor.id ? 1 : 0;
+        const leaderB = b?.leaderId === survivor.id ? 1 : 0;
+        if (leaderA !== leaderB) return leaderB - leaderA;
+
+        const createdA = a?.createdDay ?? 0;
+        const createdB = b?.createdDay ?? 0;
+        if (createdA !== createdB) return createdB - createdA;
+
+        return (a?.id || '').localeCompare(b?.id || '');
+      });
+
+      const selected = ranked[0];
+      this.socialMemorySystem?.setCommittedAllianceId?.(survivor.id, selected?.id ?? null);
+    });
   }
 
   scoreDealAcceptance({ offererId, receiverId }) {
