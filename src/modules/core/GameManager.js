@@ -14,6 +14,7 @@ import RelationshipSystem from '../systems/RelationshipSystem.js';
 import AllianceSystem from '../systems/AllianceSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
+import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
 import { npcLocationSystem, ConversationSystem } from '../systems/index.js';
@@ -117,9 +118,13 @@ class GameManager {
     // Initialize social systems
     this.systems.socialMemorySystem = socialMemorySystem;
     this.systems.socialEngine = socialEngine;
+    this.systems.strategyPhaseSystem = strategyPhaseSystem;
     // Initialize conversation system
     this.systems.conversationSystem = new ConversationSystem(this);
     this.systems.conversationSystem.initialize();
+    if (typeof this.systems.strategyPhaseSystem.initialize === 'function') {
+      this.systems.strategyPhaseSystem.initialize();
+    }
     // Initialize NPC location system
     this.systems.npcLocationSystem = npcLocationSystem;
     this.systems.npcLocationSystem.initialize();   // ✅ ADD THIS

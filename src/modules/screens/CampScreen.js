@@ -15,12 +15,14 @@ import renderFork3 from '../views/Fork3View.js';
 import { refreshMenuCard } from '../utils/MenuUtils.js';
 import { timerManager } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { GamePhase } from '../core/GameManager.js';
 import renderFirewoodView from '../views/FirewoodView.js';
 import renderBambooView from '../views/BambooView.js';
 import renderShakeView from '../views/ShakeView.js';
 import renderFishingView from '../views/FishingView.js';
 import renderFireView from '../views/FireView.js';
 import renderSummary from '../views/SummaryView.js';
+import renderPostChallengeSummaryView from '../views/PostChallengeSummaryView.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
@@ -44,7 +46,8 @@ const campViews = {
   shake: renderShakeView,
   fishing: renderFishingView,
   fire: renderFireView,
-  summary: renderSummary
+  summary: renderSummary,
+  strategySummary: renderPostChallengeSummaryView
 };
 
 export default class CampScreen {
@@ -258,59 +261,68 @@ export default class CampScreen {
       // Check if time has run out
       if (currentTime <= 0) {
         timerManager.clearInterval('campClockTick');
-        this.triggerTreeMailEvent();
+        if (gameManager.gamePhase === GamePhase.POST_CHALLENGE) {
+          const strat = gameManager?.systems?.strategyPhaseSystem;
+          if (strat?.handleTimerExpired) {
+            strat.handleTimerExpired();
+          }
+        } else {
+          this.triggerTreeMailEvent();
+        }
         return;
       }
 
-      // Track if any stats changed to update health
-      let statsChanged = false;
+      if (gameManager.gamePhase !== GamePhase.POST_CHALLENGE) {
+        // Track if any stats changed to update health
+        let statsChanged = false;
 
-      // If at least 300 seconds (5 in-game minutes) have passed - water decrease
-      if (lastWaterTick - currentTime >= 300) {
-        lastWaterTick = currentTime;
-        gameManager.decreaseWaterForAll(1);
-        statsChanged = true;
-        console.log('Water decreased for all survivors (5 in-game minutes passed)');
-      }
+        // If at least 300 seconds (5 in-game minutes) have passed - water decrease
+        if (lastWaterTick - currentTime >= 300) {
+          lastWaterTick = currentTime;
+          gameManager.decreaseWaterForAll(1);
+          statsChanged = true;
+          console.log('Water decreased for all survivors (5 in-game minutes passed)');
+        }
 
-      // If at least 360 seconds (6 in-game minutes) have passed - hunger decrease
-      if (lastHungerTick - currentTime >= 360) {
-        lastHungerTick = currentTime;
-        gameManager.decreaseHungerForAll(1);
-        statsChanged = true;
-        console.log('Hunger decreased for all survivors (6 in-game minutes passed)');
-      }
+        // If at least 360 seconds (6 in-game minutes) have passed - hunger decrease
+        if (lastHungerTick - currentTime >= 360) {
+          lastHungerTick = currentTime;
+          gameManager.decreaseHungerForAll(1);
+          statsChanged = true;
+          console.log('Hunger decreased for all survivors (6 in-game minutes passed)');
+        }
 
-      // Dynamic rest deduction based on shelter level
-      // Level 0: 240 seconds (4 min), Level 5: 840 seconds (14 min)
-      // Linear progression: 240 + (shelterLevel * 120)
-      const playerTribe = gameManager.getPlayerTribe();
-      const currentShelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
-      
-      // Recalculate rest tick if shelter level changed
-      if (currentShelterLevel !== lastShelterLevel) {
-        lastRestTick = currentTime;
-        lastShelterLevel = currentShelterLevel;
-        console.log(`Shelter level changed to ${currentShelterLevel}, rest interval now ${240 + (currentShelterLevel * 120)} seconds`);
-      }
-      
-      const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
-      
-      // Only deduct if enough time has passed AND we haven't already deducted at this time
-      if (lastRestTick - currentTime >= restInterval && lastRestTick !== currentTime) {
-        lastRestTick = currentTime;
-        gameManager.decreaseRestForAll(1);
-        statsChanged = true;
-        console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
-      }
+        // Dynamic rest deduction based on shelter level
+        // Level 0: 240 seconds (4 min), Level 5: 840 seconds (14 min)
+        // Linear progression: 240 + (shelterLevel * 120)
+        const playerTribe = gameManager.getPlayerTribe();
+        const currentShelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
 
-      // Update health calculations for all survivors if any stats changed
-      if (statsChanged) {
-        gameManager.updateHealthForAll();
-      }
+        // Recalculate rest tick if shelter level changed
+        if (currentShelterLevel !== lastShelterLevel) {
+          lastRestTick = currentTime;
+          lastShelterLevel = currentShelterLevel;
+          console.log(`Shelter level changed to ${currentShelterLevel}, rest interval now ${240 + (currentShelterLevel * 120)} seconds`);
+        }
 
-      // Update UI display if inventory is open
-      this.updateInventoryDisplay();
+        const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
+
+        // Only deduct if enough time has passed AND we haven't already deducted at this time
+        if (lastRestTick - currentTime >= restInterval && lastRestTick !== currentTime) {
+          lastRestTick = currentTime;
+          gameManager.decreaseRestForAll(1);
+          statsChanged = true;
+          console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
+        }
+
+        // Update health calculations for all survivors if any stats changed
+        if (statsChanged) {
+          gameManager.updateHealthForAll();
+        }
+
+        // Update UI display if inventory is open
+        this.updateInventoryDisplay();
+      }
     }, 1000);
   }
 }
