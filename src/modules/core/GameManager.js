@@ -376,9 +376,6 @@ class GameManager {
         break;
       case 'challenge':
         this.gamePhase = 'postChallenge';
-        eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
-          phase: GamePhase.POST_CHALLENGE
-        });
         break;
       case 'postChallenge':
         this.gamePhase = 'tribalCouncil';

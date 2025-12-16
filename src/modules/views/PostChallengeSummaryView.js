@@ -1,4 +1,5 @@
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
+import gameManager from '../core/GameManager.js';
 
 export default function renderPostChallengeSummaryView(container) {
   const wrapper = document.createElement('div');
@@ -8,21 +9,30 @@ export default function renderPostChallengeSummaryView(container) {
   title.textContent = 'Post-Challenge Summary';
 
   const facts = strategyPhaseSystem.getSummaryFacts();
-  const list = document.createElement('div');
-  list.className = 'summary-list';
 
-  if (!facts.length) {
-    const empty = document.createElement('p');
-    empty.textContent = 'Quiet camp. No strategic intel surfaced directly to you.';
-    list.appendChild(empty);
-  } else {
-    facts.forEach((fact) => {
-      const row = document.createElement('div');
-      row.className = 'summary-row';
-      row.textContent = formatFact(fact);
-      list.appendChild(row);
-    });
-  }
+  const sections = buildSections(facts);
+  sections.forEach(({ title: heading, lines }) => {
+    const section = document.createElement('div');
+    section.className = 'summary-section';
+
+    const h2 = document.createElement('h2');
+    h2.textContent = heading;
+    section.appendChild(h2);
+
+    if (!lines.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No notes.';
+      section.appendChild(empty);
+    } else {
+      lines.forEach((line) => {
+        const row = document.createElement('div');
+        row.className = 'summary-row';
+        row.textContent = line;
+        section.appendChild(row);
+      });
+    }
+    wrapper.appendChild(section);
+  });
 
   const button = document.createElement('button');
   button.className = 'summary-button';
@@ -37,26 +47,64 @@ export default function renderPostChallengeSummaryView(container) {
   container.appendChild(wrapper);
 }
 
-function formatFact(fact) {
-  const time = new Date(fact.timestamp || Date.now()).toLocaleTimeString();
-  if (fact.type === 'rumor') {
-    return `${time}: ${nameOrId(fact.speakerId)} shared a rumor about ${nameOrId(fact.targetId)}.`;
-  }
-  if (fact.type === 'personalTargetSet' || fact.type === 'personalTargetLocked') {
-    return `${time}: You locked in ${nameOrId(fact.targetId)} as your personal target.`;
-  }
-  if (fact.type === 'allianceTarget') {
-    return `${time}: Alliance target set on ${nameOrId(fact.targetId)}.`;
-  }
-  if (fact.type === 'npcScramble') {
-    return `${time}: ${nameOrId(fact.speakerId)} floated ${nameOrId(fact.targetId)} in the scramble.`;
-  }
-  return `${time}: ${nameOrId(fact.speakerId)} ${fact.action?.toLowerCase?.() || 'spoke up'} about ${nameOrId(
-    fact.targetId
-  ) || 'strategy'}.`;
+function buildSections(facts = []) {
+  const personal = [];
+  const alliance = [];
+  const rumors = [];
+  const deals = [];
+  const notable = [];
+
+  facts.forEach((fact) => {
+    const speaker = nameOrId(fact.speakerId);
+    const target = nameOrId(fact.targetId);
+
+    switch (fact.type) {
+      case 'personalTargetSet':
+      case 'personalTargetLocked':
+        personal.push(`You locked ${target} as your target.`);
+        break;
+      case 'allianceTarget':
+      case 'allianceTargetLocked':
+      case 'allianceTargetConfirmed':
+        alliance.push(`Alliance aimed at ${target}.`);
+        break;
+      case 'rumor':
+        rumors.push(`${speaker} said people are throwing out ${target}.`);
+        break;
+      case 'targetProposed':
+        alliance.push(`${speaker} pitched ${target}.`);
+        break;
+      case 'targetResponse':
+        alliance.push(`${speaker} (${fact.stance}) on ${target}.`);
+        break;
+      case 'playerSwayAttempt':
+        notable.push(`You tried to sway toward ${target} (${fact.success ? 'success' : 'failed'}).`);
+        break;
+      case 'suspicionGained':
+        notable.push(`Suspicion rose after you pushed against the majority.`);
+        break;
+      case 'npcScramble':
+        notable.push(`${speaker} floated ${target} in the scramble.`);
+        break;
+      default:
+        break;
+    }
+  });
+
+  return [
+    { title: 'Your Locked Personal Target', lines: dedupe(personal) },
+    { title: 'Alliance Targets', lines: dedupe(alliance) },
+    { title: 'Rumors You Heard', lines: dedupe(rumors) },
+    { title: 'Deals / Pacts', lines: dedupe(deals) },
+    { title: 'Notable Moments', lines: dedupe(notable) },
+  ];
+}
+
+function dedupe(list) {
+  return Array.from(new Set(list));
 }
 
 function nameOrId(id) {
-  const match = window?.gameManager?.survivors?.find?.((s) => s.id === id);
+  const match = gameManager?.survivors?.find?.((s) => s.id === id);
   return match?.firstName || match?.name || id || 'someone';
 }
