@@ -362,7 +362,7 @@ class SocialMemorySystem {
       return holder.lastLines.includes(line);
   }
 
-  recordAllianceInvite({ day, location, npcId, playerId, outcome, pickedThirdId = null, isFake = false }) {
+  recordAllianceInvite({ day, location, npcId, playerId, outcome, pickedThirdId = null, isFake = false, accepted = false, declineType = null, pitchType = null, proposedBy = 'player' }) {
       const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
       const gm = window.gameManager;
       const getName = (id) => {
@@ -381,7 +381,11 @@ class SocialMemorySystem {
           outcome,
           pickedThirdId: pickedThirdId || null,
           pickedThirdName: getName(pickedThirdId) || null,
-          isFake: !!isFake
+          isFake: !!isFake,
+          accepted: !!accepted,
+          declineType: declineType || null,
+          pitchType: pitchType || null,
+          proposedBy: proposedBy || 'player'
       };
 
       if (npcId) {
