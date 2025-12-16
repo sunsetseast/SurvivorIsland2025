@@ -2726,6 +2726,86 @@ body {
   margin-top: 16px;
 }
 
+.avatar-grid-modal {
+  max-width: 720px;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.avatar-grid-tile {
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid #c39a6b;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.avatar-grid-tile.selected {
+  box-shadow: 0 0 0 3px #f5c76a, 0 8px 14px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.avatar-grid-tile img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-frame {
+  padding: 4px;
+  border: 3px solid #f5c76a;
+  border-radius: 50%;
+  display: inline-flex;
+}
+
+.avatar-name {
+  font-weight: bold;
+  color: #3b250e;
+  text-transform: capitalize;
+}
+
+.strategy-meeting-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1400;
+  background-image: url('Assets/parch-landscape.png');
+  background-size: cover;
+  padding: 14px 18px;
+  color: #2b190a;
+  font-family: 'Survivant', sans-serif;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.35);
+  border-radius: 8px;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.strategy-convo-modal {
+  max-width: 820px;
+}
+
+.strategy-convo-log {
+  max-height: 280px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
 .strategy-actions button {
   background: #c86f23;
   color: #fff;

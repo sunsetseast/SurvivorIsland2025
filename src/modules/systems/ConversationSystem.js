@@ -529,12 +529,23 @@ class ConversationSystem {
       }
     });
 
-    const categories = [
-      { key: 'personal', label: 'Personal' },
-      { key: 'strategy', label: 'Strategy' },
-      { key: 'exchange', label: 'Exchange Info' },
-      { key: 'confront', label: 'Confront' }
-    ];
+    const isPostChallenge = this.gameManager.getGamePhase?.() === GamePhase.POST_CHALLENGE;
+    const categories = isPostChallenge
+      ? [
+          { key: 'exchange', label: 'Exchange Info' },
+          { key: 'probe', label: "Who are you thinking?" },
+          { key: 'deal', label: 'Offer a deal' },
+          { key: 'seed', label: 'Plant a seed' },
+          { key: 'trash', label: 'Trash talk' },
+          { key: 'challenge', label: 'Challenge talk' },
+          { key: 'confront', label: 'Pressure / Confront' }
+        ]
+      : [
+          { key: 'personal', label: 'Personal' },
+          { key: 'strategy', label: 'Strategy' },
+          { key: 'exchange', label: 'Exchange Info' },
+          { key: 'confront', label: 'Confront' }
+        ];
 
     categories.forEach(cat => {
       const btn = createElement('button', {
@@ -587,6 +598,33 @@ class ConversationSystem {
       addOption('Share a personal story', () => this._startConversation(survivor, { intentOverride: 'personal', location }));
       addOption('Joke around', () => this._startConversation(survivor, { intentOverride: 'fun', location }));
       addOption('Check on their mood', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location }));
+    } else if (category === 'probe') {
+      addOption("Who are you thinking?", () => this._startConversation(survivor, { intentOverride: 'gossip', location, context: { mode: 'probe' } }));
+      addOption('What names have you heard?', () => this._startConversation(survivor, { intentOverride: 'gossip', location, context: { mode: 'rumor' } }));
+    } else if (category === 'deal') {
+      addOption('Vote together', () => this._showDealMenu(survivor, location));
+      addOption('Protect each other', () => this._startConversation(survivor, { intentOverride: 'deal', location, context: { dealType: 'protection' } }));
+    } else if (category === 'seed') {
+      addOption('Plant a subtle target', () => this.promptSurvivorPicker({
+        title: 'Who to plant?',
+        tribeOnly: true,
+        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'warning', location, context: { topicPerson: pick.firstName, stance: 'seed' } })
+      }));
+    } else if (category === 'trash') {
+      addOption('Trash talk someone', () => this.promptSurvivorPicker({
+        title: 'Trash talk who?',
+        tribeOnly: true,
+        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'gossip', location, context: { topicPerson: pick.firstName, stance: 'trash' } })
+      }));
+    } else if (category === 'challenge') {
+      addOption('Comment on challenge threat', () => this.promptSurvivorPicker({
+        title: 'Who is a threat?',
+        tribeOnly: true,
+        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'challenge' } })
+      }));
     } else if (category === 'strategy') {
       addOption('Light strategy (general)', () => this._startConversation(survivor, { intentOverride: 'lightStrategy', location }));
       addOption('Push a target', () => this.promptSurvivorPicker({

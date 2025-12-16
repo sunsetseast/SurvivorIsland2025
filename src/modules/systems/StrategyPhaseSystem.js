@@ -12,6 +12,11 @@ class StrategyPhaseSystem {
     this.reset();
     this.beatIntervalId = null;
     this.timerWatcherId = null;
+    this.startedForPhaseKey = null;
+    this.activeModalId = null;
+    this.pendingAllianceMeetings = [];
+    this.completedAllianceMeetings = new Set();
+    this.meetingAlertQueue = [];
   }
 
   initialize() {
@@ -21,6 +26,11 @@ class StrategyPhaseSystem {
       } else {
         this.reset();
       }
+    });
+
+    eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName }) => {
+      if (!this.isActive || this.playerTribeSafe) return;
+      this.handleCampViewNavigation(viewName);
     });
   }
 
@@ -36,9 +46,18 @@ class StrategyPhaseSystem {
     this.timerWatcherId && clearInterval(this.timerWatcherId);
     this.beatIntervalId = null;
     this.timerWatcherId = null;
+    this.startedForPhaseKey = null;
+    this.activeModalId = null;
+    this.pendingAllianceMeetings = [];
+    this.completedAllianceMeetings = new Set();
+    this.meetingAlertQueue = [];
   }
 
   startPostChallengePhase() {
+    const phaseKey = `${gameManager.getDay?.() ?? gameManager.day}-${gameManager.getGamePhase?.() ?? gameManager.gamePhase}`;
+    if (this.startedForPhaseKey === phaseKey) return;
+    this.startedForPhaseKey = phaseKey;
+
     // Set the timer for a 1-hour in-game scramble and freeze survival decay expectations
     gameManager.dayTimer = 3600;
     this.isActive = true;
@@ -48,6 +67,7 @@ class StrategyPhaseSystem {
 
     if (!this.playerTribeSafe) {
       this.promptPersonalTarget();
+      this.scheduleAllianceMeetings();
     }
 
     this.beginStrategyBeats();
@@ -70,24 +90,86 @@ class StrategyPhaseSystem {
     return playerKey != null && winningKeys.has(playerKey);
   }
 
+  scheduleAllianceMeetings() {
+    const allianceSystem = gameManager?.systems?.allianceSystem;
+    const player = gameManager.getPlayerSurvivor();
+    const alliances = allianceSystem?.getAlliancesForMember?.(player?.id) || [];
+    const meetingSpots = ['campfire', 'shelter', 'beach', 'waterWell'];
+
+    this.pendingAllianceMeetings = alliances
+      .filter((a) => (a.memberIds || []).length >= 2)
+      .map((alliance) => {
+        const spot = meetingSpots[Math.floor(Math.random() * meetingSpots.length)];
+        this.logFact({ type: 'allianceMeetingStart', allianceId: alliance.id, location: spot });
+        return { alliance, location: spot };
+      });
+
+    this.queueMeetingAlert();
+  }
+
+  queueMeetingAlert() {
+    if (!this.pendingAllianceMeetings.length) return;
+    const next = this.pendingAllianceMeetings[0];
+    if (!next) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'strategy-meeting-toast';
+    toast.textContent = `Your alliance wants to meet at the ${next.location}.`;
+
+    const button = document.createElement('button');
+    button.className = 'rect-button';
+    button.textContent = 'Go Now';
+    button.addEventListener('click', () => {
+      document.body.removeChild(toast);
+      window.campScreen?.loadView?.(next.location);
+    });
+
+    toast.appendChild(button);
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      if (toast.parentElement) toast.remove();
+    }, 7000);
+  }
+
+  handleCampViewNavigation(viewName) {
+    const pendingIndex = this.pendingAllianceMeetings.findIndex((m) => m.location === viewName);
+    const pending = pendingIndex >= 0 ? this.pendingAllianceMeetings[pendingIndex] : null;
+    if (!pending) return;
+    const meetingKey = `${pending.alliance.id}-${viewName}`;
+    if (this.completedAllianceMeetings.has(meetingKey)) return;
+
+    this.launchAllianceConversation(pending.alliance, viewName);
+    this.completedAllianceMeetings.add(meetingKey);
+    this.pendingAllianceMeetings.splice(pendingIndex, 1);
+    this.queueMeetingAlert();
+  }
+
   promptPersonalTarget() {
     const tribe = gameManager.getPlayerTribe();
     if (!tribe) return;
 
     const options = tribe.members.filter((m) => !m.isPlayer);
     if (!options.length) return;
+    if (this.activeModalId === 'personalTarget') return;
 
-    const modal = this.buildTargetModal({
+    const modal = this.buildAvatarGridPickerModal({
       title: 'Choose your personal target',
       confirmLabel: 'Set Target',
       options,
+      tribeColor: tribe.color || tribe.tribeColor,
       defaultSelection: this.personalTargetId || options[0].id,
       onConfirm: (targetId) => {
         this.personalTargetId = targetId;
         this.logFact({ type: 'personalTargetSet', speakerId: gameManager.player?.id, targetId });
+        this.activeModalId = null;
+      },
+      onCancel: () => {
+        this.activeModalId = null;
       },
     });
 
+    this.activeModalId = 'personalTarget';
     document.body.appendChild(modal.overlay);
   }
 
@@ -97,16 +179,18 @@ class StrategyPhaseSystem {
     return new Promise((resolve) => {
       const tribe = gameManager.getPlayerTribe();
       const options = tribe?.members?.filter((m) => !m.isPlayer) || [];
-      const modal = this.buildTargetModal({
-        title: 'Lock your vote',
+      const modal = this.buildAvatarGridPickerModal({
+        title: 'Lock your target',
         confirmLabel: 'Confirm Target',
         options,
+        tribeColor: tribe?.color || tribe?.tribeColor,
         defaultSelection: this.personalTargetId || options[0]?.id,
         onConfirm: (targetId) => {
           this.personalTargetId = targetId;
           this.logFact({ type: 'personalTargetLocked', speakerId: gameManager.player?.id, targetId });
           resolve();
         },
+        onCancel: () => resolve(),
       });
       document.body.appendChild(modal.overlay);
     });
@@ -122,54 +206,87 @@ class StrategyPhaseSystem {
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'strategy-overlay';
-      overlay.innerHTML = `
-        <div class="strategy-modal">
-          <h2>Alliance Lock-In</h2>
-          <div id="strategy-alliance-list" class="strategy-list"></div>
-          <div class="strategy-actions">
-            <button id="strategy-alliance-save">Save Choices</button>
-          </div>
-        </div>
-      `;
 
-      const list = overlay.querySelector('#strategy-alliance-list');
+      const modal = document.createElement('div');
+      modal.className = 'strategy-modal';
+
+      const heading = document.createElement('h2');
+      heading.textContent = 'Alliance Lock-In';
+      modal.appendChild(heading);
+
+      const list = document.createElement('div');
+      list.className = 'strategy-list';
+
       alliances.forEach((alliance) => {
         const entry = document.createElement('div');
         entry.className = 'strategy-entry';
-        const heading = document.createElement('div');
-        heading.className = 'strategy-entry-title';
-        heading.textContent = alliance.name || 'Alliance';
 
-        const select = document.createElement('select');
-        const memberIds = alliance.memberIds || [];
-        memberIds
-          .map((id) => gameManager.survivors.find((s) => s.id === id))
-          .filter(Boolean)
-          .forEach((member) => {
-            const opt = document.createElement('option');
-            opt.value = member.id;
-            opt.textContent = member.firstName || member.name || 'Survivor';
-            select.appendChild(opt);
-          });
+        const title = document.createElement('div');
+        title.className = 'strategy-entry-title';
+        title.textContent = alliance.name || 'Alliance';
+        entry.appendChild(title);
 
-        if (this.allianceTargets.has(alliance.id)) {
-          select.value = this.allianceTargets.get(alliance.id);
-        }
+        const targetRow = document.createElement('div');
+        targetRow.className = 'strategy-entry-row';
+        const targetId = this.allianceTargets.get(alliance.id);
+        const target = gameManager.survivors?.find((s) => s.id === targetId);
+        const targetLabel = document.createElement('div');
+        targetLabel.textContent = target ? `${target.firstName}` : 'No target chosen';
+        targetRow.appendChild(targetLabel);
 
-        select.addEventListener('change', () => {
-          this.allianceTargets.set(alliance.id, select.value);
-          this.logFact({ type: 'allianceTarget', allianceId: alliance.id, targetId: select.value });
+        const buttonRow = document.createElement('div');
+        buttonRow.className = 'strategy-entry-actions';
+        const keepBtn = document.createElement('button');
+        keepBtn.textContent = 'Keep';
+        keepBtn.className = 'rect-button';
+        keepBtn.addEventListener('click', () => {
+          if (targetId) {
+            this.logFact({ type: 'allianceTargetConfirmed', allianceId: alliance.id, targetId });
+          }
         });
 
-        entry.appendChild(heading);
-        entry.appendChild(select);
+        const changeBtn = document.createElement('button');
+        changeBtn.textContent = 'Change';
+        changeBtn.className = 'rect-button alt';
+        changeBtn.addEventListener('click', () => {
+          const tribe = gameManager.getPlayerTribe();
+          const options = tribe?.members?.filter((m) => !m.isPlayer) || [];
+          const picker = this.buildAvatarGridPickerModal({
+            title: `Set target for ${alliance.name || 'alliance'}`,
+            confirmLabel: 'Choose',
+            options,
+            tribeColor: tribe?.color || tribe?.tribeColor,
+            defaultSelection: targetId || options[0]?.id,
+            onConfirm: (selected) => {
+              this.allianceTargets.set(alliance.id, selected);
+              this.logFact({ type: 'allianceTarget', allianceId: alliance.id, targetId: selected });
+              targetLabel.textContent = gameManager.survivors?.find((s) => s.id === selected)?.firstName || 'Target chosen';
+            },
+          });
+          document.body.appendChild(picker.overlay);
+        });
+
+        buttonRow.appendChild(keepBtn);
+        buttonRow.appendChild(changeBtn);
+        entry.appendChild(targetRow);
+        entry.appendChild(buttonRow);
         list.appendChild(entry);
       });
 
-      overlay.querySelector('#strategy-alliance-save')?.addEventListener('click', () => {
+      const actions = document.createElement('div');
+      actions.className = 'strategy-actions';
+      const saveBtn = document.createElement('button');
+      saveBtn.id = 'strategy-alliance-save';
+      saveBtn.textContent = 'Save choices';
+      saveBtn.addEventListener('click', () => {
         document.body.removeChild(overlay);
         resolve();
       });
+      actions.appendChild(saveBtn);
+
+      modal.appendChild(list);
+      modal.appendChild(actions);
+      overlay.appendChild(modal);
 
       overlay.addEventListener('click', (event) => {
         if (event.target === overlay) {
@@ -214,6 +331,194 @@ class StrategyPhaseSystem {
     if (Math.random() < this.getRumorLeakChance(speaker)) {
       this.logFact({ type: 'rumor', speakerId: speaker.id, targetId, toPlayer: true });
     }
+  }
+
+  launchAllianceConversation(alliance, location) {
+    const overlay = document.createElement('div');
+    overlay.className = 'strategy-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'strategy-modal strategy-convo-modal';
+
+    const title = document.createElement('h2');
+    title.textContent = `${alliance.name || 'Alliance'} meeting (${location})`;
+    modal.appendChild(title);
+
+    const logArea = document.createElement('div');
+    logArea.className = 'strategy-convo-log';
+    modal.appendChild(logArea);
+
+    const actions = document.createElement('div');
+    actions.className = 'strategy-actions';
+    modal.appendChild(actions);
+
+    const members = (alliance.memberIds || [])
+      .map((id) => gameManager.survivors?.find((s) => s.id === id))
+      .filter(Boolean);
+    const tribe = gameManager.getPlayerTribe();
+    const tribeMembers = tribe?.members || [];
+
+    const npcMembers = members.filter((m) => !m.isPlayer);
+    const player = gameManager.getPlayerSurvivor();
+
+    const addLine = (text) => {
+      const line = document.createElement('div');
+      line.textContent = text;
+      logArea.appendChild(line);
+      logArea.scrollTop = logArea.scrollHeight;
+    };
+
+    const proposeTarget = (speaker) => {
+      return this.pickTargetForAction('SOFT_COUNTER', tribeMembers, speaker) || tribeMembers.find((m) => !m.isPlayer)?.id;
+    };
+
+    const runDiscussion = (initial) => {
+      const stances = new Map();
+      const proposedBy = initial.by;
+      stances.set(initial.targetId, [{ speakerId: proposedBy.id, stance: 'propose' }]);
+      this.logFact({ type: 'targetProposed', allianceId: alliance.id, speakerId: proposedBy.id, targetId: initial.targetId });
+
+      npcMembers.forEach((npc) => {
+        if (npc.id === proposedBy.id) return;
+        const stanceRoll = Math.random();
+        let stance = 'agree';
+        if (npc.gameplayStyle === 'Wildcard' && stanceRoll < 0.3) stance = 'counter';
+        else if (stanceRoll < 0.15) stance = 'silent';
+        else if (stanceRoll < 0.3) stance = 'reluctant';
+
+        let targetId = initial.targetId;
+        if (stance === 'counter') {
+          targetId = proposeTarget(npc) || targetId;
+        }
+        const bucket = stances.get(targetId) || [];
+        bucket.push({ speakerId: npc.id, stance });
+        stances.set(targetId, bucket);
+        this.logFact({ type: 'targetResponse', allianceId: alliance.id, speakerId: npc.id, stance, targetId });
+        addLine(`${npc.firstName} ${stance === 'counter' ? 'counters with' : stance === 'reluctant' ? 'softly agrees on' : stance === 'silent' ? 'stays quiet about' : 'backs'} ${this.getName(targetId)}.`);
+      });
+
+      let chosenTarget = initial.targetId;
+      let bestScore = 0;
+      stances.forEach((entries, target) => {
+        const score = entries.length;
+        if (score > bestScore) {
+          bestScore = score;
+          chosenTarget = target;
+        }
+      });
+
+      this.logFact({ type: 'allianceTargetLocked', allianceId: alliance.id, targetId: chosenTarget });
+      this.allianceTargets.set(alliance.id, chosenTarget);
+      return chosenTarget;
+    };
+
+    const finishMeeting = (targetId) => {
+      const finalActions = document.createElement('div');
+      finalActions.className = 'strategy-actions';
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = 'Wrap up';
+      closeBtn.className = 'rect-button';
+      closeBtn.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+      });
+      finalActions.appendChild(closeBtn);
+      modal.appendChild(finalActions);
+    };
+
+    const startFlow = () => {
+      addLine('Your alliance huddles up. Who speaks first?');
+      const speakBtn = document.createElement('button');
+      speakBtn.textContent = "I'll speak first";
+      speakBtn.className = 'rect-button';
+      speakBtn.addEventListener('click', () => {
+        actions.innerHTML = '';
+        const tribeOptions = tribeMembers.filter((m) => !m.isPlayer);
+        const picker = this.buildAvatarGridPickerModal({
+          title: 'Who do you pitch?',
+          confirmLabel: 'Propose',
+          options: tribeOptions,
+          tribeColor: tribe?.color || tribe?.tribeColor,
+          defaultSelection: this.personalTargetId || tribeOptions[0]?.id,
+          onConfirm: (targetId) => {
+            addLine(`You put out ${this.getName(targetId)}.`);
+            const finalTarget = runDiscussion({ by: player, targetId });
+            addLine(`Group leans toward ${this.getName(finalTarget)}.`);
+            this.offerSway(finalTarget, alliance, modal, overlay, addLine, finishMeeting);
+          },
+        });
+        document.body.appendChild(picker.overlay);
+      });
+
+      const npcBtn = document.createElement('button');
+      npcBtn.textContent = 'Let someone else speak';
+      npcBtn.className = 'rect-button alt';
+      npcBtn.addEventListener('click', () => {
+        actions.innerHTML = '';
+        const npc = npcMembers[Math.floor(Math.random() * npcMembers.length)];
+        const targetId = proposeTarget(npc);
+        addLine(`${npc.firstName} starts: "What about ${this.getName(targetId)}?"`);
+        const finalTarget = runDiscussion({ by: npc, targetId });
+        addLine(`Group leans toward ${this.getName(finalTarget)}.`);
+        this.offerSway(finalTarget, alliance, modal, overlay, addLine, finishMeeting);
+      });
+
+      actions.appendChild(speakBtn);
+      actions.appendChild(npcBtn);
+    };
+
+    modal.appendChild(actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    startFlow();
+  }
+
+  offerSway(currentTarget, alliance, modal, overlay, addLine, finishMeeting) {
+    const actionRow = document.createElement('div');
+    actionRow.className = 'strategy-actions';
+
+    const goWithGroup = document.createElement('button');
+    goWithGroup.textContent = 'Go with the group';
+    goWithGroup.className = 'rect-button';
+    goWithGroup.addEventListener('click', () => {
+      addLine(`You stick with ${this.getName(currentTarget)}.`);
+      modal.removeChild(actionRow);
+      finishMeeting(currentTarget);
+    });
+
+    const pushDifferent = document.createElement('button');
+    pushDifferent.textContent = 'Push a different name';
+    pushDifferent.className = 'rect-button alt';
+    pushDifferent.addEventListener('click', () => {
+      const tribe = gameManager.getPlayerTribe();
+      const options = tribe?.members?.filter((m) => !m.isPlayer) || [];
+      const picker = this.buildAvatarGridPickerModal({
+        title: 'Who do you push?',
+        confirmLabel: 'Push',
+        options,
+        tribeColor: tribe?.color || tribe?.tribeColor,
+        defaultSelection: options[0]?.id,
+        onConfirm: (targetId) => {
+          const success = Math.random() < 0.45;
+          this.logFact({ type: 'playerSwayAttempt', allianceId: alliance.id, targetId, success });
+          if (success) {
+            addLine(`You sway them toward ${this.getName(targetId)}!`);
+            this.allianceTargets.set(alliance.id, targetId);
+            this.logFact({ type: 'allianceTargetLocked', allianceId: alliance.id, targetId });
+            finishMeeting(targetId);
+          } else {
+            addLine('They hesitate and stick with the original plan.');
+            this.logFact({ type: 'suspicionGained', allianceId: alliance.id, speakerId: alliance.id, aboutId: gameManager.player?.id, reason: 'pushed against majority' });
+            finishMeeting(currentTarget);
+          }
+          modal.removeChild(actionRow);
+        },
+      });
+      document.body.appendChild(picker.overlay);
+    });
+
+    actionRow.appendChild(goWithGroup);
+    actionRow.appendChild(pushDifferent);
+    modal.appendChild(actionRow);
   }
 
   pickSpeaker(members) {
@@ -290,12 +595,15 @@ class StrategyPhaseSystem {
     return base;
   }
 
+  getName(id) {
+    const survivor = gameManager.survivors?.find((s) => s.id === id);
+    return survivor?.firstName || survivor?.name || 'someone';
+  }
+
   logFact(fact) {
     const enriched = { ...fact, timestamp: Date.now() };
     this.strategyFacts.push(enriched);
-    if (fact.toPlayer || fact.speakerId === gameManager.player?.id) {
-      this.playerVisibleFacts.push(enriched);
-    }
+    this.playerVisibleFacts.push(enriched);
 
     const debugLabel = fact.type?.toUpperCase?.() || 'FACT';
     const detail = [fact.action, fact.targetId, fact.allianceId].filter(Boolean).join(' | ');
@@ -372,52 +680,89 @@ class StrategyPhaseSystem {
     // TODO: Wire Tribal Council transition when available
   }
 
-  buildTargetModal({ title, confirmLabel, options, defaultSelection, onConfirm }) {
+  buildAvatarGridPickerModal({ title, confirmLabel, options, tribeColor = '#f5c76a', defaultSelection, onConfirm, onCancel }) {
     const overlay = document.createElement('div');
     overlay.className = 'strategy-overlay';
 
     const modal = document.createElement('div');
-    modal.className = 'strategy-modal';
+    modal.className = 'strategy-modal avatar-grid-modal';
 
     const header = document.createElement('h2');
     header.textContent = title;
 
-    const select = document.createElement('select');
-    options.forEach((opt) => {
-      const option = document.createElement('option');
-      option.value = opt.id;
-      option.textContent = opt.firstName || opt.name || 'Target';
-      select.appendChild(option);
-    });
-    select.value = defaultSelection;
+    const grid = document.createElement('div');
+    grid.className = 'avatar-grid';
+
+    let selectedId = defaultSelection;
+
+    const renderTiles = () => {
+      grid.innerHTML = '';
+      options.forEach((opt) => {
+        const tile = document.createElement('button');
+        tile.className = 'avatar-grid-tile';
+        tile.dataset.id = opt.id;
+        if (selectedId === opt.id) tile.classList.add('selected');
+
+        const frame = document.createElement('div');
+        frame.className = 'avatar-frame';
+        frame.style.borderColor = tribeColor;
+
+        const img = document.createElement('img');
+        img.src = opt.avatarUrl || opt.portraitUrl || opt.avatar || 'Assets/Resources/default-portrait.png';
+        img.alt = opt.firstName || opt.name || 'Survivor';
+        frame.appendChild(img);
+
+        const name = document.createElement('div');
+        name.className = 'avatar-name';
+        name.textContent = opt.firstName || opt.name || 'Survivor';
+
+        tile.appendChild(frame);
+        tile.appendChild(name);
+
+        tile.addEventListener('click', () => {
+          selectedId = opt.id;
+          renderTiles();
+          confirmBtn.disabled = false;
+        });
+
+        grid.appendChild(tile);
+      });
+    };
 
     const buttons = document.createElement('div');
     buttons.className = 'strategy-actions';
-    const confirm = document.createElement('button');
-    confirm.textContent = confirmLabel;
-    confirm.addEventListener('click', () => {
-      onConfirm?.(select.value);
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.disabled = !selectedId;
+    confirmBtn.addEventListener('click', () => {
+      if (!selectedId) return;
+      onConfirm?.(selectedId);
       document.body.removeChild(overlay);
     });
 
-    const cancel = document.createElement('button');
-    cancel.textContent = 'Cancel';
-    cancel.addEventListener('click', () => document.body.removeChild(overlay));
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => {
+      onCancel?.();
+      document.body.removeChild(overlay);
+    });
 
-    buttons.appendChild(confirm);
-    buttons.appendChild(cancel);
+    buttons.appendChild(confirmBtn);
+    buttons.appendChild(cancelBtn);
 
     modal.appendChild(header);
-    modal.appendChild(select);
+    modal.appendChild(grid);
     modal.appendChild(buttons);
     overlay.appendChild(modal);
 
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) {
+        onCancel?.();
         document.body.removeChild(overlay);
       }
     });
 
+    renderTiles();
     return { overlay, modal };
   }
 }
