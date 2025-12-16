@@ -47,7 +47,8 @@ class SocialMemorySystem {
                 namedIntel: [],
                 misc: [],
                 lastTopics: [],
-                lastLines: []
+                lastLines: [],
+                committedAllianceId: null
             };
         }
     }
@@ -213,6 +214,16 @@ class SocialMemorySystem {
     getMemory(npcId) {
         this.initNPC(npcId);
         return this.memory[npcId];
+    }
+
+    getCommittedAllianceId(npcId) {
+        this.initNPC(npcId);
+        return this.memory[npcId].committedAllianceId ?? null;
+    }
+
+    setCommittedAllianceId(npcId, allianceIdOrNull) {
+        this.initNPC(npcId);
+        this.memory[npcId].committedAllianceId = allianceIdOrNull || null;
     }
 
     // ===============================

@@ -105,6 +105,7 @@ export function renderAlliancesGrid() {
   grid.innerHTML = '';
   const allianceSystem = getAllianceSystem();
   const player = gameManager?.getPlayerSurvivor?.() || gameManager?.player;
+  const committedId = player ? allianceSystem?.getCommittedAllianceId?.(player.id) : null;
   const alliances = (player && allianceSystem?.getAlliancesForSurvivor?.(player.id))
     || allianceSystem?.getAlliances?.()
     || allianceSystem?.getAllAlliances?.()
@@ -122,6 +123,15 @@ export function renderAlliancesGrid() {
       slot.type = 'button';
       slot.className = 'alliance-slot alliance-existing-slot';
       slot.title = alliance.name;
+
+      const isCommitted = committedId && alliance.id === committedId;
+      if (isCommitted) {
+        slot.classList.add('primary');
+        const badge = document.createElement('div');
+        badge.className = 'alliance-slot-badge';
+        badge.textContent = 'PRIMARY';
+        slot.appendChild(badge);
+      }
 
       const membersWrapper = document.createElement('div');
       membersWrapper.className = 'alliance-slot-members';

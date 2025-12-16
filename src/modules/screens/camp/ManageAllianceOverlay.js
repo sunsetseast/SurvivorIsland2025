@@ -24,6 +24,36 @@ function getSurvivorById(id) {
   return gameManager?.survivors?.find?.((s) => s.id === id) || null;
 }
 
+function showMessage(text) {
+  if (typeof window !== 'undefined' && window.dialogueSystem?.showMessage) {
+    window.dialogueSystem.showMessage(text);
+  } else {
+    alert(text);
+  }
+}
+
+function refreshCommitStatus(alliance) {
+  const allianceSystem = getAllianceSystem();
+  const player = getPlayer();
+  const commitButton = document.getElementById('manage-alliance-commit-button');
+  const status = document.getElementById('manage-alliance-commit-status');
+
+  const committedId = allianceSystem?.getCommittedAllianceId?.(player?.id) ?? null;
+  const committedName = committedId ? allianceSystem?.getAllianceDisplayName?.(committedId) : null;
+  const isCommittedHere = committedId && alliance?.id === committedId;
+
+  if (commitButton) {
+    commitButton.textContent = isCommittedHere ? 'Committed' : 'Commit';
+    commitButton.disabled = !!isCommittedHere;
+  }
+
+  if (status) {
+    status.textContent = committedName
+      ? `Primary alliance: ${committedName}`
+      : 'No primary alliance selected.';
+  }
+}
+
 function renderMemberList(alliance) {
   const list = document.getElementById('manage-alliance-members');
   if (!list) return;
@@ -73,12 +103,14 @@ function populateAllianceDetails(alliance) {
   }
 
   renderMemberList(alliance);
+  refreshCommitStatus(alliance);
 }
 
 function attachEventListeners() {
   const overlay = document.getElementById('manage-alliance-overlay');
   const panel = document.getElementById('manage-alliance-panel');
   const saveButton = document.getElementById('manage-alliance-save-button');
+  const commitButton = document.getElementById('manage-alliance-commit-button');
   const leaveButton = document.getElementById('manage-alliance-leave-button');
   const closeButton = document.getElementById('manage-alliance-close-button');
 
@@ -111,6 +143,46 @@ function attachEventListeners() {
       }
     });
     saveButton.dataset.bound = 'true';
+  }
+
+  if (commitButton && !commitButton.dataset.bound) {
+    commitButton.addEventListener('click', () => {
+      const allianceSystem = getAllianceSystem();
+      const player = getPlayer();
+      if (!allianceSystem || !player || !currentAllianceId) return;
+
+      const selectedAlliance = allianceSystem.getAlliance?.(currentAllianceId);
+      const committedId = allianceSystem.getCommittedAllianceId?.(player.id);
+
+      if (!selectedAlliance) return;
+
+      const selectedName = allianceSystem.getAllianceDisplayName?.(currentAllianceId);
+
+      if (!committedId) {
+        const result = allianceSystem.commitToAlliance?.({ survivorId: player.id, allianceId: currentAllianceId });
+        if (result?.ok) {
+          showMessage(`You are now committed to ${selectedName}.`);
+          refreshCommitStatus(selectedAlliance);
+          renderAlliancesGrid();
+        }
+        return;
+      }
+
+      if (committedId === currentAllianceId) return;
+
+      const currentName = allianceSystem.getAllianceDisplayName?.(committedId);
+      const confirmText = `You’re currently committed to ${currentName}. Commit to ${selectedName} instead?`;
+      const confirmed = typeof window !== 'undefined' ? window.confirm(confirmText) : true;
+      if (!confirmed) return;
+
+      const result = allianceSystem.commitToAlliance?.({ survivorId: player.id, allianceId: currentAllianceId });
+      if (result?.ok) {
+        showMessage(`You are now committed to ${selectedName}.`);
+        refreshCommitStatus(selectedAlliance);
+        renderAlliancesGrid();
+      }
+    });
+    commitButton.dataset.bound = 'true';
   }
 
   if (leaveButton && !leaveButton.dataset.bound) {

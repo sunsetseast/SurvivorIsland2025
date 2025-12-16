@@ -1520,6 +1520,15 @@ class ConversationSystem {
       score -= 10;
     }
 
+    const committedAllianceId = allianceSystem?.getCommittedAllianceId?.(npc?.id);
+    if (committedAllianceId) {
+      const committedAlliance = allianceSystem?.getAlliance?.(committedAllianceId);
+      const playerInCommitted = committedAlliance?.memberIds?.includes?.(player?.id);
+      if (!playerInCommitted) {
+        score -= 10;
+      }
+    }
+
     const day = this.gameManager.getCurrentDay?.();
     const recentMemory = socialMemory?.getMemory?.(npc?.id)?.allianceInvites || [];
     const recentRefusal = [...recentMemory].reverse().find(entry => entry.playerId === player?.id && (entry.accepted === false || entry.declineType || (typeof entry.outcome === 'string' && entry.outcome.includes('decline'))));
