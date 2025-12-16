@@ -17,6 +17,7 @@ class StrategyPhaseSystem {
     this.pendingAllianceMeetings = [];
     this.completedAllianceMeetings = new Set();
     this.meetingAlertQueue = [];
+    this.loggedFactKeys = new Set();
   }
 
   initialize() {
@@ -51,6 +52,7 @@ class StrategyPhaseSystem {
     this.pendingAllianceMeetings = [];
     this.completedAllianceMeetings = new Set();
     this.meetingAlertQueue = [];
+    this.loggedFactKeys = new Set();
   }
 
   startPostChallengePhase() {
@@ -75,36 +77,116 @@ class StrategyPhaseSystem {
   }
 
   didPlayerTribeWinImmunity() {
-    const result = challengeManager.getChallengeResult(gameManager.getDay());
+    const day = gameManager.getCurrentDay?.() ?? gameManager.getDay?.() ?? gameManager.day;
+    const result = challengeManager?.getChallengeResult?.(day);
     const winningKeys = new Set();
+    const normalizedWinningKeys = new Set();
+
+    const addKeyVariants = (value, set, normalizedSet) => {
+      if (value == null) return;
+      const trimmed = typeof value === 'string' ? value.trim() : value;
+      const lower = typeof trimmed === 'string' ? trimmed.toLowerCase() : null;
+
+      set.add(trimmed);
+      if (typeof trimmed === 'number') {
+        set.add(String(trimmed));
+        normalizedSet.add(String(trimmed).trim().toLowerCase());
+      }
+      if (typeof trimmed === 'string') {
+        set.add(trimmed);
+        normalizedSet.add(trimmed.toLowerCase());
+      }
+      if (lower != null) {
+        set.add(lower);
+      }
+    };
 
     if (Array.isArray(result?.winningTribeKeys)) {
-      result.winningTribeKeys.forEach((k) => winningKeys.add(k));
+      result.winningTribeKeys.forEach((k) => addKeyVariants(k, winningKeys, normalizedWinningKeys));
     }
     if (result?.winningTribeKey) {
-      winningKeys.add(result.winningTribeKey);
+      addKeyVariants(result.winningTribeKey, winningKeys, normalizedWinningKeys);
     }
 
-    const playerTribe = gameManager.getPlayerTribe();
-    const playerKey = playerTribe?.id ?? playerTribe?.tribeName;
-    return playerKey != null && winningKeys.has(playerKey);
+    const playerTribe = gameManager.getPlayerTribe?.();
+    const playerKeys = new Set();
+    const normalizedPlayerKeys = new Set();
+    addKeyVariants(playerTribe?.id, playerKeys, normalizedPlayerKeys);
+    addKeyVariants(playerTribe?.tribeName, playerKeys, normalizedPlayerKeys);
+    addKeyVariants(playerTribe?.tribeColor, playerKeys, normalizedPlayerKeys);
+
+    window.debugBanner?.(
+      'IMMUNITY-CHECK',
+      `Day ${day} | playerKeys: ${Array.from(playerKeys).join(', ')} | winners: ${
+        Array.from(winningKeys).join(', ')
+      }`
+    );
+
+    for (const key of playerKeys) {
+      if (winningKeys.has(key)) return true;
+      const normalized = typeof key === 'string' ? key.trim().toLowerCase() : String(key).trim().toLowerCase();
+      if (normalizedWinningKeys.has(normalized)) return true;
+    }
+
+    for (const normalizedKey of normalizedPlayerKeys) {
+      if (normalizedWinningKeys.has(normalizedKey)) return true;
+    }
+
+    return false;
   }
 
   scheduleAllianceMeetings() {
     const allianceSystem = gameManager?.systems?.allianceSystem;
-    const player = gameManager.getPlayerSurvivor();
-    const alliances = allianceSystem?.getAlliancesForMember?.(player?.id) || [];
-    const meetingSpots = ['campfire', 'shelter', 'beach', 'waterWell'];
+    if (!allianceSystem) return;
+
+    const playerId = gameManager.player?.id;
+    if (!playerId) return;
+
+    let alliances = [];
+    if (typeof allianceSystem.getAlliancesForMember === 'function') {
+      alliances = allianceSystem.getAlliancesForMember(playerId) || [];
+    } else if (typeof allianceSystem.getAlliancesForSurvivor === 'function') {
+      alliances = allianceSystem.getAlliancesForSurvivor(playerId) || [];
+    } else if (typeof allianceSystem.getAllAlliances === 'function') {
+      alliances = allianceSystem.getAllAlliances() || [];
+    }
+
+    const toMemberIds = (alliance) => {
+      const members = alliance?.memberIds ?? alliance?.members ?? [];
+      if (!Array.isArray(members)) return [];
+      if (members.length && typeof members[0] === 'object') {
+        return members.map((m) => m?.id).filter(Boolean);
+      }
+      return members.filter((m) => m != null);
+    };
+
+    const meetingSpots = ['beach', 'shelter', 'campfire', 'waterWell', 'rocky', 'fork1', 'fork2', 'fork3'];
 
     this.pendingAllianceMeetings = alliances
-      .filter((a) => (a.memberIds || []).length >= 2)
       .map((alliance) => {
+        const memberIds = toMemberIds(alliance);
+        const isPlayerMember = memberIds.some((id) => String(id) === String(playerId));
+        if (!isPlayerMember || memberIds.length < 2) return null;
+        const allianceId = alliance.id ?? alliance.allianceId ?? `alliance-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const spot = meetingSpots[Math.floor(Math.random() * meetingSpots.length)];
-        this.logFact({ type: 'allianceMeetingStart', allianceId: alliance.id, location: spot });
-        return { alliance, location: spot };
-      });
+        this.logFact({ type: 'allianceMeetingStart', allianceId, location: spot });
+        return { allianceId, alliance, locationView: spot, memberIds };
+      })
+      .filter(Boolean);
 
     this.queueMeetingAlert();
+    return this.pendingAllianceMeetings.length;
+  }
+
+  resolveAllianceById(allianceId) {
+    if (!allianceId) return null;
+    const allianceSystem = gameManager?.systems?.allianceSystem;
+    if (!allianceSystem) return null;
+    if (typeof allianceSystem.getAllianceById === 'function') {
+      return allianceSystem.getAllianceById(allianceId);
+    }
+    const all = allianceSystem.getAllAlliances?.() || [];
+    return all.find((a) => a?.id === allianceId || a?.allianceId === allianceId) || null;
   }
 
   queueMeetingAlert() {
@@ -114,14 +196,14 @@ class StrategyPhaseSystem {
 
     const toast = document.createElement('div');
     toast.className = 'strategy-meeting-toast';
-    toast.textContent = `Your alliance wants to meet at the ${next.location}.`;
+    toast.textContent = `Your alliance wants to meet at the ${next.locationView}.`;
 
     const button = document.createElement('button');
     button.className = 'rect-button';
     button.textContent = 'Go Now';
     button.addEventListener('click', () => {
       document.body.removeChild(toast);
-      window.campScreen?.loadView?.(next.location);
+      window.campScreen?.loadView?.(next.locationView);
     });
 
     toast.appendChild(button);
@@ -133,13 +215,22 @@ class StrategyPhaseSystem {
   }
 
   handleCampViewNavigation(viewName) {
-    const pendingIndex = this.pendingAllianceMeetings.findIndex((m) => m.location === viewName);
+    const pendingIndex = this.pendingAllianceMeetings.findIndex((m) => m.locationView === viewName);
     const pending = pendingIndex >= 0 ? this.pendingAllianceMeetings[pendingIndex] : null;
     if (!pending) return;
-    const meetingKey = `${pending.alliance.id}-${viewName}`;
+    const meetingKey = `${pending.allianceId}-${viewName}`;
     if (this.completedAllianceMeetings.has(meetingKey)) return;
 
-    this.launchAllianceConversation(pending.alliance, viewName);
+    const alliance = pending.alliance || this.resolveAllianceById(pending.allianceId);
+    if (!alliance) {
+      this.completedAllianceMeetings.add(meetingKey);
+      this.pendingAllianceMeetings.splice(pendingIndex, 1);
+      this.queueMeetingAlert();
+      return;
+    }
+
+    alliance.memberIds = pending.memberIds || alliance.memberIds;
+    this.launchAllianceConversation(alliance, viewName);
     this.completedAllianceMeetings.add(meetingKey);
     this.pendingAllianceMeetings.splice(pendingIndex, 1);
     this.queueMeetingAlert();
@@ -161,7 +252,8 @@ class StrategyPhaseSystem {
       defaultSelection: this.personalTargetId || options[0].id,
       onConfirm: (targetId) => {
         this.personalTargetId = targetId;
-        this.logFact({ type: 'personalTargetSet', speakerId: gameManager.player?.id, targetId });
+        const key = `personalTargetSet:${this.getCurrentDay()}:${targetId}`;
+        this.logFactOnce({ type: 'personalTargetSet', speakerId: gameManager.player?.id, targetId }, key);
         this.activeModalId = null;
       },
       onCancel: () => {
@@ -187,7 +279,8 @@ class StrategyPhaseSystem {
         defaultSelection: this.personalTargetId || options[0]?.id,
         onConfirm: (targetId) => {
           this.personalTargetId = targetId;
-          this.logFact({ type: 'personalTargetLocked', speakerId: gameManager.player?.id, targetId });
+          const key = `personalTargetLocked:${this.getCurrentDay()}:${targetId}`;
+          this.logFactOnce({ type: 'personalTargetLocked', speakerId: gameManager.player?.id, targetId }, key);
           resolve();
         },
         onCancel: () => resolve(),
@@ -608,6 +701,16 @@ class StrategyPhaseSystem {
     const debugLabel = fact.type?.toUpperCase?.() || 'FACT';
     const detail = [fact.action, fact.targetId, fact.allianceId].filter(Boolean).join(' | ');
     window.debugBanner?.(debugLabel, detail || '');
+  }
+
+  logFactOnce(fact, key) {
+    if (key && this.loggedFactKeys.has(key)) return;
+    if (key) this.loggedFactKeys.add(key);
+    this.logFact(fact);
+  }
+
+  getCurrentDay() {
+    return gameManager.getCurrentDay?.() ?? gameManager.getDay?.() ?? gameManager.day;
   }
 
   startTimerWatcher() {

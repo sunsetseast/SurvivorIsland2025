@@ -7,6 +7,7 @@ export default function renderPostChallengeSummaryView(container) {
 
   const title = document.createElement('h1');
   title.textContent = 'Post-Challenge Summary';
+  wrapper.appendChild(title);
 
   const facts = strategyPhaseSystem.getSummaryFacts();
 
@@ -41,8 +42,6 @@ export default function renderPostChallengeSummaryView(container) {
     : 'Proceed to Tribal Council';
   button.addEventListener('click', () => strategyPhaseSystem.proceedAfterSummary());
 
-  wrapper.appendChild(title);
-  wrapper.appendChild(list);
   wrapper.appendChild(button);
   container.appendChild(wrapper);
 }
@@ -86,6 +85,20 @@ function buildSections(facts = []) {
       case 'npcScramble':
         notable.push(`${speaker} floated ${target} in the scramble.`);
         break;
+      case 'dealProposed':
+      case 'dealAccepted':
+      case 'dealRejected':
+      case 'voteTogether':
+      case 'promise':
+      case 'counterOffer':
+      case 'mutualProtection':
+      case 'longPact':
+      case 'info':
+        const topic = fact.topic || fact.dealTopic || fact.topicPerson;
+        deals.push(
+          `${speaker} ${describeDealOutcome(fact.type, fact)}${topic ? ` about ${topic}` : ''}.`.trim()
+        );
+        break;
       default:
         break;
     }
@@ -102,6 +115,31 @@ function buildSections(facts = []) {
 
 function dedupe(list) {
   return Array.from(new Set(list));
+}
+
+function describeDealOutcome(type, fact = {}) {
+  const dealTypeLabel = fact.dealType || fact.intent || type;
+  switch (type) {
+    case 'dealAccepted':
+      return `accepted a deal${dealTypeLabel ? ` (${dealTypeLabel})` : ''}`;
+    case 'dealRejected':
+      return `declined a deal${dealTypeLabel ? ` (${dealTypeLabel})` : ''}`;
+    case 'voteTogether':
+      return 'wants to vote together';
+    case 'promise':
+      return 'made a promise';
+    case 'counterOffer':
+      return `countered with ${dealTypeLabel || 'another idea'}`;
+    case 'mutualProtection':
+      return 'discussed mutual protection';
+    case 'longPact':
+      return 'talked long-term pact';
+    case 'info':
+      return 'offered to trade info';
+    case 'dealProposed':
+    default:
+      return `proposed ${dealTypeLabel || 'a deal'}`;
+  }
 }
 
 function nameOrId(id) {
