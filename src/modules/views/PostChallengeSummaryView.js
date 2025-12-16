@@ -9,6 +9,9 @@ export default function renderPostChallengeSummaryView(container) {
   title.textContent = 'Post-Challenge Summary';
   wrapper.appendChild(title);
 
+  const scroll = document.createElement('div');
+  scroll.className = 'post-challenge-summary-scroll';
+
   const facts = strategyPhaseSystem.getSummaryFacts();
 
   const sections = buildSections(facts);
@@ -32,8 +35,10 @@ export default function renderPostChallengeSummaryView(container) {
         section.appendChild(row);
       });
     }
-    wrapper.appendChild(section);
+    scroll.appendChild(section);
   });
+
+  wrapper.appendChild(scroll);
 
   const button = document.createElement('button');
   button.className = 'summary-button';
