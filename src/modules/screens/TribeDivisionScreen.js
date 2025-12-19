@@ -22,7 +22,7 @@ export default class TribeDivisionScreen {
     const container = getElement('tribe-division-screen');
     clearChildren(container);
 
-    container.style.backgroundImage = "url('Assets/marooning.jpeg')";
+    container.style.backgroundImage = "url('Assets/marooning.png')";
     container.style.backgroundSize = 'cover';
     container.style.backgroundPosition = 'center';
     container.style.backgroundRepeat = 'no-repeat';
