@@ -26,7 +26,7 @@ export default function renderShelter(container) {
   const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
 
   // Set background based on shelter level
-  const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.jpeg')`;
+  const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.png')`;
   container.style.backgroundImage = backgroundImage;
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
