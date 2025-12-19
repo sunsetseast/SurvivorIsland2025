@@ -26,7 +26,8 @@ export default function renderShelter(container) {
   const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
 
   // Set background based on shelter level
-  const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.jpeg')`;
+  const shelterExtension = tribeShelterValue >= 1 && tribeShelterValue <= 5 ? 'png' : 'jpeg';
+  const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.${shelterExtension}')`;
   container.style.backgroundImage = backgroundImage;
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
@@ -1131,7 +1132,8 @@ function startBuilding() {
   console.log(`Shelter building relationship change: ${relationshipDelta} between ${player.firstName} and ${selectedCoBuilder.firstName} (${collaborationMessage})`);
 
   // Update background
-  const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
+  const updatedShelterExtension = playerTribe.shelter >= 1 && playerTribe.shelter <= 5 ? 'png' : 'jpeg';
+  const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.${updatedShelterExtension}')`;
   const container = document.querySelector('.shelter-wrapper').parentElement;
   container.style.backgroundImage = newBackgroundImage;
 
