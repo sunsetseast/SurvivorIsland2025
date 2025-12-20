@@ -1,5 +1,6 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { GameState, GamePhase } from '../core/GameManager.js';
+import challengeManager from '../core/ChallengeManager.js';
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
@@ -149,81 +150,224 @@ const TOPIC_TO_INTENT = {
 const CAMP_LOCATIONS = ['beach', 'shelter', 'campfire', 'waterWell', 'rocky', 'fork1', 'fork2', 'fork3'];
 
 const INTENT_TEMPLATES = {
-  bonding: [
-    '{npc} opens up about their family back home. It feels genuine.',
-    '{npc} smiles and asks about your story, trying to bridge the gap.'
-  ],
-  personal: [
-    '{npc} shares a vulnerable moment, eyes on the fire as they talk.',
-    'You and {npc} trade personal stories. It feels like a real connection.'
-  ],
-  lightStrategy: [
-    '{npc} leans in quietly. "What are you thinking for the next vote?"',
-    'In a hushed tone, {npc} tests the waters about alliances.'
-  ],
-  hardStrategy: [
-    '{npc} is direct: "Let\'s make a move. I want {target} out."',
-    'With intensity, {npc} pushes a plan on {target} and watches your reaction.'
-  ],
-  trust: [
-    '{npc} thinks for a moment. "Honestly… I probably trust {ally} the most right now."',
-    '"If I\'m being straight with you, {ally} feels the most solid to me," {npc} admits.'
-  ],
-  gossip: [
-    '{npc} lowers their voice: "Did you hear what {target} said?"',
-    '{npc} snickers. "Between us, {target} is acting shady."'
-  ],
-  confrontation: [
-    '{npc} crosses their arms. "You throwing my name around?"',
-    'There is tension as {npc} stares you down about rumors.'
-  ],
-  playerConfront: [
-    'You pull {npc} aside. "I heard my name came up. Talk to me."',
-    'You step toward {npc}. "If you\'re pushing me, own it."'
-  ],
-  playerAccuse: [
-    'You hold eye contact with {npc}. "Feels like you lied to me earlier."',
-    'Your voice is low. "{npc}, that story didn\'t add up."'
-  ],
-  apology: [
-    '{npc} waits for you to address the past before moving on.',
-    'You bring up old tension. {npc} watches to see if you mean it.'
-  ],
-  moodCheck: [
-    'You check in on {npc}. Their guard shifts as they consider opening up.',
-    '{npc} sighs. "It\'s been a lot. You really want to know?"'
-  ],
-  campTalk: [
-    '{npc} chats about camp life and the next challenge.',
-    'Together you evaluate shelter, fire, and challenge odds.'
-  ],
-  fun: [
-    '{npc} jokes about coconut crabs and you both laugh.',
-    'The mood lightens as {npc} tells a ridiculous story.'
-  ],
-  warning: [
-    '{npc} whispers: "Be careful around {target}."',
-    'Eyes darting, {npc} warns you about a brewing plot.'
-  ],
-  manipulation: [
-    '{npc} flatters you, guiding the talk toward their agenda.',
-    'You sense {npc} steering the conversation to benefit them.'
-  ],
-  protection: [
-    'Quietly, {npc} promises to watch your back at the next vote.',
-    '{npc} offers cover if things get messy tonight.'
-  ],
-  wildcard: [
-    'Out of nowhere, {npc} rambles about idols, storms, and goats.',
-    '{npc} pivots between topics; the chaos is real.'
-  ],
-  allianceInvite: [
-    '{npc} glances around, voice low. "Look… I think you and I could work together. Want to lock something in?"'
-  ],
-  deal: [
-    '{npc} narrows their eyes. "So you want to make a deal?"',
-    '{npc} folds their arms, weighing your offer carefully.'
-  ]
+  bonding: {
+    playerLead: [
+      'You open up about home. {npc} listens, surprised by the honesty.',
+      'You share something real, seeing if {npc} meets you halfway.'
+    ],
+    npcLead: [
+      '{npc} opens up about their family back home. It feels genuine.',
+      '{npc} smiles and asks about your story, trying to bridge the gap.'
+    ]
+  },
+  personal: {
+    playerLead: [
+      'You get personal with {npc}, inviting a real moment.',
+      'You tell {npc} something vulnerable. The air softens.'
+    ],
+    npcLead: [
+      '{npc} shares a vulnerable moment, eyes on the fire as they talk.',
+      'You and {npc} trade personal stories. It feels like a real connection.'
+    ]
+  },
+  lightStrategy: {
+    playerLead: [
+      'You keep it light. "Where\'s your head at for the next vote?"',
+      'You test the waters about alliances in a hushed tone.'
+    ],
+    npcLead: [
+      '{npc} leans in quietly. "What are you thinking for the next vote?"',
+      'In a hushed tone, {npc} tests the waters about alliances.'
+    ]
+  },
+  hardStrategy: {
+    playerLead: [
+      'You get direct. "We might need to make a move."',
+      'You float a name and watch {npc}\'s reaction.'
+    ],
+    npcLead: [
+      '{npc} is direct: "Let\'s make a move. I want {target} out."',
+      'With intensity, {npc} pushes a plan on {target} and watches your reaction.'
+    ]
+  },
+  trust: {
+    playerLead: [
+      'You ask carefully, "Who do you trust most right now?"',
+      'You check in on where {npc} feels solid.'
+    ],
+    npcLead: [
+      '{npc} thinks for a moment. "Honestly… I probably trust {ally} the most right now."',
+      '"If I\'m being straight with you, {ally} feels the most solid to me," {npc} admits.'
+    ]
+  },
+  gossip: {
+    playerLead: [
+      'You lower your voice: "Did you hear what {target} said?"',
+      'You murmur, "Between us, {target} is acting shady, right?"'
+    ],
+    npcLead: [
+      '{npc} lowers their voice: "Did you hear what {target} said?"',
+      '{npc} snickers. "Between us, {target} is acting shady."'
+    ]
+  },
+  confrontation: {
+    playerLead: [
+      'You square up. "Are you throwing my name around?"',
+      'You press {npc} about the rumors making the rounds.'
+    ],
+    npcLead: [
+      '{npc} crosses their arms. "You throwing my name around?"',
+      'There is tension as {npc} stares you down about rumors.'
+    ]
+  },
+  playerConfront: {
+    playerLead: [
+      'You pull {npc} aside. "I heard my name came up. Talk to me."',
+      'You step toward {npc}. "If you\'re pushing me, own it."'
+    ],
+    npcLead: [
+      '{npc} pulls you aside. "I heard my name came up. Talk to me."',
+      '{npc} steps in close. "If you\'re pushing me, own it."'
+    ]
+  },
+  playerAccuse: {
+    playerLead: [
+      'You hold eye contact with {npc}. "Feels like you lied to me earlier."',
+      'Your voice is low. "{npc}, that story didn\'t add up."'
+    ],
+    npcLead: [
+      '{npc} narrows their eyes. "Feels like you lied to me earlier."',
+      '{npc}\'s voice is low. "That story you gave me didn\'t add up."'
+    ]
+  },
+  apology: {
+    playerLead: [
+      'You bring up old tension. {npc} watches to see if you mean it.',
+      'You own your part in the past. {npc} listens closely.'
+    ],
+    npcLead: [
+      '{npc} waits for you to address the past before moving on.',
+      'You bring up old tension. {npc} watches to see if you mean it.'
+    ]
+  },
+  moodCheck: {
+    playerLead: [
+      'You check in on {npc}. Their guard shifts as they consider opening up.',
+      'You ask {npc} how they\'re really holding up.'
+    ],
+    npcLead: [
+      '{npc} sighs. "It\'s been a lot. You really want to know?"',
+      '{npc} looks worn. "You want the real answer?"'
+    ]
+  },
+  campTalk: {
+    playerLead: [
+      'You talk camp life and the next challenge with {npc}.',
+      'You and {npc} evaluate shelter, fire, and the day ahead.'
+    ],
+    npcLead: [
+      '{npc} chats about camp life and the next challenge.',
+      'Together you evaluate shelter, fire, and challenge odds.'
+    ]
+  },
+  fun: {
+    playerLead: [
+      'You crack a joke about camp and {npc} laughs.',
+      'You keep it light and the mood lifts.'
+    ],
+    npcLead: [
+      '{npc} jokes about coconut crabs and you both laugh.',
+      'The mood lightens as {npc} tells a ridiculous story.'
+    ]
+  },
+  warning: {
+    playerLead: [
+      'You warn {npc} quietly: "Be careful around {target}."',
+      'You glance around, then warn {npc} about a brewing plot.'
+    ],
+    npcLead: [
+      '{npc} whispers: "Be careful around {target}."',
+      'Eyes darting, {npc} warns you about a brewing plot.'
+    ]
+  },
+  manipulation: {
+    playerLead: [
+      'You flatter {npc}, steering toward your agenda.',
+      'You soften the tone to guide {npc} where you want.'
+    ],
+    npcLead: [
+      '{npc} flatters you, guiding the talk toward their agenda.',
+      'You sense {npc} steering the conversation to benefit them.'
+    ]
+  },
+  protection: {
+    playerLead: [
+      'You quietly promise to watch {npc}\'s back.',
+      'You offer cover if things get messy tonight.'
+    ],
+    npcLead: [
+      'Quietly, {npc} promises to watch your back at the next vote.',
+      '{npc} offers cover if things get messy tonight.'
+    ]
+  },
+  wildcard: {
+    playerLead: [
+      'You ramble about idols, storms, and goats. It\'s chaos.',
+      'You bounce between topics; {npc} tries to keep up.'
+    ],
+    npcLead: [
+      'Out of nowhere, {npc} rambles about idols, storms, and goats.',
+      '{npc} pivots between topics; the chaos is real.'
+    ]
+  },
+  allianceInvite: {
+    playerLead: [
+      'You pull {npc} aside. "I think we should lock something in. You game?"'
+    ],
+    npcLead: [
+      '{npc} glances around, voice low. "Look… I think you and I could work together. Want to lock something in?"'
+    ]
+  },
+  deal: {
+    playerLead: [
+      'You bring up a deal and watch {npc}\'s face.',
+      'You pitch a quiet agreement to {npc}.'
+    ],
+    npcLead: [
+      '{npc} narrows their eyes. "So you want to make a deal?"',
+      '{npc} folds their arms, weighing your offer carefully.'
+    ]
+  },
+  askIntel: {
+    playerLead: [
+      'You lean in. "What are you hearing?"',
+      'You keep your voice low. "What have you heard?"'
+    ],
+    npcLead: [
+      '{npc} leans in. "Let me tell you what I\'m hearing."',
+      '{npc} pulls you aside. "There\'s some chatter you should know."'
+    ]
+  },
+  talkSpecific: {
+    playerLead: [
+      'You bring up {target}. "{playerPrompt}"',
+      'You ask about {target} in a low voice. "{playerPrompt}"'
+    ],
+    npcLead: [
+      '{npc} brings up {target}. "{npcPrompt}"',
+      '{npc} steers the talk to {target}. "{npcPrompt}"'
+    ]
+  },
+  targeting: {
+    playerLead: [
+      'You ask straight up, "Who are you voting for tonight?"',
+      'You go direct. "What name are you putting down?"'
+    ],
+    npcLead: [
+      '{npc} asks low, "Who are you voting for tonight?"',
+      '{npc} sizes you up. "What name are you putting down?"'
+    ]
+  }
 };
 
 const RESPONSE_LIBRARY = {
@@ -324,6 +468,21 @@ const RESPONSE_LIBRARY = {
     { label: 'Offer flexibility', delta: 2, mood: 'calm', followup: 'You make room for their concerns about {dealTopic}.' },
     { label: 'Feel them out first', delta: 1, mood: 'neutral', followup: 'You probe gently to see if {npc} will accept {dealTopic}.' }
   ],
+  askIntel: [
+    { label: 'Thanks for the heads-up', delta: 2, mood: 'calm', followup: 'You nod and keep it close.' },
+    { label: 'Ask for more detail', delta: 1, mood: 'focused', followup: 'You press gently for specifics.' },
+    { label: 'Offer to trade info', delta: 2, mood: 'happy', followup: 'You float a small piece of info in return.' }
+  ],
+  talkSpecific: [
+    { label: 'Take it in and move on', delta: 1, mood: 'neutral', followup: 'You absorb the read and keep it quiet.' },
+    { label: 'Ask a quick follow-up', delta: 1, mood: 'focused', followup: 'You ask one more pointed question.' },
+    { label: 'Back off for now', delta: 0, mood: 'calm', followup: 'You let it sit for now.' }
+  ],
+  targeting: [
+    { label: 'Share your own name', delta: 2, mood: 'focused', followup: 'You give a name and watch for a reaction.' },
+    { label: 'Stay vague', delta: -1, mood: 'suspicious', followup: 'You avoid names; {npc} notices.' },
+    { label: 'Counter with another target', delta: 1, mood: 'neutral', followup: 'You float a different name.' }
+  ],
   allianceInvite: [
     { key: 'acceptFaithful', label: 'I’m in. Let’s work together.' },
     { key: 'acceptFake', label: 'Sure… I’m in.' },
@@ -367,6 +526,7 @@ class ConversationSystem {
     const intent = this._mapSocialTypeToIntent(type);
     const location = options.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
     const initiator = options.initiatedByNpc ? 'npc' : (options.initiator || 'player');
+    const phase = options.context?.phase || this._getConversationPhase();
 
     const beginConversation = () => {
       this._startConversation(survivor, {
@@ -374,7 +534,7 @@ class ConversationSystem {
         isPurpose: true,
         meeting: null,
         location,
-        context: { ...(options.context || {}), initiator }
+        context: { ...(options.context || {}), initiator, phase }
       });
     };
 
@@ -530,19 +690,24 @@ class ConversationSystem {
     });
 
     const isPostChallenge = this.gameManager.getGamePhase?.() === GamePhase.POST_CHALLENGE;
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const hasAlliance = !!(player?.id && allianceSystem?.areAllied?.(player.id, survivor.id));
     const categories = isPostChallenge
       ? [
-          { key: 'exchange', label: 'Exchange Info' },
-          { key: 'probe', label: "Who are you thinking?" },
-          { key: 'deal', label: 'Offer a deal' },
-          { key: 'seed', label: 'Plant a seed' },
-          { key: 'trash', label: 'Trash talk' },
-          { key: 'challenge', label: 'Challenge talk' },
-          { key: 'confront', label: 'Pressure / Confront' }
+          { key: 'askIntel', label: 'What have you heard?' },
+          { key: 'talkSpecific', label: 'Talk about someone specific' },
+          { key: 'deal', label: 'Offer a deal / lock a vote' },
+          { key: 'seed', label: 'Plant a seed / throw under the bus' },
+          { key: 'defend', label: 'Defend someone / lower heat' },
+          { key: 'verify', label: 'Ask for proof / verify rumors' },
+          { key: 'challenge', label: 'Challenge performance' },
+          { key: 'targeting', label: 'Who are you voting?' },
+          ...(hasAlliance ? [{ key: 'alliance', label: 'Alliance coordination' }] : [])
         ]
       : [
           { key: 'personal', label: 'Personal' },
-          { key: 'strategy', label: 'Strategy' },
+          { key: 'strategy', label: 'Strategy (light)' },
           { key: 'exchange', label: 'Exchange Info' },
           { key: 'confront', label: 'Confront' }
         ];
@@ -569,6 +734,7 @@ class ConversationSystem {
     this._clearOverlay();
     const overlay = this._buildOverlayShell(survivor);
     const parchment = this._buildParchment(`Dig deeper with ${survivor.firstName}`);
+    const phase = this._getConversationPhase();
 
     const optionColumn = createElement('div', {
       style: {
@@ -590,80 +756,102 @@ class ConversationSystem {
       optionColumn.appendChild(btn);
     };
 
-    const tribe = this.gameManager.getPlayerTribe?.();
-    const pool = tribe?.members || this.gameManager.survivors || [];
-
     if (category === 'personal') {
-      addOption('Bond / Get to know', () => this._startConversation(survivor, { intentOverride: 'bonding', location }));
-      addOption('Share a personal story', () => this._startConversation(survivor, { intentOverride: 'personal', location }));
-      addOption('Joke around', () => this._startConversation(survivor, { intentOverride: 'fun', location }));
-      addOption('Check on their mood', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location }));
-    } else if (category === 'probe') {
-      addOption("Who are you thinking?", () => this._startConversation(survivor, { intentOverride: 'gossip', location, context: { mode: 'probe' } }));
-      addOption('What names have you heard?', () => this._startConversation(survivor, { intentOverride: 'gossip', location, context: { mode: 'rumor' } }));
+    if (category === 'personal') {
+      addOption('Bond / Get to know', () => this._startConversation(survivor, { intentOverride: 'bonding', location, context: { phase } }));
+      addOption('Share a personal story', () => this._startConversation(survivor, { intentOverride: 'personal', location, context: { phase } }));
+      addOption('Joke around', () => this._startConversation(survivor, { intentOverride: 'fun', location, context: { phase } }));
+      addOption('Check on their mood', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location, context: { phase } }));
+    } else if (category === 'askIntel') {
+      addOption('Ask what they’ve heard', () => this._startConversation(survivor, { intentOverride: 'askIntel', location, context: { phase, initiator: 'player' } }));
+    } else if (category === 'talkSpecific') {
+      addOption('Pick a name to discuss', () => this.promptSurvivorPicker({
+        title: 'Talk about who?',
+        tribeOnly: true,
+        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
+        onPick: pick => this._showSpecificTopicMenu(survivor, location, pick, { phase, returnCategory: category })
+      }));
     } else if (category === 'deal') {
       addOption('Vote together', () => this._showDealMenu(survivor, location));
-      addOption('Protect each other', () => this._startConversation(survivor, { intentOverride: 'deal', location, context: { dealType: 'protection' } }));
+      addOption('Protect each other', () => this._startConversation(survivor, { intentOverride: 'deal', location, context: { dealType: 'protection', phase } }));
     } else if (category === 'seed') {
       addOption('Plant a subtle target', () => this.promptSurvivorPicker({
         title: 'Who to plant?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'warning', location, context: { topicPerson: pick.firstName, stance: 'seed' } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'warning', location, context: { topicPerson: pick.firstName, stance: 'seed', phase, initiator: 'player' } })
       }));
-    } else if (category === 'trash') {
-      addOption('Trash talk someone', () => this.promptSurvivorPicker({
-        title: 'Trash talk who?',
+      addOption('Throw someone under the bus', () => this.promptSurvivorPicker({
+        title: 'Throw under the bus?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'gossip', location, context: { topicPerson: pick.firstName, stance: 'trash' } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'talkSpecific', location, context: { topicPerson: pick.firstName, subTopic: 'bury', phase, initiator: 'player' } })
+      }));
+    } else if (category === 'defend') {
+      addOption('Talk them up / lower heat', () => this.promptSurvivorPicker({
+        title: 'Defend who?',
+        tribeOnly: true,
+        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'talkSpecific', location, context: { topicPerson: pick.firstName, subTopic: 'talkUp', phase, initiator: 'player' } })
+      }));
+    } else if (category === 'verify') {
+      addOption('Ask for proof', () => this.promptSurvivorPicker({
+        title: 'Verify rumors about who?',
+        tribeOnly: true,
+        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'talkSpecific', location, context: { topicPerson: pick.firstName, subTopic: 'verifyRumor', phase, initiator: 'player' } })
       }));
     } else if (category === 'challenge') {
-      addOption('Comment on challenge threat', () => this.promptSurvivorPicker({
-        title: 'Who is a threat?',
+      addOption('Talk challenge performance', () => this.promptSurvivorPicker({
+        title: 'Talk about who?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'challenge' } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'talkSpecific', location, context: { topicPerson: pick.firstName, subTopic: 'challengePerformance', phase, initiator: 'player' } })
       }));
+    } else if (category === 'targeting') {
+      addOption('Ask who they are voting', () => this._startConversation(survivor, { intentOverride: 'targeting', location, context: { phase, initiator: 'player' } }));
+    } else if (category === 'alliance') {
+      addOption('Coordinate alliance vote', () => this._showDealMenu(survivor, location));
+      addOption('Swap alliance intel', () => this._startConversation(survivor, { intentOverride: 'askIntel', location, context: { phase, initiator: 'player' } }));
     } else if (category === 'strategy') {
-      addOption('Light strategy (general)', () => this._startConversation(survivor, { intentOverride: 'lightStrategy', location }));
+      addOption('Light strategy (general)', () => this._startConversation(survivor, { intentOverride: 'lightStrategy', location, context: { phase } }));
       addOption('Push a target', () => this.promptSurvivorPicker({
         title: 'Who do you want to push?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'push', initiator: 'player' } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'hardStrategy', location, context: { topicPerson: pick.firstName, stance: 'push', initiator: 'player', phase } })
       }));
       addOption('Offer a deal', () => this._showDealMenu(survivor, location));
-      addOption('Propose an alliance', () => this._startConversation(survivor, { intentOverride: 'allianceInvite', location, context: { initiator: 'player' } }));
+      addOption('Propose an alliance', () => this._startConversation(survivor, { intentOverride: 'allianceInvite', location, context: { initiator: 'player', phase } }));
       addOption('Ask who they trust', () => this.promptSurvivorPicker({
         title: 'Who do they trust?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'trust', location, context: { allyName: pick.firstName } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'trust', location, context: { allyName: pick.firstName, phase } })
       }));
     } else if (category === 'exchange') {
-      addOption('Ask what they’ve heard', () => this._startConversation(survivor, { intentOverride: 'gossip', location }));
+      addOption('Ask what they’ve heard', () => this._startConversation(survivor, { intentOverride: 'askIntel', location, context: { phase, initiator: 'player' } }));
       addOption('Talk about someone specific', () => this.promptSurvivorPicker({
         title: 'Talk about who?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'gossip', location, context: { topicPerson: pick.firstName } })
+        onPick: pick => this._showSpecificTopicMenu(survivor, location, pick, { phase, returnCategory: category })
       }));
       addOption('Share a suspicion', () => this.promptSurvivorPicker({
         title: 'Suspicious of who?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'warning', location, context: { topicPerson: pick.firstName } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'warning', location, context: { topicPerson: pick.firstName, phase, initiator: 'player' } })
       }));
     } else if (category === 'confront') {
-      addOption('Confront them about your name coming up', () => this._startConversation(survivor, { intentOverride: 'playerConfront', location }));
+      addOption('Confront them about your name coming up', () => this._startConversation(survivor, { intentOverride: 'playerConfront', location, context: { phase } }));
       addOption('Confront them about someone else', () => this.promptSurvivorPicker({
         title: 'Confront about who?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id],
-        onPick: pick => this._startConversation(survivor, { intentOverride: 'playerConfront', location, context: { topicPerson: pick.firstName } })
+        onPick: pick => this._startConversation(survivor, { intentOverride: 'playerConfront', location, context: { topicPerson: pick.firstName, phase } })
       }));
-      addOption('Accuse them of lying', () => this._startConversation(survivor, { intentOverride: 'playerAccuse', location }));
+      addOption('Accuse them of lying', () => this._startConversation(survivor, { intentOverride: 'playerAccuse', location, context: { phase } }));
     }
 
     const backBtn = createElement('button', {
@@ -720,6 +908,64 @@ class ConversationSystem {
     overlay.querySelector('.conversation-center').appendChild(parchment);
   }
 
+  _showSpecificTopicMenu(survivor, location, target, { phase = null, returnCategory = 'exchange' } = {}) {
+    this._clearOverlay();
+    const overlay = this._buildOverlayShell(survivor);
+    const parchment = this._buildParchment(`What do you want to say about ${target.firstName}?`);
+
+    const optionColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginTop: '8px',
+        maxHeight: '46vh',
+        overflowY: 'auto',
+        width: '100%'
+      }
+    });
+
+    const addOption = (label, subTopic) => {
+      const btn = createElement('button', {
+        className: 'rect-button full',
+        onclick: () => {
+          this._clearOverlay();
+          this._startConversation(survivor, {
+            intentOverride: 'talkSpecific',
+            location,
+            context: {
+              topicPerson: target.firstName,
+              topicId: target.id,
+              subTopic,
+              phase: phase || this._getConversationPhase(),
+              initiator: 'player'
+            }
+          });
+        }
+      }, label);
+      optionColumn.appendChild(btn);
+    };
+
+    addOption('Do you think they have an idol?', 'idol');
+    addOption('How did they do in the last challenge?', 'challengePerformance');
+    addOption('Who are they working with?', 'workingWith');
+    addOption('I heard they mentioned my name.', 'nameMentioned');
+    addOption('Talk them up (lower heat).', 'talkUp');
+    addOption('Throw them under the bus.', 'bury');
+    addOption('Are they the vote tonight?', 'voteTonight');
+    addOption('Would you vote them if I asked?', 'voteIfAsked');
+    addOption('Ask for proof / verify rumors.', 'verifyRumor');
+
+    const backBtn = createElement('button', {
+      className: 'rect-button alt full',
+      onclick: () => this._showCategoryMenu(survivor, location, returnCategory)
+    }, 'Back');
+
+    optionColumn.appendChild(backBtn);
+    parchment.appendChild(optionColumn);
+    overlay.querySelector('.conversation-center').appendChild(parchment);
+  }
+
   _promptTargetSelection(survivor, location) {
     const overlay = this._buildOverlayShell(survivor);
     const parchment = this._buildParchment('Who do you want to talk about?');
@@ -740,6 +986,7 @@ class ConversationSystem {
       }
     });
 
+    const phase = this._getConversationPhase();
     targets.forEach(target => {
       const btn = createElement('button', {
         className: 'rect-button full',
@@ -749,7 +996,7 @@ class ConversationSystem {
             intentOverride: 'gossip',
             isPurpose: false,
             location,
-            context: { topicPerson: target.firstName }
+            context: { topicPerson: target.firstName, phase }
           });
         }
       }, target.firstName);
@@ -770,6 +1017,7 @@ class ConversationSystem {
     const overlay = this._buildOverlayShell(survivor);
     const parchment = this._buildParchment('What kind of deal do you offer?');
     const player = this.gameManager.getPlayerSurvivor?.();
+    const phase = this._getConversationPhase();
 
     const options = [
       { key: 'mutualProtection', label: 'Mutual protection' },
@@ -812,7 +1060,7 @@ class ConversationSystem {
                   intentOverride: 'deal',
                   isPurpose: false,
                   location,
-                  context: dealContext
+                  context: { ...dealContext, phase }
                 });
               },
               onCancel: () => this._showDealMenu(survivor, location)
@@ -825,7 +1073,7 @@ class ConversationSystem {
             intentOverride: 'deal',
             isPurpose: false,
             location,
-            context: dealContext
+            context: { ...dealContext, phase }
           });
         }
       }, opt.label);
@@ -861,6 +1109,7 @@ class ConversationSystem {
       }
     });
 
+    const phase = this._getConversationPhase();
     candidates.forEach(target => {
       const btn = createElement('button', {
         className: 'rect-button full',
@@ -871,7 +1120,7 @@ class ConversationSystem {
             intentOverride: 'deal',
             isPurpose: false,
             location,
-            context: dealContext
+            context: { ...dealContext, phase }
           });
         }
       }, target.firstName);
@@ -982,7 +1231,8 @@ class ConversationSystem {
   ) {
     const intent = intentOverride || this._chooseIntent(survivor, isPurpose);
     const initiator = context.initiator || 'player';
-    const conversationContext = { ...context, initiator, isPurpose, meeting, location };
+    const phase = context.phase || this._getConversationPhase();
+    const conversationContext = { ...context, initiator, isPurpose, meeting, location, phase };
     const dialogue = this._buildDialogue(intent, survivor, conversationContext);
 
     if (intent === 'hardStrategy' && !dialogue.context?.topicPerson) {
@@ -1009,7 +1259,10 @@ class ConversationSystem {
       topicPerson: dialogue.context?.topicPerson || conversationContext.topicPerson || null,
       allyName: dialogue.context?.allyName || null,
       targetName: dialogue.context?.targetName || null,
-      dealTopic: dialogue.context?.dealTopic || null
+      dealTopic: dialogue.context?.dealTopic || null,
+      intelPayload: dialogue.context?.intelPayload || null,
+      subTopic: dialogue.context?.subTopic || conversationContext.subTopic || null,
+      targetId: dialogue.context?.targetId || conversationContext.targetId || null
     };
 
     const groupArea = createElement('div', {
@@ -1846,9 +2099,7 @@ class ConversationSystem {
     const initiator = context.initiator || 'player';
     const text = alreadyAllied
       ? `${survivor.firstName} grins. "We’re already good, right?"`
-      : (initiator === 'player'
-        ? `You pull ${survivor.firstName} aside. "I think we should lock something in. You game?"`
-        : INTENT_TEMPLATES.allianceInvite[0].replace('{npc}', survivor.firstName));
+      : this._pickIntentTemplate('allianceInvite', initiator).replace('{npc}', survivor.firstName);
 
     const playerInitiatedResponses = [
       { key: 'acceptFaithful', label: 'Ask for a tight alliance together.' },
@@ -2010,9 +2261,16 @@ class ConversationSystem {
     const relationship = this._getRelationshipScore(survivor);
     const mood = this._getMood(survivor.id);
     const gameplayStyle = survivor.gameplayStyle || 'Competitive';
+    const phase = this._getConversationPhase();
 
     if (relationship !== null && relationship < 20 && ['angry', 'irritated', 'suspicious'].includes(mood)) {
       return 'confrontation';
+    }
+    if (phase === 'POST_CHALLENGE') {
+      const postPool = isPurpose
+        ? ['hardStrategy', 'warning', 'manipulation', 'trust', 'targeting', 'askIntel']
+        : ['askIntel', 'targeting', 'hardStrategy', 'warning', 'trust', 'manipulation'];
+      return this._weightedIntent(postPool, mood, gameplayStyle);
     }
     if (relationship !== null && relationship > 65) {
       return isPurpose ? 'protection' : 'bonding';
@@ -2024,6 +2282,15 @@ class ConversationSystem {
     return this._weightedIntent(['bonding', 'fun', 'personal', 'lightStrategy', 'gossip', 'campTalk', 'moodCheck', 'wildcard'], mood, gameplayStyle);
   }
 
+  _getConversationPhase() {
+    const override = this.gameManager.conversationPhaseOverride;
+    if (override) return override;
+    const phase = this.gameManager.getGamePhase?.() || this.gameManager.gamePhase;
+    if (phase === GamePhase.POST_CHALLENGE) return 'POST_CHALLENGE';
+    if (phase === GamePhase.PRE_CHALLENGE) return 'PRE_CHALLENGE';
+    return 'PRE_CHALLENGE';
+  }
+
   _mapSocialTypeToIntent(type) {
     switch (type) {
       case 'softStrategy':
@@ -2033,6 +2300,7 @@ class ConversationSystem {
       case 'bonding':
         return 'bonding';
       case 'targeting':
+        return 'targeting';
       case 'groupStrategy':
         return 'hardStrategy';
       case 'warning':
@@ -2057,6 +2325,8 @@ class ConversationSystem {
       weights.warning = (weights.warning || 0) + 2;
       weights.gossip = (weights.gossip || 0) + 1;
       weights.hardStrategy = (weights.hardStrategy || 0) + 1;
+      weights.askIntel = (weights.askIntel || 0) + 1;
+      weights.targeting = (weights.targeting || 0) + 1;
     }
     if (['Angry', 'angry', 'irritated'].includes(mood)) {
       weights.confrontation = (weights.confrontation || 0) + 3;
@@ -2091,15 +2361,23 @@ class ConversationSystem {
     if (intent === 'allianceInvite') {
       return this._buildAllianceInviteDialogue(survivor, context);
     }
+    if (intent === 'askIntel') {
+      return this._buildAskIntelDialogue(survivor, context);
+    }
+    if (intent === 'talkSpecific') {
+      return this._buildTalkSpecificDialogue(survivor, context);
+    }
+    if (intent === 'targeting') {
+      return this._buildTargetingDialogue(survivor, context);
+    }
 
-    const templatePool = INTENT_TEMPLATES[intent] || ['{npc} talks about the game.'];
     const memory = this.gameManager.systems?.socialMemorySystem;
     const initiator = context.initiator || 'player';
     context.initiator = initiator;
-    let line = templatePool[getRandomInt(0, templatePool.length - 1)];
+    let line = this._pickIntentTemplate(intent, initiator);
     let safety = 0;
     while (memory?.recentlyUsed?.(survivor.id, line) && safety < 3) {
-      line = templatePool[getRandomInt(0, templatePool.length - 1)];
+      line = this._pickIntentTemplate(intent, initiator);
       safety += 1;
     }
     const targetName = context.topicPerson || this._pickTargetName(survivor, context);
@@ -2144,6 +2422,431 @@ class ConversationSystem {
 
     memory?.rememberBeat?.(survivor.id, intent, line);
     return { text: line, responses, context };
+  }
+
+  _pickIntentTemplate(intent, initiator = 'player') {
+    const entry = INTENT_TEMPLATES[intent];
+    if (!entry) return '{npc} talks about the game.';
+    if (Array.isArray(entry)) {
+      return entry[getRandomInt(0, entry.length - 1)];
+    }
+    const pool = initiator === 'npc' ? entry.npcLead : entry.playerLead;
+    const fallback = entry.playerLead || entry.npcLead || [];
+    const usePool = Array.isArray(pool) && pool.length ? pool : fallback;
+    return usePool.length ? usePool[getRandomInt(0, usePool.length - 1)] : '{npc} talks about the game.';
+  }
+
+  _buildAskIntelDialogue(survivor, context = {}) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const initiator = context.initiator || 'player';
+    const phase = context.phase || this._getConversationPhase();
+
+    const { targetId, targetName } = this._pickIntelTarget(survivor, context);
+    const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
+    const memoryTrust = memory?.getTrust?.(survivor.id) ?? 50;
+    const trustScore = Math.round((relationshipValue + memoryTrust) / 2);
+    const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
+    const style = this._classifyStyle(survivor);
+
+    const repeated = targetId
+      ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId)
+      : false;
+
+    let responseLine = '';
+    let intelContext = 'heard_rumor';
+    let confidence = Math.max(15, Math.min(90, Math.round(trustScore + (style.isVillain ? -10 : 5))));
+
+    if (repeated && targetName) {
+      responseLine = `${survivor.firstName} exhales. "You already asked about ${targetName}. I don’t have much more."`;
+      confidence = Math.max(15, confidence - 15);
+    } else if (targetName) {
+      const intel = this._getBestIntelForTarget(targetId, targetName);
+      if (intel?.type === 'idol') {
+        intelContext = 'idol_suspicion';
+        responseLine = `${survivor.firstName} lowers their voice. "I keep hearing ${targetName} might have an idol."`;
+      } else if (intel?.type === 'alliance') {
+        intelContext = 'working_with';
+        responseLine = `${survivor.firstName} nods. "${targetName} feels tight with ${intel?.allyName || 'someone'}. That\'s the vibe."`;
+      } else if (intel?.type === 'target') {
+        intelContext = 'target';
+        responseLine = `${survivor.firstName} watches the camp. "Names are floating and ${targetName} keeps coming up."`;
+      } else {
+        intelContext = 'heard_rumor';
+        responseLine = `${survivor.firstName} shrugs. "I\'m hearing ${targetName}\'s name more than once."`;
+      }
+
+      if (targetRel > 70) {
+        responseLine += ` "But I don’t think they’re the real problem."`;
+        confidence = Math.max(10, confidence - 10);
+      } else if (targetRel < 40) {
+        responseLine += style.isStrategist
+          ? ` "They\'re a problem long-term."`
+          : ` "People are over it."`;
+        confidence = Math.min(95, confidence + 5);
+      }
+
+      if (trustScore < 45 && (style.isStrategist || style.isVillain)) {
+        responseLine += ` "If I\'m giving you this, I want something back later."`;
+      }
+    } else {
+      responseLine = `${survivor.firstName} shakes their head. "It\'s quiet… just a lot of side-eyes."`;
+      intelContext = 'heard_rumor';
+      confidence = Math.max(10, confidence - 10);
+    }
+
+    const leadLine = this._pickIntentTemplate('askIntel', initiator)
+      .replace('{npc}', survivor.firstName);
+    const line = `${leadLine} ${responseLine}`.trim();
+
+    const payload = targetName
+      ? {
+          aboutId: targetId,
+          aboutName: targetName,
+          context: intelContext,
+          fromId: survivor.id,
+          fromName: survivor.firstName,
+          toId: player?.id || null,
+          phase,
+          confidence,
+          shortText: responseLine
+        }
+      : null;
+
+    return {
+      text: line,
+      responses: RESPONSE_LIBRARY.askIntel || RESPONSE_LIBRARY.bonding,
+      context: { ...context, topicPerson: targetName || null, targetId: targetId || null, phase, intelPayload: payload }
+    };
+  }
+
+  _buildTalkSpecificDialogue(survivor, context = {}) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const initiator = context.initiator || 'player';
+    const phase = context.phase || this._getConversationPhase();
+    const targetName = context.topicPerson || this._pickTargetName(survivor, context) || 'someone';
+    const targetId = context.topicId || this._getSurvivorByName(targetName)?.id || null;
+    const subTopic = context.subTopic || 'workingWith';
+
+    const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
+    const memoryTrust = memory?.getTrust?.(survivor.id) ?? 50;
+    const trustScore = Math.round((relationshipValue + memoryTrust) / 2);
+    const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
+    const style = this._classifyStyle(survivor);
+    const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId) : false;
+
+    const promptMap = {
+      idol: {
+        playerPrompt: 'Do you think they have an idol?',
+        npcPrompt: 'Do you think they have an idol?'
+      },
+      challengePerformance: {
+        playerPrompt: 'How did they do in the last challenge?',
+        npcPrompt: 'How did they do in the last challenge?'
+      },
+      workingWith: {
+        playerPrompt: 'Who are they working with?',
+        npcPrompt: 'Who are they working with?'
+      },
+      nameMentioned: {
+        playerPrompt: 'I heard they mentioned my name.',
+        npcPrompt: 'I heard they mentioned my name.'
+      },
+      talkUp: {
+        playerPrompt: 'We should cool the heat on them.',
+        npcPrompt: 'We should cool the heat on them.'
+      },
+      bury: {
+        playerPrompt: 'They\'re dangerous. We should push them.',
+        npcPrompt: 'They\'re dangerous. We should push them.'
+      },
+      voteTonight: {
+        playerPrompt: 'Are they the vote tonight?',
+        npcPrompt: 'Are they the vote tonight?'
+      },
+      voteIfAsked: {
+        playerPrompt: 'Would you vote them if I asked?',
+        npcPrompt: 'Would you vote them if I asked?'
+      },
+      verifyRumor: {
+        playerPrompt: 'I need proof. What\'s real here?',
+        npcPrompt: 'I need proof. What\'s real here?'
+      }
+    };
+
+    const prompt = promptMap[subTopic] || promptMap.workingWith;
+    let responseLine = '';
+    let intelContext = 'heard_rumor';
+    let confidence = Math.max(10, Math.min(95, Math.round(trustScore + (style.isStrategist ? 5 : 0) - (style.isVillain ? 5 : 0))));
+    let mentionedNames = [];
+    let dealOutcome = null;
+
+    if (repeated) {
+      responseLine = `${survivor.firstName} shakes their head. "You already asked about ${targetName}. I don’t have more."`;
+      confidence = Math.max(10, confidence - 15);
+    } else {
+      switch (subTopic) {
+        case 'idol': {
+          intelContext = 'idol_suspicion';
+          responseLine = trustScore > 65
+            ? `${survivor.firstName} lowers their voice. "${targetName} is the one people whisper about with idols."`
+            : `${survivor.firstName} shrugs. "Maybe. ${targetName} gives idol vibes, but I don’t know."`;
+          break;
+        }
+        case 'challengePerformance': {
+          intelContext = 'challenge_comment';
+          const performance = this._getChallengePerformanceTag(targetId);
+          if (performance === 'mvp') {
+            responseLine = `${survivor.firstName} nods. "${targetName} was the MVP out there. That’s a real threat."`;
+          } else if (performance === 'lvp') {
+            responseLine = `${survivor.firstName} grimaces. "${targetName} was the LVP. People noticed."`;
+          } else {
+            responseLine = `${survivor.firstName} shrugs. "${targetName} was fine. Not a hero, not a disaster."`;
+          }
+          break;
+        }
+        case 'workingWith': {
+          intelContext = 'working_with';
+          const allies = this._pickAlliesForTarget(targetId, survivor.id);
+          mentionedNames = allies.map(a => a.firstName);
+          if (mentionedNames.length) {
+            responseLine = `${survivor.firstName} answers. "${targetName}\'s been close with ${mentionedNames.join(' and ')}."`;
+          } else {
+            responseLine = `${survivor.firstName} thinks. "Hard to tell, but ${targetName} has been whispering a lot."`;
+          }
+          break;
+        }
+        case 'nameMentioned': {
+          intelContext = 'name_thrown_out';
+          responseLine = trustScore > 60
+            ? `${survivor.firstName} admits, "Yeah, your name floated once — not sure by who."`
+            : `${survivor.firstName} hedges. "I haven’t heard your name, but I wouldn’t relax."`;
+          confidence = Math.max(10, confidence - (trustScore < 50 ? 10 : 0));
+          break;
+        }
+        case 'talkUp': {
+          intelContext = 'defend';
+          responseLine = targetRel > 60
+            ? `${survivor.firstName} nods. "I can cool that down. ${targetName}\'s not my target."`
+            : `${survivor.firstName} hesitates. "Maybe, but people already side-eye ${targetName}."`;
+          break;
+        }
+        case 'bury': {
+          intelContext = 'bury';
+          responseLine = targetRel < 45
+            ? `${survivor.firstName} smirks. "I can work with that. ${targetName}\'s risky."`
+            : `${survivor.firstName} leans back. "I’m not eager to torch ${targetName}."`;
+          break;
+        }
+        case 'voteTonight': {
+          intelContext = 'target';
+          const disclosure = resolveNpcDisclosure({
+            npc: survivor,
+            player,
+            kind: 'voteTonight',
+            context: { trueTarget: targetName, availableTargets: this._getAvailableTargetNames(survivor), relationshipSystem }
+          });
+          const claim = disclosure.claimedTarget || null;
+          if (disclosure.outcome === 'truth') {
+            responseLine = `${survivor.firstName} keeps it low. "If it\'s me, it\'s ${claim || targetName}."`;
+          } else if (disclosure.outcome === 'lie') {
+            responseLine = `${survivor.firstName} shrugs. "Probably ${claim || targetName}."`;
+            confidence = Math.max(10, confidence - 15);
+          } else {
+            responseLine = `${survivor.firstName} shakes their head. "I\'m not putting names out yet."`;
+            confidence = Math.max(10, confidence - 20);
+            context.skipIntel = true;
+          }
+          if (claim) {
+            context.topicPerson = claim;
+          }
+          break;
+        }
+        case 'voteIfAsked': {
+          intelContext = 'vote';
+          const agree = trustScore > 62 && targetRel < 60;
+          responseLine = agree
+            ? `${survivor.firstName} nods. "If you need it, I can vote ${targetName}."`
+            : `${survivor.firstName} hedges. "That\'s a big ask. I\'m not there yet."`;
+          dealOutcome = agree ? 'accepted' : 'declined';
+          break;
+        }
+        case 'verifyRumor': {
+          intelContext = 'verify_rumor';
+          responseLine = trustScore > 65
+            ? `${survivor.firstName} leans in. "I heard it from someone close to ${targetName}, but keep that quiet."`
+            : `${survivor.firstName} shakes their head. "I don’t have proof — it\'s just camp noise."`;
+          confidence = Math.max(10, confidence - (trustScore < 50 ? 10 : 0));
+          break;
+        }
+        default: {
+          intelContext = 'heard_rumor';
+          responseLine = `${survivor.firstName} shrugs. "Hard to read ${targetName} right now."`;
+          break;
+        }
+      }
+    }
+
+    const baseLine = this._pickIntentTemplate('talkSpecific', initiator)
+      .replace('{npc}', survivor.firstName)
+      .replace('{target}', targetName)
+      .replace('{playerPrompt}', prompt.playerPrompt)
+      .replace('{npcPrompt}', prompt.npcPrompt);
+
+    const line = `${baseLine} ${responseLine}`.trim();
+    const finalTopicName = context.topicPerson || targetName;
+    const finalTargetId = context.targetId || targetId;
+
+    const payload = context.skipIntel
+      ? null
+      : {
+          aboutId: finalTargetId,
+          aboutName: finalTopicName,
+          context: intelContext,
+          fromId: survivor.id,
+          fromName: survivor.firstName,
+          toId: player?.id || null,
+          phase,
+          confidence,
+          shortText: responseLine,
+          mentionedNames,
+          dealOutcome,
+          subTopic
+        };
+
+    return {
+      text: line,
+      responses: RESPONSE_LIBRARY.talkSpecific || RESPONSE_LIBRARY.bonding,
+      context: { ...context, topicPerson: finalTopicName, targetId: finalTargetId, subTopic, phase, intelPayload: payload }
+    };
+  }
+
+  _buildTargetingDialogue(survivor, context = {}) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const initiator = context.initiator || 'player';
+    const phase = context.phase || this._getConversationPhase();
+    const leadLine = this._pickIntentTemplate('targeting', initiator)
+      .replace('{npc}', survivor.firstName);
+
+    const disclosure = resolveNpcDisclosure({
+      npc: survivor,
+      player,
+      kind: 'voteTonight',
+      context: { availableTargets: this._getAvailableTargetNames(survivor), relationshipSystem }
+    });
+
+    let responseLine = '';
+    const claim = disclosure.claimedTarget || null;
+    if (disclosure.outcome === 'truth') {
+      responseLine = `${survivor.firstName} answers directly. "If I\'m voting, it\'s ${claim || 'someone'}."`;
+    } else if (disclosure.outcome === 'lie') {
+      responseLine = `${survivor.firstName} glances away. "Probably ${claim || 'someone'}."`;
+    } else {
+      responseLine = `${survivor.firstName} shuts it down. "I\'m not saying names yet."`;
+    }
+
+    const payload = claim
+      ? {
+          aboutName: claim,
+          context: 'target',
+          fromId: survivor.id,
+          fromName: survivor.firstName,
+          toId: player?.id || null,
+          phase,
+          confidence: disclosure.outcome === 'truth' ? 70 : disclosure.outcome === 'lie' ? 35 : 20,
+          shortText: responseLine
+        }
+      : null;
+
+    return {
+      text: `${leadLine} ${responseLine}`.trim(),
+      responses: RESPONSE_LIBRARY.targeting || RESPONSE_LIBRARY.bonding,
+      context: { ...context, phase, topicPerson: claim || null, intelPayload: payload }
+    };
+  }
+
+  _classifyStyle(survivor) {
+    const style = (survivor?.gameplayStyle || survivor?.personality || '').toLowerCase();
+    return {
+      isStrategist: style.includes('strateg') || style.includes('power'),
+      isSocial: style.includes('social') || style.includes('charmer'),
+      isVillain: style.includes('villain') || style.includes('shadow') || style.includes('deceptive'),
+      isWildcard: style.includes('wildcard')
+    };
+  }
+
+  _getAvailableTargetNames(survivor) {
+    return (this.gameManager.getPlayerTribe?.()?.members || this.gameManager.survivors || [])
+      .filter(s => s.firstName !== survivor.firstName && !s.isPlayer)
+      .map(s => s.firstName);
+  }
+
+  _pickIntelTarget(survivor, context = {}) {
+    if (context.topicPerson) {
+      const target = this._getSurvivorByName(context.topicPerson);
+      return { targetId: target?.id || null, targetName: context.topicPerson };
+    }
+
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const recent = memory?.getMostMentionedNamesRecently?.(3, 2) || [];
+    const pool = recent
+      .map(entry => this._getSurvivorById(entry.id) || this._getSurvivorByName(entry.id))
+      .filter(s => s && !s.isPlayer && s.id !== survivor.id);
+
+    if (pool.length) {
+      const pick = pool[getRandomInt(0, pool.length - 1)];
+      return { targetId: pick.id || null, targetName: pick.firstName };
+    }
+
+    const fallback = this._pickTargetName(survivor, context);
+    const fallbackSurvivor = this._getSurvivorByName(fallback);
+    return { targetId: fallbackSurvivor?.id || null, targetName: fallback || null };
+  }
+
+  _getBestIntelForTarget(targetId, targetName) {
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    if (!memory) return null;
+    const idKey = targetId != null ? String(targetId) : null;
+    const intel = memory.getRecentIntelAbout?.(idKey || targetName) || [];
+    if (!intel.length) return null;
+    const top = intel[0];
+    if (top.type === 'alliance' && targetId) {
+      const ally = this._pickAlliesForTarget(targetId, null)[0];
+      return { ...top, allyName: ally?.firstName || null };
+    }
+    return top;
+  }
+
+  _pickAlliesForTarget(targetId, excludeId = null) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const pool = (this.gameManager.getPlayerTribe?.()?.members || this.gameManager.survivors || [])
+      .filter(s => s.id !== targetId && !s.isPlayer && s.id !== excludeId);
+    if (!pool.length) return [];
+
+    const sorted = [...pool].sort((a, b) => {
+      const relA = relationshipSystem?.getRelationship?.(targetId, a.id)?.value ?? 50;
+      const relB = relationshipSystem?.getRelationship?.(targetId, b.id)?.value ?? 50;
+      return relB - relA;
+    });
+
+    return sorted.slice(0, 2);
+  }
+
+  _getChallengePerformanceTag(targetId) {
+    if (!targetId) return 'neutral';
+    const results = challengeManager.getAllChallengeResults?.() || [];
+    if (!results.length) return 'neutral';
+    const latest = results[results.length - 1];
+    const stagePerformance = latest?.stagePerformance || {};
+    for (const info of Object.values(stagePerformance)) {
+      if (info?.mvp?.survivorId === targetId) return 'mvp';
+      if (info?.lvp?.survivorId === targetId) return 'lvp';
+    }
+    return 'neutral';
   }
 
   _buildHardStrategyLine(baseLine, initiator, survivor, targetName, allyName, context) {
@@ -2441,6 +3144,18 @@ class ConversationSystem {
     const targetId = topicSurvivor?.id;
     const ally = this._getSurvivorByName(context.allyName);
     const speakerName = context?.initiator === 'player' ? 'Player' : survivor.firstName;
+    const dayValue = this.gameManager.getCurrentDay?.() || this.gameManager.day || 1;
+    const phase = context.phase || this._getConversationPhase();
+
+    memory.recordConversationIntent?.({
+      npcId: survivor.id,
+      withId: playerId,
+      intent,
+      targetId: targetId || context.targetId || null,
+      targetName: topicName || null,
+      day: dayValue,
+      phase
+    });
 
     if (topicName) {
       if (intent === 'hardStrategy' || intent === 'lightStrategy') {
@@ -2489,8 +3204,92 @@ class ConversationSystem {
         if (status === 'accepted') memory.recordPromise(survivor.id, this.gameManager.getPlayerSurvivor?.().id, context.dealType);
         break;
       }
+      case 'askIntel':
+      case 'talkSpecific':
+      case 'targeting':
+        if (context.intelPayload?.aboutName) {
+          this._logIntelPayload({
+            payload: context.intelPayload,
+            memory,
+            playerId,
+            survivorId: survivor.id,
+            day: dayValue,
+            phase
+          });
+        }
+        break;
       default:
         break;
+    }
+  }
+
+  _logIntelPayload({ payload, memory, playerId, survivorId, day, phase }) {
+    if (!payload) return;
+    const aboutName = payload.aboutName;
+    const aboutId = payload.aboutId || this._getSurvivorByName(aboutName)?.id || null;
+    const contextTag = payload.context || 'heard_rumor';
+    const confidence = payload.confidence ?? null;
+    const shortText = payload.shortText || '';
+
+    const logNamed = (name, contextOverride = contextTag) => {
+      memory.recordNamedIntel?.({
+        about: name,
+        context: contextOverride,
+        from: payload.fromName || 'Unknown',
+        day,
+        phase,
+        confidence,
+        shortText
+      });
+    };
+
+    if (aboutName) {
+      logNamed(aboutName, contextTag);
+    }
+
+    if (contextTag === 'working_with' && Array.isArray(payload.mentionedNames)) {
+      payload.mentionedNames.forEach(name => logNamed(name, 'working_with'));
+    }
+
+    if (contextTag === 'defend' || contextTag === 'bury') {
+      if (aboutId) {
+        memory.recordGossip?.(playerId || survivorId, survivorId, aboutId, contextTag, confidence ?? 'unknown');
+      }
+    }
+
+    if (contextTag === 'target' && aboutId) {
+      memory.recordTargetPreference?.(survivorId, aboutId, 'high', 'vote_tonight');
+      memory.recordIntelEvent?.({
+        type: 'target',
+        about: aboutId,
+        from: survivorId,
+        to: playerId,
+        day,
+        phase,
+        confidence,
+        shortText
+      });
+    }
+
+    if (payload.subTopic === 'voteIfAsked' && aboutId) {
+      const accepted = payload.dealOutcome === 'accepted';
+      memory.recordDeal?.(playerId || survivorId, survivorId, 'voteTogether', aboutId, accepted);
+      if (accepted) {
+        memory.recordPromise?.(survivorId, playerId, 'voteTogether');
+      }
+    }
+
+    if (contextTag === 'idol_suspicion' || contextTag === 'challenge_comment' || contextTag === 'verify_rumor') {
+      memory.recordIntelEvent?.({
+        type: contextTag === 'idol_suspicion' ? 'idol' : contextTag === 'challenge_comment' ? 'challenge_comment' : 'warning',
+        about: aboutId || aboutName,
+        from: survivorId,
+        to: playerId,
+        day,
+        phase,
+        confidence,
+        shortText
+      });
     }
   }
 
