@@ -757,7 +757,6 @@ class ConversationSystem {
     };
 
     if (category === 'personal') {
-    if (category === 'personal') {
       addOption('Bond / Get to know', () => this._startConversation(survivor, { intentOverride: 'bonding', location, context: { phase } }));
       addOption('Share a personal story', () => this._startConversation(survivor, { intentOverride: 'personal', location, context: { phase } }));
       addOption('Joke around', () => this._startConversation(survivor, { intentOverride: 'fun', location, context: { phase } }));
