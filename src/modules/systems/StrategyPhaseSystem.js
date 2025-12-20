@@ -62,12 +62,14 @@ class StrategyPhaseSystem {
     this.completedAllianceMeetings = new Set();
     this.meetingAlertQueue = [];
     this.loggedFactKeys = new Set();
+    gameManager.conversationPhaseOverride = null;
   }
 
   startPostChallengePhase() {
     const phaseKey = `${gameManager.getDay?.() ?? gameManager.day}-${gameManager.getGamePhase?.() ?? gameManager.gamePhase}`;
     if (this.startedForPhaseKey === phaseKey) return;
     this.startedForPhaseKey = phaseKey;
+    gameManager.conversationPhaseOverride = 'POST_CHALLENGE';
 
     // Set the timer for a 1-hour in-game scramble and freeze survival decay expectations
     gameManager.dayTimer = 3600;

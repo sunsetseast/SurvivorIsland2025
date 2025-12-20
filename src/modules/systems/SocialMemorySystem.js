@@ -6,6 +6,7 @@
 class SocialMemorySystem {
     constructor() {
         this.memory = {};
+        this.intelEvents = [];
         // structure:
         // memory[npcId] = {
         //   targetRequests: [],
@@ -45,6 +46,8 @@ class SocialMemorySystem {
                 playerSecrets: [],
                 intel: [],
                 namedIntel: [],
+                intelEvents: [],
+                conversationIntents: [],
                 misc: [],
                 lastTopics: [],
                 lastLines: [],
@@ -297,9 +300,20 @@ class SocialMemorySystem {
             this.memory[npcId].intel = this.memory[npcId].intel || [];
             this.memory[npcId].intel.push(entry);
         });
+
+        this.recordIntelEvent({
+            type: kind === 'targetClaim' ? 'target' : 'gossip',
+            about: claimedTarget || null,
+            from,
+            to: null,
+            day: dayValue,
+            phase: window.gameManager?.getGamePhase?.(),
+            confidence: outcome === 'truth' ? 70 : outcome === 'lie' ? 30 : 45,
+            shortText: claimedTarget ? `${from || 'Someone'} mentioned ${claimedTarget}.` : `${from || 'Someone'} hedged on names.`
+        });
     }
 
-    recordNamedIntel({ about, context, from, day }) {
+    recordNamedIntel({ about, context, from, day, confidence = null, phase = null, shortText = null }) {
         if (!about || !context) return;
         const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
         const entry = { about, context, from: from || 'Unknown', day: dayValue };
@@ -320,6 +334,29 @@ class SocialMemorySystem {
             this.initNPC(npcId);
             this.memory[npcId].namedIntel = this.memory[npcId].namedIntel || [];
             this.memory[npcId].namedIntel.push(entry);
+        });
+
+        const typeMap = {
+            heard_rumor: 'gossip',
+            target: 'target',
+            idol_suspicion: 'idol',
+            alliance: 'alliance',
+            working_with: 'alliance',
+            name_thrown_out: 'gossip',
+            challenge_comment: 'challenge_comment',
+            verify_rumor: 'warning',
+            warning: 'warning'
+        };
+
+        this.recordIntelEvent({
+            type: typeMap[context] || 'gossip',
+            about,
+            from,
+            to: null,
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null,
+            confidence,
+            shortText: shortText || `${from || 'Someone'} mentioned ${about} (${context}).`
         });
     }
 
@@ -373,7 +410,7 @@ class SocialMemorySystem {
       return holder.lastLines.includes(line);
   }
 
-  recordAllianceInvite({ day, location, npcId, playerId, outcome, pickedThirdId = null, isFake = false, accepted = false, declineType = null, pitchType = null, proposedBy = 'player' }) {
+    recordAllianceInvite({ day, location, npcId, playerId, outcome, pickedThirdId = null, isFake = false, accepted = false, declineType = null, pitchType = null, proposedBy = 'player' }) {
       const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
       const gm = window.gameManager;
       const getName = (id) => {
@@ -417,6 +454,164 @@ class SocialMemorySystem {
           }
       }
   }
+
+    // ===============================
+    // STRUCTURED INTEL EVENTS
+    // ===============================
+    recordIntelEvent({ type, about, from, to, day, phase = null, confidence = null, shortText = '' }) {
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const entry = {
+            type: type || 'gossip',
+            about,
+            from: from ?? null,
+            to: to ?? null,
+            day: dayValue,
+            phase: phase ?? window.gameManager?.getGamePhase?.() ?? null,
+            confidence: typeof confidence === 'number' ? this.clampValue(confidence) : null,
+            shortText: shortText || ''
+        };
+
+        this.intelEvents.push(entry);
+
+        const pushToNpc = (npcId) => {
+            if (npcId == null) return;
+            this.initNPC(npcId);
+            this.memory[npcId].intelEvents = this.memory[npcId].intelEvents || [];
+            this.memory[npcId].intelEvents.push(entry);
+        };
+
+        pushToNpc(from);
+        pushToNpc(to);
+    }
+
+    recordConversationIntent({ npcId, withId = null, intent, targetId = null, targetName = null, day = null, phase = null }) {
+        if (npcId == null) return;
+        this.initNPC(npcId);
+        const entry = {
+            day: day || window.gameManager?.getCurrentDay?.() || 1,
+            phase: phase || window.gameManager?.getGamePhase?.() || null,
+            withId,
+            intent,
+            targetId,
+            targetName
+        };
+        this.memory[npcId].conversationIntents = this.memory[npcId].conversationIntents || [];
+        this.memory[npcId].conversationIntents.push(entry);
+        if (this.memory[npcId].conversationIntents.length > 8) {
+            this.memory[npcId].conversationIntents.shift();
+        }
+    }
+
+    getRecentIntelAbout(survivorId, limit = 6) {
+        if (survivorId == null) return [];
+        const compare = String(survivorId);
+        const gm = window.gameManager;
+        const resolved = gm?.survivors?.find?.((s) => String(s.id) === compare || s.firstName === survivorId);
+        const compareAlt = resolved ? String(resolved.id) : null;
+        const resolveMatch = (about) => {
+            if (about == null) return false;
+            if (Array.isArray(about)) {
+                return about.some((item) => String(item) === compare || (compareAlt && String(item) === compareAlt));
+            }
+            return String(about) === compare || (compareAlt && String(about) === compareAlt);
+        };
+        return [...this.intelEvents]
+            .filter((entry) => resolveMatch(entry.about))
+            .sort((a, b) => (b.day || 0) - (a.day || 0))
+            .slice(0, limit);
+    }
+
+    getWhoIsTargeting(survivorId) {
+        if (survivorId == null) return [];
+        const compare = String(survivorId);
+        const result = new Set();
+        this.intelEvents.forEach((entry) => {
+            const about = entry.about;
+            const matches = Array.isArray(about)
+                ? about.some((id) => String(id) === compare)
+                : String(about) === compare;
+            if (matches && entry.type === 'target' && entry.from != null) {
+                result.add(entry.from);
+            }
+        });
+        return Array.from(result);
+    }
+
+    getTargetsMentioned() {
+        const mentions = new Map();
+        this.intelEvents.forEach((entry) => {
+            if (!entry.about) return;
+            if (entry.type !== 'target' && entry.type !== 'gossip' && entry.type !== 'idol' && entry.type !== 'warning') return;
+            const add = (about) => {
+                const key = String(about);
+                mentions.set(key, (mentions.get(key) || 0) + 1);
+            };
+            if (Array.isArray(entry.about)) {
+                entry.about.forEach(add);
+            } else {
+                add(entry.about);
+            }
+        });
+        return Array.from(mentions.entries()).map(([id, count]) => ({ id, count }));
+    }
+
+    getDealsBetween(aId, bId) {
+        if (aId == null || bId == null) return [];
+        const results = [];
+        Object.values(this.memory || {}).forEach((mem) => {
+            (mem.deals || []).forEach((deal) => {
+                const match =
+                    (String(deal.offererId) === String(aId) && String(deal.receiverId) === String(bId)) ||
+                    (String(deal.offererId) === String(bId) && String(deal.receiverId) === String(aId));
+                if (match) results.push(deal);
+            });
+        });
+        return results;
+    }
+
+    getMostMentionedNamesRecently(limit = 3, daysBack = 2) {
+        const currentDay = window.gameManager?.getCurrentDay?.() || 1;
+        const cutoff = currentDay - daysBack;
+        const counts = new Map();
+        this.intelEvents.forEach((entry) => {
+            if (entry.day != null && entry.day < cutoff) return;
+            const add = (about) => {
+                const key = String(about);
+                counts.set(key, (counts.get(key) || 0) + 1);
+            };
+            if (Array.isArray(entry.about)) {
+                entry.about.forEach(add);
+            } else if (entry.about != null) {
+                add(entry.about);
+            }
+        });
+        return Array.from(counts.entries())
+            .map(([id, count]) => ({ id, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, limit);
+    }
+
+    hasTalkedAboutTargetRecently(npcId, targetId, withinDays = 1) {
+        if (npcId == null || targetId == null) return false;
+        this.initNPC(npcId);
+        const day = window.gameManager?.getCurrentDay?.() || 1;
+        const compare = String(targetId);
+        return (this.memory[npcId].conversationIntents || []).some((entry) => {
+            const matchesId = entry.targetId != null && String(entry.targetId) === compare;
+            const matchesName = entry.targetName != null && String(entry.targetName) === compare;
+            if (!matchesId && !matchesName) return false;
+            if (entry.day == null) return true;
+            return day - entry.day <= withinDays;
+        });
+    }
+
+    getIntelEvents({ day = null, phase = null } = {}) {
+        return this.intelEvents.filter((entry) => {
+            if (day != null && entry.day !== day) return false;
+            if (phase != null && entry.phase !== phase) return false;
+            return true;
+        });
+    }
 }
 
 // GLOBAL EXPORT

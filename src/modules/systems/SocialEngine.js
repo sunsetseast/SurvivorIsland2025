@@ -153,7 +153,8 @@ class SocialEngine {
             conversationSystem.startNpcConversation(npc, type, {
                 group,
                 initiatedByNpc: true,
-                location
+                location,
+                context: { phase: gameManager.getGamePhase?.() === "POST_CHALLENGE" ? "POST_CHALLENGE" : "PRE_CHALLENGE" }
             });
             return;
         }
