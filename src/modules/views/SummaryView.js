@@ -159,6 +159,9 @@ function buildSocialRecapSection() {
     }
   });
 
+  const structuredSummaries = (socialLog.memory || []).filter(m => m && m.type === 'structured_summary');
+  addCategory('Conversation Highlights', structuredSummaries, entry => entry.text || '');
+
   addCategory('Deals & Agreements', socialLog.deals, deal => {
     const label = deal.dealType === 'voteTogether' ? 'voting together' : deal.dealType === 'protection' ? 'mutual protection' : deal.dealType === 'information' ? 'sharing information' : 'alliance interest';
     const targetSuffix = deal.dealType === 'protection' ? '' : (deal.target ? ` on <b>${deal.target}</b>` : ' tonight');
