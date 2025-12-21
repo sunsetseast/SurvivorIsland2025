@@ -8,6 +8,7 @@ class SocialMemorySystem {
         this.memory = {};
         this.intelEvents = [];
         this.socialEvents = [];
+        this.structuredEvents = [];
         // structure:
         // memory[npcId] = {
         //   targetRequests: [],
@@ -49,6 +50,7 @@ class SocialMemorySystem {
                 namedIntel: [],
                 intelEvents: [],
                 conversationIntents: [],
+                structuredEvents: [],
                 misc: [],
                 lastTopics: [],
                 lastLines: [],
@@ -127,6 +129,41 @@ class SocialMemorySystem {
             this.initNPC(speakerId);
             this.memory[speakerId].intelEvents.push({ ...payload, perspective: 'speaker' });
         }
+    }
+
+    recordStructuredEvent({ type, speakerId, listenerId = null, subjectId = null, data = {}, day = null, phase = null }) {
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const entry = {
+            id: `evt-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+            type,
+            speakerId,
+            listenerId,
+            subjectId,
+            data,
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null,
+            time: Date.now()
+        };
+
+        this.structuredEvents.push(entry);
+
+        const pushTo = (npcId, perspective = null) => {
+            if (npcId == null) return;
+            this.initNPC(npcId);
+            this.memory[npcId].structuredEvents.push(perspective ? { ...entry, perspective } : entry);
+        };
+
+        pushTo(listenerId, 'listener');
+        pushTo(speakerId, 'speaker');
+        return entry;
+    }
+
+    getStructuredEvents() {
+        return this.structuredEvents.slice();
+    }
+
+    getStructuredEventsByType(type) {
+        return this.structuredEvents.filter(event => event.type === type);
     }
 
     getSocialEvents() {
