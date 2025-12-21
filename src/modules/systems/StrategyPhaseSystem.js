@@ -9,15 +9,7 @@ import challengeManager from '../core/ChallengeManager.js';
  */
 class StrategyPhaseSystem {
   constructor() {
-    this.reset();
-    this.beatIntervalId = null;
-    this.timerWatcherId = null;
-    this.startedForPhaseKey = null;
-    this.activeModalId = null;
-    this.pendingAllianceMeetings = [];
-    this.completedAllianceMeetings = new Set();
-    this.meetingAlertQueue = [];
-    this.loggedFactKeys = new Set();
+    this.reset({ skipGameManager: true });
   }
 
   initialize() {
@@ -44,7 +36,7 @@ class StrategyPhaseSystem {
       .replace(/view$/i, '');
   }
 
-  reset() {
+  reset({ skipGameManager = false } = {}) {
     this.isActive = false;
     this.playerTribeSafe = false;
     this.personalTargetId = null;
@@ -62,7 +54,9 @@ class StrategyPhaseSystem {
     this.completedAllianceMeetings = new Set();
     this.meetingAlertQueue = [];
     this.loggedFactKeys = new Set();
-    gameManager.conversationPhaseOverride = null;
+    if (!skipGameManager) {
+      gameManager.conversationPhaseOverride = null;
+    }
   }
 
   startPostChallengePhase() {
