@@ -7,6 +7,7 @@ class SocialMemorySystem {
     constructor() {
         this.memory = {};
         this.intelEvents = [];
+        this.socialEvents = [];
         // structure:
         // memory[npcId] = {
         //   targetRequests: [],
@@ -97,6 +98,47 @@ class SocialMemorySystem {
             this.memory[survivorId].misc = this.memory[survivorId].misc || [];
             this.memory[survivorId].misc.push(entry);
         }
+    }
+
+    // ===============================
+    // STRUCTURED SOCIAL EVENTS
+    // ===============================
+    recordSocialEvent({ type, speakerId, listenerId = null, subjectId = null, data = {}, day = null, phase = null }) {
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const payload = {
+            type,
+            speakerId,
+            listenerId,
+            subjectId,
+            data,
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null,
+            time: Date.now()
+        };
+
+        this.socialEvents.push(payload);
+
+        if (listenerId != null) {
+            this.initNPC(listenerId);
+            this.memory[listenerId].intelEvents.push(payload);
+        }
+
+        if (speakerId != null) {
+            this.initNPC(speakerId);
+            this.memory[speakerId].intelEvents.push({ ...payload, perspective: 'speaker' });
+        }
+    }
+
+    getSocialEvents() {
+        return this.socialEvents.slice();
+    }
+
+    getSocialEventsByType(type) {
+        return this.socialEvents.filter(event => event.type === type);
+    }
+
+    getRecentSocialEvents(limit = 10) {
+        return this.socialEvents.slice(-limit);
     }
 
     // ===============================

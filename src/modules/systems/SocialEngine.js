@@ -4,8 +4,6 @@
 // pre/post challenge behavior, strategy logic
 // ===============================
 
-import socialMemorySystem from "./SocialMemorySystem.js";
-import relationshipSystem from "./RelationshipSystem.js";
 import gameManager, { GameState } from "../core/GameManager.js";
 import npcLocationSystem from "./NpcLocationSystem.js";
 
@@ -105,6 +103,7 @@ class SocialEngine {
     pickPostStrategyType(npc) {
         const player = gameManager.getPlayerSurvivor?.();
         const allianceSystem = gameManager.systems?.allianceSystem;
+        const relationshipSystem = gameManager.systems?.relationshipSystem;
         const relValue = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value ?? 50;
         const alreadyAllied = allianceSystem?.areAllied?.(player?.id, npc?.id);
 
@@ -149,12 +148,18 @@ class SocialEngine {
         const conversationSystem = gameManager.systems?.conversationSystem;
         const location = npcLocationSystem.getLocation?.(npc.id) || window?.campScreen?.currentView || null;
 
-        if (conversationSystem && typeof conversationSystem.startNpcConversation === "function") {
-            conversationSystem.startNpcConversation(npc, type, {
-                group,
-                initiatedByNpc: true,
-                location,
-                context: { phase: gameManager.getGamePhase?.() === "POST_CHALLENGE" ? "POST_CHALLENGE" : "PRE_CHALLENGE" }
+        if (conversationSystem && typeof conversationSystem.startConversation === "function") {
+            const phase = this.phaseType === "post" ? "post" : "pre";
+            conversationSystem.startConversation({
+                npcId: npc.id,
+                phase,
+                socialType: type,
+                context: {
+                    group,
+                    initiatedByNpc: true,
+                    location,
+                    lastChallengeSummary: gameManager.lastChallengeSummary || null
+                }
             });
             return;
         }
