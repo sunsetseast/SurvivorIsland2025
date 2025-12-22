@@ -662,126 +662,127 @@ const INTENT_TEMPLATES = {
 
 const RESPONSE_LIBRARY = {
   bonding: [
-    { label: 'Lean in and share something too', delta: 5, mood: 'happy', followup: 'You trade a real moment. It feels warmer.' },
-    { label: 'Nod but stay guarded', delta: -1, mood: 'neutral', followup: 'You keep it light; {npc} notices the distance.' },
-    { label: 'Deflect with humor', delta: 1, mood: 'fun', followup: 'You lighten the vibe. {npc} chuckles.' }
+    { label: 'Lean in and share something too', playerLine: 'You lean in and share something personal to match the moment.', delta: 5, mood: 'happy', followup: '{npc} smiles. "That means a lot. I’m glad we can talk like this."' },
+    { label: 'Nod but stay guarded', playerLine: 'You nod but keep your guard up.', delta: -1, mood: 'neutral', followup: '{npc} studies you. "Alright. I’ll keep it in mind."' },
+    { label: 'Deflect with humor', playerLine: 'You deflect with a light joke to keep it easy.', delta: 1, mood: 'fun', followup: '{npc} chuckles. "Okay, fair enough."' }
   ],
   bonding_playerLead: [
-    { label: 'Ask them to open up back', delta: 4, mood: 'calm', followup: '{npc} shares a little more, meeting you halfway.' },
-    { label: 'Let the moment breathe', delta: 1, mood: 'neutral', followup: '{npc} sits with it, offering a small nod.' },
-    { label: 'Lighten it with a joke', delta: 2, mood: 'fun', followup: '{npc} laughs, tension easing.' }
+    { label: 'Ask them to open up back', playerLine: 'You ask them to open up a bit in return.', delta: 4, mood: 'calm', followup: '{npc} nods. "Alright. I’ll give you something real too."' },
+    { label: 'Let the moment breathe', playerLine: 'You let the moment breathe without pushing.', delta: 1, mood: 'neutral', followup: '{npc} gives a small nod. "I hear you."' },
+    { label: 'Lighten it with a joke', playerLine: 'You lighten it with a quick joke.', delta: 2, mood: 'fun', followup: '{npc} laughs. "Okay, I needed that."' }
   ],
   personal: [
-    { label: 'Thank them for sharing', delta: 4, mood: 'calm', followup: 'Trust inches forward.' },
-    { label: 'Share your own vulnerability', delta: 6, mood: 'happy', followup: 'A deeper bond forms.' },
-    { label: 'Change the subject', delta: -4, mood: 'irritated', followup: 'Walls go back up between you.' }
+    { label: 'Thank them for sharing', playerLine: 'You thank them and keep your voice steady.', delta: 4, mood: 'calm', followup: '{npc} exhales. "Thanks for saying that."' },
+    { label: 'Share your own vulnerability', playerLine: 'You share your own vulnerability in return.', delta: 6, mood: 'happy', followup: '{npc} softens. "I didn’t expect that—thanks for trusting me."' },
+    { label: 'Change the subject', playerLine: 'You steer the conversation to something safer.', delta: -4, mood: 'irritated', followup: '{npc} pulls back. "Alright, we can move on."' }
   ],
   personal_playerLead: [
-    { label: 'Ask how they relate', delta: 4, mood: 'calm', followup: '{npc} nods, then adds something real in return.' },
-    { label: 'Hold the eye contact', delta: 2, mood: 'neutral', followup: '{npc} takes it in, softer than before.' },
-    { label: 'Change the subject gently', delta: -2, mood: 'neutral', followup: 'You move on, but the moment lingers.' }
+    { label: 'Ask how they relate', playerLine: 'You ask how they relate to what you just shared.', delta: 4, mood: 'calm', followup: '{npc} nods. "I get that. Here’s where I’m at..."' },
+    { label: 'Hold the eye contact', playerLine: 'You hold the eye contact and let it land.', delta: 2, mood: 'neutral', followup: '{npc} nods quietly. "I hear you."' },
+    { label: 'Change the subject gently', playerLine: 'You gently pivot the topic.', delta: -2, mood: 'neutral', followup: '{npc} accepts it. "Okay, fair."' }
   ],
   lightStrategy: [
-    { label: 'Offer a soft take', delta: 2, mood: 'calm', followup: 'You test the waters together.' },
-    { label: 'Ask who they are eyeing', delta: 1, mood: 'neutral', disclosureKind: 'whoAreYouEyeing', followup: '{npc} glances around, then admits they\'re watching {target}.' },
-    { label: 'Stay vague', delta: -2, mood: 'suspicious', followup: '{npc} isn\'t sure if you are with them.' }
+    { label: 'Offer a soft take', playerLine: 'You float a soft, noncommittal read.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, that’s roughly where my head is too."' },
+    { label: 'Ask who they are eyeing', playerLine: 'You ask who they are eyeing without pressing too hard.', delta: 1, mood: 'neutral', disclosureKind: 'whoAreYouEyeing', followup: '{npc} glances around, then admits, "I’m watching {target}."' },
+    { label: 'Stay vague', playerLine: 'You stay vague and avoid names.', delta: -2, mood: 'suspicious', followup: '{npc} frowns. "Hard to know where you’re at if we don’t talk names."' }
   ],
   hardStrategy: [
-    { label: 'Agree to push the plan', delta: 3, mood: 'focused', followup: 'A pact forms for now.' },
+    { label: 'Agree to push the plan', playerLine: 'You agree to push the plan for now.', delta: 3, mood: 'focused', followup: '{npc} nods. "Alright. Let’s move it."' },
     {
       label: 'Counter with another target',
+      playerLine: 'You counter with another name instead.',
       delta: 1,
       mood: 'neutral',
-      followup: 'You redirect the heat elsewhere.',
+      followup: '{npc} tilts their head. "Okay, tell me why that makes more sense."',
       requiresCounterTarget: true
     },
-    { label: 'Refuse to commit', delta: -5, mood: 'irritated', followup: '{npc} questions your loyalty.' }
+    { label: 'Refuse to commit', playerLine: 'You refuse to commit and keep it noncommittal.', delta: -5, mood: 'irritated', followup: '{npc} narrows their eyes. "So are you with me or not?"' }
   ],
   trust: [
-    { label: 'Name a trusted ally', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, I feel pretty good about {ally} too."', requiresAllyPicker: true, awaitsPicker: true },
-    { label: 'Claim they are your #1', delta: 4, mood: 'happy', followup: '{npc} smiles, clearly liking that you trust them most.' },
-    { label: 'Dodge the question', delta: -3, mood: 'suspicious', followup: '{npc} raises a brow, clearly noticing you won\'t name anyone.' }
+    { label: 'Name a trusted ally', playerLine: 'You name someone you trust and watch their reaction.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, I feel pretty good about {ally} too."', requiresAllyPicker: true, awaitsPicker: true },
+    { label: 'Claim they are your #1', playerLine: 'You tell them they are your number one.', delta: 4, mood: 'happy', followup: '{npc} smiles. "I like hearing that."' },
+    { label: 'Dodge the question', playerLine: 'You dodge and keep it vague.', delta: -3, mood: 'suspicious', followup: '{npc} raises a brow. "That’s… not an answer."' }
   ],
   gossip: [
-    { label: 'Lean into the tea', delta: 2, mood: 'fun', followup: 'You both gossip quietly about {target}.' },
-    { label: 'Defend the target', delta: -3, mood: 'irritated', followup: 'You stick up for {target}. {npc} doesn\'t love that.' },
-    { label: 'Steer away', delta: -1, mood: 'neutral', followup: 'You change the subject and the moment fizzles out.' }
+    { label: 'Lean into the tea', playerLine: 'You lean in and trade a bit of gossip about {target}.', delta: 2, mood: 'fun', followup: '{npc} grins. "Yeah, I’ve heard some of that too."' },
+    { label: 'Defend the target', playerLine: 'You push back and defend {target}.', delta: -3, mood: 'irritated', followup: '{npc} frowns. "Alright, we see it differently."' },
+    { label: 'Steer away', playerLine: 'You steer away from the gossip.', delta: -1, mood: 'neutral', followup: '{npc} nods. "Fair. Let’s move on."' }
   ],
   confrontation: [
-    { label: 'Stand your ground', delta: -4, mood: 'angry', followup: 'Tension spikes.' },
-    { label: 'Apologize and explain', delta: 3, mood: 'calm', followup: 'It cools the air.' },
-    { label: 'Flip it back on them', delta: -2, mood: 'suspicious', followup: 'Now both of you are wary.' }
+    { label: 'Stand your ground', playerLine: 'You stand your ground and don’t blink.', delta: -4, mood: 'angry', followup: '{npc} stiffens. "Alright, then we’re clear."' },
+    { label: 'Apologize and explain', playerLine: 'You apologize and give your side calmly.', delta: 3, mood: 'calm', followup: '{npc} exhales. "Okay. I can work with that."' },
+    { label: 'Flip it back on them', playerLine: 'You flip it back on them and demand answers.', delta: -2, mood: 'suspicious', followup: '{npc} narrows their eyes. "Easy. I’m not your enemy."' }
   ],
   playerConfront: [
-    { label: 'Say you heard it directly', delta: -1, mood: 'focused', followup: '{npc} swallows. "From who?" they ask.' },
-    { label: 'Say it came through someone', delta: 0, mood: 'neutral', followup: '{npc} glances around, trying to read you.' },
-    { label: 'Name a source', delta: -2, mood: 'angry', followup: '{npc} bristles but listens. The air is heavy.', memoryTags: ['confront_source'] },
-    { label: 'Back off / laugh it off', delta: 1, mood: 'calm', followup: '{npc} exhales, tension easing just a little.' }
+    { label: 'Say you heard it directly', playerLine: 'You say you heard it directly and wait for their response.', delta: -1, mood: 'focused', followup: '{npc} swallows. "From who?" they ask.' },
+    { label: 'Say it came through someone', playerLine: 'You say it came through someone else.', delta: 0, mood: 'neutral', followup: '{npc} glances around, trying to read you.' },
+    { label: 'Name a source', playerLine: 'You name the source and stand by it.', delta: -2, mood: 'angry', followup: '{npc} bristles but listens. "Alright."', memoryTags: ['confront_source'] },
+    { label: 'Back off / laugh it off', playerLine: 'You back off and let it go for now.', delta: 1, mood: 'calm', followup: '{npc} exhales. "Okay, cool."' }
   ],
   playerAccuse: [
-    { label: 'Call out the lie directly', delta: -3, mood: 'angry', followup: '{npc} denies it, but their eyes dart.', memoryTags: ['accuse_lie'] },
-    { label: 'Ask why they twisted things', delta: -1, mood: 'focused', followup: '{npc} fumbles for an explanation.' },
-    { label: 'Give them a chance to come clean', delta: 2, mood: 'calm', followup: '{npc} considers softening their stance.' }
+    { label: 'Call out the lie directly', playerLine: 'You call out the lie directly.', delta: -3, mood: 'angry', followup: '{npc} denies it, but their eyes dart. "That’s not what I said."', memoryTags: ['accuse_lie'] },
+    { label: 'Ask why they twisted things', playerLine: 'You ask why they twisted it.', delta: -1, mood: 'focused', followup: '{npc} fumbles. "It got blown up, that’s all."' },
+    { label: 'Give them a chance to come clean', playerLine: 'You give them a chance to come clean.', delta: 2, mood: 'calm', followup: '{npc} hesitates. "Alright, here’s the truth..."' }
   ],
   apology: [
-    { label: 'Offer a sincere apology', delta: 4, mood: 'calm', followup: '{npc} softens a bit.' },
-    { label: 'Clarify your side', delta: 0, mood: 'neutral', followup: 'You both agree to move on… maybe.' },
-    { label: 'Downplay the issue', delta: -3, mood: 'irritated', followup: 'That did not land well.' }
+    { label: 'Offer a sincere apology', playerLine: 'You offer a sincere apology.', delta: 4, mood: 'calm', followup: '{npc} softens. "I appreciate that."' },
+    { label: 'Clarify your side', playerLine: 'You clarify your side without getting heated.', delta: 0, mood: 'neutral', followup: '{npc} nods slowly. "Okay, I hear you."' },
+    { label: 'Downplay the issue', playerLine: 'You downplay it and try to shrug it off.', delta: -3, mood: 'irritated', followup: '{npc} frowns. "Alright… if you say so."' }
   ],
   moodCheck: [
-    { label: 'Show real concern', delta: 3, mood: 'happy', followup: '{npc} feels seen.' },
-    { label: 'Encourage them to push through', delta: 1, mood: 'neutral', followup: 'They nod, still processing.' },
-    { label: 'Brush it off', delta: -4, mood: 'irritated', followup: 'You miss the cue and it stings.' }
+    { label: 'Show real concern', playerLine: 'You show real concern and ask how they are holding up.', delta: 3, mood: 'happy', followup: '{npc} softens. "Thanks for checking in."' },
+    { label: 'Encourage them to push through', playerLine: 'You encourage them to push through it.', delta: 1, mood: 'neutral', followup: '{npc} nods. "Yeah, I’ll be alright."' },
+    { label: 'Brush it off', playerLine: 'You brush it off and keep it light.', delta: -4, mood: 'irritated', followup: '{npc} tightens. "Okay."'}
   ],
   campTalk: [
-    { label: 'Problem-solve together', delta: 2, mood: 'calm', followup: 'You align on camp needs.' },
-    { label: 'Praise their effort', delta: 3, mood: 'happy', followup: '{npc} appreciates the credit.' },
-    { label: 'Complain about others', delta: -2, mood: 'suspicious', followup: 'Negativity hangs in the air.' }
+    { label: 'Problem-solve together', playerLine: 'You problem-solve together about camp needs.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, let’s knock that out."' },
+    { label: 'Praise their effort', playerLine: 'You praise their effort around camp.', delta: 3, mood: 'happy', followup: '{npc} smiles. "Thanks, I’m trying."' },
+    { label: 'Complain about others', playerLine: 'You vent about camp frustrations.', delta: -2, mood: 'suspicious', followup: '{npc} shrugs. "Just be careful who hears that."' }
   ],
   fun: [
-    { label: 'Add your own joke', delta: 2, mood: 'happy', followup: 'Laughter spreads.' },
-    { label: 'Play along', delta: 1, mood: 'fun', followup: 'The vibe stays light.' },
-    { label: 'Say it\'s not the time', delta: -3, mood: 'irritated', followup: 'The mood dips instantly.' }
+    { label: 'Add your own joke', playerLine: 'You add your own joke.', delta: 2, mood: 'happy', followup: '{npc} laughs. "Okay, that was good."' },
+    { label: 'Play along', playerLine: 'You play along and keep it light.', delta: 1, mood: 'fun', followup: '{npc} grins. "Alright, we needed that."' },
+    { label: 'Say it\'s not the time', playerLine: 'You say it’s not the time for jokes.', delta: -3, mood: 'irritated', followup: '{npc} frowns. "Yeah, fair."' }
   ],
   warning: [
-    { label: 'Thank them and agree', delta: 3, mood: 'calm', followup: 'You take the warning seriously.' },
-    { label: 'Ask for proof', delta: 0, mood: 'suspicious', followup: '{npc} hesitates but stays engaged.' },
-    { label: 'Dismiss the warning', delta: -4, mood: 'angry', followup: 'Trust erodes quickly.' }
+    { label: 'Thank them and agree', playerLine: 'You thank them and agree to be cautious.', delta: 3, mood: 'calm', followup: '{npc} nods. "Good. Just keep it tight."' },
+    { label: 'Ask for proof', playerLine: 'You ask for proof before buying it.', delta: 0, mood: 'suspicious', followup: '{npc} hesitates. "I don’t have hard proof, but it’s out there."' },
+    { label: 'Dismiss the warning', playerLine: 'You dismiss the warning outright.', delta: -4, mood: 'angry', followup: '{npc} stiffens. "Alright, do you."' }
   ],
   manipulation: [
-    { label: 'Play along to learn more', delta: 1, mood: 'neutral', followup: 'You let them feel in control.' },
-    { label: 'Call out the spin', delta: -3, mood: 'angry', followup: '{npc} bristles at the pushback.' },
-    { label: 'Counter-offer a deal', delta: 2, mood: 'focused', followup: 'Now you both have leverage.' }
+    { label: 'Play along to learn more', playerLine: 'You play along to learn more.', delta: 1, mood: 'neutral', followup: '{npc} nods, thinking they have you. "That’s what I like to hear."' },
+    { label: 'Call out the spin', playerLine: 'You call out the spin directly.', delta: -3, mood: 'angry', followup: '{npc} bristles. "I’m just being straight with you."' },
+    { label: 'Counter-offer a deal', playerLine: 'You counter-offer a deal instead.', delta: 2, mood: 'focused', followup: '{npc} tilts their head. "Alright, let’s hear it."' }
   ],
   protection: [
-    { label: 'Accept the cover', delta: 3, mood: 'happy', followup: '{npc} likes that you trust them.' },
-    { label: 'Offer protection back', delta: 4, mood: 'calm', followup: 'A mutual pact forms.' },
-    { label: 'Question their motive', delta: -2, mood: 'suspicious', followup: 'They wonder if you doubt them.' }
+    { label: 'Accept the cover', playerLine: 'You accept the cover and nod.', delta: 3, mood: 'happy', followup: '{npc} smiles. "We’ve got each other."' },
+    { label: 'Offer protection back', playerLine: 'You offer protection back.', delta: 4, mood: 'calm', followup: '{npc} nods. "Alright, mutual then."' },
+    { label: 'Question their motive', playerLine: 'You question their motive carefully.', delta: -2, mood: 'suspicious', followup: '{npc} frowns. "I’m trying to help you, but fine."' }
   ],
   wildcard: [
-    { label: 'Just roll with it', delta: 1, mood: 'fun', followup: 'Chaos shared is chaos loved.' },
-    { label: 'Try to focus them', delta: -1, mood: 'neutral', followup: '{npc} drifts but tries.' },
-    { label: 'Back away slowly', delta: -2, mood: 'irritated', followup: 'They notice you disengaging.' }
+    { label: 'Just roll with it', playerLine: 'You roll with it and keep the vibe light.', delta: 1, mood: 'fun', followup: '{npc} laughs. "Alright, let’s ride it out."' },
+    { label: 'Try to focus them', playerLine: 'You try to focus them back on the point.', delta: -1, mood: 'neutral', followup: '{npc} nods. "Okay, okay—what’s the move?"' },
+    { label: 'Back away slowly', playerLine: 'You back away and let the conversation fade.', delta: -2, mood: 'irritated', followup: '{npc} notices. "Alright, then."' }
   ],
   deal: [
-    { label: 'Pitch it confidently', delta: 3, mood: 'focused', followup: '{npc} hears you out on {dealTopic}.' },
-    { label: 'Offer flexibility', delta: 2, mood: 'calm', followup: 'You make room for their concerns about {dealTopic}.' },
-    { label: 'Feel them out first', delta: 1, mood: 'neutral', followup: 'You probe gently to see if {npc} will accept {dealTopic}.' }
+    { label: 'Pitch it confidently', playerLine: 'You pitch the deal confidently.', delta: 3, mood: 'focused', followup: '{npc} listens. "Okay, walk me through {dealTopic}."' },
+    { label: 'Offer flexibility', playerLine: 'You offer flexibility on the terms.', delta: 2, mood: 'calm', followup: '{npc} nods. "I can work with that."' },
+    { label: 'Feel them out first', playerLine: 'You feel them out before locking anything in.', delta: 1, mood: 'neutral', followup: '{npc} says, "Alright, what are you thinking?"' }
   ],
   askIntel: [
-    { label: 'Thanks for the heads-up', delta: 2, mood: 'calm', followup: 'You nod and keep it close.' },
-    { label: 'Ask for more detail', delta: 1, mood: 'focused', followup: 'You press gently for specifics.' },
-    { label: 'Offer to trade info', delta: 2, mood: 'happy', followup: 'You float a small piece of info in return.' }
+    { label: 'Thanks for the heads-up', playerLine: 'You thank them and keep it close to the chest.', delta: 2, mood: 'calm', followup: '{npc} nods. "Just keep it tight."' },
+    { label: 'Ask for more detail', playerLine: 'You ask for more detail without pushing too hard.', delta: 1, mood: 'focused', followup: '{npc} says, "Here’s what I heard..."' },
+    { label: 'Offer to trade info', playerLine: 'You offer to trade a small piece of info.', delta: 2, mood: 'happy', followup: '{npc} considers it. "Alright, what do you have?"' }
   ],
   talkSpecific: [
-    { label: 'Take it in and move on', delta: 1, mood: 'neutral', followup: 'You absorb the read and keep it quiet.' },
-    { label: 'Ask a quick follow-up', delta: 1, mood: 'focused', followup: 'You ask one more pointed question.' },
-    { label: 'Back off for now', delta: 0, mood: 'calm', followup: 'You let it sit for now.' }
+    { label: 'Take it in and move on', playerLine: 'You take it in and move on.', delta: 1, mood: 'neutral', followup: '{npc} nods. "Yeah, that’s where I’m at."' },
+    { label: 'Ask a quick follow-up', playerLine: 'You ask a quick follow-up.', delta: 1, mood: 'focused', followup: '{npc} answers. "Here’s the detail..."' },
+    { label: 'Back off for now', playerLine: 'You back off for now and let it sit.', delta: 0, mood: 'calm', followup: '{npc} says, "Alright, we can leave it there."' }
   ],
   targeting: [
-    { label: 'Share your own name', delta: 2, mood: 'focused', followup: 'You give a name and watch for a reaction.' },
-    { label: 'Stay vague', delta: -1, mood: 'suspicious', followup: 'You avoid names; {npc} notices.' },
-    { label: 'Counter with another target', delta: 1, mood: 'neutral', followup: 'You float a different name.' }
+    { label: 'Share your own name', playerLine: 'You share a name and watch for the reaction.', delta: 2, mood: 'focused', followup: '{npc} nods. "Okay, I hear you."', requiresTargetPicker: true },
+    { label: 'Stay vague', playerLine: 'You stay vague and avoid naming anyone.', delta: -1, mood: 'suspicious', followup: '{npc} frowns. "That doesn’t tell me much."' },
+    { label: 'Counter with another target', playerLine: 'You counter with another target.', delta: 1, mood: 'neutral', followup: '{npc} considers it. "Maybe. Tell me why."', requiresCounterTarget: true }
   ],
   allianceInvite: [
     { key: 'acceptFaithful', label: 'I’m in. Let’s work together.' },
@@ -2078,6 +2079,8 @@ class ConversationSystem {
 
     const rootNodeId = this._registerNode(session, {
       id: 'root',
+      playerNarration: dialogue.playerNarration || dialogue.playerLine || null,
+      npcResponse: dialogue.npcResponse || dialogue.npcLine || null,
       text: this._composeMenuText(dialogue),
       choices: rootChoices,
       meta: { speaker: context.lastSpeaker || (context.initiator === 'npc' ? 'npc' : 'player') }
@@ -2167,9 +2170,12 @@ class ConversationSystem {
   _registerNode(session, node) {
     if (!session || !node) return null;
     const id = node.id || this._createNodeId();
+    const npcResponse = node.npcResponse || (typeof node.text === 'string' ? node.text : null);
     session.nodes[id] = {
       id,
       text: node.text,
+      playerNarration: node.playerNarration || null,
+      npcResponse,
       choices: Array.isArray(node.choices) ? node.choices : [],
       additionalText: node.additionalText || null,
       meta: node.meta || {}
@@ -2208,14 +2214,70 @@ class ConversationSystem {
     return store[key];
   }
 
-  _composeMenuText({ playerLine, npcLine, text }) {
-    if (npcLine || playerLine) {
-      if (playerLine && npcLine) {
-        return `${playerLine}\n\n${npcLine}`;
-      }
-      return npcLine || playerLine || '';
+  _composeMenuText({ playerNarration, npcResponse, playerLine, npcLine, text } = {}) {
+    const resolvedPlayer = this._formatPlayerNarration(playerNarration || playerLine || '');
+    const resolvedNpc = this._formatNpcResponse(npcResponse || npcLine || '');
+    if (resolvedPlayer && resolvedNpc) {
+      return `${resolvedPlayer}\n\n${resolvedNpc}`;
     }
+    if (resolvedNpc) return resolvedNpc;
+    if (resolvedPlayer) return resolvedPlayer;
     return text || '';
+  }
+
+  _formatPlayerNarration(line, intent = null) {
+    const trimmed = String(line || '').trim();
+    if (!trimmed) {
+      return this._fallbackPlayerNarration(intent);
+    }
+    if (/^you\b/i.test(trimmed)) {
+      return trimmed;
+    }
+    if (/^i['\s]/i.test(trimmed) || /^i\b/i.test(trimmed)) {
+      return `You say, "${trimmed}"`;
+    }
+    if (trimmed.endsWith('?') || /^(who|what|why|how|where|when|so)\b/i.test(trimmed)) {
+      return `You ask, "${trimmed}"`;
+    }
+    if (/^["“]/.test(trimmed)) {
+      return `You say, ${trimmed}`;
+    }
+    return `You ${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`;
+  }
+
+  _fallbackPlayerNarration(intent = null) {
+    const fallbackByIntent = {
+      [PRE_PHASE_INTENTS.check_trust]: 'You ask where you stand and keep it low.',
+      [PRE_PHASE_INTENTS.light_strategy]: 'You float a light, vague read and watch the reaction.',
+      [PRE_PHASE_INTENTS.ask_general_info]: 'You fish for anything they have heard around camp.',
+      [PRE_PHASE_INTENTS.repair_relationship]: 'You steady your voice and try to mend the moment.',
+      [PRE_PHASE_INTENTS.confront_rumor]: 'You press them about your name without flinching.',
+      [POST_PHASE_INTENTS.ask_intel]: 'You ask for the latest reads without overplaying it.',
+      [POST_PHASE_INTENTS.pitch_target]: 'You name a target carefully and test their temperature.',
+      [POST_PHASE_INTENTS.deflect_target]: 'You try to reroute the heat off the name in play.',
+      [POST_PHASE_INTENTS.verify_story]: 'You press for clarity and watch their eyes.',
+      [POST_PHASE_INTENTS.plant_seed]: 'You float a seed and let it hang in the air.'
+    };
+    return fallbackByIntent[intent] || 'You keep your tone calm and see how they react.';
+  }
+
+  _formatNpcResponse(line, intent = null) {
+    const trimmed = String(line || '').trim();
+    const npc = this._getSurvivorById(this.nodeSession?.npcId || this.conversationSession?.npcId || this.state?.npcId);
+    const npcName = npc?.firstName || 'They';
+    if (!trimmed) {
+      return `${npcName} says, "Alright. Let’s see how today shakes out."`;
+    }
+    if (trimmed.includes(npcName) || trimmed.includes('{npc}')) {
+      return trimmed.replace('{npc}', npcName);
+    }
+    if (/["”]/.test(trimmed)) {
+      return `${npcName} says, ${trimmed}`;
+    }
+    if (/[.?!]$/.test(trimmed)) {
+      return `${npcName} says, "${trimmed}"`;
+    }
+    return `${npcName} says, "${trimmed}."`;
   }
 
   _handleConversationError(error, { session, npc, fallbackLine } = {}) {
@@ -2235,7 +2297,8 @@ class ConversationSystem {
 
   _renderRecoveryNode(session, npc, line) {
     const recoveryNodeId = this._registerNode(session, {
-      text: line,
+      playerNarration: session?.context?.lastPlayerNarration || this._fallbackPlayerNarration(session?.intent),
+      npcResponse: line,
       choices: [],
       meta: { speaker: 'npc', showNav: true }
     });
@@ -2272,7 +2335,11 @@ class ConversationSystem {
   _renderNode(session, nodeId) {
     if (!session || !nodeId) return;
     const node = session.nodes[nodeId];
-    if (!node) return;
+    if (!node) {
+      console.warn(`ConversationSystem: Missing node "${nodeId}"`);
+      this._renderRecoveryNode(session, this._getSurvivorById(session.npcId), 'They blink. "Give me a second—let’s reset."');
+      return;
+    }
     session.currentNodeId = nodeId;
 
     const npc = this._getSurvivorById(session.npcId);
@@ -2281,7 +2348,16 @@ class ConversationSystem {
     const player = this.gameManager.getPlayerSurvivor?.();
     const context = session.context || {};
 
-    let nodeText = typeof node.text === 'function' ? node.text(session, this) : node.text;
+    const resolvedPlayerNarration = typeof node.playerNarration === 'function'
+      ? node.playerNarration(session, this)
+      : (node.playerNarration || session.context?.lastPlayerNarration || this._fallbackPlayerNarration(session.intent));
+    const resolvedNpcResponse = typeof node.npcResponse === 'function'
+      ? node.npcResponse(session, this)
+      : (node.npcResponse || node.text || '');
+    let nodeText = this._composeMenuText({
+      playerNarration: resolvedPlayerNarration,
+      npcResponse: resolvedNpcResponse
+    });
     nodeText = this._formatConversationLine(nodeText || '', npc, context, player);
 
     if (nodeText) {
@@ -2342,9 +2418,11 @@ class ConversationSystem {
     const npc = this._getSurvivorById(session.npcId);
     if (!npc) return;
 
-    if (choice.playerLine) {
-      this._appendConversationHistory(session, 'Player', choice.playerLine, ['player']);
+    const playerNarration = this._resolvePlayerNarration(choice, session.intent, session.context || {});
+    if (playerNarration) {
+      this._appendConversationHistory(session, 'Player', playerNarration, ['player']);
       session.context.lastSpeaker = 'player';
+      session.context.lastPlayerNarration = playerNarration;
     }
 
     if (choice.memoryEvent) {
@@ -2368,7 +2446,8 @@ class ConversationSystem {
       const nextNode = nextPayload && typeof nextPayload === 'object'
         ? nextPayload
         : {
-          text: resolved,
+          playerNarration,
+          npcResponse: resolved,
           choices: this._buildDefaultFollowupChoices(session.intent, session.context)
         };
       const nextNodeId = this._registerNode(session, nextNode);
@@ -2383,7 +2462,11 @@ class ConversationSystem {
 
     if (choice.responseOption) {
       if (choice.responseOption.requiresAllyPicker) {
-        this._promptTrustedAlly(session, npc, nodeId, choice.responseOption);
+        this._promptTrustedAlly(session, npc, nodeId, choice.responseOption, playerNarration);
+        return;
+      }
+      if (choice.responseOption.requiresTargetPicker) {
+        this._promptPlayerNamedTarget(session, npc, nodeId, choice.responseOption, playerNarration);
         return;
       }
       const { menu, endConversation, action } = this._handleResponse(npc, session.intent, choice.responseOption, session.meeting, session);
@@ -2396,7 +2479,13 @@ class ConversationSystem {
         return;
       }
       if (!menu) {
+        console.warn('ConversationSystem: Missing menu response for choice.', choice);
+        this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`);
         return;
+      }
+      menu.playerNarration = menu.playerNarration || playerNarration;
+      if (!menu.npcResponse && menu.text) {
+        menu.npcResponse = menu.text;
       }
       const menuNodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
       this._transitionToNode(session, menuNodeId);
@@ -2418,6 +2507,10 @@ class ConversationSystem {
     }
 
     if (choice.nextMenu) {
+      choice.nextMenu.playerNarration = choice.nextMenu.playerNarration || playerNarration;
+      if (!choice.nextMenu.npcResponse && choice.nextMenu.text) {
+        choice.nextMenu.npcResponse = choice.nextMenu.text;
+      }
       const nextNodeId = this._registerNode(session, this._buildNodeFromMenu(choice.nextMenu, session.intent, session.context));
       this._transitionToNode(session, nextNodeId);
       return;
@@ -2429,7 +2522,12 @@ class ConversationSystem {
     }
 
     if (choice.nextNode) {
-      const nextNodeId = this._registerNode(session, choice.nextNode);
+      const patchedNode = {
+        ...choice.nextNode,
+        playerNarration: choice.nextNode.playerNarration || playerNarration,
+        npcResponse: choice.nextNode.npcResponse || choice.nextNode.text || null
+      };
+      const nextNodeId = this._registerNode(session, patchedNode);
       this._transitionToNode(session, nextNodeId);
       return;
     }
@@ -2438,10 +2536,24 @@ class ConversationSystem {
       this._transitionToNode(session, choice.nextNodeId);
       return;
     }
+
+    console.warn('ConversationSystem: Choice did not advance.', choice);
+    this._renderRecoveryNode(session, npc, `${npc.firstName} says, "We can talk about something else."`);
   }
 
   _transitionToNode(session, nextNodeId) {
-    if (!session || !nextNodeId) return;
+    if (!session || !nextNodeId) {
+      console.warn('ConversationSystem: Missing nextNodeId during transition.');
+      if (session) {
+        this._renderRecoveryNode(session, this._getSurvivorById(session.npcId), 'They pause. "Let’s circle back."');
+      }
+      return;
+    }
+    if (!session.nodes[nextNodeId]) {
+      console.warn(`ConversationSystem: Invalid node transition to "${nextNodeId}".`);
+      this._renderRecoveryNode(session, this._getSurvivorById(session.npcId), 'They glance around. "Let’s switch gears."');
+      return;
+    }
     if (session.currentNodeId) {
       session.historyStack.push(session.currentNodeId);
     }
@@ -2472,12 +2584,14 @@ class ConversationSystem {
       : this._buildDefaultFollowupChoices(intent, context);
 
     return {
-      text: this._composeMenuText(menu),
+      text: menu.text || null,
+      playerNarration: menu.playerNarration || null,
+      npcResponse: menu.npcResponse || null,
       additionalText: menu.additionalText || null,
       choices: buttons.map((btn, index) => ({
         id: `menu-choice-${index}`,
         label: btn.label,
-        playerLine: btn.playerLine || btn.label,
+        playerLine: btn.playerLine || btn.playerNarration || null,
         nextMenu: btn.nextMenu || null,
         onSelect: btn.onSelect,
         end: btn.end,
@@ -2640,20 +2754,20 @@ class ConversationSystem {
   _buildDefaultFollowupChoices(intent, context = {}) {
     const phase = context.phase || this._getConversationPhase();
     const base = [
-      { label: 'Ask a follow-up', playerLine: 'Can you be more specific?', action: 'askFollowup' }
+      { label: 'Ask a follow-up', playerLine: 'You ask for more specifics.', action: 'askFollowup' }
     ];
     if (phase === 'post') {
-      base.push({ label: 'Trade info', playerLine: 'I can trade info.', action: 'tradeInfo' });
+      base.push({ label: 'Trade info', playerLine: 'You offer to trade a small piece of info.', action: 'tradeInfo' });
       if ([
         POST_PHASE_INTENTS.talk_specific_person,
         POST_PHASE_INTENTS.ask_intel,
         POST_PHASE_INTENTS.plant_seed,
         POST_PHASE_INTENTS.verify_story
       ].includes(intent)) {
-        base.push({ label: 'Pitch a plan', playerLine: 'So what’s the plan?', action: 'pitchPlan', awaitsPicker: true });
+        base.push({ label: 'Pitch a plan', playerLine: 'You ask where the plan is leaning tonight.', action: 'pitchPlan', awaitsPicker: true });
       }
     } else {
-      base.push({ label: 'Share a small rumor', playerLine: 'I’ve heard something too.', action: 'tradeInfo' });
+      base.push({ label: 'Share a small rumor', playerLine: 'You mention you have heard something too.', action: 'tradeInfo' });
     }
     return base;
   }
@@ -2661,30 +2775,30 @@ class ConversationSystem {
   _buildTradeInfoNode(session) {
     const npc = this._getSurvivorById(session.npcId);
     return {
-      text: `${npc?.firstName || 'They'} tilts their head. "Alright. What are you offering?"`,
+      npcResponse: `${npc?.firstName || 'They'} tilts their head. "Alright. What are you offering?"`,
       choices: [
         {
           label: 'Float a name',
-          playerLine: 'I’ve heard a name too.',
+          playerLine: 'You float a name you have heard.',
           effects: { trustDelta: 2, context: 'trade_info' },
           action: 'floatName',
           awaitsPicker: true
         },
         {
           label: 'Offer a small rumor',
-          playerLine: 'There’s a whisper about idols.',
+          playerLine: 'You share a small rumor about idols.',
           effects: { trustDelta: 1, context: 'trade_info' },
           nextNode: {
-            text: `${npc?.firstName || 'They'} leans in. "Okay, that’s useful."`,
+            npcResponse: `${npc?.firstName || 'They'} leans in. "Okay, that’s useful."`,
             choices: this._buildDefaultFollowupChoices(session.intent, session.context)
           }
         },
         {
           label: 'Hold back',
-          playerLine: 'Let’s keep it light for now.',
+          playerLine: 'You decide to hold back for now.',
           effects: { trustDelta: -1, context: 'trade_info' },
           nextNode: {
-            text: `${npc?.firstName || 'They'} exhales. "Then I’ll keep it light too."`,
+            npcResponse: `${npc?.firstName || 'They'} exhales. "Then I’ll keep it light too."`,
             choices: this._buildDefaultFollowupChoices(session.intent, session.context)
           }
         }
@@ -2723,7 +2837,8 @@ class ConversationSystem {
       });
 
       const nextNodeId = this._registerNode(session, {
-        text: `${npc?.firstName || 'They'} nods. "That tracks. Keep me posted about ${pick.firstName}."`,
+        playerNarration: session.context.lastPlayerNarration || this._fallbackPlayerNarration(session.intent),
+        npcResponse: `${npc?.firstName || 'They'} nods. "That tracks. Keep me posted about ${pick.firstName}."`,
         choices: this._buildDefaultFollowupChoices(session.intent, session.context),
         meta: { speaker: 'npc' }
       });
@@ -2731,7 +2846,7 @@ class ConversationSystem {
     });
   }
 
-  _promptTrustedAlly(session, npc, nodeId, responseOption) {
+  _promptTrustedAlly(session, npc, nodeId, responseOption, playerNarration) {
     const excludeIds = [session.npcId, session.playerId].filter(Boolean);
     this.promptSurvivorPicker({
       title: 'Name a trusted ally',
@@ -2762,6 +2877,50 @@ class ConversationSystem {
       session.pendingEndConversation = endConversation || null;
       if (!menu) {
         return;
+      }
+      menu.playerNarration = menu.playerNarration || playerNarration || this._fallbackPlayerNarration(session.intent);
+      if (!menu.npcResponse && menu.text) {
+        menu.npcResponse = menu.text;
+      }
+      const menuNodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
+      this._transitionToNode(session, menuNodeId);
+    });
+  }
+
+  _promptPlayerNamedTarget(session, npc, nodeId, responseOption, playerNarration) {
+    const excludeIds = [session.npcId, session.playerId].filter(Boolean);
+    this.promptSurvivorPicker({
+      title: responseOption?.targetPrompt || 'Name who?',
+      tribeOnly: true,
+      excludeIds
+    }).then(selectedId => {
+      if (!selectedId) {
+        this._renderNode(session, nodeId);
+        return;
+      }
+      const pick = this._getSurvivorById(selectedId);
+      if (!pick) {
+        this._renderNode(session, nodeId);
+        return;
+      }
+      const patch = {
+        topicPerson: pick.firstName,
+        topicId: pick.id,
+        targetName: pick.firstName,
+        targetId: pick.id
+      };
+      this.activeConversationContext = { ...(this.activeConversationContext || {}), ...patch };
+      session.context = { ...(session.context || {}), ...patch };
+
+      const { menu, endConversation } = this._handleResponse(npc, session.intent, responseOption, session.meeting, session);
+      session.pendingEndConversation = endConversation || null;
+      if (!menu) {
+        this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`);
+        return;
+      }
+      menu.playerNarration = menu.playerNarration || playerNarration || this._fallbackPlayerNarration(session.intent);
+      if (!menu.npcResponse && menu.text) {
+        menu.npcResponse = menu.text;
       }
       const menuNodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
       this._transitionToNode(session, menuNodeId);
@@ -3288,7 +3447,11 @@ class ConversationSystem {
       });
     }
 
-    let menu = { text: option.nextMenu?.text || followupText, buttons: option.nextMenu?.buttons || null };
+    let menu = {
+      text: option.nextMenu?.text || followupText,
+      npcResponse: option.nextMenu?.npcResponse || option.nextMenu?.text || followupText,
+      buttons: option.nextMenu?.buttons || null
+    };
 
     const wantsDetail = typeof option.label === 'string'
       && /more detail|press for detail|ask for detail/i.test(option.label);
@@ -3334,6 +3497,7 @@ class ConversationSystem {
       } else {
         menu.text = `${survivor.firstName} shakes their head. "I'm not putting names out yet."`;
       }
+      menu.npcResponse = menu.text;
 
       if (claimTarget && claimTarget !== 'anyone yet') {
         applyContextPatch({ topicPerson: claimTarget });
@@ -3365,7 +3529,7 @@ class ConversationSystem {
             { label: 'End conversation', alt: true, end: true }
           ];
 
-      menu = { text: menu.text, buttons: followButtons };
+      menu = { text: menu.text, npcResponse: menu.text, buttons: followButtons };
     }
 
     if (option.requiresCounterTarget) {
@@ -3529,8 +3693,10 @@ class ConversationSystem {
         }
 
         if (session) {
-          this._appendConversationHistory(session, 'Player', `I’d rather go with ${pick.firstName}.`, ['player']);
+          const counterNarration = `You tell ${survivor.firstName} you’d rather go with ${pick.firstName}.`;
+          this._appendConversationHistory(session, 'Player', counterNarration, ['player']);
           session.context.lastSpeaker = 'player';
+          session.context.lastPlayerNarration = counterNarration;
         }
 
         this._recordMention({
@@ -3554,17 +3720,18 @@ class ConversationSystem {
             counterTargetName: pick.firstName
           };
           const followupNode = {
-            text: reaction.npcLine,
+            playerNarration: session.context.lastPlayerNarration || this._fallbackPlayerNarration('counter_followup'),
+            npcResponse: reaction.npcLine,
             choices: [
               {
                 label: 'Lock it in and move on',
-                playerLine: 'Lock it in and move on.',
+                playerLine: 'You lock it in and move on.',
                 npcReply: () => this._applyCounterCommit({ session, npc: survivor, counterTargetName: pick.firstName })
               },
               {
                 label: 'Leave it open for now',
                 alt: true,
-                playerLine: 'Leave it open for now.',
+                playerLine: 'You leave it open for now.',
                 npcReply: () => this._applyCounterLeaveOpen({ session, npc: survivor, counterTargetName: pick.firstName })
               }
             ],
@@ -4429,9 +4596,11 @@ class ConversationSystem {
       }
     }
 
-    const combined = this._composeMenuText({ playerLine, npcLine });
+    const playerNarration = this._formatPlayerNarration(playerLine, resolvedIntent);
+    const npcResponse = this._formatNpcResponse(npcLine, resolvedIntent);
+    const combined = this._composeMenuText({ playerNarration, npcResponse });
     memory?.rememberBeat?.(survivor.id, resolvedIntent, combined);
-    return { playerLine, npcLine, text: combined, responses, context };
+    return { playerNarration, npcResponse, playerLine, npcLine, text: combined, responses, context };
   }
 
   _selectIntentResponses(resolvedIntent, context = {}) {
@@ -4468,7 +4637,10 @@ class ConversationSystem {
 
     if (flowKey === 'confront_rumor') {
       const opener = context.pressure ? 'Why did you say that about me?' : 'I heard you said my name.';
-      this._appendConversationHistory(session, 'Player', opener, ['confront']);
+      session.context.entryNarration = context.pressure
+        ? 'You step in close and press them about why your name is out there.'
+        : 'You pull them aside and mention that your name is coming up.';
+      this._appendConversationHistory(session, 'Player', session.context.entryNarration, ['confront']);
       const accuseEvent = this._recordStructuredSocialEvent({
         type: 'ACCUSE_NAME',
         speakerId: player?.id || null,
@@ -4482,7 +4654,8 @@ class ConversationSystem {
 
     if (flowKey === 'name_drop') {
       const targetName = context.topicPerson || 'someone';
-      this._appendConversationHistory(session, 'Player', `I heard ${targetName} said your name.`, ['name_drop']);
+      session.context.entryNarration = `You mention that you heard ${targetName} said ${survivor.firstName}'s name.`;
+      this._appendConversationHistory(session, 'Player', session.context.entryNarration, ['name_drop']);
       const nameDropEvent = this._recordStructuredSocialEvent({
         type: 'NAME_DROP',
         speakerId: player?.id || null,
@@ -4519,8 +4692,10 @@ class ConversationSystem {
     const context = session.context || {};
 
     let npcLine = '';
+    let playerNarration = null;
     if (step.nav) {
       npcLine = `What do you want to do next with ${npc?.firstName || 'them'}?`;
+      playerNarration = 'You gather your thoughts and keep the door open.';
     } else if (typeof step.npcLine === 'function') {
       npcLine = step.npcLine(session, this, fromChoice);
     } else if (typeof step.npcLine === 'string') {
@@ -4528,6 +4703,17 @@ class ConversationSystem {
     }
 
     npcLine = this._formatConversationLine(npcLine, npc, context, player);
+    if (!playerNarration && fromChoice?.playerNarration) {
+      playerNarration = fromChoice.playerNarration;
+    }
+    if (!playerNarration && stepKey === flow.start && session.context?.entryNarration) {
+      playerNarration = session.context.entryNarration;
+    }
+
+    const combinedText = this._composeMenuText({
+      playerNarration,
+      npcResponse: npcLine
+    });
 
     if (!step.nav && npcLine) {
       this._appendConversationHistory(session, npc?.firstName || 'NPC', npcLine, ['npc']);
@@ -4536,7 +4722,7 @@ class ConversationSystem {
 
     const content = this._getConversationContent(overlay);
     this._clearConversationContent(content);
-    const parchment = this._buildParchment(npcLine || '');
+    const parchment = this._buildParchment(combinedText || '');
     const buttonColumn = createElement('div', {
       style: {
         display: 'flex',
@@ -4655,9 +4841,12 @@ class ConversationSystem {
     const flow = CONVERSATION_FLOWS[session.flowKey];
     if (!flow) return;
 
-    this._appendConversationHistory(session, 'Player', selectedChoice.label, ['player']);
+    const playerNarration = this._resolvePlayerNarration(selectedChoice, session.intent, session.context || {});
+    this._appendConversationHistory(session, 'Player', playerNarration, ['player']);
     session.context.lastSpeaker = 'player';
+    session.context.lastPlayerNarration = playerNarration;
     this._applyFlowChoiceEffects(session, selectedChoice);
+    selectedChoice.playerNarration = playerNarration;
 
     session.turnIndex += 1;
 
@@ -4878,25 +5067,26 @@ class ConversationSystem {
 
     return {
       id: 'confront_fromWho',
-      text: () => this._buildConfrontQuestionLine(session),
+      playerNarration: 'You pull them aside and bring up your name coming up.',
+      npcResponse: () => this._buildConfrontQuestionLine(session),
       choices: [
         {
           label: 'I’m not burning my source — just tell me if it’s true.',
-          playerLine: 'I’m not burning my source — just tell me if it’s true.',
+          playerLine: 'You refuse to burn your source and ask if it is true.',
           nextNode: this._buildConfrontWhyNameNode(session)
         },
         {
           label: '(Name a source)',
-          playerLine: 'It was…',
+          playerLine: 'You decide to name a source.',
           action: 'pickSource',
           awaitsPicker: true,
           nextNodeBuilder: (pick) => this._buildConfrontSourceResponse(session, pick, { isLie: false })
         },
         {
           label: 'You know what, forget it.',
-          playerLine: 'You know what, forget it.',
+          playerLine: 'You back off and try to defuse the moment.',
           nextNode: {
-            text: `${npc?.firstName || 'They'} nods cautiously. "Alright. If it’s a mix-up, let’s reset."`,
+            npcResponse: `${npc?.firstName || 'They'} nods cautiously. "Alright. If it’s a mix-up, let’s reset."`,
             choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
             meta: { speaker: 'npc' }
           },
@@ -4925,7 +5115,7 @@ class ConversationSystem {
         },
         {
           label: 'If you’re coming for me, just say it.',
-          playerLine: 'If you’re coming for me, just say it.',
+          playerLine: 'You challenge them to say it to your face.',
           nextNode: this._buildConfrontEscalateNode(session)
         }
       ]
@@ -4977,31 +5167,31 @@ class ConversationSystem {
     });
 
     return {
-      text: line,
+      npcResponse: line,
       choices: [
         {
           label: 'So are you targeting me?',
-          playerLine: 'So are you targeting me?',
+          playerLine: 'You ask if they are actually targeting you.',
           nextNode: {
-            text: `${npc?.firstName || 'They'} answers, "I’m not locked on you, but I’m watching the vote."`,
+            npcResponse: `${npc?.firstName || 'They'} answers, "I’m not locked on you, but I’m watching the vote."`,
             choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
             meta: { speaker: 'npc' }
           }
         },
         {
           label: 'Who else is involved?',
-          playerLine: 'Who else is involved?',
+          playerLine: 'You ask who else was involved.',
           nextNode: {
-            text: `${npc?.firstName || 'They'} says, "${explanationTarget} was the other name in the mix."`,
+            npcResponse: `${npc?.firstName || 'They'} says, "${explanationTarget} was the other name in the mix."`,
             choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
             meta: { speaker: 'npc' }
           }
         },
         {
           label: 'Let’s squash it',
-          playerLine: 'Let’s squash it.',
+          playerLine: 'You suggest squashing it and moving forward.',
           nextNode: {
-            text: `${npc?.firstName || 'They'} nods. "I’m good with that if you are."`,
+            npcResponse: `${npc?.firstName || 'They'} nods. "I’m good with that if you are."`,
             choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
             meta: { speaker: 'npc' }
           }
@@ -7214,14 +7404,13 @@ class ConversationSystem {
     if (!trimmed) {
       return this._pickNpcResponse(intent, stance, context, survivor);
     }
-    if (/^you\b/i.test(trimmed)) {
-      const npcReply = this._pickNpcResponse(intent, stance, context, survivor);
-      const formatted = npcReply
-        .replace('{npc}', survivor?.firstName || context.npcName || 'They')
-        .replace('{subjectName}', context.subjectName || 'someone');
-      return `${trimmed} ${formatted}`;
+    const withNames = trimmed
+      .replace('{npc}', survivor?.firstName || context.npcName || 'They')
+      .replace('{subjectName}', context.subjectName || 'someone');
+    if (withNames.includes(survivor?.firstName || '') || /["“]/.test(withNames)) {
+      return withNames;
     }
-    return trimmed;
+    return `${survivor?.firstName || context.npcName || 'They'} says, "${withNames}"`;
   }
 
   _pickNpcResponse(intent, stance, context = {}, survivor) {
@@ -7248,6 +7437,32 @@ class ConversationSystem {
       .replace('{subjectName}', context.subjectName || 'them');
   }
 
+  _resolvePlayerNarration(choice, intent, context = {}) {
+    const raw = choice?.playerLine || choice?.playerNarration || null;
+    if (raw) {
+      return this._formatPlayerNarration(raw, intent);
+    }
+    const label = choice?.label || '';
+    const inferred = this._inferNarrationFromLabel(label, intent, context);
+    return this._formatPlayerNarration(inferred, intent);
+  }
+
+  _inferNarrationFromLabel(label, intent, context = {}) {
+    const lower = String(label || '').toLowerCase();
+    if (!lower) return this._fallbackPlayerNarration(intent);
+    if (lower.includes('apologize')) return 'You apologize and keep your eyes steady.';
+    if (lower.includes('thank')) return 'You thank them and keep it warm.';
+    if (lower.includes('ask') || lower.includes('press') || lower.includes('detail')) return 'You press for more detail, careful not to overdo it.';
+    if (lower.includes('deflect') || lower.includes('dodge')) return 'You dodge the answer and keep it vague.';
+    if (lower.includes('counter')) return 'You float a different name and watch their reaction.';
+    if (lower.includes('share') || lower.includes('name')) return 'You share a name quietly and read their face.';
+    if (lower.includes('commit') || lower.includes('lock')) return 'You commit to the plan without hesitation.';
+    if (lower.includes('back off') || lower.includes('leave it')) return 'You back off and let the moment breathe.';
+    if (lower.includes('end')) return 'You signal that you are done talking for now.';
+    if (lower.includes('joke') || lower.includes('humor')) return 'You crack a light joke to ease the tension.';
+    return this._fallbackPlayerNarration(intent);
+  }
+
   _choiceKey(choice) {
     if (!choice) return '';
     const key = choice.id || choice.label || choice.action || '';
@@ -7262,12 +7477,12 @@ class ConversationSystem {
   _buildNavChoices({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd }) {
     const buttons = [];
     if (canBack) {
-      buttons.push({ id: 'nav-back', label: 'Back', alt: true, action: 'goBack', onSelect: onBack });
+      buttons.push({ id: 'nav-back', label: 'Back', alt: true, action: 'goBack', playerLine: 'You circle back in the conversation.', onSelect: onBack });
     }
     if (canChangeTopic) {
-      buttons.push({ id: 'nav-change-topic', label: 'Change Topic', alt: true, action: 'changeTopic', onSelect: onChangeTopic });
+      buttons.push({ id: 'nav-change-topic', label: 'Change Topic', alt: true, action: 'changeTopic', playerLine: 'You steer the conversation to a new topic.', onSelect: onChangeTopic });
     }
-    buttons.push({ id: 'nav-end-conversation', label: 'End Conversation', alt: true, end: true, action: 'endConversation', onSelect: onEnd || null });
+    buttons.push({ id: 'nav-end-conversation', label: 'End Conversation', alt: true, end: true, action: 'endConversation', playerLine: 'You wrap up the conversation for now.', onSelect: onEnd || null });
     return buttons;
   }
 
