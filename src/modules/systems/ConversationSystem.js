@@ -666,10 +666,20 @@ const RESPONSE_LIBRARY = {
     { label: 'Nod but stay guarded', delta: -1, mood: 'neutral', followup: 'You keep it light; {npc} notices the distance.' },
     { label: 'Deflect with humor', delta: 1, mood: 'fun', followup: 'You lighten the vibe. {npc} chuckles.' }
   ],
+  bonding_playerLead: [
+    { label: 'Ask them to open up back', delta: 4, mood: 'calm', followup: '{npc} shares a little more, meeting you halfway.' },
+    { label: 'Let the moment breathe', delta: 1, mood: 'neutral', followup: '{npc} sits with it, offering a small nod.' },
+    { label: 'Lighten it with a joke', delta: 2, mood: 'fun', followup: '{npc} laughs, tension easing.' }
+  ],
   personal: [
     { label: 'Thank them for sharing', delta: 4, mood: 'calm', followup: 'Trust inches forward.' },
     { label: 'Share your own vulnerability', delta: 6, mood: 'happy', followup: 'A deeper bond forms.' },
     { label: 'Change the subject', delta: -4, mood: 'irritated', followup: 'Walls go back up between you.' }
+  ],
+  personal_playerLead: [
+    { label: 'Ask how they relate', delta: 4, mood: 'calm', followup: '{npc} nods, then adds something real in return.' },
+    { label: 'Hold the eye contact', delta: 2, mood: 'neutral', followup: '{npc} takes it in, softer than before.' },
+    { label: 'Change the subject gently', delta: -2, mood: 'neutral', followup: 'You move on, but the moment lingers.' }
   ],
   lightStrategy: [
     { label: 'Offer a soft take', delta: 2, mood: 'calm', followup: 'You test the waters together.' },
@@ -1273,22 +1283,11 @@ class ConversationSystem {
       }));
     }
 
-    const navButtons = this._buildNavOptions({
+    this._appendNavButtonsToColumn(optionColumn, {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showTopicSelection(survivor, location),
       onChangeTopic: () => this._showTopicSelection(survivor, location)
-    });
-
-    navButtons.forEach(btn => {
-      const buttonEl = createElement('button', {
-        className: `rect-button full${btn.alt ? ' alt' : ''}`,
-        onclick: () => {
-          if (btn.onSelect) btn.onSelect();
-          if (btn.end) this._clearOverlay();
-        }
-      }, btn.label);
-      optionColumn.appendChild(buttonEl);
     });
     parchment.appendChild(optionColumn);
     overlay.querySelector('.conversation-center').appendChild(parchment);
@@ -1349,7 +1348,7 @@ class ConversationSystem {
       });
     }
 
-    const navButtons = this._buildNavOptions({
+    this._appendNavButtonsToColumn(buttonColumn, {
       canBack: true,
       canChangeTopic: true,
       onBack: () => {
@@ -1360,17 +1359,6 @@ class ConversationSystem {
         this._clearOverlay();
         if (onCancel) onCancel();
       }
-    });
-
-    navButtons.forEach(btn => {
-      const buttonEl = createElement('button', {
-        className: `rect-button full${btn.alt ? ' alt' : ''}`,
-        onclick: () => {
-          if (btn.onSelect) btn.onSelect();
-          if (btn.end) this._clearOverlay();
-        }
-      }, btn.label);
-      buttonColumn.appendChild(buttonEl);
     });
     parchment.appendChild(buttonColumn);
     overlay.querySelector('.conversation-center').appendChild(parchment);
@@ -1419,6 +1407,7 @@ class ConversationSystem {
     addOption('They struggled in the challenge', 'challengeCritique');
     addOption('I think they might have an idol', 'idol');
     addOption('I’ve heard their name', 'nameHeard');
+    addOption('I heard they said my name', 'nameMentionedPlayer');
     addOption('I heard they said your name', 'nameDrop');
     addOption('I’m considering working with them', 'considerWork');
     addOption('I’m worried they’re dangerous later', 'dangerLater');
@@ -1430,22 +1419,11 @@ class ConversationSystem {
       addOption('Do they have a deal?', 'haveDeal');
     }
 
-    const navButtons = this._buildNavOptions({
+    this._appendNavButtonsToColumn(optionColumn, {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showCategoryMenu(survivor, location, returnCategory),
       onChangeTopic: () => this._showTopicSelection(survivor, location)
-    });
-
-    navButtons.forEach(btn => {
-      const buttonEl = createElement('button', {
-        className: `rect-button full${btn.alt ? ' alt' : ''}`,
-        onclick: () => {
-          if (btn.onSelect) btn.onSelect();
-          if (btn.end) this._clearOverlay();
-        }
-      }, btn.label);
-      optionColumn.appendChild(buttonEl);
     });
     parchment.appendChild(optionColumn);
     overlay.querySelector('.conversation-center').appendChild(parchment);
@@ -1505,22 +1483,11 @@ class ConversationSystem {
       optionColumn.appendChild(empty);
     }
 
-    const navButtons = this._buildNavOptions({
+    this._appendNavButtonsToColumn(optionColumn, {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showCategoryMenu(survivor, location, 'challenge'),
       onChangeTopic: () => this._showTopicSelection(survivor, location)
-    });
-
-    navButtons.forEach(btn => {
-      const buttonEl = createElement('button', {
-        className: `rect-button full${btn.alt ? ' alt' : ''}`,
-        onclick: () => {
-          if (btn.onSelect) btn.onSelect();
-          if (btn.end) this._clearOverlay();
-        }
-      }, btn.label);
-      optionColumn.appendChild(buttonEl);
     });
 
     parchment.appendChild(optionColumn);
@@ -1704,22 +1671,11 @@ class ConversationSystem {
       buttonColumn.appendChild(btn);
     });
 
-    const navButtons = this._buildNavOptions({
+    this._appendNavButtonsToColumn(buttonColumn, {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showCategoryMenu(survivor, location, 'deal'),
       onChangeTopic: () => this._showTopicSelection(survivor, location)
-    });
-
-    navButtons.forEach(btn => {
-      const buttonEl = createElement('button', {
-        className: `rect-button full${btn.alt ? ' alt' : ''}`,
-        onclick: () => {
-          if (btn.onSelect) btn.onSelect();
-          if (btn.end) this._clearOverlay();
-        }
-      }, btn.label);
-      buttonColumn.appendChild(buttonEl);
     });
     parchment.appendChild(buttonColumn);
     overlay.querySelector('.conversation-center').appendChild(parchment);
@@ -1927,7 +1883,8 @@ class ConversationSystem {
     const rootNodeId = this._registerNode(session, {
       id: 'root',
       text: dialogue.text,
-      choices: rootChoices
+      choices: rootChoices,
+      meta: { speaker: context.lastSpeaker || (context.initiator === 'npc' ? 'npc' : 'player') }
     });
 
     session.rootNodeId = rootNodeId;
@@ -2040,6 +1997,7 @@ class ConversationSystem {
 
     if (nodeText) {
       this._appendConversationHistory(session, npc?.firstName || 'NPC', nodeText, ['npc']);
+      context.lastSpeaker = node.meta?.speaker || 'npc';
     }
 
     const parchment = this._buildParchment(nodeText || '');
@@ -2060,16 +2018,7 @@ class ConversationSystem {
       }
     });
 
-    const choices = Array.isArray(node.choices) ? node.choices : [];
-    choices.forEach(choice => {
-      const btn = createElement('button', {
-        className: 'rect-button full',
-        onclick: () => this._handleNodeChoice(session, nodeId, choice)
-      }, choice.label);
-      buttonColumn.appendChild(btn);
-    });
-
-    const navButtons = this._buildNavOptions({
+    const choices = this._appendNavChoices(Array.isArray(node.choices) ? node.choices : [], {
       canBack: session.historyStack.length > 0,
       canChangeTopic: true,
       onBack: () => this._goBackNode(session),
@@ -2077,15 +2026,12 @@ class ConversationSystem {
       onEnd: () => this._endNodeConversation(session)
     });
 
-    navButtons.forEach(btn => {
-      const buttonEl = createElement('button', {
-        className: `rect-button full${btn.alt ? ' alt' : ''}`,
-        onclick: () => {
-          if (btn.onSelect) btn.onSelect();
-          if (btn.end) this._endNodeConversation(session);
-        }
-      }, btn.label);
-      buttonColumn.appendChild(buttonEl);
+    choices.forEach(choice => {
+      const btn = createElement('button', {
+        className: `rect-button full${choice.alt ? ' alt' : ''}`,
+        onclick: () => this._handleNodeChoice(session, nodeId, choice)
+      }, choice.label);
+      buttonColumn.appendChild(btn);
     });
 
     parchment.appendChild(buttonColumn);
@@ -2099,6 +2045,7 @@ class ConversationSystem {
 
     if (choice.playerLine) {
       this._appendConversationHistory(session, 'Player', choice.playerLine, ['player']);
+      session.context.lastSpeaker = 'player';
     }
 
     if (choice.memoryEvent) {
@@ -2240,6 +2187,11 @@ class ConversationSystem {
   }
 
   _handleNodeAction(session, nodeId, choice) {
+    if (choice.action === 'goBack') {
+      this._goBackNode(session);
+      return true;
+    }
+
     if (choice.action === 'changeTopic') {
       const npc = this._getSurvivorById(session.npcId);
       this._showTopicSelection(npc, session.context.location);
@@ -2351,8 +2303,6 @@ class ConversationSystem {
     } else {
       base.push({ label: 'Share a small rumor', playerLine: 'I’ve heard something too.', action: 'tradeInfo' });
     }
-    base.push({ label: 'Change topic', action: 'changeTopic' });
-    base.push({ label: 'End conversation', end: true, action: 'endConversation' });
     return base;
   }
 
@@ -2415,6 +2365,7 @@ class ConversationSystem {
           reason: rumor.reason,
           pusherName: rumor.pusherName || null,
           sourceName: rumor.sourceName || null,
+          plotPacket: rumor.plotPacket || null,
           confidence: rumor.confidence,
           npcDisclosureOutcome: rumor.disclosure?.outcome || 'evade',
           location: rumor.location || context.location || null
@@ -2427,6 +2378,10 @@ class ConversationSystem {
     }
 
     if (session.intent === POST_PHASE_INTENTS.talk_specific_person || session.intent === POST_PHASE_INTENTS.idol_suspicion) {
+      if (context.subTopic === 'nameMentionedPlayer') {
+        return this._buildNameMentionedPlayerNode(session, { trustScore });
+      }
+
       const detailLine = this._buildTalkSpecificDetailLine(npc, context, { trustScore });
       if (context.subTopic === 'idol' || session.intent === POST_PHASE_INTENTS.idol_suspicion) {
         this._recordStructuredSocialEvent({
@@ -2523,6 +2478,13 @@ class ConversationSystem {
       : 'someone';
     const targetName = context.topicPerson || context.targetName || randomTarget;
     const targetId = context.topicId || this._getSurvivorByName(targetName)?.id || null;
+    const timelineOptions = ['tonight', 'next tribal', 'after the merge'];
+    const sourceTypes = ['overheard it', 'got told by an ally', 'picked it up in a side chat', 'gut feeling'];
+    const plannerPool = availableTargets.filter(name => name && name !== targetName && name !== npc?.firstName);
+    const plannerCount = plannerPool.length > 1 ? (Math.random() < 0.55 ? 2 : 1) : (plannerPool.length ? 1 : 0);
+    const planners = plannerPool.length
+      ? plannerPool.slice(0, plannerCount)
+      : [];
     const disclosure = resolveNpcDisclosure({
       npc,
       player,
@@ -2537,6 +2499,19 @@ class ConversationSystem {
     const confidence = disclosure.outcome === 'truth' ? 75 : disclosure.outcome === 'lie' ? 35 : 45;
     const reason = disclosure.detail?.motive || context.reason || 'social threat';
     const pusherName = disclosure.outcome === 'evade' ? null : disclosure.detail?.pusherName;
+    const timeline = context.timeline || timelineOptions[getRandomInt(0, timelineOptions.length - 1)];
+    const sourceType = context.sourceType || sourceTypes[getRandomInt(0, sourceTypes.length - 1)];
+    const plotPacket = {
+      targetName,
+      targetId,
+      planners: planners.length ? planners : (pusherName ? [pusherName] : []),
+      reason,
+      timeline,
+      sourceType,
+      location: disclosure.detail?.location || context.location || null,
+      timeHint: disclosure.detail?.timeHint || null,
+      confidence
+    };
 
     return {
       targetName,
@@ -2547,22 +2522,39 @@ class ConversationSystem {
       location: disclosure.detail?.location || context.location || null,
       timeHint: disclosure.detail?.timeHint || null,
       disclosure,
-      confidence
+      confidence,
+      timeline,
+      sourceType,
+      plotPacket
     };
   }
 
   _buildWarningProofLine(npc, rumor, trustScore) {
     if (!rumor) return `${npc?.firstName || 'They'} hesitates. "I can’t go into that."`;
-    if (rumor.disclosure?.outcome === 'truth') {
-      const pusher = rumor.pusherName || 'someone';
-      return `${npc?.firstName || 'They'} nods. "I heard ${pusher} saying it by the ${rumor.location || 'shelter'} ${rumor.timeHint || 'earlier'}."`;
+    const packet = rumor.plotPacket || {};
+    const details = [];
+    const planners = Array.isArray(packet.planners) ? packet.planners.filter(Boolean) : [];
+    if (planners.length) {
+      details.push(`${planners.join(' & ')} are pushing it`);
+    } else if (rumor.pusherName) {
+      details.push(`${rumor.pusherName} is pushing it`);
+    }
+    if (packet.reason) details.push(`it’s about a ${packet.reason} read`);
+    if (packet.timeline) details.push(`they’re thinking ${packet.timeline}`);
+    if (packet.sourceType) details.push(`I got it because I ${packet.sourceType}`);
+    if (packet.location) details.push(`at the ${packet.location}`);
+    if (packet.timeHint) details.push(`${packet.timeHint}`);
+
+    const detailCount = trustScore > 70 ? 4 : trustScore > 50 ? 3 : 2;
+    const picked = details.filter(Boolean).slice(0, Math.max(2, detailCount));
+
+    if (rumor.disclosure?.outcome === 'evade') {
+      return `${npc?.firstName || 'They'} lowers their voice. "I can’t burn names, but ${picked.join(' and ')}."`;
     }
     if (rumor.disclosure?.outcome === 'lie') {
-      const pusher = rumor.pusherName || 'someone';
-      return `${npc?.firstName || 'They'} leans in. "It was ${pusher} at the ${rumor.location || 'water well'}. That’s where it started."`;
+      return `${npc?.firstName || 'They'} leans in. "I heard ${picked.join(' and ')}."`;
     }
-    const breadcrumb = trustScore > 55 ? `Just watch who keeps whispering with ${rumor.targetName}.` : `Keep an eye on who drifts off with ${rumor.targetName}.`;
-    return `${npc?.firstName || 'They'} shakes their head. "I can’t name names." ${breadcrumb}`;
+    return `${npc?.firstName || 'They'} nods. "Here’s what I know: ${picked.join(' and ')}."`;
   }
 
   _buildTalkSpecificDetailLine(npc, context = {}, { trustScore = 50 } = {}) {
@@ -2984,6 +2976,11 @@ class ConversationSystem {
     const socialLog = ensureCampSocialChanges();
     const exclude = [survivor.id];
     if (player?.id) exclude.push(player.id);
+    if (context.npcProposedTargetId) exclude.push(context.npcProposedTargetId);
+    if (context.npcProposedTargetName) {
+      const proposed = this._getSurvivorByName(context.npcProposedTargetName);
+      if (proposed?.id) exclude.push(proposed.id);
+    }
 
     this.promptSurvivorPicker({
       title: 'Counter with who?',
@@ -3573,6 +3570,10 @@ class ConversationSystem {
       const postPool = isPurpose
         ? ['hardStrategy', 'warning', 'manipulation', 'trust', 'targeting', 'askIntel']
         : ['askIntel', 'targeting', 'hardStrategy', 'warning', 'trust', 'manipulation'];
+      if (relationship !== null && relationship > 80 && !isPurpose) {
+        postPool.push('bonding');
+        if (relationship > 88) postPool.push('personal');
+      }
       return this._weightedIntent(postPool, mood, gameplayStyle);
     }
     if (relationship !== null && relationship > 65) {
@@ -3583,6 +3584,11 @@ class ConversationSystem {
     }
 
     return this._weightedIntent(['bonding', 'fun', 'personal', 'lightStrategy', 'gossip', 'campTalk', 'moodCheck', 'wildcard'], mood, gameplayStyle);
+  }
+
+  _isConversationDebugEnabled() {
+    if (typeof window === 'undefined') return false;
+    return Boolean(window.DEBUG_CONVERSATION || window.DEBUG_CONVO || window.gameManager?.debugConversation);
   }
 
   _getConversationPhase() {
@@ -3756,7 +3762,8 @@ class ConversationSystem {
       context.topicPerson = targetName;
     }
 
-    let responses = RESPONSE_LIBRARY[resolvedIntent] || RESPONSE_LIBRARY.bonding;
+    context.lastSpeaker = initiator === 'npc' ? 'npc' : 'player';
+    let responses = this._selectIntentResponses(resolvedIntent, context);
 
     if (resolvedIntent === 'deal') {
       const dealTopic = this._describeDeal(context, survivor);
@@ -3785,6 +3792,13 @@ class ConversationSystem {
 
     memory?.rememberBeat?.(survivor.id, resolvedIntent, line);
     return { text: line, responses, context };
+  }
+
+  _selectIntentResponses(resolvedIntent, context = {}) {
+    if ((resolvedIntent === 'bonding' || resolvedIntent === 'personal') && context.lastSpeaker === 'player') {
+      return RESPONSE_LIBRARY[`${resolvedIntent}_playerLead`] || RESPONSE_LIBRARY[resolvedIntent] || RESPONSE_LIBRARY.bonding;
+    }
+    return RESPONSE_LIBRARY[resolvedIntent] || RESPONSE_LIBRARY.bonding;
   }
 
   _resolveConversationFlow(intent, context = {}) {
@@ -3877,6 +3891,7 @@ class ConversationSystem {
 
     if (!step.nav && npcLine) {
       this._appendConversationHistory(session, npc?.firstName || 'NPC', npcLine, ['npc']);
+      context.lastSpeaker = 'npc';
     }
 
     const parchment = this._buildParchment(npcLine || '');
@@ -3902,6 +3917,25 @@ class ConversationSystem {
     }
 
     const handleChoice = (choice) => {
+      if (choice.action === 'goBack') {
+        if (this.state?.topic) {
+          this._showCategoryMenu(npc, context.location, this.state?.topic);
+        } else {
+          this._showTopicSelection(npc, context.location);
+        }
+        return;
+      }
+
+      if (choice.action === 'changeTopic') {
+        this._showTopicSelection(npc, context.location);
+        return;
+      }
+
+      if (choice.action === 'endConversation') {
+        this._clearOverlay();
+        return;
+      }
+
       if (choice.action === 'pickSource') {
         const excludeIds = [session.npcId, session.playerId].filter(Boolean);
         this.promptSurvivorPicker({
@@ -3932,16 +3966,8 @@ class ConversationSystem {
       this._advanceConversation(session, choice);
     };
 
-    choices.forEach(option => {
-      const btn = createElement('button', {
-        className: 'rect-button full',
-        onclick: () => handleChoice(option)
-      }, option.label);
-      buttonColumn.appendChild(btn);
-    });
-
-    const navButtons = this._buildNavOptions({
-      canBack: true,
+    const finalChoices = this._appendNavChoices(choices, {
+      canBack: false,
       canChangeTopic: true,
       onBack: () => {
         if (this.state?.topic) {
@@ -3950,18 +3976,16 @@ class ConversationSystem {
           this._showTopicSelection(npc, context.location);
         }
       },
-      onChangeTopic: () => this._showTopicSelection(npc, context.location)
+      onChangeTopic: () => this._showTopicSelection(npc, context.location),
+      onEnd: () => this._clearOverlay()
     });
 
-    navButtons.forEach(btn => {
-      const buttonEl = createElement('button', {
-        className: `rect-button full${btn.alt ? ' alt' : ''}`,
-        onclick: () => {
-          if (btn.onSelect) btn.onSelect();
-          if (btn.end) this._clearOverlay();
-        }
-      }, btn.label);
-      buttonColumn.appendChild(buttonEl);
+    finalChoices.forEach(option => {
+      const btn = createElement('button', {
+        className: `rect-button full${option.alt ? ' alt' : ''}`,
+        onclick: () => handleChoice(option)
+      }, option.label);
+      buttonColumn.appendChild(btn);
     });
 
     parchment.appendChild(buttonColumn);
@@ -3974,6 +3998,7 @@ class ConversationSystem {
     if (!flow) return;
 
     this._appendConversationHistory(session, 'Player', selectedChoice.label, ['player']);
+    session.context.lastSpeaker = 'player';
     this._applyFlowChoiceEffects(session, selectedChoice);
 
     session.turnIndex += 1;
@@ -4204,27 +4229,126 @@ class ConversationSystem {
           nextNodeBuilder: (pick) => this._buildConfrontSourceResponse(session, pick, { isLie: false })
         },
         {
-          label: 'Refuse to name the source',
-          playerLine: 'I’m not naming names.',
+          label: 'I’m not burning my source',
+          playerLine: 'I’m not burning my source.',
           nextNode: this._buildConfrontRefusalNode(session)
         },
         {
-          label: 'Lie about the source',
-          playerLine: 'It was someone. I’ll name them.',
-          action: 'pickSource',
-          lie: true,
-          pickerTitle: 'Pick a fake source',
-          nextNodeBuilder: (pick) => this._buildConfrontSourceResponse(session, pick, { isLie: true })
+          label: 'You tell me why my name came up',
+          playerLine: 'You tell me why my name came up.',
+          nextNode: this._buildConfrontWhyNameNode(session)
         },
         {
-          label: 'Back down / laugh it off',
-          playerLine: 'Forget it. It’s nothing.',
+          label: 'Maybe I misheard. Let’s move on.',
+          playerLine: 'Maybe I misheard. Let’s move on.',
           nextNode: {
-            text: `${npc?.firstName || 'They'} exhales. "Alright. Let’s drop it."`,
-            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context)
+            text: `${npc?.firstName || 'They'} nods cautiously. "Alright. If it’s a mix-up, let’s reset."`,
+            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
+            meta: { speaker: 'npc' }
+          },
+          memoryEvent: {
+            type: 'ACCUSATION_DEESCALATED',
+            speakerId: player?.id || null,
+            listenerId: npc?.id || null,
+            subjectId: player?.id || null,
+            data: {
+              contextEventId: session.context.accuseEventId || null,
+              location: session.context.location || null
+            }
+          },
+          onSelect: () => {
+            this.gameManager.systems?.socialMemorySystem?.recordAccusation?.({
+              speakerId: player?.id || null,
+              listenerId: npc?.id || null,
+              accusedId: npc?.id || null,
+              sourceId: null,
+              confidence: 35,
+              day: this.gameManager.getCurrentDay?.(),
+              phase: session.context.phase || this._getConversationPhase(),
+              data: { deescalated: true }
+            });
           }
         }
       ]
+    };
+  }
+
+  _buildConfrontWhyNameNode(session) {
+    const npc = this._getSurvivorById(session.npcId);
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const trustScore = this._getTrustScore(npc, player);
+    const style = (npc?.gameplayStyle || npc?.personality || '').toLowerCase();
+    const discussedPlayer = this._npcHasMentionedPlayer(npc?.id, player?.id);
+    const targetNames = this._getAvailableTargetNames(npc);
+    const explanationTarget = targetNames.length ? targetNames[getRandomInt(0, targetNames.length - 1)] : 'someone';
+
+    let line = '';
+    if (trustScore > 65 && discussedPlayer) {
+      line = `${npc?.firstName || 'They'} exhales. "Your name came up because people are nervous about you and ${explanationTarget} as a pair. It wasn’t personal."`;
+    } else if (style.includes('strategic') || style.includes('villain')) {
+      line = `${npc?.firstName || 'They'} keeps it sharp. "Because you’re a threat, and people are weighing the board. That’s it."`;
+    } else if (trustScore < 40) {
+      line = `${npc?.firstName || 'They'} stiffens. "You’re coming in hot. I heard chatter, I didn’t start it."`;
+    } else {
+      line = `${npc?.firstName || 'They'} nods. "It was a general vote read. Your name surfaced with ${explanationTarget} as an option."`;
+    }
+
+    this._recordStructuredSocialEvent({
+      type: 'ACCUSATION_EXPLANATION',
+      speakerId: npc?.id || null,
+      listenerId: player?.id || null,
+      subjectId: player?.id || null,
+      data: {
+        explanationTarget: explanationTarget || null,
+        confidence: Math.min(85, Math.max(25, trustScore)),
+        location: session.context.location || null,
+        contextEventId: session.context.accuseEventId || null
+      }
+    });
+
+    this.gameManager.systems?.socialMemorySystem?.recordAccusation?.({
+      speakerId: player?.id || null,
+      listenerId: npc?.id || null,
+      accusedId: npc?.id || null,
+      sourceId: null,
+      confidence: Math.min(85, Math.max(25, trustScore)),
+      day: this.gameManager.getCurrentDay?.(),
+      phase: session.context.phase || this._getConversationPhase(),
+      data: { explanationTarget }
+    });
+
+    return {
+      text: line,
+      choices: [
+        {
+          label: 'So are you targeting me?',
+          playerLine: 'So are you targeting me?',
+          nextNode: {
+            text: `${npc?.firstName || 'They'} answers, "I’m not locked on you, but I’m watching the vote."`,
+            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
+            meta: { speaker: 'npc' }
+          }
+        },
+        {
+          label: 'Who else is involved?',
+          playerLine: 'Who else is involved?',
+          nextNode: {
+            text: `${npc?.firstName || 'They'} says, "${explanationTarget} was the other name in the mix."`,
+            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
+            meta: { speaker: 'npc' }
+          }
+        },
+        {
+          label: 'Let’s squash it',
+          playerLine: 'Let’s squash it.',
+          nextNode: {
+            text: `${npc?.firstName || 'They'} nods. "I’m good with that if you are."`,
+            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
+            meta: { speaker: 'npc' }
+          }
+        }
+      ],
+      meta: { speaker: 'npc' }
     };
   }
 
@@ -4235,6 +4359,7 @@ class ConversationSystem {
     const targetRel = pick?.id ? this._relationshipBetween(npc?.id, pick.id) : 50;
     const npcStyle = (npc?.gameplayStyle || npc?.personality || '').toLowerCase();
     const discussedPlayer = this._npcHasMentionedPlayer(npc?.id, player?.id);
+    const isAlly = targetRel >= 70;
 
     let line = '';
     if (isLie) {
@@ -4251,7 +4376,9 @@ class ConversationSystem {
       line = `${npc?.firstName || 'They'} nods. "Alright. I said your name, but it wasn’t personal."`;
     }
 
-    if (targetRel < 40) {
+    if (isAlly) {
+      line += ` "${pick.firstName} is close to me. Don’t drag them into this."`;
+    } else if (targetRel < 40) {
       line += ` "And if it was ${pick.firstName}, we’re not exactly close."`;
     }
 
@@ -4259,6 +4386,7 @@ class ConversationSystem {
       line += ` "I did talk about you earlier, but it was strategic, not personal."`;
     }
 
+    const confidence = Math.max(20, Math.min(90, trustScore + (isLie ? -25 : 10)));
     const memoryType = isLie ? 'CONFRONTATION_SOURCE_LIE' : 'CONFRONTATION_SOURCE_NAMED';
     this._recordStructuredSocialEvent({
       type: memoryType,
@@ -4271,18 +4399,34 @@ class ConversationSystem {
         topicPlayerName: true,
         isLie,
         reliabilityImpact: isLie ? -6 : 2,
+        confidence,
         contextEventId: session.context.accuseEventId || null,
         location: session.context.location || null
       }
     });
 
+    this.gameManager.systems?.socialMemorySystem?.recordAccusation?.({
+      speakerId: player?.id || null,
+      listenerId: npc?.id || null,
+      accusedId: npc?.id || null,
+      sourceId: pick?.id || null,
+      confidence,
+      day: this.gameManager.getCurrentDay?.(),
+      phase: session.context.phase || this._getConversationPhase(),
+      data: { sourceName: pick?.firstName || null, isLie }
+    });
+
     if (isLie) {
       this.gameManager.systems?.socialMemorySystem?.adjustReliability?.(npc?.id, -6);
+    }
+    if (isAlly) {
+      this.gameManager.systems?.socialMemorySystem?.adjustTrust?.(npc?.id, -3);
     }
 
     return {
       text: line,
-      choices: this._buildConfrontFollowupChoices(session, { sourceName: pick?.firstName, isLie })
+      choices: this._buildConfrontFollowupChoices(session, { sourceName: pick?.firstName, isLie }),
+      meta: { speaker: 'npc' }
     };
   }
 
@@ -4294,12 +4438,28 @@ class ConversationSystem {
       : `${npc?.firstName || 'They'} sighs. "I get it… but this puts me on edge."`;
 
     const player = this.gameManager.getPlayerSurvivor?.();
+    const trustScore = this._getTrustScore(npc, player);
     this._recordStructuredSocialEvent({
       type: 'CONFRONTATION_SOURCE_REFUSED',
       speakerId: player?.id || null,
       listenerId: npc?.id || null,
       subjectId: null,
-      data: { contextEventId: session.context.accuseEventId || null, location: session.context.location || null }
+      data: {
+        contextEventId: session.context.accuseEventId || null,
+        location: session.context.location || null,
+        confidence: Math.max(15, Math.min(75, trustScore - 10))
+      }
+    });
+
+    this.gameManager.systems?.socialMemorySystem?.recordAccusation?.({
+      speakerId: player?.id || null,
+      listenerId: npc?.id || null,
+      accusedId: npc?.id || null,
+      sourceId: null,
+      confidence: Math.max(15, Math.min(75, trustScore - 10)),
+      day: this.gameManager.getCurrentDay?.(),
+      phase: session.context.phase || this._getConversationPhase(),
+      data: { sourceNamed: false }
     });
 
     return {
@@ -4310,7 +4470,8 @@ class ConversationSystem {
           playerLine: 'I just want to know if it’s true.',
           nextNode: {
             text: `${npc?.firstName || 'They'} holds your gaze. "Then be straight with me too."`,
-            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context)
+            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
+            meta: { speaker: 'npc' }
           }
         },
         {
@@ -4318,7 +4479,8 @@ class ConversationSystem {
           playerLine: 'Drop my name and we’re good.',
           nextNode: {
             text: `${npc?.firstName || 'They'} nods. "Fine. I’ll cool it."`,
-            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context)
+            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
+            meta: { speaker: 'npc' }
           }
         },
         {
@@ -4326,10 +4488,12 @@ class ConversationSystem {
           playerLine: 'Fine. I’ll remember this.',
           nextNode: {
             text: `${npc?.firstName || 'They'} frowns. "Do what you need to do."`,
-            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context)
+            choices: this._buildDefaultFollowupChoices(PRE_PHASE_INTENTS.confront_rumor, session.context),
+            meta: { speaker: 'npc' }
           }
         }
-      ]
+      ],
+      meta: { speaker: 'npc' }
     };
   }
 
@@ -4477,7 +4641,8 @@ class ConversationSystem {
           playerLine: 'What did they say exactly?',
           nextNode: {
             text: `${npc?.firstName || 'They'} listens. "So ${targetName} said my name? That’s the vibe then."`,
-            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, session.context)
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, session.context),
+            meta: { speaker: 'npc' }
           }
         },
         {
@@ -4485,7 +4650,8 @@ class ConversationSystem {
           playerLine: 'Do you buy it?',
           nextNode: {
             text: `${npc?.firstName || 'They'} considers it. "It’s possible. I’ll watch ${targetName}."`,
-            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, session.context)
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, session.context),
+            meta: { speaker: 'npc' }
           }
         },
         {
@@ -4493,7 +4659,138 @@ class ConversationSystem {
           playerLine: 'Let’s compare notes.',
           action: 'tradeInfo'
         }
-      ]
+      ],
+      meta: { speaker: 'npc' }
+    };
+  }
+
+  _buildNameMentionedPlayerNode(session, { trustScore = 50 } = {}) {
+    const npc = this._getSurvivorById(session.npcId);
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const context = session.context || {};
+    const targetName = context.topicPerson || 'someone';
+    const targetId = context.topicId || context.targetId || this._getSurvivorByName(targetName)?.id || null;
+    const targetRel = targetId ? this._relationshipBetween(npc?.id, targetId) : 50;
+    const style = this._classifyStyle(npc);
+    const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(npc?.id, targetId) : false;
+
+    const disclosure = resolveNpcDisclosure({
+      npc,
+      player,
+      kind: 'nameMentionedPlayer',
+      context: {
+        trueTarget: targetName,
+        availableTargets: this._getAvailableTargetNames(npc),
+        relationshipSystem: this.gameManager.systems?.relationshipSystem
+      }
+    });
+    const sourceName = disclosure.outcome === 'evade' ? null : (disclosure.detail?.pusherName || null);
+    const sourceId = sourceName ? this._getSurvivorByName(sourceName)?.id || null : null;
+    const confidence = Math.max(20, Math.min(90, Math.round(trustScore + (disclosure.outcome === 'truth' ? 12 : disclosure.outcome === 'lie' ? -12 : -4))));
+    const location = disclosure.detail?.location || context.location || 'shelter';
+    const timeHint = disclosure.detail?.timeHint || 'earlier';
+
+    let line = '';
+    if (repeated) {
+      line = `${npc?.firstName || 'They'} exhales. "You already asked me about ${targetName}. I don’t have much more."`;
+    } else if (trustScore > 65 && targetRel < 60) {
+      line = `${npc?.firstName || 'They'} nods. "Yeah, your name came up with ${targetName}. It wasn’t locked, but it was real."`;
+    } else if (targetRel > 70) {
+      line = `${npc?.firstName || 'They'} hesitates. "${targetName} is close to me. If your name came up, it could’ve been smoke."`;
+    } else if (trustScore < 45) {
+      line = `${npc?.firstName || 'They'} narrows their eyes. "That’s a big claim. I didn’t hear it myself."`;
+    } else if (style.isStrategist || style.isVillain) {
+      line = `${npc?.firstName || 'They'} keeps it clipped. "It was mentioned. People are sizing you up, that’s all."`;
+    } else {
+      line = `${npc?.firstName || 'They'} says, "I heard your name in the mix with ${targetName}, but nothing was locked."`;
+    }
+
+    this._recordStructuredSocialEvent({
+      type: 'PLAYER_NAME_MENTIONED',
+      speakerId: npc?.id || null,
+      listenerId: player?.id || null,
+      subjectId: targetId || null,
+      data: {
+        targetName,
+        claimantId: npc?.id || null,
+        claimantName: npc?.firstName || null,
+        sourceName,
+        sourceId,
+        confidence,
+        phase: context.phase || this._getConversationPhase(),
+        location: context.location || null
+      }
+    });
+
+    memory?.recordNameMention?.({
+      speakerId: npc?.id || null,
+      listenerId: player?.id || null,
+      subjectId: targetId || null,
+      contextTag: 'player_name_mentioned',
+      confidence,
+      phase: context.phase || this._getConversationPhase(),
+      data: { targetName, sourceName, sourceId }
+    });
+
+    return {
+      text: line,
+      choices: [
+        {
+          label: 'Who said it?',
+          playerLine: 'Who said it?',
+          nextNode: {
+            text: sourceName
+              ? `${npc?.firstName || 'They'} answers, "It was ${sourceName} at the ${location} ${timeHint}."`
+              : `${npc?.firstName || 'They'} says, "I’m not burning a name, but it was around the ${location} ${timeHint}."`,
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, context),
+            meta: { speaker: 'npc' }
+          }
+        },
+        {
+          label: 'What exactly did they say?',
+          playerLine: 'What exactly did they say?',
+          nextNode: {
+            text: `${npc?.firstName || 'They'} recalls, "It was basically, ‘${player?.firstName || 'you'} is a threat with ${targetName}.’"`,
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, context),
+            meta: { speaker: 'npc' }
+          }
+        },
+        {
+          label: 'Do you think it’s real or smoke?',
+          playerLine: 'Do you think it’s real or smoke?',
+          nextNode: {
+            text: targetRel > 70
+              ? `${npc?.firstName || 'They'} shrugs. "Could be smoke. ${targetName} plays a long game."`
+              : `${npc?.firstName || 'They'} nods slightly. "It felt real enough that I’m watching it."`,
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, context),
+            meta: { speaker: 'npc' }
+          }
+        },
+        {
+          label: 'Should we push them tonight?',
+          playerLine: 'Should we push them tonight?',
+          nextNode: {
+            text: this._isTooEarlyForVoteTalk()
+              ? `${npc?.firstName || 'They'} shakes their head. "Too early. Let’s read the day."`
+              : targetRel > 65
+                ? `${npc?.firstName || 'They'} frowns. "Not tonight. I’m not ready to go at ${targetName}."`
+                : `${npc?.firstName || 'They'} nods. "If numbers are there, I’m open to it."`,
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, context),
+            meta: { speaker: 'npc' }
+          }
+        },
+        {
+          label: 'Let it go',
+          playerLine: 'Let it go.',
+          nextNode: {
+            text: `${npc?.firstName || 'They'} nods. "Alright. We’ll watch it quietly."`,
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.talk_specific_person, context),
+            meta: { speaker: 'npc' }
+          }
+        }
+      ],
+      meta: { speaker: 'npc' }
     };
   }
 
@@ -4514,10 +4811,20 @@ class ConversationSystem {
         targetName: rumor.targetName,
         reason: rumor.reason,
         pusherName: rumor.pusherName || null,
+        plotPacket: rumor.plotPacket || null,
         confidence: rumor.confidence,
         npcDisclosureOutcome: rumor.disclosure?.outcome || 'evade',
         location: session.context.location || null
       }
+    });
+
+    this.gameManager.systems?.socialMemorySystem?.recordPlotPacket?.({
+      speakerId: npc?.id || null,
+      listenerId: session.playerId || null,
+      targetId: rumor.targetId || null,
+      packet: rumor.plotPacket || null,
+      day: this.gameManager.getCurrentDay?.(),
+      phase: session.context.phase || this._getConversationPhase()
     });
 
     return {
@@ -4581,16 +4888,18 @@ class ConversationSystem {
           label: 'Who exactly is driving it?',
           playerLine: 'Who exactly is driving it?',
           nextNode: {
-            text: `${npc?.firstName || 'They'} answers, "${rumor.pusherName || 'A couple people'} are pushing it hardest."`,
-            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.plant_seed, session.context)
+            text: `${npc?.firstName || 'They'} answers, "${(Array.isArray(rumor.plotPacket?.planners) && rumor.plotPacket.planners.length ? rumor.plotPacket.planners : [rumor.pusherName || 'a couple people']).filter(Boolean).join(' & ')} are pushing it hardest."`,
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.plant_seed, session.context),
+            meta: { speaker: 'npc' }
           }
         },
         {
           label: 'What did they say exactly?',
           playerLine: 'What did they say exactly?',
           nextNode: {
-            text: `${npc?.firstName || 'They'} explains, "They said ${rumor.targetName} is a ${rumor.reason} problem."`,
-            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.plant_seed, session.context)
+            text: `${npc?.firstName || 'They'} explains, "They said ${rumor.targetName} is a ${rumor.reason} problem and it should be ${rumor.timeline || 'soon'}."`,
+            choices: this._buildDefaultFollowupChoices(POST_PHASE_INTENTS.plant_seed, session.context),
+            meta: { speaker: 'npc' }
           }
         },
         {
@@ -4604,7 +4913,8 @@ class ConversationSystem {
           end: true,
           action: 'endConversation'
         }
-      ]
+      ],
+      meta: { speaker: 'npc' }
     };
   }
 
@@ -4617,6 +4927,11 @@ class ConversationSystem {
   }
 
   _runConversationQA() {
+    if (!this._isConversationDebugEnabled()) {
+      console.warn('ConversationSystem QA: Debug flag not enabled. Set window.DEBUG_CONVERSATION = true to run.');
+      return;
+    }
+
     const npc = (this.gameManager.survivors || []).find(s => !s.isPlayer) || this.gameManager.survivors?.[0];
     if (!npc) {
       console.warn('ConversationSystem QA: No NPC available for QA traversal.');
@@ -4624,6 +4939,8 @@ class ConversationSystem {
     }
     const player = this.gameManager.getPlayerSurvivor?.();
     const baseContext = { location: 'campfire', phase: this._getConversationPhase() };
+    const maxDepth = 6;
+    const validActions = new Set(['changeTopic', 'endConversation', 'askFollowup', 'tradeInfo', 'offerDealMenu', 'pitchPlan', 'pickSource', 'goBack']);
 
     const buildSession = (intent, context) => this._initNodeSession({
       npcId: npc.id,
@@ -4651,8 +4968,8 @@ class ConversationSystem {
       };
       const rootId = register(root);
       const visited = new Set();
-      const walk = (nodeId) => {
-        if (!nodeId || visited.has(nodeId)) return;
+      const walk = (nodeId, depth = 0) => {
+        if (!nodeId || visited.has(nodeId) || depth > maxDepth) return;
         const node = nodes[nodeId];
         if (!node) {
           console.warn(`ConversationSystem QA: Missing nodeId "${nodeId}"`);
@@ -4660,27 +4977,42 @@ class ConversationSystem {
         }
         visited.add(nodeId);
         const choices = Array.isArray(node.choices) ? node.choices : [];
+        const choiceKeys = new Set();
+        choices.forEach(choice => {
+          const key = this._choiceKey(choice);
+          if (choiceKeys.has(key)) {
+            console.warn(`ConversationSystem QA: Node "${nodeId}" has duplicate choice "${choice.label}"`);
+          }
+          choiceKeys.add(key);
+        });
         if (choices.length === 0) {
           console.warn(`ConversationSystem QA: Node "${nodeId}" has no choices`);
         } else if (choices.length === 1 && !node.meta?.isEnd) {
           console.warn(`ConversationSystem QA: Node "${nodeId}" has only 1 choice`);
         }
+        const nonNavChoices = choices.filter(choice => !this._isNavChoice(choice));
+        if (nonNavChoices.length === 0 && !node.meta?.isEnd) {
+          console.warn(`ConversationSystem QA: Node "${nodeId}" has only nav choices`);
+        }
         choices.forEach(choice => {
           if (choice.nextNode) {
             const nextId = register(choice.nextNode);
-            walk(nextId);
+            walk(nextId, depth + 1);
             return;
           }
           if (choice.nextNodeId) {
-            walk(choice.nextNodeId);
+            walk(choice.nextNodeId, depth + 1);
             return;
+          }
+          if (choice.action && !validActions.has(choice.action)) {
+            console.warn(`ConversationSystem QA: Node "${nodeId}" has unknown action "${choice.action}"`);
           }
           if (!choice.action && !choice.end && !choice.onSelect) {
             console.warn(`ConversationSystem QA: Node "${nodeId}" has a dangling choice "${choice.label}"`);
           }
         });
       };
-      walk(rootId);
+      walk(rootId, 0);
     });
 
     const preIntents = [
@@ -4995,6 +5327,10 @@ class ConversationSystem {
         playerPrompt: 'I’ve heard their name.',
         npcPrompt: 'I’ve heard their name.'
       },
+      nameMentionedPlayer: {
+        playerPrompt: 'I heard they said my name.',
+        npcPrompt: 'I heard they said my name.'
+      },
       considerWork: {
         playerPrompt: 'I’m considering working with them.',
         npcPrompt: 'I’m considering working with them.'
@@ -5069,6 +5405,20 @@ class ConversationSystem {
             ? `${survivor.firstName} admits, "Yeah, ${targetName}’s name keeps coming up."`
             : `${survivor.firstName} hedges. "I’ve heard whispers, but nothing solid."`;
           confidence = Math.max(10, confidence - (trustScore < 50 ? 10 : 0));
+          break;
+        }
+        case 'nameMentionedPlayer': {
+          intelContext = 'player_name_mentioned';
+          if (trustScore > 65 && targetRel < 60) {
+            responseLine = `${survivor.firstName} nods slowly. "I did hear your name with ${targetName}. It wasn’t locked, but it was real."`;
+          } else if (targetRel > 70) {
+            responseLine = `${survivor.firstName} hesitates. "${targetName} and I are tight. If your name came up, it might’ve been smoke."`;
+          } else if (trustScore < 45) {
+            responseLine = `${survivor.firstName} narrows their eyes. "That’s a big claim. I haven’t heard it myself."`;
+            confidence = Math.max(10, confidence - 15);
+          } else {
+            responseLine = `${survivor.firstName} says, "I’ve heard your name in the mix with ${targetName}, but it’s not locked."`;
+          }
           break;
         }
         case 'considerWork': {
@@ -5348,7 +5698,14 @@ class ConversationSystem {
     return {
       text: `${leadLine} ${responseLine}`.trim(),
       responses: RESPONSE_LIBRARY.targeting || RESPONSE_LIBRARY.bonding,
-      context: { ...context, phase, topicPerson: claim || null, intelPayload: payload }
+      context: {
+        ...context,
+        phase,
+        topicPerson: claim || null,
+        npcProposedTargetName: claim || null,
+        npcProposedTargetId: claim ? this._getSurvivorByName(claim)?.id || null : null,
+        intelPayload: payload
+      }
     };
   }
 
@@ -5463,6 +5820,8 @@ class ConversationSystem {
     }
 
     context.npcPitchedTarget = true;
+    context.npcProposedTargetName = safeTarget;
+    context.npcProposedTargetId = context.topicId || context.targetId || this._getSurvivorByName(safeTarget)?.id || null;
     return baseLine
       .replace('{npc}', survivor.firstName)
       .replace('{target}', safeTarget)
@@ -5838,16 +6197,69 @@ class ConversationSystem {
       .replace('{subjectName}', context.subjectName || 'them');
   }
 
-  _buildNavOptions({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd }) {
+  _choiceKey(choice) {
+    if (!choice) return '';
+    const key = choice.id || choice.label || choice.action || '';
+    return String(key).trim().toLowerCase();
+  }
+
+  _isNavChoice(choice) {
+    const key = this._choiceKey(choice);
+    return ['nav-back', 'nav-change-topic', 'nav-end-conversation', 'back', 'change topic', 'end conversation'].includes(key);
+  }
+
+  _buildNavChoices({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd }) {
     const buttons = [];
     if (canBack) {
-      buttons.push({ label: 'Back', alt: true, onSelect: onBack });
+      buttons.push({ id: 'nav-back', label: 'Back', alt: true, action: 'goBack', onSelect: onBack });
     }
     if (canChangeTopic) {
-      buttons.push({ label: 'Change Topic', alt: true, onSelect: onChangeTopic });
+      buttons.push({ id: 'nav-change-topic', label: 'Change Topic', alt: true, action: 'changeTopic', onSelect: onChangeTopic });
     }
-    buttons.push({ label: 'End Conversation', alt: true, end: true, onSelect: onEnd || null });
+    buttons.push({ id: 'nav-end-conversation', label: 'End Conversation', alt: true, end: true, action: 'endConversation', onSelect: onEnd || null });
     return buttons;
+  }
+
+  _dedupeChoices(choices = []) {
+    const seen = new Set();
+    const result = [];
+    choices.forEach(choice => {
+      const key = this._choiceKey(choice);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      result.push(choice);
+    });
+    return result;
+  }
+
+  _appendNavChoices(choices = [], navOptions = {}) {
+    const trimmed = (Array.isArray(choices) ? choices : []).filter(choice => !this._isNavChoice(choice));
+    const navChoices = this._buildNavChoices(navOptions);
+    return this._dedupeChoices([...trimmed, ...navChoices]);
+  }
+
+  _appendNavButtonsToColumn(buttonColumn, navOptions = {}) {
+    if (!buttonColumn) return;
+    const existing = Array.from(buttonColumn.querySelectorAll('button'))
+      .map(btn => String(btn.textContent || '').trim().toLowerCase())
+      .filter(Boolean);
+    const navChoices = this._buildNavChoices(navOptions);
+    navChoices.forEach(choice => {
+      const labelKey = this._choiceKey({ label: choice.label });
+      if (existing.includes(labelKey)) return;
+      const buttonEl = createElement('button', {
+        className: `rect-button full${choice.alt ? ' alt' : ''}`,
+        onclick: () => {
+          if (choice.onSelect) choice.onSelect();
+          if (choice.end && !choice.onSelect) this._clearOverlay();
+        }
+      }, choice.label);
+      buttonColumn.appendChild(buttonEl);
+    });
+  }
+
+  _buildNavOptions({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd }) {
+    return this._buildNavChoices({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd });
   }
 
   _shiftMood(npcId, newMood) {
@@ -6047,6 +6459,7 @@ class ConversationSystem {
       case POST_PHASE_INTENTS.talk_specific_person: {
         if (context.subTopic === 'idol') logSocial('IDOL_SUSPICION');
         if (context.subTopic === 'nameHeard') logSocial('RUMOR_SHARED');
+        if (context.subTopic === 'nameMentionedPlayer') logSocial('RUMOR_SHARED');
         if (context.subTopic === 'voteTonight') logSocial('TARGET_PUSH');
         if (targetId) {
           const sentiment = context.subTopic === 'dangerLater' ? 'negative' : context.subTopic === 'considerWork' ? 'positive' : 'neutral';
