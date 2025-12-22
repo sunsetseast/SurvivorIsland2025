@@ -51,6 +51,9 @@ class SocialMemorySystem {
                 intelEvents: [],
                 conversationIntents: [],
                 structuredEvents: [],
+                plotPackets: [],
+                accusations: [],
+                nameMentions: [],
                 misc: [],
                 lastTopics: [],
                 lastLines: [],
@@ -176,6 +179,113 @@ class SocialMemorySystem {
             day,
             phase
         });
+    }
+
+    recordPlotPacket({ speakerId, listenerId = null, targetId = null, packet = {}, day = null, phase = null }) {
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const entry = {
+            type: 'plot_packet',
+            speakerId,
+            listenerId,
+            targetId,
+            packet: { ...packet },
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null,
+            time: Date.now()
+        };
+
+        if (listenerId != null) {
+            this.initNPC(listenerId);
+            this.memory[listenerId].plotPackets.push(entry);
+        }
+        if (speakerId != null) {
+            this.initNPC(speakerId);
+            this.memory[speakerId].plotPackets.push({ ...entry, perspective: 'speaker' });
+        }
+
+        this.recordStructuredEvent({
+            type: 'PLOT_PACKET',
+            speakerId,
+            listenerId,
+            subjectId: targetId,
+            data: { packet }
+        });
+
+        return entry;
+    }
+
+    recordAccusation({ speakerId, listenerId = null, accusedId = null, sourceId = null, confidence = null, day = null, phase = null, data = {} }) {
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const entry = {
+            type: 'accusation',
+            speakerId,
+            listenerId,
+            accusedId,
+            sourceId,
+            confidence,
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null,
+            time: Date.now(),
+            data: { ...data }
+        };
+
+        if (listenerId != null) {
+            this.initNPC(listenerId);
+            this.memory[listenerId].accusations.push(entry);
+        }
+        if (speakerId != null) {
+            this.initNPC(speakerId);
+            this.memory[speakerId].accusations.push({ ...entry, perspective: 'speaker' });
+        }
+
+        this.recordStructuredEvent({
+            type: 'ACCUSATION_LOGGED',
+            speakerId,
+            listenerId,
+            subjectId: accusedId,
+            data: { sourceId, confidence, ...data },
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null
+        });
+
+        return entry;
+    }
+
+    recordNameMention({ speakerId, listenerId = null, subjectId = null, contextTag = 'general', confidence = null, day = null, phase = null, data = {} }) {
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const entry = {
+            type: 'name_mention',
+            speakerId,
+            listenerId,
+            subjectId,
+            contextTag,
+            confidence,
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null,
+            time: Date.now(),
+            data: { ...data }
+        };
+
+        if (listenerId != null) {
+            this.initNPC(listenerId);
+            this.memory[listenerId].nameMentions.push(entry);
+        }
+        if (speakerId != null) {
+            this.initNPC(speakerId);
+            this.memory[speakerId].nameMentions.push({ ...entry, perspective: 'speaker' });
+        }
+
+        this.recordStructuredEvent({
+            type: 'NAME_MENTION',
+            speakerId,
+            listenerId,
+            subjectId,
+            data: { contextTag, confidence, ...data },
+            day: dayValue,
+            phase: phase || window.gameManager?.getGamePhase?.() || null
+        });
+
+        return entry;
     }
 
     getStructuredEvents() {
