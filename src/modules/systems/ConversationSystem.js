@@ -888,6 +888,7 @@ class ConversationSystem {
     this.nodeSession = null;
     this._nodeIdCounter = 0;
     this._memoryLog = [];
+    this.npcMemory = {};
   }
 
   initialize() {
@@ -898,6 +899,7 @@ class ConversationSystem {
       window.runConversationQA = () => this._runConversationQA();
       window.ConversationSystem = window.ConversationSystem || {};
       window.ConversationSystem.validate = () => this.validate();
+      window.ConversationSystem.validateMenus = () => this.validateMenus();
     }
   }
 
@@ -1285,7 +1287,12 @@ class ConversationSystem {
     } else if (category === 'deflect') {
       addOption('Deflect heat from someone', () => this._showDeflectMenu(survivor, location, { phase }));
     } else if (category === 'idol') {
-      addOption('Compare idol suspicions', () => this.promptSurvivorPicker({
+      addOption('Ask generally who might have an idol', () => this._startConversation(survivor, {
+        intentOverride: POST_PHASE_INTENTS.idol_suspicion,
+        location,
+        context: { phase, initiator: 'player', subTopic: 'idol' }
+      }));
+      addOption('Name someone you suspect', () => this.promptSurvivorPicker({
         title: 'Suspicious about who?',
         tribeOnly: true,
         excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id]
@@ -2071,7 +2078,7 @@ class ConversationSystem {
 
     const rootNodeId = this._registerNode(session, {
       id: 'root',
-      text: dialogue.text,
+      text: this._composeMenuText(dialogue),
       choices: rootChoices,
       meta: { speaker: context.lastSpeaker || (context.initiator === 'npc' ? 'npc' : 'player') }
     });
@@ -2143,6 +2150,7 @@ class ConversationSystem {
       intent,
       meeting,
       context: { ...context },
+      npcMemory: this.npcMemory,
       nodes: {},
       historyStack: [],
       currentNodeId: null,
@@ -2182,6 +2190,32 @@ class ConversationSystem {
     };
     wrapped.__safeClick = true;
     return wrapped;
+  }
+
+  _getNpcMemoryEntry(survivor, session = null) {
+    if (!survivor) return null;
+    const store = session?.npcMemory || this.npcMemory || (this.npcMemory = {});
+    const key = survivor.firstName || survivor.id || 'npc';
+    if (!store[key]) {
+      store[key] = {
+        eyeTargetName: null,
+        trustedName: null,
+        idolSuspectName: null,
+        lastDiscussedNames: [],
+        lastIntentAsked: {}
+      };
+    }
+    return store[key];
+  }
+
+  _composeMenuText({ playerLine, npcLine, text }) {
+    if (npcLine || playerLine) {
+      if (playerLine && npcLine) {
+        return `${playerLine}\n\n${npcLine}`;
+      }
+      return npcLine || playerLine || '';
+    }
+    return text || '';
   }
 
   _handleConversationError(error, { session, npc, fallbackLine } = {}) {
@@ -2438,7 +2472,7 @@ class ConversationSystem {
       : this._buildDefaultFollowupChoices(intent, context);
 
     return {
-      text: menu.text || '',
+      text: this._composeMenuText(menu),
       additionalText: menu.additionalText || null,
       choices: buttons.map((btn, index) => ({
         id: `menu-choice-${index}`,
@@ -3268,37 +3302,53 @@ class ConversationSystem {
     }
 
     if (option.disclosureKind) {
+      const npcMemory = this._getNpcMemoryEntry(survivor, session);
       const pool = (this.gameManager.getPlayerTribe?.()?.members || this.gameManager.survivors || [])
         .filter(s => s.firstName !== survivor.firstName && !s.isPlayer)
         .map(s => s.firstName);
-      const disclosure = resolveNpcDisclosure({
-        npc: survivor,
-        player,
-        kind: option.disclosureKind,
-        context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
-      });
-      const claimTarget = disclosure.claimedTarget || 'anyone yet';
+      const rememberedTarget = npcMemory?.eyeTargetName;
+      let disclosure = null;
+      let claimTarget = rememberedTarget || 'anyone yet';
+      let outcome = rememberedTarget ? 'repeat' : null;
 
-      if (disclosure.outcome === 'truth') {
+      if (!rememberedTarget) {
+        disclosure = resolveNpcDisclosure({
+          npc: survivor,
+          player,
+          kind: option.disclosureKind,
+          context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
+        });
+        claimTarget = disclosure.claimedTarget || 'anyone yet';
+        outcome = disclosure.outcome;
+        if (disclosure.claimedTarget && npcMemory) {
+          npcMemory.eyeTargetName = disclosure.claimedTarget;
+        }
+      }
+
+      if (outcome === 'repeat') {
+        menu.text = `${survivor.firstName} gives you a look. "I already told you — ${claimTarget}."`;
+      } else if (outcome === 'truth') {
         menu.text = `${survivor.firstName} lowers their voice. "If it's me, it's ${claimTarget}."`;
-      } else if (disclosure.outcome === 'lie') {
+      } else if (outcome === 'lie') {
         menu.text = `${survivor.firstName} glances around. "Honestly? ${claimTarget}."`;
       } else {
         menu.text = `${survivor.firstName} shakes their head. "I'm not putting names out yet."`;
       }
 
-      if (disclosure.claimedTarget) {
-        applyContextPatch({ topicPerson: disclosure.claimedTarget });
+      if (claimTarget && claimTarget !== 'anyone yet') {
+        applyContextPatch({ topicPerson: claimTarget });
       }
 
-      this.gameManager.systems?.socialMemorySystem?.recordIntel?.({
-        from: survivor.firstName,
-        kind: 'targetClaim',
-        claimedTarget: disclosure.claimedTarget,
-        outcome: disclosure.outcome,
-        day: this.gameManager.getCurrentDay?.(),
-        verified: false
-      });
+      if (disclosure) {
+        this.gameManager.systems?.socialMemorySystem?.recordIntel?.({
+          from: survivor.firstName,
+          kind: 'targetClaim',
+          claimedTarget: disclosure.claimedTarget,
+          outcome: disclosure.outcome,
+          day: this.gameManager.getCurrentDay?.(),
+          verified: false
+        });
+      }
 
       const followButtons = disclosure.outcome === 'evade'
         ? [
@@ -3402,6 +3452,13 @@ class ConversationSystem {
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const socialMemory = this.gameManager.systems?.socialMemorySystem;
     const socialLog = ensureCampSocialChanges();
+    const originalTargetName = context.npcProposedTargetName || context.topicPerson || context.targetName || null;
+    if (session) {
+      session.counter = {
+        ...(session.counter || {}),
+        originalTargetName
+      };
+    }
     const exclude = [survivor.id];
     if (player?.id) exclude.push(player.id);
     if (context.npcProposedTargetId) exclude.push(context.npcProposedTargetId);
@@ -3413,6 +3470,10 @@ class ConversationSystem {
     }
     if (context.npcProposedTargetName) {
       const proposed = this._getSurvivorByName(context.npcProposedTargetName);
+      if (proposed?.id) exclude.push(proposed.id);
+    }
+    if (originalTargetName) {
+      const proposed = this._getSurvivorByName(originalTargetName);
       if (proposed?.id) exclude.push(proposed.id);
     }
 
@@ -3488,35 +3549,23 @@ class ConversationSystem {
         };
 
         if (session) {
+          session.counter = {
+            ...(session.counter || {}),
+            counterTargetName: pick.firstName
+          };
           const followupNode = {
             text: reaction.npcLine,
             choices: [
               {
                 label: 'Lock it in and move on',
                 playerLine: 'Lock it in and move on.',
-                npcReply: `${survivor.firstName} nods. "Alright. Let’s see how it lands."`,
-                next: {
-                  text: `${survivor.firstName} watches the camp. "We’ll move smart."`,
-                  choices: [
-                    { label: 'Change Topic', action: 'changeTopic' },
-                    { label: 'End Conversation', end: true, action: 'endConversation' }
-                  ],
-                  meta: { speaker: 'npc', showNav: false }
-                }
+                npcReply: () => this._applyCounterCommit({ session, npc: survivor, counterTargetName: pick.firstName })
               },
               {
                 label: 'Leave it open for now',
                 alt: true,
                 playerLine: 'Leave it open for now.',
-                npcReply: `${survivor.firstName} nods. "Alright. Let’s see how it lands."`,
-                next: {
-                  text: `${survivor.firstName} shrugs. "We’ll keep it fluid."`,
-                  choices: [
-                    { label: 'Change Topic', action: 'changeTopic' },
-                    { label: 'End Conversation', end: true, action: 'endConversation' }
-                  ],
-                  meta: { speaker: 'npc', showNav: false }
-                }
+                npcReply: () => this._applyCounterLeaveOpen({ session, npc: survivor, counterTargetName: pick.firstName })
               }
             ],
             meta: { speaker: 'npc' }
@@ -3528,6 +3577,100 @@ class ConversationSystem {
 
         endConversation();
       });
+  }
+
+  _applyCounterCommit({ session, npc, counterTargetName }) {
+    try {
+      if (!npc || !counterTargetName) {
+        return `${npc?.firstName || 'They'} nods. "Alright."`;
+      }
+      const player = this.gameManager.getPlayerSurvivor?.();
+      const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+      const socialMemory = this.gameManager.systems?.socialMemorySystem;
+      const socialLog = ensureCampSocialChanges();
+      const npcMemory = this._getNpcMemoryEntry(npc, session);
+
+      if (session) {
+        session.counter = {
+          ...(session.counter || {}),
+          counterTargetName,
+          status: 'locked'
+        };
+      }
+
+      if (npcMemory) {
+        npcMemory.currentPlan = { target: counterTargetName, status: 'locked', updatedAt: Date.now() };
+        if (!npcMemory.lastDiscussedNames.includes(counterTargetName)) {
+          npcMemory.lastDiscussedNames.push(counterTargetName);
+        }
+      }
+
+      if (player && relationshipSystem) {
+        relationshipSystem.changeRelationship?.(player.id, npc.id, 2);
+        socialLog.relationship.push({ id: npc.id, with: npc.firstName, amount: 2, context: 'counter_lock' });
+      }
+      socialMemory?.adjustTrust?.(npc.id, 3);
+      socialMemory?.adjustReliability?.(npc.id, 2);
+      socialLog.trust.push({ id: npc.id, with: npc.firstName, amount: 3, context: 'counter_lock' });
+      socialLog.reliability.push({ id: npc.id, with: npc.firstName, amount: 2, context: 'counter_lock' });
+
+      return `${npc.firstName} nods. "Alright. We’re locked on ${counterTargetName}."`;
+    } catch (error) {
+      console.error('ConversationSystem: counter commit failed', error);
+      return `${npc?.firstName || 'They'} exhales. "Okay. We’ll see where it goes."`;
+    }
+  }
+
+  _applyCounterLeaveOpen({ session, npc, counterTargetName }) {
+    try {
+      if (!npc || !counterTargetName) {
+        return `${npc?.firstName || 'They'} nods. "Alright."`;
+      }
+      const player = this.gameManager.getPlayerSurvivor?.();
+      const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+      const socialMemory = this.gameManager.systems?.socialMemorySystem;
+      const socialLog = ensureCampSocialChanges();
+      const npcMemory = this._getNpcMemoryEntry(npc, session);
+      const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
+      const likesFlex = personality.includes('strateg') || personality.includes('wildcard');
+      const trustDelta = likesFlex ? 1 : -2;
+      const reliabilityDelta = likesFlex ? 1 : -1;
+
+      if (session) {
+        session.counter = {
+          ...(session.counter || {}),
+          counterTargetName,
+          status: 'tentative'
+        };
+      }
+
+      if (npcMemory) {
+        npcMemory.currentPlan = { target: counterTargetName, status: 'tentative', updatedAt: Date.now() };
+        if (!npcMemory.lastDiscussedNames.includes(counterTargetName)) {
+          npcMemory.lastDiscussedNames.push(counterTargetName);
+        }
+      }
+
+      if (player && relationshipSystem) {
+        relationshipSystem.changeRelationship?.(player.id, npc.id, trustDelta > 0 ? 1 : -1);
+        socialLog.relationship.push({ id: npc.id, with: npc.firstName, amount: trustDelta > 0 ? 1 : -1, context: 'counter_tentative' });
+      }
+      if (typeof trustDelta === 'number') {
+        socialMemory?.adjustTrust?.(npc.id, trustDelta);
+        socialLog.trust.push({ id: npc.id, with: npc.firstName, amount: trustDelta, context: 'counter_tentative' });
+      }
+      if (typeof reliabilityDelta === 'number') {
+        socialMemory?.adjustReliability?.(npc.id, reliabilityDelta);
+        socialLog.reliability.push({ id: npc.id, with: npc.firstName, amount: reliabilityDelta, context: 'counter_tentative' });
+      }
+
+      return likesFlex
+        ? `${npc.firstName} nods. "We’ll keep it fluid, but I’m in."`
+        : `${npc.firstName} hesitates. "Alright… but I don’t love staying vague."`;
+    } catch (error) {
+      console.error('ConversationSystem: counter tentative failed', error);
+      return `${npc?.firstName || 'They'} nods slowly. "We’ll keep it open for now."`;
+    }
   }
 
   computeAllianceAcceptChance(npc, player, context = {}) {
@@ -4206,10 +4349,11 @@ class ConversationSystem {
     const memory = this.gameManager.systems?.socialMemorySystem;
     const initiator = context.initiator || 'player';
     context.initiator = initiator;
-    let line = this._pickIntentTemplate(resolvedIntent, initiator);
+    let playerLine = initiator === 'player' ? this._pickIntentTemplate(resolvedIntent, 'player') : '';
+    let npcLine = this._pickIntentTemplate(resolvedIntent, 'npc');
     let safety = 0;
-    while (memory?.recentlyUsed?.(survivor.id, line) && safety < 3) {
-      line = this._pickIntentTemplate(resolvedIntent, initiator);
+    while (memory?.recentlyUsed?.(survivor.id, npcLine) && safety < 3) {
+      npcLine = this._pickIntentTemplate(resolvedIntent, 'npc');
       safety += 1;
     }
     const targetName = context.topicPerson || this._pickTargetName(survivor, context);
@@ -4227,34 +4371,67 @@ class ConversationSystem {
 
     context.lastSpeaker = initiator === 'npc' ? 'npc' : 'player';
     let responses = this._selectIntentResponses(resolvedIntent, context);
+    const npcMemory = this._getNpcMemoryEntry(survivor);
 
     if (resolvedIntent === 'deal') {
       const dealTopic = this._describeDeal(context, survivor);
       context.dealTopic = dealTopic;
-      line = `${survivor.firstName} considers your pitch about ${dealTopic}.`;
+      npcLine = `${survivor.firstName} considers your pitch about ${dealTopic}.`;
     } else if (resolvedIntent === 'hardStrategy') {
-      line = this._buildHardStrategyLine(line, initiator, survivor, targetName, allyName, context);
+      if (initiator === 'player') {
+        playerLine = this._buildHardStrategyLine(playerLine, initiator, survivor, targetName, allyName, context);
+        npcLine = this._pickIntentTemplate('hardStrategy', 'npc');
+      } else {
+        npcLine = this._buildHardStrategyLine(npcLine, initiator, survivor, targetName, allyName, context);
+      }
       responses = this._buildHardStrategyResponses(initiator, context);
+    } else if (resolvedIntent === 'trust' && npcMemory) {
+      const trustedName = npcMemory.trustedName || allyName;
+      if (trustedName) {
+        context.allyName = trustedName;
+        if (!npcMemory.trustedName) {
+          npcMemory.trustedName = trustedName;
+        }
+      }
+      const isRepeat = !!npcMemory.lastIntentAsked?.trust;
+      npcLine = isRepeat && trustedName
+        ? `${survivor.firstName} gives a knowing look. "I already said ${trustedName} feels the most solid."`
+        : npcLine;
+      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), trust: Date.now() };
     } else {
-      line = line
+      playerLine = (playerLine || '')
+        .replace('{npc}', survivor.firstName)
+        .replace('{target}', targetName || 'someone')
+        .replace('{ally}', allyName || 'no one fully yet');
+      npcLine = (npcLine || '')
         .replace('{npc}', survivor.firstName)
         .replace('{target}', targetName || 'someone')
         .replace('{ally}', allyName || 'no one fully yet');
     }
 
+    playerLine = (playerLine || '')
+      .replace('{npc}', survivor.firstName)
+      .replace('{target}', targetName || 'someone')
+      .replace('{ally}', allyName || 'no one fully yet');
+    npcLine = (npcLine || '')
+      .replace('{npc}', survivor.firstName)
+      .replace('{target}', targetName || 'someone')
+      .replace('{ally}', allyName || 'no one fully yet');
+
     if (memory && typeof memory.getMemory === 'function') {
       const mem = memory.getMemory(survivor.id);
       const lastDeal = memory.getLatestDeal?.(survivor.id);
       if (resolvedIntent === 'deal' && lastDeal) {
-        line += ` They remember your last ${lastDeal.type} (${lastDeal.status}).`;
+        npcLine += ` They remember your last ${lastDeal.type} (${lastDeal.status}).`;
       }
       if (mem?.gossip?.length && resolvedIntent === 'gossip' && context.topicPerson) {
-        line += ` They recall you bringing up ${context.topicPerson} before.`;
+        npcLine += ` They recall you bringing up ${context.topicPerson} before.`;
       }
     }
 
-    memory?.rememberBeat?.(survivor.id, resolvedIntent, line);
-    return { text: line, responses, context };
+    const combined = this._composeMenuText({ playerLine, npcLine });
+    memory?.rememberBeat?.(survivor.id, resolvedIntent, combined);
+    return { playerLine, npcLine, text: combined, responses, context };
   }
 
   _selectIntentResponses(resolvedIntent, context = {}) {
@@ -5648,6 +5825,51 @@ class ConversationSystem {
     return report;
   }
 
+  validateMenus() {
+    if (!this._isConversationDebugEnabled()) {
+      console.warn('ConversationSystem.validateMenus: Debug flag not enabled. Set window.DEBUG_CONVERSATION = true to run.');
+      return;
+    }
+
+    const npc = (this.gameManager.survivors || []).find(s => !s.isPlayer) || this.gameManager.survivors?.[0];
+    if (!npc) {
+      console.warn('ConversationSystem.validateMenus: No NPC available for validation.');
+      return;
+    }
+
+    const baseContext = { location: 'campfire', phase: this._getConversationPhase() };
+    const validActions = new Set(['changeTopic', 'endConversation', 'askFollowup', 'tradeInfo', 'offerDealMenu', 'pitchPlan', 'pickSource', 'goBack']);
+
+    const checkOption = (intent, option) => {
+      const label = option?.label || option?.key || 'unknown';
+      if (option?.action && !validActions.has(option.action)) {
+        console.warn(`ConversationSystem.validateMenus: Intent "${intent}" uses unknown action "${option.action}" on "${label}".`);
+      }
+      const producesState = Boolean(
+        option?.end
+        || option?.nextMenu
+        || option?.followup
+        || option?.disclosureKind
+        || option?.requiresCounterTarget
+        || option?.requiresAllyPicker
+        || option?.action
+      );
+      if (!producesState) {
+        console.warn(`ConversationSystem.validateMenus: Intent "${intent}" option "${label}" does not advance to a new menu/state.`);
+      }
+    };
+
+    const intents = [...Object.values(PRE_PHASE_INTENTS), ...Object.values(POST_PHASE_INTENTS)];
+    intents.forEach(intent => {
+      const context = intent === POST_PHASE_INTENTS.talk_specific_person
+        ? { phase: 'post', topicPerson: npc.firstName, topicId: npc.id, subTopic: 'trustCheck' }
+        : { phase: intent === PRE_PHASE_INTENTS.bond_smalltalk ? 'pre' : 'post' };
+      const dialogue = this._buildDialogue(intent, npc, { ...baseContext, ...context });
+      const responses = dialogue.responses || [];
+      responses.forEach(option => checkOption(intent, option));
+    });
+  }
+
   _runConversationQA() {
     if (!this._isConversationDebugEnabled()) {
       console.warn('ConversationSystem QA: Debug flag not enabled. Set window.DEBUG_CONVERSATION = true to run.');
@@ -5970,17 +6192,29 @@ class ConversationSystem {
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
+    const npcMemory = this._getNpcMemoryEntry(survivor);
 
-    const { targetId, targetName } = this._pickIntelTarget(survivor, context);
+    let targetId = null;
+    let targetName = null;
+    let repeated = false;
+    if (!context.topicPerson && npcMemory?.eyeTargetName) {
+      targetName = npcMemory.eyeTargetName;
+      targetId = this._getSurvivorByName(targetName)?.id || null;
+      repeated = true;
+    } else {
+      const picked = this._pickIntelTarget(survivor, context);
+      targetId = picked.targetId;
+      targetName = picked.targetName;
+    }
     const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
     const memoryTrust = memory?.getTrust?.(survivor.id) ?? 50;
     const trustScore = Math.round((relationshipValue + memoryTrust) / 2);
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
 
-    const repeated = targetId
+    repeated = repeated || (targetId
       ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId)
-      : false;
+      : false);
 
     let responseLine = '';
     let intelContext = 'heard_rumor';
@@ -6026,7 +6260,22 @@ class ConversationSystem {
 
     const leadLine = this._pickIntentTemplate('askIntel', initiator)
       .replace('{npc}', survivor.firstName);
-    const line = `${leadLine} ${responseLine}`.trim();
+    const playerLine = initiator === 'player' ? leadLine : '';
+    const npcLine = initiator === 'npc'
+      ? `${leadLine} ${responseLine}`.trim()
+      : `${responseLine}`.trim();
+    const line = this._composeMenuText({ playerLine, npcLine });
+    if (npcMemory && targetName && !npcMemory.eyeTargetName) {
+      npcMemory.eyeTargetName = targetName;
+    }
+    if (npcMemory?.lastDiscussedNames && targetName) {
+      if (!npcMemory.lastDiscussedNames.includes(targetName)) {
+        npcMemory.lastDiscussedNames.push(targetName);
+      }
+    }
+    if (npcMemory) {
+      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), askIntel: Date.now() };
+    }
 
     const payload = targetName
       ? {
@@ -6043,6 +6292,8 @@ class ConversationSystem {
       : null;
 
     return {
+      playerLine,
+      npcLine,
       text: line,
       responses: RESPONSE_LIBRARY.askIntel || RESPONSE_LIBRARY.bonding,
       context: { ...context, topicPerson: targetName || null, targetId: targetId || null, phase, intelPayload: payload }
@@ -6055,7 +6306,11 @@ class ConversationSystem {
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
-    const targetName = context.topicPerson || this._pickTargetName(survivor, context) || 'someone';
+    const npcMemory = this._getNpcMemoryEntry(survivor);
+    let targetName = context.topicPerson || this._pickTargetName(survivor, context) || 'someone';
+    if (context.subTopic === 'idol' && !context.topicPerson && npcMemory?.idolSuspectName) {
+      targetName = npcMemory.idolSuspectName;
+    }
     const targetId = context.topicId || this._getSurvivorByName(targetName)?.id || null;
     const subTopic = context.subTopic || 'trustCheck';
 
@@ -6065,6 +6320,7 @@ class ConversationSystem {
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
     const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId) : false;
+    const repeatedByMemory = subTopic === 'idol' && !context.topicPerson && !!npcMemory?.idolSuspectName;
 
     const promptMap = {
       trustCheck: {
@@ -6120,7 +6376,7 @@ class ConversationSystem {
     let mentionedNames = [];
     let dealOutcome = null;
 
-    if (repeated) {
+    if (repeated || repeatedByMemory) {
       responseLine = `${survivor.firstName} shakes their head. "You already asked about ${targetName}. I don’t have more."`;
       confidence = Math.max(10, confidence - 15);
     } else {
@@ -6157,6 +6413,9 @@ class ConversationSystem {
           responseLine = trustScore > 65
             ? `${survivor.firstName} lowers their voice. "${targetName} is the one people whisper about with idols."`
             : `${survivor.firstName} shrugs. "Maybe. ${targetName} gives idol vibes, but I don’t know."`;
+          if (npcMemory && !npcMemory.idolSuspectName && targetName) {
+            npcMemory.idolSuspectName = targetName;
+          }
           break;
         }
         case 'nameHeard': {
@@ -6257,9 +6516,19 @@ class ConversationSystem {
       .replace('{playerPrompt}', prompt.playerPrompt)
       .replace('{npcPrompt}', prompt.npcPrompt);
 
-    const line = `${baseLine} ${responseLine}`.trim();
+    const playerLine = initiator === 'player' ? baseLine : '';
+    const npcLine = initiator === 'npc' ? `${baseLine} ${responseLine}`.trim() : responseLine;
+    const line = this._composeMenuText({ playerLine, npcLine });
     const finalTopicName = context.topicPerson || targetName;
     const finalTargetId = context.targetId || targetId;
+    if (npcMemory?.lastDiscussedNames && finalTopicName) {
+      if (!npcMemory.lastDiscussedNames.includes(finalTopicName)) {
+        npcMemory.lastDiscussedNames.push(finalTopicName);
+      }
+    }
+    if (npcMemory && subTopic === 'idol') {
+      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), idol: Date.now() };
+    }
 
     const payload = context.skipIntel
       ? null
@@ -6279,6 +6548,8 @@ class ConversationSystem {
         };
 
     return {
+      playerLine,
+      npcLine,
       text: line,
       responses: [
         { label: 'Press for more detail', mood: 'focused' },
@@ -6455,8 +6726,13 @@ class ConversationSystem {
         }
       : null;
 
+    const playerLine = initiator === 'player' ? leadLine : '';
+    const npcLine = initiator === 'npc' ? `${leadLine} ${responseLine}`.trim() : responseLine;
+
     return {
-      text: `${leadLine} ${responseLine}`.trim(),
+      playerLine,
+      npcLine,
+      text: this._composeMenuText({ playerLine, npcLine }),
       responses: RESPONSE_LIBRARY.targeting || RESPONSE_LIBRARY.bonding,
       context: {
         ...context,
