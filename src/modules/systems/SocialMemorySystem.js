@@ -158,6 +158,26 @@ class SocialMemorySystem {
         return entry;
     }
 
+    recordConversationEvent({ type, speakerId, listenerId = null, topicPersonId = null, targetName = null, stance = null, confidence = null, location = null, day = null, phase = null, data = {} }) {
+        const payload = {
+            topicPersonId,
+            targetName,
+            stance,
+            confidence,
+            location,
+            ...data
+        };
+        return this.recordStructuredEvent({
+            type,
+            speakerId,
+            listenerId,
+            subjectId: topicPersonId,
+            data: payload,
+            day,
+            phase
+        });
+    }
+
     getStructuredEvents() {
         return this.structuredEvents.slice();
     }
