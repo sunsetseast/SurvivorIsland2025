@@ -216,6 +216,43 @@ const POST_PHASE_INTENTS = {
   alliance_commitment: 'alliance_commitment'
 };
 
+const DETERMINISTIC_INTENTS = {
+  INTEL_HEARING_NAMES: 'intel_hearing_names',
+  INTEL_WHO_SEEMS_CLOSE: 'intel_who_seems_close',
+  SOCIAL_HOW_DO_YOU_FEEL_ABOUT_ME: 'social_how_do_you_feel_about_me',
+  SAFETY_ARE_YOU_SAFE: 'safety_are_you_safe',
+  TRUST_WHO_DO_YOU_TRUST: 'trust_who_do_you_trust',
+  STRATEGY_WHERE_IS_YOUR_HEAD_AT: 'strategy_where_is_your_head_at',
+  RUMOR_SHARE_SMALL: 'rumor_share_small',
+  DEAL_PROPOSE: 'deal_propose',
+  DEAL_COUNTER: 'deal_counter',
+  DEAL_ACCEPT_REJECT: 'deal_accept_reject'
+};
+
+const NPC_ACTION_VERBS = [
+  'smiles',
+  'nods',
+  'shrugs',
+  'laughs',
+  'grins',
+  'frowns',
+  'leans',
+  'exhales',
+  'sighs',
+  'stiffens',
+  'softens',
+  'glances',
+  'studies',
+  'tilts',
+  'hesitates',
+  'shakes',
+  'winces',
+  'smirks',
+  'blinks',
+  'raises',
+  'lowers'
+];
+
 const NPC_STANCES = [
   'supportive',
   'neutral',
@@ -887,6 +924,7 @@ class ConversationSystem {
     this.state = null;
     this.conversationSession = null;
     this.nodeSession = null;
+    this.activeConversation = null;
     this._nodeIdCounter = 0;
     this._memoryLog = [];
     this.npcMemory = {};
@@ -901,6 +939,7 @@ class ConversationSystem {
       window.ConversationSystem = window.ConversationSystem || {};
       window.ConversationSystem.validate = () => this.validate();
       window.ConversationSystem.validateMenus = () => this.validateMenus();
+      window.ConversationSystem.runSelfTest = () => this.runSelfTest();
     }
   }
 
@@ -1158,7 +1197,7 @@ class ConversationSystem {
     const closeBtn = this._createChoiceButton({
       label: 'End Conversation',
       alt: true,
-      onClick: () => this.endConversation(),
+      onClick: () => this.closeConversation('player_end'),
       fallback: { npc: survivor }
     });
 
@@ -1208,21 +1247,21 @@ class ConversationSystem {
       addOption('Thank them for help', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.bond_personal, location, context: { phase, gratitude: true } }));
       addOption('Want to chat later?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.bond_smalltalk, location, context: { phase, followUpLater: true } }));
     } else if (category === 'trust') {
-      addOption('Who do you feel good with?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.check_trust, location, context: { phase } }));
-      addOption('How do you feel about me?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.check_trust, location, context: { phase, trustCheck: true } }));
+      addOption('Who do you feel good with?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.TRUST_WHO_DO_YOU_TRUST, location, context: { phase } }));
+      addOption('How do you feel about me?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.SOCIAL_HOW_DO_YOU_FEEL_ABOUT_ME, location, context: { phase, trustCheck: true } }));
       addOption('Vibe check', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location, context: { phase } }));
     } else if (category === 'light') {
       addOption('Anyone rubbing people wrong?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase, lightIntelTag: 'rubbing_wrong' } }));
-      addOption('Are you feeling safe today?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase, safetyCheck: true } }));
-      addOption('Quick strategy pulse', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase, pulseCheck: true } }));
+      addOption('Are you feeling safe today?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.SAFETY_ARE_YOU_SAFE, location, context: { phase, safetyCheck: true } }));
+      addOption('Quick strategy pulse', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.STRATEGY_WHERE_IS_YOUR_HEAD_AT, location, context: { phase, pulseCheck: true } }));
     } else if (category === 'rumors') {
-      addOption('What have you heard?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.ask_general_info, location, context: { phase, initiator: 'player' } }));
+      addOption('What have you heard?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.INTEL_HEARING_NAMES, location, context: { phase, initiator: 'player' } }));
       addOption('Any idol rumors?', () => this._startConversation(survivor, {
         intentOverride: POST_PHASE_INTENTS.idol_suspicion,
         location,
         context: { phase, initiator: 'player', subTopic: 'idol' }
       }));
-      addOption('Who’s close?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.ask_general_info, location, context: { phase, initiator: 'player', closenessCheck: true } }));
+      addOption('Who’s close?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.INTEL_WHO_SEEMS_CLOSE, location, context: { phase, initiator: 'player', closenessCheck: true } }));
       addOption('Talk about someone specific', () => this.promptSurvivorPicker({
         title: 'Talk about who?',
         tribeOnly: true,
@@ -1244,7 +1283,7 @@ class ConversationSystem {
       addOption('Check morale', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location, context: { phase } }));
       addOption('Keep it light', () => this._startConversation(survivor, { intentOverride: 'fun', location, context: { phase } }));
     } else if (category === 'askIntel') {
-      addOption('Ask what they’ve heard', () => this._startConversation(survivor, { intentOverride: POST_PHASE_INTENTS.ask_intel, location, context: { phase, initiator: 'player' } }));
+      addOption('Ask what they’ve heard', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.INTEL_HEARING_NAMES, location, context: { phase, initiator: 'player' } }));
     } else if (category === 'talkSpecific') {
       addOption('Pick a name to discuss', () => this.promptSurvivorPicker({
         title: 'Talk about who?',
@@ -2007,6 +2046,11 @@ class ConversationSystem {
     const phase = context.phase || this._getConversationPhase();
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
 
+    if (this._isDeterministicIntent(intent)) {
+      this._startDeterministicConversation(survivor, intent, conversationContext);
+      return;
+    }
+
     const flowKey = this._resolveConversationFlow(intent, conversationContext);
     if (flowKey) {
       this._startNodeFlowConversation(survivor, flowKey, conversationContext, intent);
@@ -2147,6 +2191,656 @@ class ConversationSystem {
     }
   }
 
+  _isDeterministicIntent(intent) {
+    return Object.values(DETERMINISTIC_INTENTS).includes(intent);
+  }
+
+  _startDeterministicConversation(survivor, intent, context = {}) {
+    const nodes = this._buildDeterministicNodes(survivor, context);
+    const rootNodeId = nodes.root?.id || 'root';
+    this.activeConversation = {
+      npcId: survivor.id,
+      nodeId: rootNodeId,
+      context: { ...context },
+      history: [],
+      nodes
+    };
+    this.activeConversationContext = this._normalizeConversationContext(context);
+
+    this._applyDeterministicIntent(intent, { nextNodeId: rootNodeId, initiator: context.initiator });
+    this._renderActiveConversation();
+  }
+
+  _buildDeterministicNodes(survivor, context = {}) {
+    const rootChoices = [
+      {
+        label: 'What are you hearing?',
+        intent: DETERMINISTIC_INTENTS.INTEL_HEARING_NAMES,
+        nextNodeId: 'root'
+      },
+      {
+        label: 'Who seems close?',
+        intent: DETERMINISTIC_INTENTS.INTEL_WHO_SEEMS_CLOSE,
+        nextNodeId: 'root'
+      },
+      {
+        label: 'How do you feel about me?',
+        intent: DETERMINISTIC_INTENTS.SOCIAL_HOW_DO_YOU_FEEL_ABOUT_ME,
+        nextNodeId: 'root'
+      },
+      {
+        label: 'Are you feeling safe today?',
+        intent: DETERMINISTIC_INTENTS.SAFETY_ARE_YOU_SAFE,
+        nextNodeId: 'root'
+      },
+      {
+        label: 'Who do you trust most?',
+        intent: DETERMINISTIC_INTENTS.TRUST_WHO_DO_YOU_TRUST,
+        nextNodeId: 'root'
+      },
+      {
+        label: 'Where is your head at?',
+        intent: DETERMINISTIC_INTENTS.STRATEGY_WHERE_IS_YOUR_HEAD_AT,
+        nextNodeId: 'root'
+      },
+      {
+        label: 'Share a small rumor',
+        intent: DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL,
+        nextNodeId: 'root',
+        requiresPick: {
+          pickType: 'survivor',
+          storeKey: 'rumorTargetName',
+          storeIdKey: 'rumorTargetId',
+          title: 'Share a rumor about who?'
+        }
+      },
+      {
+        label: 'END CONVERSATION',
+        intent: 'end_conversation',
+        end: true
+      }
+    ];
+
+    return {
+      root: {
+        id: 'root',
+        promptText: '',
+        choices: rootChoices
+      }
+    };
+  }
+
+  _renderActiveConversation() {
+    const session = this.activeConversation;
+    if (!session) return;
+    const node = session.nodes?.[session.nodeId];
+    if (!node) {
+      console.warn(`ConversationSystem: Missing deterministic node "${session.nodeId}"`);
+      this.closeConversation('missing_node');
+      return;
+    }
+
+    const npc = this._getSurvivorById(session.npcId);
+    if (!npc) return;
+    const overlay = this._buildOverlayShell(npc, { reuse: true });
+    const content = this._getConversationContent(overlay);
+    this._clearConversationContent(content);
+
+    const nodeText = this._composeMenuText({
+      playerNarration: node.playerNarration || '',
+      npcResponse: node.npcResponse || '',
+      text: node.promptText || ''
+    });
+
+    const parchment = this._buildParchment(nodeText || '');
+    const buttonColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginTop: '10px',
+        maxHeight: '42vh',
+        overflowY: 'auto',
+        width: '100%'
+      }
+    });
+
+    const choices = Array.isArray(node.choices) && node.choices.length
+      ? node.choices
+      : [
+        {
+          label: 'Ask another question',
+          intent: DETERMINISTIC_INTENTS.INTEL_HEARING_NAMES,
+          nextNodeId: session.nodeId
+        },
+        {
+          label: 'END CONVERSATION',
+          intent: 'end_conversation',
+          end: true
+        }
+      ];
+
+    choices.forEach(choice => {
+      const btn = this._createChoiceButton({
+        label: choice.label,
+        alt: choice.alt,
+        onClick: () => this.advanceConversation(choice),
+        fallback: { session, npc }
+      });
+      buttonColumn.appendChild(btn);
+    });
+
+    parchment.appendChild(buttonColumn);
+    content.appendChild(parchment);
+  }
+
+  advanceConversation(choice) {
+    const session = this.activeConversation;
+    if (!session || !choice) return;
+    const npc = this._getSurvivorById(session.npcId);
+    if (!npc) return;
+
+    const isEndLabel = typeof choice.label === 'string' && /end conversation/i.test(choice.label);
+    if (choice.end || isEndLabel) {
+      this.closeConversation('player_end');
+      return;
+    }
+
+    const finalizeAdvance = (picks = null) => {
+      const result = this._applyDeterministicIntent(choice.intent, {
+        nextNodeId: choice.nextNodeId,
+        picks
+      });
+      if (result?.shouldRender) {
+        this._renderActiveConversation();
+      }
+    };
+
+    if (choice.requiresPick?.pickType === 'survivor') {
+      const excludeIds = [session.npcId, this.gameManager.getPlayerSurvivor?.()?.id].filter(Boolean);
+      const pickerTitle = choice.requiresPick.title || 'Pick a survivor';
+      this.promptSurvivorPicker({
+        title: pickerTitle,
+        tribeOnly: true,
+        excludeIds
+      }).then(selectedId => {
+        if (!selectedId) {
+          this._renderActiveConversation();
+          return;
+        }
+        const pick = this._getSurvivorById(selectedId);
+        if (!pick) {
+          this._renderActiveConversation();
+          return;
+        }
+        const storeKey = choice.requiresPick.storeKey;
+        const storeIdKey = choice.requiresPick.storeIdKey;
+        if (storeKey) {
+          session.context[storeKey] = pick.firstName;
+        }
+        if (storeIdKey) {
+          session.context[storeIdKey] = pick.id;
+        }
+        finalizeAdvance({ [storeKey]: pick.firstName, [storeIdKey]: pick.id });
+      });
+      return;
+    }
+
+    finalizeAdvance();
+  }
+
+  _applyDeterministicIntent(intent, { nextNodeId = null, picks = null, initiator = null } = {}) {
+    const session = this.activeConversation;
+    if (!session || !intent) return { shouldRender: false };
+    const npc = this._getSurvivorById(session.npcId);
+    const player = this.gameManager.getPlayerSurvivor?.();
+
+    const response = this._generateDeterministicResponse(intent, session.context, {
+      npc,
+      player,
+      history: session.history
+    });
+    const exchange = this.formatExchange({
+      narration: response.narration,
+      npcDoes: response.npcDoes,
+      npcSays: response.npcSays,
+      npc,
+      intent
+    });
+
+    const nodeId = nextNodeId || session.nodeId;
+    if (session.nodes[nodeId]) {
+      session.nodeId = nodeId;
+      session.nodes[nodeId].promptText = this._composeMenuText(exchange);
+      session.nodes[nodeId].playerNarration = exchange.playerNarration;
+      session.nodes[nodeId].npcResponse = exchange.npcResponse;
+    }
+
+    session.history.push({
+      nodeId: session.nodeId,
+      intent,
+      picks,
+      resultSummary: response.summary || null
+    });
+
+    if (initiator && !session.context.initiator) {
+      session.context.initiator = initiator;
+    }
+
+    return { shouldRender: true };
+  }
+
+  _generateDeterministicResponse(intent, context = {}, { npc, player, history = [] } = {}) {
+    const npcName = this._npcDisplayName(npc);
+    const disclosureMode = this.getDisclosureMode(npc, player, intent, { history, context });
+    const fallbackNoPick = {
+      narration: 'You realize you didn’t actually name anyone.',
+      npcSays: 'Name names if you want me to react.',
+      npcDoes: `${npcName} keeps their tone even.`,
+      summary: 'no_pick'
+    };
+
+    if (intent === DETERMINISTIC_INTENTS.INTEL_HEARING_NAMES) {
+      const intelTarget = this._pickIntelTarget(npc, context);
+      const targetName = intelTarget?.targetName || context.lastIntelTargetName;
+      if (targetName) {
+        context.lastIntelTargetName = targetName;
+        context.lastIntelTargetId = intelTarget?.targetId || context.lastIntelTargetId || null;
+      }
+
+      if (!targetName) {
+        return {
+          narration: 'You ask what names are floating around camp.',
+          npcDoes: `${npcName} glances around the fire.`,
+          npcSays: 'I’m not hearing anything solid yet.',
+          summary: 'no_targets'
+        };
+      }
+
+      if (disclosureMode === 'DODGE') {
+        return {
+          narration: 'You ask what names are floating around camp.',
+          npcDoes: `${npcName} lowers their voice.`,
+          npcSays: 'I’m not putting names out there, but watch who keeps disappearing in pairs.',
+          summary: 'dodge_intel'
+        };
+      }
+
+      if (disclosureMode === 'LIE') {
+        const alternate = this._pickAlternateName([targetName], npc);
+        context.lastLie = {
+          intent,
+          lieName: alternate || targetName,
+          truthName: targetName
+        };
+        return {
+          narration: 'You ask what names are floating around camp.',
+          npcDoes: `${npcName} leans in closer.`,
+          npcSays: `${alternate || targetName} is the name that keeps coming up.`,
+          summary: `lie_intel_${alternate || targetName}`
+        };
+      }
+
+      if (disclosureMode === 'HALF_TRUTH') {
+        return {
+          narration: 'You ask what names are floating around camp.',
+          npcDoes: `${npcName} nods slowly.`,
+          npcSays: `${targetName} has been whispered, but I’m keeping the rest tight.`,
+          summary: `half_truth_${targetName}`
+        };
+      }
+
+      return {
+        narration: 'You ask what names are floating around camp.',
+        npcDoes: `${npcName} keeps their voice low.`,
+        npcSays: `${targetName} is the name I keep hearing.`,
+        summary: `truth_intel_${targetName}`
+      };
+    }
+
+    if (intent === DETERMINISTIC_INTENTS.INTEL_WHO_SEEMS_CLOSE) {
+      const duo = this._getClosestDuo(npc, context);
+      const duoLabel = duo?.aName && duo?.bName ? `${duo.aName} and ${duo.bName}` : null;
+      if (duoLabel) {
+        context.duoNameA = duo.aName;
+        context.duoNameB = duo.bName;
+        context.duoIdA = duo.aId;
+        context.duoIdB = duo.bId;
+      }
+
+      if (!duoLabel) {
+        return {
+          narration: 'You ask who seems close out here.',
+          npcDoes: `${npcName} exhales.`,
+          npcSays: 'It’s messy. I’m still trying to map it.',
+          summary: 'no_duo'
+        };
+      }
+
+      if (disclosureMode === 'DODGE') {
+        return {
+          narration: 'You ask who seems close out here.',
+          npcDoes: `${npcName} tilts their head.`,
+          npcSays: 'People are pairing off, but I’m not naming names.',
+          summary: 'dodge_duo'
+        };
+      }
+
+      if (disclosureMode === 'LIE') {
+        const alternatePair = this._getClosestDuo(npc, { ...context, avoidIds: [duo.aId, duo.bId] });
+        const altLabel = alternatePair?.aName && alternatePair?.bName ? `${alternatePair.aName} and ${alternatePair.bName}` : duoLabel;
+        context.lastLie = { intent, lieName: altLabel, truthName: duoLabel };
+        return {
+          narration: 'You ask who seems close out here.',
+          npcDoes: `${npcName} glances toward the shelter.`,
+          npcSays: `${altLabel} look tight to me.`,
+          summary: `lie_duo_${altLabel}`
+        };
+      }
+
+      if (disclosureMode === 'HALF_TRUTH') {
+        return {
+          narration: 'You ask who seems close out here.',
+          npcDoes: `${npcName} keeps it vague.`,
+          npcSays: `${duo.aName} is locked in with someone, but I’m not saying the second name.`,
+          summary: `half_truth_duo_${duo.aName}`
+        };
+      }
+
+      return {
+        narration: 'You ask who seems close out here.',
+        npcDoes: `${npcName} nods once.`,
+        npcSays: `${duoLabel} look locked in.`,
+        summary: `truth_duo_${duoLabel}`
+      };
+    }
+
+    if (intent === DETERMINISTIC_INTENTS.SOCIAL_HOW_DO_YOU_FEEL_ABOUT_ME) {
+      const trustScore = this._getTrustScore(npc, player) ?? 50;
+      const tone = trustScore >= 70 ? 'solid' : trustScore >= 55 ? 'steady' : trustScore >= 40 ? 'uncertain' : 'wary';
+
+      if (disclosureMode === 'DODGE') {
+        return {
+          narration: 'You ask how they feel about you right now.',
+          npcDoes: `${npcName} shifts their weight.`,
+          npcSays: 'Let’s keep it simple today and just keep talking.',
+          summary: 'dodge_feel'
+        };
+      }
+
+      if (disclosureMode === 'LIE') {
+        const lieTone = trustScore >= 60 ? 'wary' : 'solid';
+        return {
+          narration: 'You ask how they feel about you right now.',
+          npcDoes: `${npcName} studies your face.`,
+          npcSays: lieTone === 'solid'
+            ? 'I feel good with you right now.'
+            : 'I’m not sure where we stand yet.',
+          summary: `lie_feel_${lieTone}`
+        };
+      }
+
+      const truthLine = tone === 'solid'
+        ? 'I feel solid with you. I want to keep that.'
+        : tone === 'steady'
+          ? 'I feel decent with you. Keep it steady.'
+          : tone === 'uncertain'
+            ? 'I’m still figuring it out, but I’m listening.'
+            : 'I’m a little wary, but I’m not closed off.';
+
+      return {
+        narration: 'You ask how they feel about you right now.',
+        npcDoes: `${npcName} answers without looking away.`,
+        npcSays: truthLine,
+        summary: `truth_feel_${tone}`
+      };
+    }
+
+    if (intent === DETERMINISTIC_INTENTS.SAFETY_ARE_YOU_SAFE) {
+      const paranoia = npc?.paranoia || 0;
+      const tribeSafe = this._isPlayerTribeSafeTonight();
+      const feelsSafe = tribeSafe || paranoia < 40;
+      const safetyLine = feelsSafe
+        ? 'I feel okay for now, but nothing is locked.'
+        : 'I’m not totally comfortable. I’m keeping my head on a swivel.';
+
+      if (disclosureMode === 'DODGE') {
+        return {
+          narration: 'You ask if they feel safe today.',
+          npcDoes: `${npcName} keeps their voice neutral.`,
+          npcSays: 'I’m just taking it hour by hour.',
+          summary: 'dodge_safe'
+        };
+      }
+
+      if (disclosureMode === 'LIE') {
+        const lieLine = feelsSafe
+          ? 'I’m nervous. I don’t feel locked in anywhere.'
+          : 'I feel safe right now. I’m good.';
+        context.lastLie = { intent, lieName: lieLine, truthName: safetyLine };
+        return {
+          narration: 'You ask if they feel safe today.',
+          npcDoes: `${npcName} keeps their eyes on the tree line.`,
+          npcSays: lieLine,
+          summary: 'lie_safe'
+        };
+      }
+
+      if (disclosureMode === 'HALF_TRUTH') {
+        return {
+          narration: 'You ask if they feel safe today.',
+          npcDoes: `${npcName} exhales slowly.`,
+          npcSays: feelsSafe ? 'I feel okay, but I’m still checking the room.' : 'I’m not safe yet, but I have a plan.',
+          summary: 'half_truth_safe'
+        };
+      }
+
+      return {
+        narration: 'You ask if they feel safe today.',
+        npcDoes: `${npcName} nods once.`,
+        npcSays: safetyLine,
+        summary: 'truth_safe'
+      };
+    }
+
+    if (intent === DETERMINISTIC_INTENTS.TRUST_WHO_DO_YOU_TRUST) {
+      const trusted = context.npcTrustedPersonName || this._pickTrustedAllyName(npc);
+      if (!trusted) {
+        return {
+          narration: 'You ask who they trust most right now.',
+          npcDoes: `${npcName} shrugs.`,
+          npcSays: 'I’m keeping that close to my chest.',
+          summary: 'no_trust_name'
+        };
+      }
+
+      if (disclosureMode === 'DODGE') {
+        return {
+          narration: 'You ask who they trust most right now.',
+          npcDoes: `${npcName} smiles thinly.`,
+          npcSays: 'I’m not putting that out there yet.',
+          summary: 'dodge_trust'
+        };
+      }
+
+      if (disclosureMode === 'LIE') {
+        const alternate = this._pickAlternateName([trusted], npc);
+        context.lastLie = { intent, lieName: alternate || trusted, truthName: trusted };
+        return {
+          narration: 'You ask who they trust most right now.',
+          npcDoes: `${npcName} looks toward the campfire.`,
+          npcSays: `${alternate || trusted} is who I’m leaning on.`,
+          summary: `lie_trust_${alternate || trusted}`
+        };
+      }
+
+      if (disclosureMode === 'HALF_TRUTH') {
+        return {
+          narration: 'You ask who they trust most right now.',
+          npcDoes: `${npcName} keeps it tight.`,
+          npcSays: `${trusted} has my ear, but that’s all I’ll say.`,
+          summary: `half_truth_trust_${trusted}`
+        };
+      }
+
+      context.npcTrustedPersonName = trusted;
+      return {
+        narration: 'You ask who they trust most right now.',
+        npcDoes: `${npcName} answers without hesitation.`,
+        npcSays: `${trusted} is the person I feel best with.`,
+        summary: `truth_trust_${trusted}`
+      };
+    }
+
+    if (intent === DETERMINISTIC_INTENTS.STRATEGY_WHERE_IS_YOUR_HEAD_AT) {
+      const paranoia = npc?.paranoia || 0;
+      const planLine = paranoia > 60
+        ? 'I want to keep the vote loose and see who overplays.'
+        : 'I want to stay flexible and keep my options open.';
+
+      if (disclosureMode === 'DODGE') {
+        return {
+          narration: 'You ask where their head is at strategically.',
+          npcDoes: `${npcName} gives a quick half-smile.`,
+          npcSays: 'I’m still reading the room.',
+          summary: 'dodge_strategy'
+        };
+      }
+
+      if (disclosureMode === 'LIE') {
+        return {
+          narration: 'You ask where their head is at strategically.',
+          npcDoes: `${npcName} keeps it casual.`,
+          npcSays: 'I’m locked in on something, but I’ll keep it quiet for now.',
+          summary: 'lie_strategy'
+        };
+      }
+
+      if (disclosureMode === 'HALF_TRUTH') {
+        return {
+          narration: 'You ask where their head is at strategically.',
+          npcDoes: `${npcName} thinks for a beat.`,
+          npcSays: `${planLine} That’s as far as I’ll go right now.`,
+          summary: 'half_truth_strategy'
+        };
+      }
+
+      return {
+        narration: 'You ask where their head is at strategically.',
+        npcDoes: `${npcName} speaks evenly.`,
+        npcSays: planLine,
+        summary: 'truth_strategy'
+      };
+    }
+
+    if (intent === DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL) {
+      const targetName = context.rumorTargetName;
+      if (!targetName) {
+        return fallbackNoPick;
+      }
+
+      const trustScore = this._getTrustScore(npc, player) ?? 50;
+      const reactionLine = trustScore > 65
+        ? `I’ll keep that about ${targetName} in mind.`
+        : trustScore > 45
+          ? `That’s interesting. I’ll watch ${targetName}.`
+          : `I’m not sure I buy that about ${targetName}.`;
+
+      return {
+        narration: `You share a small rumor about ${targetName}.`,
+        npcDoes: `${npcName} studies you closely.`,
+        npcSays: reactionLine,
+        summary: `rumor_share_${targetName}`
+      };
+    }
+
+    return {
+      narration: 'You keep the conversation steady.',
+      npcDoes: `${npcName} listens.`,
+      npcSays: 'I hear you.',
+      summary: 'fallback'
+    };
+  }
+
+  getDisclosureMode(npc, player, topic, context = {}) {
+    const trustScore = this._getTrustScore(npc, player) ?? this._getRelationshipScore(npc) ?? 50;
+    const style = this._classifyStyle(npc);
+    const paranoia = npc?.paranoia || 0;
+    const repeatCount = this._countRepeatedIntent(topic, context.history || []);
+
+    const truthScore = trustScore + (style.isSocial ? 5 : 0) - paranoia * 0.4 - repeatCount * 6;
+    const dodgeScore = 45 + paranoia * 0.5 + repeatCount * 10;
+    const lieScore = 25 + (style.isVillain ? 15 : 0) + (trustScore < 45 ? 8 : 0);
+    const halfScore = 35 + (trustScore - 50) * 0.25;
+
+    const scores = {
+      TRUTH: truthScore,
+      DODGE: dodgeScore,
+      LIE: lieScore,
+      HALF_TRUTH: halfScore
+    };
+
+    return Object.entries(scores)
+      .sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  _countRepeatedIntent(intent, history = []) {
+    if (!intent || !history.length) return 0;
+    const recent = history.slice(-4);
+    return recent.filter(entry => entry.intent === intent).length;
+  }
+
+  _getClosestDuo(npc, context = {}) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const tribe = this.gameManager.getPlayerTribe?.();
+    const pool = (tribe?.members || this.gameManager.survivors || [])
+      .filter(s => s && !s.isPlayer && s.id !== npc?.id);
+
+    if (pool.length < 2) return null;
+
+    const avoidIds = new Set(context.avoidIds || []);
+    let bestPair = null;
+    let bestScore = -Infinity;
+
+    for (let i = 0; i < pool.length; i += 1) {
+      for (let j = i + 1; j < pool.length; j += 1) {
+        const first = pool[i];
+        const second = pool[j];
+        if (avoidIds.has(first.id) || avoidIds.has(second.id)) continue;
+        const rel = relationshipSystem?.getRelationship?.(first.id, second.id);
+        const score = typeof rel?.value === 'number' ? rel.value : this._relationshipBetween(first.id, second.id);
+        if (score > bestScore) {
+          bestScore = score;
+          bestPair = {
+            aName: first.firstName,
+            bName: second.firstName,
+            aId: first.id,
+            bId: second.id
+          };
+        }
+      }
+    }
+
+    if (!bestPair) {
+      const fallback = pool.slice(0, 2);
+      return {
+        aName: fallback[0]?.firstName || 'someone',
+        bName: fallback[1]?.firstName || 'someone',
+        aId: fallback[0]?.id || null,
+        bId: fallback[1]?.id || null
+      };
+    }
+
+    return bestPair;
+  }
+
+  _pickAlternateName(exclude = [], npc) {
+    const excludeSet = new Set(exclude.filter(Boolean));
+    const available = this._getAvailableTargetNames(npc).filter(name => !excludeSet.has(name));
+    if (!available.length) return null;
+    return available[getRandomInt(0, available.length - 1)];
+  }
+
   _initNodeSession({ npcId, playerId, intent, meeting = null, context = {} }) {
     return {
       sessionId: `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -2237,7 +2931,7 @@ class ConversationSystem {
   }
 
   _npcDisplayName(npc) {
-    return npc?.firstName || 'They';
+    return npc?.firstName || 'Your tribemate';
   }
 
   _verbAgree(npc, singularVerb, pluralVerb) {
@@ -2290,16 +2984,82 @@ class ConversationSystem {
   composeExchange({ narration1 = null, npcLine = null, narration2 = null, npc = null, intent = null } = {}) {
     const narrationParts = [];
     if (narration1) {
-      narrationParts.push(this._formatPlayerNarration(narration1, intent));
+      narrationParts.push(narration1);
     }
     if (narration2) {
-      narrationParts.push(this.formatNarration(narration2));
+      narrationParts.push(narration2);
     }
     const combinedNarration = narrationParts.filter(Boolean).join(' ');
-    return {
-      playerNarration: combinedNarration || this._fallbackPlayerNarration(intent),
-      npcResponse: this.formatDialogue(npc, npcLine, intent)
-    };
+    return this.formatExchange({
+      narration: combinedNarration || this._fallbackPlayerNarration(intent),
+      npcLine,
+      npc,
+      intent
+    });
+  }
+
+  formatExchange({ narration = null, npcSays = null, npcDoes = null, npcLine = null, npc = null, intent = null } = {}) {
+    const playerNarration = this._formatPlayerNarration(this.formatNarration(narration || ''), intent);
+    let resolvedDoes = npcDoes;
+    let resolvedSays = npcSays;
+    if (npcLine && (!resolvedDoes && !resolvedSays)) {
+      const parsed = this._parseNpcLine(npcLine, npc);
+      resolvedDoes = parsed.npcDoes;
+      resolvedSays = parsed.npcSays;
+    }
+    const npcResponse = this._formatNpcExchange({ npc, npcDoes: resolvedDoes, npcSays: resolvedSays, intent });
+    return { playerNarration, npcResponse };
+  }
+
+  _parseNpcLine(line, npc) {
+    if (!line) return { npcDoes: null, npcSays: null };
+    const normalized = String(line || '').replace(/[“”]/g, '"').trim();
+    if (!normalized) return { npcDoes: null, npcSays: null };
+    const firstQuote = normalized.indexOf('"');
+    if (firstQuote >= 0) {
+      const before = normalized.slice(0, firstQuote).trim();
+      const after = normalized.slice(firstQuote + 1);
+      const lastQuote = after.lastIndexOf('"');
+      const quoted = (lastQuote >= 0 ? after.slice(0, lastQuote) : after).trim();
+      const speechLead = /(says|say|asks|ask|adds|add|admits|admit|warns|warn|answers|answer)\s*,?\s*$/i;
+      const npcDoes = before && !speechLead.test(before) ? before : null;
+      return {
+        npcDoes,
+        npcSays: quoted || null
+      };
+    }
+
+    const npcName = this._npcDisplayName(npc);
+    const actionPattern = new RegExp(`\\b(${NPC_ACTION_VERBS.join('|')})\\b`, 'i');
+    if ((new RegExp(`^${npcName}\\b`, 'i').test(normalized) || /^they\b/i.test(normalized)) && actionPattern.test(normalized)) {
+      return { npcDoes: normalized, npcSays: null };
+    }
+
+    return { npcDoes: null, npcSays: normalized };
+  }
+
+  _formatNpcExchange({ npc, npcDoes, npcSays, intent } = {}) {
+    const npcName = this._npcDisplayName(npc) || 'Your tribemate';
+    const sayVerb = this._verbAgree(npc, 'says', 'say');
+    const cleanedDoes = npcDoes ? String(npcDoes).replace(/[“”"]/g, '').trim() : '';
+    const cleanedSays = npcSays ? String(npcSays).replace(/[“”"]/g, '').trim() : '';
+    const outputParts = [];
+
+    if (cleanedDoes) {
+      outputParts.push(this._normalizeNpcVerbAgreement(cleanedDoes));
+    }
+
+    if (cleanedSays) {
+      const punctuated = /[.?!]$/.test(cleanedSays) ? cleanedSays : `${cleanedSays}.`;
+      outputParts.push(`${npcName} ${sayVerb}, "${punctuated}"`);
+    }
+
+    if (!outputParts.length) {
+      const fallback = this._getNpcFallbackDialogue(intent);
+      outputParts.push(`${npcName} ${sayVerb}, "${fallback}"`);
+    }
+
+    return this._normalizeNpcVerbAgreement(outputParts.join(' '));
   }
 
   _npcDoes(npc, singularVerb, pluralVerb, restOfSentence = '') {
@@ -2434,7 +3194,8 @@ class ConversationSystem {
 
   _formatNpcResponse(line, intent = null) {
     const npc = this._getSurvivorById(this.nodeSession?.npcId || this.conversationSession?.npcId || this.state?.npcId);
-    return this.formatDialogue(npc, line, intent);
+    const parsed = this._parseNpcLine(line, npc);
+    return this._formatNpcExchange({ npc, npcDoes: parsed.npcDoes, npcSays: parsed.npcSays, intent });
   }
 
   _getNpcFallbackDialogue(intent = null) {
@@ -2526,11 +3287,15 @@ class ConversationSystem {
       ? node.npcResponse(session, this)
       : (node.npcResponse || '');
     const rawPlayerNarration = this._formatConversationLine(resolvedPlayerNarration || '', npc, context, player);
-    const formattedPlayerNarration = this._formatPlayerNarration(rawPlayerNarration, session.intent);
     const rawNpcResponse = this._formatConversationLine(resolvedNpcResponse || '', npc, context, player);
-    const formattedNpcResponse = rawNpcResponse
-      ? this._formatNpcResponse(rawNpcResponse, session.intent)
-      : this._buildDefaultNpcResponse({ npc, player, intent: session.intent, context });
+    const exchange = this.formatExchange({
+      narration: rawPlayerNarration,
+      npcLine: rawNpcResponse || this._buildDefaultNpcResponse({ npc, player, intent: session.intent, context }),
+      npc,
+      intent: session.intent
+    });
+    const formattedPlayerNarration = exchange.playerNarration;
+    const formattedNpcResponse = exchange.npcResponse;
     let nodeText = this._composeMenuText({
       playerNarration: formattedPlayerNarration,
       npcResponse: formattedNpcResponse
@@ -2584,7 +3349,7 @@ class ConversationSystem {
         canChangeTopic: true,
         onBack: () => this._goBackNode(session),
         onChangeTopic: () => this._showTopicSelection(npc, context.location),
-        onEnd: () => this._endNodeConversation(session)
+        onEnd: () => this.closeConversation('player_end', session)
       })
       : baseChoices;
 
@@ -2643,6 +3408,11 @@ class ConversationSystem {
     if (!session || !choice) return;
     const npc = this._getSurvivorById(session.npcId);
     if (!npc) return;
+    const isEndLabel = typeof choice.label === 'string' && /end conversation/i.test(choice.label);
+    if (choice.end || (isEndLabel && !choice.action && !choice.responseOption && !choice.nextNode && !choice.nextMenu && !choice.nextNodeId && !choice.onSelect)) {
+      this.closeConversation('player_end', session);
+      return;
+    }
 
     const playerNarration = this._resolvePlayerNarration(choice, session.intent, session.context || {});
     const player = this.gameManager.getPlayerSurvivor?.();
@@ -2794,25 +3564,42 @@ class ConversationSystem {
     this._renderNode(session, previousNodeId);
   }
 
-  endConversation(session = null) {
+  closeConversation(reason = 'player_end', session = null) {
     const activeSession = session || this.nodeSession || this.conversationSession;
     if (activeSession?.pendingEndConversation) {
       activeSession.pendingEndConversation();
       activeSession.pendingEndConversation = null;
-    } else {
-      this._clearOverlay();
-      if (activeSession?.meeting) {
-        this.pendingMeetings = this.pendingMeetings.filter(m => m !== activeSession.meeting);
-      }
     }
+
+    this._clearOverlay();
+    if (activeSession?.meeting) {
+      this.pendingMeetings = this.pendingMeetings.filter(m => m !== activeSession.meeting);
+    }
+
+    if (typeof activeSession?.onClose === 'function') {
+      activeSession.onClose(reason, activeSession);
+    }
+    if (typeof this.onConversationEnd === 'function') {
+      this.onConversationEnd(reason, activeSession);
+    }
+
+    this.activeConversation = null;
+    this.activeConversationContext = null;
+    this.nodeSession = null;
+    this.conversationSession = null;
     this.state = null;
+
     if (typeof console !== 'undefined') {
-      console.debug('ConversationSystem: endConversation fired.');
+      console.debug('ConversationSystem: closeConversation fired.', { reason });
     }
   }
 
+  endConversation(session = null) {
+    this.closeConversation('endConversation', session);
+  }
+
   _endNodeConversation(session) {
-    this.endConversation(session);
+    this.closeConversation('node_end', session);
   }
 
   _buildNodeFromMenu(menu = {}, intent, context) {
@@ -5162,18 +5949,19 @@ class ConversationSystem {
       playerNarration = session.context.entryNarration;
     }
 
-    const formattedPlayerNarration = this._formatPlayerNarration(
-      this._formatConversationLine(playerNarration || '', npc, context, player),
-      session.intent || session.flowKey
-    );
-    const resolvedNpcResponse = formattedNpcLine
-      ? this._formatNpcResponse(formattedNpcLine, session.intent || session.flowKey)
-      : this._buildDefaultNpcResponse({
+    const exchange = this.formatExchange({
+      narration: this._formatConversationLine(playerNarration || '', npc, context, player),
+      npcLine: formattedNpcLine || this._buildDefaultNpcResponse({
         npc,
         player,
         intent: session.intent || session.flowKey,
         context
-      });
+      }),
+      npc,
+      intent: session.intent || session.flowKey
+    });
+    const formattedPlayerNarration = exchange.playerNarration;
+    const resolvedNpcResponse = exchange.npcResponse;
 
     const combinedText = this._composeMenuText({
       playerNarration: formattedPlayerNarration,
@@ -5328,7 +6116,7 @@ class ConversationSystem {
         }
       },
       onChangeTopic: () => this._showTopicSelection(npc, context.location),
-      onEnd: () => this.endConversation(session)
+      onEnd: () => this.closeConversation('player_end', session)
     });
 
     finalChoices.forEach(option => {
@@ -5350,6 +6138,10 @@ class ConversationSystem {
 
   _advanceConversation(session, selectedChoice) {
     if (!session || !selectedChoice) return;
+    if (selectedChoice.end || (typeof selectedChoice.label === 'string' && /end conversation/i.test(selectedChoice.label))) {
+      this.closeConversation('player_end', session);
+      return;
+    }
     const flow = CONVERSATION_FLOWS[session.flowKey];
     if (!flow) return;
     const npc = this._getSurvivorById(session.npcId);
@@ -5579,7 +6371,7 @@ class ConversationSystem {
   }
 
   _buildDefaultNpcResponse({ npc, player, intent, context = {} } = {}) {
-    if (!npc) return 'They say, "Alright."';
+    if (!npc) return 'Your tribemate says, "Alright."';
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const npcName = this._npcDisplayName(npc);
     const sayVerb = this._verbAgree(npc, 'says', 'say');
@@ -6712,6 +7504,88 @@ class ConversationSystem {
       const responses = dialogue.responses || [];
       responses.forEach(option => checkOption(intent, option));
     });
+  }
+
+  runSelfTest(iterations = 8) {
+    if (!this._isConversationDebugEnabled()) {
+      console.warn('ConversationSystem.runSelfTest: Debug flag not enabled. Set window.DEBUG_CONVERSATION = true to run.');
+      return;
+    }
+
+    const npc = (this.gameManager.survivors || []).find(s => !s.isPlayer) || this.gameManager.survivors?.[0];
+    if (!npc) {
+      console.warn('ConversationSystem.runSelfTest: No NPC available for self-test.');
+      return;
+    }
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const intents = Object.values(DETERMINISTIC_INTENTS);
+    const failures = [];
+    const actionVerbPattern = new RegExp(`"[^"]*\\b(${NPC_ACTION_VERBS.join('|')})\\b[^"]*"`, 'i');
+
+    for (let i = 0; i < iterations; i += 1) {
+      const intent = intents[getRandomInt(0, intents.length - 1)];
+      const context = { phase: this._getConversationPhase() };
+      const response = this._generateDeterministicResponse(intent, context, { npc, player, history: [] });
+      const exchange = this.formatExchange({
+        narration: response.narration,
+        npcDoes: response.npcDoes,
+        npcSays: response.npcSays,
+        npc,
+        intent
+      });
+      const combined = `${exchange.playerNarration}\n${exchange.npcResponse}`;
+
+      if (/They say,\s+[A-Z{]/.test(exchange.npcResponse)) {
+        failures.push({ intent, issue: 'They say grammar', output: exchange.npcResponse });
+      }
+      if (actionVerbPattern.test(exchange.npcResponse)) {
+        failures.push({ intent, issue: 'Action verb inside quotes', output: exchange.npcResponse });
+      }
+      if (/{[^}]+}/.test(combined)) {
+        failures.push({ intent, issue: 'Unresolved placeholder token', output: combined });
+      }
+    }
+
+    const pickerContext = { rumorTargetName: 'TestName', rumorTargetId: 'test-id' };
+    const pickerResponse = this._generateDeterministicResponse(
+      DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL,
+      pickerContext,
+      { npc, player, history: [] }
+    );
+    const pickerExchange = this.formatExchange({
+      narration: pickerResponse.narration,
+      npcDoes: pickerResponse.npcDoes,
+      npcSays: pickerResponse.npcSays,
+      npc,
+      intent: DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL
+    });
+    if (!pickerExchange.npcResponse.includes('TestName') && !pickerExchange.playerNarration.includes('TestName')) {
+      failures.push({
+        intent: DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL,
+        issue: 'Picker name missing',
+        output: pickerExchange.npcResponse
+      });
+    }
+
+    const savedConversation = this.activeConversation;
+    this.activeConversation = {
+      npcId: npc.id,
+      nodeId: 'root',
+      context: {},
+      history: [],
+      nodes: this._buildDeterministicNodes(npc)
+    };
+    this.advanceConversation({ label: 'END CONVERSATION', end: true, intent: 'end_conversation' });
+    if (this.activeConversation !== null) {
+      failures.push({ intent: 'end_conversation', issue: 'End conversation did not close' });
+    }
+    this.activeConversation = savedConversation;
+
+    if (failures.length) {
+      console.warn('ConversationSystem.runSelfTest: failures detected', failures);
+    } else {
+      console.info('ConversationSystem.runSelfTest: all checks passed');
+    }
   }
 
   _runConversationQA() {
@@ -8290,7 +9164,7 @@ class ConversationSystem {
         alt: choice.alt,
         onClick: () => {
           if (choice.onSelect) choice.onSelect();
-          if (choice.end && !choice.onSelect) this.endConversation();
+          if (choice.end && !choice.onSelect) this.closeConversation('player_end');
         }
       });
       buttonEl.dataset.conversationNav = 'true';
