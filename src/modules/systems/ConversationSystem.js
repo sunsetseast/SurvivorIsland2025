@@ -1394,7 +1394,8 @@ class ConversationSystem {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showTopicSelection(survivor, location),
-      onChangeTopic: () => this._showTopicSelection(survivor, location)
+      onChangeTopic: () => this._showTopicSelection(survivor, location),
+      session: this.nodeSession || this.conversationSession
     });
     parchment.appendChild(optionColumn);
     content.appendChild(parchment);
@@ -1600,7 +1601,8 @@ class ConversationSystem {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showCategoryMenu(survivor, location, returnCategory),
-      onChangeTopic: () => this._showTopicSelection(survivor, location)
+      onChangeTopic: () => this._showTopicSelection(survivor, location),
+      session: this.nodeSession || this.conversationSession
     });
     parchment.appendChild(optionColumn);
     content.appendChild(parchment);
@@ -1667,7 +1669,8 @@ class ConversationSystem {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showCategoryMenu(survivor, location, 'challenge'),
-      onChangeTopic: () => this._showTopicSelection(survivor, location)
+      onChangeTopic: () => this._showTopicSelection(survivor, location),
+      session: this.nodeSession || this.conversationSession
     });
 
     parchment.appendChild(optionColumn);
@@ -1891,7 +1894,8 @@ class ConversationSystem {
       canBack: true,
       canChangeTopic: true,
       onBack: () => this._showCategoryMenu(survivor, location, 'deal'),
-      onChangeTopic: () => this._showTopicSelection(survivor, location)
+      onChangeTopic: () => this._showTopicSelection(survivor, location),
+      session: this.nodeSession || this.conversationSession
     });
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
@@ -3132,6 +3136,25 @@ class ConversationSystem {
     return normalized;
   }
 
+  _escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  _normalizeSelfReferenceInQuotes(line, survivor, subjectName, subjectId) {
+    if (!line || !survivor) return line;
+    const isSelf = (subjectId && survivor?.id && subjectId === survivor.id)
+      || (subjectName && survivor?.firstName && subjectName === survivor.firstName);
+    if (!isSelf || !subjectName) return line;
+    const namePattern = this._escapeRegExp(subjectName);
+    return String(line).replace(/"([^"]*)"/g, (match, inner) => {
+      let updated = inner;
+      updated = updated.replace(new RegExp(`\\b${namePattern}'s\\b`, 'gi'), 'my');
+      updated = updated.replace(new RegExp(`\\b${namePattern}\\b`, 'gi'), 'me');
+      updated = updated.replace(/^me\\b/i, 'I');
+      return `"${updated}"`;
+    });
+  }
+
   _normalizeLegacyNodeText(text) {
     const trimmed = String(text || '').trim();
     if (!trimmed) return { playerNarration: null, npcResponse: null };
@@ -3349,7 +3372,8 @@ class ConversationSystem {
         canChangeTopic: true,
         onBack: () => this._goBackNode(session),
         onChangeTopic: () => this._showTopicSelection(npc, context.location),
-        onEnd: () => this.closeConversation('player_end', session)
+        onEnd: () => this.closeConversation('player_end', session),
+        session
       })
       : baseChoices;
 
@@ -3408,135 +3432,142 @@ class ConversationSystem {
     if (!session || !choice) return;
     const npc = this._getSurvivorById(session.npcId);
     if (!npc) return;
-    const isEndLabel = typeof choice.label === 'string' && /end conversation/i.test(choice.label);
-    if (choice.end || (isEndLabel && !choice.action && !choice.responseOption && !choice.nextNode && !choice.nextMenu && !choice.nextNodeId && !choice.onSelect)) {
-      this.closeConversation('player_end', session);
-      return;
-    }
-
-    const playerNarration = this._resolvePlayerNarration(choice, session.intent, session.context || {});
-    const player = this.gameManager.getPlayerSurvivor?.();
-    const formattedNarration = this._formatConversationLine(playerNarration || '', npc, session.context || {}, player);
-    if (playerNarration) {
-      this._appendConversationHistory(session, 'Player', { narration: formattedNarration }, ['player']);
-      session.context.lastSpeaker = 'player';
-      session.context.lastPlayerNarration = formattedNarration;
-    }
-
-    if (choice.memoryEvent) {
-      this._recordStructuredSocialEvent(choice.memoryEvent);
-    }
-
-    if (choice.effects) {
-      this._applyNodeEffects(session, choice.effects);
-    }
-
-    if (choice.npcReply) {
-      const replyText = typeof choice.npcReply === 'function'
-        ? choice.npcReply(session, this, choice)
-        : choice.npcReply;
-      const resolved = this._formatConversationLine(replyText || '', npc, session.context || {}, this.gameManager.getPlayerSurvivor?.());
-      const nextPayload = typeof choice.next === 'function' ? choice.next(session, this, choice) : choice.next;
-      if (typeof nextPayload === 'string') {
-        this._transitionToNode(session, nextPayload);
+    try {
+      const isEndLabel = typeof choice.label === 'string' && /end conversation/i.test(choice.label);
+      if (choice.end || (isEndLabel && !choice.action && !choice.responseOption && !choice.nextNode && !choice.nextMenu && !choice.nextNodeId && !choice.onSelect)) {
+        this._logEndConversationClick('player_end', session);
+        this.closeConversation('player_end', session);
         return;
       }
-      const nextNode = nextPayload && typeof nextPayload === 'object'
-        ? nextPayload
-        : {
-          playerNarration: formattedNarration,
-          npcResponse: resolved,
-          choices: this._buildDefaultFollowupChoices(session.intent, session.context)
-        };
-      const nextNodeId = this._registerNode(session, nextNode);
-      this._transitionToNode(session, nextNodeId);
-      return;
-    }
 
-    if (choice.action) {
-      const handled = this._handleNodeAction(session, nodeId, choice);
-      if (handled) return;
-    }
+      const playerNarration = this._resolvePlayerNarration(choice, session.intent, session.context || {});
+      const player = this.gameManager.getPlayerSurvivor?.();
+      const formattedNarration = this._formatConversationLine(playerNarration || '', npc, session.context || {}, player);
+      if (playerNarration) {
+        this._appendConversationHistory(session, 'Player', { narration: formattedNarration }, ['player']);
+        session.context.lastSpeaker = 'player';
+        session.context.lastPlayerNarration = formattedNarration;
+      }
 
-    if (choice.responseOption) {
-      if (choice.responseOption.requiresAllyPicker) {
-        this._promptTrustedAlly(session, npc, nodeId, choice.responseOption, formattedNarration);
-        return;
+      if (choice.memoryEvent) {
+        this._recordStructuredSocialEvent(choice.memoryEvent);
       }
-      if (choice.responseOption.requiresTargetPicker) {
-        this._promptPlayerNamedTarget(session, npc, nodeId, choice.responseOption, formattedNarration);
-        return;
-      }
-      const { menu, endConversation, action } = this._handleResponse(npc, session.intent, choice.responseOption, session.meeting, session);
-      session.pendingEndConversation = endConversation || null;
-      if (action === 'offerDealMenu') {
-        this._showDealMenu(npc, session.context.location);
-        return;
-      }
-      if (action === 'counterTarget') {
-        return;
-      }
-      if (!menu) {
-        console.warn('ConversationSystem: Missing menu response for choice.', choice);
-        this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`);
-        return;
-      }
-      menu.playerNarration = menu.playerNarration || formattedNarration;
-      if (!menu.npcResponse && menu.text) {
-        menu.npcResponse = menu.text;
-      }
-      const menuNodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
-      this._transitionToNode(session, menuNodeId);
-      return;
-    }
 
-    if (choice.nextContextPatch) {
-      this.activeConversationContext = { ...(this.activeConversationContext || {}), ...choice.nextContextPatch };
-      session.context = { ...(session.context || {}), ...choice.nextContextPatch };
-    }
+      if (choice.effects) {
+        this._applyNodeEffects(session, choice.effects);
+      }
 
-    if (typeof choice.onSelect === 'function') {
-      const result = choice.onSelect();
-      if (result && typeof result === 'object' && (result.text || result.buttons)) {
-        const nextNodeId = this._registerNode(session, this._buildNodeFromMenu(result, session.intent, session.context));
+      if (choice.npcReply) {
+        const replyText = typeof choice.npcReply === 'function'
+          ? choice.npcReply(session, this, choice)
+          : choice.npcReply;
+        const resolved = this._formatConversationLine(replyText || '', npc, session.context || {}, this.gameManager.getPlayerSurvivor?.());
+        const nextPayload = typeof choice.next === 'function' ? choice.next(session, this, choice) : choice.next;
+        if (typeof nextPayload === 'string') {
+          this._transitionToNode(session, nextPayload);
+          return;
+        }
+        const nextNode = nextPayload && typeof nextPayload === 'object'
+          ? nextPayload
+          : {
+            playerNarration: formattedNarration,
+            npcResponse: resolved,
+            choices: this._buildDefaultFollowupChoices(session.intent, session.context)
+          };
+        const nextNodeId = this._registerNode(session, nextNode);
         this._transitionToNode(session, nextNodeId);
         return;
       }
-    }
 
-    if (choice.nextMenu) {
-      choice.nextMenu.playerNarration = choice.nextMenu.playerNarration || formattedNarration;
-      if (!choice.nextMenu.npcResponse && choice.nextMenu.text) {
-        choice.nextMenu.npcResponse = choice.nextMenu.text;
+      if (choice.action) {
+        const handled = this._handleNodeAction(session, nodeId, choice);
+        if (handled) return;
       }
-      const nextNodeId = this._registerNode(session, this._buildNodeFromMenu(choice.nextMenu, session.intent, session.context));
-      this._transitionToNode(session, nextNodeId);
-      return;
-    }
 
-    if (choice.end) {
-      this._endNodeConversation(session);
-      return;
-    }
+      if (choice.responseOption) {
+        if (choice.responseOption.requiresAllyPicker) {
+          this._promptTrustedAlly(session, npc, nodeId, choice.responseOption, formattedNarration);
+          return;
+        }
+        if (choice.responseOption.requiresTargetPicker) {
+          this._promptPlayerNamedTarget(session, npc, nodeId, choice.responseOption, formattedNarration);
+          return;
+        }
+        const { menu, endConversation, action } = this._handleResponse(npc, session.intent, choice.responseOption, session.meeting, session);
+        session.pendingEndConversation = endConversation || null;
+        if (action === 'offerDealMenu') {
+          this._showDealMenu(npc, session.context.location);
+          return;
+        }
+        if (action === 'counterTarget') {
+          return;
+        }
+        if (!menu) {
+          console.warn('ConversationSystem: Missing menu response for choice.', choice);
+          this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`);
+          return;
+        }
+        menu.playerNarration = menu.playerNarration || formattedNarration;
+        if (!menu.npcResponse && menu.text) {
+          menu.npcResponse = menu.text;
+        }
+        const menuNodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
+        this._transitionToNode(session, menuNodeId);
+        return;
+      }
 
-    if (choice.nextNode) {
-      const patchedNode = {
-        ...choice.nextNode,
-        playerNarration: choice.nextNode.playerNarration || formattedNarration,
-        npcResponse: choice.nextNode.npcResponse || choice.nextNode.text || null
-      };
-      const nextNodeId = this._registerNode(session, patchedNode);
-      this._transitionToNode(session, nextNodeId);
-      return;
-    }
+      if (choice.nextContextPatch) {
+        this.activeConversationContext = { ...(this.activeConversationContext || {}), ...choice.nextContextPatch };
+        session.context = { ...(session.context || {}), ...choice.nextContextPatch };
+      }
 
-    if (choice.nextNodeId) {
-      this._transitionToNode(session, choice.nextNodeId);
-      return;
-    }
+      if (typeof choice.onSelect === 'function') {
+        const result = choice.onSelect();
+        if (result && typeof result === 'object' && (result.text || result.buttons)) {
+          const nextNodeId = this._registerNode(session, this._buildNodeFromMenu(result, session.intent, session.context));
+          this._transitionToNode(session, nextNodeId);
+          return;
+        }
+      }
 
-    console.warn('ConversationSystem: Choice did not advance.', choice);
-    this._renderRecoveryNode(session, npc, `${npc.firstName} says, "We can talk about something else."`);
+      if (choice.nextMenu) {
+        choice.nextMenu.playerNarration = choice.nextMenu.playerNarration || formattedNarration;
+        if (!choice.nextMenu.npcResponse && choice.nextMenu.text) {
+          choice.nextMenu.npcResponse = choice.nextMenu.text;
+        }
+        const nextNodeId = this._registerNode(session, this._buildNodeFromMenu(choice.nextMenu, session.intent, session.context));
+        this._transitionToNode(session, nextNodeId);
+        return;
+      }
+
+      if (choice.end) {
+        this._logEndConversationClick('player_end', session);
+        this._endNodeConversation(session);
+        return;
+      }
+
+      if (choice.nextNode) {
+        const patchedNode = {
+          ...choice.nextNode,
+          playerNarration: choice.nextNode.playerNarration || formattedNarration,
+          npcResponse: choice.nextNode.npcResponse || choice.nextNode.text || null
+        };
+        const nextNodeId = this._registerNode(session, patchedNode);
+        this._transitionToNode(session, nextNodeId);
+        return;
+      }
+
+      if (choice.nextNodeId) {
+        this._transitionToNode(session, choice.nextNodeId);
+        return;
+      }
+
+      console.warn('ConversationSystem: Choice did not advance.', choice);
+      this._renderRecoveryNode(session, npc, `${npc.firstName} says, "We can talk about something else."`);
+    } catch (error) {
+      console.error('ConversationSystem: handleNodeChoice failed', error);
+      this.closeConversation('error_exit', session);
+    }
   }
 
   _transitionToNode(session, nextNodeId) {
@@ -3566,31 +3597,51 @@ class ConversationSystem {
 
   closeConversation(reason = 'player_end', session = null) {
     const activeSession = session || this.nodeSession || this.conversationSession;
-    if (activeSession?.pendingEndConversation) {
-      activeSession.pendingEndConversation();
-      activeSession.pendingEndConversation = null;
-    }
+    const npcId = activeSession?.npcId || this.state?.npcId || null;
+    try {
+      if (activeSession?.pendingEndConversation) {
+        try {
+          activeSession.pendingEndConversation();
+        } catch (error) {
+          console.error('ConversationSystem: pendingEndConversation failed during closeConversation.', error);
+        } finally {
+          activeSession.pendingEndConversation = null;
+        }
+      }
+    } finally {
+      try {
+        this._clearOverlay();
+      } catch (error) {
+        console.error('ConversationSystem: _clearOverlay failed during closeConversation.', error);
+      }
+      if (activeSession?.meeting) {
+        this.pendingMeetings = this.pendingMeetings.filter(m => m !== activeSession.meeting);
+      }
 
-    this._clearOverlay();
-    if (activeSession?.meeting) {
-      this.pendingMeetings = this.pendingMeetings.filter(m => m !== activeSession.meeting);
-    }
+      if (typeof activeSession?.onClose === 'function') {
+        try {
+          activeSession.onClose(reason, activeSession);
+        } catch (error) {
+          console.error('ConversationSystem: onClose failed during closeConversation.', error);
+        }
+      }
+      if (typeof this.onConversationEnd === 'function') {
+        try {
+          this.onConversationEnd(reason, activeSession);
+        } catch (error) {
+          console.error('ConversationSystem: onConversationEnd failed during closeConversation.', error);
+        }
+      }
 
-    if (typeof activeSession?.onClose === 'function') {
-      activeSession.onClose(reason, activeSession);
-    }
-    if (typeof this.onConversationEnd === 'function') {
-      this.onConversationEnd(reason, activeSession);
-    }
+      this.activeConversation = null;
+      this.activeConversationContext = null;
+      this.nodeSession = null;
+      this.conversationSession = null;
+      this.state = null;
 
-    this.activeConversation = null;
-    this.activeConversationContext = null;
-    this.nodeSession = null;
-    this.conversationSession = null;
-    this.state = null;
-
-    if (typeof console !== 'undefined') {
-      console.debug('ConversationSystem: closeConversation fired.', { reason });
+      if (typeof console !== 'undefined') {
+        console.debug('ConversationSystem: closeConversation completed.', { reason, npcId });
+      }
     }
   }
 
@@ -3661,6 +3712,7 @@ class ConversationSystem {
     }
 
     if (choice.action === 'endConversation') {
+      this._logEndConversationClick('player_end', session);
       this._endNodeConversation(session);
       return true;
     }
@@ -5998,111 +6050,117 @@ class ConversationSystem {
     }
 
     const handleChoice = (choice) => {
-      if (choice.action === 'goBack') {
-        if (this.state?.topic) {
-          this._showCategoryMenu(npc, context.location, this.state?.topic);
-        } else {
-          this._showTopicSelection(npc, context.location);
+      try {
+        if (choice.action === 'goBack') {
+          if (this.state?.topic) {
+            this._showCategoryMenu(npc, context.location, this.state?.topic);
+          } else {
+            this._showTopicSelection(npc, context.location);
+          }
+          return;
         }
-        return;
-      }
 
-      if (choice.action === 'changeTopic') {
-        this._showTopicSelection(npc, context.location);
-        return;
-      }
+        if (choice.action === 'changeTopic') {
+          this._showTopicSelection(npc, context.location);
+          return;
+        }
 
-      if (choice.action === 'endConversation') {
-        this.endConversation(session);
-        return;
-      }
+        if (choice.action === 'endConversation') {
+          this._logEndConversationClick('player_end', session);
+          this.endConversation(session);
+          return;
+        }
 
-      if (choice.action === 'pickSource') {
-        const excludeIds = [session.npcId, session.playerId].filter(Boolean);
-        const pickerState = { handled: false };
-        const extraOptions = [{
-          label: 'I’m not naming names.',
-          onSelect: () => {
-            pickerState.handled = true;
-            session.context.sourceId = null;
-            session.context.sourceName = null;
-            session.context.sourceRefused = true;
-            const refusalStep = session.flowKey === 'name_drop' ? 'nameDropRefuse' : 'confrontResolve';
-            this._advanceConversation(session, { ...choice, key: 'refuseSource', nextStep: refusalStep });
-          }
-        }];
-        this.promptSurvivorPicker({
-          title: 'Name the source',
-          tribeOnly: true,
-          excludeIds,
-          extraOptions
-        }).then(selectedId => {
-          if (pickerState.handled) return;
-          if (!selectedId) {
-            this._renderConversationStep(session, stepKey, fromChoice);
-            return;
-          }
-          const pick = this._getSurvivorById(selectedId);
-          if (!pick) {
-            this._renderConversationStep(session, stepKey, fromChoice);
-            return;
-          }
-          session.context.sourceId = pick.id;
-          session.context.sourceName = pick.firstName;
-          session.context.sourceRefused = false;
-          this._advanceConversation(session, { ...choice, pickedSource: pick });
-        });
-        return;
-      }
+        if (choice.action === 'pickSource') {
+          const excludeIds = [session.npcId, session.playerId].filter(Boolean);
+          const pickerState = { handled: false };
+          const extraOptions = [{
+            label: 'I’m not naming names.',
+            onSelect: () => {
+              pickerState.handled = true;
+              session.context.sourceId = null;
+              session.context.sourceName = null;
+              session.context.sourceRefused = true;
+              const refusalStep = session.flowKey === 'name_drop' ? 'nameDropRefuse' : 'confrontResolve';
+              this._advanceConversation(session, { ...choice, key: 'refuseSource', nextStep: refusalStep });
+            }
+          }];
+          this.promptSurvivorPicker({
+            title: 'Name the source',
+            tribeOnly: true,
+            excludeIds,
+            extraOptions
+          }).then(selectedId => {
+            if (pickerState.handled) return;
+            if (!selectedId) {
+              this._renderConversationStep(session, stepKey, fromChoice);
+              return;
+            }
+            const pick = this._getSurvivorById(selectedId);
+            if (!pick) {
+              this._renderConversationStep(session, stepKey, fromChoice);
+              return;
+            }
+            session.context.sourceId = pick.id;
+            session.context.sourceName = pick.firstName;
+            session.context.sourceRefused = false;
+            this._advanceConversation(session, { ...choice, pickedSource: pick });
+          });
+          return;
+        }
 
-      if (choice.requiresAllyPicker) {
-        const excludeIds = [session.npcId, session.playerId].filter(Boolean);
-        this.promptSurvivorPicker({
-          title: 'Name a trusted ally',
-          tribeOnly: true,
-          excludeIds
-        }).then(selectedId => {
-          if (!selectedId) {
-            this._renderConversationStep(session, stepKey, fromChoice);
-            return;
-          }
-          const pick = this._getSurvivorById(selectedId);
-          if (!pick) {
-            this._renderConversationStep(session, stepKey, fromChoice);
-            return;
-          }
-          session.context.playerNamedAllyName = pick.firstName;
-          session.context.playerNamedAllyId = pick.id;
-          session.context = this._normalizeConversationContext(session.context);
-          this._advanceConversation(session, { ...choice, allyName: pick.firstName });
-        });
-        return;
-      }
+        if (choice.requiresAllyPicker) {
+          const excludeIds = [session.npcId, session.playerId].filter(Boolean);
+          this.promptSurvivorPicker({
+            title: 'Name a trusted ally',
+            tribeOnly: true,
+            excludeIds
+          }).then(selectedId => {
+            if (!selectedId) {
+              this._renderConversationStep(session, stepKey, fromChoice);
+              return;
+            }
+            const pick = this._getSurvivorById(selectedId);
+            if (!pick) {
+              this._renderConversationStep(session, stepKey, fromChoice);
+              return;
+            }
+            session.context.playerNamedAllyName = pick.firstName;
+            session.context.playerNamedAllyId = pick.id;
+            session.context = this._normalizeConversationContext(session.context);
+            this._advanceConversation(session, { ...choice, allyName: pick.firstName });
+          });
+          return;
+        }
 
-      if (choice.requiresTargetPicker) {
-        const excludeIds = [session.npcId, session.playerId].filter(Boolean);
-        this.promptSurvivorPicker({
-          title: choice.targetPrompt || 'Name who?',
-          tribeOnly: true,
-          excludeIds
-        }).then(selectedId => {
-          if (!selectedId) {
-            this._renderConversationStep(session, stepKey, fromChoice);
-            return;
-          }
-          const pick = this._getSurvivorById(selectedId);
-          if (!pick) {
-            this._renderConversationStep(session, stepKey, fromChoice);
-            return;
-          }
-          session.context.topicPerson = pick.firstName;
-          session.context.topicId = pick.id;
-          this._advanceConversation(session, { ...choice, targetName: pick.firstName });
-        });
-        return;
-      }
+        if (choice.requiresTargetPicker) {
+          const excludeIds = [session.npcId, session.playerId].filter(Boolean);
+          this.promptSurvivorPicker({
+            title: choice.targetPrompt || 'Name who?',
+            tribeOnly: true,
+            excludeIds
+          }).then(selectedId => {
+            if (!selectedId) {
+              this._renderConversationStep(session, stepKey, fromChoice);
+              return;
+            }
+            const pick = this._getSurvivorById(selectedId);
+            if (!pick) {
+              this._renderConversationStep(session, stepKey, fromChoice);
+              return;
+            }
+            session.context.topicPerson = pick.firstName;
+            session.context.topicId = pick.id;
+            this._advanceConversation(session, { ...choice, targetName: pick.firstName });
+          });
+          return;
+        }
 
-      this._advanceConversation(session, choice);
+        this._advanceConversation(session, choice);
+      } catch (error) {
+        console.error('ConversationSystem: flow choice handler failed', error);
+        this.closeConversation('error_exit', session);
+      }
     };
 
     const finalChoices = this._appendNavChoices(choices, {
@@ -6116,7 +6174,8 @@ class ConversationSystem {
         }
       },
       onChangeTopic: () => this._showTopicSelection(npc, context.location),
-      onEnd: () => this.closeConversation('player_end', session)
+      onEnd: () => this.closeConversation('player_end', session),
+      session
     });
 
     finalChoices.forEach(option => {
@@ -6139,6 +6198,7 @@ class ConversationSystem {
   _advanceConversation(session, selectedChoice) {
     if (!session || !selectedChoice) return;
     if (selectedChoice.end || (typeof selectedChoice.label === 'string' && /end conversation/i.test(selectedChoice.label))) {
+      this._logEndConversationClick('player_end', session);
       this.closeConversation('player_end', session);
       return;
     }
@@ -8420,6 +8480,8 @@ class ConversationSystem {
       }
     }
 
+    responseLine = this._normalizeSelfReferenceInQuotes(responseLine, survivor, targetName, targetId);
+
     return {
       playerLine: `You pitch ${targetName} as a possible vote.`,
       npcLine: responseLine,
@@ -8478,6 +8540,8 @@ class ConversationSystem {
       responseLine = `${survivor.firstName} nods. "Yeah, I said ${targetName}’s name, but I didn’t start it."`;
     }
 
+    responseLine = this._normalizeSelfReferenceInQuotes(responseLine, survivor, targetName, targetId);
+
     return {
       playerLine: `You ask if they were talking about ${targetName}.`,
       npcLine: responseLine,
@@ -8510,6 +8574,8 @@ class ConversationSystem {
     } else {
       responseLine = `${survivor.firstName} shrugs. "${subjectName} was middle of the pack."`;
     }
+
+    responseLine = this._normalizeSelfReferenceInQuotes(responseLine, survivor, subjectName, subjectId);
 
     return {
       playerLine: `You ask about ${subjectName} in the challenge.`,
@@ -9053,10 +9119,16 @@ class ConversationSystem {
     const withNames = trimmed
       .replace('{npc}', this._npcDisplayName(survivor) || context.npcName || 'They')
       .replace('{subjectName}', context.subjectName || 'someone');
-    if (withNames.includes(survivor?.firstName || '') || /["“]/.test(withNames)) {
-      return this._normalizeNpcVerbAgreement(withNames);
+    const normalized = this._normalizeSelfReferenceInQuotes(
+      withNames,
+      survivor,
+      context.subjectName,
+      context.subjectId || context.topicPersonId || context.topicId
+    );
+    if (normalized.includes(survivor?.firstName || '') || /["“]/.test(normalized)) {
+      return this._normalizeNpcVerbAgreement(normalized);
     }
-    return this._npcSays(survivor, withNames);
+    return this._npcSays(survivor, normalized);
   }
 
   _pickNpcResponse(intent, stance, context = {}, survivor) {
@@ -9078,9 +9150,12 @@ class ConversationSystem {
       safety += 1;
     }
     memory?.rememberBeat?.(survivor?.id, intent, line);
-    return line
+    const subjectName = context.subjectName || context.topicPersonName || context.topicPerson || null;
+    const subjectId = context.subjectId || context.topicPersonId || context.topicId || null;
+    const resolved = line
       .replace('{npc}', context.npcName || survivor?.firstName || 'They')
-      .replace('{subjectName}', context.subjectName || 'them');
+      .replace('{subjectName}', subjectName || 'them');
+    return this._normalizeSelfReferenceInQuotes(resolved, survivor, subjectName, subjectId);
   }
 
   _resolvePlayerNarration(choice, intent, context = {}) {
@@ -9115,20 +9190,91 @@ class ConversationSystem {
     return String(key).trim().toLowerCase();
   }
 
+  _logEndConversationClick(reason, session) {
+    if (typeof console === 'undefined') return;
+    console.debug('ConversationSystem: End Conversation clicked.', {
+      reason,
+      npcId: session?.npcId || this.state?.npcId || null
+    });
+  }
+
+  _isEndConversationChoice(choice) {
+    if (!choice) return false;
+    if (choice.end || choice.action === 'endConversation') return true;
+    const label = typeof choice.label === 'string' ? choice.label : '';
+    if (/end conversation/i.test(label)) return true;
+    const id = typeof choice.id === 'string' ? choice.id.replace(/[-_]/g, ' ') : '';
+    if (id && /end conversation/i.test(id)) return true;
+    const key = this._choiceKey(choice);
+    return /end conversation/i.test(key);
+  }
+
+  _wrapNavHandler(handler, session) {
+    return () => {
+      try {
+        return typeof handler === 'function' ? handler() : null;
+      } catch (error) {
+        console.error('ConversationSystem: nav handler failed', error);
+        this.closeConversation('error_exit', session);
+        return null;
+      }
+    };
+  }
+
+  _buildEndConversationHandler(session, onSelect = null) {
+    return () => {
+      this._logEndConversationClick('player_end', session);
+      try {
+        if (typeof onSelect === 'function') {
+          onSelect();
+        }
+      } catch (error) {
+        console.error('ConversationSystem: end conversation handler failed', error);
+        this.closeConversation('error_exit', session);
+        return;
+      }
+      this.closeConversation('player_end', session);
+    };
+  }
+
   _isNavChoice(choice) {
     const key = this._choiceKey(choice);
     return ['nav-back', 'nav-change-topic', 'nav-end-conversation', 'back', 'change topic', 'end conversation'].includes(key);
   }
 
-  _buildNavChoices({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd }) {
+  _buildNavChoices({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd, session, includeEnd = true }) {
     const buttons = [];
     if (canBack) {
-      buttons.push({ id: 'nav-back', label: 'Back', alt: true, action: 'goBack', playerLine: 'You circle back in the conversation.', onSelect: onBack });
+      buttons.push({
+        id: 'nav-back',
+        label: 'Back',
+        alt: true,
+        action: 'goBack',
+        playerLine: 'You circle back in the conversation.',
+        onSelect: this._wrapNavHandler(onBack, session)
+      });
     }
     if (canChangeTopic) {
-      buttons.push({ id: 'nav-change-topic', label: 'Change Topic', alt: true, action: 'changeTopic', playerLine: 'You steer the conversation to a new topic.', onSelect: onChangeTopic });
+      buttons.push({
+        id: 'nav-change-topic',
+        label: 'Change Topic',
+        alt: true,
+        action: 'changeTopic',
+        playerLine: 'You steer the conversation to a new topic.',
+        onSelect: this._wrapNavHandler(onChangeTopic, session)
+      });
     }
-    buttons.push({ id: 'nav-end-conversation', label: 'End Conversation', alt: true, end: true, action: 'endConversation', playerLine: 'You wrap up the conversation for now.', onSelect: onEnd || null });
+    if (includeEnd) {
+      buttons.push({
+        id: 'nav-end-conversation',
+        label: 'End Conversation',
+        alt: true,
+        end: true,
+        action: 'endConversation',
+        playerLine: 'You wrap up the conversation for now.',
+        onSelect: this._buildEndConversationHandler(session, onEnd)
+      });
+    }
     return buttons;
   }
 
@@ -9145,8 +9291,18 @@ class ConversationSystem {
   }
 
   _appendNavChoices(choices = [], navOptions = {}) {
-    const trimmed = (Array.isArray(choices) ? choices : []).filter(choice => !this._isNavChoice(choice));
-    const navChoices = this._buildNavChoices(navOptions);
+    const normalized = (Array.isArray(choices) ? choices : []).map(choice => {
+      if (!this._isEndConversationChoice(choice)) return choice;
+      return {
+        ...choice,
+        end: true,
+        action: choice.action || 'endConversation',
+        onSelect: this._buildEndConversationHandler(navOptions.session, choice.onSelect)
+      };
+    });
+    const hasEndChoice = normalized.some(choice => this._isEndConversationChoice(choice));
+    const trimmed = normalized.filter(choice => !this._isNavChoice(choice) || this._isEndConversationChoice(choice));
+    const navChoices = this._buildNavChoices({ ...navOptions, includeEnd: !hasEndChoice });
     return this._dedupeChoices([...trimmed, ...navChoices]);
   }
 
@@ -9163,8 +9319,19 @@ class ConversationSystem {
         label: choice.label,
         alt: choice.alt,
         onClick: () => {
-          if (choice.onSelect) choice.onSelect();
-          if (choice.end && !choice.onSelect) this.closeConversation('player_end');
+          try {
+            if (choice.onSelect) {
+              choice.onSelect();
+              return;
+            }
+            if (choice.end) {
+              this._logEndConversationClick('player_end', navOptions.session);
+              this.closeConversation('player_end', navOptions.session);
+            }
+          } catch (error) {
+            console.error('ConversationSystem: nav button handler failed', error);
+            this.closeConversation('error_exit', navOptions.session);
+          }
         }
       });
       buttonEl.dataset.conversationNav = 'true';
@@ -9172,8 +9339,8 @@ class ConversationSystem {
     });
   }
 
-  _buildNavOptions({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd }) {
-    return this._buildNavChoices({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd });
+  _buildNavOptions({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd, session }) {
+    return this._buildNavChoices({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd, session });
   }
 
   _shiftMood(npcId, newMood) {
