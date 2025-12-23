@@ -486,8 +486,8 @@ const INTENT_TEMPLATES = {
       'You check in on where {npc} feels solid.'
     ],
     npcLead: [
-      '{npc} thinks for a moment. "Honestly… I probably trust {ally} the most right now."',
-      '"If I\'m being straight with you, {ally} feels the most solid to me," {npc} admits.'
+      '{npc} thinks for a moment. "Honestly… I probably trust {npcTrusted} the most right now."',
+      '"If I\'m being straight with you, {npcTrusted} feels the most solid to me," {npc} admits.'
     ]
   },
   gossip: {
@@ -556,8 +556,8 @@ const INTENT_TEMPLATES = {
       'You and {npc} evaluate shelter, fire, and the day ahead.'
     ],
     npcLead: [
-      '{npc} chats about camp life and the next challenge.',
-      'Together you evaluate shelter, fire, and challenge odds.'
+      '{npc} chats about camp life and the next challenge. "We just have to stay steady."',
+      'Together you evaluate shelter, fire, and challenge odds. {npc} nods. "We just need to keep the fire going."'
     ]
   },
   fun: {
@@ -566,8 +566,8 @@ const INTENT_TEMPLATES = {
       'You keep it light and the mood lifts.'
     ],
     npcLead: [
-      '{npc} jokes about coconut crabs and you both laugh.',
-      'The mood lightens as {npc} tells a ridiculous story.'
+      '{npc} jokes about coconut crabs and you both laugh. "At least they’re not voting."',
+      'The mood lightens as {npc} tells a ridiculous story. "You had to be there."'
     ]
   },
   warning: {
@@ -587,7 +587,7 @@ const INTENT_TEMPLATES = {
     ],
     npcLead: [
       '{npc} flatters you, guiding the talk toward their agenda.',
-      '{npc} smiles like they’re already a step ahead.'
+      '{npc} smiles like they’re already a step ahead. "Just hear me out."'
     ]
   },
   protection: {
@@ -596,8 +596,8 @@ const INTENT_TEMPLATES = {
       'You offer cover if things get messy tonight.'
     ],
     npcLead: [
-      'Quietly, {npc} promises to watch your back at the next vote.',
-      '{npc} offers cover if things get messy tonight.'
+      'Quietly, {npc} promises to watch your back at the next vote. "I’ve got you."',
+      '{npc} offers cover if things get messy tonight. "I’ll take the heat."'
     ]
   },
   wildcard: {
@@ -606,8 +606,8 @@ const INTENT_TEMPLATES = {
       'You bounce between topics; {npc} tries to keep up.'
     ],
     npcLead: [
-      'Out of nowhere, {npc} rambles about idols, storms, and goats.',
-      '{npc} pivots between topics; the chaos is real.'
+      'Out of nowhere, {npc} rambles about idols, storms, and goats. "Weird things happen out here."',
+      '{npc} pivots between topics; the chaos is real. "Just roll with it."'
     ]
   },
   allianceInvite: {
@@ -699,7 +699,7 @@ const RESPONSE_LIBRARY = {
     { label: 'Refuse to commit', playerLine: 'You refuse to commit and keep it noncommittal.', delta: -5, mood: 'irritated', followup: '{npc} narrows their eyes. "So are you with me or not?"' }
   ],
   trust: [
-    { label: 'Name a trusted ally', playerLine: 'You name someone you trust and watch their reaction.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, I feel pretty good about {ally} too."', requiresAllyPicker: true, awaitsPicker: true },
+    { label: 'Name a trusted ally', playerLine: 'You name someone you trust and watch their reaction.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, I feel pretty good about {playerAlly} too."', requiresAllyPicker: true, awaitsPicker: true },
     { label: 'Claim they are your #1', playerLine: 'You tell them they are your number one.', delta: 4, mood: 'happy', followup: '{npc} smiles. "I like hearing that."' },
     { label: 'Dodge the question', playerLine: 'You dodge and keep it vague.', delta: -3, mood: 'suspicious', followup: '{npc} raises a brow. "That’s… not an answer."' }
   ],
@@ -1158,7 +1158,7 @@ class ConversationSystem {
     const closeBtn = this._createChoiceButton({
       label: 'End Conversation',
       alt: true,
-      onClick: () => this._clearOverlay(),
+      onClick: () => this.endConversation(),
       fallback: { npc: survivor }
     });
 
@@ -1212,7 +1212,7 @@ class ConversationSystem {
       addOption('How do you feel about me?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.check_trust, location, context: { phase, trustCheck: true } }));
       addOption('Vibe check', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location, context: { phase } }));
     } else if (category === 'light') {
-      addOption('Anyone rubbing people wrong?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase } }));
+      addOption('Anyone rubbing people wrong?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase, lightIntelTag: 'rubbing_wrong' } }));
       addOption('Are you feeling safe today?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase, safetyCheck: true } }));
       addOption('Quick strategy pulse', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase, pulseCheck: true } }));
     } else if (category === 'rumors') {
@@ -2005,7 +2005,7 @@ class ConversationSystem {
     const intent = intentOverride || this._chooseIntent(survivor, isPurpose);
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
-    const conversationContext = { ...context, initiator, isPurpose, meeting, location, phase };
+    const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
 
     const flowKey = this._resolveConversationFlow(intent, conversationContext);
     if (flowKey) {
@@ -2047,8 +2047,10 @@ class ConversationSystem {
       meeting,
       context: {
         ...conversationContext,
-        topicPerson: dialogue.context?.topicPerson || conversationContext.topicPerson || null,
-        allyName: dialogue.context?.allyName || null,
+        topicPersonName: dialogue.context?.topicPersonName || dialogue.context?.topicPerson || conversationContext.topicPersonName || conversationContext.topicPerson || null,
+        topicPersonId: dialogue.context?.topicPersonId || dialogue.context?.topicId || conversationContext.topicPersonId || conversationContext.topicId || null,
+        playerNamedAllyName: dialogue.context?.playerNamedAllyName || conversationContext.playerNamedAllyName || null,
+        npcTrustedPersonName: dialogue.context?.npcTrustedPersonName || conversationContext.npcTrustedPersonName || null,
         targetName: dialogue.context?.targetName || null,
         dealTopic: dialogue.context?.dealTopic || null,
         intelPayload: dialogue.context?.intelPayload || null,
@@ -2068,7 +2070,7 @@ class ConversationSystem {
       context
     });
 
-    this.activeConversationContext = context;
+    this.activeConversationContext = this._normalizeConversationContext(context);
 
     const rootChoices = (dialogue.responses || []).map((option, index) => ({
       id: `root-choice-${index}`,
@@ -2107,7 +2109,7 @@ class ConversationSystem {
       context: { ...context }
     });
 
-    this.activeConversationContext = { ...context };
+    this.activeConversationContext = this._normalizeConversationContext({ ...context });
     this.nodeSession = session;
     session.pendingEndConversation = () => {
       this._logConversationOutcome(
@@ -2152,7 +2154,7 @@ class ConversationSystem {
       playerId,
       intent,
       meeting,
-      context: { ...context },
+      context: this._normalizeConversationContext({ ...context }),
       npcMemory: this.npcMemory,
       nodes: {},
       historyStack: [],
@@ -2212,10 +2214,26 @@ class ConversationSystem {
         idolSuspectName: null,
         lastDiscussedNames: [],
         lastIntentAsked: {},
-        lastDisclosureByKind: {}
+        lastDisclosureByKind: {},
+        lastQuestionTag: null,
+        lastAnswerTag: null
       };
     }
     return store[key];
+  }
+
+  _normalizeConversationContext(context = {}) {
+    const normalized = { ...context };
+    normalized.topicPersonName = context.topicPersonName || context.topicPerson || context.targetName || null;
+    normalized.topicPersonId = context.topicPersonId || context.topicId || context.targetId || null;
+    normalized.playerNamedAllyName = context.playerNamedAllyName || context.playerAllyName || null;
+    normalized.playerNamedAllyId = context.playerNamedAllyId || context.playerAllyId || null;
+    normalized.npcTrustedPersonName = context.npcTrustedPersonName || context.trustedName || null;
+    normalized.npcTrustedPersonId = context.npcTrustedPersonId || context.trustedId || null;
+    normalized.suspectedIdolName = context.suspectedIdolName || context.idolSuspectName || null;
+    normalized.lastQuestionTag = context.lastQuestionTag || null;
+    normalized.lastAnswerTag = context.lastAnswerTag || null;
+    return normalized;
   }
 
   _npcDisplayName(npc) {
@@ -2236,6 +2254,52 @@ class ConversationSystem {
       return `${name} ${verb}, ${trimmed}`;
     }
     return `${name} ${verb}, "${trimmed}"`;
+  }
+
+  formatNarration(line) {
+    if (!line) return '';
+    return String(line).replace(/[“”"]/g, '').trim();
+  }
+
+  formatDialogue(npc, line, intent = null) {
+    const npcName = this._npcDisplayName(npc);
+    const sayVerb = this._verbAgree(npc, 'says', 'say');
+    const trimmed = String(line || '').trim();
+    if (!trimmed) {
+      return `${npcName} ${sayVerb}, "${this._getNpcFallbackDialogue(intent)}"`;
+    }
+
+    const withName = trimmed.replace('{npc}', npcName);
+    if (/["“]/.test(withName)) {
+      if (withName.includes(npcName)) {
+        return this._normalizeNpcVerbAgreement(withName);
+      }
+      return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, ${withName}`);
+    }
+
+    const narrationLead = new RegExp(`^${npcName}\\b`, 'i').test(withName) || /^they\b/i.test(withName);
+    if (narrationLead) {
+      const fallbackDialogue = this._getNpcFallbackDialogue(intent);
+      return this._normalizeNpcVerbAgreement(`${withName} "${fallbackDialogue}"`);
+    }
+
+    const punctuated = /[.?!]$/.test(withName) ? withName : `${withName}.`;
+    return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, "${punctuated}"`);
+  }
+
+  composeExchange({ narration1 = null, npcLine = null, narration2 = null, npc = null, intent = null } = {}) {
+    const narrationParts = [];
+    if (narration1) {
+      narrationParts.push(this._formatPlayerNarration(narration1, intent));
+    }
+    if (narration2) {
+      narrationParts.push(this.formatNarration(narration2));
+    }
+    const combinedNarration = narrationParts.filter(Boolean).join(' ');
+    return {
+      playerNarration: combinedNarration || this._fallbackPlayerNarration(intent),
+      npcResponse: this.formatDialogue(npc, npcLine, intent)
+    };
   }
 
   _npcDoes(npc, singularVerb, pluralVerb, restOfSentence = '') {
@@ -2328,32 +2392,26 @@ class ConversationSystem {
   }
 
   _composeMenuText({ playerNarration, npcResponse, playerLine, npcLine, text } = {}) {
-    const resolvedPlayer = this._formatPlayerNarration(playerNarration || playerLine || '');
-    const resolvedNpc = this._formatNpcResponse(npcResponse || npcLine || '');
-    if (resolvedPlayer && resolvedNpc) {
-      return `${resolvedPlayer}\n\n${resolvedNpc}`;
-    }
+    const resolvedPlayer = String(playerNarration || playerLine || '').trim();
+    const resolvedNpc = String(npcResponse || npcLine || '').trim();
+    if (resolvedPlayer && resolvedNpc) return `${resolvedPlayer}\n\n${resolvedNpc}`;
     if (resolvedNpc) return resolvedNpc;
     if (resolvedPlayer) return resolvedPlayer;
     return text || '';
   }
 
   _formatPlayerNarration(line, intent = null) {
-    const trimmed = String(line || '').trim();
+    const trimmed = this.formatNarration(line);
     if (!trimmed) {
       return this._fallbackPlayerNarration(intent);
     }
-    if (/^you\b/i.test(trimmed)) {
-      return trimmed;
+    if (/^you\b/i.test(trimmed)) return trimmed;
+    if (trimmed.endsWith('?') || /^(who|what|why|how|where|when|so)\b/i.test(trimmed)) {
+      const cleaned = trimmed.replace(/\?$/, '');
+      return `You ask ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}.`;
     }
     if (/^i['\s]/i.test(trimmed) || /^i\b/i.test(trimmed)) {
-      return `You say, "${trimmed}"`;
-    }
-    if (trimmed.endsWith('?') || /^(who|what|why|how|where|when|so)\b/i.test(trimmed)) {
-      return `You ask, "${trimmed}"`;
-    }
-    if (/^["“]/.test(trimmed)) {
-      return `You say, ${trimmed}`;
+      return `You say ${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`;
     }
     return `You ${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`;
   }
@@ -2375,24 +2433,22 @@ class ConversationSystem {
   }
 
   _formatNpcResponse(line, intent = null) {
-    const trimmed = String(line || '').trim();
     const npc = this._getSurvivorById(this.nodeSession?.npcId || this.conversationSession?.npcId || this.state?.npcId);
-    const npcName = this._npcDisplayName(npc);
-    const sayVerb = this._verbAgree(npc, 'says', 'say');
-    if (!trimmed) {
-      return `${npcName} ${sayVerb}, "Alright. Let’s see how today shakes out."`;
-    }
-    if (trimmed.includes(npcName) || trimmed.includes('{npc}')) {
-      const withName = trimmed.replace('{npc}', npcName);
-      return this._normalizeNpcVerbAgreement(withName);
-    }
-    if (/["”]/.test(trimmed)) {
-      return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, ${trimmed}`);
-    }
-    if (/[.?!]$/.test(trimmed)) {
-      return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, "${trimmed}"`);
-    }
-    return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, "${trimmed}."`);
+    return this.formatDialogue(npc, line, intent);
+  }
+
+  _getNpcFallbackDialogue(intent = null) {
+    const fallbackByIntent = {
+      [PRE_PHASE_INTENTS.check_trust]: 'I’m still reading people.',
+      [PRE_PHASE_INTENTS.light_strategy]: 'Let’s keep it light for now.',
+      [PRE_PHASE_INTENTS.ask_general_info]: 'Things are shifting; I’m watching.',
+      [PRE_PHASE_INTENTS.confront_rumor]: 'Let’s talk it through.',
+      [POST_PHASE_INTENTS.ask_intel]: 'There’s chatter, but nothing locked.',
+      [POST_PHASE_INTENTS.idol_suspicion]: 'No hard proof yet.',
+      [POST_PHASE_INTENTS.pitch_target]: 'Let’s see how the day unfolds.',
+      [POST_PHASE_INTENTS.verify_story]: 'I’ll be straight with you when I can.'
+    };
+    return fallbackByIntent[intent] || 'Alright. Let’s see how today shakes out.';
   }
 
   _handleConversationError(error, { session, npc, fallbackLine } = {}) {
@@ -2469,9 +2525,12 @@ class ConversationSystem {
     const resolvedNpcResponse = typeof node.npcResponse === 'function'
       ? node.npcResponse(session, this)
       : (node.npcResponse || '');
-    const formattedPlayerNarration = this._formatConversationLine(resolvedPlayerNarration || '', npc, context, player);
-    const formattedNpcResponse = this._formatConversationLine(resolvedNpcResponse || '', npc, context, player)
-      || this._buildDefaultNpcResponse({ npc, player, intent: session.intent, context });
+    const rawPlayerNarration = this._formatConversationLine(resolvedPlayerNarration || '', npc, context, player);
+    const formattedPlayerNarration = this._formatPlayerNarration(rawPlayerNarration, session.intent);
+    const rawNpcResponse = this._formatConversationLine(resolvedNpcResponse || '', npc, context, player);
+    const formattedNpcResponse = rawNpcResponse
+      ? this._formatNpcResponse(rawNpcResponse, session.intent)
+      : this._buildDefaultNpcResponse({ npc, player, intent: session.intent, context });
     let nodeText = this._composeMenuText({
       playerNarration: formattedPlayerNarration,
       npcResponse: formattedNpcResponse
@@ -2571,7 +2630,7 @@ class ConversationSystem {
       issues.push('NPC quote may contain player narration phrasing.');
     }
 
-    if (context.topicPerson && npcResponse && /\bsomeone\b/i.test(npcResponse) && !npcResponse.includes(context.topicPerson)) {
+    if ((context.topicPersonName || context.topicPerson) && npcResponse && /\bsomeone\b/i.test(npcResponse) && !npcResponse.includes(context.topicPersonName || context.topicPerson)) {
       issues.push('Topic person set, but NPC response drifted to "someone".');
     }
 
@@ -2735,16 +2794,25 @@ class ConversationSystem {
     this._renderNode(session, previousNodeId);
   }
 
+  endConversation(session = null) {
+    const activeSession = session || this.nodeSession || this.conversationSession;
+    if (activeSession?.pendingEndConversation) {
+      activeSession.pendingEndConversation();
+      activeSession.pendingEndConversation = null;
+    } else {
+      this._clearOverlay();
+      if (activeSession?.meeting) {
+        this.pendingMeetings = this.pendingMeetings.filter(m => m !== activeSession.meeting);
+      }
+    }
+    this.state = null;
+    if (typeof console !== 'undefined') {
+      console.debug('ConversationSystem: endConversation fired.');
+    }
+  }
+
   _endNodeConversation(session) {
-    if (session?.pendingEndConversation) {
-      session.pendingEndConversation();
-      session.pendingEndConversation = null;
-      return;
-    }
-    this._clearOverlay();
-    if (session?.meeting) {
-      this.pendingMeetings = this.pendingMeetings.filter(m => m !== session.meeting);
-    }
+    this.endConversation(session);
   }
 
   _buildNodeFromMenu(menu = {}, intent, context) {
@@ -2831,8 +2899,8 @@ class ConversationSystem {
 
     if (choice.action === 'pitchPlan') {
       const npc = this._getSurvivorById(session.npcId);
-      const targetName = session.context.topicPerson;
-      const targetId = session.context.topicId || session.context.targetId || null;
+      const targetName = session.context.topicPersonName || session.context.topicPerson;
+      const targetId = session.context.topicPersonId || session.context.topicId || session.context.targetId || null;
       if (targetName) {
         this._startConversation(npc, {
           intentOverride: POST_PHASE_INTENTS.pitch_target,
@@ -3017,8 +3085,11 @@ class ConversationSystem {
         this._renderNode(session, nodeId);
         return;
       }
+      session.context.topicPersonName = pick.firstName;
+      session.context.topicPersonId = pick.id;
       session.context.topicPerson = pick.firstName;
       session.context.topicId = pick.id;
+      session.context = this._normalizeConversationContext(session.context);
 
       this._logStrategicMemory({
         type: 'RUMOR_TRADE',
@@ -3056,8 +3127,10 @@ class ConversationSystem {
         this._renderNode(session, nodeId);
         return;
       }
-      session.context.allyName = pick.firstName;
-      session.context.allyId = pick.id;
+      session.context.playerNamedAllyName = pick.firstName;
+      session.context.playerNamedAllyId = pick.id;
+      session.context = this._normalizeConversationContext(session.context);
+      this.activeConversationContext = { ...(this.activeConversationContext || {}), ...session.context };
       this._logStrategicMemory({
         type: 'TRUSTED_ALLY_NAMED',
         speakerId: session.playerId || null,
@@ -3098,13 +3171,15 @@ class ConversationSystem {
         return;
       }
       const patch = {
+        topicPersonName: pick.firstName,
+        topicPersonId: pick.id,
         topicPerson: pick.firstName,
         topicId: pick.id,
         targetName: pick.firstName,
         targetId: pick.id
       };
       this.activeConversationContext = { ...(this.activeConversationContext || {}), ...patch };
-      session.context = { ...(session.context || {}), ...patch };
+      session.context = this._normalizeConversationContext({ ...(session.context || {}), ...patch });
 
       const { menu, endConversation } = this._handleResponse(npc, session.intent, responseOption, session.meeting, session);
       session.pendingEndConversation = endConversation || null;
@@ -3126,7 +3201,7 @@ class ConversationSystem {
     const player = this.gameManager.getPlayerSurvivor?.();
     const context = session.context || {};
     const phase = context.phase || this._getConversationPhase();
-    const targetName = context.topicPerson || context.targetName || this._pickTargetName(npc, context) || 'someone';
+    const targetName = context.topicPersonName || context.topicPerson || context.targetName || this._pickTargetName(npc, context) || 'someone';
     const targetId = context.targetId || this._getSurvivorByName(targetName)?.id || null;
     const trustScore = this._getTrustScore(npc, player);
 
@@ -3471,7 +3546,7 @@ class ConversationSystem {
   }
 
   _buildIntelDetailLine(npc, context = {}, { trustScore = 50 } = {}) {
-    const targetName = context.topicPerson || context.targetName || this._pickTargetName(npc, context) || 'someone';
+    const targetName = context.topicPersonName || context.topicPerson || context.targetName || this._pickTargetName(npc, context) || 'someone';
     const disclosure = this._resolveDisclosure({
       npc,
       player: this.gameManager.getPlayerSurvivor?.(),
@@ -3493,12 +3568,43 @@ class ConversationSystem {
     return `${npc?.firstName || 'They'} says, "I’m not naming names, but watch who keeps peeling off with ${targetName}."`;
   }
 
+  getDisclosureBehavior(npc, player = null, context = {}) {
+    const relationshipScore = this._getRelationshipScore(npc) || 50;
+    const trustScore = player ? this._getTrustScore(npc, player) : relationshipScore;
+    const style = this._classifyStyle(npc);
+    const paranoia = context.paranoiaLevel ?? (npc?.paranoia || 0);
+    const phase = context.phase || this._getConversationPhase();
+
+    const risk = phase === GamePhase.POST_CHALLENGE ? 0.2 : 0.1;
+    let truthChance = 0.35 + (trustScore - 50) / 200 - risk;
+    let partialChance = 0.25 + (trustScore - 50) / 300;
+    let dodgeChance = 0.25 + (paranoia / 200) + risk;
+    let lieChance = 0.15 + (style.isVillain ? 0.1 : 0) + (style.isStrategist ? 0.05 : 0);
+
+    if (style.isLoyal || style.isHero) {
+      truthChance += 0.1;
+      lieChance -= 0.08;
+    }
+
+    const total = Math.max(0.01, truthChance + partialChance + dodgeChance + lieChance);
+    truthChance /= total;
+    partialChance /= total;
+    dodgeChance /= total;
+    lieChance /= total;
+
+    const roll = Math.random();
+    if (roll < truthChance) return 'truth';
+    if (roll < truthChance + partialChance) return 'partial';
+    if (roll < truthChance + partialChance + dodgeChance) return 'dodge';
+    return 'lie';
+  }
+
   _handleResponse(survivor, intent, option, meeting, session) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const socialLog = ensureCampSocialChanges();
-    const context = { ...(this.activeConversationContext || {}) };
-    const subjectId = context.targetId || context.topicId || this._getSurvivorByName(context.topicPerson)?.id || null;
+    const context = this._normalizeConversationContext({ ...(this.activeConversationContext || {}) });
+    const subjectId = context.targetId || context.topicPersonId || context.topicId || this._getSurvivorByName(context.topicPersonName || context.topicPerson)?.id || null;
 
     if (option?.action === 'offerDealMenu') {
       return { action: 'offerDealMenu' };
@@ -3506,17 +3612,14 @@ class ConversationSystem {
 
     const applyContextPatch = patch => {
       if (!patch) return;
-      this.activeConversationContext = { ...(this.activeConversationContext || {}), ...patch };
+      this.activeConversationContext = this._normalizeConversationContext({ ...(this.activeConversationContext || {}), ...patch });
     };
 
     let finalDealOutcome = null;
 
     const endConversation = () => {
       this._logConversationOutcome(survivor, intent, option, meeting, this.activeConversationContext || context, finalDealOutcome);
-      this._clearOverlay();
-      if (meeting) {
-        this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
-      }
+      this.endConversation(session);
     };
 
     if (intent === 'allianceInvite') {
@@ -4848,12 +4951,8 @@ class ConversationSystem {
       npcLine = this._pickIntentTemplate(resolvedIntent, 'npc');
       safety += 1;
     }
-    const targetName = context.topicPerson || this._pickTargetName(survivor, context);
+    const targetName = context.topicPersonName || context.topicPerson || this._pickTargetName(survivor, context);
     const allyName = context.allyName || this._pickTrustedAllyName(survivor);
-
-    if (resolvedIntent === 'trust' && allyName) {
-      context.allyName = allyName;
-    }
     if (resolvedIntent === 'gossip' && targetName) {
       context.topicPerson = targetName;
     }
@@ -4877,37 +4976,61 @@ class ConversationSystem {
         npcLine = this._buildHardStrategyLine(npcLine, initiator, survivor, targetName, allyName, context);
       }
       responses = this._buildHardStrategyResponses(initiator, context);
+    } else if (resolvedIntent === 'lightStrategy' && context.lightIntelTag === 'rubbing_wrong') {
+      const intel = this._buildRubbingWrongResponse(survivor, context);
+      npcLine = intel.responseLine;
+      if (intel.targetName) {
+        context.topicPersonName = intel.targetName;
+        context.topicPerson = intel.targetName;
+        context.topicPersonId = this._getSurvivorByName(intel.targetName)?.id || null;
+      }
+      context.lastQuestionTag = 'rubbing_wrong';
+      context.lastAnswerTag = intel.targetName || null;
+      playerLine = 'You ask if anyone is rubbing people the wrong way.';
     } else if (resolvedIntent === 'trust' && npcMemory) {
-      const trustedName = npcMemory.trustedName || allyName;
+      const questionTag = context.trustCheck ? 'trust_me' : 'trust_who';
+      const trustedName = context.npcTrustedPersonName || npcMemory.trustedName || allyName;
       if (trustedName) {
-        context.allyName = trustedName;
+        context.npcTrustedPersonName = trustedName;
         if (!npcMemory.trustedName) {
           npcMemory.trustedName = trustedName;
         }
       }
-      const isRepeat = !!npcMemory.lastIntentAsked?.trust;
+      context.lastQuestionTag = questionTag;
+      context.lastAnswerTag = trustedName || null;
+      const isRepeat = npcMemory.lastQuestionTag === questionTag && npcMemory.lastAnswerTag;
       npcLine = isRepeat && trustedName
         ? `${survivor.firstName} gives a knowing look. "I already said ${trustedName} feels the most solid."`
         : npcLine;
+      npcMemory.lastQuestionTag = questionTag;
+      npcMemory.lastAnswerTag = trustedName || null;
       npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), trust: Date.now() };
     } else {
       playerLine = (playerLine || '')
         .replace('{npc}', survivor.firstName)
         .replace('{target}', targetName || 'someone')
+        .replace('{npcTrusted}', context.npcTrustedPersonName || allyName || 'no one fully yet')
+        .replace('{playerAlly}', context.playerNamedAllyName || allyName || 'no one fully yet')
         .replace('{ally}', allyName || 'no one fully yet');
       npcLine = (npcLine || '')
         .replace('{npc}', survivor.firstName)
         .replace('{target}', targetName || 'someone')
+        .replace('{npcTrusted}', context.npcTrustedPersonName || allyName || 'no one fully yet')
+        .replace('{playerAlly}', context.playerNamedAllyName || allyName || 'no one fully yet')
         .replace('{ally}', allyName || 'no one fully yet');
     }
 
     playerLine = (playerLine || '')
       .replace('{npc}', survivor.firstName)
       .replace('{target}', targetName || 'someone')
+      .replace('{npcTrusted}', context.npcTrustedPersonName || allyName || 'no one fully yet')
+      .replace('{playerAlly}', context.playerNamedAllyName || allyName || 'no one fully yet')
       .replace('{ally}', allyName || 'no one fully yet');
     npcLine = (npcLine || '')
       .replace('{npc}', survivor.firstName)
       .replace('{target}', targetName || 'someone')
+      .replace('{npcTrusted}', context.npcTrustedPersonName || allyName || 'no one fully yet')
+      .replace('{playerAlly}', context.playerNamedAllyName || allyName || 'no one fully yet')
       .replace('{ally}', allyName || 'no one fully yet');
 
     if (memory && typeof memory.getMemory === 'function') {
@@ -4921,8 +5044,12 @@ class ConversationSystem {
       }
     }
 
-    const playerNarration = this._formatPlayerNarration(playerLine, resolvedIntent);
-    const npcResponse = this._formatNpcResponse(npcLine, resolvedIntent);
+    const { playerNarration, npcResponse } = this.composeExchange({
+      narration1: playerLine,
+      npcLine,
+      npc: survivor,
+      intent: resolvedIntent
+    });
     const combined = this._composeMenuText({ playerNarration, npcResponse });
     memory?.rememberBeat?.(survivor.id, resolvedIntent, combined);
     return { playerNarration, npcResponse, playerLine, npcLine, text: null, responses, context };
@@ -4951,7 +5078,7 @@ class ConversationSystem {
       playerId: player?.id || null,
       topic: flowKey,
       flowKey,
-      context: { ...context },
+      context: this._normalizeConversationContext({ ...context }),
       turnIndex: 0,
       lastNpcQuestionKey: null,
       awaitingPlayerResponse: false,
@@ -4978,16 +5105,16 @@ class ConversationSystem {
     }
 
     if (flowKey === 'name_drop') {
-      const targetName = context.topicPerson || 'someone';
+      const targetName = session.context.topicPersonName || session.context.topicPerson || 'someone';
       session.context.entryNarration = `You mention that you heard ${targetName} said ${survivor.firstName}'s name.`;
       this._appendConversationHistory(session, 'Player', session.context.entryNarration, ['name_drop']);
       const nameDropEvent = this._recordStructuredSocialEvent({
         type: 'NAME_DROP',
         speakerId: player?.id || null,
         listenerId: survivor.id,
-        subjectId: context.topicId || null,
+        subjectId: session.context.topicPersonId || session.context.topicId || null,
         data: {
-          targetId: context.topicId || null,
+          targetId: session.context.topicPersonId || session.context.topicId || null,
           npcId: survivor.id,
           sourceId: null,
           confidence: 55,
@@ -5035,13 +5162,18 @@ class ConversationSystem {
       playerNarration = session.context.entryNarration;
     }
 
-    const formattedPlayerNarration = this._formatConversationLine(playerNarration || '', npc, context, player);
-    const resolvedNpcResponse = formattedNpcLine || this._buildDefaultNpcResponse({
-      npc,
-      player,
-      intent: session.intent || session.flowKey,
-      context
-    });
+    const formattedPlayerNarration = this._formatPlayerNarration(
+      this._formatConversationLine(playerNarration || '', npc, context, player),
+      session.intent || session.flowKey
+    );
+    const resolvedNpcResponse = formattedNpcLine
+      ? this._formatNpcResponse(formattedNpcLine, session.intent || session.flowKey)
+      : this._buildDefaultNpcResponse({
+        npc,
+        player,
+        intent: session.intent || session.flowKey,
+        context
+      });
 
     const combinedText = this._composeMenuText({
       playerNarration: formattedPlayerNarration,
@@ -5093,7 +5225,7 @@ class ConversationSystem {
       }
 
       if (choice.action === 'endConversation') {
-        this._clearOverlay();
+        this.endConversation(session);
         return;
       }
 
@@ -5151,8 +5283,9 @@ class ConversationSystem {
             this._renderConversationStep(session, stepKey, fromChoice);
             return;
           }
-          session.context.allyName = pick.firstName;
-          session.context.allyId = pick.id;
+          session.context.playerNamedAllyName = pick.firstName;
+          session.context.playerNamedAllyId = pick.id;
+          session.context = this._normalizeConversationContext(session.context);
           this._advanceConversation(session, { ...choice, allyName: pick.firstName });
         });
         return;
@@ -5195,7 +5328,7 @@ class ConversationSystem {
         }
       },
       onChangeTopic: () => this._showTopicSelection(npc, context.location),
-      onEnd: () => this._clearOverlay()
+      onEnd: () => this.endConversation(session)
     });
 
     finalChoices.forEach(option => {
@@ -5422,13 +5555,20 @@ class ConversationSystem {
 
   _formatConversationLine(line, npc, context = {}, player = null) {
     if (!line) return '';
-    const targetName = context.topicPerson || context.targetName || 'someone';
+    const topicPersonName = context.topicPersonName || context.topicPerson || context.targetName || 'someone';
+    const playerNamedAllyName = context.playerNamedAllyName || context.playerAllyName || null;
+    const npcTrustedPersonName = context.npcTrustedPersonName || context.trustedName || null;
+    const allyName = playerNamedAllyName || npcTrustedPersonName || context.allyName || 'someone';
     const sourceName = context.sourceName || 'someone';
     const replaced = line
       .replace('{npc}', this._npcDisplayName(npc))
-      .replace('{target}', targetName)
+      .replace('{target}', topicPersonName)
       .replace('{source}', sourceName)
-      .replace('{player}', player?.firstName || 'you');
+      .replace('{player}', player?.firstName || 'you')
+      .replace('{ally}', allyName)
+      .replace('{playerAlly}', playerNamedAllyName || allyName)
+      .replace('{npcTrusted}', npcTrustedPersonName || allyName)
+      .replace('{topicPerson}', topicPersonName);
     return this._normalizeNpcVerbAgreement(replaced);
   }
 
@@ -5444,7 +5584,7 @@ class ConversationSystem {
     const npcName = this._npcDisplayName(npc);
     const sayVerb = this._verbAgree(npc, 'says', 'say');
     const availableTargets = this._getAvailableTargetNames(npc);
-    const targetName = context.topicPerson || context.targetName || null;
+    const targetName = context.topicPersonName || context.topicPerson || context.targetName || null;
     const disclosure = this._resolveDisclosure({
       npc,
       player,
@@ -6891,6 +7031,59 @@ class ConversationSystem {
     return usePool.length ? usePool[getRandomInt(0, usePool.length - 1)] : '{npc} talks about the game.';
   }
 
+  _buildRubbingWrongResponse(survivor, context = {}) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const behavior = this.getDisclosureBehavior(survivor, player, context);
+    const available = this._getAvailableTargetNames(survivor)
+      .filter(name => name && name !== survivor.firstName && name !== player?.firstName);
+    const baseTarget = available.length ? available[getRandomInt(0, available.length - 1)] : null;
+    const altTargets = available.filter(name => name !== baseTarget);
+    const reasonBank = [
+      'they keep barking orders at camp',
+      'their tone rubs people the wrong way',
+      'they’ve been a little too slippery in talks',
+      'they’re pushing too hard after challenges',
+      'they hover and it makes people uneasy'
+    ];
+    const pickReason = () => reasonBank[getRandomInt(0, reasonBank.length - 1)];
+
+    if (!baseTarget) {
+      return {
+        responseLine: this._npcDoes(survivor, 'shrugs', 'shrug', '"Hard to tell. People are keeping it close."'),
+        targetName: null,
+        behavior: 'dodge'
+      };
+    }
+
+    switch (behavior) {
+      case 'truth':
+      case 'partial': {
+        const reason = pickReason();
+        return {
+          responseLine: this._npcDoes(survivor, 'lowers', 'lower', `their voice. "${baseTarget} is rubbing people wrong because ${reason}."`),
+          targetName: baseTarget,
+          behavior
+        };
+      }
+      case 'lie': {
+        const lieTarget = altTargets.length ? altTargets[getRandomInt(0, altTargets.length - 1)] : baseTarget;
+        const reason = pickReason();
+        return {
+          responseLine: this._npcDoes(survivor, 'shrugs', 'shrug', `"People are annoyed with ${lieTarget} lately—${reason}."`),
+          targetName: lieTarget,
+          behavior
+        };
+      }
+      case 'dodge':
+      default:
+        return {
+          responseLine: this._npcDoes(survivor, 'shakes', 'shake', 'their head. "I’m not putting names on that."'),
+          targetName: null,
+          behavior: 'dodge'
+        };
+    }
+  }
+
   _buildAskIntelDialogue(survivor, context = {}) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const memory = this.gameManager.systems?.socialMemorySystem;
@@ -6902,7 +7095,8 @@ class ConversationSystem {
     let targetId = null;
     let targetName = null;
     let repeated = false;
-    if (!context.topicPerson && npcMemory?.eyeTargetName) {
+    const existingTopic = context.topicPersonName || context.topicPerson || null;
+    if (!existingTopic && npcMemory?.eyeTargetName) {
       targetName = npcMemory.eyeTargetName;
       targetId = this._getSurvivorByName(targetName)?.id || null;
       repeated = true;
@@ -7018,7 +7212,16 @@ class ConversationSystem {
       npcLine,
       text: line,
       responses: RESPONSE_LIBRARY.askIntel || RESPONSE_LIBRARY.bonding,
-      context: { ...context, topicPerson: targetName || null, topicId: targetId || null, targetId: targetId || null, phase, intelPayload: payload }
+      context: {
+        ...context,
+        topicPersonName: targetName || null,
+        topicPersonId: targetId || null,
+        topicPerson: targetName || null,
+        topicId: targetId || null,
+        targetId: targetId || null,
+        phase,
+        intelPayload: payload
+      }
     };
   }
 
@@ -7029,11 +7232,12 @@ class ConversationSystem {
     const phase = context.phase || this._getConversationPhase();
     const npcMemory = this._getNpcMemoryEntry(survivor);
     const subTopic = context.subTopic || 'trustCheck';
-    let targetName = context.topicPerson || (subTopic === 'idol' ? null : (this._pickTargetName(survivor, context) || 'someone'));
-    if (context.subTopic === 'idol' && !context.topicPerson && npcMemory?.idolSuspectName) {
+    const playerSelectedTopicPerson = Boolean(context.topicPersonName || context.topicPerson);
+    let targetName = context.topicPersonName || context.topicPerson || (subTopic === 'idol' ? null : (this._pickTargetName(survivor, context) || 'someone'));
+    if (context.subTopic === 'idol' && !playerSelectedTopicPerson && npcMemory?.idolSuspectName) {
       targetName = npcMemory.idolSuspectName;
     }
-    const targetId = targetName ? (context.topicId || this._getSurvivorByName(targetName)?.id || null) : null;
+    const targetId = targetName ? (context.topicPersonId || context.topicId || this._getSurvivorByName(targetName)?.id || null) : null;
 
     const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
     const memoryTrust = memory?.getTrust?.(survivor.id) ?? 50;
@@ -7041,15 +7245,15 @@ class ConversationSystem {
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
     const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId) : false;
-    const repeatedByMemory = subTopic === 'idol' && !context.topicPerson && !!npcMemory?.idolSuspectName;
+    const repeatedByMemory = subTopic === 'idol' && !playerSelectedTopicPerson && !!npcMemory?.idolSuspectName;
 
     const playerPromptMap = {
       trustCheck: () => `You ask where ${targetName} stands for them.`,
       challengePraise: () => `You bring up ${targetName} doing well in the challenge.`,
       challengeCritique: () => `You point out ${targetName} struggling in the challenge.`,
-      idol: () => targetName
+      idol: () => playerSelectedTopicPerson && targetName
         ? `You float that ${targetName} might have an idol.`
-        : 'You float that someone might have an idol.',
+        : 'You ask if anyone has an idol.',
       nameHeard: () => `You mention hearing ${targetName}’s name.`,
       nameMentionedPlayer: () => `You ask if ${targetName} has been saying your name.`,
       nameDrop: () => `You say you heard ${targetName} mentioned their name.`,
@@ -7123,8 +7327,11 @@ class ConversationSystem {
             }
             if (claim) {
               targetName = claim;
+              context.suspectedIdolName = claim;
+              context.topicPersonName = claim;
               context.topicPerson = claim;
-              context.topicId = this._getSurvivorByName(claim)?.id || null;
+              context.topicPersonId = this._getSurvivorByName(claim)?.id || null;
+              context.topicId = context.topicPersonId;
             }
           } else {
             responseLine = trustScore > 65
@@ -7244,8 +7451,8 @@ class ConversationSystem {
       : playerNarrationBase;
     const npcLine = responseLine;
     const line = npcLine;
-    const finalTopicName = context.topicPerson || targetName;
-    const finalTargetId = context.targetId || targetId || (finalTopicName ? this._getSurvivorByName(finalTopicName)?.id || null : null);
+    const finalTopicName = context.topicPersonName || context.topicPerson || targetName;
+    const finalTargetId = context.targetId || context.topicPersonId || targetId || (finalTopicName ? this._getSurvivorByName(finalTopicName)?.id || null : null);
     if (npcMemory?.lastDiscussedNames && finalTopicName) {
       if (!npcMemory.lastDiscussedNames.includes(finalTopicName)) {
         npcMemory.lastDiscussedNames.push(finalTopicName);
@@ -7272,18 +7479,31 @@ class ConversationSystem {
           subTopic
         };
 
+    const responses = [
+      { label: 'Press for more detail', mood: 'focused' },
+      { label: 'Back off for now', mood: 'calm' },
+      { label: 'Ask who else they trust', mood: 'curious', action: 'askFollowup' },
+      { label: 'Offer a deal', mood: 'neutral', action: 'offerDealMenu' }
+    ];
+    if (subTopic === 'idol' && !playerSelectedTopicPerson) {
+      responses.unshift({
+        label: 'Name someone you suspect',
+        mood: 'curious',
+        requiresTargetPicker: true,
+        awaitsPicker: true,
+        targetPrompt: 'Who are you thinking?'
+      });
+    }
+
     return {
       playerLine,
       npcLine,
       text: line,
-      responses: [
-        { label: 'Press for more detail', mood: 'focused' },
-        { label: 'Back off for now', mood: 'calm' },
-        { label: 'Ask who else they trust', mood: 'curious', action: 'askFollowup' },
-        { label: 'Offer a deal', mood: 'neutral', action: 'offerDealMenu' }
-      ],
+      responses,
       context: {
         ...context,
+        topicPersonName: finalTopicName,
+        topicPersonId: finalTargetId,
         topicPerson: finalTopicName,
         topicId: finalTargetId,
         targetId: finalTargetId,
@@ -8070,7 +8290,7 @@ class ConversationSystem {
         alt: choice.alt,
         onClick: () => {
           if (choice.onSelect) choice.onSelect();
-          if (choice.end && !choice.onSelect) this._clearOverlay();
+          if (choice.end && !choice.onSelect) this.endConversation();
         }
       });
       buttonEl.dataset.conversationNav = 'true';
@@ -8109,12 +8329,12 @@ class ConversationSystem {
       memory.recordMeetingContext(survivor.id, context.location);
     }
 
-    const topicName = context.topicPerson || context.targetName;
+    const topicName = context.topicPersonName || context.topicPerson || context.targetName;
     const topicSurvivor = this._getSurvivorByName(topicName);
     const player = this.gameManager.getPlayerSurvivor?.();
     const playerId = player?.id;
     const targetId = topicSurvivor?.id;
-    const ally = this._getSurvivorByName(context.allyName);
+    const ally = this._getSurvivorByName(context.playerNamedAllyName || context.npcTrustedPersonName || context.allyName);
     const speakerName = context?.initiator === 'player' ? 'Player' : survivor.firstName;
     const dayValue = this.gameManager.getCurrentDay?.() || this.gameManager.day || 1;
     const phase = context.phase || this._getConversationPhase();
