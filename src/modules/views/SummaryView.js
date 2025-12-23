@@ -8,6 +8,108 @@ import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
 
+function renderCampLogSection(campLog) {
+  const wrapper = createElement('div', {
+    style: `
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    `
+  });
+
+  const grouped = campLog.reduce((acc, entry) => {
+    const key = `day-${entry.day}`;
+    acc[key] = acc[key] || [];
+    acc[key].push(entry);
+    return acc;
+  }, {});
+
+  Object.keys(grouped).forEach(dayKey => {
+    const dayEntries = grouped[dayKey];
+    const header = createElement('h3', {
+      style: `
+        margin: 0;
+        padding: 8px 0;
+        border-bottom: 1px solid #d2b48c;
+        color: #4a2c0a;
+      `
+    }, `Day ${dayEntries[0]?.day} Highlights`);
+
+    wrapper.appendChild(header);
+
+    dayEntries.forEach(entry => {
+      const card = createElement('div', {
+        style: `
+          background: #fff8e1;
+          border: 1px solid #d2b48c;
+          border-radius: 10px;
+          padding: 12px;
+        `
+      });
+
+      card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, entry.title || entry.type));
+      card.appendChild(createElement('div', { style: { color: '#2b190a', marginTop: '4px' } }, entry.text || ''));
+      wrapper.appendChild(card);
+    });
+  });
+
+  return wrapper;
+}
+
+function evaluateDay1FollowThrough(playerTribe) {
+  if (!playerTribe?.day1PlanCreated || !playerTribe.day1Plan || playerTribe.day1PlanEvaluated) return [];
+  const logEntries = [];
+  const plan = playerTribe.day1Plan;
+  const resources = playerTribe.resources || {};
+
+  const checkResource = (key, baseline = 0) => (resources[key] || 0) > baseline;
+
+  const evaluateIds = (ids, success) => {
+    ids.forEach(id => {
+      const member = playerTribe.members.find(m => m.id === id);
+      if (!member) return;
+      member.laziness = member.laziness ?? 0;
+      if (success) {
+        member.teamPlayer = Math.min(100, (member.teamPlayer || 0) + 3);
+        gameManager.systems.socialMemorySystem?.addMemory?.(member.id, { type: 'followThrough', text: 'Pulled weight Day 1', day: 1, tags: ['day1', 'follow-through'] });
+      } else {
+        member.teamPlayer = Math.max(0, (member.teamPlayer || 0) - 5);
+        member.laziness += 5;
+        gameManager.systems.socialMemorySystem?.addMemory?.(member.id, { type: 'followThrough', text: "Didn't follow through Day 1", day: 1, tags: ['day1', 'missed'] });
+      }
+    });
+  };
+
+  const fireDone = checkResource('fire');
+  evaluateIds(plan.fire || [], fireDone);
+  if (!fireDone && (plan.fire || []).length) {
+    logEntries.push({ day: 1, type: 'fire_miss', title: 'Fire Follow-through', text: 'The promised fire never fully caught.' });
+  }
+
+  const shelterDone = checkResource('shelter');
+  evaluateIds(plan.shelter || [], shelterDone);
+  if (!shelterDone && (plan.shelter || []).length) {
+    logEntries.push({ day: 1, type: 'shelter_miss', title: 'Shelter Follow-through', text: 'Shelter progress stalled compared to what was promised.' });
+  }
+
+  const foodDone = checkResource('fish') || checkResource('food');
+  evaluateIds(plan.food || [], foodDone);
+  const materialDone = checkResource('bamboo') || checkResource('palms');
+  evaluateIds(plan.materials || [], materialDone);
+
+  const player = gameManager.getPlayerSurvivor();
+  if ((plan.materials || []).includes(player?.id) && !materialDone) {
+    logEntries.push({ day: 1, type: 'player_miss', title: 'Your Promise', text: 'You didn\'t gather as many materials as planned.' });
+  }
+
+  if (logEntries.length) {
+    gameManager.campLog = gameManager.campLog || [];
+    gameManager.campLog.push(...logEntries);
+  }
+  playerTribe.day1PlanEvaluated = true;
+  return logEntries;
+}
+
 // Track camp activities
 if (!window.campActivityTracker) {
   window.campActivityTracker = {
@@ -259,16 +361,22 @@ export default function renderSummary(container) {
   });
 
   // Create summary text
-  let summaryText = generateSummaryText(summaryData);
+  let summaryText = '';
+  const campLog = gameManager.campLog || [];
+  evaluateDay1FollowThrough(playerTribe);
 
-  const textElement = createElement('div', {
-    style: `
-      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
-    `
-  });
-  textElement.innerHTML = summaryText;
-
-  summaryContent.appendChild(textElement);
+  if (campLog.length > 0) {
+    summaryContent.appendChild(renderCampLogSection(campLog));
+  } else {
+    summaryText = generateSummaryText(summaryData);
+    const textElement = createElement('div', {
+      style: `
+        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+      `
+    });
+    textElement.innerHTML = summaryText;
+    summaryContent.appendChild(textElement);
+  }
   const socialRecap = buildSocialRecapSection();
   if (socialRecap) {
     summaryContent.appendChild(socialRecap);
