@@ -587,7 +587,7 @@ const INTENT_TEMPLATES = {
     ],
     npcLead: [
       '{npc} flatters you, guiding the talk toward their agenda.',
-      'You sense {npc} steering the conversation to benefit them.'
+      '{npc} smiles like they’re already a step ahead.'
     ]
   },
   protection: {
@@ -2218,6 +2218,96 @@ class ConversationSystem {
     return store[key];
   }
 
+  _npcDisplayName(npc) {
+    return npc?.firstName || 'They';
+  }
+
+  _verbAgree(npc, singularVerb, pluralVerb) {
+    const name = this._npcDisplayName(npc);
+    return /^they$/i.test(String(name).trim()) ? pluralVerb : singularVerb;
+  }
+
+  _npcSays(npc, text) {
+    const name = this._npcDisplayName(npc);
+    const verb = this._verbAgree(npc, 'says', 'say');
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return `${name} ${verb}.`;
+    if (/^["“]/.test(trimmed)) {
+      return `${name} ${verb}, ${trimmed}`;
+    }
+    return `${name} ${verb}, "${trimmed}"`;
+  }
+
+  _npcDoes(npc, singularVerb, pluralVerb, restOfSentence = '') {
+    const name = this._npcDisplayName(npc);
+    const verb = this._verbAgree(npc, singularVerb, pluralVerb);
+    const suffix = restOfSentence ? (restOfSentence.startsWith(' ') ? restOfSentence : ` ${restOfSentence}`) : '';
+    return `${name} ${verb}${suffix}`;
+  }
+
+  _normalizeNpcVerbAgreement(line) {
+    const text = String(line || '');
+    if (!/\bThey\b/.test(text)) return text;
+    const verbMap = {
+      says: 'say',
+      keeps: 'keep',
+      nods: 'nod',
+      shrugs: 'shrug',
+      leans: 'lean',
+      exhales: 'exhale',
+      frowns: 'frown',
+      answers: 'answer',
+      claims: 'claim',
+      points: 'point',
+      adds: 'add',
+      agrees: 'agree',
+      admits: 'admit',
+      cautions: 'caution',
+      deflects: 'deflect',
+      hedges: 'hedge',
+      warns: 'warn',
+      recalls: 'recall',
+      listens: 'listen',
+      considers: 'consider',
+      shakes: 'shake',
+      narrows: 'narrow',
+      stiffens: 'stiffen',
+      softens: 'soften',
+      sighs: 'sigh',
+      smiles: 'smile',
+      chuckles: 'chuckle',
+      glances: 'glance',
+      looks: 'look',
+      watches: 'watch',
+      meets: 'meet',
+      glares: 'glare',
+      squints: 'squint',
+      blinks: 'blink',
+      bristles: 'bristle',
+      snaps: 'snap',
+      shuts: 'shut',
+      squares: 'square',
+      holds: 'hold',
+      lowers: 'lower',
+      raises: 'raise',
+      absorbs: 'absorb',
+      pivots: 'pivot',
+      folds: 'fold',
+      tilts: 'tilt',
+      whispers: 'whisper',
+      asks: 'ask',
+      studies: 'study',
+      gives: 'give',
+      hesitates: 'hesitate'
+    };
+    let normalized = text;
+    Object.entries(verbMap).forEach(([singular, plural]) => {
+      const pattern = new RegExp(`\\bThey\\s+${singular}\\b`, 'g');
+      normalized = normalized.replace(pattern, `They ${plural}`);
+    });
+    return normalized;
+  }
+
   _normalizeLegacyNodeText(text) {
     const trimmed = String(text || '').trim();
     if (!trimmed) return { playerNarration: null, npcResponse: null };
@@ -2287,25 +2377,22 @@ class ConversationSystem {
   _formatNpcResponse(line, intent = null) {
     const trimmed = String(line || '').trim();
     const npc = this._getSurvivorById(this.nodeSession?.npcId || this.conversationSession?.npcId || this.state?.npcId);
-    const npcName = npc?.firstName || 'They';
-    const sayVerb = this._getNpcSayVerb(npcName);
+    const npcName = this._npcDisplayName(npc);
+    const sayVerb = this._verbAgree(npc, 'says', 'say');
     if (!trimmed) {
       return `${npcName} ${sayVerb}, "Alright. Let’s see how today shakes out."`;
     }
     if (trimmed.includes(npcName) || trimmed.includes('{npc}')) {
       const withName = trimmed.replace('{npc}', npcName);
-      if (/^they\s+says\b/i.test(withName) && /^they$/i.test(npcName)) {
-        return withName.replace(/^they\s+says\b/i, 'They say');
-      }
-      return withName;
+      return this._normalizeNpcVerbAgreement(withName);
     }
     if (/["”]/.test(trimmed)) {
-      return `${npcName} ${sayVerb}, ${trimmed}`;
+      return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, ${trimmed}`);
     }
     if (/[.?!]$/.test(trimmed)) {
-      return `${npcName} ${sayVerb}, "${trimmed}"`;
+      return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, "${trimmed}"`);
     }
-    return `${npcName} ${sayVerb}, "${trimmed}."`;
+    return this._normalizeNpcVerbAgreement(`${npcName} ${sayVerb}, "${trimmed}."`);
   }
 
   _handleConversationError(error, { session, npc, fallbackLine } = {}) {
@@ -2390,6 +2477,13 @@ class ConversationSystem {
       npcResponse: formattedNpcResponse
     });
 
+    this._debugValidateRenderedNode({
+      playerNarration: formattedPlayerNarration,
+      npcResponse: formattedNpcResponse,
+      context,
+      nodeText
+    });
+
     if (formattedPlayerNarration && !this._wasLastHistoryEntry(session, 'Player', formattedPlayerNarration)) {
       this._appendConversationHistory(session, 'Player', { narration: formattedPlayerNarration }, ['player']);
     }
@@ -2419,15 +2513,21 @@ class ConversationSystem {
     });
 
     const shouldShowNav = node.meta?.showNav !== false;
+    let baseChoices = Array.isArray(node.choices) ? node.choices : [];
+    const nonNavChoices = baseChoices.filter(choice => !this._isNavChoice(choice));
+    if (nonNavChoices.length === 0 && !node.meta?.isEnd) {
+      baseChoices = this._dedupeChoices([...baseChoices, ...this._buildAutoContinuationChoices(session)]);
+    }
+
     const choices = shouldShowNav
-      ? this._appendNavChoices(Array.isArray(node.choices) ? node.choices : [], {
+      ? this._appendNavChoices(baseChoices, {
         canBack: session.historyStack.length > 0,
         canChangeTopic: true,
         onBack: () => this._goBackNode(session),
         onChangeTopic: () => this._showTopicSelection(npc, context.location),
         onEnd: () => this._endNodeConversation(session)
       })
-      : (Array.isArray(node.choices) ? node.choices : []);
+      : baseChoices;
 
     choices.forEach(choice => {
       const btn = this._createChoiceButton({
@@ -2444,6 +2544,40 @@ class ConversationSystem {
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
+  }
+
+  _debugValidateRenderedNode({ playerNarration, npcResponse, context = {}, nodeText = '' } = {}) {
+    if (typeof window === 'undefined') return;
+    if (!window.DEBUG_CONVO && !window.DEBUG_CONVERSATION) return;
+    const issues = [];
+    const grammarPatterns = [
+      /\bThey says\b/i,
+      /\bThey keeps\b/i,
+      /\bThey nods\b/i,
+      /\bThey shrugs\b/i,
+      /\bThey leans\b/i,
+      /\bThey exhales\b/i,
+      /\bThey frowns\b/i,
+      /\bThey answers\b/i,
+      /\bThey claims\b/i,
+      /\bThey shakes\b/i
+    ];
+    const combined = `${playerNarration || ''}\n${npcResponse || ''}\n${nodeText || ''}`;
+    if (grammarPatterns.some(pattern => pattern.test(combined))) {
+      issues.push('Possible verb disagreement (They says/keeps/nods/etc.).');
+    }
+
+    if (npcResponse && /["“][^"”]*\bYou\s+(sense|keep|ask|float|press|watch|lean|pivot|steer)\b/i.test(npcResponse)) {
+      issues.push('NPC quote may contain player narration phrasing.');
+    }
+
+    if (context.topicPerson && npcResponse && /\bsomeone\b/i.test(npcResponse) && !npcResponse.includes(context.topicPerson)) {
+      issues.push('Topic person set, but NPC response drifted to "someone".');
+    }
+
+    if (issues.length) {
+      console.warn('ConversationSystem DEBUG: Rendered node issues detected.', { issues, playerNarration, npcResponse, context });
+    }
   }
 
   _handleNodeChoice(session, nodeId, choice) {
@@ -2807,6 +2941,31 @@ class ConversationSystem {
     return base;
   }
 
+  _buildAutoContinuationChoices(session) {
+    const context = session?.context || {};
+    const npc = this._getSurvivorById(session?.npcId);
+    const base = this._buildDefaultFollowupChoices(session?.intent, context);
+    const nextNode = {
+      npcResponse: npc
+        ? this._npcDoes(npc, 'nods', 'nod', '"Alright. We can ease up."')
+        : 'They nod. "Alright. We can ease up."',
+      choices: this._buildDefaultFollowupChoices(session?.intent, context)
+    };
+    base.push({
+      label: 'Ease off and keep it light',
+      playerLine: 'You ease off and keep it light.',
+      nextNode
+    });
+    if ((context.phase || this._getConversationPhase()) === 'post') {
+      base.push({
+        label: 'Offer a small deal',
+        playerLine: 'You float a small deal to keep options open.',
+        action: 'offerDealMenu'
+      });
+    }
+    return this._dedupeChoices(base);
+  }
+
   _buildTradeInfoNode(session) {
     const npc = this._getSurvivorById(session.npcId);
     return {
@@ -2986,7 +3145,7 @@ class ConversationSystem {
           sourceName: rumor.sourceName || null,
           plotPacket: rumor.plotPacket || null,
           confidence: rumor.confidence,
-          npcDisclosureOutcome: rumor.disclosure?.outcome || 'evade',
+          npcDisclosureOutcome: rumor.disclosure?.mode || 'dodge',
           location: rumor.location || context.location || null
         }
       });
@@ -3089,6 +3248,96 @@ class ConversationSystem {
     return Math.round((relationship + memoryTrust) / 2);
   }
 
+  _resolveDisclosure({ npc, player, targetId = null, topic = 'general', pressureLevel = 0, context = {} }) {
+    const trustScore = this._getTrustScore(npc, player);
+    const style = this._classifyStyle(npc);
+    const targetRel = targetId ? (this._relationshipBetween(npc?.id, targetId) || 50) : 50;
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const npcMemory = this._getNpcMemoryEntry(npc);
+    const dangerTopics = new Set(['idol', 'idol_suspicion', 'voteTonight', 'drivingVote', 'target', 'deal', 'nameMentionedPlayer', 'intel_detail', 'warning']);
+    const isDanger = dangerTopics.has(topic);
+    const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(npc?.id, targetId) : false;
+    const lastDisclosure = npcMemory?.lastDisclosureByKind?.[topic] || 0;
+    const fatigue = repeated || (Date.now() - lastDisclosure < 120000);
+
+    const trustFactor = trustScore / 100;
+    const pressureFactor = Math.max(0, Math.min(1, pressureLevel));
+    const dangerFactor = isDanger ? 0.25 : 0.05;
+    const closenessFactor = targetRel > 70 ? 0.2 : targetRel < 40 ? -0.1 : 0;
+    const styleBias = (style.isVillain ? 0.18 : 0)
+      + (style.isStrategist ? 0.1 : 0)
+      - (style.isSocial ? 0.05 : 0)
+      - (style.isWildcard ? 0.02 : 0);
+
+    let truthChance = 0.45 + (trustFactor - 0.5) * 0.6 - dangerFactor - closenessFactor - styleBias;
+    let partialChance = 0.25 + pressureFactor * 0.2 + (trustFactor - 0.5) * 0.2 - styleBias * 0.5;
+    let dodgeChance = 0.2 + dangerFactor + (fatigue ? 0.15 : 0) + (0.5 - trustFactor) * 0.3 + styleBias * 0.4;
+    let lieChance = 0.1 + (0.5 - trustFactor) * 0.3 + styleBias * 0.5 + (closenessFactor > 0 ? 0.1 : 0);
+    let counterChance = pressureFactor > 0.5 ? 0.08 + (0.5 - trustFactor) * 0.2 : 0.04;
+
+    const clamp = value => Math.max(0, value);
+    truthChance = clamp(truthChance);
+    partialChance = clamp(partialChance);
+    dodgeChance = clamp(dodgeChance);
+    lieChance = clamp(lieChance);
+    counterChance = clamp(counterChance);
+
+    const total = truthChance + partialChance + dodgeChance + lieChance + counterChance;
+    const roll = Math.random() * total;
+    let mode = 'dodge';
+    if (roll < truthChance) {
+      mode = 'truth';
+    } else if (roll < truthChance + partialChance) {
+      mode = 'partial';
+    } else if (roll < truthChance + partialChance + dodgeChance) {
+      mode = 'dodge';
+    } else if (roll < truthChance + partialChance + dodgeChance + lieChance) {
+      mode = 'lie';
+    } else {
+      mode = 'counter';
+    }
+
+    const availableTargets = context.availableTargets || this._getAvailableTargetNames(npc);
+    const trueTarget = context.trueTarget || context.topicPerson || context.targetName || null;
+    let claimedTarget = trueTarget;
+    let redirectName = null;
+
+    if (mode === 'lie') {
+      const filtered = availableTargets.filter(name => name && name !== trueTarget);
+      claimedTarget = filtered.length ? filtered[getRandomInt(0, filtered.length - 1)] : trueTarget || null;
+    }
+
+    if (mode === 'dodge') {
+      claimedTarget = null;
+    }
+
+    const locations = ['water well', 'shelter', 'firewood pile', 'beach', 'tree mail', 'jungle path'];
+    const reasons = ['challenge threat', 'social threat', 'idol fear', 'revenge', 'outsider'];
+    const motive = context.reason || reasons[getRandomInt(0, reasons.length - 1)];
+    const location = context.location || locations[getRandomInt(0, locations.length - 1)];
+    const timeHint = ['early this morning', 'right after the challenge', 'last night', 'during water runs'][getRandomInt(0, 3)];
+
+    if (mode === 'lie' && claimedTarget && trueTarget && claimedTarget !== trueTarget) {
+      redirectName = trueTarget;
+    }
+
+    const detail = {
+      motive,
+      location,
+      timeHint,
+      pusherName: mode === 'dodge' ? null : (context.pusherName || claimedTarget),
+      redirectName,
+      demand: trustScore < 45 ? 'trade' : null
+    };
+
+    const confidence = Math.max(0.05, Math.min(0.95, trustFactor + (mode === 'truth' ? 0.2 : mode === 'lie' ? -0.2 : -0.05)));
+    if (npcMemory) {
+      npcMemory.lastDisclosureByKind = { ...(npcMemory.lastDisclosureByKind || {}), [topic]: Date.now() };
+    }
+
+    return { mode, confidence, claimedTarget, trueTarget, detail };
+  }
+
   _buildRumorPayload(npc, context = {}) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const availableTargets = this._getAvailableTargetNames(npc);
@@ -3104,10 +3353,11 @@ class ConversationSystem {
     const planners = plannerPool.length
       ? plannerPool.slice(0, plannerCount)
       : [];
-    const disclosure = resolveNpcDisclosure({
+    const disclosure = this._resolveDisclosure({
       npc,
       player,
-      kind: 'warning',
+      targetId,
+      topic: 'warning',
       context: {
         trueTarget: targetName,
         availableTargets,
@@ -3115,9 +3365,9 @@ class ConversationSystem {
         location: context.location || null
       }
     });
-    const confidence = disclosure.outcome === 'truth' ? 75 : disclosure.outcome === 'lie' ? 35 : 45;
+    const confidence = disclosure.mode === 'truth' ? 75 : disclosure.mode === 'lie' ? 35 : 45;
     const reason = disclosure.detail?.motive || context.reason || 'social threat';
-    const pusherName = disclosure.outcome === 'evade' ? null : disclosure.detail?.pusherName;
+    const pusherName = disclosure.mode === 'dodge' ? null : disclosure.detail?.pusherName;
     const timeline = context.timeline || timelineOptions[getRandomInt(0, timelineOptions.length - 1)];
     const sourceType = context.sourceType || sourceTypes[getRandomInt(0, sourceTypes.length - 1)];
     const plotPacket = {
@@ -3167,10 +3417,10 @@ class ConversationSystem {
     const detailCount = trustScore > 70 ? 4 : trustScore > 50 ? 3 : 2;
     const picked = details.filter(Boolean).slice(0, Math.max(2, detailCount));
 
-    if (rumor.disclosure?.outcome === 'evade') {
+    if (rumor.disclosure?.mode === 'dodge') {
       return `${npc?.firstName || 'They'} lowers their voice. "I can’t burn names, but ${picked.join(' and ')}."`;
     }
-    if (rumor.disclosure?.outcome === 'lie') {
+    if (rumor.disclosure?.mode === 'lie') {
       return `${npc?.firstName || 'They'} leans in. "I heard ${picked.join(' and ')}."`;
     }
     return `${npc?.firstName || 'They'} nods. "Here’s what I know: ${picked.join(' and ')}."`;
@@ -3222,10 +3472,11 @@ class ConversationSystem {
 
   _buildIntelDetailLine(npc, context = {}, { trustScore = 50 } = {}) {
     const targetName = context.topicPerson || context.targetName || this._pickTargetName(npc, context) || 'someone';
-    const disclosure = resolveNpcDisclosure({
+    const disclosure = this._resolveDisclosure({
       npc,
       player: this.gameManager.getPlayerSurvivor?.(),
-      kind: 'intel_detail',
+      targetId: context.topicId || context.targetId || this._getSurvivorByName(targetName)?.id || null,
+      topic: 'intel_detail',
       context: {
         trueTarget: targetName,
         availableTargets: this._getAvailableTargetNames(npc),
@@ -3233,10 +3484,10 @@ class ConversationSystem {
       }
     });
 
-    if (disclosure.outcome === 'truth') {
+    if (disclosure.mode === 'truth') {
       return `${npc?.firstName || 'They'} says, "It’s coming from ${disclosure.detail?.pusherName || 'a couple people'} near the ${disclosure.detail?.location || 'shelter'}."`;
     }
-    if (disclosure.outcome === 'lie') {
+    if (disclosure.mode === 'lie') {
       return `${npc?.firstName || 'They'} claims, "It’s ${disclosure.detail?.pusherName || 'one person'} pushing it after the challenge."`;
     }
     return `${npc?.firstName || 'They'} says, "I’m not naming names, but watch who keeps peeling off with ${targetName}."`;
@@ -3516,18 +3767,20 @@ class ConversationSystem {
       if (isRepeat && lastDisclosure) {
         claimTarget = lastDisclosure.claimedTarget || null;
         outcome = lastDisclosure.outcome;
-        if (outcome === 'evade' && trustScore > 70 && !lastDisclosure.upgraded) {
-          disclosure = resolveNpcDisclosure({
+        if (outcome === 'evade') outcome = 'dodge';
+        if (outcome === 'dodge' && trustScore > 70 && !lastDisclosure.upgraded) {
+          disclosure = this._resolveDisclosure({
             npc: survivor,
             player,
-            kind: option.disclosureKind,
+            targetId: this._getSurvivorByName(targetName)?.id || null,
+            topic: option.disclosureKind,
             context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
           });
           claimTarget = disclosure.claimedTarget || null;
-          outcome = disclosure.outcome;
+          outcome = disclosure.mode;
           lastDisclosure.upgraded = true;
           menu.text = `${survivor.firstName} hesitates, then relents. "Alright… if I had to say, ${claimTarget || 'someone'}."`;
-        } else if (outcome === 'evade') {
+        } else if (outcome === 'dodge') {
           menu.text = `${survivor.firstName} shakes their head. "Same answer. I’m not naming names."`;
         } else if (outcome === 'lie') {
           menu.text = `${survivor.firstName} keeps it flat. "I already told you — ${claimTarget || 'someone'}."`;
@@ -3537,14 +3790,15 @@ class ConversationSystem {
       }
 
       if (!menu.text) {
-        disclosure = disclosure || resolveNpcDisclosure({
+        disclosure = disclosure || this._resolveDisclosure({
           npc: survivor,
           player,
-          kind: option.disclosureKind,
+          targetId: this._getSurvivorByName(targetName)?.id || null,
+          topic: option.disclosureKind,
           context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
         });
         claimTarget = disclosure.claimedTarget || null;
-        outcome = disclosure.outcome;
+        outcome = disclosure.mode;
 
         if (outcome === 'truth') {
           menu.text = `${survivor.firstName} lowers their voice. "If it's me, it's ${claimTarget || 'someone'}."`;
@@ -3566,7 +3820,7 @@ class ConversationSystem {
           from: survivor.firstName,
           kind: 'targetClaim',
           claimedTarget: disclosure.claimedTarget,
-          outcome: disclosure.outcome,
+          outcome: disclosure.mode,
           day: this.gameManager.getCurrentDay?.(),
           verified: false
         });
@@ -3574,7 +3828,7 @@ class ConversationSystem {
 
       if (npcMemory) {
         npcMemory.lastDisclosureByKind = { ...(npcMemory.lastDisclosureByKind || {}), [option.disclosureKind]: {
-          outcome: outcome || disclosure?.outcome || 'evade',
+          outcome: outcome || disclosure?.mode || 'dodge',
           claimedTarget: claimTarget || null,
           timestamp: now,
           upgraded: lastDisclosure?.upgraded || false
@@ -3585,7 +3839,7 @@ class ConversationSystem {
         }
       }
 
-      const followButtons = (outcome || disclosure?.outcome) === 'evade'
+      const followButtons = (outcome || disclosure?.mode) === 'dodge'
         ? [
             { label: 'Reassure them', end: true },
             { label: 'Back off', end: true },
@@ -5170,11 +5424,12 @@ class ConversationSystem {
     if (!line) return '';
     const targetName = context.topicPerson || context.targetName || 'someone';
     const sourceName = context.sourceName || 'someone';
-    return line
-      .replace('{npc}', npc?.firstName || 'they')
+    const replaced = line
+      .replace('{npc}', this._npcDisplayName(npc))
       .replace('{target}', targetName)
       .replace('{source}', sourceName)
       .replace('{player}', player?.firstName || 'you');
+    return this._normalizeNpcVerbAgreement(replaced);
   }
 
   _wasLastHistoryEntry(session, speaker, text) {
@@ -5186,22 +5441,18 @@ class ConversationSystem {
   _buildDefaultNpcResponse({ npc, player, intent, context = {} } = {}) {
     if (!npc) return 'They say, "Alright."';
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
-    const npcName = npc.firstName || 'They';
-    const sayVerb = this._getNpcSayVerb(npcName);
+    const npcName = this._npcDisplayName(npc);
+    const sayVerb = this._verbAgree(npc, 'says', 'say');
     const availableTargets = this._getAvailableTargetNames(npc);
     const targetName = context.topicPerson || context.targetName || null;
-    const disclosure = resolveNpcDisclosure({
+    const disclosure = this._resolveDisclosure({
       npc,
       player,
-      kind: intent || context.subTopic || 'general',
-      context: {
-        trueTarget: targetName,
-        availableTargets,
-        relationshipSystem,
-        location: context.location
-      }
+      targetId: context.topicId || context.targetId || (targetName ? this._getSurvivorByName(targetName)?.id || null : null),
+      topic: intent || context.subTopic || 'general',
+      context: { availableTargets, relationshipSystem }
     });
-    const claim = disclosure.claimedTarget;
+    const claim = targetName || availableTargets[getRandomInt(0, Math.max(0, availableTargets.length - 1))] || null;
 
     const isIdol = intent === POST_PHASE_INTENTS.idol_suspicion || context.subTopic === 'idol';
     const isTrust = intent === PRE_PHASE_INTENTS.check_trust || intent === 'trust';
@@ -5209,78 +5460,78 @@ class ConversationSystem {
     const isEyeing = intent === PRE_PHASE_INTENTS.light_strategy || intent === POST_PHASE_INTENTS.talk_specific_person;
 
     if (isIdol) {
-      if (disclosure.outcome === 'truth' && claim) {
+      if (disclosure.mode === 'truth' && claim) {
         const truths = [
           `If I had to guess, it’s ${claim}.`,
           `${claim} is the name I keep hearing.`,
           `Low key? People whisper about ${claim}.`
         ];
-        return `${npcName} ${sayVerb}, "${truths[getRandomInt(0, truths.length - 1)]}"`;
+        return this._npcSays(npc, truths[getRandomInt(0, truths.length - 1)]);
       }
-      if (disclosure.outcome === 'lie' && claim) {
+      if (disclosure.mode === 'lie' && claim) {
         const lies = [
           `I heard ${claim} was looking around, but I’m not sure.`,
           `Maybe ${claim}. That’s the chatter, not me.`,
           `${claim} gives idol vibes, but I can’t swear to it.`
         ];
-        return `${npcName} ${sayVerb}, "${lies[getRandomInt(0, lies.length - 1)]}"`;
+        return this._npcSays(npc, lies[getRandomInt(0, lies.length - 1)]);
       }
       const evades = [
         `I don’t have proof. It’s just vibes.`,
         `I’m not saying names without proof.`,
         `No hard proof—just noise.`
       ];
-      return `${npcName} ${sayVerb}, "${evades[getRandomInt(0, evades.length - 1)]}"`;
+      return this._npcSays(npc, evades[getRandomInt(0, evades.length - 1)]);
     }
 
     if (isTrust) {
-      if (disclosure.outcome === 'truth' && claim) {
+      if (disclosure.mode === 'truth' && claim) {
         const truths = [
           `Honestly, I feel best with ${claim}.`,
           `${claim} feels the most solid to me.`,
           `If I’m honest, ${claim} is who I trust.`
         ];
-        return `${npcName} ${sayVerb}, "${truths[getRandomInt(0, truths.length - 1)]}"`;
+        return this._npcSays(npc, truths[getRandomInt(0, truths.length - 1)]);
       }
-      if (disclosure.outcome === 'lie' && claim) {
+      if (disclosure.mode === 'lie' && claim) {
         const lies = [
           `I’m good with ${claim}… for now.`,
           `I’m closest with ${claim}, I guess.`,
           `Maybe ${claim}. I’m still reading people.`
         ];
-        return `${npcName} ${sayVerb}, "${lies[getRandomInt(0, lies.length - 1)]}"`;
+        return this._npcSays(npc, lies[getRandomInt(0, lies.length - 1)]);
       }
       const evades = [
         `I’m keeping it tight. Not naming names.`,
         `I’m not putting names out like that.`,
         `I’d rather keep that to myself.`
       ];
-      return `${npcName} ${sayVerb}, "${evades[getRandomInt(0, evades.length - 1)]}"`;
+      return this._npcSays(npc, evades[getRandomInt(0, evades.length - 1)]);
     }
 
     if (isIntel || isEyeing) {
-      if (disclosure.outcome === 'truth' && claim) {
+      if (disclosure.mode === 'truth' && claim) {
         const truths = [
           `If it’s me, it’s ${claim}.`,
           `If I had to put a name down, it’s ${claim}.`,
           `If I’m leaning, it’s ${claim}.`
         ];
-        return `${npcName} ${sayVerb}, "${truths[getRandomInt(0, truths.length - 1)]}"`;
+        return this._npcSays(npc, truths[getRandomInt(0, truths.length - 1)]);
       }
-      if (disclosure.outcome === 'lie' && claim) {
+      if (disclosure.mode === 'lie' && claim) {
         const lies = [
           `Probably ${claim}, but nothing locked.`,
           `${claim} keeps coming up, but I’m not locked.`,
           `Maybe ${claim}. It’s early.`
         ];
-        return `${npcName} ${sayVerb}, "${lies[getRandomInt(0, lies.length - 1)]}"`;
+        return this._npcSays(npc, lies[getRandomInt(0, lies.length - 1)]);
       }
       const evades = [
         `I’m not putting names out yet.`,
         `I’m keeping it vague for now.`,
         `I’m not saying a name yet.`
       ];
-      return `${npcName} ${sayVerb}, "${evades[getRandomInt(0, evades.length - 1)]}"`;
+      return this._npcSays(npc, evades[getRandomInt(0, evades.length - 1)]);
     }
 
     const stance = this._computeNpcStance({
@@ -5611,17 +5862,17 @@ class ConversationSystem {
   _buildConfrontFollowupChoices(session, { sourceName = null } = {}) {
     const npc = this._getSurvivorById(session.npcId);
     const player = this.gameManager.getPlayerSurvivor?.();
-    const disclosure = resolveNpcDisclosure({
+    const disclosure = this._resolveDisclosure({
       npc,
       player,
-      kind: 'confront_followup',
+      topic: 'confront_followup',
       context: {
         availableTargets: this._getAvailableTargetNames(npc),
         relationshipSystem: this.gameManager.systems?.relationshipSystem
       }
     });
     const involvedName = disclosure.claimedTarget || 'a couple people';
-    const involvedLine = disclosure.outcome === 'evade'
+    const involvedLine = disclosure.mode === 'dodge'
       ? `${npc?.firstName || 'They'} shakes their head. "I’m not naming names."`
       : `${npc?.firstName || 'They'} says, "${involvedName} is definitely in the mix."`;
     return [
@@ -5817,19 +6068,20 @@ class ConversationSystem {
     const style = this._classifyStyle(npc);
     const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(npc?.id, targetId) : false;
 
-    const disclosure = resolveNpcDisclosure({
+    const disclosure = this._resolveDisclosure({
       npc,
       player,
-      kind: 'nameMentionedPlayer',
+      targetId,
+      topic: 'nameMentionedPlayer',
       context: {
         trueTarget: targetName,
         availableTargets: this._getAvailableTargetNames(npc),
         relationshipSystem: this.gameManager.systems?.relationshipSystem
       }
     });
-    const sourceName = disclosure.outcome === 'evade' ? null : (disclosure.detail?.pusherName || null);
+    const sourceName = disclosure.mode === 'dodge' ? null : (disclosure.detail?.pusherName || null);
     const sourceId = sourceName ? this._getSurvivorByName(sourceName)?.id || null : null;
-    const confidence = Math.max(20, Math.min(90, Math.round(trustScore + (disclosure.outcome === 'truth' ? 12 : disclosure.outcome === 'lie' ? -12 : -4))));
+    const confidence = Math.max(20, Math.min(90, Math.round(trustScore + (disclosure.mode === 'truth' ? 12 : disclosure.mode === 'lie' ? -12 : -4))));
     const location = disclosure.detail?.location || context.location || 'shelter';
     const timeHint = disclosure.detail?.timeHint || 'earlier';
 
@@ -5965,7 +6217,7 @@ class ConversationSystem {
         pusherName: rumor.pusherName || null,
         plotPacket: rumor.plotPacket || null,
         confidence: rumor.confidence,
-        npcDisclosureOutcome: rumor.disclosure?.outcome || 'evade',
+        npcDisclosureOutcome: rumor.disclosure?.mode || 'dodge',
         location: session.context.location || null
       }
     });
@@ -6664,6 +6916,13 @@ class ConversationSystem {
     const trustScore = Math.round((relationshipValue + memoryTrust) / 2);
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
+    const disclosure = this._resolveDisclosure({
+      npc: survivor,
+      player,
+      targetId,
+      topic: 'askIntel',
+      pressureLevel: context.pressureLevel || 0
+    });
 
     repeated = repeated || (targetId
       ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId)
@@ -6674,22 +6933,32 @@ class ConversationSystem {
     let confidence = Math.max(15, Math.min(90, Math.round(trustScore + (style.isVillain ? -10 : 5))));
 
     if (repeated && targetName) {
-      responseLine = `${survivor.firstName} exhales. "You already asked about ${targetName}. I don’t have much more."`;
+      responseLine = this._npcDoes(survivor, 'exhales', 'exhale', `"You already asked about ${targetName}. I don’t have much more."`);
       confidence = Math.max(15, confidence - 15);
+    } else if (disclosure.mode === 'dodge') {
+      responseLine = this._npcDoes(survivor, 'shakes', 'shake', 'their head. "Nothing solid. It’s all noise right now."');
+      intelContext = 'heard_rumor';
+      confidence = Math.max(10, confidence - 10);
+      context.skipIntel = true;
+    } else if (disclosure.mode === 'counter') {
+      responseLine = this._npcDoes(survivor, 'tilts', 'tilt', 'their head. "Why, what are you hearing?"');
+      intelContext = 'heard_rumor';
+      confidence = Math.max(10, confidence - 5);
+      context.skipIntel = true;
     } else if (targetName) {
       const intel = this._getBestIntelForTarget(targetId, targetName);
       if (intel?.type === 'idol') {
         intelContext = 'idol_suspicion';
-        responseLine = `${survivor.firstName} lowers their voice. "I keep hearing ${targetName} might have an idol."`;
+        responseLine = this._npcDoes(survivor, 'lowers', 'lower', `their voice. "I keep hearing ${targetName} might have an idol."`);
       } else if (intel?.type === 'alliance') {
         intelContext = 'working_with';
-        responseLine = `${survivor.firstName} nods. "${targetName} feels tight with ${intel?.allyName || 'someone'}. That\'s the vibe."`;
+        responseLine = this._npcDoes(survivor, 'nods', 'nod', `"${targetName} feels tight with ${intel?.allyName || 'someone'}. That\'s the vibe."`);
       } else if (intel?.type === 'target') {
         intelContext = 'target';
-        responseLine = `${survivor.firstName} watches the camp. "Names are floating and ${targetName} keeps coming up."`;
+        responseLine = this._npcDoes(survivor, 'watches', 'watch', `the camp. "Names are floating and ${targetName} keeps coming up."`);
       } else {
         intelContext = 'heard_rumor';
-        responseLine = `${survivor.firstName} shrugs. "I\'m hearing ${targetName}\'s name more than once."`;
+        responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"I\'m hearing ${targetName}\'s name more than once."`);
       }
 
       if (targetRel > 70) {
@@ -6706,17 +6975,17 @@ class ConversationSystem {
         responseLine += ` "If I\'m giving you this, I want something back later."`;
       }
     } else {
-      responseLine = `${survivor.firstName} shakes their head. "It\'s quiet… just a lot of side-eyes."`;
+      responseLine = this._npcDoes(survivor, 'shakes', 'shake', 'their head. "It\'s quiet… just a lot of side-eyes."');
       intelContext = 'heard_rumor';
       confidence = Math.max(10, confidence - 10);
     }
 
     const leadLine = this._pickIntentTemplate('askIntel', initiator)
       .replace('{npc}', survivor.firstName);
-    const playerLine = initiator === 'player' ? leadLine : '';
-    const npcLine = initiator === 'npc'
-      ? `${leadLine} ${responseLine}`.trim()
-      : `${responseLine}`.trim();
+    const playerLine = initiator === 'npc'
+      ? `You let ${survivor.firstName} lead, then ask for the latest read.`
+      : leadLine;
+    const npcLine = `${responseLine}`.trim();
     const line = npcLine;
     if (npcMemory && targetName && !npcMemory.eyeTargetName) {
       npcMemory.eyeTargetName = targetName;
@@ -6749,14 +7018,13 @@ class ConversationSystem {
       npcLine,
       text: line,
       responses: RESPONSE_LIBRARY.askIntel || RESPONSE_LIBRARY.bonding,
-      context: { ...context, topicPerson: targetName || null, targetId: targetId || null, phase, intelPayload: payload }
+      context: { ...context, topicPerson: targetName || null, topicId: targetId || null, targetId: targetId || null, phase, intelPayload: payload }
     };
   }
 
   _buildTalkSpecificDialogue(survivor, context = {}) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const memory = this.gameManager.systems?.socialMemorySystem;
-    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
     const npcMemory = this._getNpcMemoryEntry(survivor);
@@ -6775,70 +7043,49 @@ class ConversationSystem {
     const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId) : false;
     const repeatedByMemory = subTopic === 'idol' && !context.topicPerson && !!npcMemory?.idolSuspectName;
 
-    const promptMap = {
-      trustCheck: {
-        playerPrompt: 'Do you trust them?',
-        npcPrompt: 'Do you trust them?'
-      },
-      challengePraise: {
-        playerPrompt: 'They did well in the challenge.',
-        npcPrompt: 'They did well in the challenge.'
-      },
-      challengeCritique: {
-        playerPrompt: 'They struggled in the challenge.',
-        npcPrompt: 'They struggled in the challenge.'
-      },
-      idol: {
-        playerPrompt: 'I think they might have an idol.',
-        npcPrompt: 'I think they might have an idol.'
-      },
-      nameHeard: {
-        playerPrompt: 'I’ve heard their name.',
-        npcPrompt: 'I’ve heard their name.'
-      },
-      nameMentionedPlayer: {
-        playerPrompt: 'I heard they said my name.',
-        npcPrompt: 'I heard they said my name.'
-      },
-      considerWork: {
-        playerPrompt: 'I’m considering working with them.',
-        npcPrompt: 'I’m considering working with them.'
-      },
-      dangerLater: {
-        playerPrompt: 'I’m worried they’re dangerous later.',
-        npcPrompt: 'I’m worried they’re dangerous later.'
-      },
-      voteTonight: {
-        playerPrompt: 'Would you vote them tonight?',
-        npcPrompt: 'Would you vote them tonight?'
-      },
-      drivingVote: {
-        playerPrompt: 'Are they driving the vote?',
-        npcPrompt: 'Are they driving the vote?'
-      },
-      haveDeal: {
-        playerPrompt: 'Do they have a deal?',
-        npcPrompt: 'Do they have a deal?'
-      }
+    const playerPromptMap = {
+      trustCheck: () => `You ask where ${targetName} stands for them.`,
+      challengePraise: () => `You bring up ${targetName} doing well in the challenge.`,
+      challengeCritique: () => `You point out ${targetName} struggling in the challenge.`,
+      idol: () => targetName
+        ? `You float that ${targetName} might have an idol.`
+        : 'You float that someone might have an idol.',
+      nameHeard: () => `You mention hearing ${targetName}’s name.`,
+      nameMentionedPlayer: () => `You ask if ${targetName} has been saying your name.`,
+      nameDrop: () => `You say you heard ${targetName} mentioned their name.`,
+      considerWork: () => `You tell them you’re considering working with ${targetName}.`,
+      dangerLater: () => `You admit you’re worried about ${targetName} later.`,
+      voteTonight: () => `You ask if they’d vote ${targetName} tonight.`,
+      drivingVote: () => `You ask if ${targetName} is driving the vote.`,
+      haveDeal: () => `You ask if ${targetName} has a deal in motion.`
     };
+    const playerNarrationBase = playerPromptMap[subTopic]
+      ? playerPromptMap[subTopic]()
+      : `You ask for their read on ${targetName || 'someone'}.`;
 
-    const prompt = promptMap[subTopic] || promptMap.workingWith;
     let responseLine = '';
     let intelContext = 'heard_rumor';
     let confidence = Math.max(10, Math.min(95, Math.round(trustScore + (style.isStrategist ? 5 : 0) - (style.isVillain ? 5 : 0))));
     let mentionedNames = [];
     let dealOutcome = null;
+    const disclosure = this._resolveDisclosure({
+      npc: survivor,
+      player,
+      targetId,
+      topic: subTopic,
+      pressureLevel: context.pressureLevel || 0
+    });
 
     if ((repeated || repeatedByMemory) && targetName) {
-      responseLine = `${survivor.firstName} shakes their head. "You already asked about ${targetName}. I don’t have more."`;
+      responseLine = this._npcDoes(survivor, 'shakes', 'shake', `their head. "You already asked about ${targetName}. I don’t have more."`);
       confidence = Math.max(10, confidence - 15);
     } else {
       switch (subTopic) {
         case 'trustCheck': {
           intelContext = 'trust_check';
           responseLine = targetRel > 65
-            ? `${survivor.firstName} nods. "I trust ${targetName} more than most."`
-            : `${survivor.firstName} shrugs. "I’m still reading ${targetName}."`;
+            ? this._npcDoes(survivor, 'nods', 'nod', `"I trust ${targetName} more than most."`)
+            : this._npcDoes(survivor, 'shrugs', 'shrug', `"I’m still reading ${targetName}."`);
           break;
         }
         case 'challengePraise':
@@ -6848,35 +7095,30 @@ class ConversationSystem {
           const isPraise = subTopic === 'challengePraise';
           if (performance === 'mvp') {
             responseLine = isPraise
-              ? `${survivor.firstName} nods. "${targetName} carried a lot out there."`
-              : `${survivor.firstName} frowns. "${targetName} actually carried us, I’m not sure I’d say struggled."`;
+              ? this._npcDoes(survivor, 'nods', 'nod', `"${targetName} carried a lot out there."`)
+              : this._npcDoes(survivor, 'frowns', 'frown', `"${targetName} actually carried us, I’m not sure I’d say struggled."`);
           } else if (performance === 'lvp') {
             responseLine = isPraise
-              ? `${survivor.firstName} hesitates. "${targetName} struggled more than they want to admit."`
-              : `${survivor.firstName} agrees. "${targetName} had a rough one."`;
+              ? this._npcDoes(survivor, 'hesitates', 'hesitate', `"${targetName} struggled more than they want to admit."`)
+              : this._npcDoes(survivor, 'agrees', 'agree', `"${targetName} had a rough one."`);
           } else {
             responseLine = isPraise
-              ? `${survivor.firstName} nods. "${targetName} was solid, not flashy."`
-              : `${survivor.firstName} shrugs. "${targetName} wasn’t great, wasn’t terrible."`;
+              ? this._npcDoes(survivor, 'nods', 'nod', `"${targetName} was solid, not flashy."`)
+              : this._npcDoes(survivor, 'shrugs', 'shrug', `"${targetName} wasn’t great, wasn’t terrible."`);
           }
           break;
         }
         case 'idol': {
           intelContext = 'idol_suspicion';
           if (!targetName) {
-            const disclosure = resolveNpcDisclosure({
-              npc: survivor,
-              player,
-              kind: 'idol',
-              context: { availableTargets: this._getAvailableTargetNames(survivor), relationshipSystem }
-            });
-            const claim = disclosure.claimedTarget || null;
-            if (disclosure.outcome === 'truth' && claim) {
-              responseLine = `${survivor.firstName} lowers their voice. "If I had to guess, ${claim}."`;
-            } else if (disclosure.outcome === 'lie' && claim) {
-              responseLine = `${survivor.firstName} shrugs. "Maybe ${claim}, but that might be noise."`;
+            const available = this._getAvailableTargetNames(survivor);
+            const claim = available.length ? available[getRandomInt(0, available.length - 1)] : null;
+            if (disclosure.mode === 'truth' && claim) {
+              responseLine = this._npcDoes(survivor, 'lowers', 'lower', `their voice. "If I had to guess, ${claim}."`);
+            } else if (disclosure.mode === 'lie' && claim) {
+              responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"Maybe ${claim}, but that might be noise."`);
             } else {
-              responseLine = `${survivor.firstName} shakes their head. "No proof. I’m not naming names."`;
+              responseLine = this._npcDoes(survivor, 'shakes', 'shake', 'their head. "No proof. I’m not naming names."');
               context.skipIntel = true;
             }
             if (claim) {
@@ -6886,8 +7128,8 @@ class ConversationSystem {
             }
           } else {
             responseLine = trustScore > 65
-              ? `${survivor.firstName} lowers their voice. "${targetName} is the one people whisper about with idols."`
-              : `${survivor.firstName} shrugs. "Maybe. ${targetName} gives idol vibes, but I don’t know."`;
+              ? this._npcDoes(survivor, 'lowers', 'lower', `their voice. "${targetName} is the one people whisper about with idols."`)
+              : this._npcDoes(survivor, 'shrugs', 'shrug', `"Maybe. ${targetName} gives idol vibes, but I don’t know."`);
           }
           if (npcMemory && !npcMemory.idolSuspectName && targetName) {
             npcMemory.idolSuspectName = targetName;
@@ -6896,68 +7138,71 @@ class ConversationSystem {
         }
         case 'nameHeard': {
           intelContext = 'name_thrown_out';
-          responseLine = trustScore > 60
-            ? `${survivor.firstName} admits, "Yeah, ${targetName}’s name keeps coming up."`
-            : `${survivor.firstName} hedges. "I’ve heard whispers, but nothing solid."`;
+          if (disclosure.mode === 'truth') {
+            responseLine = this._npcDoes(survivor, 'admits', 'admit', `"Yeah, ${targetName}’s name keeps coming up."`);
+          } else if (disclosure.mode === 'partial') {
+            responseLine = this._npcDoes(survivor, 'hedges', 'hedge', `"I’ve heard whispers, but it’s not locked."`);
+          } else {
+            responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"I’ve heard it, but I’m not getting into the weeds."`);
+          }
           confidence = Math.max(10, confidence - (trustScore < 50 ? 10 : 0));
           break;
         }
         case 'nameMentionedPlayer': {
           intelContext = 'player_name_mentioned';
           if (trustScore > 65 && targetRel < 60) {
-            responseLine = `${survivor.firstName} nods slowly. "I did hear your name with ${targetName}. It wasn’t locked, but it was real."`;
+            responseLine = this._npcDoes(survivor, 'nods', 'nod', `slowly. "I did hear your name with ${targetName}. It wasn’t locked, but it was real."`);
           } else if (targetRel > 70) {
-            responseLine = `${survivor.firstName} hesitates. "${targetName} and I are tight. If your name came up, it might’ve been smoke."`;
+            responseLine = this._npcDoes(survivor, 'hesitates', 'hesitate', `"${targetName} and I are tight. If your name came up, it might’ve been smoke."`);
           } else if (trustScore < 45) {
-            responseLine = `${survivor.firstName} narrows their eyes. "That’s a big claim. I haven’t heard it myself."`;
+            responseLine = this._npcDoes(survivor, 'narrows', 'narrow', 'their eyes. "That’s a big claim. I haven’t heard it myself."');
             confidence = Math.max(10, confidence - 15);
           } else {
-            responseLine = `${survivor.firstName} says, "I’ve heard your name in the mix with ${targetName}, but it’s not locked."`;
+            responseLine = this._npcSays(survivor, `I’ve heard your name in the mix with ${targetName}, but it’s not locked.`);
           }
           break;
         }
         case 'considerWork': {
           intelContext = 'working_with';
           responseLine = targetRel > 60
-            ? `${survivor.firstName} nods. "${targetName} would be a steady number if you can lock it in."`
-            : `${survivor.firstName} cautions. "${targetName} might be slippery. Keep your eyes open."`;
+            ? this._npcDoes(survivor, 'nods', 'nod', `"${targetName} would be a steady number if you can lock it in."`)
+            : this._npcDoes(survivor, 'cautions', 'caution', `"${targetName} might be slippery. Keep your eyes open."`);
           break;
         }
         case 'dangerLater': {
           intelContext = 'threat';
           responseLine = targetRel < 45
-            ? `${survivor.firstName} agrees. "${targetName} could be a problem later."`
-            : `${survivor.firstName} hesitates. "${targetName}’s dangerous, but there are bigger threats too."`;
+            ? this._npcDoes(survivor, 'agrees', 'agree', `"${targetName} could be a problem later."`)
+            : this._npcDoes(survivor, 'hesitates', 'hesitate', `"${targetName}’s dangerous, but there are bigger threats too."`);
           break;
         }
         case 'voteTonight': {
           intelContext = 'target';
           if (this._isTooEarlyForVoteTalk()) {
-            responseLine = `${survivor.firstName} exhales. "It’s too early to lock that. Let’s see how today goes."`;
+            responseLine = this._npcDoes(survivor, 'exhales', 'exhale', `"It’s too early to lock that. Let’s see how today goes."`);
             context.skipIntel = true;
           } else if (this._isPlayerTribeSafeTonight()) {
-            responseLine = `${survivor.firstName} shrugs. "We’re safe tonight. I’m thinking longer-term."`;
+            responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"We’re safe tonight. I’m thinking longer-term."`);
             context.skipIntel = true;
           } else {
-            const disclosure = resolveNpcDisclosure({
-              npc: survivor,
-              player,
-              kind: 'voteTonight',
-              context: { trueTarget: targetName, availableTargets: this._getAvailableTargetNames(survivor), relationshipSystem }
-            });
-            const claim = disclosure.claimedTarget || null;
-            if (disclosure.outcome === 'truth') {
-              responseLine = `${survivor.firstName} keeps it low. "If it’s me, it’s ${claim || targetName}."`;
-            } else if (disclosure.outcome === 'lie') {
-              responseLine = `${survivor.firstName} shrugs. "Probably ${claim || targetName}."`;
+            const available = this._getAvailableTargetNames(survivor);
+            const claim = targetName || (available.length ? available[getRandomInt(0, available.length - 1)] : null);
+            if (disclosure.mode === 'truth' && claim) {
+              responseLine = this._npcDoes(survivor, 'keeps', 'keep', `it low. "If it’s me, it’s ${claim}."`);
+            } else if (disclosure.mode === 'lie' && claim) {
+              responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"Probably ${claim}."`);
               confidence = Math.max(10, confidence - 15);
+            } else if (disclosure.mode === 'counter' && targetName) {
+              const counterName = this._pickTargetName(survivor, { topicPerson: targetName }) || targetName;
+              responseLine = this._npcDoes(survivor, 'tilts', 'tilt', `their head. "Why ${targetName}? What about ${counterName}?"`);
             } else {
-              responseLine = `${survivor.firstName} shakes their head. "I’m not putting names out yet."`;
+              responseLine = this._npcDoes(survivor, 'shakes', 'shake', 'their head. "I’m not putting names out yet."');
               confidence = Math.max(10, confidence - 20);
               context.skipIntel = true;
             }
-            if (claim) {
+            if (claim && !context.topicPerson) {
               context.topicPerson = claim;
+              context.topicId = this._getSurvivorByName(claim)?.id || null;
             }
           }
           break;
@@ -6965,35 +7210,39 @@ class ConversationSystem {
         case 'drivingVote': {
           intelContext = 'driving_vote';
           const driving = targetRel < 45 || trustScore > 55;
-          responseLine = driving
-            ? `${survivor.firstName} nods. "${targetName} has been steering the chatter."`
-            : `${survivor.firstName} shrugs. "I don’t see ${targetName} running it."`;
+          if (disclosure.mode === 'dodge') {
+            responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"Hard to say who’s steering it."`);
+          } else {
+            responseLine = driving
+              ? this._npcDoes(survivor, 'nods', 'nod', `"${targetName} has been steering the chatter."`)
+              : this._npcDoes(survivor, 'shrugs', 'shrug', `"I don’t see ${targetName} running it."`);
+          }
           break;
         }
         case 'haveDeal': {
           intelContext = 'deal';
           const deals = this.gameManager.systems?.socialMemorySystem?.getDealsBetween?.(survivor.id, targetId) || [];
-          responseLine = deals.length
-            ? `${survivor.firstName} admits, "${targetName} has a couple deals floating."`
-            : `${survivor.firstName} shakes their head. "Not that I’ve seen."`;
+          if (disclosure.mode === 'truth' && deals.length) {
+            responseLine = this._npcDoes(survivor, 'admits', 'admit', `"${targetName} has a couple deals floating."`);
+          } else if (disclosure.mode === 'lie' && !deals.length) {
+            responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"Maybe. ${targetName} works people."`);
+          } else {
+            responseLine = this._npcDoes(survivor, 'shakes', 'shake', 'their head. "Not that I’ve seen."');
+          }
           break;
         }
         default: {
           intelContext = 'heard_rumor';
-          responseLine = `${survivor.firstName} shrugs. "Hard to read ${targetName} right now."`;
+          responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"Hard to read ${targetName} right now."`);
           break;
         }
       }
     }
 
-    const baseLine = this._pickIntentTemplate('talkSpecific', initiator)
-      .replace('{npc}', survivor.firstName)
-      .replace('{target}', targetName || 'someone')
-      .replace('{playerPrompt}', prompt.playerPrompt)
-      .replace('{npcPrompt}', prompt.npcPrompt);
-
-    const playerLine = initiator === 'player' ? baseLine : '';
-    const npcLine = initiator === 'npc' ? `${baseLine} ${responseLine}`.trim() : responseLine;
+    const playerLine = initiator === 'npc'
+      ? `You let ${survivor.firstName} lead for a beat, then ${playerNarrationBase.charAt(0).toLowerCase()}${playerNarrationBase.slice(1)}`
+      : playerNarrationBase;
+    const npcLine = responseLine;
     const line = npcLine;
     const finalTopicName = context.topicPerson || targetName;
     const finalTargetId = context.targetId || targetId || (finalTopicName ? this._getSurvivorByName(finalTopicName)?.id || null : null);
@@ -7030,9 +7279,18 @@ class ConversationSystem {
       responses: [
         { label: 'Press for more detail', mood: 'focused' },
         { label: 'Back off for now', mood: 'calm' },
+        { label: 'Ask who else they trust', mood: 'curious', action: 'askFollowup' },
         { label: 'Offer a deal', mood: 'neutral', action: 'offerDealMenu' }
       ],
-      context: { ...context, topicPerson: finalTopicName, targetId: finalTargetId, subTopic, phase, intelPayload: payload }
+      context: {
+        ...context,
+        topicPerson: finalTopicName,
+        topicId: finalTargetId,
+        targetId: finalTargetId,
+        subTopic,
+        phase,
+        intelPayload: payload
+      }
     };
   }
 
@@ -7180,21 +7438,21 @@ class ConversationSystem {
     const leadLine = this._pickIntentTemplate('targeting', initiator)
       .replace('{npc}', survivor.firstName);
 
-    const disclosure = resolveNpcDisclosure({
+    const disclosure = this._resolveDisclosure({
       npc: survivor,
       player,
-      kind: 'voteTonight',
+      topic: 'voteTonight',
       context: { availableTargets: this._getAvailableTargetNames(survivor), relationshipSystem }
     });
 
     let responseLine = '';
     const claim = disclosure.claimedTarget || null;
-    if (disclosure.outcome === 'truth') {
-      responseLine = `${survivor.firstName} answers directly. "If I\'m voting, it\'s ${claim || 'someone'}."`;
-    } else if (disclosure.outcome === 'lie') {
-      responseLine = `${survivor.firstName} glances away. "Probably ${claim || 'someone'}."`;
+    if (disclosure.mode === 'truth') {
+      responseLine = this._npcDoes(survivor, 'answers', 'answer', `directly. "If I\'m voting, it\'s ${claim || 'someone'}."`);
+    } else if (disclosure.mode === 'lie') {
+      responseLine = this._npcDoes(survivor, 'glances', 'glance', `away. "Probably ${claim || 'someone'}."`);
     } else {
-      responseLine = `${survivor.firstName} shuts it down. "I\'m not saying names yet."`;
+      responseLine = this._npcDoes(survivor, 'shuts', 'shut', `it down. "I\'m not saying names yet."`);
     }
 
     const payload = claim
@@ -7205,7 +7463,7 @@ class ConversationSystem {
           fromName: survivor.firstName,
           toId: player?.id || null,
           phase,
-          confidence: disclosure.outcome === 'truth' ? 70 : disclosure.outcome === 'lie' ? 35 : 20,
+          confidence: disclosure.mode === 'truth' ? 70 : disclosure.mode === 'lie' ? 35 : 20,
           shortText: responseLine
         }
       : null;
@@ -7699,14 +7957,12 @@ class ConversationSystem {
       return this._pickNpcResponse(intent, stance, context, survivor);
     }
     const withNames = trimmed
-      .replace('{npc}', survivor?.firstName || context.npcName || 'They')
+      .replace('{npc}', this._npcDisplayName(survivor) || context.npcName || 'They')
       .replace('{subjectName}', context.subjectName || 'someone');
     if (withNames.includes(survivor?.firstName || '') || /["“]/.test(withNames)) {
-      return withNames;
+      return this._normalizeNpcVerbAgreement(withNames);
     }
-    const npcName = survivor?.firstName || context.npcName || 'They';
-    const sayVerb = this._getNpcSayVerb(npcName);
-    return `${npcName} ${sayVerb}, "${withNames}"`;
+    return this._npcSays(survivor, withNames);
   }
 
   _pickNpcResponse(intent, stance, context = {}, survivor) {
