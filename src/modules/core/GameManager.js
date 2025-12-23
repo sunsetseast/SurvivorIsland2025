@@ -64,6 +64,8 @@ class GameManager {
     this.mergeAt = 12;
     this.isTribesShuffled = false;
     this.isMerged = false;
+    this.flags = { day1FirstImpressionsCompleted: false };
+    this.campLog = [];
     this.gameSettings = {
       enableIdols: true,
       enableAdvantages: true,
@@ -185,7 +187,10 @@ class GameManager {
     this.gameSettings = { ...this.gameSettings, ...settings };
     this.tribeCount = this.gameSettings.tribeCount;
     this.resetGameState();
-    this.survivors = [...GameData.getSurvivors()];
+    this.survivors = GameData.getSurvivors().map(survivor => ({
+      ...survivor,
+      laziness: survivor.laziness ?? 0
+    }));
 
     // ⭐ Reinitialize ConversationSystem for the new game
     if (this.systems.conversationSystem) {
@@ -212,6 +217,8 @@ class GameManager {
     this.winner = null;
     this.isTribesShuffled = false;
     this.isMerged = false;
+    this.flags = { day1FirstImpressionsCompleted: false };
+    this.campLog = [];
     this.gamePhase = GamePhase.PRE_GAME;
     this.dayTimer = 7200;
     this.timeSpeed = 8;
@@ -537,6 +544,8 @@ class GameManager {
       tribeCount: this.tribeCount,
       isTribesShuffled: this.isTribesShuffled,
       isMerged: this.isMerged,
+      flags: this.flags,
+      campLog: this.campLog,
       gameSettings: this.gameSettings,
       timestamp: Date.now()
     };
@@ -549,6 +558,9 @@ class GameManager {
     const data = loadFromLocalStorage(SAVE_GAME_KEY);
     if (!data) return false;
     Object.assign(this, data);
+    this.flags = data.flags || { day1FirstImpressionsCompleted: false };
+    this.campLog = data.campLog || [];
+    this.survivors = (this.survivors || []).map(survivor => ({ ...survivor, laziness: survivor.laziness ?? 0 }));
     this._updateScreenForState(this.gameState);
     eventManager.publish(GameEvents.GAME_LOADED, { timestamp: data.timestamp });
     return true;

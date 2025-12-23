@@ -26,6 +26,7 @@ import renderPostChallengeSummaryView from '../views/PostChallengeSummaryView.js
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
+import { runDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
 
 const campViews = {
   flag: renderTribeFlag,
@@ -60,6 +61,21 @@ export default class CampScreen {
     console.log('CampScreen initialized');
   }
 
+  async _maybeRunDay1Event() {
+    const playerTribe = gameManager.getPlayerTribe();
+    if (!playerTribe) return;
+    const shouldRun =
+      gameManager.day === 1 &&
+      gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
+      !gameManager.flags?.day1FirstImpressionsCompleted;
+
+    if (!shouldRun) return;
+
+    gameManager.flags.day1FirstImpressionsCompleted = true;
+    await runDay1FirstImpressions({ gameManager, campScreen: this });
+    gameManager.saveGame?.();
+  }
+
   setup(data = {}) {
     const container = getElement('camp-screen');
     container.style.display = 'block';
@@ -87,6 +103,10 @@ export default class CampScreen {
       const renderFn = campViews[viewName];
       if (renderFn) {
           renderFn(viewContainer);
+      }
+
+      if (viewName === 'flag') {
+          this._maybeRunDay1Event();
       }
 
       // 🔥 2) Publish event AFTER rendering so subscribers know the DOM exists

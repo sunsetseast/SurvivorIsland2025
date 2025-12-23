@@ -79,6 +79,15 @@ class SocialMemorySystem {
         this.memory[npcId].reliability = this.clampValue(current + delta);
     }
 
+    addMemory(survivorId, entry = {}) {
+        if (!survivorId) return;
+        this.initNPC(survivorId);
+        const list = Array.isArray(this.memory[survivorId].memory)
+            ? this.memory[survivorId].memory
+            : (this.memory[survivorId].memory = []);
+        list.push({ ...entry, createdAt: Date.now() });
+    }
+
     getTrust(npcId) {
         this.initNPC(npcId);
         return this.clampValue(this.memory[npcId].trust ?? 50);
