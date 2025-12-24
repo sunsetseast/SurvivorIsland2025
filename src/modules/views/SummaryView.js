@@ -8,6 +8,16 @@ import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
 
+function dedupeCampEntries(entries = []) {
+  const seen = new Set();
+  return entries.filter(entry => {
+    const id = entry.id || `${entry.day || 'unknown'}-${entry.type || 'log'}-${entry.title || 'untitled'}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
 function renderCampLogSection(campLog) {
   const wrapper = createElement('div', {
     style: `
@@ -17,7 +27,8 @@ function renderCampLogSection(campLog) {
     `
   });
 
-  const grouped = campLog.reduce((acc, entry) => {
+  const filtered = dedupeCampEntries(campLog).filter(entry => !entry.isCinematicEventSummary);
+  const grouped = filtered.reduce((acc, entry) => {
     const key = `day-${entry.day}`;
     acc[key] = acc[key] || [];
     acc[key].push(entry);
@@ -54,6 +65,47 @@ function renderCampLogSection(campLog) {
   });
 
   return wrapper;
+}
+
+function renderDay1FirstImpressionsSection(playerTribe) {
+  if (!playerTribe?.day1PlanCreated || !playerTribe.day1Plan) return null;
+  const plan = playerTribe.day1Plan;
+  const listNames = ids => ids.map(id => playerTribe.members.find(m => m.id === id)?.firstName || 'Unknown').join(', ') || 'None';
+  const section = createElement('div', {
+    style: `
+      background: #fff8e1;
+      border: 1px solid #d2b48c;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    `
+  });
+
+  section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415', fontSize: '1.15rem', marginBottom: '8px' } }, 'Day 1: First Impressions'));
+
+  const leader = playerTribe.members.find(m => m.id === plan.leaderId);
+  section.appendChild(createElement('div', { style: { color: '#2b190a' } }, `Leader emergence: ${leader?.firstName || 'None'} (${plan.leadershipScenario || 'unclear'})`));
+  section.appendChild(createElement('div', {}, `Fire: ${listNames(plan.fireIds || [])}`));
+  section.appendChild(createElement('div', {}, `Shelter: ${listNames(plan.shelterIds || [])}`));
+  section.appendChild(createElement('div', {}, `Food: ${listNames(plan.foodIds || [])}`));
+  section.appendChild(createElement('div', {}, `Materials: ${listNames(plan.materialsIds || [])}`));
+  if ((plan.floaterIds || []).length) section.appendChild(createElement('div', {}, `Float: ${listNames(plan.floaterIds || [])}`));
+
+  if (Array.isArray(plan.chemistryMoments) && plan.chemistryMoments.length) {
+    const momentsHeader = createElement('div', { style: { marginTop: '8px', fontWeight: 'bold', color: '#3c2415' } }, 'Social moments');
+    section.appendChild(momentsHeader);
+    plan.chemistryMoments.forEach(moment => {
+      const [aId, bId] = moment.pairIds || [];
+      const a = playerTribe.members.find(m => m.id === aId)?.firstName || 'Someone';
+      const b = playerTribe.members.find(m => m.id === bId)?.firstName || 'someone';
+      const label = moment.type === 'bond' ? 'bonded' : moment.type === 'friction' ? 'clashed' : moment.type;
+      section.appendChild(createElement('div', { style: { color: moment.type === 'bond' ? '#245624' : '#7a1b1b' } }, `${a} and ${b} ${label}.`));
+    });
+  }
+
+  section.appendChild(createElement('div', { style: { marginTop: '8px', fontStyle: 'italic', color: '#2b190a' } }, `Camp mood: ${plan.mood || 'neutral'}`));
+  return section;
 }
 
 function evaluateDay1FollowThrough(playerTribe) {
@@ -370,39 +422,9 @@ export default function renderSummary(container) {
   const campLog = gameManager.campLog || [];
   evaluateDay1FollowThrough(playerTribe);
 
-  const renderDay1PlanSection = plan => {
-    const section = createElement('div', {
-      style: `
-        background: #fff8e1;
-        border: 1px solid #d2b48c;
-        border-radius: 12px;
-        padding: 14px;
-        margin-bottom: 14px;
-      `
-    });
-    const leader = playerTribe.members.find(m => m.id === plan.leaderId);
-    const listNames = ids => ids.map(id => playerTribe.members.find(m => m.id === id)?.firstName || 'Unknown').join(', ') || 'None';
-    section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415', marginBottom: '6px' } }, 'Day 1 Plan (First Impressions)'));
-    section.appendChild(createElement('div', {}, `Leader: ${leader?.firstName || 'Unknown'} (${plan.leadershipScenario})`));
-    section.appendChild(createElement('div', {}, `Fire: ${listNames(plan.fireIds || [])}`));
-    section.appendChild(createElement('div', {}, `Shelter: ${listNames(plan.shelterIds || [])}`));
-    section.appendChild(createElement('div', {}, `Food: ${listNames(plan.foodIds || [])}`));
-    section.appendChild(createElement('div', {}, `Materials: ${listNames(plan.materialsIds || [])}`));
-    section.appendChild(createElement('div', {}, `Floaters: ${listNames(plan.floaterIds || [])}`));
-    if (plan.bondPairIds?.length) {
-      section.appendChild(createElement('div', { style: { marginTop: '6px', color: '#245624' } }, `Bond: ${listNames(plan.bondPairIds)}`));
-    }
-    if (plan.tensionPairIds?.length) {
-      section.appendChild(createElement('div', { style: { color: '#7a1b1b' } }, `Tension: ${listNames(plan.tensionPairIds)}`));
-    }
-    section.appendChild(createElement('div', { style: { marginTop: '6px', fontStyle: 'italic' } }, `Mood leaving camp: ${plan.mood || 'neutral'}`));
-    return section;
-  };
-
   if (campLog.length > 0) {
-    if (playerTribe.day1PlanCreated && playerTribe.day1Plan) {
-      summaryContent.appendChild(renderDay1PlanSection(playerTribe.day1Plan));
-    }
+    const firstImpressionsSection = renderDay1FirstImpressionsSection(playerTribe);
+    if (firstImpressionsSection) summaryContent.appendChild(firstImpressionsSection);
     summaryContent.appendChild(renderCampLogSection(campLog));
   } else {
     summaryText = generateSummaryText(summaryData);
