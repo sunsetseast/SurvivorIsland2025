@@ -55,6 +55,7 @@ export default class CampScreen {
   constructor() {
     this.currentView = null;
     window.campScreen = this;
+    this.day1EventRunning = false;
   }
 
   initialize() {
@@ -72,12 +73,19 @@ export default class CampScreen {
 
     if (!shouldRun) return;
 
-    gameManager.flags.day1FirstImpressionsCompleted = true;
+    if (this.day1EventRunning) return;
+    this.day1EventRunning = true;
     const container = getElement('camp-screen');
-    if (container) container.style.pointerEvents = 'none';
-    await runDay1FirstImpressions({ gameManager, campScreen: this });
-    if (container) container.style.pointerEvents = '';
-    gameManager.saveGame?.();
+    try {
+      gameManager.flags.day1FirstImpressionsCompleted = true;
+      if (container) container.style.pointerEvents = 'none';
+      await runDay1FirstImpressions({ gameManager, campScreen: this });
+      if (container) container.style.pointerEvents = '';
+      gameManager.saveGame?.();
+    } finally {
+      if (container) container.style.pointerEvents = '';
+      this.day1EventRunning = false;
+    }
   }
 
   setup(data = {}) {
