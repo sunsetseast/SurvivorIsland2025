@@ -27,6 +27,22 @@ function renderCampLogSection(campLog) {
     `
   });
 
+  const cinematicSummary = (campLog || []).find(entry => entry.id === 'day1_first_impressions');
+  if (cinematicSummary) {
+    const card = createElement('div', {
+      style: `
+        background: #fff4d6;
+        border: 1px solid #c89c53;
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+      `
+    });
+    card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415', fontSize: '1.1rem' } }, cinematicSummary.title || 'Cinematic Recap'));
+    card.appendChild(createElement('div', { style: { color: '#2b190a', marginTop: '4px' } }, cinematicSummary.text || ''));
+    wrapper.appendChild(card);
+  }
+
   const filtered = dedupeCampEntries(campLog).filter(entry => !entry.isCinematicEventSummary);
   const grouped = filtered.reduce((acc, entry) => {
     const key = `day-${entry.day}`;
@@ -544,6 +560,7 @@ function generateSummaryData() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
   const tribeMembers = playerTribe.members.filter(m => !m.isPlayer);
+  const hasDay1Cinematic = (gameManager.campLog || []).some(entry => entry.id === 'day1_first_impressions');
 
   // Get tracked activities for the current day
   const currentDay = gameManager.getCurrentDay();
@@ -562,7 +579,7 @@ function generateSummaryData() {
     currentShelter: playerTribe.shelter || 0
   };
 
-  if (playerTribe.day1PlanCreated && playerTribe.day1Plan) {
+  if ((playerTribe.day1PlanCreated && playerTribe.day1Plan) || hasDay1Cinematic) {
     data.day1Plan = playerTribe.day1Plan;
     return data;
   }
