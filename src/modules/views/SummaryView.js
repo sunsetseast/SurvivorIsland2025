@@ -80,25 +80,30 @@ function evaluateDay1FollowThrough(playerTribe) {
     });
   };
 
+  const fireIds = plan.fireIds || plan.fire || [];
+  const shelterIds = plan.shelterIds || plan.shelter || [];
+  const foodIds = plan.foodIds || plan.food || [];
+  const materialsIds = plan.materialsIds || plan.materials || [];
+
   const fireDone = checkResource('fire');
-  evaluateIds(plan.fire || [], fireDone);
-  if (!fireDone && (plan.fire || []).length) {
+  evaluateIds(fireIds, fireDone);
+  if (!fireDone && fireIds.length) {
     logEntries.push({ day: 1, type: 'fire_miss', title: 'Fire Follow-through', text: 'The promised fire never fully caught.' });
   }
 
   const shelterDone = checkResource('shelter');
-  evaluateIds(plan.shelter || [], shelterDone);
-  if (!shelterDone && (plan.shelter || []).length) {
+  evaluateIds(shelterIds, shelterDone);
+  if (!shelterDone && shelterIds.length) {
     logEntries.push({ day: 1, type: 'shelter_miss', title: 'Shelter Follow-through', text: 'Shelter progress stalled compared to what was promised.' });
   }
 
   const foodDone = checkResource('fish') || checkResource('food');
-  evaluateIds(plan.food || [], foodDone);
+  evaluateIds(foodIds, foodDone);
   const materialDone = checkResource('bamboo') || checkResource('palms');
-  evaluateIds(plan.materials || [], materialDone);
+  evaluateIds(materialsIds, materialDone);
 
   const player = gameManager.getPlayerSurvivor();
-  if ((plan.materials || []).includes(player?.id) && !materialDone) {
+  if (materialsIds.includes(player?.id) && !materialDone) {
     logEntries.push({ day: 1, type: 'player_miss', title: 'Your Promise', text: 'You didn\'t gather as many materials as planned.' });
   }
 
@@ -365,7 +370,39 @@ export default function renderSummary(container) {
   const campLog = gameManager.campLog || [];
   evaluateDay1FollowThrough(playerTribe);
 
+  const renderDay1PlanSection = plan => {
+    const section = createElement('div', {
+      style: `
+        background: #fff8e1;
+        border: 1px solid #d2b48c;
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 14px;
+      `
+    });
+    const leader = playerTribe.members.find(m => m.id === plan.leaderId);
+    const listNames = ids => ids.map(id => playerTribe.members.find(m => m.id === id)?.firstName || 'Unknown').join(', ') || 'None';
+    section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415', marginBottom: '6px' } }, 'Day 1 Plan (First Impressions)'));
+    section.appendChild(createElement('div', {}, `Leader: ${leader?.firstName || 'Unknown'} (${plan.leadershipScenario})`));
+    section.appendChild(createElement('div', {}, `Fire: ${listNames(plan.fireIds || [])}`));
+    section.appendChild(createElement('div', {}, `Shelter: ${listNames(plan.shelterIds || [])}`));
+    section.appendChild(createElement('div', {}, `Food: ${listNames(plan.foodIds || [])}`));
+    section.appendChild(createElement('div', {}, `Materials: ${listNames(plan.materialsIds || [])}`));
+    section.appendChild(createElement('div', {}, `Floaters: ${listNames(plan.floaterIds || [])}`));
+    if (plan.bondPairIds?.length) {
+      section.appendChild(createElement('div', { style: { marginTop: '6px', color: '#245624' } }, `Bond: ${listNames(plan.bondPairIds)}`));
+    }
+    if (plan.tensionPairIds?.length) {
+      section.appendChild(createElement('div', { style: { color: '#7a1b1b' } }, `Tension: ${listNames(plan.tensionPairIds)}`));
+    }
+    section.appendChild(createElement('div', { style: { marginTop: '6px', fontStyle: 'italic' } }, `Mood leaving camp: ${plan.mood || 'neutral'}`));
+    return section;
+  };
+
   if (campLog.length > 0) {
+    if (playerTribe.day1PlanCreated && playerTribe.day1Plan) {
+      summaryContent.appendChild(renderDay1PlanSection(playerTribe.day1Plan));
+    }
     summaryContent.appendChild(renderCampLogSection(campLog));
   } else {
     summaryText = generateSummaryText(summaryData);
@@ -850,6 +887,12 @@ function generateSummaryText(data) {
 function applySummaryChanges(data) {
   const playerTribe = gameManager.getPlayerTribe();
   const relationshipSystem = gameManager.systems.relationshipSystem;
+
+  if (data.day1Plan) {
+    playerTribe.fire = playerTribe.fire || 0;
+    playerTribe.shelter = playerTribe.shelter || 0;
+    return;
+  }
 
   // Update tribe fire and shelter levels
   playerTribe.fire = data.currentFire;
