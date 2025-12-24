@@ -71,11 +71,11 @@ function evaluateDay1FollowThrough(playerTribe) {
       member.laziness = member.laziness ?? 0;
       if (success) {
         member.teamPlayer = Math.min(100, (member.teamPlayer || 0) + 3);
-        gameManager.systems.socialMemorySystem?.addMemory?.(member.id, { type: 'followThrough', text: 'Pulled weight Day 1', day: 1, tags: ['day1', 'follow-through'] });
+        gameManager.systems.socialMemorySystem?.addMemory?.(member.id, { type: 'workethic', text: 'Pulled weight Day 1', day: 1, tags: ['day1', 'workethic'] });
       } else {
         member.teamPlayer = Math.max(0, (member.teamPlayer || 0) - 5);
         member.laziness += 5;
-        gameManager.systems.socialMemorySystem?.addMemory?.(member.id, { type: 'followThrough', text: "Didn't follow through Day 1", day: 1, tags: ['day1', 'missed'] });
+        gameManager.systems.socialMemorySystem?.addMemory?.(member.id, { type: 'workethic', text: "Didn't follow through Day 1", day: 1, tags: ['day1', 'workethic'] });
       }
     });
   };
@@ -502,6 +502,11 @@ function generateSummaryData() {
     currentFire: playerTribe.fire || 0,
     currentShelter: playerTribe.shelter || 0
   };
+
+  if (playerTribe.day1PlanCreated && playerTribe.day1Plan) {
+    data.day1Plan = playerTribe.day1Plan;
+    return data;
+  }
 
   // Determine leadership based on gameplay styles and traits
   const leadershipCandidates = tribeMembers.filter(m => 
