@@ -64,6 +64,7 @@ export default class CampScreen {
   async _maybeRunDay1Event() {
     const playerTribe = gameManager.getPlayerTribe();
     if (!playerTribe) return;
+    gameManager.flags = gameManager.flags || {};
     const shouldRun =
       gameManager.day === 1 &&
       gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
@@ -72,7 +73,10 @@ export default class CampScreen {
     if (!shouldRun) return;
 
     gameManager.flags.day1FirstImpressionsCompleted = true;
+    const container = getElement('camp-screen');
+    if (container) container.style.pointerEvents = 'none';
     await runDay1FirstImpressions({ gameManager, campScreen: this });
+    if (container) container.style.pointerEvents = '';
     gameManager.saveGame?.();
   }
 
