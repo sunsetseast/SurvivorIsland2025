@@ -6,6 +6,7 @@ import { GamePhase } from '../core/GameManager.js';
 // - Fixed dead choice buttons (ReferenceError: applyPlayerChoice was missing) causing clicks to do nothing.
 // - Hardened choice flow with guarded handlers, deterministic beat insertion, and status updates.
 // - Rebuilt applyPlayerChoice to respect player intent, enforce coverage, and keep recap/state consistent.
+// - Locked player identity to a single source of truth, prevented duplicate assignments, and stabilized leadership/choice flows.
 
 const DEBUG_DAY1_EVENT = false;
 
@@ -363,16 +364,17 @@ function playerIntentFromChoice(choiceKey) {
 function groupBeatsByRole(assignments, members, playerId, describeLine, usedLines) {
   // Groups large clusters into combined narration and spotlights.
   const beats = [];
+  const withStatusUpdate = beat => ({ ...beat, onEnter: () => assignmentStatusUpdater?.() });
   assignments.forEach(({ role, survivors }) => {
     if (survivors.length >= 3) {
       const names = formatIdsAsNameList(survivors.map(s => s.id), members, playerId);
-      beats.push({ speaker: 'Narrator', text: `${names} all keep to ${role === 'float' ? 'a flexible stance' : role}. They cluster together before splitting up.` });
+      beats.push(withStatusUpdate({ speaker: 'Narrator', text: `${names} all keep to ${role === 'float' ? 'a flexible stance' : role}. They cluster together before splitting up.` }));
       shuffleArray(survivors).slice(0, 2).forEach(survivor => {
-        beats.push({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) });
+        beats.push(withStatusUpdate({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) }));
       });
     } else {
       survivors.forEach(survivor => {
-        beats.push({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) });
+        beats.push(withStatusUpdate({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) }));
       });
     }
   });
@@ -439,7 +441,8 @@ export function canRunDay1FirstImpressions(gameManager) {
   const gm = gameManager;
   const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
   const members = playerTribe?.members || [];
-  const player = members.find(m => m.id === gm?.playerId) || members[0];
+  const playerId = gm?.playerId;
+  const player = members.find(m => m.id === playerId);
   const tribeSize = members.length;
   const overlayExists = typeof document !== 'undefined' && document.getElementById('day1-overlay');
   const campLogHasEntry = (gm?.campLog || []).some(entry => entry.id === 'day1_first_impressions');
@@ -635,24 +638,50 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
   const container = document.createElement('div');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
-  container.style.gap = '10px';
+  container.style.gap = '14px';
   container.style.lineHeight = '1.5';
+  container.style.padding = '4px 0';
 
   const addSection = (title, lines) => {
     const section = document.createElement('div');
     section.style.display = 'flex';
     section.style.flexDirection = 'column';
-    section.style.gap = '4px';
+    section.style.gap = '6px';
+    section.style.padding = '8px 10px';
+    section.style.background = '#fff8eb';
+    section.style.border = '1px solid #e2c9a3';
+    section.style.borderRadius = '10px';
+    section.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.6)';
     const heading = document.createElement('div');
     heading.style.fontWeight = 'bold';
     heading.style.color = '#3c2415';
+    heading.style.marginBottom = '2px';
     heading.textContent = title;
     section.appendChild(heading);
+    const lineList = document.createElement('div');
+    lineList.style.display = 'flex';
+    lineList.style.flexDirection = 'column';
+    lineList.style.gap = '4px';
     lines.forEach(line => {
-      const lineEl = document.createElement('div');
-      lineEl.textContent = line;
-      section.appendChild(lineEl);
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'flex-start';
+      row.style.gap = '6px';
+
+      const bullet = document.createElement('span');
+      bullet.textContent = '•';
+      bullet.style.color = '#3c2415';
+      bullet.style.minWidth = '12px';
+
+      const text = document.createElement('span');
+      text.textContent = line;
+      text.style.display = 'inline-block';
+
+      row.appendChild(bullet);
+      row.appendChild(text);
+      lineList.appendChild(row);
     });
+    section.appendChild(lineList);
     container.appendChild(section);
   };
 
@@ -661,7 +690,12 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
   const assignmentsSection = document.createElement('div');
   assignmentsSection.style.display = 'flex';
   assignmentsSection.style.flexDirection = 'column';
-  assignmentsSection.style.gap = '6px';
+  assignmentsSection.style.gap = '8px';
+  assignmentsSection.style.padding = '8px 10px';
+  assignmentsSection.style.background = '#fff8eb';
+  assignmentsSection.style.border = '1px solid #e2c9a3';
+  assignmentsSection.style.borderRadius = '10px';
+  assignmentsSection.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.6)';
 
   const assignmentsHeading = document.createElement('div');
   assignmentsHeading.style.fontWeight = 'bold';
@@ -681,11 +715,12 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.alignItems = 'center';
-    row.style.gap = '8px';
+    row.style.gap = '10px';
 
     const bullet = document.createElement('span');
     bullet.textContent = '•';
     bullet.style.color = '#3c2415';
+    bullet.style.minWidth = '12px';
     row.appendChild(bullet);
 
     const label = document.createElement('span');
@@ -698,6 +733,8 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
       const avatarRow = document.createElement('div');
       avatarRow.style.display = 'flex';
       avatarRow.style.gap = '6px';
+      avatarRow.style.flexWrap = 'wrap';
+      avatarRow.style.marginLeft = '2px';
       role.ids.forEach(id => {
         const survivor = members.find(m => m.id === id);
         if (!survivor) return;
@@ -916,8 +953,12 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
 
   const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
   const members = playerTribe?.members || [];
-  const player = members.find(m => m.id === gm?.playerId) || members[0];
+  const playerId = gm?.playerId;
+  const player = members.find(m => m.id === playerId);
+  if (!player) throw new Error('Day1Event: player not found in tribe');
   const tribeSize = members.length;
+
+  logDebug('Player identity', { playerId, playerName: player.firstName });
 
   gm.flags = gm.flags || {};
 
@@ -948,6 +989,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const beatQueue = [];
       let currentIndex = 0;
       const awaitingChoice = { value: false };
+      let choiceLocked = false;
       let chemistryMoments = [];
       let playerChoiceKey = null;
       let closingMood = 'tentative';
@@ -1044,7 +1086,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
               btn.className = 'rect-button';
               btn.style.textAlign = 'left';
               btn.addEventListener('click', () => {
-                if (!awaitingChoice.value) return;
+                if (!awaitingChoice.value || choiceLocked) return;
+                choiceLocked = true;
                 logDebug('choice_clicked', { key: option.key });
                 choices.querySelectorAll('button').forEach(b => {
                   b.disabled = true;
@@ -1076,27 +1119,6 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           return success;
         };
 
-        const bestRoleFor = survivor => {
-          const caps = buildCapabilities(survivor);
-          const roles = ['shelter', 'fire', 'materials', 'food'];
-          return roles
-            .map(key => ({ key, score: caps[key] || 0 }))
-            .sort((a, b) => b.score - a.score)
-            .map(r => r.key)
-            .find(key => canAssign(getTask(tasks, key)));
-        };
-
-        const assignLeader = survivor => {
-          if (!survivor) return;
-          const targetRole = bestRoleFor(survivor) || 'shelter';
-          safeAssign(targetRole, survivor);
-        };
-
-        if (leadership.topLeader && leadership.topLeader.id !== player?.id) assignLeader(leadership.topLeader);
-        if (leadership.runnerUp && leadership.runnerUp.id !== leadership.topLeader?.id && leadership.runnerUp.id !== player?.id) {
-          assignLeader(leadership.runnerUp);
-        }
-
         if (intent.preferredRole) {
           safeAssign(intent.preferredRole, player);
         } else if (intent.posture === 'float/flex') {
@@ -1115,13 +1137,54 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           }
         });
 
+        const finalPlayerTask = tasks.find(t => t.assignedIds.includes(player.id));
+        const finalPlayerTaskKey = intent.preferredRole || (intent.posture === 'float/flex' ? 'float' : null) || finalPlayerTask?.key;
+
+        tasks.forEach(task => {
+          task.assignedIds = [...new Set(task.assignedIds)];
+        });
+
+        if (finalPlayerTaskKey) {
+          tasks.forEach(task => {
+            if (task.key !== finalPlayerTaskKey) {
+              task.assignedIds = task.assignedIds.filter(id => id !== player.id);
+            }
+          });
+        }
+
+        const seen = new Set();
+        tasks.forEach(task => {
+          task.assignedIds = task.assignedIds.filter(id => {
+            if (id === player.id) return true;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
+        });
+
+        if (finalPlayerTaskKey) {
+          const playerTask = getTask(tasks, finalPlayerTaskKey);
+          if (playerTask && !playerTask.assignedIds.includes(player.id)) {
+            if (canAssign(playerTask)) {
+              playerTask.assignedIds.unshift(player.id);
+            } else {
+              const removedNpc = playerTask.assignedIds.find(id => id !== player.id);
+              if (removedNpc) {
+                playerTask.assignedIds = [player.id, ...playerTask.assignedIds.filter(id => id !== removedNpc)];
+              }
+            }
+          }
+        }
+
+        if (assignmentStatusUpdater) assignmentStatusUpdater();
         logDebug('applyPlayerChoice_complete', { intent, tasks: cloneTaskState(tasks) });
+        logDebug('Final assignments', cloneTaskState(tasks));
         return intent;
       };
 
       const commitChoice = (choiceKey, label) => {
         logDebug('commitChoice_enter', { choiceKey, awaiting: awaitingChoice.value });
-        if (!awaitingChoice.value) return;
+        if (!awaitingChoice.value && !choiceLocked) return;
 
         try {
           playerChoiceKey = choiceKey;
@@ -1143,6 +1206,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] commitChoice failed', err);
           awaitingChoice.value = false;
+        } finally {
+          choiceLocked = false;
         }
       };
 
