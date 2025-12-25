@@ -22,13 +22,25 @@ function displayName(survivorOrId, members, playerId) {
   return survivor.id === playerId ? 'You' : survivor.firstName || 'Someone';
 }
 
-// Formats name lists with Oxford comma rules and player-safe naming.
-function formatNameList(ids = [], members = [], playerId) {
-  const names = ids.map(id => displayName(id, members, playerId)).filter(Boolean);
+function formatIdsAsNameList(ids = [], members = [], playerId) {
+  const seen = new Set();
+  const names = ids
+    .map(id => displayName(id, members, playerId))
+    .filter(name => {
+      if (!name) return false;
+      if (name === 'You' && seen.has('You')) return false;
+      seen.add(name);
+      return true;
+    });
   if (!names.length) return '';
   if (names.length === 1) return names[0];
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+function formatPair(ids = [], members = [], playerId) {
+  const uniqueIds = ids.filter((id, idx) => ids.indexOf(id) === idx);
+  return formatIdsAsNameList(uniqueIds, members, playerId);
 }
 
 function clamp(value, min = 0, max = 100) {
@@ -124,11 +136,30 @@ function buildOverlay() {
   header.style.alignItems = 'center';
   header.style.marginBottom = '10px';
 
+  const speakerWrap = document.createElement('div');
+  speakerWrap.style.display = 'flex';
+  speakerWrap.style.alignItems = 'center';
+  speakerWrap.style.gap = '10px';
+
+  const avatar = document.createElement('img');
+  avatar.id = 'day1-avatar';
+  avatar.style.width = '52px';
+  avatar.style.height = '52px';
+  avatar.style.borderRadius = '50%';
+  avatar.style.objectFit = 'cover';
+  avatar.style.border = '3px solid #c17f34';
+  avatar.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+  avatar.style.background = '#f8ead4';
+  avatar.alt = 'Speaker avatar';
+
   const speaker = document.createElement('div');
   speaker.id = 'day1-speaker';
   speaker.style.fontWeight = 'bold';
   speaker.style.fontSize = '1.3rem';
   speaker.style.color = '#3c2415';
+
+  speakerWrap.appendChild(avatar);
+  speakerWrap.appendChild(speaker);
 
   const phaseLabel = document.createElement('div');
   phaseLabel.id = 'day1-phase-label';
@@ -136,7 +167,7 @@ function buildOverlay() {
   phaseLabel.style.color = '#6b4c2b';
   phaseLabel.textContent = 'First Impressions';
 
-  header.appendChild(speaker);
+  header.appendChild(speakerWrap);
   header.appendChild(phaseLabel);
 
   const textArea = document.createElement('div');
@@ -186,11 +217,39 @@ function buildOverlay() {
   overlay.appendChild(panel);
 
   document.body.appendChild(overlay);
-  return { overlay, speaker, textArea, choices, nextBtn, phaseLabel, statusLine };
+  return { overlay, speaker, avatar, textArea, choices, nextBtn, phaseLabel, statusLine };
 }
 
 function removeOverlay(overlay) {
   overlay?.remove();
+}
+
+function getSurvivorAvatarSrc(survivor) {
+  if (!survivor) return 'Assets/logo.png';
+  const candidates = [survivor.avatarUrl, survivor.avatar, survivor.portrait, survivor.image, survivor.img];
+  const found = candidates.find(Boolean);
+  if (found) return found;
+  const first = survivor.firstName ? survivor.firstName.toLowerCase() : '';
+  if (first) return `Assets/Avatars/${first}.jpeg`;
+  return 'Assets/logo.png';
+}
+
+function setHeaderSpeakerUI({ beat, members, player, speakerEl, avatarEl }) {
+  const isNarrator = !beat.speakerId && beat.speaker === 'Narrator';
+  let survivor = beat.speakerRef;
+  if (!survivor && beat.speakerId) survivor = members.find(m => m.id === beat.speakerId);
+  const name = survivor ? displayName(survivor, members, player.id) : beat.speaker || 'Narrator';
+  speakerEl.textContent = name;
+
+  if (isNarrator) {
+    avatarEl.style.visibility = 'hidden';
+    avatarEl.src = 'Assets/logo.png';
+    return;
+  }
+
+  avatarEl.style.visibility = 'visible';
+  const avatarSrc = survivor ? getSurvivorAvatarSrc(survivor) : 'Assets/logo.png';
+  avatarEl.src = avatarSrc;
 }
 
 function taskDefinitions(tribeSize = 6) {
@@ -298,14 +357,14 @@ function groupBeatsByRole(assignments, members, playerId, describeLine, usedLine
   const beats = [];
   assignments.forEach(({ role, survivors }) => {
     if (survivors.length >= 3) {
-      const names = formatNameList(survivors.map(s => s.id), members, playerId);
+      const names = formatIdsAsNameList(survivors.map(s => s.id), members, playerId);
       beats.push({ speaker: 'Narrator', text: `${names} all keep to ${role === 'float' ? 'a flexible stance' : role}. They cluster together before splitting up.` });
       shuffleArray(survivors).slice(0, 2).forEach(survivor => {
-        beats.push({ speaker: displayName(survivor, members, playerId), text: describeLine(survivor, role, usedLines, members, playerId) });
+        beats.push({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) });
       });
     } else {
       survivors.forEach(survivor => {
-        beats.push({ speaker: displayName(survivor, members, playerId), text: describeLine(survivor, role, usedLines, members, playerId) });
+        beats.push({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) });
       });
     }
   });
@@ -443,82 +502,212 @@ function groupAssignmentsByRole(tasks, members) {
   }));
 }
 
-function buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
+function buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
   const roleAssignments = key => {
     const task = getTask(tasks, key) || { assignedIds: [] };
-    return formatNameList(task.assignedIds, members, player.id) || 'None';
+    return formatIdsAsNameList(task.assignedIds, members, player.id) || 'None';
   };
 
   const leadershipLines = [];
   if (leadership.scenario === 'player_leads') {
     leadershipLines.push('You steer the early talk, and people follow your tempo.');
   } else if (leadership.scenario === 'contested') {
-    const top = displayName(leadership.topLeader, members, player.id);
-    const rival = displayName(leadership.runnerUp, members, player.id);
-    leadershipLines.push(`${top} and ${rival} both angle for control before it settles.`);
+    const contestedPair = formatPair([leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean), members, player.id);
+    leadershipLines.push(`${contestedPair} both angle for control before it settles.`);
   } else {
     leadershipLines.push(`${displayName(leadership.topLeader, members, player.id)} steps up first, shaping the flow.`);
   }
 
+  const tensionMoment = chemistryMoments.find(m => m.type !== 'bond');
   const clashLine = (() => {
-    const tensionMoment = chemistryMoments.find(m => m.type !== 'bond');
     if (!tensionMoment && leadership.scenario !== 'contested') return '• No major clashes—just quick adjustments.';
     if (leadership.scenario === 'contested') {
-      return `• Sparks: ${displayName(leadership.topLeader, members, player.id)} and ${displayName(leadership.runnerUp, members, player.id)} trade pitches before the group moves.`;
+      const contestedNames = formatPair([leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean), members, player.id);
+      return `• Clash: ${contestedNames} trade pitches before the group moves.`;
     }
     if (tensionMoment) {
-      const [a, b] = tensionMoment.pair.map(p => displayName(p, members, player.id));
-      return `• Sparks: ${a} and ${b} bump heads over pace.`;
+      const pair = formatPair(tensionMoment.pair.map(p => p.id), members, player.id);
+      return `• Sparks: ${pair} bump heads over pace.`;
     }
     return '• Sparks: Brief, then gone.';
   })();
 
   const chemistryLines = chemistryMoments.length
     ? chemistryMoments.slice(0, 2).map(m => {
-        const [a, b] = m.pair.map(p => displayName(p, members, player.id));
-        if (m.type === 'bond') return `• ${a} and ${b} find easy rhythm.`;
-        if (m.type === 'leadership_tension') return `• ${a} and ${b} trade barbs about who leads.`;
-        if (m.type === 'lazy_callout') return `• ${a} calls out ${b} for hanging back.`;
-        return `• ${a} and ${b} stay wary.`;
+        const pair = formatPair(m.pair.map(p => p.id), members, player.id);
+        if (m.type === 'bond') return `• ${pair} find easy rhythm.`;
+        if (m.type === 'leadership_tension') return `• ${pair} trade barbs about who leads.`;
+        if (m.type === 'lazy_callout') return `• ${pair} has a quick call-out about effort.`;
+        return `• ${pair} stay wary.`;
       })
     : ['• Small talk stays surface-level—no sparks yet.'];
 
   const toneLine = closingMood === 'confident'
-    ? '• Confident: purpose in the air.'
+    ? 'Confident pulse—people move with purpose.'
     : closingMood === 'chaotic'
-      ? '• Chaotic: energy high, patience thin.'
-      : '• Tentative: plans made, eyes watch to see if they hold.';
+      ? 'Chaotic energy—sharp edges but action happens.'
+      : 'Tentative calm—plans set, eyes watch to see if they hold.';
 
+  const playerTask = tasks.find(t => (t.assignedIds || []).includes(player.id));
+  const playerRole = playerTask ? playerTask.label : 'Float';
+
+  return {
+    leadership: [`• ${leadershipLines[0]}`, clashLine],
+    assignments: [
+      `• Fire: ${roleAssignments('fire')}`,
+      `• Shelter: ${roleAssignments('shelter')}`,
+      `• Food: ${roleAssignments('food')}`,
+      `• Materials: ${roleAssignments('materials')}`,
+      `• Float: ${roleAssignments('float')}`
+    ],
+    chemistry: chemistryLines,
+    tone: [`• ${toneLine}`],
+    yourRole: [`• You end up on ${playerRole}${playerChoiceKey ? ` (you chose ${playerChoiceKey})` : ''}.`],
+    playerRole
+  };
+}
+
+function buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
+  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
   return [
-    'FIRST IMPRESSIONS – RECAP',
-    '',
     'Leadership:',
-    `• ${leadershipLines[0]}`,
-    clashLine,
+    ...sections.leadership,
     '',
     'Assignments:',
-    `• Fire: ${roleAssignments('fire')}`,
-    `• Shelter: ${roleAssignments('shelter')}`,
-    `• Food: ${roleAssignments('food')}`,
-    `• Materials: ${roleAssignments('materials')}`,
-    `• Float: ${roleAssignments('float')}`,
+    ...sections.assignments,
     '',
     'Chemistry:',
-    ...chemistryLines,
+    ...sections.chemistry,
     '',
     'Tone:',
-    toneLine,
+    ...sections.tone,
     '',
-    `You chose: ${playerChoiceKey || 'stayed flexible'}`
+    'Your Role:',
+    ...sections.yourRole
   ].join('\n');
+}
+
+function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
+  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '10px';
+  container.style.lineHeight = '1.5';
+
+  const addSection = (title, lines) => {
+    const section = document.createElement('div');
+    section.style.display = 'flex';
+    section.style.flexDirection = 'column';
+    section.style.gap = '4px';
+    const heading = document.createElement('div');
+    heading.style.fontWeight = 'bold';
+    heading.style.color = '#3c2415';
+    heading.textContent = title;
+    section.appendChild(heading);
+    lines.forEach(line => {
+      const lineEl = document.createElement('div');
+      lineEl.textContent = line;
+      section.appendChild(lineEl);
+    });
+    container.appendChild(section);
+  };
+
+  addSection('Leadership', sections.leadership);
+
+  const assignmentsSection = document.createElement('div');
+  assignmentsSection.style.display = 'flex';
+  assignmentsSection.style.flexDirection = 'column';
+  assignmentsSection.style.gap = '6px';
+
+  const assignmentsHeading = document.createElement('div');
+  assignmentsHeading.style.fontWeight = 'bold';
+  assignmentsHeading.style.color = '#3c2415';
+  assignmentsHeading.textContent = 'Assignments';
+  assignmentsSection.appendChild(assignmentsHeading);
+
+  const assignmentRoles = [
+    { label: 'Fire', ids: getTask(tasks, 'fire')?.assignedIds || [] },
+    { label: 'Shelter', ids: getTask(tasks, 'shelter')?.assignedIds || [] },
+    { label: 'Food', ids: getTask(tasks, 'food')?.assignedIds || [] },
+    { label: 'Materials', ids: getTask(tasks, 'materials')?.assignedIds || [] },
+    { label: 'Float', ids: getTask(tasks, 'float')?.assignedIds || [] }
+  ];
+
+  assignmentRoles.forEach(role => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '8px';
+
+    const bullet = document.createElement('span');
+    bullet.textContent = '•';
+    bullet.style.color = '#3c2415';
+    row.appendChild(bullet);
+
+    const label = document.createElement('span');
+    label.style.fontWeight = '600';
+    label.style.color = '#2d1b0d';
+    label.textContent = `${role.label}: ${formatIdsAsNameList(role.ids, members, player.id) || '—'}`;
+    row.appendChild(label);
+
+    if (role.ids.length) {
+      const avatarRow = document.createElement('div');
+      avatarRow.style.display = 'flex';
+      avatarRow.style.gap = '6px';
+      role.ids.forEach(id => {
+        const survivor = members.find(m => m.id === id);
+        if (!survivor) return;
+        const img = document.createElement('img');
+        img.src = getSurvivorAvatarSrc(survivor);
+        img.alt = displayName(survivor, members, player.id);
+        img.style.width = '28px';
+        img.style.height = '28px';
+        img.style.borderRadius = '50%';
+        img.style.objectFit = 'cover';
+        img.style.border = '2px solid #c17f34';
+        img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.25)';
+        avatarRow.appendChild(img);
+      });
+      row.appendChild(avatarRow);
+    }
+
+    assignmentsSection.appendChild(row);
+  });
+
+  container.appendChild(assignmentsSection);
+  addSection('Chemistry', sections.chemistry);
+  addSection('Tone', sections.tone);
+  addSection('Your Role', sections.yourRole);
+
+  return { element: container, htmlString: container.outerHTML, sections };
 }
 
 // Builds the final recap beat and ensures overlay closes cleanly.
 function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup }) {
+  const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+  const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+  const assignmentsByRole = {
+    fire: getTask(tasks, 'fire').assignedIds,
+    shelter: getTask(tasks, 'shelter').assignedIds,
+    food: getTask(tasks, 'food').assignedIds,
+    materials: getTask(tasks, 'materials').assignedIds,
+    float: getTask(tasks, 'float').assignedIds
+  };
+  const chemistryMomentsDetailed = chemistryMoments.map(m => ({
+    type: m.type,
+    pair: m.pair,
+    pairIds: m.pair.map(p => p.id),
+    delta: m.delta || 0,
+    tag: m.tag
+  }));
+  let finalized = false;
+
   return {
     speaker: 'Narrator',
     type: 'finalize',
-    text: buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey),
+    text: recapText,
+    htmlText: recapHtml.element,
     onEnter: () => {
       const plan = {
         leaderId: leadership.topLeader?.id,
@@ -528,13 +717,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         materialsIds: getTask(tasks, 'materials').assignedIds,
         floatIds: getTask(tasks, 'float').assignedIds,
         floaterIds: getTask(tasks, 'float').assignedIds,
-        chemistryMoments: chemistryMoments.map(m => ({
-          type: m.type,
-          pair: m.pair,
-          pairIds: m.pair.map(p => p.id),
-          delta: m.delta || 0,
-          tag: m.tag
-        })),
+        chemistryMoments: chemistryMomentsDetailed,
         leadershipScenario: leadership.scenario,
         mood: closingMood,
         choice: playerChoiceKey
@@ -547,13 +730,24 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       gameManager.flags.day1FirstImpressionsDone = true;
       gameManager.flags.day1FirstImpressionsCompleted = true;
 
+      const summaryPayload = {
+        mood: closingMood,
+        leadershipScenario: leadership.scenario,
+        leaderId: leadership.topLeader?.id,
+        playerRole: recapHtml.sections.playerRole,
+        assignmentsByRole,
+        chemistryMomentsDetailed,
+        summaryText: recapText,
+        summaryHtml: recapHtml.htmlString
+      };
+
       const summaryEntry = {
         id: 'day1_first_impressions',
         day: gameManager.day,
         phase: gameManager.gamePhase,
         type: 'cinematic_event',
         title: 'Day 1: First Impressions',
-        text: 'Assignments locked in after a tense first huddle.',
+        text: recapText,
         data: {
           leadershipScenario: leadership.scenario,
           leaders: [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean),
@@ -567,7 +761,10 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
             float: plan.floatIds
           },
           chemistryMoments: chemistryMoments.map(m => ({ type: m.type, pair: m.pair.map(p => p.id), delta: m.delta || 0, tag: m.tag })),
-          tone: closingMood
+          tone: closingMood,
+          summaryText: recapText,
+          summaryHtml: recapHtml.htmlString,
+          day1FirstImpressions: summaryPayload
         },
         isCinematicEventSummary: true
       };
@@ -581,6 +778,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       }
     },
     onComplete: () => {
+      if (finalized) return;
+      finalized = true;
       cleanup?.();
       resolve({ plan: gameManager.playerTribe.day1Plan });
     }
@@ -724,7 +923,7 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
     try {
       const overlayEls = buildOverlay();
       overlay = overlayEls.overlay;
-      const { speaker, textArea, choices, nextBtn, statusLine } = overlayEls;
+      const { speaker, avatar, textArea, choices, nextBtn, statusLine } = overlayEls;
       const usedLines = new Set();
 
       const tasks = taskDefinitions(tribeSize);
@@ -737,7 +936,7 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
       let closingMood = 'tentative';
 
       const updateStatusLine = () => {
-        const pieces = tasks.map(t => `${t.label}: ${formatNameList(t.assignedIds, members, player.id) || '—'}`);
+        const pieces = tasks.map(t => `${t.label}: ${formatIdsAsNameList(t.assignedIds, members, player.id) || '—'}`);
         statusLine.textContent = pieces.join(' | ');
       };
       assignmentStatusUpdater = updateStatusLine;
@@ -745,8 +944,17 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
       const renderBeatUI = () => {
         const beat = beatQueue[currentIndex];
         if (!beat) return;
-        speaker.textContent = beat.speaker || 'Narrator';
-        textArea.textContent = beat.text;
+        setHeaderSpeakerUI({ beat, members, player, speakerEl: speaker, avatarEl: avatar });
+        if (beat.htmlText) {
+          textArea.innerHTML = '';
+          if (typeof beat.htmlText === 'string') {
+            textArea.innerHTML = beat.htmlText;
+          } else {
+            textArea.appendChild(beat.htmlText);
+          }
+        } else {
+          textArea.textContent = beat.text;
+        }
         if (beat.type === 'choice') {
           awaitingChoice.value = true;
           nextBtn.style.display = 'none';
@@ -757,6 +965,7 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
           nextBtn.textContent = beat.type === 'finalize' ? 'Continue' : 'Next';
           choices.style.display = 'none';
         }
+        if (beat.renderChoices && beat.type === 'choice') beat.renderChoices();
         if (beat.onEnter) beat.onEnter();
         updateStatusLine();
       };
@@ -777,10 +986,10 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
             beats.push({ speaker: 'Narrator', text: `${topName} talks through a plan, and the tribe listens.` });
           } else if (topLeader.id === player.id || runnerUp?.id === player.id) {
             const opponent = topLeader.id === player.id ? runnerUp : topLeader;
-            const opponentName = displayName(opponent, members, player.id);
+            const contestedNames = formatPair([topLeader.id, opponent?.id].filter(Boolean), members, player.id);
             beats.push({
               speaker: 'Narrator',
-              text: `${topLeader.id === player.id ? 'You' : topName} and ${opponentName} both lean forward to claim direction. Neither wants to fade.`
+              text: `${contestedNames} both lean forward to claim direction. Neither wants to fade.`
             });
           } else {
             beats.push({ speaker: 'Narrator', text: `${topName} and ${runnerName} both angle to steer—voices tightening until others chime in.` });
@@ -838,6 +1047,7 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
           ];
           beatQueue.splice(currentIndex + 1, 0, ...beats);
           awaitingChoice.value = false;
+          currentIndex += 1;
           renderBeatUI();
         }
       };
@@ -849,8 +1059,8 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
           const target = getTask(tasks, intent.preferredRole);
           const leaderInLane = target.assignedIds.find(id => leadership.topLeader && leadership.topLeader.id === id);
           if (leaderInLane && leadership.topLeader.id !== player.id) {
-            beats.push({ speaker: displayName(leadership.topLeader, members, player.id), text: formatNarrationQuote(`${displayName(leadership.topLeader, members, player.id)} stiffens when you speak up.`, 'I called this lane already.') });
-            beats.push({ speaker: 'You', text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
+            beats.push({ speaker: displayName(leadership.topLeader, members, player.id), speakerId: leadership.topLeader.id, speakerRef: leadership.topLeader, text: formatNarrationQuote(`${displayName(leadership.topLeader, members, player.id)} stiffens when you speak up.`, 'I called this lane already.') });
+            beats.push({ speaker: 'You', speakerId: player.id, speakerRef: player, text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
           }
         }
 
@@ -864,8 +1074,8 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
         chemistryMoments = pickChemistryMoments(tasks, members, leadership.scenario, player.id);
         const beats = [];
         chemistryMoments.forEach(m => {
-          beats.push({ speaker: displayName(m.pair[0], members, player.id), text: m.textA });
-          beats.push({ speaker: displayName(m.pair[1], members, player.id), text: m.textB });
+          beats.push({ speaker: displayName(m.pair[0], members, player.id), speakerId: m.pair[0].id, speakerRef: m.pair[0], text: m.textA });
+          beats.push({ speaker: displayName(m.pair[1], members, player.id), speakerId: m.pair[1].id, speakerRef: m.pair[1], text: m.textB });
         });
         return beats;
       };
