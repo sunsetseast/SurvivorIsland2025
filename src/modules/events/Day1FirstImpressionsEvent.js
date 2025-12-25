@@ -24,6 +24,50 @@ function logSkip(reason, payload = null) {
 
 logDebug('module_loaded');
 
+function resolvePlayerIdentity(gameManager, playerTribe, members = []) {
+  const gm = gameManager || {};
+  const tribe = playerTribe || gm.playerTribe || gm.getPlayerTribe?.();
+  const roster = members.length ? members : tribe?.members || [];
+  const warnings = [];
+
+  const matchCandidate = (candidate, source) => {
+    if (!candidate) return null;
+    const candidateId = typeof candidate === 'object' ? candidate.id : candidate;
+    if (!candidateId) {
+      warnings.push(`Candidate missing id for source: ${source}`);
+      return null;
+    }
+    const player = roster.find(m => m.id === candidateId);
+    if (player) return { playerId: player.id, player, source, warnings };
+    warnings.push(`No roster match for source ${source} with id ${candidateId}`);
+    return null;
+  };
+
+  const attempts = [
+    { value: gm.getPlayerSurvivor?.(), source: 'gm.getPlayerSurvivor' },
+    { value: gm.getPlayer?.() || gm.player, source: 'gm.getPlayer|player' },
+    { value: gm.playerId, source: 'gm.playerId' },
+    { value: gm.playerSurvivorId, source: 'gm.playerSurvivorId' },
+    { value: gm.selectedSurvivorId, source: 'gm.selectedSurvivorId' },
+    { value: gm.activeSurvivorId, source: 'gm.activeSurvivorId' },
+    { value: tribe?.playerId, source: 'tribe.playerId' },
+    { value: tribe?.selectedSurvivorId, source: 'tribe.selectedSurvivorId' }
+  ];
+
+  for (const attempt of attempts) {
+    const resolved = matchCandidate(attempt.value, attempt.source);
+    if (resolved) return resolved;
+  }
+
+  if (roster.length) {
+    warnings.push('Falling back to first tribe member.');
+    return { playerId: roster[0].id, player: roster[0], source: 'fallback_roster_first', warnings };
+  }
+
+  warnings.push('Unable to resolve player identity from any source.');
+  return { playerId: null, player: null, source: null, warnings };
+}
+
 // Name helpers kept simple but consistently hide the player identity.
 function displayName(survivorOrId, members, playerId) {
   const survivor = typeof survivorOrId === 'object' ? survivorOrId : members.find(m => m.id === survivorOrId);
@@ -441,9 +485,14 @@ export function canRunDay1FirstImpressions(gameManager) {
   const gm = gameManager;
   const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
   const members = playerTribe?.members || [];
-  const playerId = gm?.playerId;
-  const player = members.find(m => m.id === playerId);
   const tribeSize = members.length;
+  const resolution = resolvePlayerIdentity(gm, playerTribe, members);
+  logDebug('resolved_player', {
+    source: resolution.source,
+    playerId: resolution.playerId,
+    playerName: resolution.player?.firstName,
+    warnings: resolution.warnings
+  });
   const overlayExists = typeof document !== 'undefined' && document.getElementById('day1-overlay');
   const campLogHasEntry = (gm?.campLog || []).some(entry => entry.id === 'day1_first_impressions');
   const alreadyPlanned = playerTribe?.day1Plan || playerTribe?.day1PlanCreated;
@@ -460,15 +509,34 @@ export function canRunDay1FirstImpressions(gameManager) {
     hasCampLog: campLogHasEntry,
     hasPlan: Boolean(alreadyPlanned),
     flags: gm?.flags,
-    playerId: player?.id
+    playerId: resolution.playerId,
+    resolutionWarnings: resolution.warnings
   };
 
-  if (!gm || !playerTribe) return { ok: false, reason: 'missing_game_manager', details };
-  if (overlayExists) return { ok: false, reason: 'overlay_exists', details };
-  if (alreadyDone || alreadyPlanned || campLogHasEntry) return { ok: false, reason: 'already_completed', details };
-  if (gm.day !== 1) return { ok: false, reason: 'wrong_day', details };
-  if (wrongPhase) return { ok: false, reason: 'wrong_phase', details };
-  if (unsupportedTribe) return { ok: false, reason: 'unsupported_tribe_size', details };
+  if (!gm || !playerTribe || !members.length) {
+    logDebug('gate_fail', { reason: 'missing_game_manager', details });
+    return { ok: false, reason: 'missing_game_manager', details };
+  }
+  if (overlayExists) {
+    logDebug('gate_fail', { reason: 'overlay_exists', details });
+    return { ok: false, reason: 'overlay_exists', details };
+  }
+  if (alreadyDone || alreadyPlanned || campLogHasEntry) {
+    logDebug('gate_fail', { reason: 'already_completed', details });
+    return { ok: false, reason: 'already_completed', details };
+  }
+  if (gm.day !== 1) {
+    logDebug('gate_fail', { reason: 'wrong_day', details });
+    return { ok: false, reason: 'wrong_day', details };
+  }
+  if (wrongPhase) {
+    logDebug('gate_fail', { reason: 'wrong_phase', details });
+    return { ok: false, reason: 'wrong_phase', details };
+  }
+  if (unsupportedTribe) {
+    logDebug('gate_fail', { reason: 'unsupported_tribe_size', details });
+    return { ok: false, reason: 'unsupported_tribe_size', details };
+  }
 
   return { ok: true, reason: 'ready', details: { ...details, playerTribeId: playerTribe?.id } };
 }
@@ -789,6 +857,35 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
     text: recapText,
     htmlText: recapHtml.element,
     onEnter: () => {
+      const ensurePlayerLockedOnce = () => {
+        const pid = player?.id;
+        if (!pid) return;
+        const desiredKey = ['fire', 'shelter', 'materials', 'food', 'float'].includes(playerChoiceKey)
+          ? playerChoiceKey
+          : playerChoiceKey === 'flex' || playerChoiceKey === 'mediate'
+            ? 'float'
+            : null;
+        let occurrences = 0;
+        tasks.forEach(task => {
+          if (task.assignedIds.includes(pid)) occurrences += 1;
+        });
+        if (occurrences !== 1 || (desiredKey && !getTask(tasks, desiredKey)?.assignedIds.includes(pid))) {
+          tasks.forEach(task => {
+            task.assignedIds = task.assignedIds.filter(id => id !== pid);
+          });
+          const targetTask = desiredKey ? getTask(tasks, desiredKey) : getTask(tasks, 'float');
+          const fallbackTask = targetTask || getTask(tasks, 'float') || tasks[0];
+          if (fallbackTask) {
+            if (canAssign(fallbackTask)) {
+              fallbackTask.assignedIds.unshift(pid);
+            } else {
+              fallbackTask.assignedIds.push(pid);
+            }
+          }
+        }
+      };
+
+      ensurePlayerLockedOnce();
       const plan = {
         leaderId: leadership.topLeader?.id,
         fireIds: getTask(tasks, 'fire').assignedIds,
@@ -953,12 +1050,21 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
 
   const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
   const members = playerTribe?.members || [];
-  const playerId = gm?.playerId;
-  const player = members.find(m => m.id === playerId);
-  if (!player) throw new Error('Day1Event: player not found in tribe');
   const tribeSize = members.length;
+  const resolution = resolvePlayerIdentity(gm, playerTribe, members);
+  const PLAYER_ID = resolution.playerId;
+  const PLAYER = resolution.player;
 
-  logDebug('Player identity', { playerId, playerName: player.firstName });
+  if (PLAYER && !gm.playerId) {
+    gm.playerId = PLAYER.id;
+  }
+
+  logDebug('Player identity', {
+    playerId: PLAYER_ID,
+    playerName: PLAYER?.firstName,
+    source: resolution.source,
+    warnings: resolution.warnings
+  });
 
   gm.flags = gm.flags || {};
 
@@ -966,6 +1072,12 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
     let overlay;
     let nextBtn;
     let nextBtnHandler;
+    let speaker;
+    let avatar;
+    let textArea;
+    let choices;
+    let statusLine;
+    let awaitingChoice = { value: false };
     const cleanup = () => {
       if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
       if (overlay) removeOverlay(overlay);
@@ -977,25 +1089,75 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       }
     };
 
+    const showBlockingError = (message, meta = {}) => {
+      logDebug('fatal_error', { message, meta });
+      if (!overlay) {
+        const overlayEls = buildOverlay();
+        overlay = overlayEls.overlay;
+        speaker = overlayEls.speaker;
+        avatar = overlayEls.avatar;
+        textArea = overlayEls.textArea;
+        choices = overlayEls.choices;
+        nextBtn = overlayEls.nextBtn;
+        statusLine = overlayEls.statusLine;
+      }
+      if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
+      awaitingChoice.value = false;
+      if (choices) choices.style.display = 'none';
+      if (nextBtn) nextBtn.style.display = 'inline-block';
+      if (nextBtn) nextBtn.textContent = 'Close';
+      if (statusLine) statusLine.textContent = '';
+      if (speaker) speaker.textContent = 'Narrator';
+      if (avatar) {
+        avatar.src = 'Assets/logo.png';
+        avatar.style.visibility = 'hidden';
+      }
+      if (textArea) {
+        textArea.textContent = `${message}\n(Please report this.)`;
+      }
+      if (nextBtn) {
+        nextBtnHandler = () => {
+          cleanup();
+          const reason = meta?.reason || 'player_unresolved';
+          resolve({ error: true, reason, warnings: resolution.warnings, meta });
+        };
+        nextBtn.addEventListener('click', nextBtnHandler);
+      }
+      try {
+        eventManager.publish(GameEvents.DIALOGUE_SHOWN, { source: 'day1-first-impressions' });
+      } catch (e) {
+        logDebug('Failed to publish dialogue shown after error.', e);
+      }
+    };
+
     try {
       const overlayEls = buildOverlay();
       overlay = overlayEls.overlay;
       nextBtn = overlayEls.nextBtn;
-      const { speaker, avatar, textArea, choices, statusLine } = overlayEls;
+      speaker = overlayEls.speaker;
+      avatar = overlayEls.avatar;
+      textArea = overlayEls.textArea;
+      choices = overlayEls.choices;
+      statusLine = overlayEls.statusLine;
       const usedLines = new Set();
 
       const tasks = taskDefinitions(tribeSize);
-      const leadership = resolveLeadershipScenario(members, player);
+      const leadership = resolveLeadershipScenario(members, PLAYER);
       const beatQueue = [];
       let currentIndex = 0;
-      const awaitingChoice = { value: false };
+      awaitingChoice = { value: false };
       let choiceLocked = false;
       let chemistryMoments = [];
       let playerChoiceKey = null;
       let closingMood = 'tentative';
 
+      if (!PLAYER) {
+        showBlockingError('Internal error: could not identify the player.', { resolution });
+        return;
+      }
+
       const updateStatusLine = () => {
-        const pieces = tasks.map(t => `${t.label}: ${formatIdsAsNameList(t.assignedIds, members, player.id) || '—'}`);
+        const pieces = tasks.map(t => `${t.label}: ${formatIdsAsNameList(t.assignedIds, members, PLAYER_ID) || '—'}`);
         statusLine.textContent = pieces.join(' | ');
       };
       assignmentStatusUpdater = updateStatusLine;
@@ -1003,7 +1165,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const renderBeatUI = () => {
         const beat = beatQueue[currentIndex];
         if (!beat) return;
-        setHeaderSpeakerUI({ beat, members, player, speakerEl: speaker, avatarEl: avatar });
+        setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar });
         if (beat.htmlText) {
           textArea.innerHTML = '';
           if (typeof beat.htmlText === 'string') {
@@ -1036,17 +1198,17 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const buildLeadershipBeats = () => {
         const beats = [];
         const { scenario, topLeader, runnerUp } = leadership;
-        const topName = displayName(topLeader, members, player.id);
-        const runnerName = displayName(runnerUp, members, player.id);
+        const topName = displayName(topLeader, members, PLAYER_ID);
+        const runnerName = displayName(runnerUp, members, PLAYER_ID);
 
         beats.push({ speaker: 'Narrator', text: 'Bags hit the sand. Voices overlap as everyone sizes each other up.' });
 
         if (scenario === 'contested') {
           if (topLeader.id === runnerUp.id) {
             beats.push({ speaker: 'Narrator', text: `${topName} talks through a plan, and the tribe listens.` });
-          } else if (topLeader.id === player.id || runnerUp?.id === player.id) {
-            const opponent = topLeader.id === player.id ? runnerUp : topLeader;
-            const contestedNames = formatPair([topLeader.id, opponent?.id].filter(Boolean), members, player.id);
+          } else if (topLeader.id === PLAYER_ID || runnerUp?.id === PLAYER_ID) {
+            const opponent = topLeader.id === PLAYER_ID ? runnerUp : topLeader;
+            const contestedNames = formatPair([topLeader.id, opponent?.id].filter(Boolean), members, PLAYER_ID);
             beats.push({
               speaker: 'Narrator',
               text: `${contestedNames} both lean forward to claim direction. Neither wants to fade.`
@@ -1112,7 +1274,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
 
         const intent = playerIntentFromChoice(choiceKey);
         const leaderIds = [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean);
-        const leaderIdsForCoverage = leaderIds.filter(id => !(player && id === player.id && intent.posture === 'float/flex' && !intent.preferredRole));
+        const leaderIdsForCoverage = leaderIds.filter(id => !(PLAYER && id === PLAYER_ID && intent.posture === 'float/flex' && !intent.preferredRole));
         const safeAssign = (roleKey, survivor) => {
           if (!survivor) return false;
           const success = addAssignment(tasks, roleKey, survivor);
@@ -1120,24 +1282,25 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         };
 
         if (intent.preferredRole) {
-          safeAssign(intent.preferredRole, player);
+          safeAssign(intent.preferredRole, PLAYER);
         } else if (intent.posture === 'float/flex') {
-          safeAssign('float', player);
+          safeAssign('float', PLAYER);
         }
 
         const coverageMembers = intent.posture === 'float/flex'
-          ? [...members.filter(m => m.id !== player.id), player]
-          : members;
-        enforceMinimumCoverage(tasks, coverageMembers, player, intent, leaderIdsForCoverage);
+          ? [...members.filter(m => m.id !== PLAYER_ID), PLAYER].filter(Boolean)
+          : members.filter(m => m.id !== PLAYER_ID);
+        enforceMinimumCoverage(tasks, coverageMembers, PLAYER, intent, leaderIdsForCoverage);
 
         const assignedIds = new Set(tasks.flatMap(t => t.assignedIds));
         members.forEach(survivor => {
+          if (survivor.id === PLAYER_ID) return;
           if (!assignedIds.has(survivor.id)) {
             addAssignment(tasks, 'float', survivor);
           }
         });
 
-        const finalPlayerTask = tasks.find(t => t.assignedIds.includes(player.id));
+        const finalPlayerTask = tasks.find(t => t.assignedIds.includes(PLAYER_ID));
         const finalPlayerTaskKey = intent.preferredRole || (intent.posture === 'float/flex' ? 'float' : null) || finalPlayerTask?.key;
 
         tasks.forEach(task => {
@@ -1147,7 +1310,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         if (finalPlayerTaskKey) {
           tasks.forEach(task => {
             if (task.key !== finalPlayerTaskKey) {
-              task.assignedIds = task.assignedIds.filter(id => id !== player.id);
+              task.assignedIds = task.assignedIds.filter(id => id !== PLAYER_ID);
             }
           });
         }
@@ -1155,7 +1318,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         const seen = new Set();
         tasks.forEach(task => {
           task.assignedIds = task.assignedIds.filter(id => {
-            if (id === player.id) return true;
+            if (id === PLAYER_ID) return true;
             if (seen.has(id)) return false;
             seen.add(id);
             return true;
@@ -1164,17 +1327,41 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
 
         if (finalPlayerTaskKey) {
           const playerTask = getTask(tasks, finalPlayerTaskKey);
-          if (playerTask && !playerTask.assignedIds.includes(player.id)) {
+          if (playerTask && !playerTask.assignedIds.includes(PLAYER_ID)) {
             if (canAssign(playerTask)) {
-              playerTask.assignedIds.unshift(player.id);
+              playerTask.assignedIds.unshift(PLAYER_ID);
             } else {
-              const removedNpc = playerTask.assignedIds.find(id => id !== player.id);
+              const removedNpc = playerTask.assignedIds.find(id => id !== PLAYER_ID);
               if (removedNpc) {
-                playerTask.assignedIds = [player.id, ...playerTask.assignedIds.filter(id => id !== removedNpc)];
+                playerTask.assignedIds = [PLAYER_ID, ...playerTask.assignedIds.filter(id => id !== removedNpc)];
               }
             }
           }
         }
+
+        const ensurePlayerPlacement = preferredKey => {
+          let occurrences = 0;
+          tasks.forEach(task => {
+            if (task.assignedIds.includes(PLAYER_ID)) occurrences += 1;
+          });
+          const targetKey = preferredKey || finalPlayerTaskKey;
+          if (occurrences !== 1 || (targetKey && !getTask(tasks, targetKey)?.assignedIds.includes(PLAYER_ID))) {
+            tasks.forEach(task => {
+              task.assignedIds = task.assignedIds.filter(id => id !== PLAYER_ID);
+            });
+            const targetTask = targetKey ? getTask(tasks, targetKey) : getTask(tasks, 'float');
+            const fallbackTask = targetTask || getTask(tasks, 'float') || tasks[0];
+            if (fallbackTask) {
+              if (canAssign(fallbackTask)) {
+                fallbackTask.assignedIds.unshift(PLAYER_ID);
+              } else {
+                fallbackTask.assignedIds.push(PLAYER_ID);
+              }
+            }
+          }
+        };
+
+        ensurePlayerPlacement(finalPlayerTaskKey);
 
         if (assignmentStatusUpdater) assignmentStatusUpdater();
         logDebug('applyPlayerChoice_complete', { intent, tasks: cloneTaskState(tasks) });
@@ -1195,7 +1382,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             ...buildAssignmentBeats(intent),
             ...addChemistryBeats(),
             ...addClosingBeat(),
-            buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup })
+            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup })
           ];
           logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
@@ -1217,24 +1404,24 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         if (intent.preferredRole && intent.posture === 'claim') {
           const target = getTask(tasks, intent.preferredRole);
           const leaderInLane = target.assignedIds.find(id => leadership.topLeader && leadership.topLeader.id === id);
-          if (leaderInLane && leadership.topLeader.id !== player.id) {
-            beats.push({ speaker: displayName(leadership.topLeader, members, player.id), speakerId: leadership.topLeader.id, speakerRef: leadership.topLeader, text: formatNarrationQuote(`${displayName(leadership.topLeader, members, player.id)} stiffens when you speak up.`, 'I called this lane already.') });
-            beats.push({ speaker: 'You', speakerId: player.id, speakerRef: player, text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
+          if (leaderInLane && leadership.topLeader.id !== PLAYER_ID) {
+            beats.push({ speaker: displayName(leadership.topLeader, members, PLAYER_ID), speakerId: leadership.topLeader.id, speakerRef: leadership.topLeader, text: formatNarrationQuote(`${displayName(leadership.topLeader, members, PLAYER_ID)} stiffens when you speak up.`, 'I called this lane already.') });
+            beats.push({ speaker: 'You', speakerId: PLAYER_ID, speakerRef: PLAYER, text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
           }
         }
 
         const grouped = groupAssignmentsByRole(tasks, members);
-        beats.push(...groupBeatsByRole(grouped, members, player.id, describeAssignmentLine, usedLines));
+        beats.push(...groupBeatsByRole(grouped, members, PLAYER_ID, describeAssignmentLine, usedLines));
         beats.push({ speaker: 'Narrator', text: 'Plans settle into place. People echo assignments back to be sure.', onEnter: updateStatusLine });
         return beats;
       };
 
       const addChemistryBeats = () => {
-        chemistryMoments = pickChemistryMoments(tasks, members, leadership.scenario, player.id);
+        chemistryMoments = pickChemistryMoments(tasks, members, leadership.scenario, PLAYER_ID);
         const beats = [];
         chemistryMoments.forEach(m => {
-          beats.push({ speaker: displayName(m.pair[0], members, player.id), speakerId: m.pair[0].id, speakerRef: m.pair[0], text: m.textA });
-          beats.push({ speaker: displayName(m.pair[1], members, player.id), speakerId: m.pair[1].id, speakerRef: m.pair[1], text: m.textB });
+          beats.push({ speaker: displayName(m.pair[0], members, PLAYER_ID), speakerId: m.pair[0].id, speakerRef: m.pair[0], text: m.textA });
+          beats.push({ speaker: displayName(m.pair[1], members, PLAYER_ID), speakerId: m.pair[1].id, speakerRef: m.pair[1], text: m.textB });
         });
         return beats;
       };
@@ -1273,9 +1460,9 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       eventManager.publish(GameEvents.DIALOGUE_SHOWN, { source: 'day1-first-impressions' });
       renderBeatUI();
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('[Day1FirstImpressions] Error during event setup', error);
-      cleanup();
-      resolve({ error: true, reason: 'setup_failed' });
+      showBlockingError('Something went wrong preparing the scene.', { error, reason: 'setup_failed' });
     }
   });
 }
