@@ -75,6 +75,23 @@ function formatNarrationQuote(narration, quote) {
   return `${narration}\n\n“${quote}”`;
 }
 
+function isPlayer(survivor, player) {
+  return survivor?.id === player?.id;
+}
+
+function displayName(survivor, player) {
+  if (!survivor) return 'Someone';
+  return isPlayer(survivor, player) ? 'You' : survivor.firstName;
+}
+
+function formatNameList(survivors = [], player) {
+  const names = survivors.map(s => displayName(s, player)).filter(Boolean);
+  if (!names.length) return '';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
 function buildOverlay() {
   const overlay = document.createElement('div');
   overlay.id = 'day1-overlay';
@@ -223,71 +240,75 @@ function formatNames(ids, members) {
   return ids.map(id => members.find(m => m.id === id)?.firstName || 'Unknown').join(', ') || 'None';
 }
 
-function describeAssignmentLine(survivor, taskKey, profile, usedLines) {
-  const { caps, bossy, proud, strategicFloater, workEthic } = profile;
-  const friendly = caps.social > 60;
-  const gritty = workEthic > 60;
+function describeAssignmentLine(survivor, taskKey, profile, usedLines, player) {
+  const { caps, bossy, proud, strategicFloater } = profile;
+  const name = displayName(survivor, player);
+  const you = isPlayer(survivor, player);
 
   const pickUnique = options => {
     const shuffled = shuffleArray(options);
-    const choice = shuffled.find(line => !usedLines.has(line)) || shuffled[0];
-    usedLines.add(choice);
-    return choice;
+    const choice = shuffled.find(line => !usedLines.has(typeof line === 'function' ? line() : line)) || shuffled[0];
+    const resolved = typeof choice === 'function' ? choice() : choice;
+    usedLines.add(resolved);
+    return resolved;
   };
 
+  const narrate = (youText, otherText) => (you ? youText : otherText);
+  const withQuote = (youLine, otherLine, quote) => formatNarrationQuote(narrate(youLine, otherLine), quote);
+
   const fireVariants = [
-    formatNarrationQuote(`${survivor.firstName} crouches by the cold pit, confident.`, 'I’ve done this on treks. I’ll get a spark.'),
-    formatNarrationQuote(`${survivor.firstName} kneels without ceremony.`, 'Fire’s mine. Trust me.'),
-    formatNarrationQuote(`${survivor.firstName} tosses sand aside, measuring wind.`, 'Let me set the pit. One shot, one flame.'),
-    formatNarrationQuote(`${survivor.firstName} studies the damp sticks.`, 'Give me a minute. I can coax this to life.'),
-    formatNarrationQuote(`${survivor.firstName} taps the flint like an old friend.`, 'I’ll own fire. Check back when you smell smoke.'),
-    formatNarrationQuote(`${survivor.firstName} snaps to the task.`, 'Fire first. I’ll get us warmth.'),
-    formatNarrationQuote(`${survivor.firstName} sets their pack down by the pit.`, 'I’ve wanted this job. I won’t blow it.'),
-    formatNarrationQuote(`${survivor.firstName} claims a patch of sand with a nod.`, 'Let me baby the embers. We’ll be good.')
+    withQuote('You crouch by the cold pit, confident.', `${name} crouches by the cold pit, confident.`, 'I’ve done this on treks. I’ll get a spark.'),
+    withQuote('You kneel without ceremony.', `${name} kneels without ceremony.`, 'Fire’s mine. Trust me.'),
+    withQuote('You toss sand aside, measuring wind.', `${name} tosses sand aside, measuring wind.`, 'Let me set the pit. One shot, one flame.'),
+    withQuote('You study the damp sticks.', `${name} studies the damp sticks.`, 'Give me a minute. I can coax this to life.'),
+    withQuote('You tap the flint like an old friend.', `${name} taps the flint like an old friend.`, 'I’ll own fire. Check back when you smell smoke.'),
+    withQuote('You snap to the task.', `${name} snaps to the task.`, 'Fire first. I’ll get us warmth.'),
+    withQuote('You set your pack down by the pit.', `${name} sets their pack down by the pit.`, 'I’ve wanted this job. I won’t blow it.'),
+    withQuote('You claim a patch of sand with a nod.', `${name} claims a patch of sand with a nod.`, 'Let me baby the embers. We’ll be good.')
   ];
 
   const shelterVariants = [
-    formatNarrationQuote(`${survivor.firstName} claps hands to get motion.`, 'Shelter with me. Let’s frame it right.'),
-    formatNarrationQuote(`${survivor.firstName} rolls sleeves with purpose.`, 'I’ll take shelter—need one more set of hands.'),
-    formatNarrationQuote(`${survivor.firstName} drags a log into position.`, 'If we angle the roof, we’ll stay dry. I’m on shelter.'),
-    formatNarrationQuote(`${survivor.firstName} gestures to the treeline.`, 'Grab bamboo with me. Let’s build clean.'),
-    formatNarrationQuote(`${survivor.firstName} checks spacing in the sand.`, 'I’ll help frame this. Someone keep it level with me.'),
-    formatNarrationQuote(`${survivor.firstName} plants their feet.`, 'I’m good with structure. I’ll anchor shelter.'),
-    formatNarrationQuote(`${survivor.firstName} knocks on a trunk like a builder.`, 'This one’s solid. I’ll start the posts.'),
-    formatNarrationQuote(`${survivor.firstName} draws lines in the sand.`, 'Two posts here, crossbeam there. I’m on shelter.')
+    withQuote('You clap hands to get motion.', `${name} claps hands to get motion.`, 'Shelter with me. Let’s frame it right.'),
+    withQuote('You roll your sleeves with purpose.', `${name} rolls sleeves with purpose.`, 'I’ll take shelter—need one more set of hands.'),
+    withQuote('You drag a log into position.', `${name} drags a log into position.`, 'If we angle the roof, we’ll stay dry. I’m on shelter.'),
+    withQuote('You gesture to the treeline.', `${name} gestures to the treeline.`, 'Grab bamboo with me. Let’s build clean.'),
+    withQuote('You check spacing in the sand.', `${name} checks spacing in the sand.`, 'I’ll help frame this. Someone keep it level with me.'),
+    withQuote('You plant your feet.', `${name} plants their feet.`, 'I’m good with structure. I’ll anchor shelter.'),
+    withQuote('You knock on a trunk like a builder.', `${name} knocks on a trunk like a builder.`, 'This one’s solid. I’ll start the posts.'),
+    withQuote('You draw lines in the sand.', `${name} draws lines in the sand.`, 'Two posts here, crossbeam there. I’m on shelter.')
   ];
 
   const foodVariants = [
-    formatNarrationQuote(`${survivor.firstName} nods toward the treeline.`, 'I’ll hunt for coconuts and fish. Back soon.'),
-    formatNarrationQuote(`${survivor.firstName} grabs what passes for a spear.`, 'Food run. I’ll return with something… hopefully.'),
-    formatNarrationQuote(`${survivor.firstName} scans the waterline.`, 'Tide’s decent. I’ll try for crabs and coconuts.'),
-    formatNarrationQuote(`${survivor.firstName} shoulders a woven bag.`, 'Let me forage. I’ll bring back whatever I can.'),
-    formatNarrationQuote(`${survivor.firstName} tastes the wind like a hunter.`, 'I’ll chase protein. If it moves, I’ll find it.'),
-    formatNarrationQuote(`${survivor.firstName} eyes the horizon.`, 'I’ll fish the shallows. Someone join if you want fresh dinner.'),
-    formatNarrationQuote(`${survivor.firstName} traces tracks in the sand.`, 'Something dragged through here. I’m on food.'),
-    formatNarrationQuote(`${survivor.firstName} cinches a headband.`, 'Food duty for me. I’ll hustle back.')
+    withQuote('You nod toward the treeline.', `${name} nods toward the treeline.`, 'I’ll hunt for coconuts and fish. Back soon.'),
+    withQuote('You grab what passes for a spear.', `${name} grabs what passes for a spear.`, 'Food run. I’ll return with something… hopefully.'),
+    withQuote('You scan the waterline.', `${name} scans the waterline.`, 'Tide’s decent. I’ll try for crabs and coconuts.'),
+    withQuote('You shoulder a woven bag.', `${name} shoulders a woven bag.`, 'Let me forage. I’ll bring back whatever I can.'),
+    withQuote('You taste the wind like a hunter.', `${name} tastes the wind like a hunter.`, 'I’ll chase protein. If it moves, I’ll find it.'),
+    withQuote('You eye the horizon.', `${name} eyes the horizon.`, 'I’ll fish the shallows. Someone join if you want fresh dinner.'),
+    withQuote('You trace tracks in the sand.', `${name} traces tracks in the sand.`, 'Something dragged through here. I’m on food.'),
+    withQuote('You cinch a headband.', `${name} cinches a headband.`, 'Food duty for me. I’ll hustle back.')
   ];
 
   const materialsVariants = [
-    formatNarrationQuote(`${survivor.firstName} scans the tree line, sizing up what to haul first.`, 'I’ll keep wood and bamboo flowing.'),
-    formatNarrationQuote(`${survivor.firstName} loosens their shoulders, ready to move.`, 'Hauling stuff suits me. I’ll keep us stocked.'),
-    formatNarrationQuote(`${survivor.firstName} keeps it simple, no big speech.`, 'I’ll gather. Less talk, more work.'),
-    formatNarrationQuote(`Eyes track the beach and jungle like a supply map for ${survivor.firstName}.`, 'I can organize materials. Let’s not run empty.'),
-    formatNarrationQuote(`${survivor.firstName} grins, already picturing armloads of bamboo.`, 'I’ll roam and haul. If you need me, yell.'),
-    formatNarrationQuote(`${survivor.firstName} shrugs, but it’s a confident shrug.`, 'Sure, I’ll bring back wood. Not gonna sit around.'),
-    formatNarrationQuote(`${survivor.firstName} chuckles at the looming workload.`, 'Beast of burden coming through. Materials are mine.'),
-    formatNarrationQuote(`${survivor.firstName} already picks a direction, eyes sharp.`, 'I’ll keep options open—start with bamboo, pivot if needed.')
+    withQuote('You scan the tree line, sizing up what to haul first.', `${name} scans the tree line, sizing up what to haul first.`, 'I’ll keep wood and bamboo flowing.'),
+    withQuote('You loosen your shoulders, ready to move.', `${name} loosens their shoulders, ready to move.`, 'Hauling stuff suits me. I’ll keep us stocked.'),
+    withQuote('You keep it simple, no big speech.', `${name} keeps it simple, no big speech.`, 'I’ll gather. Less talk, more work.'),
+    withQuote('You track the beach and jungle like a supply map.', `Eyes track the beach and jungle like a supply map for ${name}.`, 'I can organize materials. Let’s not run empty.'),
+    withQuote('You grin, already picturing armloads of bamboo.', `${name} grins, already picturing armloads of bamboo.`, 'I’ll roam and haul. If you need me, yell.'),
+    withQuote('You shrug, but it’s a confident shrug.', `${name} shrugs, but it’s a confident shrug.`, 'Sure, I’ll bring back wood. Not gonna sit around.'),
+    withQuote('You chuckle at the looming workload.', `${name} chuckles at the looming workload.`, 'Beast of burden coming through. Materials are mine.'),
+    withQuote('You already pick a direction, eyes sharp.', `${name} already picks a direction, eyes sharp.`, 'I’ll keep options open—start with bamboo, pivot if needed.')
   ];
 
   const floatVariants = [
-    formatNarrationQuote(`${survivor.firstName} keeps their stance relaxed, clocking everyone’s roles.`, 'I’ll float and plug holes.'),
-    formatNarrationQuote(`${survivor.firstName} smirks like they’re keeping angles open.`, 'I’ll bounce around. Useful to stay flexible.'),
-    formatNarrationQuote(`${survivor.firstName} hesitates, then leans on charm.`, 'Let me glide and help where gaps show up.'),
-    formatNarrationQuote(`${survivor.firstName} admits it with a half-laugh.`, 'I’m a floater today. Tap me in as needed.'),
-    formatNarrationQuote(`${survivor.firstName} sizes up the map of tasks.`, 'I’ll stay loose—fill cracks, keep eyes open.'),
-    formatNarrationQuote(`${survivor.firstName} raises a hand halfway.`, 'Put me where you need me. I’ll float for now.'),
-    formatNarrationQuote(`${survivor.firstName} leans against a pack.`, 'I can bounce around, keep morale up, cover gaps.'),
-    formatNarrationQuote(`${survivor.firstName} flashes an easy smile.`, 'I’ll float to start—promise I’m not disappearing.')
+    withQuote('You keep your stance relaxed, clocking everyone’s roles.', `${name} keeps their stance relaxed, clocking everyone’s roles.`, 'I’ll float and plug holes.'),
+    withQuote('You smirk like you’re keeping angles open.', `${name} smirks like they’re keeping angles open.`, 'I’ll bounce around. Useful to stay flexible.'),
+    withQuote('You hesitate, then lean on charm.', `${name} hesitates, then leans on charm.`, 'Let me glide and help where gaps show up.'),
+    withQuote('You admit it with a half-laugh.', `${name} admits it with a half-laugh.`, 'I’m a floater today. Tap me in as needed.'),
+    withQuote('You size up the map of tasks.', `${name} sizes up the map of tasks.`, 'I’ll stay loose—fill cracks, keep eyes open.'),
+    withQuote('You raise a hand halfway.', `${name} raises a hand halfway.`, 'Put me where you need me. I’ll float for now.'),
+    withQuote('You lean against a pack.', `${name} leans against a pack.`, 'I can bounce around, keep morale up, cover gaps.'),
+    withQuote('You flash an easy smile.', `${name} flashes an easy smile.`, 'I’ll float to start—promise I’m not disappearing.')
   ];
 
   switch (taskKey) {
@@ -298,13 +319,13 @@ function describeAssignmentLine(survivor, taskKey, profile, usedLines) {
     case 'food':
       return pickUnique(foodVariants);
     case 'materials':
-      if (bossy || proud) return formatNarrationQuote(`${survivor.firstName} points toward the jungle.`, 'I’ll manage materials—keep pace.');
+      if (bossy || proud) return formatNarrationQuote(narrate('You point toward the jungle.', `${name} points toward the jungle.`), 'I’ll manage materials—keep pace.');
       return pickUnique(materialsVariants);
     default:
       if (strategicFloater) {
         return pickUnique([
-          formatNarrationQuote(`${survivor.firstName} hovers at the edge, eyes calculating.`, 'Floating keeps me informed. I’ll step in where it matters.'),
-          formatNarrationQuote(`${survivor.firstName} gives a knowing grin.`, 'Let me see the gaps. I’ll cover the weak spots.')
+          withQuote('You hover at the edge, eyes calculating.', `${name} hovers at the edge, eyes calculating.`, 'Floating keeps me informed. I’ll step in where it matters.'),
+          withQuote('You give a knowing grin.', `${name} gives a knowing grin.`, 'Let me see the gaps. I’ll cover the weak spots.')
         ]);
       }
       return pickUnique(floatVariants);
@@ -432,6 +453,77 @@ function pickChemistryMoments(tasks, members, leadershipScenario) {
   return [bond, tension].filter(Boolean);
 }
 
+function buildEventSummaryText({ player, members, leadership, tasks, chemistryMoments, closingMood, playerEndingRole, playerContestedLeader }) {
+  const roleAssignments = key => {
+    const task = getTask(tasks, key) || { assignedIds: [] };
+    const roster = task.assignedIds.map(id => members.find(m => m.id === id)).filter(Boolean);
+    return formatNameList(roster, player) || 'None';
+  };
+
+  const leadershipLine = (() => {
+    if (leadership.scenario === 'player_leads') return 'You guide the early talk, and people follow your tempo.';
+    if (leadership.scenario === 'contested') return `${displayName(leadership.topLeader, player)} and ${displayName(leadership.runnerUp, player)} both angle for control before it settles.`;
+    return `${displayName(leadership.topLeader, player)} steps up first, shaping the flow.`;
+  })();
+
+  const clashLine = (() => {
+    if (playerContestedLeader) return `Clash: You press back against ${displayName(leadership.topLeader, player)} until the plan moves.`;
+    if (leadership.scenario === 'contested') return `Clash: ${displayName(leadership.topLeader, player)} and ${displayName(leadership.runnerUp, player)} trade pitches before the tribe picks a path.`;
+    const tensionMoment = chemistryMoments.find(m => m.type !== 'bond');
+    if (tensionMoment) {
+      const [a, b] = tensionMoment.pair.map(p => displayName(p, player));
+      return `Clash: ${a} and ${b} bump heads while everyone pretends not to notice.`;
+    }
+    return 'Clash: None—just a few sharp looks before people move on.';
+  })();
+
+  const chemistryLines = (() => {
+    if (!chemistryMoments.length) return ['Small talk stays surface-level—no sparks yet.'];
+    return chemistryMoments.slice(0, 2).map(m => {
+      const [a, b] = m.pair.map(p => displayName(p, player));
+      if (m.type === 'bond') return `${a} and ${b} find easy rhythm as they work.`;
+      if (m.type === 'leadership_tension') return `${a} and ${b} trade barbs about who leads.`;
+      if (m.type === 'lazy_callout') return `${a} calls out ${b} for hanging back.`;
+      return `${a} and ${b} circle each other, wary.`;
+    });
+  })();
+
+  const moodLine = closingMood === 'confident'
+    ? 'The tribe feels confident—purposeful footsteps heading to the tasks.'
+    : closingMood === 'chaotic'
+      ? 'The tribe feels chaotic—energy high, patience thin, everyone hustling before another argument.'
+      : 'The tribe feels tentative—plans exist, but everyone watches to see if they’ll hold.';
+
+  const playerLine = (() => {
+    const labelMap = { fire: 'Fire', shelter: 'Shelter', food: 'Food', materials: 'Materials', float: 'Float' };
+    const roleLabel = labelMap[playerEndingRole] || 'Float';
+    return `You end up on ${roleLabel}${roleLabel === 'Float' ? ', keeping flexible eyes on the gaps.' : ', and the tribe will remember how you handle it.'}`;
+  })();
+
+  return [
+    'Bags hit the sand and the group conversation finally feels connected.',
+    '',
+    'Leadership:',
+    `• ${leadershipLine}`,
+    `• ${clashLine}`,
+    '',
+    'Assignments:',
+    `• Fire: ${roleAssignments('fire')}`,
+    `• Shelter: ${roleAssignments('shelter')}`,
+    `• Food: ${roleAssignments('food')}`,
+    `• Materials: ${roleAssignments('materials')}`,
+    `• Float: ${roleAssignments('float')}`,
+    '',
+    'Chemistry:',
+    ...chemistryLines.map(line => `• ${line}`),
+    '',
+    'Tone:',
+    moodLine,
+    '',
+    playerLine
+  ].join('\n');
+}
+
 export async function runDay1FirstImpressions({ gameManager }) {
   return new Promise(resolve => {
     const playerTribe = gameManager.getPlayerTribe();
@@ -445,6 +537,10 @@ export async function runDay1FirstImpressions({ gameManager }) {
     const tasks = taskDefinitions(playerTribe.members.length);
     const leadership = resolveLeadershipScenario(playerTribe.members, player);
     const usedLines = new Set();
+    const trackLine = line => {
+      if (line) usedLines.add(line);
+      return line;
+    };
     const leaderClaims = new Map();
     const pickLeaderRole = leader => {
       const caps = buildCapabilities(leader);
@@ -472,6 +568,7 @@ export async function runDay1FirstImpressions({ gameManager }) {
     let playerCommittedRole = null;
     let playerContestedLeader = false;
     let closingMood = 'tentative';
+    let playerEndingRole = null;
     let finalized = false;
 
     const leaders = leadership.contestedPair || [leadership.topLeader, leadership.runnerUp].filter(Boolean).slice(0, 2);
@@ -527,11 +624,11 @@ export async function runDay1FirstImpressions({ gameManager }) {
     if (leadership.scenario === 'npc_leads') {
       const claimFire = buildCapabilities(leadership.topLeader).fire >= buildCapabilities(leadership.topLeader).shelter;
       const line = claimFire
-        ? formatNarrationQuote('A steady voice cuts through the quiet.', 'Fire first. I’ll work the pit. Who’s pairing for shelter?')
-        : formatNarrationQuote('One voice takes charge, eyes on the trees.', 'Shelter’s priority. I’ll start a frame—need a strong partner. Who wants fire?');
+        ? trackLine(formatNarrationQuote('A steady voice cuts through the quiet.', 'Fire first. I’ll work the pit. Who’s pairing for shelter?'))
+        : trackLine(formatNarrationQuote('One voice takes charge, eyes on the trees.', 'Shelter’s priority. I’ll start a frame—need a strong partner. Who wants fire?'));
       addBeat({ speaker: leadership.topLeader.firstName, text: line });
     } else if (leadership.scenario === 'player_leads') {
-      addBeat({ speaker: 'Narrator', text: `Eyes land on you. ${player.firstName} feels like the clearest presence here.` });
+      addBeat({ speaker: 'Narrator', text: 'Eyes land on you. You feel like the clearest presence here.' });
       const promptVoice = shuffleArray(playerTribe.members.filter(m => m.id !== player.id))[0];
       addBeat({ speaker: promptVoice?.firstName || 'Someone', text: formatNarrationQuote('The circle waits for direction.', 'So… what’s the move?') });
     } else {
@@ -542,7 +639,7 @@ export async function runDay1FirstImpressions({ gameManager }) {
     // Player decision
     addBeat({
       type: 'choice',
-      speaker: player.firstName,
+      speaker: 'You',
       text: leadership.scenario === 'player_leads'
         ? 'They’re waiting on you. What do you claim first?'
         : 'You get the first volunteer slot. Where do you jump in?'
@@ -576,16 +673,20 @@ export async function runDay1FirstImpressions({ gameManager }) {
 
     function makeAssignmentBeat({ survivor, role, text, speakerOverride }) {
       return {
-        speaker: speakerOverride || survivor.firstName,
+        speaker: speakerOverride || displayName(survivor, player),
         text,
         onEnter: () => addAssignment(tasks, role, survivor)
       };
     }
 
     function addGroupAssignmentBeat({ narratorText, survivors, role }) {
+      const names = formatNameList(survivors, player);
+      const resolvedText = narratorText && narratorText.includes(names)
+        ? narratorText
+        : `${names} ${narratorText || 'huddle around the task.'}`;
       const beat = {
         speaker: 'Narrator',
-        text: narratorText,
+        text: resolvedText,
         onEnter: () => {
           survivors.forEach(survivor => addAssignment(tasks, role, survivor));
         }
@@ -624,8 +725,8 @@ export async function runDay1FirstImpressions({ gameManager }) {
         if (!leader) return;
         const declaredRole = role;
         const pushText = declaredRole === 'fire'
-          ? formatNarrationQuote(`${leader.firstName} is already at the fire pit.`, 'Let me own this. One firemaker, clean process.')
-          : formatNarrationQuote(`${leader.firstName} taps the sand where posts should go.`, 'Shelter with me. Keep it straight.');
+          ? trackLine(formatNarrationQuote(`${leader.firstName} is already at the fire pit.`, 'Let me own this. One firemaker, clean process.'))
+          : trackLine(formatNarrationQuote(`${leader.firstName} taps the sand where posts should go.`, 'Shelter with me. Keep it straight.'));
         leadershipBeats.push(makeAssignmentBeat({ survivor: leader, role: declaredRole, text: pushText }));
         registerPlan(declaredRole, leader);
       });
@@ -636,21 +737,22 @@ export async function runDay1FirstImpressions({ gameManager }) {
         const line = choiceKey === 'mediate'
           ? formatNarrationQuote('You open space for others to speak.', 'Let’s talk it through. I’ll plug in where it helps most.')
           : formatNarrationQuote('You keep posture open.', 'Wherever I’m needed. Point me and I’ll move.');
-        choiceBeats.push({ speaker: player.firstName, text: line });
+        choiceBeats.push({ speaker: 'You', text: line });
       } else if (choiceKey === 'float') {
-        choiceBeats.push({ speaker: player.firstName, text: formatNarrationQuote('You promise to stay flexible.', 'I’ll float to start—if a gap opens, I’ll jump.') });
+        choiceBeats.push({ speaker: 'You', text: formatNarrationQuote('You promise to stay flexible.', 'I’ll float to start—if a gap opens, I’ll jump.') });
         registerPlan('float', player);
       } else if (playerIntent.preferredRole) {
         const chosenRole = playerIntent.preferredRole;
         const conflictingLeader = leadershipBeats.find(b => b.onEnter && leaderClaims.get(playerTribe.members.find(m => m.firstName === b.speaker)?.id) === chosenRole);
         if (conflictingLeader && playerIntent.assertiveness < 70) {
           playerDeferred = true;
-          choiceBeats.push({ speaker: 'Narrator', text: `${leaders.find(l => leaderClaims.get(l.id) === chosenRole)?.firstName} is already firm on ${chosenRole}. You read the room and stay flexible.` });
+          const firmLeader = leaders.find(l => leaderClaims.get(l.id) === chosenRole);
+          choiceBeats.push({ speaker: 'Narrator', text: `${displayName(firmLeader, player)} is already firm on ${chosenRole}. You read the room and stay flexible.` });
         } else {
           const conflictOwner = leaders.find(l => leaderClaims.get(l.id) === chosenRole);
           if (conflictOwner && playerIntent.assertiveness >= 70) {
             playerContestedLeader = true;
-            choiceBeats.push({ speaker: 'Narrator', text: `${player.firstName} and ${conflictOwner.firstName} lock eyes over ${chosenRole}.` });
+            choiceBeats.push({ speaker: 'Narrator', text: `You and ${displayName(conflictOwner, player)} lock eyes over ${chosenRole}.` });
             choiceBeats.push(makeAssignmentBeat({ survivor: player, role: chosenRole, text: formatNarrationQuote('You don’t back down.', `I’m taking ${chosenRole}. We need it solid.`) }));
             registerPlan(chosenRole, player);
           } else {
@@ -686,14 +788,15 @@ export async function runDay1FirstImpressions({ gameManager }) {
         }
         if (!planned.length) return [];
         if (planned.length >= 3 && role !== 'fire') {
-          const narratorText = `${planned.length} people lean toward ${role}. A quick huddle settles who actually does it.`;
+          const names = formatNameList(planned, player);
+          const narratorText = `${names} lean toward ${role}. A quick huddle settles who actually does it.`;
           const spotlight = shuffleArray(planned).slice(0, 2);
           return [
             addGroupAssignmentBeat({ narratorText, survivors: planned, role }),
-            ...spotlight.map(survivor => makeAssignmentBeat({ survivor, role, text: describeAssignmentLine(survivor, role, getPersonalityProfile(survivor), usedLines) }))
+            ...spotlight.map(survivor => makeAssignmentBeat({ survivor, role, text: describeAssignmentLine(survivor, role, getPersonalityProfile(survivor), usedLines, player) }))
           ];
         }
-        return planned.map(survivor => makeAssignmentBeat({ survivor, role, text: describeAssignmentLine(survivor, role, getPersonalityProfile(survivor), usedLines) }));
+        return planned.map(survivor => makeAssignmentBeat({ survivor, role, text: describeAssignmentLine(survivor, role, getPersonalityProfile(survivor), usedLines, player) }));
       };
 
       const requiredBeats = [];
@@ -725,12 +828,13 @@ export async function runDay1FirstImpressions({ gameManager }) {
 
       const floatBeats = [];
       if (floaters.length) {
+        const floaterNames = formatNameList(floaters, player);
         const narratorText = allowFloat
-          ? `${floaters.length} people leave themselves flexible once core jobs are covered.`
-          : `${floaters.length} people try to float, but gaps glare back at them.`;
+          ? `${floaterNames} keep it loose—floating once core jobs are covered.`
+          : `${floaterNames} try to float, but the gaps glare back at them.`;
         floatBeats.push(addGroupAssignmentBeat({ narratorText, survivors: floaters, role: 'float' }));
         const spot = shuffleArray(floaters).slice(0, 1);
-        spot.forEach(survivor => floatBeats.push(makeAssignmentBeat({ survivor, role: 'float', text: describeAssignmentLine(survivor, 'float', getPersonalityProfile(survivor), usedLines) })));
+        spot.forEach(survivor => floatBeats.push(makeAssignmentBeat({ survivor, role: 'float', text: describeAssignmentLine(survivor, 'float', getPersonalityProfile(survivor), usedLines, player) })));
       }
 
       const steeringBeats = [];
@@ -751,13 +855,13 @@ export async function runDay1FirstImpressions({ gameManager }) {
           registerPlan(role, survivor);
           steeringBeats.push({
             speaker: 'Narrator',
-            text: `Someone flags the gap at ${role}. ${survivor.firstName} gets nudged into it.`,
+            text: `Someone flags the gap at ${role}. ${displayName(survivor, player)} gets nudged into it.`,
             onEnter: () => {
               getTask(tasks, 'float').assignedIds = getTask(tasks, 'float').assignedIds.filter(id => id !== survivor.id);
               addAssignment(tasks, role, survivor);
             }
           });
-          steeringBeats.push(makeAssignmentBeat({ survivor, role, text: describeAssignmentLine(survivor, role, getPersonalityProfile(survivor), usedLines) }));
+          steeringBeats.push(makeAssignmentBeat({ survivor, role, text: describeAssignmentLine(survivor, role, getPersonalityProfile(survivor), usedLines, player) }));
         });
       }
 
@@ -790,8 +894,8 @@ export async function runDay1FirstImpressions({ gameManager }) {
       chemistryMoments = selected;
       const beats = [];
       selected.forEach(m => {
-        beats.push({ speaker: m.pair[0].firstName, text: m.textA });
-        beats.push({ speaker: m.pair[1].firstName, text: m.textB });
+        beats.push({ speaker: displayName(m.pair[0], player), text: m.textA });
+        beats.push({ speaker: displayName(m.pair[1], player), text: m.textB });
       });
       return beats;
     }
@@ -828,6 +932,7 @@ export async function runDay1FirstImpressions({ gameManager }) {
 
       const finalRole = tasks.find(t => t.assignedIds.includes(player.id))?.key || playerCommittedRole || playerRoleChoice || 'float';
       playerRoleChoice = finalRole;
+      playerEndingRole = finalRole;
       const reflectionMap = {
         fire: 'Fire is a spotlight. If it fails, everyone will remember who owned it.',
         shelter: 'Shelter is intimate. How you vibe with your partner will stick.',
@@ -845,6 +950,26 @@ export async function runDay1FirstImpressions({ gameManager }) {
       const floatNote = finalRole === 'float' ? 'Floating keeps you flexible—and looks slippery if you vanish.' : null;
       const reflection = deferredNote || contestedNote || floatNote || reflectionMap[finalRole] || reflectionMap.flex;
       beats.push({ speaker: 'Narrator', text: reflection });
+
+      const summaryBeat = {
+        type: 'summary',
+        speaker: 'Narrator',
+        text: '',
+        nextLabel: 'Next',
+        onEnter: () => {
+          summaryBeat.text = buildEventSummaryText({
+            player,
+            members: playerTribe.members,
+            leadership,
+            tasks,
+            chemistryMoments,
+            closingMood: mood,
+            playerEndingRole,
+            playerContestedLeader
+          });
+        }
+      };
+      beats.push(summaryBeat);
 
       beats.push({ type: 'finalize', speaker: 'Narrator', text: 'Everyone heads to their spots. Time to get to work.', nextLabel: 'Back to camp' });
       return beats;
