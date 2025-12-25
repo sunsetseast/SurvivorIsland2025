@@ -1,5 +1,6 @@
 import { getRandomInt, shuffleArray } from '../utils/CommonUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
+import { GamePhase } from '../core/GameManager.js';
 
 const DEBUG_DAY1_EVENT = false;
 
@@ -10,10 +11,12 @@ function logDebug(message, payload = null) {
 }
 
 function logSkip(reason, payload = null) {
+  if (!DEBUG_DAY1_EVENT) return;
   // eslint-disable-next-line no-console
   console.info(`[Day1FirstImpressions] Skipped: ${reason}`, payload);
-  logDebug(reason, payload);
 }
+
+logDebug('module_loaded');
 
 // Name helpers kept simple but consistently hide the player identity.
 function displayName(survivorOrId, members, playerId) {
@@ -427,6 +430,41 @@ function describeAssignmentLine(survivor, taskKey, usedLines, members, playerId)
   }
 }
 
+function canRunDay1FirstImpressions(gameManager) {
+  const gm = gameManager;
+  const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
+  const members = playerTribe?.members || [];
+  const player = members.find(m => m.id === gm?.playerId) || members[0];
+  const tribeSize = members.length;
+  const overlayExists = typeof document !== 'undefined' && document.getElementById('day1-overlay');
+  const campLogHasEntry = (gm?.campLog || []).some(entry => entry.id === 'day1_first_impressions');
+  const alreadyPlanned = playerTribe?.day1Plan || playerTribe?.day1PlanCreated;
+  const alreadyDone = gm?.flags?.day1FirstImpressionsCompleted || gm?.flags?.day1FirstImpressionsDone;
+  const unsupportedTribe = tribeSize && ![6, 9].includes(tribeSize);
+  const wrongPhase = gm?.gamePhase && gm.gamePhase !== GamePhase.PRE_CHALLENGE;
+
+  const details = {
+    day: gm?.day,
+    phase: gm?.gamePhase,
+    tribe: playerTribe?.name || playerTribe?.id,
+    tribeSize,
+    hasOverlay: Boolean(overlayExists),
+    hasCampLog: campLogHasEntry,
+    hasPlan: Boolean(alreadyPlanned),
+    flags: gm?.flags,
+    playerId: player?.id
+  };
+
+  if (!gm || !playerTribe) return { ok: false, reason: 'missing_game_manager', details };
+  if (overlayExists) return { ok: false, reason: 'overlay_exists', details };
+  if (alreadyDone || alreadyPlanned || campLogHasEntry) return { ok: false, reason: 'already_completed', details };
+  if (gm.day !== 1) return { ok: false, reason: 'wrong_day', details };
+  if (wrongPhase) return { ok: false, reason: 'wrong_phase', details };
+  if (unsupportedTribe) return { ok: false, reason: 'unsupported_tribe_size', details };
+
+  return { ok: true, reason: 'ready', details: { ...details, playerTribeId: playerTribe?.id } };
+}
+
 // Ensures core coverage happens before mass floating.
 function enforceMinimumCoverage(tasks, members, player, playerIntent, leaderIds = []) {
   const coverageOrder = [
@@ -781,6 +819,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       if (finalized) return;
       finalized = true;
       cleanup?.();
+      logDebug('runDay1FirstImpressions completed');
       resolve({ plan: gameManager.playerTribe.day1Plan });
     }
   };
@@ -862,51 +901,20 @@ function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
 async function runDay1FirstImpressions({ gameManager } = {}) {
   const context = arguments[0];
   const gm = gameManager || context?.gameManager || context;
+  const gate = canRunDay1FirstImpressions(gm);
+  logDebug('Attempting runDay1FirstImpressions', gate.details);
+
+  if (!gate.ok) {
+    logSkip(gate.reason, gate.details);
+    return { skipped: true, reason: gate.reason, details: gate.details };
+  }
+
   const playerTribe = gm?.playerTribe;
   const members = playerTribe?.members || [];
   const player = members.find(m => m.id === gm?.playerId) || members[0];
   const tribeSize = members.length;
-  const overlayExists = typeof document !== 'undefined' && document.getElementById('day1-overlay');
-
-  const debugInfo = {
-    day: gm?.day,
-    phase: gm?.gamePhase,
-    tribe: playerTribe?.name || playerTribe?.id,
-    tribeSize,
-    hasOverlay: Boolean(overlayExists),
-    hasCampLog: (gm?.campLog || []).some(entry => entry.id === 'day1_first_impressions'),
-    hasPlan: Boolean(playerTribe?.day1Plan || playerTribe?.day1PlanCreated),
-    flags: gm?.flags
-  };
-
-  logDebug('Attempting runDay1FirstImpressions', debugInfo);
-
-  if (!gm || !playerTribe) {
-    logSkip('missing_game_manager', debugInfo);
-    return { skipped: true, reason: 'missing_game_manager' };
-  }
-
-  if (overlayExists) {
-    logSkip('overlay_exists', debugInfo);
-    return { skipped: true, reason: 'overlay_exists' };
-  }
 
   gm.flags = gm.flags || {};
-
-  const unsupportedTribe = tribeSize && ![6, 9].includes(tribeSize);
-  const alreadyLogged = (gm.campLog || []).some(entry => entry.id === 'day1_first_impressions');
-  const alreadyPlanned = playerTribe.day1Plan || playerTribe.day1PlanCreated;
-  const alreadyDone = gm.flags.day1FirstImpressionsCompleted || gm.flags.day1FirstImpressionsDone;
-
-  if (alreadyLogged || alreadyPlanned || alreadyDone) {
-    logSkip('already_completed', { ...debugInfo, alreadyLogged, alreadyPlanned, alreadyDone });
-    return { skipped: true, reason: 'already_completed' };
-  }
-
-  if (gm.day !== 1 || unsupportedTribe || !playerTribe) {
-    logSkip('conditions_not_met', { ...debugInfo, unsupportedTribe });
-    return { skipped: true, reason: 'conditions_not_met' };
-  }
 
   return new Promise(resolve => {
     let overlay;
@@ -1119,5 +1127,5 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
   });
 }
 
-export { runDay1FirstImpressions };
+export { runDay1FirstImpressions, canRunDay1FirstImpressions };
 export default runDay1FirstImpressions;

@@ -26,7 +26,7 @@ import renderPostChallengeSummaryView from '../views/PostChallengeSummaryView.js
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
-import { runDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
+import { runDay1FirstImpressions, canRunDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
 
 const campViews = {
   flag: renderTribeFlag,
@@ -67,25 +67,17 @@ export default class CampScreen {
     if (!playerTribe) return;
     gameManager.flags = gameManager.flags || {};
     const tribeSize = playerTribe?.members?.length || 0;
-    const campLogHasEntry = (gameManager.campLog || []).some(entry => entry.id === 'day1_first_impressions');
-    const shouldRun =
-      gameManager.day === 1 &&
-      gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
-      [6, 9].includes(tribeSize) &&
-      !gameManager.flags?.day1FirstImpressionsCompleted &&
-      !gameManager.flags?.day1FirstImpressionsDone &&
-      !playerTribe.day1Plan &&
-      !playerTribe.day1PlanCreated &&
-      !campLogHasEntry;
+    const gate = canRunDay1FirstImpressions(gameManager);
+    console.info('[CampScreen] Day 1 trigger check', {
+      invoking: typeof runDay1FirstImpressions,
+      phase: gameManager.gamePhase,
+      day: gameManager.day,
+      tribeSize,
+      gate
+    });
 
-    if (!shouldRun) {
-      console.info('[CampScreen] Day 1 event not triggered', {
-        day: gameManager.day,
-        phase: gameManager.gamePhase,
-        tribeSize,
-        campLogHasEntry,
-        flags: gameManager.flags
-      });
+    if (!gate.ok) {
+      console.info('[CampScreen] Day 1 event not triggered', gate);
       return;
     }
 
@@ -94,6 +86,7 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     try {
       if (container) container.style.pointerEvents = 'none';
+      console.info('[CampScreen] Invoking runDay1FirstImpressions');
       const result = await runDay1FirstImpressions({ gameManager, campScreen: this });
       if (!result?.skipped) {
         gameManager.flags.day1FirstImpressionsCompleted = true;
