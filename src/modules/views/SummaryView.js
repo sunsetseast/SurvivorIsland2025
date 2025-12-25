@@ -82,7 +82,13 @@ function renderCampLogSection(campLog) {
       });
 
       card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, entry.title || entry.type));
-      card.appendChild(createElement('div', { style: { color: '#2b190a', marginTop: '4px' } }, entry.text || ''));
+      const body = createElement('div', { style: { color: '#2b190a', marginTop: '4px', whiteSpace: 'pre-wrap' } });
+      if (entry.data?.summaryHtml) {
+        body.innerHTML = entry.data.summaryHtml;
+      } else {
+        body.textContent = entry.text || '';
+      }
+      card.appendChild(body);
       wrapper.appendChild(card);
     });
   });
