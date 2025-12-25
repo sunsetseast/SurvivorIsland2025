@@ -177,17 +177,6 @@ function removeOverlay(overlay) {
   overlay?.remove();
 }
 
-function resolveLeadershipScenario(members, player) {
-  const scored = members.map(m => ({ member: m, cap: buildCapabilities(m), score: buildCapabilities(m).leadership || 0 }));
-  scored.sort((a, b) => b.score - a.score);
-  const top = scored[0];
-  const runner = scored[1];
-  const contested = runner && Math.abs(top.score - runner.score) <= 8;
-  const playerTop = player && top.member.id === player.id;
-  const scenario = playerTop ? 'player_leads' : contested ? 'contested' : 'npc_leads';
-  return { topLeader: top.member, runnerUp: runner?.member || null, scenario, contestedPair: contested ? [top.member, runner.member] : null };
-}
-
 function taskDefinitions(tribeSize = 6) {
   const materialsCap = tribeSize === 9 ? 3 : 2;
   const foodCap = tribeSize === 9 ? 2 : 1;
@@ -215,71 +204,15 @@ function addAssignment(tasks, key, survivor) {
   return true;
 }
 
-function minCoverageState(tasks) {
-  return {
-    fire: getTask(tasks, 'fire').assignedIds.length >= 1,
-    shelter: getTask(tasks, 'shelter').assignedIds.length >= 2,
-    materials: getTask(tasks, 'materials').assignedIds.length >= 1,
-    food: getTask(tasks, 'food').assignedIds.length >= 1
-  };
-}
-
-function enforceMinimumCoverage(tasks, survivors, playerChoiceKey = null) {
-  const state = minCoverageState(tasks);
-  const orderedPool = survivors
-    .filter(m => !tasks.some(t => t.assignedIds.includes(m.id)))
-    .map(m => ({ member: m, caps: buildCapabilities(m) }))
-    .sort((a, b) => (b.caps.workEthic + b.caps.leadership) - (a.caps.workEthic + a.caps.leadership));
-
-  const forceFill = (key, scorer) => {
-    if (key === 'shelter') {
-      while (getTask(tasks, 'shelter').assignedIds.length < 2) {
-        const candidate = orderedPool.shift();
-        if (!candidate) break;
-        addAssignment(tasks, 'shelter', candidate.member);
-      }
-      return;
-    }
-    if (key === 'fire') {
-      if (getTask(tasks, 'fire').assignedIds.length) return;
-      orderedPool.sort((a, b) => scorer(b) - scorer(a));
-      const pick = orderedPool.shift();
-      if (pick) addAssignment(tasks, 'fire', pick.member);
-      return;
-    }
-
-    while (getTask(tasks, key).assignedIds.length < 1) {
-      orderedPool.sort((a, b) => scorer(b) - scorer(a));
-      const pick = orderedPool.shift();
-      if (!pick) break;
-      addAssignment(tasks, key, pick.member);
-    }
-  };
-
-  if (!state.fire) forceFill('fire', entry => entry.caps.fire + entry.caps.confidence);
-  if (!state.shelter) forceFill('shelter', entry => entry.caps.shelter);
-  if (!state.materials) forceFill('materials', entry => entry.caps.materials + entry.caps.workEthic);
-  if (!state.food) forceFill('food', entry => entry.caps.food);
-
-  // If shelter still short, steal from float/materials/food
-  if (getTask(tasks, 'shelter').assignedIds.length < 2) {
-    const stealOrder = ['float', 'materials', 'food'];
-    stealOrder.forEach(key => {
-      const task = getTask(tasks, key);
-      while (task.assignedIds.length && getTask(tasks, 'shelter').assignedIds.length < 2) {
-        const reassigned = task.assignedIds.shift();
-        getTask(tasks, 'shelter').assignedIds.push(reassigned);
-      }
-    });
-  }
-
-  // Ensure player choice respected if forced elsewhere
-  if (playerChoiceKey && !getTask(tasks, playerChoiceKey)?.assignedIds.includes(survivors.find(s => s.isPlayer)?.id)) {
-    const player = survivors.find(s => s.isPlayer);
-    if (player && canAssign(getTask(tasks, playerChoiceKey))) {
-      addAssignment(tasks, playerChoiceKey, player);
-    }
-  }
+function resolveLeadershipScenario(members, player) {
+  const scored = members.map(m => ({ member: m, cap: buildCapabilities(m), score: buildCapabilities(m).leadership || 0 }));
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored[0];
+  const runner = scored[1];
+  const contested = runner && Math.abs(top.score - runner.score) <= 8;
+  const playerTop = player && top.member.id === player.id;
+  const scenario = playerTop ? 'player_leads' : contested ? 'contested' : 'npc_leads';
+  return { topLeader: top.member, runnerUp: runner?.member || null, scenario, contestedPair: contested ? [top.member, runner.member] : null };
 }
 
 function formatNames(ids, members) {
@@ -290,7 +223,6 @@ function describeAssignmentLine(survivor, taskKey, profile, usedLines) {
   const { caps, bossy, proud, strategicFloater, workEthic } = profile;
   const friendly = caps.social > 60;
   const gritty = workEthic > 60;
-  const bossyLine = bossy || proud;
 
   const pickUnique = options => {
     const shuffled = shuffleArray(options);
@@ -300,30 +232,14 @@ function describeAssignmentLine(survivor, taskKey, profile, usedLines) {
   };
 
   const materialsVariants = [
-    formatNarrationQuote(
-      `${survivor.firstName} scans the tree line, sizing up what to haul first.`,
-      "I’ll keep wood and bamboo flowing."),
-    formatNarrationQuote(
-      `${survivor.firstName} loosens their shoulders, ready to move.`,
-      "Hauling stuff suits me. I’ll keep us stocked."),
-    formatNarrationQuote(
-      `${survivor.firstName} keeps it simple, no big speech.`,
-      "I’ll gather. Less talk, more work."),
-    formatNarrationQuote(
-      `Eyes track the beach and jungle like a supply map for ${survivor.firstName}.`,
-      "I can organize materials. Let’s not run empty."),
-    formatNarrationQuote(
-      `${survivor.firstName} grins, already picturing armloads of bamboo.`,
-      "I’ll roam and haul. If you need me, yell."),
-    formatNarrationQuote(
-      `${survivor.firstName} shrugs, but it’s a confident shrug.`,
-      "Sure, I’ll bring back wood. Not gonna sit around."),
-    formatNarrationQuote(
-      `${survivor.firstName} chuckles at the looming workload.`,
-      "Beast of burden coming through. Materials are mine."),
-    formatNarrationQuote(
-      `${survivor.firstName} already picks a direction, eyes sharp.`,
-      "I’ll keep options open—start with bamboo, pivot if needed.")
+    formatNarrationQuote(`${survivor.firstName} scans the tree line, sizing up what to haul first.`, 'I’ll keep wood and bamboo flowing.'),
+    formatNarrationQuote(`${survivor.firstName} loosens their shoulders, ready to move.`, 'Hauling stuff suits me. I’ll keep us stocked.'),
+    formatNarrationQuote(`${survivor.firstName} keeps it simple, no big speech.`, 'I’ll gather. Less talk, more work.'),
+    formatNarrationQuote(`Eyes track the beach and jungle like a supply map for ${survivor.firstName}.`, 'I can organize materials. Let’s not run empty.'),
+    formatNarrationQuote(`${survivor.firstName} grins, already picturing armloads of bamboo.`, 'I’ll roam and haul. If you need me, yell.'),
+    formatNarrationQuote(`${survivor.firstName} shrugs, but it’s a confident shrug.`, 'Sure, I’ll bring back wood. Not gonna sit around.'),
+    formatNarrationQuote(`${survivor.firstName} chuckles at the looming workload.`, 'Beast of burden coming through. Materials are mine.'),
+    formatNarrationQuote(`${survivor.firstName} already picks a direction, eyes sharp.`, 'I’ll keep options open—start with bamboo, pivot if needed.')
   ];
 
   const floatVariants = [
@@ -340,7 +256,7 @@ function describeAssignmentLine(survivor, taskKey, profile, usedLines) {
         ? formatNarrationQuote(`${survivor.firstName} crouches by the cold pit, confident.`, 'I’ve done this on treks. I’ll get a spark.')
         : formatNarrationQuote(`${survivor.firstName} kneels without ceremony.`, 'Fire’s mine. Trust me.');
     case 'shelter':
-      if (bossyLine) return formatNarrationQuote(`${survivor.firstName} claps hands to get motion.`, 'Shelter with me. Let’s frame it right.');
+      if (bossy || proud) return formatNarrationQuote(`${survivor.firstName} claps hands to get motion.`, 'Shelter with me. Let’s frame it right.');
       if (gritty) return formatNarrationQuote(`${survivor.firstName} rolls sleeves with purpose.`, 'I’ll take shelter—need one more set of hands.');
       return formatNarrationQuote(`${survivor.firstName} steps closer, voice steady.`, 'I can help build. Someone pair with me?');
     case 'food':
@@ -348,23 +264,136 @@ function describeAssignmentLine(survivor, taskKey, profile, usedLines) {
         ? formatNarrationQuote(`${survivor.firstName} nods toward the treeline.`, 'I’ll hunt for coconuts and fish. Back soon.')
         : formatNarrationQuote(`${survivor.firstName} grabs what passes for a spear.`, 'Food run. I’ll return with something… hopefully.');
     case 'materials':
-      if (bossyLine) return formatNarrationQuote(`${survivor.firstName} points toward the jungle.`, 'I’ll manage materials—keep pace.');
+      if (bossy || proud) return formatNarrationQuote(`${survivor.firstName} points toward the jungle.`, 'I’ll manage materials—keep pace.');
       return pickUnique(materialsVariants);
     default:
       if (strategicFloater) {
         return pickUnique([
-          formatNarrationQuote(`${survivor.firstName} keeps an eye on the moving pieces.`, 'Floating helps me read people. I’ll pop in where it counts.'),
-          formatNarrationQuote(`${survivor.firstName} leans back, observing.`, 'I’ll drift and plug holes. Better to see the full picture first.')
-        ]);
-      }
-      if (workEthic < 45) {
-        return pickUnique([
-          formatNarrationQuote(`${survivor.firstName} offers a sheepish grin.`, 'I’m overwhelmed—gonna hover and jump in when I can.'),
-          formatNarrationQuote(`${survivor.firstName} half-laughs, half-apologizes.`, 'Let me float a bit. Promise I’ll be around.')
+          formatNarrationQuote(`${survivor.firstName} hovers at the edge, eyes calculating.`, 'Floating keeps me informed. I’ll step in where it matters.'),
+          formatNarrationQuote(`${survivor.firstName} gives a knowing grin.`, 'Let me see the gaps. I’ll cover the weak spots.')
         ]);
       }
       return pickUnique(floatVariants);
   }
+}
+
+function buildPlayerIntent(choiceKey) {
+  switch (choiceKey) {
+    case 'fire':
+      return { posture: 'claim', preferredRole: 'fire', energy: 'high', assertiveness: 75 };
+    case 'shelter':
+      return { posture: 'claim', preferredRole: 'shelter', energy: 'high', assertiveness: 70 };
+    case 'materials':
+      return { posture: 'support', preferredRole: 'materials', energy: 'medium', assertiveness: 55 };
+    case 'food':
+      return { posture: 'support', preferredRole: 'food', energy: 'medium', assertiveness: 55 };
+    case 'float':
+      return { posture: 'hang_back', preferredRole: 'float', energy: 'low', assertiveness: 25 };
+    case 'mediate':
+      return { posture: 'mediate', preferredRole: null, energy: 'medium', assertiveness: 40 };
+    case 'flex':
+    default:
+      return { posture: 'support', preferredRole: null, energy: 'medium', assertiveness: 45 };
+  }
+}
+
+function minCoverageState(tasks) {
+  return {
+    fire: getTask(tasks, 'fire').assignedIds.length >= 1,
+    shelter: getTask(tasks, 'shelter').assignedIds.length >= 2,
+    materials: getTask(tasks, 'materials').assignedIds.length >= 1,
+    food: getTask(tasks, 'food').assignedIds.length >= 1
+  };
+}
+
+function enforceCoverage(tasks, survivors, leaders) {
+  const state = minCoverageState(tasks);
+  const unassigned = survivors.filter(m => !tasks.some(t => t.assignedIds.includes(m.id)));
+  const pool = unassigned
+    .map(member => ({ member, caps: buildCapabilities(member) }))
+    .sort((a, b) => (b.caps.workEthic + b.caps.leadership) - (a.caps.workEthic + a.caps.leadership));
+
+  const forceRole = (key, scoreFn, count = 1) => {
+    while (getTask(tasks, key).assignedIds.length < count) {
+      pool.sort((a, b) => scoreFn(b) - scoreFn(a));
+      const pick = pool.shift();
+      if (!pick) break;
+      addAssignment(tasks, key, pick.member);
+    }
+  };
+
+  if (!state.fire) forceRole('fire', entry => entry.caps.fire + entry.caps.confidence, 1);
+  if (!state.shelter) forceRole('shelter', entry => entry.caps.shelter, 2);
+  if (!state.materials) forceRole('materials', entry => entry.caps.materials + entry.caps.workEthic, 1);
+  if (!state.food) forceRole('food', entry => entry.caps.food, 1);
+
+  // Restrict float until minimums met
+  const floatTask = getTask(tasks, 'float');
+  if (!minCoverageState(tasks).materials || !minCoverageState(tasks).food || !minCoverageState(tasks).fire || !minCoverageState(tasks).shelter) {
+    if (floatTask.assignedIds.length > 1) {
+      const reclaimIds = floatTask.assignedIds.slice(1);
+      floatTask.assignedIds = floatTask.assignedIds.slice(0, 1);
+      reclaimIds.forEach(id => pool.unshift({ member: survivors.find(m => m.id === id), caps: buildCapabilities(survivors.find(m => m.id === id)) }));
+    }
+  }
+
+  // Leaders cannot both be float if roles missing
+  const missingCritical = !minCoverageState(tasks).fire || !minCoverageState(tasks).shelter;
+  if (missingCritical && leaders) {
+    leaders.forEach(leader => {
+      if (getTask(tasks, 'float').assignedIds.includes(leader.id)) {
+        getTask(tasks, 'float').assignedIds = getTask(tasks, 'float').assignedIds.filter(id => id !== leader.id);
+        pool.unshift({ member: leader, caps: buildCapabilities(leader) });
+      }
+    });
+  }
+
+  // Fill remaining gaps again with reclaimed pool
+  const refreshedPool = pool.filter(Boolean);
+  if (!minCoverageState(tasks).fire) forceRole('fire', entry => entry.caps.fire + entry.caps.confidence, 1);
+  if (!minCoverageState(tasks).shelter) forceRole('shelter', entry => entry.caps.shelter, 2);
+  if (!minCoverageState(tasks).materials) forceRole('materials', entry => entry.caps.materials + entry.caps.workEthic, 1);
+  if (!minCoverageState(tasks).food) forceRole('food', entry => entry.caps.food, 1);
+
+  // Send extra to materials/food before float
+  refreshedPool.forEach(entry => {
+    if (!minCoverageState(tasks).materials && canAssign(getTask(tasks, 'materials'))) {
+      addAssignment(tasks, 'materials', entry.member);
+    } else if (!minCoverageState(tasks).food && canAssign(getTask(tasks, 'food'))) {
+      addAssignment(tasks, 'food', entry.member);
+    } else {
+      addAssignment(tasks, 'float', entry.member);
+    }
+  });
+}
+
+function groupBeatsByRole(assignments, members, usedLines) {
+  const beats = [];
+  const roleMap = assignments.reduce((acc, { role, survivor }) => {
+    acc[role] = acc[role] || [];
+    acc[role].push(survivor);
+    return acc;
+  }, {});
+
+  Object.entries(roleMap).forEach(([role, group]) => {
+    if (group.length >= 3) {
+      const narratorLine = role === 'float'
+        ? 'A wave of “I’ll float” hits the sand… until someone points at the empty fire pit.'
+        : `${group.length} voices echo the same plan for ${role}. The beach buzzes with agreement.`;
+      beats.push({ speaker: 'Narrator', text: narratorLine });
+      const spotlights = shuffleArray(group).slice(0, 2);
+      spotlights.forEach(survivor => {
+        const profile = getPersonalityProfile(survivor);
+        beats.push({ speaker: survivor.firstName, text: describeAssignmentLine(survivor, role, profile, usedLines) });
+      });
+    } else {
+      group.forEach(survivor => {
+        const profile = getPersonalityProfile(survivor);
+        beats.push({ speaker: survivor.firstName, text: describeAssignmentLine(survivor, role, profile, usedLines) });
+      });
+    }
+  });
+  return beats;
 }
 
 function pickChemistryMoments(tasks, members, leadershipScenario) {
@@ -400,12 +429,9 @@ function pickChemistryMoments(tasks, members, leadershipScenario) {
     }
   }
 
-  if (leadershipScenario === 'contested' && tasks.some(t => t.key === 'fire')) {
-    const leaderIds = tasks.flatMap(t => t.assignedIds);
-    const [a, b] = leaderIds
-      .map(id => members.find(m => m.id === id))
-      .filter(Boolean)
-      .slice(0, 2);
+  if (leadershipScenario === 'contested') {
+    const candidates = [getTask(tasks, 'fire'), getTask(tasks, 'shelter')].flatMap(t => t.assignedIds);
+    const [a, b] = candidates.map(id => members.find(m => m.id === id)).filter(Boolean).slice(0, 2);
     if (a && b) {
       moments.push({
         type: 'leadership_tension',
@@ -435,7 +461,32 @@ function pickChemistryMoments(tasks, members, leadershipScenario) {
     }
   }
 
-  return moments.slice(0, 2); // Max one bond and one tension
+  const bond = moments.find(m => m.type === 'bond');
+  const tension = moments.find(m => m.type !== 'bond');
+  return [bond, tension].filter(Boolean);
+}
+
+function renderBeatUI({ beatQueue, currentIndex, overlayEls, awaitingChoice, renderChoiceUI }) {
+  if (!beatQueue.length) return;
+  const beat = beatQueue[Math.min(currentIndex, beatQueue.length - 1)];
+  const { speaker, textArea, choices, nextBtn, phaseLabel } = overlayEls;
+  phaseLabel.textContent = 'First Impressions';
+
+  if (beat.type === 'choice') {
+    awaitingChoice.value = true;
+    speaker.textContent = beat.speaker;
+    textArea.textContent = beat.text;
+    choices.innerHTML = '';
+    nextBtn.style.display = 'none';
+    renderChoiceUI();
+    return;
+  }
+
+  awaitingChoice.value = false;
+  speaker.textContent = beat.speaker;
+  textArea.textContent = beat.text;
+  choices.innerHTML = '';
+  nextBtn.style.display = beat.type === 'finalize' ? 'none' : 'inline-block';
 }
 
 export async function runDay1FirstImpressions({ gameManager }) {
@@ -446,27 +497,37 @@ export async function runDay1FirstImpressions({ gameManager }) {
     if (![6, 9].includes(playerTribe.members.length)) return resolve(null);
 
     const overlayEls = buildOverlay();
-    const { overlay, speaker, textArea, choices, nextBtn, phaseLabel, statusLine } = overlayEls;
+    const { overlay, speaker, textArea, choices, nextBtn, statusLine } = overlayEls;
 
     const tasks = taskDefinitions(playerTribe.members.length);
     const leadership = resolveLeadershipScenario(playerTribe.members, player);
     const usedLines = new Set();
-    logDebug('Leadership scenario', leadership);
 
     const beatQueue = [];
     let currentIndex = 0;
-    let awaitingChoice = false;
+    const awaitingChoice = { value: false };
+    let playerIntent = null;
     let playerRoleChoice = null;
-    let playerLeadershipTone = 'claimed';
     let chemistryMoments = [];
+    let playerLeadershipTone = 'support';
     let finalized = false;
+
+    const leaders = leadership.contestedPair || [leadership.topLeader, leadership.runnerUp].filter(Boolean).slice(0, 2);
 
     const addBeat = beat => beatQueue.push(beat);
 
-    // Phase 0 - Arrival
+    const updateStatus = () => {
+      const fire = formatNames(getTask(tasks, 'fire').assignedIds, playerTribe.members);
+      const shelter = formatNames(getTask(tasks, 'shelter').assignedIds, playerTribe.members);
+      const food = formatNames(getTask(tasks, 'food').assignedIds, playerTribe.members);
+      const materials = formatNames(getTask(tasks, 'materials').assignedIds, playerTribe.members);
+      statusLine.textContent = `Roles • Fire: ${fire} | Shelter: ${shelter} | Food: ${food} | Materials: ${materials}`;
+    };
+
+    // Opening
     addBeat({ speaker: 'Narrator', text: 'Bags hit the sand. The tribe sizes each other up—no shelter, no fire, just first impressions.' });
 
-    // Phase 1 - Leadership emergence
+    // Leadership emergence
     if (leadership.scenario === 'npc_leads') {
       const claimFire = buildCapabilities(leadership.topLeader).fire >= buildCapabilities(leadership.topLeader).shelter;
       const line = claimFire
@@ -483,7 +544,7 @@ export async function runDay1FirstImpressions({ gameManager }) {
       addBeat({ speaker: 'Narrator', text: 'Two voices overlap. Everyone clocks the tension.' });
     }
 
-    // Phase 2 - Player choice
+    // Player decision
     addBeat({
       type: 'choice',
       speaker: player.firstName,
@@ -492,15 +553,7 @@ export async function runDay1FirstImpressions({ gameManager }) {
         : 'You get the first volunteer slot. Where do you jump in?'
     });
 
-    function setStatusLine() {
-      const fire = formatNames(getTask(tasks, 'fire').assignedIds, playerTribe.members);
-      const shelter = formatNames(getTask(tasks, 'shelter').assignedIds, playerTribe.members);
-      const food = formatNames(getTask(tasks, 'food').assignedIds, playerTribe.members);
-      const materials = formatNames(getTask(tasks, 'materials').assignedIds, playerTribe.members);
-      statusLine.textContent = `Roles so far • Fire: ${fire} | Shelter: ${shelter} | Food: ${food} | Materials: ${materials}`;
-    }
-
-    function ensureNoDuplicateAssignments() {
+    function ensureUniqueAssignments() {
       const seen = new Set();
       tasks.forEach(task => {
         task.assignedIds = task.assignedIds.filter(id => {
@@ -511,76 +564,87 @@ export async function runDay1FirstImpressions({ gameManager }) {
       });
     }
 
-    function addBeatAfterChoice(beat) {
-      beatQueue.splice(currentIndex + 1, 0, beat);
-      currentIndex += 1;
-    }
-
-    function commitPlayer(taskKey, leadershipTone) {
-      playerLeadershipTone = leadershipTone;
-      if (taskKey !== 'defer') {
-        const chosen = canAssign(getTask(tasks, taskKey)) ? taskKey : 'float';
-        addAssignment(tasks, chosen, player);
-        playerRoleChoice = chosen;
-        addBeatAfterChoice({ speaker: player.firstName, text: chosen === 'float' ? formatNarrationQuote('You keep your options open.', 'I’ll float and plug holes.') : formatNarrationQuote('You claim a lane before anyone else moves.', `I’ve got ${chosen}.`) });
-      } else {
-        playerRoleChoice = 'defer';
-        addBeatAfterChoice({ speaker: player.firstName, text: formatNarrationQuote('You throw the question back to the group.', 'What do you all think? Pitch me ideas.') });
-      }
-      ensureNoDuplicateAssignments();
-      awaitingChoice = false;
-      nextBtn.style.display = 'inline-block';
-      renderBeat();
-      cascadeVolunteers();
-    }
-
-    function addChoiceButton(label, handler) {
+    function addChoiceButton(label, onClick) {
       const btn = document.createElement('button');
       btn.className = 'rect-button';
       btn.textContent = label;
       btn.style.minHeight = '42px';
       btn.style.fontSize = '1rem';
-      btn.addEventListener('click', handler);
+      btn.addEventListener('click', onClick);
       choices.appendChild(btn);
     }
 
-    function renderBeat() {
-      if (!beatQueue.length) return;
-      const beat = beatQueue[Math.min(currentIndex, beatQueue.length - 1)];
-      phaseLabel.textContent = `First Impressions • Beat ${Math.min(currentIndex + 1, beatQueue.length)}`;
-      if (beat.type === 'finalize') {
-        speaker.textContent = 'Narrator';
-        textArea.textContent = 'The group fans out—camp life truly begins.';
-        choices.innerHTML = '';
-        nextBtn.style.display = 'none';
-        setStatusLine();
-        finalizePlan();
-        return;
-      }
-      if (beat.type === 'choice') {
-        awaitingChoice = true;
-        speaker.textContent = beat.speaker;
-        textArea.textContent = beat.text;
-        choices.innerHTML = '';
-        nextBtn.style.display = 'none';
+    function renderChoiceUI() {
+      const available = tasks.filter(t => canAssign(t)).map(t => t.key);
+      if (available.includes('fire')) addChoiceButton('I’ll handle fire.', () => commitPlayer('fire'));
+      if (available.includes('shelter')) addChoiceButton('I’ll start shelter. Need someone with me.', () => commitPlayer('shelter'));
+      if (available.includes('materials')) addChoiceButton('I’ll gather materials.', () => commitPlayer('materials'));
+      if (available.includes('food')) addChoiceButton('I’ll hunt for food.', () => commitPlayer('food'));
+      addChoiceButton('Wherever I’m needed.', () => commitPlayer('flex'));
+      addChoiceButton('I’ll float and feel it out.', () => commitPlayer('float'));
+      addChoiceButton('Let’s talk it through.', () => commitPlayer('mediate'));
+    }
 
-        const available = tasks.filter(t => canAssign(t)).map(t => t.key);
-        if (available.includes('fire')) addChoiceButton('I’ll handle fire.', () => commitPlayer('fire', 'claimed'));
-        if (available.includes('shelter')) addChoiceButton('I’ll start shelter. Need someone with me.', () => commitPlayer('shelter', 'claimed'));
-        if (available.includes('fire') && available.includes('shelter')) addChoiceButton('Who’s good with fire? I can take shelter.', () => commitPlayer('shelter', 'facilitates'));
-        if (available.includes('materials')) addChoiceButton('I’ll gather materials.', () => commitPlayer('materials', 'claimed'));
-        if (available.includes('food')) addChoiceButton('I’ll hunt for food.', () => commitPlayer('food', 'claimed'));
-        addChoiceButton('I’ll float and help wherever.', () => commitPlayer('float', 'claimed'));
-        if (leadership.scenario === 'player_leads') addChoiceButton('What do you all think?', () => commitPlayer('defer', 'defers'));
-        addChoiceButton('Where do you need me most?', () => commitPlayer(available.includes('fire') ? 'fire' : available.includes('shelter') ? 'shelter' : 'materials', 'facilitates'));
+    function addBeatAfterChoice(beat) {
+      beatQueue.splice(currentIndex + 1, 0, beat);
+      currentIndex += 1;
+    }
+
+    function addResistanceBeat(conflictOwner, taskKey, resolution) {
+      const taskLabel = taskKey === 'fire' ? 'fire pit' : 'shelter frame';
+      const response = resolution === 'player_wins'
+        ? `${conflictOwner.firstName} yields with a look.`
+        : resolution === 'player_yields'
+          ? `${conflictOwner.firstName} doesn’t budge, so you pivot.`
+          : `${conflictOwner.firstName} proposes a split.`;
+      addBeatAfterChoice({ speaker: 'Narrator', text: `${conflictOwner.firstName} pushes back on you taking ${taskLabel}. ${response}` });
+    }
+
+    function commitPlayer(choiceKey) {
+      playerIntent = buildPlayerIntent(choiceKey);
+      playerLeadershipTone = playerIntent.posture === 'claim' ? 'claimed' : playerIntent.posture === 'mediate' ? 'defers' : 'support';
+
+      if (playerIntent.preferredRole) {
+        const chosenTask = getTask(tasks, playerIntent.preferredRole);
+        const conflictingLeader = leaders?.find(l => chosenTask.assignedIds.includes(l.id));
+        if (!conflictingLeader && canAssign(chosenTask)) {
+          addAssignment(tasks, playerIntent.preferredRole, player);
+          playerRoleChoice = playerIntent.preferredRole;
+          addBeatAfterChoice({ speaker: player.firstName, text: formatNarrationQuote('You stake your claim before the scramble starts.', `I’ve got ${playerIntent.preferredRole}.`) });
+        } else if (conflictingLeader) {
+          const playerWins = playerIntent.posture === 'claim' && buildCapabilities(player).leadership >= buildCapabilities(conflictingLeader).leadership + 5;
+          if (playerWins && canAssign(chosenTask)) {
+            addResistanceBeat(conflictingLeader, playerIntent.preferredRole, 'player_wins');
+            getTask(tasks, playerIntent.preferredRole).assignedIds = getTask(tasks, playerIntent.preferredRole).assignedIds.filter(id => id !== conflictingLeader.id);
+            addAssignment(tasks, playerIntent.preferredRole, player);
+            addAssignment(tasks, 'materials', conflictingLeader);
+            playerRoleChoice = playerIntent.preferredRole;
+            addBeatAfterChoice({ speaker: player.firstName, text: formatNarrationQuote('You don’t back down.', `I’m holding ${playerIntent.preferredRole}.`) });
+          } else {
+            addResistanceBeat(conflictingLeader, playerIntent.preferredRole, 'player_yields');
+            addAssignment(tasks, 'materials', player);
+            playerRoleChoice = 'materials';
+            addBeatAfterChoice({ speaker: player.firstName, text: formatNarrationQuote('You redirect without killing the mood.', 'Materials works. I’ll feed your fire.') });
+          }
+        } else {
+          addAssignment(tasks, 'float', player);
+          playerRoleChoice = 'float';
+          addBeatAfterChoice({ speaker: player.firstName, text: formatNarrationQuote('You keep your options open.', 'I’ll float and plug holes.') });
+        }
+      } else if (playerIntent.posture === 'hang_back') {
+        addAssignment(tasks, 'float', player);
+        playerRoleChoice = 'float';
+        addBeatAfterChoice({ speaker: player.firstName, text: formatNarrationQuote('You hang back, watching currents form.', 'I’ll stay loose for now.') });
       } else {
-        awaitingChoice = false;
-        speaker.textContent = beat.speaker;
-        textArea.textContent = beat.text;
-        choices.innerHTML = '';
-        nextBtn.style.display = beat.type === 'finalize' ? 'none' : 'inline-block';
+        playerRoleChoice = 'flex';
+        addBeatAfterChoice({ speaker: player.firstName, text: formatNarrationQuote('You wait, reading the room before jumping.', 'Wherever I’m needed, just point me.') });
       }
-      setStatusLine();
+
+      ensureUniqueAssignments();
+      awaitingChoice.value = false;
+      nextBtn.style.display = 'inline-block';
+      renderBeatUI({ beatQueue, currentIndex, overlayEls, awaitingChoice, renderChoiceUI });
+      cascadeAssignments();
     }
 
     function assignNPC(survivor, allowFloatEarly) {
@@ -590,61 +654,70 @@ export async function runDay1FirstImpressions({ gameManager }) {
         { key: 'shelter', score: profile.caps.shelter },
         { key: 'materials', score: profile.caps.materials },
         { key: 'food', score: profile.caps.food },
-        { key: 'float', score: allowFloatEarly ? 40 + (100 - profile.workEthic) / 2 : -Infinity }
+        { key: 'float', score: allowFloatEarly ? profile.caps.social : -1 }
       ];
-      priorities.sort((a, b) => b.score - a.score + Math.random() * 4);
+
+      priorities.sort((a, b) => b.score - a.score);
       for (const p of priorities) {
-        const task = getTask(tasks, p.key);
-        if (canAssign(task)) {
-          addAssignment(tasks, p.key, survivor);
-          addBeat({ speaker: survivor.firstName, text: describeAssignmentLine(survivor, p.key, profile, usedLines) });
-          return p.key;
-        }
+        if (p.key === 'float' && !allowFloatEarly) continue;
+        if (addAssignment(tasks, p.key, survivor)) return p.key;
       }
       return 'float';
     }
 
-    function cascadeVolunteers() {
-      // If player deferred, nudge top two leaders into fire/shelter
-      if (playerRoleChoice === 'defer') {
-        const npcCandidates = playerTribe.members.filter(m => m.id !== player.id);
-        const ranked = npcCandidates
-          .map(m => ({ member: m, score: buildCapabilities(m).leadership }))
-          .sort((a, b) => b.score - a.score);
-        const proactive = ranked[0]?.member || npcCandidates[0];
-        const helper = ranked[1]?.member || npcCandidates[1] || npcCandidates[0];
-        if (proactive) {
-          addAssignment(tasks, 'fire', proactive);
-          addBeat({ speaker: proactive.firstName, text: formatNarrationQuote('Someone finally claims the flint.', 'Fine—I’ll lock fire then.') });
+    function cascadeAssignments() {
+      // Immediate consequence beat
+      addBeatAfterChoice({ speaker: 'Narrator', text: 'The circle breaks as people rush to claim lanes—or avoid them.' });
+
+      // Leaders claim if not already
+      leaders?.forEach((leader, idx) => {
+        if (tasks.some(t => t.assignedIds.includes(leader.id))) return;
+        const preferFire = idx === 0;
+        const target = preferFire ? 'fire' : 'shelter';
+        if (!addAssignment(tasks, target, leader)) {
+          addAssignment(tasks, 'shelter', leader) || addAssignment(tasks, 'materials', leader);
         }
-        if (helper && canAssign(getTask(tasks, 'shelter'))) {
-          addAssignment(tasks, 'shelter', helper);
-          addBeat({ speaker: helper.firstName, text: formatNarrationQuote('A second voice anchors the build crew.', 'I’ll start the shelter frame.') });
+      });
+
+      // NPC volunteers
+      const order = shuffleArray(playerTribe.members.filter(m => m.id !== player.id));
+      order.forEach(npc => {
+        if (tasks.some(t => t.assignedIds.includes(npc.id))) return;
+        const allowFloatEarly = minCoverageState(tasks).fire && minCoverageState(tasks).shelter;
+        assignNPC(npc, allowFloatEarly);
+      });
+
+      // Flexible player assignment after NPCs
+      if (playerRoleChoice === 'flex') {
+        const coverage = minCoverageState(tasks);
+        const preferredGap = !coverage.fire ? 'fire' : !coverage.shelter ? 'shelter' : !coverage.materials ? 'materials' : !coverage.food ? 'food' : null;
+        if (preferredGap) {
+          addAssignment(tasks, preferredGap, player);
+          playerRoleChoice = preferredGap;
+          addBeat({ speaker: 'Narrator', text: `You slide toward ${preferredGap}, filling the obvious gap.` });
+        } else {
+          addAssignment(tasks, 'float', player);
+          playerRoleChoice = 'float';
+          addBeat({ speaker: 'Narrator', text: 'Coverage looks solid, so you stay flexible on purpose.' });
         }
       }
 
-      const remaining = playerTribe.members.filter(m => !tasks.some(t => t.assignedIds.includes(m.id)));
-      const minState = minCoverageState(tasks);
-      const allowFloatEarly = Object.values(minState).every(Boolean) ? true : getTask(tasks, 'float').assignedIds.length < 1;
-      shuffleArray(remaining).forEach(survivor => assignNPC(survivor, allowFloatEarly));
+      enforceCoverage(tasks, playerTribe.members, leaders);
 
-      ensureNoDuplicateAssignments();
-      enforceMinimumCoverage(tasks, playerTribe.members, playerRoleChoice);
+      // Role assignment cascade beats
+      const assignments = tasks.flatMap(task => task.assignedIds.map(id => ({ role: task.key, survivor: playerTribe.members.find(m => m.id === id) })));
+      const groupBeats = groupBeatsByRole(assignments, playerTribe.members, usedLines);
+      groupBeats.forEach(beat => addBeat(beat));
 
+      // Chemistry moments
       chemistryMoments = pickChemistryMoments(tasks, playerTribe.members, leadership.scenario);
-      const limitedChemistry = [];
-      const bondAdded = chemistryMoments.find(m => m.type === 'bond');
-      const tensionAdded = chemistryMoments.find(m => m.type !== 'bond');
-      if (bondAdded) limitedChemistry.push(bondAdded);
-      if (tensionAdded) limitedChemistry.push(tensionAdded);
-      chemistryMoments = limitedChemistry;
-
       chemistryMoments.forEach(m => {
         addBeat({ speaker: m.pair[0].firstName, text: m.textA });
         addBeat({ speaker: m.pair[1].firstName, text: m.textB });
       });
 
       addSendOffBeats();
+      updateStatus();
     }
 
     function addSendOffBeats() {
@@ -677,6 +750,7 @@ export async function runDay1FirstImpressions({ gameManager }) {
         materials: 'Hauling materials is thankless but steady. Maybe that steadiness is the point.',
         food: 'Food is a gamble. Success is glory; failure is silence.',
         float: 'Floating keeps you flexible—and visible if you disappear.',
+        flex: 'You offered flexibility; now people will watch if you actually plug gaps.',
         defer: 'You asked for input. Collaborative… or non-committal?'
       };
 
@@ -799,7 +873,7 @@ export async function runDay1FirstImpressions({ gameManager }) {
     }
 
     nextBtn.addEventListener('click', () => {
-      if (awaitingChoice) return;
+      if (awaitingChoice.value) return;
       const beat = beatQueue[currentIndex];
       if (beat?.type === 'finalize') {
         finalizePlan();
@@ -807,12 +881,13 @@ export async function runDay1FirstImpressions({ gameManager }) {
       }
       if (currentIndex < beatQueue.length - 1) {
         currentIndex += 1;
-        renderBeat();
+        renderBeatUI({ beatQueue, currentIndex, overlayEls, awaitingChoice, renderChoiceUI });
+        updateStatus();
       }
     });
 
     eventManager.publish(GameEvents.DIALOGUE_SHOWN, { source: 'day1-first-impressions' });
-    renderBeat();
+    renderBeatUI({ beatQueue, currentIndex, overlayEls, awaitingChoice, renderChoiceUI });
   });
 }
 
