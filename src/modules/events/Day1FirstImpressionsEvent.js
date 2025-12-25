@@ -2,6 +2,11 @@ import { getRandomInt, shuffleArray } from '../utils/CommonUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { GamePhase } from '../core/GameManager.js';
 
+// What changed:
+// - Fixed dead choice buttons (ReferenceError: applyPlayerChoice was missing) causing clicks to do nothing.
+// - Hardened choice flow with guarded handlers, deterministic beat insertion, and status updates.
+// - Rebuilt applyPlayerChoice to respect player intent, enforce coverage, and keep recap/state consistent.
+
 const DEBUG_DAY1_EVENT = false;
 
 function logDebug(message, payload = null) {
@@ -918,7 +923,10 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
 
   return new Promise(resolve => {
     let overlay;
+    let nextBtn;
+    let nextBtnHandler;
     const cleanup = () => {
+      if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
       if (overlay) removeOverlay(overlay);
       assignmentStatusUpdater = null;
       try {
@@ -931,7 +939,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
     try {
       const overlayEls = buildOverlay();
       overlay = overlayEls.overlay;
-      const { speaker, avatar, textArea, choices, nextBtn, statusLine } = overlayEls;
+      nextBtn = overlayEls.nextBtn;
+      const { speaker, avatar, textArea, choices, statusLine } = overlayEls;
       const usedLines = new Set();
 
       const tasks = taskDefinitions(tribeSize);
@@ -976,6 +985,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         if (beat.renderChoices && beat.type === 'choice') beat.renderChoices();
         if (beat.onEnter) beat.onEnter();
         updateStatusLine();
+        logDebug('renderBeatUI', { index: currentIndex, type: beat.type, awaitingChoice: awaitingChoice.value });
       };
 
       const addBeat = beat => beatQueue.push(beat);
@@ -1027,15 +1037,21 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
               { key: 'flex', label: 'Stay flexible' },
               { key: 'mediate', label: 'Mediate the leadership tension' }
             ];
+            logDebug('renderChoices', { options: options.map(o => o.key) });
             options.forEach(option => {
               const btn = document.createElement('button');
               btn.textContent = option.label;
               btn.className = 'rect-button';
               btn.style.textAlign = 'left';
               btn.addEventListener('click', () => {
-                playerChoiceKey = option.key;
-                beatQueue.push({ speaker: 'Narrator', text: `You claim: ${option.label}.` });
-                commitChoice(option.key);
+                if (!awaitingChoice.value) return;
+                logDebug('choice_clicked', { key: option.key });
+                choices.querySelectorAll('button').forEach(b => {
+                  b.disabled = true;
+                  b.style.opacity = '0.8';
+                  b.style.pointerEvents = 'none';
+                });
+                commitChoice(option.key, option.label);
               });
               choices.appendChild(btn);
             });
@@ -1044,19 +1060,89 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         addBeat(beat);
       };
 
-      const commitChoice = choiceKey => {
-        if (awaitingChoice.value) {
+      const applyPlayerChoice = choiceKey => {
+        logDebug('applyPlayerChoice_enter', { choiceKey });
+        // Reset assignments to keep the function idempotent if triggered twice.
+        tasks.forEach(task => {
+          task.assignedIds = [];
+        });
+
+        const intent = playerIntentFromChoice(choiceKey);
+        const leaderIds = [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean);
+        const leaderIdsForCoverage = leaderIds.filter(id => !(player && id === player.id && intent.posture === 'float/flex' && !intent.preferredRole));
+        const safeAssign = (roleKey, survivor) => {
+          if (!survivor) return false;
+          const success = addAssignment(tasks, roleKey, survivor);
+          return success;
+        };
+
+        const bestRoleFor = survivor => {
+          const caps = buildCapabilities(survivor);
+          const roles = ['shelter', 'fire', 'materials', 'food'];
+          return roles
+            .map(key => ({ key, score: caps[key] || 0 }))
+            .sort((a, b) => b.score - a.score)
+            .map(r => r.key)
+            .find(key => canAssign(getTask(tasks, key)));
+        };
+
+        const assignLeader = survivor => {
+          if (!survivor) return;
+          const targetRole = bestRoleFor(survivor) || 'shelter';
+          safeAssign(targetRole, survivor);
+        };
+
+        if (leadership.topLeader && leadership.topLeader.id !== player?.id) assignLeader(leadership.topLeader);
+        if (leadership.runnerUp && leadership.runnerUp.id !== leadership.topLeader?.id && leadership.runnerUp.id !== player?.id) {
+          assignLeader(leadership.runnerUp);
+        }
+
+        if (intent.preferredRole) {
+          safeAssign(intent.preferredRole, player);
+        } else if (intent.posture === 'float/flex') {
+          safeAssign('float', player);
+        }
+
+        const coverageMembers = intent.posture === 'float/flex'
+          ? [...members.filter(m => m.id !== player.id), player]
+          : members;
+        enforceMinimumCoverage(tasks, coverageMembers, player, intent, leaderIdsForCoverage);
+
+        const assignedIds = new Set(tasks.flatMap(t => t.assignedIds));
+        members.forEach(survivor => {
+          if (!assignedIds.has(survivor.id)) {
+            addAssignment(tasks, 'float', survivor);
+          }
+        });
+
+        logDebug('applyPlayerChoice_complete', { intent, tasks: cloneTaskState(tasks) });
+        return intent;
+      };
+
+      const commitChoice = (choiceKey, label) => {
+        logDebug('commitChoice_enter', { choiceKey, awaiting: awaitingChoice.value });
+        if (!awaitingChoice.value) return;
+
+        try {
+          playerChoiceKey = choiceKey;
           const intent = applyPlayerChoice(choiceKey);
+          const choiceBeat = { speaker: 'Narrator', text: `You claim: ${label || choiceKey}.` };
           const beats = [
+            choiceBeat,
             ...buildAssignmentBeats(intent),
             ...addChemistryBeats(),
             ...addClosingBeat(),
             buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup })
           ];
+          logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
           awaitingChoice.value = false;
           currentIndex += 1;
           renderBeatUI();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[Day1FirstImpressions] commitChoice failed', err);
+          awaitingChoice.value = false;
         }
       };
 
@@ -1104,7 +1190,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       buildLeadershipBeats().forEach(addBeat);
       addChoiceBeat();
 
-      nextBtn.addEventListener('click', () => {
+      nextBtnHandler = () => {
         if (awaitingChoice.value) return;
         const beat = beatQueue[currentIndex];
         if (beat?.type === 'finalize') {
@@ -1115,7 +1201,9 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           currentIndex += 1;
           renderBeatUI();
         }
-      });
+      };
+
+      nextBtn.addEventListener('click', nextBtnHandler);
 
       eventManager.publish(GameEvents.DIALOGUE_SHOWN, { source: 'day1-first-impressions' });
       renderBeatUI();
