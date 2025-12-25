@@ -280,20 +280,21 @@ function describeAssignmentLine(survivor, taskKey, profile, usedLines) {
 function buildPlayerIntent(choiceKey) {
   switch (choiceKey) {
     case 'fire':
-      return { posture: 'claim', preferredRole: 'fire', energy: 'high', assertiveness: 75 };
+      return { posture: 'claim', preferredRole: 'fire', energy: 'high', assertiveness: 80 };
     case 'shelter':
-      return { posture: 'claim', preferredRole: 'shelter', energy: 'high', assertiveness: 70 };
+      return { posture: 'claim', preferredRole: 'shelter', energy: 'high', assertiveness: 75 };
     case 'materials':
-      return { posture: 'support', preferredRole: 'materials', energy: 'medium', assertiveness: 55 };
+      return { posture: 'support', preferredRole: 'materials', energy: 'medium', assertiveness: 60 };
     case 'food':
-      return { posture: 'support', preferredRole: 'food', energy: 'medium', assertiveness: 55 };
+      return { posture: 'support', preferredRole: 'food', energy: 'medium', assertiveness: 60 };
     case 'float':
-      return { posture: 'hang_back', preferredRole: 'float', energy: 'low', assertiveness: 25 };
+      return { posture: 'hang_back', preferredRole: 'float', energy: 'low', assertiveness: 20 };
     case 'mediate':
-      return { posture: 'mediate', preferredRole: null, energy: 'medium', assertiveness: 40 };
+      return { posture: 'mediate', preferredRole: null, energy: 'medium', assertiveness: 45 };
     case 'flex':
+      return { posture: 'support', preferredRole: null, energy: 'medium', assertiveness: 50 };
     default:
-      return { posture: 'support', preferredRole: null, energy: 'medium', assertiveness: 45 };
+      return { posture: 'support', preferredRole: null, energy: 'medium', assertiveness: 50 };
   }
 }
 
@@ -309,57 +310,75 @@ function minCoverageState(tasks) {
 function enforceCoverage(tasks, survivors, leaders) {
   const state = minCoverageState(tasks);
   const coverageMet = state.fire && state.shelter && state.materials && state.food;
-  const unassigned = survivors.filter(m => !tasks.some(t => t.assignedIds.includes(m.id)));
-  const pool = unassigned
-    .map(member => ({ member, caps: buildCapabilities(member) }))
-    .sort((a, b) => (b.caps.workEthic + b.caps.leadership) - (a.caps.workEthic + a.caps.leadership));
+  const floatTask = getTask(tasks, 'float');
 
-  const forceRole = (key, scoreFn, count = 1) => {
-    while (getTask(tasks, key).assignedIds.length < count) {
+  const unassigned = survivors.filter(m => !tasks.some(t => t.assignedIds.includes(m.id)));
+  const pool = unassigned.map(member => ({ member, caps: buildCapabilities(member) }));
+
+  const sortedPick = (count, key, scoreFn) => {
+    let need = count - getTask(tasks, key).assignedIds.length;
+    while (need > 0 && pool.length) {
       pool.sort((a, b) => scoreFn(b) - scoreFn(a));
       const pick = pool.shift();
       if (!pick) break;
       addAssignment(tasks, key, pick.member);
+      need -= 1;
     }
   };
 
-  if (!state.fire) forceRole('fire', entry => entry.caps.fire + entry.caps.confidence, 1);
-  if (!state.shelter) forceRole('shelter', entry => entry.caps.shelter, 2);
-  if (!state.materials) forceRole('materials', entry => entry.caps.materials + entry.caps.workEthic, 1);
-  if (!state.food) forceRole('food', entry => entry.caps.food, 1);
-
-  const floatTask = getTask(tasks, 'float');
-  if (!coverageMet && floatTask.assignedIds.length > 1) {
-    const reclaimIds = floatTask.assignedIds.slice(1);
-    floatTask.assignedIds = floatTask.assignedIds.slice(0, 1);
-    reclaimIds.forEach(id => pool.unshift({ member: survivors.find(m => m.id === id), caps: buildCapabilities(survivors.find(m => m.id === id)) }));
-  }
-
+  // Reclaim leaders from float if critical tasks are open
   const missingCritical = !state.fire || !state.shelter || !state.materials || !state.food;
-  if (missingCritical && leaders) {
+  if (missingCritical && leaders?.length) {
     leaders.forEach(leader => {
-      if (getTask(tasks, 'float').assignedIds.includes(leader.id)) {
-        getTask(tasks, 'float').assignedIds = getTask(tasks, 'float').assignedIds.filter(id => id !== leader.id);
+      if (floatTask.assignedIds.includes(leader.id)) {
+        floatTask.assignedIds = floatTask.assignedIds.filter(id => id !== leader.id);
         pool.unshift({ member: leader, caps: buildCapabilities(leader) });
       }
     });
   }
 
-  const refreshedPool = pool.filter(Boolean);
-  if (!minCoverageState(tasks).fire) forceRole('fire', entry => entry.caps.fire + entry.caps.confidence, 1);
-  if (!minCoverageState(tasks).shelter) forceRole('shelter', entry => entry.caps.shelter, 2);
-  if (!minCoverageState(tasks).materials) forceRole('materials', entry => entry.caps.materials + entry.caps.workEthic, 1);
-  if (!minCoverageState(tasks).food) forceRole('food', entry => entry.caps.food, 1);
+  // Enforce minimums hard
+  sortedPick(1, 'fire', entry => entry.caps.fire + entry.caps.confidence);
+  sortedPick(2, 'shelter', entry => entry.caps.shelter + entry.caps.leadership);
+  sortedPick(1, 'materials', entry => entry.caps.materials + entry.caps.workEthic);
+  sortedPick(1, 'food', entry => entry.caps.food + entry.caps.confidence);
 
-  refreshedPool.forEach(entry => {
-    const latestState = minCoverageState(tasks);
-    if (!latestState.materials && canAssign(getTask(tasks, 'materials'))) {
+  // If critical roles are still short, reclaim floaters to cover gaps
+  const refreshState = () => minCoverageState(tasks);
+  const pullFromFloat = target => {
+    const missingCount = target === 'shelter' ? 2 : 1;
+    while (getTask(tasks, target).assignedIds.length < missingCount && floatTask.assignedIds.length) {
+      const floatId = floatTask.assignedIds.shift();
+      const member = survivors.find(m => m.id === floatId);
+      if (member) addAssignment(tasks, target, member);
+    }
+  };
+  const afterPick = refreshState();
+  if (!afterPick.fire) pullFromFloat('fire');
+  if (!afterPick.shelter) pullFromFloat('shelter');
+  if (!afterPick.materials) pullFromFloat('materials');
+  if (!afterPick.food) pullFromFloat('food');
+
+  // Early float cap: keep only one floater until coverage met
+  if (!coverageMet && floatTask.assignedIds.length > 1) {
+    const reclaimIds = floatTask.assignedIds.slice(1);
+    floatTask.assignedIds = floatTask.assignedIds.slice(0, 1);
+    reclaimIds.forEach(id => {
+      const member = survivors.find(m => m.id === id);
+      if (member) pool.unshift({ member, caps: buildCapabilities(member) });
+    });
+  }
+
+  // Fill remaining spots with priority to weak areas then float
+  pool.forEach(entry => {
+    const latest = minCoverageState(tasks);
+    if (!latest.materials && canAssign(getTask(tasks, 'materials'))) {
       addAssignment(tasks, 'materials', entry.member);
-    } else if (!latestState.food && canAssign(getTask(tasks, 'food'))) {
+    } else if (!latest.food && canAssign(getTask(tasks, 'food'))) {
       addAssignment(tasks, 'food', entry.member);
-    } else if (!latestState.fire && canAssign(getTask(tasks, 'fire'))) {
+    } else if (!latest.fire && canAssign(getTask(tasks, 'fire'))) {
       addAssignment(tasks, 'fire', entry.member);
-    } else if (!latestState.shelter && canAssign(getTask(tasks, 'shelter'))) {
+    } else if (!latest.shelter && canAssign(getTask(tasks, 'shelter'))) {
       addAssignment(tasks, 'shelter', entry.member);
     } else {
       addAssignment(tasks, 'float', entry.member);
@@ -519,13 +538,18 @@ export async function runDay1FirstImpressions({ gameManager }) {
     const leadership = resolveLeadershipScenario(playerTribe.members, player);
     const usedLines = new Set();
     const leaderClaims = new Map();
+    const pickLeaderRole = leader => {
+      const caps = buildCapabilities(leader);
+      return caps.fire >= caps.shelter ? 'fire' : 'shelter';
+    };
     if (leadership.scenario === 'npc_leads') {
-      const claimFire = buildCapabilities(leadership.topLeader).fire >= buildCapabilities(leadership.topLeader).shelter;
-      leaderClaims.set(leadership.topLeader.id, claimFire ? 'fire' : 'shelter');
+      leaderClaims.set(leadership.topLeader.id, pickLeaderRole(leadership.topLeader));
     }
     if (leadership.scenario === 'contested') {
-      leaderClaims.set(leadership.topLeader.id, 'fire');
-      leaderClaims.set(leadership.runnerUp.id, 'shelter');
+      const topRole = pickLeaderRole(leadership.topLeader);
+      const runnerRole = pickLeaderRole(leadership.runnerUp) === topRole ? (topRole === 'fire' ? 'shelter' : 'fire') : pickLeaderRole(leadership.runnerUp);
+      leaderClaims.set(leadership.topLeader.id, topRole);
+      leaderClaims.set(leadership.runnerUp.id, runnerRole);
     }
 
     const beatQueue = [];
