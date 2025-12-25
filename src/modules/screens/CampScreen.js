@@ -94,6 +94,10 @@ export default class CampScreen {
       }
       if (container) container.style.pointerEvents = '';
       gameManager.saveGame?.();
+    } catch (error) {
+      console.error('[CampScreen] Day 1 event failed', error);
+      gameManager.flags.day1FirstImpressionsCompleted = false;
+      gameManager.flags.day1FirstImpressionsDone = false;
     } finally {
       if (container) container.style.pointerEvents = '';
       this.day1EventRunning = false;
