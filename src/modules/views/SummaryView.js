@@ -26,8 +26,9 @@ function renderCampLogSection(campLog) {
       gap: 12px;
     `
   });
+  const uniqueLog = dedupeCampEntries(campLog);
 
-  const cinematicSummary = (campLog || []).find(entry => entry.id === 'day1_first_impressions');
+  const cinematicSummary = (uniqueLog || []).find(entry => entry.id === 'day1_first_impressions');
   if (cinematicSummary) {
     const card = createElement('div', {
       style: `
@@ -43,7 +44,7 @@ function renderCampLogSection(campLog) {
     wrapper.appendChild(card);
   }
 
-  const filtered = dedupeCampEntries(campLog).filter(entry => !entry.isCinematicEventSummary);
+  const filtered = uniqueLog.filter(entry => !entry.isCinematicEventSummary);
   const grouped = filtered.reduce((acc, entry) => {
     const key = `day-${entry.day}`;
     acc[key] = acc[key] || [];
@@ -84,6 +85,8 @@ function renderCampLogSection(campLog) {
 }
 
 function renderDay1FirstImpressionsSection(playerTribe) {
+  const existingLog = (gameManager.campLog || []).find(entry => entry.id === 'day1_first_impressions');
+  if (existingLog) return null;
   if (!playerTribe?.day1PlanCreated || !playerTribe.day1Plan) return null;
   const plan = playerTribe.day1Plan;
   const listNames = ids => ids.map(id => playerTribe.members.find(m => m.id === id)?.firstName || 'Unknown').join(', ') || 'None';
