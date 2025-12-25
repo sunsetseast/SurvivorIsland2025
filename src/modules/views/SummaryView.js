@@ -40,13 +40,7 @@ function renderCampLogSection(campLog) {
       `
     });
     card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415', fontSize: '1.1rem' } }, cinematicSummary.title || 'Cinematic Recap'));
-    const content = createElement('div', { style: { color: '#2b190a', marginTop: '4px', whiteSpace: 'pre-line' } });
-    if (cinematicSummary.data?.summaryHtml) {
-      content.innerHTML = cinematicSummary.data.summaryHtml;
-    } else {
-      content.textContent = cinematicSummary.text || '';
-    }
-    card.appendChild(content);
+    card.appendChild(createElement('div', { style: { color: '#2b190a', marginTop: '4px' } }, cinematicSummary.text || ''));
     wrapper.appendChild(card);
   }
 

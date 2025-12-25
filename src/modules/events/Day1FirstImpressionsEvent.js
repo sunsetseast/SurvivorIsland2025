@@ -19,20 +19,10 @@ function displayName(survivorOrId, members, playerId) {
 // Formats name lists with Oxford comma rules and player-safe naming.
 function formatNameList(ids = [], members = [], playerId) {
   const names = ids.map(id => displayName(id, members, playerId)).filter(Boolean);
-  const uniqueNames = [];
-  names.forEach(name => {
-    if (!uniqueNames.includes(name)) uniqueNames.push(name);
-  });
-  if (!uniqueNames.length) return '';
-  if (uniqueNames.length === 1) return uniqueNames[0];
-  if (uniqueNames.length === 2) return uniqueNames[0] === uniqueNames[1]
-    ? uniqueNames[0]
-    : `${uniqueNames[0]} and ${uniqueNames[1]}`;
-  return `${uniqueNames.slice(0, -1).join(', ')}, and ${uniqueNames[uniqueNames.length - 1]}`;
-}
-
-function formatIdsAsNameList(ids = [], members = [], playerId) {
-  return formatNameList(ids, members, playerId);
+  if (!names.length) return '';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
 }
 
 function clamp(value, min = 0, max = 100) {
@@ -45,18 +35,6 @@ function normalize0to100(value, fallback = 50) {
   const num = Number.isFinite(value) ? value : fallback;
   if (num <= 1) return clamp(num * 100, 0, 100);
   return clamp(num, 0, 100);
-}
-
-function getSurvivorAvatarSrc(survivor) {
-  if (!survivor) return 'Assets/logo.png';
-  return (
-    survivor.avatarUrl ||
-    survivor.avatar ||
-    survivor.portrait ||
-    survivor.image ||
-    survivor.img ||
-    `Assets/Avatars/${(survivor.firstName || 'unknown').toLowerCase()}.jpeg`
-  );
 }
 
 function getNestedValue(obj, path) {
@@ -140,29 +118,11 @@ function buildOverlay() {
   header.style.alignItems = 'center';
   header.style.marginBottom = '10px';
 
-  const speakerWrap = document.createElement('div');
-  speakerWrap.style.display = 'flex';
-  speakerWrap.style.alignItems = 'center';
-  speakerWrap.style.gap = '10px';
-
-  const avatar = document.createElement('img');
-  avatar.id = 'day1-avatar';
-  avatar.style.width = '52px';
-  avatar.style.height = '52px';
-  avatar.style.borderRadius = '50%';
-  avatar.style.objectFit = 'cover';
-  avatar.style.border = '3px solid #c89c53';
-  avatar.style.boxShadow = '0 4px 10px rgba(0,0,0,0.25)';
-  avatar.style.background = '#f3e3c0';
-
   const speaker = document.createElement('div');
   speaker.id = 'day1-speaker';
   speaker.style.fontWeight = 'bold';
   speaker.style.fontSize = '1.3rem';
   speaker.style.color = '#3c2415';
-
-  speakerWrap.appendChild(avatar);
-  speakerWrap.appendChild(speaker);
 
   const phaseLabel = document.createElement('div');
   phaseLabel.id = 'day1-phase-label';
@@ -170,7 +130,7 @@ function buildOverlay() {
   phaseLabel.style.color = '#6b4c2b';
   phaseLabel.textContent = 'First Impressions';
 
-  header.appendChild(speakerWrap);
+  header.appendChild(speaker);
   header.appendChild(phaseLabel);
 
   const textArea = document.createElement('div');
@@ -220,46 +180,11 @@ function buildOverlay() {
   overlay.appendChild(panel);
 
   document.body.appendChild(overlay);
-  return { overlay, speaker, avatar, textArea, choices, nextBtn, phaseLabel, statusLine };
+  return { overlay, speaker, textArea, choices, nextBtn, phaseLabel, statusLine };
 }
 
 function removeOverlay(overlay) {
   overlay?.remove();
-}
-
-function resolveSpeakerSurvivor(beat, members, player) {
-  if (!beat) return null;
-  if (beat.speaker === 'Narrator') return null;
-  if (beat.speakerSurvivor) return beat.speakerSurvivor;
-  if (beat.speakerId) return members.find(m => m.id === beat.speakerId) || null;
-  if (beat.speaker === 'You') return player || null;
-  if (typeof beat.speaker === 'string') {
-    const lower = beat.speaker.toLowerCase();
-    return members.find(m => (m.firstName || '').toLowerCase() === lower) || null;
-  }
-  return null;
-}
-
-function setHeaderSpeakerUI({ beat, members, player, speakerEl, avatarEl }) {
-  const survivor = resolveSpeakerSurvivor(beat, members, player);
-  const name = beat?.speaker === 'Narrator' ? 'Narrator' : displayName(survivor || beat?.speaker, members, player?.id);
-
-  speakerEl.textContent = name || 'Narrator';
-  if (!avatarEl) return;
-
-  if (beat?.speaker === 'Narrator') {
-    avatarEl.style.opacity = '0.65';
-    avatarEl.style.borderColor = '#d2b48c';
-    avatarEl.src = 'Assets/parchment-bg.png';
-    avatarEl.alt = 'Narrator';
-    return;
-  }
-
-  const src = getSurvivorAvatarSrc(survivor || player);
-  avatarEl.style.opacity = '1';
-  avatarEl.style.borderColor = '#c89c53';
-  avatarEl.src = src;
-  avatarEl.alt = name || 'Speaker';
 }
 
 function taskDefinitions(tribeSize = 6) {
@@ -367,14 +292,14 @@ function groupBeatsByRole(assignments, members, playerId, describeLine, usedLine
   const beats = [];
   assignments.forEach(({ role, survivors }) => {
     if (survivors.length >= 3) {
-      const names = formatIdsAsNameList(survivors.map(s => s.id), members, playerId);
+      const names = formatNameList(survivors.map(s => s.id), members, playerId);
       beats.push({ speaker: 'Narrator', text: `${names} all keep to ${role === 'float' ? 'a flexible stance' : role}. They cluster together before splitting up.` });
       shuffleArray(survivors).slice(0, 2).forEach(survivor => {
-        beats.push({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerSurvivor: survivor, text: describeLine(survivor, role, usedLines, members, playerId) });
+        beats.push({ speaker: displayName(survivor, members, playerId), text: describeLine(survivor, role, usedLines, members, playerId) });
       });
     } else {
       survivors.forEach(survivor => {
-        beats.push({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerSurvivor: survivor, text: describeLine(survivor, role, usedLines, members, playerId) });
+        beats.push({ speaker: displayName(survivor, members, playerId), text: describeLine(survivor, role, usedLines, members, playerId) });
       });
     }
   });
@@ -512,48 +437,43 @@ function groupAssignmentsByRole(tasks, members) {
   }));
 }
 
-function buildRecapSummary({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey }) {
-  const assignmentsByRole = {
-    fire: getTask(tasks, 'fire')?.assignedIds || [],
-    shelter: getTask(tasks, 'shelter')?.assignedIds || [],
-    food: getTask(tasks, 'food')?.assignedIds || [],
-    materials: getTask(tasks, 'materials')?.assignedIds || [],
-    float: getTask(tasks, 'float')?.assignedIds || []
+function buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
+  const roleAssignments = key => {
+    const task = getTask(tasks, key) || { assignedIds: [] };
+    return formatNameList(task.assignedIds, members, player.id) || 'None';
   };
-
-  const roleAssignments = key => formatIdsAsNameList(assignmentsByRole[key], members, player.id) || 'None';
-  const playerRoleKey = Object.keys(assignmentsByRole).find(key => assignmentsByRole[key].includes(player.id)) || 'float';
-  const playerRoleLabel = (tasks.find(t => t.key === playerRoleKey)?.label) || 'Float';
 
   const leadershipLines = [];
   if (leadership.scenario === 'player_leads') {
-    leadershipLines.push('• You steer the tempo right away.');
+    leadershipLines.push('You steer the early talk, and people follow your tempo.');
   } else if (leadership.scenario === 'contested') {
-    const contestedPair = formatIdsAsNameList([leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean), members, player.id);
-    leadershipLines.push(`• Leadership opens with ${contestedPair} pitching at once.`);
+    const top = displayName(leadership.topLeader, members, player.id);
+    const rival = displayName(leadership.runnerUp, members, player.id);
+    leadershipLines.push(`${top} and ${rival} both angle for control before it settles.`);
   } else {
-    leadershipLines.push(`• ${displayName(leadership.topLeader, members, player.id)} steps up first and frames the plan.`);
+    leadershipLines.push(`${displayName(leadership.topLeader, members, player.id)} steps up first, shaping the flow.`);
   }
 
   const clashLine = (() => {
     const tensionMoment = chemistryMoments.find(m => m.type !== 'bond');
     if (!tensionMoment && leadership.scenario !== 'contested') return '• No major clashes—just quick adjustments.';
     if (leadership.scenario === 'contested') {
-      return `• Clash: ${formatIdsAsNameList([leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean), members, player.id)} trade pitches before it cools.`;
+      return `• Sparks: ${displayName(leadership.topLeader, members, player.id)} and ${displayName(leadership.runnerUp, members, player.id)} trade pitches before the group moves.`;
     }
     if (tensionMoment) {
-      return `• Clash: ${formatIdsAsNameList(tensionMoment.pair.map(p => p.id), members, player.id)} bump heads over pace.`;
+      const [a, b] = tensionMoment.pair.map(p => displayName(p, members, player.id));
+      return `• Sparks: ${a} and ${b} bump heads over pace.`;
     }
-    return '• Clash: Brief, then gone.';
+    return '• Sparks: Brief, then gone.';
   })();
 
   const chemistryLines = chemistryMoments.length
     ? chemistryMoments.slice(0, 2).map(m => {
-        const pairNames = formatIdsAsNameList(m.pair.map(p => p.id), members, player.id);
-        if (m.type === 'bond') return `• ${pairNames} find easy rhythm.`;
-        if (m.type === 'leadership_tension') return `• ${pairNames} trade barbs about who leads.`;
-        if (m.type === 'lazy_callout') return `• ${pairNames} call out the lagging pace.`;
-        return `• ${pairNames} stay wary.`;
+        const [a, b] = m.pair.map(p => displayName(p, members, player.id));
+        if (m.type === 'bond') return `• ${a} and ${b} find easy rhythm.`;
+        if (m.type === 'leadership_tension') return `• ${a} and ${b} trade barbs about who leads.`;
+        if (m.type === 'lazy_callout') return `• ${a} calls out ${b} for hanging back.`;
+        return `• ${a} and ${b} stay wary.`;
       })
     : ['• Small talk stays surface-level—no sparks yet.'];
 
@@ -563,16 +483,11 @@ function buildRecapSummary({ player, members, tasks, leadership, chemistryMoment
       ? '• Chaotic: energy high, patience thin.'
       : '• Tentative: plans made, eyes watch to see if they hold.';
 
-  const playerRoleLine = playerRoleKey === 'float'
-    ? '• You stay flexible, ready to plug gaps.'
-    : `• You end up on ${playerRoleLabel}.`;
-  const playerChoiceLine = playerChoiceKey
-    ? `• Choice: ${playerChoiceKey === 'mediate' ? 'You cooled voices and kept things moving.' : `You leaned toward ${playerChoiceKey}.`}`
-    : '• Choice: You stayed flexible.';
-
-  const summaryText = [
+  return [
+    'FIRST IMPRESSIONS – RECAP',
+    '',
     'Leadership:',
-    ...leadershipLines,
+    `• ${leadershipLines[0]}`,
     clashLine,
     '',
     'Assignments:',
@@ -588,135 +503,16 @@ function buildRecapSummary({ player, members, tasks, leadership, chemistryMoment
     'Tone:',
     toneLine,
     '',
-    'Your Role:',
-    playerRoleLine,
-    playerChoiceLine
+    `You chose: ${playerChoiceKey || 'stayed flexible'}`
   ].join('\n');
-
-  const buildAssignmentsRow = (label, ids = []) => {
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.gap = '10px';
-
-    const labelEl = document.createElement('div');
-    labelEl.style.fontWeight = 'bold';
-    labelEl.style.minWidth = '90px';
-    labelEl.textContent = `${label}:`;
-    row.appendChild(labelEl);
-
-    if (!ids.length) {
-      const none = document.createElement('div');
-      none.textContent = 'None';
-      row.appendChild(none);
-      return row;
-    }
-
-    ids.forEach(id => {
-      const survivor = members.find(m => m.id === id);
-      const chip = document.createElement('div');
-      chip.style.display = 'flex';
-      chip.style.alignItems = 'center';
-      chip.style.gap = '6px';
-
-      const img = document.createElement('img');
-      img.src = getSurvivorAvatarSrc(survivor);
-      img.alt = displayName(survivor, members, player.id);
-      img.style.width = '36px';
-      img.style.height = '36px';
-      img.style.borderRadius = '50%';
-      img.style.objectFit = 'cover';
-      img.style.border = '2px solid #c89c53';
-      img.style.boxShadow = '0 2px 6px rgba(0,0,0,0.25)';
-
-      const name = document.createElement('div');
-      name.textContent = displayName(survivor, members, player.id);
-      name.style.fontWeight = '500';
-
-      chip.appendChild(img);
-      chip.appendChild(name);
-      row.appendChild(chip);
-    });
-
-    return row;
-  };
-
-  const renderHtml = () => {
-    const container = document.createElement('div');
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.gap = '12px';
-
-    const makeSection = (title, lines) => {
-      const section = document.createElement('div');
-      section.style.display = 'flex';
-      section.style.flexDirection = 'column';
-      section.style.gap = '6px';
-
-      const heading = document.createElement('div');
-      heading.style.fontWeight = 'bold';
-      heading.style.color = '#3c2415';
-      heading.textContent = title;
-      section.appendChild(heading);
-
-      lines.forEach(line => {
-        const row = document.createElement('div');
-        row.textContent = line;
-        section.appendChild(row);
-      });
-      return section;
-    };
-
-    container.appendChild(makeSection('Leadership', leadershipLines.concat(clashLine)));
-
-    const assignmentsSection = document.createElement('div');
-    assignmentsSection.style.display = 'flex';
-    assignmentsSection.style.flexDirection = 'column';
-    assignmentsSection.style.gap = '6px';
-
-    const assignmentsHeading = document.createElement('div');
-    assignmentsHeading.style.fontWeight = 'bold';
-    assignmentsHeading.style.color = '#3c2415';
-    assignmentsHeading.textContent = 'Assignments';
-    assignmentsSection.appendChild(assignmentsHeading);
-
-    assignmentsSection.appendChild(buildAssignmentsRow('Fire', assignmentsByRole.fire));
-    assignmentsSection.appendChild(buildAssignmentsRow('Shelter', assignmentsByRole.shelter));
-    assignmentsSection.appendChild(buildAssignmentsRow('Food', assignmentsByRole.food));
-    assignmentsSection.appendChild(buildAssignmentsRow('Materials', assignmentsByRole.materials));
-    assignmentsSection.appendChild(buildAssignmentsRow('Float', assignmentsByRole.float));
-
-    container.appendChild(assignmentsSection);
-    container.appendChild(makeSection('Chemistry', chemistryLines));
-    container.appendChild(makeSection('Tone', [toneLine]));
-    container.appendChild(makeSection('Your Role', [playerRoleLine, playerChoiceLine]));
-
-    return container;
-  };
-
-  const htmlWrapper = document.createElement('div');
-  htmlWrapper.appendChild(renderHtml());
-
-  return {
-    summaryText,
-    summaryHtml: htmlWrapper.innerHTML,
-    renderHtml,
-    assignmentsByRole,
-    playerRole: playerRoleKey,
-    mood: closingMood
-  };
 }
 
 // Builds the final recap beat and ensures overlay closes cleanly.
 function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager }) {
-  const recap = buildRecapSummary({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey });
-  const chemistryDetailed = chemistryMoments.map(m => ({ type: m.type, pair: m.pair.map(p => p.id), delta: m.delta || 0, tag: m.tag }));
-
   return {
     speaker: 'Narrator',
     type: 'finalize',
-    text: recap.summaryText,
-    renderHtml: recap.renderHtml,
+    text: buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey),
     onEnter: () => {
       const plan = {
         leaderId: leadership.topLeader?.id,
@@ -738,13 +534,10 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         phase: gameManager.gamePhase,
         type: 'cinematic_event',
         title: 'Day 1: First Impressions',
-        text: recap.summaryText,
+        text: 'Assignments locked in after a tense first huddle.',
         data: {
-          summaryText: recap.summaryText,
-          summaryHtml: recap.summaryHtml,
           leadershipScenario: leadership.scenario,
           leaders: [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean),
-          leaderId: leadership.topLeader?.id,
           clashOccurred: leadership.scenario === 'contested',
           playerChoiceKey,
           assignments: {
@@ -754,19 +547,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
             materials: plan.materialsIds,
             float: plan.floatIds
           },
-          tone: closingMood,
-          chemistryMoments: chemistryDetailed,
-          day1FirstImpressions: {
-            mood: closingMood,
-            leadershipScenario: leadership.scenario,
-            leaderId: leadership.topLeader?.id,
-            playerRole: recap.playerRole,
-            assignmentsByRole: recap.assignmentsByRole,
-            chemistryMomentsDetailed: chemistryDetailed,
-            playerChoice: playerChoiceKey,
-            summaryText: recap.summaryText,
-            summaryHtml: recap.summaryHtml
-          }
+          chemistryMoments: chemistryMoments.map(m => ({ type: m.type, pair: m.pair.map(p => p.id), delta: m.delta || 0, tag: m.tag })),
+          tone: closingMood
         },
         isCinematicEventSummary: true
       };
@@ -780,8 +562,6 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       }
     },
     onComplete: () => {
-      if (finalized) return;
-      finalized = true;
       eventManager.publish(GameEvents.DIALOGUE_HIDDEN, { source: 'day1-first-impressions' });
       removeOverlay(overlay);
       assignmentStatusUpdater = null;
@@ -805,7 +585,7 @@ function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
         moments.push({
           type: 'bond',
           pair: [a, b],
-          textA: formatNarrationQuote(`${formatIdsAsNameList([a.id, b.id], members, playerId)} fall into rhythm measuring bamboo.`, 'We build clean, we get some sleep.'),
+          textA: formatNarrationQuote(`${displayName(a, members, playerId)} and ${displayName(b, members, playerId)} fall into rhythm measuring bamboo.`, 'We build clean, we get some sleep.'),
           textB: formatNarrationQuote(`${displayName(b, members, playerId)} appreciates the pace.`, 'Feels good working with someone who hustles.'),
           delta: getRandomInt(8, 15),
           tag: 'day1_bond'
@@ -870,7 +650,7 @@ function runDay1FirstImpressions(gameManager) {
 
   return new Promise(resolve => {
     const overlayEls = buildOverlay();
-    const { overlay, speaker, avatar, textArea, choices, nextBtn, statusLine } = overlayEls;
+    const { overlay, speaker, textArea, choices, nextBtn, statusLine } = overlayEls;
     const usedLines = new Set();
 
     const tasks = taskDefinitions(tribeSize);
@@ -881,10 +661,9 @@ function runDay1FirstImpressions(gameManager) {
     let chemistryMoments = [];
     let playerChoiceKey = null;
     let closingMood = 'tentative';
-    let finalized = false;
 
     const updateStatusLine = () => {
-      const pieces = tasks.map(t => `${t.label}: ${formatIdsAsNameList(t.assignedIds, members, player.id) || '—'}`);
+      const pieces = tasks.map(t => `${t.label}: ${formatNameList(t.assignedIds, members, player.id) || '—'}`);
       statusLine.textContent = pieces.join(' | ');
     };
     assignmentStatusUpdater = updateStatusLine;
@@ -892,13 +671,8 @@ function runDay1FirstImpressions(gameManager) {
     const renderBeatUI = () => {
       const beat = beatQueue[currentIndex];
       if (!beat) return;
-      setHeaderSpeakerUI({ beat, members, player, speakerEl: speaker, avatarEl: avatar });
-      textArea.innerHTML = '';
-      if (beat.renderHtml) {
-        textArea.appendChild(beat.renderHtml());
-      } else {
-        textArea.textContent = beat.text;
-      }
+      speaker.textContent = beat.speaker || 'Narrator';
+      textArea.textContent = beat.text;
       if (beat.type === 'choice') {
         awaitingChoice.value = true;
         nextBtn.style.display = 'none';
@@ -935,13 +709,12 @@ function runDay1FirstImpressions(gameManager) {
             text: `${topLeader.id === player.id ? 'You' : topName} and ${opponentName} both lean forward to claim direction. Neither wants to fade.`
           });
         } else {
-          const contestedPair = formatIdsAsNameList([topLeader.id, runnerUp?.id].filter(Boolean), members, player.id);
-          beats.push({ speaker: 'Narrator', text: `${contestedPair} both angle to steer—voices tightening until others chime in.` });
+          beats.push({ speaker: 'Narrator', text: `${topName} and ${runnerName} both angle to steer—voices tightening until others chime in.` });
         }
       } else if (scenario === 'player_leads') {
-        beats.push({ speaker: 'You', speakerId: player.id, speakerSurvivor: player, text: formatNarrationQuote('You clear your throat and frame the day.', 'We need a quick plan—no panic, just roles.') });
+        beats.push({ speaker: 'You', text: formatNarrationQuote('You clear your throat and frame the day.', 'We need a quick plan—no panic, just roles.') });
       } else {
-        beats.push({ speaker: topName, speakerId: topLeader?.id, speakerSurvivor: topLeader, text: formatNarrationQuote(`${topName} steps up first.`, 'Let’s move fast. Fire, shelter, materials, food—call what you want.') });
+        beats.push({ speaker: topName, text: formatNarrationQuote(`${topName} steps up first.`, 'Let’s move fast. Fire, shelter, materials, food—call what you want.') });
       }
       return beats;
     };
@@ -1042,8 +815,8 @@ function runDay1FirstImpressions(gameManager) {
         const target = getTask(tasks, intent.preferredRole);
         const leaderInLane = target.assignedIds.find(id => leadership.topLeader && leadership.topLeader.id === id);
         if (leaderInLane && leadership.topLeader.id !== player.id) {
-          beats.push({ speaker: displayName(leadership.topLeader, members, player.id), speakerId: leadership.topLeader.id, speakerSurvivor: leadership.topLeader, text: formatNarrationQuote(`${displayName(leadership.topLeader, members, player.id)} stiffens when you speak up.`, 'I called this lane already.') });
-          beats.push({ speaker: 'You', speakerId: player.id, speakerSurvivor: player, text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
+          beats.push({ speaker: displayName(leadership.topLeader, members, player.id), text: formatNarrationQuote(`${displayName(leadership.topLeader, members, player.id)} stiffens when you speak up.`, 'I called this lane already.') });
+          beats.push({ speaker: 'You', text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
         }
       }
 
@@ -1057,8 +830,8 @@ function runDay1FirstImpressions(gameManager) {
       chemistryMoments = pickChemistryMoments(tasks, members, leadership.scenario, player.id);
       const beats = [];
       chemistryMoments.forEach(m => {
-        beats.push({ speaker: displayName(m.pair[0], members, player.id), speakerId: m.pair[0].id, speakerSurvivor: m.pair[0], text: m.textA });
-        beats.push({ speaker: displayName(m.pair[1], members, player.id), speakerId: m.pair[1].id, speakerSurvivor: m.pair[1], text: m.textB });
+        beats.push({ speaker: displayName(m.pair[0], members, player.id), text: m.textA });
+        beats.push({ speaker: displayName(m.pair[1], members, player.id), text: m.textB });
       });
       return beats;
     };
