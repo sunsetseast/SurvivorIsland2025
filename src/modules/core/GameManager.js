@@ -235,8 +235,11 @@ class GameManager {
     // If entering camp, activate social engine + NPC placement immediately
     if (newState === GameState.CAMP) {
 
-      // Set initial camp phase if not already set
-      this.gamePhase = this.gamePhase || GamePhase.PRE_CHALLENGE;
+      // Set initial camp phase if still in the pre-game placeholder
+      // Root cause: Day 1 event gating expected PRE_CHALLENGE, but we stayed in PRE_GAME after loading camp
+      if (this.gamePhase === GamePhase.PRE_GAME) {
+        this.gamePhase = GamePhase.PRE_CHALLENGE;
+      }
 
       // Notify all systems that the camp phase has begun
       eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
