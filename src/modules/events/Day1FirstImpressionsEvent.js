@@ -9,6 +9,12 @@ function logDebug(message, payload = null) {
   console.log(`[Day1FirstImpressions] ${message}`, payload);
 }
 
+function logSkip(reason, payload = null) {
+  // eslint-disable-next-line no-console
+  console.info(`[Day1FirstImpressions] Skipped: ${reason}`, payload);
+  logDebug(reason, payload);
+}
+
 // Name helpers kept simple but consistently hide the player identity.
 function displayName(survivorOrId, members, playerId) {
   const survivor = typeof survivorOrId === 'object' ? survivorOrId : members.find(m => m.id === survivorOrId);
@@ -508,7 +514,7 @@ function buildRecapText(player, members, tasks, leadership, chemistryMoments, cl
 }
 
 // Builds the final recap beat and ensures overlay closes cleanly.
-function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager }) {
+function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup }) {
   return {
     speaker: 'Narrator',
     type: 'finalize',
@@ -521,12 +527,25 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         foodIds: getTask(tasks, 'food').assignedIds,
         materialsIds: getTask(tasks, 'materials').assignedIds,
         floatIds: getTask(tasks, 'float').assignedIds,
-        chemistryMoments
+        floaterIds: getTask(tasks, 'float').assignedIds,
+        chemistryMoments: chemistryMoments.map(m => ({
+          type: m.type,
+          pair: m.pair,
+          pairIds: m.pair.map(p => p.id),
+          delta: m.delta || 0,
+          tag: m.tag
+        })),
+        leadershipScenario: leadership.scenario,
+        mood: closingMood,
+        choice: playerChoiceKey
       };
 
       gameManager.playerTribe.day1Plan = plan;
+      gameManager.playerTribe.day1PlanCreated = true;
       gameManager.playerTribe.day1Mood = closingMood;
       gameManager.playerTribe.day1Choice = playerChoiceKey;
+      gameManager.flags.day1FirstImpressionsDone = true;
+      gameManager.flags.day1FirstImpressionsCompleted = true;
 
       const summaryEntry = {
         id: 'day1_first_impressions',
@@ -562,9 +581,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       }
     },
     onComplete: () => {
-      eventManager.publish(GameEvents.DIALOGUE_HIDDEN, { source: 'day1-first-impressions' });
-      removeOverlay(overlay);
-      assignmentStatusUpdater = null;
+      cleanup?.();
       resolve({ plan: gameManager.playerTribe.day1Plan });
     }
   };
@@ -642,254 +659,253 @@ function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
   return [bond, tension].filter(Boolean);
 }
 
-function runDay1FirstImpressions(context = {}) {
-  // Allow being called with either the gameManager directly or an object wrapper
-  const gameManager = context.gameManager || context;
-  const playerTribe = gameManager?.playerTribe;
-  const members = playerTribe?.members || [];
-  const player = members.find(m => m.id === gameManager?.playerId) || members[0];
-  const tribeSize = members.length;
 
-  if (!gameManager || !playerTribe) {
-    console.warn('[Day1FirstImpressions] Missing gameManager or player tribe; skipping event.');
-    return Promise.resolve();
+async function runDay1FirstImpressions({ gameManager } = {}) {
+  const context = arguments[0];
+  const gm = gameManager || context?.gameManager || context;
+  const playerTribe = gm?.playerTribe;
+  const members = playerTribe?.members || [];
+  const player = members.find(m => m.id === gm?.playerId) || members[0];
+  const tribeSize = members.length;
+  const overlayExists = typeof document !== 'undefined' && document.getElementById('day1-overlay');
+
+  const debugInfo = {
+    day: gm?.day,
+    phase: gm?.gamePhase,
+    tribe: playerTribe?.name || playerTribe?.id,
+    tribeSize,
+    hasOverlay: Boolean(overlayExists),
+    hasCampLog: (gm?.campLog || []).some(entry => entry.id === 'day1_first_impressions'),
+    hasPlan: Boolean(playerTribe?.day1Plan || playerTribe?.day1PlanCreated),
+    flags: gm?.flags
+  };
+
+  logDebug('Attempting runDay1FirstImpressions', debugInfo);
+
+  if (!gm || !playerTribe) {
+    logSkip('missing_game_manager', debugInfo);
+    return { skipped: true, reason: 'missing_game_manager' };
+  }
+
+  if (overlayExists) {
+    logSkip('overlay_exists', debugInfo);
+    return { skipped: true, reason: 'overlay_exists' };
+  }
+
+  gm.flags = gm.flags || {};
+
+  const unsupportedTribe = tribeSize && ![6, 9].includes(tribeSize);
+  const alreadyLogged = (gm.campLog || []).some(entry => entry.id === 'day1_first_impressions');
+  const alreadyPlanned = playerTribe.day1Plan || playerTribe.day1PlanCreated;
+  const alreadyDone = gm.flags.day1FirstImpressionsCompleted || gm.flags.day1FirstImpressionsDone;
+
+  if (alreadyLogged || alreadyPlanned || alreadyDone) {
+    logSkip('already_completed', { ...debugInfo, alreadyLogged, alreadyPlanned, alreadyDone });
+    return { skipped: true, reason: 'already_completed' };
+  }
+
+  if (gm.day !== 1 || unsupportedTribe || !playerTribe) {
+    logSkip('conditions_not_met', { ...debugInfo, unsupportedTribe });
+    return { skipped: true, reason: 'conditions_not_met' };
   }
 
   return new Promise(resolve => {
-    const overlayEls = buildOverlay();
-    const { overlay, speaker, textArea, choices, nextBtn, statusLine } = overlayEls;
-    const usedLines = new Set();
-
-    const tasks = taskDefinitions(tribeSize);
-    const leadership = resolveLeadershipScenario(members, player);
-    const beatQueue = [];
-    let currentIndex = 0;
-    const awaitingChoice = { value: false };
-    let chemistryMoments = [];
-    let playerChoiceKey = null;
-    let closingMood = 'tentative';
-
-    const updateStatusLine = () => {
-      const pieces = tasks.map(t => `${t.label}: ${formatNameList(t.assignedIds, members, player.id) || '—'}`);
-      statusLine.textContent = pieces.join(' | ');
-    };
-    assignmentStatusUpdater = updateStatusLine;
-
-    const renderBeatUI = () => {
-      const beat = beatQueue[currentIndex];
-      if (!beat) return;
-      speaker.textContent = beat.speaker || 'Narrator';
-      textArea.textContent = beat.text;
-      if (beat.type === 'choice') {
-        awaitingChoice.value = true;
-        nextBtn.style.display = 'none';
-        choices.style.display = 'flex';
-      } else {
-        awaitingChoice.value = false;
-        nextBtn.style.display = 'inline-block';
-        nextBtn.textContent = beat.type === 'finalize' ? 'Continue' : 'Next';
-        choices.style.display = 'none';
+    let overlay;
+    const cleanup = () => {
+      if (overlay) removeOverlay(overlay);
+      assignmentStatusUpdater = null;
+      try {
+        eventManager.publish(GameEvents.DIALOGUE_HIDDEN, { source: 'day1-first-impressions' });
+      } catch (e) {
+        logDebug('Failed to publish dialogue hidden event during cleanup.', e);
       }
-      if (beat.onEnter) beat.onEnter();
-      updateStatusLine();
     };
 
-    const addBeat = beat => beatQueue.push(beat);
+    try {
+      const overlayEls = buildOverlay();
+      overlay = overlayEls.overlay;
+      const { speaker, textArea, choices, nextBtn, statusLine } = overlayEls;
+      const usedLines = new Set();
 
-    // Leadership opening beats
-    const buildLeadershipBeats = () => {
-      const beats = [];
-      const { scenario, topLeader, runnerUp } = leadership;
-      const topName = displayName(topLeader, members, player.id);
-      const runnerName = displayName(runnerUp, members, player.id);
+      const tasks = taskDefinitions(tribeSize);
+      const leadership = resolveLeadershipScenario(members, player);
+      const beatQueue = [];
+      let currentIndex = 0;
+      const awaitingChoice = { value: false };
+      let chemistryMoments = [];
+      let playerChoiceKey = null;
+      let closingMood = 'tentative';
 
-      beats.push({ speaker: 'Narrator', text: 'Bags hit the sand. Voices overlap as everyone sizes each other up.' });
+      const updateStatusLine = () => {
+        const pieces = tasks.map(t => `${t.label}: ${formatNameList(t.assignedIds, members, player.id) || '—'}`);
+        statusLine.textContent = pieces.join(' | ');
+      };
+      assignmentStatusUpdater = updateStatusLine;
 
-      if (scenario === 'contested') {
-        if (topLeader.id === runnerUp.id) {
-          beats.push({ speaker: 'Narrator', text: `${topName} talks through a plan, and the tribe listens.` });
-        } else if (topLeader.id === player.id || runnerUp?.id === player.id) {
-          const opponent = topLeader.id === player.id ? runnerUp : topLeader;
-          const opponentName = displayName(opponent, members, player.id);
-          beats.push({
-            speaker: 'Narrator',
-            text: `${topLeader.id === player.id ? 'You' : topName} and ${opponentName} both lean forward to claim direction. Neither wants to fade.`
-          });
+      const renderBeatUI = () => {
+        const beat = beatQueue[currentIndex];
+        if (!beat) return;
+        speaker.textContent = beat.speaker || 'Narrator';
+        textArea.textContent = beat.text;
+        if (beat.type === 'choice') {
+          awaitingChoice.value = true;
+          nextBtn.style.display = 'none';
+          choices.style.display = 'flex';
         } else {
-          beats.push({ speaker: 'Narrator', text: `${topName} and ${runnerName} both angle to steer—voices tightening until others chime in.` });
+          awaitingChoice.value = false;
+          nextBtn.style.display = 'inline-block';
+          nextBtn.textContent = beat.type === 'finalize' ? 'Continue' : 'Next';
+          choices.style.display = 'none';
         }
-      } else if (scenario === 'player_leads') {
-        beats.push({ speaker: 'You', text: formatNarrationQuote('You clear your throat and frame the day.', 'We need a quick plan—no panic, just roles.') });
-      } else {
-        beats.push({ speaker: topName, text: formatNarrationQuote(`${topName} steps up first.`, 'Let’s move fast. Fire, shelter, materials, food—call what you want.') });
-      }
-      return beats;
-    };
+        if (beat.onEnter) beat.onEnter();
+        updateStatusLine();
+      };
 
-    const addChoiceBeat = () => {
-      const options = [
-        { key: 'fire', label: 'Claim Fire', text: 'Take the flint and own the pit.' },
-        { key: 'shelter', label: 'Claim Shelter', text: 'Lead shelter framing.' },
-        { key: 'materials', label: 'Gather Materials', text: 'Haul bamboo, wood, vines.' },
-        { key: 'food', label: 'Forage/Fish', text: 'Hunt coconuts, crabs, or fish.' },
-        { key: 'float', label: 'Float', text: 'Stay flexible and support.' },
-        { key: 'flex', label: 'Hang Back & Help', text: 'Offer to plug holes without staking a lane.' },
-        { key: 'mediate', label: 'Mediate', text: 'Calm the heat, encourage split plan.' }
-      ];
+      const addBeat = beat => beatQueue.push(beat);
 
-      addBeat({
-        speaker: 'Narrator',
-        type: 'choice',
-        text: 'Where do you plant your flag—or do you stay flexible?',
-        onEnter: () => {
-          choices.innerHTML = '';
-          options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.className = 'rect-button';
-            btn.textContent = opt.label;
-            btn.addEventListener('click', () => commitChoice(opt.key));
-            const desc = document.createElement('div');
-            desc.style.fontSize = '0.85rem';
-            desc.style.color = '#4a2c0a';
-            desc.textContent = opt.text;
-            const wrapper = document.createElement('div');
-            wrapper.style.display = 'flex';
-            wrapper.style.flexDirection = 'column';
-            wrapper.style.gap = '4px';
-            wrapper.appendChild(btn);
-            wrapper.appendChild(desc);
-            choices.appendChild(wrapper);
-          });
-        }
-      });
-    };
+      // Leadership opening beats
+      const buildLeadershipBeats = () => {
+        const beats = [];
+        const { scenario, topLeader, runnerUp } = leadership;
+        const topName = displayName(topLeader, members, player.id);
+        const runnerName = displayName(runnerUp, members, player.id);
 
-    function applyPlayerChoice(choiceKey) {
-      playerChoiceKey = choiceKey;
-      const intent = playerIntentFromChoice(choiceKey);
-      const leaderClaims = new Map();
-      leaderClaims.set(leadership.topLeader.id, 'shelter');
-      if (leadership.scenario === 'contested' && leadership.runnerUp) {
-        leaderClaims.set(leadership.runnerUp.id, leadership.topLeader.id === leadership.runnerUp.id ? 'shelter' : 'fire');
-      }
+        beats.push({ speaker: 'Narrator', text: 'Bags hit the sand. Voices overlap as everyone sizes each other up.' });
 
-      leaderClaims.forEach((role, id) => {
-        const survivor = members.find(m => m.id === id);
-        if (survivor) addAssignment(tasks, role, survivor);
-      });
-
-      // Player intent application
-      if (intent.preferredRole && intent.posture !== 'float/flex') {
-        const target = getTask(tasks, intent.preferredRole);
-        if (target && canAssign(target)) {
-          // conflict handling
-          const already = target.assignedIds.find(id => leaderClaims.has(id));
-          if (already && target.cap <= target.assignedIds.length) {
-            // resistance beat inserted later
+        if (scenario === 'contested') {
+          if (topLeader.id === runnerUp.id) {
+            beats.push({ speaker: 'Narrator', text: `${topName} talks through a plan, and the tribe listens.` });
+          } else if (topLeader.id === player.id || runnerUp?.id === player.id) {
+            const opponent = topLeader.id === player.id ? runnerUp : topLeader;
+            const opponentName = displayName(opponent, members, player.id);
+            beats.push({
+              speaker: 'Narrator',
+              text: `${topLeader.id === player.id ? 'You' : topName} and ${opponentName} both lean forward to claim direction. Neither wants to fade.`
+            });
           } else {
-            addAssignment(tasks, intent.preferredRole, player);
+            beats.push({ speaker: 'Narrator', text: `${topName} and ${runnerName} both angle to steer—voices tightening until others chime in.` });
+          }
+        } else if (scenario === 'player_leads') {
+          beats.push({ speaker: 'Narrator', text: 'You speak first, framing what needs to happen.' });
+        } else {
+          beats.push({ speaker: 'Narrator', text: `${topName} squares shoulders and starts directing traffic.` });
+        }
+        return beats;
+      };
+
+      const addChoiceBeat = () => {
+        awaitingChoice.value = true;
+        const beat = {
+          speaker: 'Narrator',
+          type: 'choice',
+          text: 'Where do you plant your flag?',
+          renderChoices: () => {
+            choices.innerHTML = '';
+            const options = [
+              { key: 'fire', label: 'Take fire' },
+              { key: 'shelter', label: 'Take shelter' },
+              { key: 'materials', label: 'Gather materials' },
+              { key: 'food', label: 'Hunt/forage' },
+              { key: 'float', label: 'Float and observe' },
+              { key: 'flex', label: 'Stay flexible' },
+              { key: 'mediate', label: 'Mediate the leadership tension' }
+            ];
+            options.forEach(option => {
+              const btn = document.createElement('button');
+              btn.textContent = option.label;
+              btn.className = 'rect-button';
+              btn.style.textAlign = 'left';
+              btn.addEventListener('click', () => {
+                playerChoiceKey = option.key;
+                beatQueue.push({ speaker: 'Narrator', text: `You claim: ${option.label}.` });
+                commitChoice(option.key);
+              });
+              choices.appendChild(btn);
+            });
+          }
+        };
+        addBeat(beat);
+      };
+
+      const commitChoice = choiceKey => {
+        if (awaitingChoice.value) {
+          const intent = applyPlayerChoice(choiceKey);
+          const beats = [
+            ...buildAssignmentBeats(intent),
+            ...addChemistryBeats(),
+            ...addClosingBeat(),
+            buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup })
+          ];
+          beatQueue.splice(currentIndex + 1, 0, ...beats);
+          awaitingChoice.value = false;
+          renderBeatUI();
+        }
+      };
+
+      const buildAssignmentBeats = intent => {
+        const beats = [];
+
+        if (intent.preferredRole && intent.posture === 'claim') {
+          const target = getTask(tasks, intent.preferredRole);
+          const leaderInLane = target.assignedIds.find(id => leadership.topLeader && leadership.topLeader.id === id);
+          if (leaderInLane && leadership.topLeader.id !== player.id) {
+            beats.push({ speaker: displayName(leadership.topLeader, members, player.id), text: formatNarrationQuote(`${displayName(leadership.topLeader, members, player.id)} stiffens when you speak up.`, 'I called this lane already.') });
+            beats.push({ speaker: 'You', text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
           }
         }
-      } else if (intent.posture === 'float/flex' && intent.preferredRole === 'float') {
-        addAssignment(tasks, 'float', player);
-      }
 
-      enforceMinimumCoverage(tasks, members, player, intent, Array.from(leaderClaims.keys()));
+        const grouped = groupAssignmentsByRole(tasks, members);
+        beats.push(...groupBeatsByRole(grouped, members, player.id, describeAssignmentLine, usedLines));
+        beats.push({ speaker: 'Narrator', text: 'Plans settle into place. People echo assignments back to be sure.', onEnter: updateStatusLine });
+        return beats;
+      };
 
-      // Backfill remaining by strengths
-      const remaining = members.filter(m => !tasks.some(t => t.assignedIds.includes(m.id)));
-      const order = ['fire', 'shelter', 'materials', 'food'];
-      order.forEach(role => {
-        const task = getTask(tasks, role);
-        remaining.slice().forEach(m => {
-          if (canAssign(task)) {
-            addAssignment(tasks, role, m);
-            remaining.splice(remaining.indexOf(m), 1);
-          }
+      const addChemistryBeats = () => {
+        chemistryMoments = pickChemistryMoments(tasks, members, leadership.scenario, player.id);
+        const beats = [];
+        chemistryMoments.forEach(m => {
+          beats.push({ speaker: displayName(m.pair[0], members, player.id), text: m.textA });
+          beats.push({ speaker: displayName(m.pair[1], members, player.id), text: m.textB });
         });
-      });
-      remaining.forEach(m => addAssignment(tasks, 'float', m));
+        return beats;
+      };
 
-      updateStatusLine();
-      return intent;
-    }
+      const addClosingBeat = () => {
+        const frictionCount = chemistryMoments.filter(m => m.type !== 'bond').length;
+        const clarityScore = leadership.scenario === 'npc_leads' || leadership.scenario === 'player_leads' ? 1 : 0;
+        const coverageState = minCoverageState(tasks);
+        const coverageMet = coverageState.fire && coverageState.shelter && coverageState.materials && coverageState.food;
+        const ids = tasks.flatMap(t => t.assignedIds);
+        const scores = ids.map(id => buildCapabilities(members.find(m => m.id === id)).workEthic);
+        const averageWork = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 50;
+        closingMood = (clarityScore && frictionCount === 0 && averageWork > 55 && coverageMet) ? 'confident' : (frictionCount >= 1 || leadership.scenario === 'contested') ? 'chaotic' : 'tentative';
 
-    const buildAssignmentBeats = intent => {
-      const beats = [];
+        return [{ speaker: 'Narrator', text: closingMood === 'confident' ? 'The plan feels solid. People break with purpose.' : closingMood === 'chaotic' ? 'Energy stays jagged, but everyone moves before another argument sparks.' : 'Assignments exist, but eyes stay watchful to see if they hold.' }];
+      };
 
-      // Resistance beats when player and leader clash on same lane
-      if (intent.preferredRole && intent.posture === 'claim') {
-        const target = getTask(tasks, intent.preferredRole);
-        const leaderInLane = target.assignedIds.find(id => leadership.topLeader && leadership.topLeader.id === id);
-        if (leaderInLane && leadership.topLeader.id !== player.id) {
-          beats.push({ speaker: displayName(leadership.topLeader, members, player.id), text: formatNarrationQuote(`${displayName(leadership.topLeader, members, player.id)} stiffens when you speak up.`, 'I called this lane already.') });
-          beats.push({ speaker: 'You', text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
+      buildLeadershipBeats().forEach(addBeat);
+      addChoiceBeat();
+
+      nextBtn.addEventListener('click', () => {
+        if (awaitingChoice.value) return;
+        const beat = beatQueue[currentIndex];
+        if (beat?.type === 'finalize') {
+          if (beat.onComplete) beat.onComplete();
+          return;
         }
-      }
-
-      const grouped = groupAssignmentsByRole(tasks, members);
-      beats.push(...groupBeatsByRole(grouped, members, player.id, describeAssignmentLine, usedLines));
-      beats.push({ speaker: 'Narrator', text: 'Plans settle into place. People echo assignments back to be sure.', onEnter: updateStatusLine });
-      return beats;
-    };
-
-    const addChemistryBeats = () => {
-      chemistryMoments = pickChemistryMoments(tasks, members, leadership.scenario, player.id);
-      const beats = [];
-      chemistryMoments.forEach(m => {
-        beats.push({ speaker: displayName(m.pair[0], members, player.id), text: m.textA });
-        beats.push({ speaker: displayName(m.pair[1], members, player.id), text: m.textB });
+        if (currentIndex < beatQueue.length - 1) {
+          currentIndex += 1;
+          renderBeatUI();
+        }
       });
-      return beats;
-    };
 
-    const addClosingBeat = () => {
-      const frictionCount = chemistryMoments.filter(m => m.type !== 'bond').length;
-      const clarityScore = leadership.scenario === 'npc_leads' || leadership.scenario === 'player_leads' ? 1 : 0;
-      const coverageState = minCoverageState(tasks);
-      const coverageMet = coverageState.fire && coverageState.shelter && coverageState.materials && coverageState.food;
-      const ids = tasks.flatMap(t => t.assignedIds);
-      const scores = ids.map(id => buildCapabilities(members.find(m => m.id === id)).workEthic);
-      const averageWork = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 50;
-      closingMood = (clarityScore && frictionCount === 0 && averageWork > 55 && coverageMet) ? 'confident' : (frictionCount >= 1 || leadership.scenario === 'contested') ? 'chaotic' : 'tentative';
-
-      return [{ speaker: 'Narrator', text: closingMood === 'confident' ? 'The plan feels solid. People break with purpose.' : closingMood === 'chaotic' ? 'Energy stays jagged, but everyone moves before another argument sparks.' : 'Assignments exist, but eyes stay watchful to see if they hold.' }];
-    };
-
-    const commitChoice = choiceKey => {
-      if (awaitingChoice.value) {
-        const intent = applyPlayerChoice(choiceKey);
-        const beats = [
-          ...buildAssignmentBeats(intent),
-          ...addChemistryBeats(),
-          ...addClosingBeat(),
-          buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager })
-        ];
-        // Inject planned beats after the choice beat
-        beatQueue.splice(currentIndex + 1, 0, ...beats);
-        awaitingChoice.value = false;
-        renderBeatUI();
-      }
-    };
-
-    buildLeadershipBeats().forEach(addBeat);
-    addChoiceBeat();
-
-    nextBtn.addEventListener('click', () => {
-      if (awaitingChoice.value) return;
-      const beat = beatQueue[currentIndex];
-      if (beat?.type === 'finalize') {
-        if (beat.onComplete) beat.onComplete();
-        return;
-      }
-      if (currentIndex < beatQueue.length - 1) {
-        currentIndex += 1;
-        renderBeatUI();
-      }
-    });
-
-    eventManager.publish(GameEvents.DIALOGUE_SHOWN, { source: 'day1-first-impressions' });
-    renderBeatUI();
+      eventManager.publish(GameEvents.DIALOGUE_SHOWN, { source: 'day1-first-impressions' });
+      renderBeatUI();
+    } catch (error) {
+      console.error('[Day1FirstImpressions] Error during event setup', error);
+      cleanup();
+      resolve({ error: true, reason: 'setup_failed' });
+    }
   });
 }
 
