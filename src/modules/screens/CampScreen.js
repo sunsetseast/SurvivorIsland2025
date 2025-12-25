@@ -66,20 +66,39 @@ export default class CampScreen {
     const playerTribe = gameManager.getPlayerTribe();
     if (!playerTribe) return;
     gameManager.flags = gameManager.flags || {};
+    const tribeSize = playerTribe?.members?.length || 0;
+    const campLogHasEntry = (gameManager.campLog || []).some(entry => entry.id === 'day1_first_impressions');
     const shouldRun =
       gameManager.day === 1 &&
       gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
-      !gameManager.flags?.day1FirstImpressionsCompleted;
+      [6, 9].includes(tribeSize) &&
+      !gameManager.flags?.day1FirstImpressionsCompleted &&
+      !gameManager.flags?.day1FirstImpressionsDone &&
+      !playerTribe.day1Plan &&
+      !playerTribe.day1PlanCreated &&
+      !campLogHasEntry;
 
-    if (!shouldRun) return;
+    if (!shouldRun) {
+      console.info('[CampScreen] Day 1 event not triggered', {
+        day: gameManager.day,
+        phase: gameManager.gamePhase,
+        tribeSize,
+        campLogHasEntry,
+        flags: gameManager.flags
+      });
+      return;
+    }
 
     if (this.day1EventRunning) return;
     this.day1EventRunning = true;
     const container = getElement('camp-screen');
     try {
-      gameManager.flags.day1FirstImpressionsCompleted = true;
       if (container) container.style.pointerEvents = 'none';
-      await runDay1FirstImpressions({ gameManager, campScreen: this });
+      const result = await runDay1FirstImpressions({ gameManager, campScreen: this });
+      if (!result?.skipped) {
+        gameManager.flags.day1FirstImpressionsCompleted = true;
+        gameManager.flags.day1FirstImpressionsDone = true;
+      }
       if (container) container.style.pointerEvents = '';
       gameManager.saveGame?.();
     } finally {
