@@ -642,11 +642,18 @@ function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
   return [bond, tension].filter(Boolean);
 }
 
-function runDay1FirstImpressions(gameManager) {
-  const playerTribe = gameManager.playerTribe;
-  const members = playerTribe.members || [];
-  const player = members.find(m => m.id === gameManager.playerId) || members[0];
+function runDay1FirstImpressions(context = {}) {
+  // Allow being called with either the gameManager directly or an object wrapper
+  const gameManager = context.gameManager || context;
+  const playerTribe = gameManager?.playerTribe;
+  const members = playerTribe?.members || [];
+  const player = members.find(m => m.id === gameManager?.playerId) || members[0];
   const tribeSize = members.length;
+
+  if (!gameManager || !playerTribe) {
+    console.warn('[Day1FirstImpressions] Missing gameManager or player tribe; skipping event.');
+    return Promise.resolve();
+  }
 
   return new Promise(resolve => {
     const overlayEls = buildOverlay();
@@ -886,4 +893,5 @@ function runDay1FirstImpressions(gameManager) {
   });
 }
 
-export default { runDay1FirstImpressions };
+export { runDay1FirstImpressions };
+export default runDay1FirstImpressions;
