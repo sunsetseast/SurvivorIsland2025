@@ -430,7 +430,7 @@ function describeAssignmentLine(survivor, taskKey, usedLines, members, playerId)
   }
 }
 
-function canRunDay1FirstImpressions(gameManager) {
+export function canRunDay1FirstImpressions(gameManager) {
   const gm = gameManager;
   const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
   const members = playerTribe?.members || [];
@@ -898,7 +898,7 @@ function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
 }
 
 
-async function runDay1FirstImpressions({ gameManager } = {}) {
+export async function runDay1FirstImpressions({ gameManager } = {}) {
   const context = arguments[0];
   const gm = gameManager || context?.gameManager || context;
   const gate = canRunDay1FirstImpressions(gm);
@@ -909,7 +909,7 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
     return { skipped: true, reason: gate.reason, details: gate.details };
   }
 
-  const playerTribe = gm?.playerTribe;
+  const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
   const members = playerTribe?.members || [];
   const player = members.find(m => m.id === gm?.playerId) || members[0];
   const tribeSize = members.length;
@@ -1127,5 +1127,4 @@ async function runDay1FirstImpressions({ gameManager } = {}) {
   });
 }
 
-export { runDay1FirstImpressions, canRunDay1FirstImpressions };
 export default runDay1FirstImpressions;
