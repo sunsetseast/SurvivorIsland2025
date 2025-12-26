@@ -452,25 +452,6 @@ export default class TribeDivisionScreen {
           gameManager._publishPhaseChange();
         }
 
-        // Start the in-game day clock (keep your existing logic)
-        timerManager.setInterval('dayClock', () => {
-          gameManager.decreaseDayTimer();
-
-          const clockElement = document.getElementById('day-timer');
-          const dayElement = document.getElementById('day-label');
-          if (clockElement && dayElement) {
-            const min = Math.floor(gameManager.dayTimer / 60);
-            const sec = gameManager.dayTimer % 60;
-            clockElement.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
-            dayElement.textContent = `Day ${gameManager.day}`;
-          }
-
-          if (gameManager.dayTimer <= 0) {
-            timerManager.clearInterval('dayClock');
-            gameManager.advanceGamePhase();
-          }
-        }, 1000);
-
         // ⭐ TELL THE GAME "TRIBES ARE FINAL" → NPCs can be placed now
         eventManager.publish(GameEvents.TRIBES_CREATED, {
           tribes: gameManager.tribes
