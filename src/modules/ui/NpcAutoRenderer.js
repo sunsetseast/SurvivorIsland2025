@@ -15,6 +15,7 @@ const dbg = window.debugBanner || function(){};
 class NpcAutoRenderer {
     constructor() {
         this.initialized = false;
+        this.lastKnownPhase = null;
     }
 
     initialize() {
@@ -41,10 +42,31 @@ class NpcAutoRenderer {
 
         eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, () => {
             if (gameManager.flags?.campEventActive) return;
+
+            const npcSystem = gameManager?.systems?.npcLocationSystem || npcLocationSystem;
+            if (!gameManager || !npcSystem?.assignLocationsForPhase) {
+                console.warn?.("NpcAutoRenderer: NPC location system unavailable after camp event");
+            } else {
+                const currentPhase = gameManager?.getGamePhase?.()
+                    || gameManager?.gamePhase
+                    || this.lastKnownPhase
+                    || "preChallenge";
+
+                try {
+                    npcSystem.assignLocationsForPhase(gameManager?.survivors, currentPhase);
+                } catch (error) {
+                    console.warn?.("NpcAutoRenderer: Failed to assign NPC locations after camp event", error);
+                }
+            }
+
             const viewName = window.campScreen?.currentView || this.lastViewName;
             if (viewName) {
                 this.renderFor(viewName);
             }
+        });
+
+        eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, ({ phase }) => {
+            this.lastKnownPhase = phase;
         });
 
         // 🟢 Listen for tribe creation → assign NPC locations
