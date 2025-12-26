@@ -102,14 +102,18 @@ function formatContestedLeaderLineWithPlayer({ topLeader, runnerUp, members = []
   if (!topIsPlayer && !runnerIsPlayer) return null;
 
   const opponent = topIsPlayer ? runnerUp : topLeader;
-  if (!opponent || opponent.id === playerId) {
+  const pairNames = formatPair([topLeader?.id, runnerUp?.id].filter(Boolean), members, playerId);
+  if (!opponent || opponent.id === playerId || !pairNames) {
     return 'You lean forward to claim direction. Nobody challenges it.';
   }
 
   const opponentName = displayName(opponent, members, playerId);
-  return topIsPlayer
-    ? `You and ${opponentName} both lean forward to claim direction. Neither wants to fade.`
-    : `${opponentName} and You both lean forward to claim direction. Neither wants to fade.`;
+  const pairLine = pairNames.includes('You') && opponentName !== pairNames
+    ? pairNames
+    : topIsPlayer
+      ? `You and ${opponentName}`
+      : `${opponentName} and You`;
+  return `${pairLine} both lean forward to claim direction. Neither wants to fade.`;
 }
 
 function clamp(value, min = 0, max = 100) {
@@ -414,8 +418,6 @@ function playerIntentFromChoice(choiceKey) {
       return { key: choiceKey, posture: 'float/flex', preferredRole: 'float', assertiveness: 20 };
     case 'flex':
       return { key: choiceKey, posture: 'float/flex', preferredRole: null, assertiveness: 25 };
-    case 'mediate':
-      return { key: choiceKey, posture: 'mediate', preferredRole: null, assertiveness: 45 };
     default:
       return { key: choiceKey, posture: 'float/flex', preferredRole: null, assertiveness: 25 };
   }
@@ -424,17 +426,18 @@ function playerIntentFromChoice(choiceKey) {
 function groupBeatsByRole(assignments, members, playerId, describeLine, usedLines) {
   // Groups large clusters into combined narration and spotlights.
   const beats = [];
-  const withStatusUpdate = beat => ({ ...beat, onEnter: () => assignmentStatusUpdater?.() });
+  const withReveal = (beat, roleKey, ids = []) => ({ ...beat, reveal: { roleKey, ids } });
   assignments.forEach(({ role, survivors }) => {
+    const roleIds = survivors.map(s => s.id).filter(Boolean);
     if (survivors.length >= 3) {
-      const names = formatIdsAsNameList(survivors.map(s => s.id), members, playerId);
-      beats.push(withStatusUpdate({ speaker: 'Narrator', text: `${names} all keep to ${role === 'float' ? 'a flexible stance' : role}. They cluster together before splitting up.` }));
+      const names = formatIdsAsNameList(roleIds, members, playerId);
+      beats.push(withReveal({ speaker: 'Narrator', text: `${names} all keep to ${role === 'float' ? 'a flexible stance' : role}. They cluster together before splitting up.` }, role, roleIds));
       shuffleArray(survivors).slice(0, 2).forEach(survivor => {
-        beats.push(withStatusUpdate({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) }));
+        beats.push(withReveal({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) }, role, [survivor.id]));
       });
     } else {
       survivors.forEach(survivor => {
-        beats.push(withStatusUpdate({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) }));
+        beats.push(withReveal({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) }, role, [survivor.id]));
       });
     }
   });
@@ -854,7 +857,7 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
 }
 
 // Builds the final recap beat and ensures overlay closes cleanly.
-function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup }) {
+function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup, revealAllAssignments }) {
   const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
   const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
   const assignmentsByRole = {
@@ -879,12 +882,13 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
     text: recapText,
     htmlText: recapHtml.element,
     onEnter: () => {
+      if (typeof revealAllAssignments === 'function') revealAllAssignments();
       const ensurePlayerLockedOnce = () => {
         const pid = player?.id;
         if (!pid) return;
         const desiredKey = ['fire', 'shelter', 'materials', 'food', 'float'].includes(playerChoiceKey)
           ? playerChoiceKey
-          : playerChoiceKey === 'flex' || playerChoiceKey === 'mediate'
+          : playerChoiceKey === 'flex'
             ? 'float'
             : null;
         let occurrences = 0;
@@ -1164,6 +1168,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const usedLines = new Set();
 
       const tasks = taskDefinitions(tribeSize);
+      const revealedTasks = taskDefinitions(tribeSize).map(t => ({ ...t, assignedIds: [] }));
       const leadership = resolveLeadershipScenario(members, PLAYER);
       const beatQueue = [];
       let currentIndex = 0;
@@ -1179,8 +1184,26 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       }
 
       const updateStatusLine = () => {
-        const pieces = tasks.map(t => `${t.label}: ${formatIdsAsNameList(t.assignedIds, members, PLAYER_ID) || '—'}`);
+        const pieces = revealedTasks.map(t => `${t.label}: ${formatIdsAsNameList(t.assignedIds, members, PLAYER_ID) || '—'}`);
         statusLine.textContent = pieces.join(' | ');
+      };
+      const revealAssignment = (roleKey, survivorId) => {
+        if (!roleKey || !survivorId) return;
+        const task = getTask(revealedTasks, roleKey);
+        if (!task) return;
+        if (!task.assignedIds.includes(survivorId)) task.assignedIds.push(survivorId);
+        updateStatusLine();
+      };
+      const revealRoleGroup = (roleKey, survivorIds = []) => {
+        if (!roleKey) return;
+        survivorIds.filter(Boolean).forEach(id => revealAssignment(roleKey, id));
+      };
+      const revealAllAssignments = () => {
+        tasks.forEach(task => {
+          const revealed = getTask(revealedTasks, task.key);
+          if (revealed) revealed.assignedIds = [...task.assignedIds];
+        });
+        updateStatusLine();
       };
       assignmentStatusUpdater = updateStatusLine;
 
@@ -1209,6 +1232,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           choices.style.display = 'none';
         }
         if (beat.renderChoices && beat.type === 'choice') beat.renderChoices();
+        if (beat.reveal) revealRoleGroup(beat.reveal.roleKey, beat.reveal.ids);
         if (beat.onEnter) beat.onEnter();
         updateStatusLine();
         logDebug('renderBeatUI', { index: currentIndex, type: beat.type, awaitingChoice: awaitingChoice.value });
@@ -1235,7 +1259,9 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
               members,
               playerId: PLAYER_ID
             });
-            beats.push({ speaker: 'Narrator', text: contestedLine });
+            const pairNames = formatPair([topLeader?.id, runnerUp?.id].filter(Boolean), members, PLAYER_ID) || `${topName} and ${runnerName}`;
+            const fallbackLine = `${pairNames} both lean forward to claim direction. Neither wants to fade.`;
+            beats.push({ speaker: 'Narrator', text: contestedLine || fallbackLine });
           } else {
             beats.push({ speaker: 'Narrator', text: `${topName} and ${runnerName} both angle to steer—voices tightening until others chime in.` });
           }
@@ -1261,8 +1287,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
               { key: 'materials', label: 'Gather materials' },
               { key: 'food', label: 'Hunt/forage' },
               { key: 'float', label: 'Float and observe' },
-              { key: 'flex', label: 'Stay flexible' },
-              { key: 'mediate', label: 'Mediate the leadership tension' }
+              { key: 'flex', label: 'Stay flexible' }
             ];
             logDebug('renderChoices', { options: options.map(o => o.key) });
             options.forEach(option => {
@@ -1405,7 +1430,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             ...buildAssignmentBeats(intent),
             ...addChemistryBeats(),
             ...addClosingBeat(),
-            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup })
+            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup, revealAllAssignments })
           ];
           logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
