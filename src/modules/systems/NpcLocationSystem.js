@@ -56,6 +56,11 @@ class NpcLocationSystem {
   assignLocationsForPhase(survivors) {
     dbg("assignLocationsForPhase called", { total: survivors?.length });
 
+    if (gameManager.flags?.campEventActive) {
+      dbg("Camp event active — skipping location assignment");
+      return;
+    }
+
     this.locations = {};
     this.phaseAssigned = true;
     this.lastFights = [];

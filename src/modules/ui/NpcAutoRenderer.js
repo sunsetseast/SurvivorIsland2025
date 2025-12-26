@@ -26,7 +26,13 @@ class NpcAutoRenderer {
         // 🟢 Listen for camp view changes
         eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName }) => {
             dbg("Event: CAMP_VIEW_LOADED received by NpcAutoRenderer", viewName);
+            if (gameManager.flags?.campEventActive) return;
             this.renderFor(viewName);
+        });
+
+        eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, () => {
+            const container = document.getElementById("camp-content");
+            container?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
         });
 
         // 🟢 Listen for tribe creation → assign NPC locations

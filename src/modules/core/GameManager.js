@@ -18,6 +18,7 @@ import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
 import { npcLocationSystem, ConversationSystem } from '../systems/index.js';
+import { canRunDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
 
 // UI module — this one is fine
 import npcAutoRenderer from "../ui/NpcAutoRenderer.js";
@@ -241,20 +242,29 @@ class GameManager {
         this.gamePhase = GamePhase.PRE_CHALLENGE;
       }
 
+      const gate = canRunDay1FirstImpressions?.(this);
+      const shouldBlockCampSystems = !!gate?.ok;
+
+      if (shouldBlockCampSystems) {
+        this.flags = this.flags || {};
+        this.flags.campEventActive = true;
+        console.info('[GameManager] Camp systems paused for pending camp event', gate);
+      }
+
       // Notify all systems that the camp phase has begun
       eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
         phase: this.gamePhase
       });
 
-      // Assign NPCs locations for the current phase
-      this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
+      if (!this.flags?.campEventActive) {
+        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
 
-      // Activate Social Engine for this phase
-      if (this.gamePhase === GamePhase.PRE_CHALLENGE) {
-        this.systems.socialEngine.resetForNewPhase("pre");
-      }
-      if (this.gamePhase === GamePhase.POST_CHALLENGE) {
-        this.systems.socialEngine.resetForNewPhase("post");
+        if (this.gamePhase === GamePhase.PRE_CHALLENGE) {
+          this.systems.socialEngine.resetForNewPhase("pre");
+        }
+        if (this.gamePhase === GamePhase.POST_CHALLENGE) {
+          this.systems.socialEngine.resetForNewPhase("post");
+        }
       }
 
     }

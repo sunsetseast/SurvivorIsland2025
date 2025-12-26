@@ -983,10 +983,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
     onComplete: () => {
       if (finalized) return;
       finalized = true;
-      cleanup?.();
       logDebug('runDay1FirstImpressions completed');
-      eventManager.publish(GameEvents.CAMP_EVENT_FINISHED, { eventId: 'day1_first_impressions' });
-      resolve({ plan: gameManager.playerTribe.day1Plan });
+      finish({ plan: gameManager.playerTribe.day1Plan });
     }
   };
 }
@@ -1097,6 +1095,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
 
   return new Promise(resolve => {
     eventManager.publish(GameEvents.CAMP_EVENT_STARTED, { eventId: 'day1_first_impressions' });
+    let finished = false;
     let overlay;
     let nextBtn;
     let nextBtnHandler;
@@ -1115,6 +1114,15 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       } catch (e) {
         logDebug('Failed to publish dialogue hidden event during cleanup.', e);
       }
+    };
+
+    const finish = (payload) => {
+      if (finished) return;
+      finished = true;
+      cleanup?.();
+      console.info('[Day1FirstImpressions] Event finished');
+      eventManager.publish(GameEvents.CAMP_EVENT_FINISHED, { eventId: 'day1_first_impressions' });
+      resolve(payload);
     };
 
     const showBlockingError = (message, meta = {}) => {
@@ -1145,9 +1153,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       }
       if (nextBtn) {
         nextBtnHandler = () => {
-          cleanup();
           const reason = meta?.reason || 'player_unresolved';
-          resolve({ error: true, reason, warnings: resolution.warnings, meta });
+          finish({ error: true, reason, warnings: resolution.warnings, meta });
         };
         nextBtn.addEventListener('click', nextBtnHandler);
       }

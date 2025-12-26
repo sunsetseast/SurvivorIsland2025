@@ -934,6 +934,8 @@ class ConversationSystem {
     eventManager.subscribe(GameEvents.NPC_CONFRONTATION, this._handleNpcConfrontation.bind(this));
     eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, this._handlePhaseChange.bind(this));
     eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, this._handleCampViewLoaded.bind(this));
+    eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, this._pauseForCampEvent.bind(this));
+    eventManager.subscribe(GameEvents.CAMP_EVENT_FINISHED, this._resumeAfterCampEvent.bind(this));
     if (typeof window !== 'undefined') {
       window.runConversationQA = () => this._runConversationQA();
       window.ConversationSystem = window.ConversationSystem || {};
@@ -951,7 +953,7 @@ class ConversationSystem {
    * @param {Object} options - Additional optional data
    */
   startNpcConversation(survivor, type, options = {}) {
-    if (!survivor || !this._isInCamp()) return;
+    if (!survivor || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
     this.startConversation({
       npcId: survivor.id,
       phase: options.context?.phase || this._getConversationPhase(),
@@ -968,7 +970,7 @@ class ConversationSystem {
    * Entry point for all conversation flows.
    */
   startConversation({ npcId, phase, socialType = null, context = {} }) {
-    if (!npcId || !this._isInCamp()) return;
+    if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
     const survivor = this._getSurvivorById(npcId);
     if (!survivor) return;
 
@@ -1023,7 +1025,7 @@ class ConversationSystem {
   }
 
   _handleNpcConfrontation({ survivor, location }) {
-    if (!this._isInCamp() || !survivor) return;
+    if (!this._isInCamp() || !survivor || this.gameManager.flags?.campEventActive) return;
 
     const pending = this.pendingMeetings.find(meeting => meeting.npcId === survivor.id && meeting.location === location && !meeting.hasTriggered);
     if (pending) {
@@ -1041,6 +1043,11 @@ class ConversationSystem {
       return;
     }
 
+    if (this.gameManager.flags?.campEventActive) {
+      this._clearPendingMeetings(false);
+      return;
+    }
+
     if (phase === GamePhase.PRE_CHALLENGE || phase === GamePhase.POST_CHALLENGE) {
       this._clearPendingMeetings(false);
       this._queuePhaseInvitations(phase);
@@ -1050,7 +1057,7 @@ class ConversationSystem {
   }
 
   _handleCampViewLoaded({ viewName }) {
-    if (!this._isInCamp()) return;
+    if (!this._isInCamp() || this.gameManager.flags?.campEventActive) return;
 
     const meeting = this.pendingMeetings.find(item => item.location === viewName && !item.hasTriggered);
     if (meeting) {
@@ -1062,7 +1069,24 @@ class ConversationSystem {
     }
   }
 
+  _pauseForCampEvent() {
+    this._clearOverlay();
+    this._clearPendingMeetings(false);
+    if (this.midPhaseTimerId) {
+      timerManager.clearTimeout(this.midPhaseTimerId);
+      this.midPhaseTimerId = null;
+    }
+  }
+
+  _resumeAfterCampEvent() {
+    if (!this._isInCamp()) return;
+    this._clearApproachTimer();
+    this._clearPendingMeetings(false);
+    this._queuePhaseInvitations(this.gameManager.gamePhase);
+  }
+
   _queuePhaseInvitations(phase) {
+    if (this.gameManager.flags?.campEventActive) return;
     this._scheduleMeetingInvitation(phase, 'phaseIntro');
 
     if (this.midPhaseTimerId) {
@@ -1081,6 +1105,7 @@ class ConversationSystem {
   }
 
   _scheduleMeetingInvitation(phase, type) {
+    if (this.gameManager.flags?.campEventActive) return;
     const npc = this._pickConversationNpc();
     if (!npc) return;
 
@@ -1973,6 +1998,7 @@ class ConversationSystem {
   }
 
   _showNpcApproachOverlay(survivor, location, onAccept) {
+    if (this.gameManager.flags?.campEventActive) return;
     this._highlightNpcIcon(survivor.id, true);
     const overlay = this._buildOverlayShell(survivor, { reuse: true });
     const content = this._getConversationContent(overlay);
