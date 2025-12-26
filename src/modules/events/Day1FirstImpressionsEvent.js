@@ -1515,20 +1515,34 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       addChoiceBeat();
 
       nextBtnHandler = () => {
-        const beat = beatQueue[currentIndex];
-        if (beat?.type === 'finalize') {
-          if (beat.onComplete) beat.onComplete();
-          else finishEvent({ plan: gameManager.playerTribe?.day1Plan });
-          return;
-        }
-        if (awaitingChoice.value) return;
-        if (currentIndex < beatQueue.length - 1) {
-          currentIndex += 1;
-          renderBeatUI();
-        } else {
-          // Failsafe: if we're at the end of the queue but something prevented a finalize beat,
-          // still close out the event so the camp state can resume.
-          finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'fallback_finalize' } });
+        try {
+          const beat = beatQueue[currentIndex];
+
+          if (beat?.type === 'finalize') {
+            try {
+              if (beat.onComplete) beat.onComplete();
+              else finishEvent({ plan: gameManager.playerTribe?.day1Plan });
+            } finally {
+              // If something prevented the callback from completing, make sure the overlay closes.
+              if (!finished) finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
+            }
+            return;
+          }
+
+          if (awaitingChoice.value) return;
+
+          if (currentIndex < beatQueue.length - 1) {
+            currentIndex += 1;
+            renderBeatUI();
+          } else {
+            // Failsafe: if we're at the end of the queue but something prevented a finalize beat,
+            // still close out the event so the camp state can resume.
+            finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'fallback_finalize' } });
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[Day1FirstImpressions] next button failed', err);
+          finishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
         }
       };
 
