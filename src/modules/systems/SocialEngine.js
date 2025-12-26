@@ -19,6 +19,7 @@ class SocialEngine {
 
     // RESET at start of camp phase
     resetForNewPhase(phaseType = "pre") {
+        if (gameManager.flags?.campEventActive) return;
         this.conversationsThisPhase = 0;
 
         if (phaseType === "pre") {

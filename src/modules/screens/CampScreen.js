@@ -78,6 +78,18 @@ export default class CampScreen {
       gameManager.flags.campEventActive = false;
       this.ensureClockUI();
       this.startCampClockTick();
+
+      const survivors = gameManager.survivors;
+      const phaseKey = gameManager.gamePhase === GamePhase.POST_CHALLENGE ? 'post' : 'pre';
+      console.info('[CampScreen] Resuming camp systems after event');
+
+      gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors);
+      gameManager.systems?.socialEngine?.resetForNewPhase?.(phaseKey);
+
+      eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
+        viewName: this.currentView,
+        container: getElement('camp-content')
+      });
     });
   }
 
