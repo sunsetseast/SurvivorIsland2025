@@ -35,7 +35,7 @@ export const GameEvents = {
   RESOURCE_GATHERED: 'resource:gathered',
   RESOURCE_USED: 'resource:used',
   CAMP_EVENT_STARTED: 'camp:eventStarted',
-  CAMP_EVENT_FINISHED: 'camp:eventFinished',
+  CAMP_EVENT_ENDED: 'camp:eventEnded',
 
   // ⭐ NEW CAMP EVENTS ⭐
   CAMP_VIEW_LOADED: 'camp:viewLoaded',

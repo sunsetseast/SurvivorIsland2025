@@ -26,7 +26,11 @@ class NpcAutoRenderer {
         // 🟢 Listen for camp view changes
         eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName }) => {
             dbg("Event: CAMP_VIEW_LOADED received by NpcAutoRenderer", viewName);
-            if (gameManager.flags?.campEventActive) return;
+            if (gameManager.flags?.campEventActive) {
+                const container = document.getElementById("camp-content");
+                container?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
+                return;
+            }
             this.renderFor(viewName);
         });
 
@@ -53,7 +57,11 @@ class NpcAutoRenderer {
     renderFor(viewName) {
         dbg("NpcAutoRenderer.renderFor()", viewName);
 
-        if (gameManager.flags?.campEventActive) return;
+        if (gameManager.flags?.campEventActive) {
+            const container = document.getElementById("camp-content");
+            container?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
+            return;
+        }
 
         const container = document.getElementById("camp-content");
         if (!container) {
@@ -70,6 +78,11 @@ class NpcAutoRenderer {
     renderNPCs(viewName, container) {
         if (!container) {
             dbg("❌ renderNPCs called with NO container");
+            return;
+        }
+
+        if (gameManager.flags?.campEventActive) {
+            container.querySelectorAll(".npc-icon-container").forEach(el => el.remove());
             return;
         }
 

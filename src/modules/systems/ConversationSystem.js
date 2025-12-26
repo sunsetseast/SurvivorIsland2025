@@ -935,7 +935,7 @@ class ConversationSystem {
     eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, this._handlePhaseChange.bind(this));
     eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, this._handleCampViewLoaded.bind(this));
     eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, this._pauseForCampEvent.bind(this));
-    eventManager.subscribe(GameEvents.CAMP_EVENT_FINISHED, this._resumeAfterCampEvent.bind(this));
+    eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, this._resumeAfterCampEvent.bind(this));
     if (typeof window !== 'undefined') {
       window.runConversationQA = () => this._runConversationQA();
       window.ConversationSystem = window.ConversationSystem || {};

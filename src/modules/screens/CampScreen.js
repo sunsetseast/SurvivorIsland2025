@@ -57,27 +57,31 @@ export default class CampScreen {
     window.campScreen = this;
     this.day1EventRunning = false;
     this.campEventActive = false;
-    this.clockTicking = false;
+    this.clockRunning = false;
+    this.isActive = false;
+    this.unsubscribeFromCampEventStarted = null;
+    this.unsubscribeFromCampEventEnded = null;
     gameManager.flags = gameManager.flags || {};
     gameManager.flags.campEventActive = false;
 
-    eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, ({ eventId }) => {
+    this.unsubscribeFromCampEventStarted = eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, ({ eventId }) => {
       console.info('[CampScreen] Camp event started', eventId);
       this.campEventActive = true;
       gameManager.flags.campEventActive = true;
-      timerManager.clearInterval('campClockTick');
-      this.clockTicking = false;
+      this.stopCampClock();
 
       const campContent = getElement('camp-content');
       campContent?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
     });
 
-    eventManager.subscribe(GameEvents.CAMP_EVENT_FINISHED, ({ eventId }) => {
-      console.info('[CampScreen] Camp event finished', eventId);
+    this.unsubscribeFromCampEventEnded = eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, ({ eventId }) => {
+      console.info('[CampScreen] Camp event ended', eventId);
       this.campEventActive = false;
       gameManager.flags.campEventActive = false;
       this.ensureClockUI();
-      this.startCampClockTick();
+      if (this.isActive) {
+        this.startCampClock();
+      }
 
       const survivors = gameManager.survivors;
       const phaseKey = gameManager.gamePhase === GamePhase.POST_CHALLENGE ? 'post' : 'pre';
@@ -107,15 +111,15 @@ export default class CampScreen {
       resultPromise?.then?.(result => {
         if (!result || result?.skipped || result?.error) {
           this.ensureClockUI();
-          this.startCampClockTick();
+          this.startCampClock();
         }
       })?.catch?.(error => {
         console.error('[CampScreen] Day 1 promise rejected', error);
         this.ensureClockUI();
-        this.startCampClockTick();
+        this.startCampClock();
       });
     } else {
-      this.startCampClockTick();
+      this.startCampClock();
     }
   }
 
@@ -156,7 +160,7 @@ export default class CampScreen {
       console.error('[CampScreen] Day 1 event failed', error);
       gameManager.flags.day1FirstImpressionsCompleted = false;
       gameManager.flags.day1FirstImpressionsDone = false;
-      eventManager.publish(GameEvents.CAMP_EVENT_FINISHED, { eventId: 'day1_first_impressions', error: true });
+      eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions', id: 'day1_first_impressions', error: true });
       result = { error: true };
     } finally {
       if (container) container.style.pointerEvents = '';
@@ -169,15 +173,18 @@ export default class CampScreen {
   setup(data = {}) {
     const container = getElement('camp-screen');
     container.style.display = 'block';
+    this.isActive = true;
     this.loadView('flag');
-    this.ensureClockUI();
-    this._startCampClockAfterDay1();
+    this.renderClockUI();
+    if (!gameManager.flags?.campEventActive) {
+      this._startCampClockAfterDay1();
+    }
   }
 
   teardown() {
     console.log('CampScreen teardown');
-    timerManager.clearInterval('campClockTick');
-    this.clockTicking = false;
+    this.isActive = false;
+    this.stopCampClock();
     const clock = document.getElementById('camp-clock');
     if (clock) clock.remove();
   }
@@ -360,11 +367,11 @@ export default class CampScreen {
     return clockWrapper;
   }
 
-  startCampClockTick() {
-    if (this.campEventActive || this.clockTicking) return;
+  startCampClock() {
+    if (this.campEventActive || this.clockRunning) return;
 
     timerManager.clearInterval('campClockTick');
-    this.clockTicking = true;
+    this.clockRunning = true;
     this.ensureClockUI();
 
     // 🕒 Track last time water, hunger, and rest were decreased
@@ -381,7 +388,7 @@ export default class CampScreen {
       // Check if time has run out
       if (currentTime <= 0) {
         timerManager.clearInterval('campClockTick');
-        this.clockTicking = false;
+        this.clockRunning = false;
         if (gameManager.gamePhase === GamePhase.POST_CHALLENGE) {
           const strat = gameManager?.systems?.strategyPhaseSystem;
           if (strat?.handleTimerExpired) {
@@ -445,6 +452,11 @@ export default class CampScreen {
         this.updateInventoryDisplay();
       }
     }, 1000);
+  }
+
+  stopCampClock() {
+    timerManager.clearInterval('campClockTick');
+    this.clockRunning = false;
   }
 
   renderClockUI() {
