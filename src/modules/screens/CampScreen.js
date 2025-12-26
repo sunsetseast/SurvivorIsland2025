@@ -222,6 +222,18 @@ export default class CampScreen {
       if (typeof refreshMenuCard === 'function') {
         refreshMenuCard();
       }
+
+      // 🔥 5) Ensure the Day 1 cinematic still triggers when camp first loads
+      if (
+        viewName === 'flag' &&
+        gameManager.day === 1 &&
+        gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
+        !gameManager.flags?.day1FirstImpressionsCompleted &&
+        !gameManager.flags?.day1FirstImpressionsDone &&
+        !this.day1EventRunning
+      ) {
+        this._startCampClockAfterDay1();
+      }
     }
   }
 
