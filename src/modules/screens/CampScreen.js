@@ -63,14 +63,18 @@ export default class CampScreen {
   }
 
   async _startCampClockAfterDay1() {
+    // clock should already be visible, but be defensive:
+    this.ensureClockUI();
+
     const gate = canRunDay1FirstImpressions(gameManager);
     if (gate.ok) {
       await this._maybeRunDay1Event();
-      this.renderClockUI();
-      return;
+      // Day 1 event may have manipulated DOM, so ensure again:
+      this.ensureClockUI();
     }
 
-    this.renderClockUI();
+    // start ticking ONLY after Day 1 has completed or was skipped
+    this.startCampClockTick();
   }
 
   async _maybeRunDay1Event() {
@@ -119,11 +123,13 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.style.display = 'block';
     this.loadView('flag');
+    this.ensureClockUI();
     this._startCampClockAfterDay1();
   }
 
   teardown() {
     console.log('CampScreen teardown');
+    timerManager.clearInterval('campClockTick');
     const clock = document.getElementById('camp-clock');
     if (clock) clock.remove();
   }
@@ -255,9 +261,9 @@ export default class CampScreen {
     }
   }
 
-  renderClockUI() {
+  ensureClockUI() {
     const existing = document.getElementById('camp-clock');
-    if (existing) return;
+    if (existing) return existing;
 
     const clockWrapper = document.createElement('div');
     clockWrapper.id = 'camp-clock';
@@ -283,7 +289,6 @@ export default class CampScreen {
     timeText.style.fontSize = '24px';
     timeText.style.color = '#2b190a';
     timeText.style.fontWeight = 'bold';
-    timeText.innerText = '02:00:00';
 
     const dayText = document.createElement('div');
     dayText.id = 'clock-day-text';
@@ -294,13 +299,20 @@ export default class CampScreen {
     dayText.style.fontFamily = 'Survivant, sans-serif';
     dayText.style.fontSize = '21px';
     dayText.style.color = '#ffffff';
-    dayText.innerText = `Day ${gameManager.getDay()}`;
 
     clockWrapper.appendChild(timeText);
     clockWrapper.appendChild(dayText);
 
     const container = getElement('camp-screen');
     container.appendChild(clockWrapper);
+
+    updateCampClockUI(gameManager.getDayTimer(), gameManager.getDay());
+    return clockWrapper;
+  }
+
+  startCampClockTick() {
+    timerManager.clearInterval('campClockTick');
+    this.ensureClockUI();
 
     // 🕒 Track last time water, hunger, and rest were decreased
     let lastWaterTick = gameManager.getDayTimer();
@@ -379,5 +391,9 @@ export default class CampScreen {
         this.updateInventoryDisplay();
       }
     }, 1000);
+  }
+
+  renderClockUI() {
+    return this.ensureClockUI();
   }
 }
