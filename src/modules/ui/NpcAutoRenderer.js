@@ -39,6 +39,14 @@ class NpcAutoRenderer {
             container?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
         });
 
+        eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, () => {
+            if (gameManager.flags?.campEventActive) return;
+            const viewName = window.campScreen?.currentView || this.lastViewName;
+            if (viewName) {
+                this.renderFor(viewName);
+            }
+        });
+
         // 🟢 Listen for tribe creation → assign NPC locations
         eventManager.subscribe(GameEvents.TRIBES_CREATED, () => {
             const tribe = gameManager.getPlayerTribe();
@@ -56,6 +64,8 @@ class NpcAutoRenderer {
      */
     renderFor(viewName) {
         dbg("NpcAutoRenderer.renderFor()", viewName);
+
+        this.lastViewName = viewName;
 
         if (gameManager.flags?.campEventActive) {
             const container = document.getElementById("camp-content");
