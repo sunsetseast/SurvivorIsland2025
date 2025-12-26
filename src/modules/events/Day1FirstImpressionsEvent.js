@@ -985,6 +985,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       finalized = true;
       cleanup?.();
       logDebug('runDay1FirstImpressions completed');
+      eventManager.publish(GameEvents.CAMP_EVENT_FINISHED, { eventId: 'day1_first_impressions' });
       resolve({ plan: gameManager.playerTribe.day1Plan });
     }
   };
@@ -1095,6 +1096,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
   gm.flags = gm.flags || {};
 
   return new Promise(resolve => {
+    eventManager.publish(GameEvents.CAMP_EVENT_STARTED, { eventId: 'day1_first_impressions' });
     let overlay;
     let nextBtn;
     let nextBtnHandler;

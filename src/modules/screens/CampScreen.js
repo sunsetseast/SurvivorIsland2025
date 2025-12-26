@@ -56,6 +56,29 @@ export default class CampScreen {
     this.currentView = null;
     window.campScreen = this;
     this.day1EventRunning = false;
+    this.campEventActive = false;
+    this.clockTicking = false;
+    gameManager.flags = gameManager.flags || {};
+    gameManager.flags.campEventActive = false;
+
+    eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, ({ eventId }) => {
+      console.info('[CampScreen] Camp event started', eventId);
+      this.campEventActive = true;
+      gameManager.flags.campEventActive = true;
+      timerManager.clearInterval('campClockTick');
+      this.clockTicking = false;
+
+      const campContent = getElement('camp-content');
+      campContent?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
+    });
+
+    eventManager.subscribe(GameEvents.CAMP_EVENT_FINISHED, ({ eventId }) => {
+      console.info('[CampScreen] Camp event finished', eventId);
+      this.campEventActive = false;
+      gameManager.flags.campEventActive = false;
+      this.ensureClockUI();
+      this.startCampClockTick();
+    });
   }
 
   initialize() {
@@ -68,13 +91,20 @@ export default class CampScreen {
 
     const gate = canRunDay1FirstImpressions(gameManager);
     if (gate.ok) {
-      await this._maybeRunDay1Event();
-      // Day 1 event may have manipulated DOM, so ensure again:
-      this.ensureClockUI();
+      const resultPromise = this._maybeRunDay1Event();
+      resultPromise?.then?.(result => {
+        if (!result || result?.skipped || result?.error) {
+          this.ensureClockUI();
+          this.startCampClockTick();
+        }
+      })?.catch?.(error => {
+        console.error('[CampScreen] Day 1 promise rejected', error);
+        this.ensureClockUI();
+        this.startCampClockTick();
+      });
+    } else {
+      this.startCampClockTick();
     }
-
-    // start ticking ONLY after Day 1 has completed or was skipped
-    this.startCampClockTick();
   }
 
   async _maybeRunDay1Event() {
@@ -93,16 +123,17 @@ export default class CampScreen {
 
     if (!gate.ok) {
       console.info('[CampScreen] Day 1 event not triggered', gate);
-      return;
+      return { skipped: true, reason: gate.reason };
     }
 
     if (this.day1EventRunning) return;
     this.day1EventRunning = true;
     const container = getElement('camp-screen');
+    let result;
     try {
       if (container) container.style.pointerEvents = 'none';
       console.info('[CampScreen] Invoking runDay1FirstImpressions');
-      const result = await runDay1FirstImpressions({ gameManager, campScreen: this });
+      result = await runDay1FirstImpressions({ gameManager, campScreen: this });
       if (!result?.skipped) {
         gameManager.flags.day1FirstImpressionsCompleted = true;
         gameManager.flags.day1FirstImpressionsDone = true;
@@ -113,10 +144,14 @@ export default class CampScreen {
       console.error('[CampScreen] Day 1 event failed', error);
       gameManager.flags.day1FirstImpressionsCompleted = false;
       gameManager.flags.day1FirstImpressionsDone = false;
+      eventManager.publish(GameEvents.CAMP_EVENT_FINISHED, { eventId: 'day1_first_impressions', error: true });
+      result = { error: true };
     } finally {
       if (container) container.style.pointerEvents = '';
       this.day1EventRunning = false;
     }
+
+    return result;
   }
 
   setup(data = {}) {
@@ -130,42 +165,45 @@ export default class CampScreen {
   teardown() {
     console.log('CampScreen teardown');
     timerManager.clearInterval('campClockTick');
+    this.clockTicking = false;
     const clock = document.getElementById('camp-clock');
     if (clock) clock.remove();
   }
 
   loadView(viewName) {
-      const viewContainer = getElement('camp-content');
+    const viewContainer = getElement('camp-content');
 
-      // Always clear old view first
-      clearChildren(viewContainer);
+    // Always clear old view first
+    clearChildren(viewContainer);
 
-      // Track previous view
-      window.previousCampView = this.currentView || null;
-      this.currentView = viewName;
+    // Track previous view
+    window.previousCampView = this.currentView || null;
+    this.currentView = viewName;
 
-      // 🔥 1) Render the actual view
-      const renderFn = campViews[viewName];
-      if (renderFn) {
-          renderFn(viewContainer);
-      }
+    // 🔥 1) Render the actual view
+    const renderFn = campViews[viewName];
+    if (renderFn) {
+      renderFn(viewContainer);
+    }
 
+    if (!this.campEventActive) {
       // 🔥 2) Publish event AFTER rendering so subscribers know the DOM exists
       eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
-          viewName
+        viewName
       });
-    window.debugBanner("CAMP VIEW LOADED", viewName);
+      window.debugBanner('CAMP VIEW LOADED', viewName);
 
       // 🔥 3) Force NPC renderer AFTER DOM exists
       // (this is the critical step — without this, you see nothing)
-      if (npcAutoRenderer && typeof npcAutoRenderer.renderFor === "function") {
-          npcAutoRenderer.renderFor(viewName);
+      if (npcAutoRenderer && typeof npcAutoRenderer.renderFor === 'function') {
+        npcAutoRenderer.renderFor(viewName);
       }
 
       // 🔥 4) Update menu stats
-      if (typeof refreshMenuCard === "function") {
-          refreshMenuCard();
+      if (typeof refreshMenuCard === 'function') {
+        refreshMenuCard();
       }
+    }
   }
 
   triggerTreeMailEvent() {
@@ -311,7 +349,10 @@ export default class CampScreen {
   }
 
   startCampClockTick() {
+    if (this.campEventActive || this.clockTicking) return;
+
     timerManager.clearInterval('campClockTick');
+    this.clockTicking = true;
     this.ensureClockUI();
 
     // 🕒 Track last time water, hunger, and rest were decreased
@@ -328,6 +369,7 @@ export default class CampScreen {
       // Check if time has run out
       if (currentTime <= 0) {
         timerManager.clearInterval('campClockTick');
+        this.clockTicking = false;
         if (gameManager.gamePhase === GamePhase.POST_CHALLENGE) {
           const strat = gameManager?.systems?.strategyPhaseSystem;
           if (strat?.handleTimerExpired) {

@@ -52,6 +52,7 @@ class SocialEngine {
     // MAIN: trigger an NPC conversation
     // =========================================
     triggerNPCInitiatedConversation() {
+        if (gameManager.flags?.campEventActive) return;
         if (this.cooldown) return;
 
         const npc = this.pickNPCWhoWantsToTalk();

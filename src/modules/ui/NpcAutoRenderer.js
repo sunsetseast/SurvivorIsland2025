@@ -47,6 +47,8 @@ class NpcAutoRenderer {
     renderFor(viewName) {
         dbg("NpcAutoRenderer.renderFor()", viewName);
 
+        if (gameManager.flags?.campEventActive) return;
+
         const container = document.getElementById("camp-content");
         if (!container) {
             dbg("❌ No #camp-content container found");
