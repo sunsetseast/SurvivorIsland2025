@@ -1525,6 +1525,10 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         if (currentIndex < beatQueue.length - 1) {
           currentIndex += 1;
           renderBeatUI();
+        } else {
+          // Failsafe: if we're at the end of the queue but something prevented a finalize beat,
+          // still close out the event so the camp state can resume.
+          finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'fallback_finalize' } });
         }
       };
 
