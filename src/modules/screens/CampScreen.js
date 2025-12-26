@@ -62,6 +62,17 @@ export default class CampScreen {
     console.log('CampScreen initialized');
   }
 
+  async _startCampClockAfterDay1() {
+    const gate = canRunDay1FirstImpressions(gameManager);
+    if (gate.ok) {
+      await this._maybeRunDay1Event();
+      this.renderClockUI();
+      return;
+    }
+
+    this.renderClockUI();
+  }
+
   async _maybeRunDay1Event() {
     const playerTribe = gameManager.getPlayerTribe();
     if (!playerTribe) return;
@@ -108,7 +119,7 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.style.display = 'block';
     this.loadView('flag');
-    this.renderClockUI();
+    this._startCampClockAfterDay1();
   }
 
   teardown() {
@@ -131,10 +142,6 @@ export default class CampScreen {
       const renderFn = campViews[viewName];
       if (renderFn) {
           renderFn(viewContainer);
-      }
-
-      if (viewName === 'flag') {
-          this._maybeRunDay1Event();
       }
 
       // 🔥 2) Publish event AFTER rendering so subscribers know the DOM exists
