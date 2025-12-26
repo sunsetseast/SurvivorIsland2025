@@ -96,6 +96,22 @@ function formatPair(ids = [], members = [], playerId) {
   return formatIdsAsNameList(uniqueIds, members, playerId);
 }
 
+function formatContestedLeaderLineWithPlayer({ topLeader, runnerUp, members = [], playerId }) {
+  const topIsPlayer = topLeader?.id === playerId;
+  const runnerIsPlayer = runnerUp?.id === playerId;
+  if (!topIsPlayer && !runnerIsPlayer) return null;
+
+  const opponent = topIsPlayer ? runnerUp : topLeader;
+  if (!opponent || opponent.id === playerId) {
+    return 'You lean forward to claim direction. Nobody challenges it.';
+  }
+
+  const opponentName = displayName(opponent, members, playerId);
+  return topIsPlayer
+    ? `You and ${opponentName} both lean forward to claim direction. Neither wants to fade.`
+    : `${opponentName} and You both lean forward to claim direction. Neither wants to fade.`;
+}
+
 function clamp(value, min = 0, max = 100) {
   const num = Number.isFinite(value) ? value : min;
   return Math.max(min, Math.min(max, num));
@@ -626,8 +642,14 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
   if (leadership.scenario === 'player_leads') {
     leadershipLines.push('You steer the early talk, and people follow your tempo.');
   } else if (leadership.scenario === 'contested') {
-    const contestedPair = formatPair([leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean), members, player.id);
-    leadershipLines.push(`${contestedPair} both angle for control before it settles.`);
+    const contestedIds = [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean);
+    const contestedPair = formatPair(contestedIds, members, player.id) || 'They';
+    const contestedUniqueCount = [...new Set(contestedIds)].length;
+    if (contestedUniqueCount >= 2) {
+      leadershipLines.push(`${contestedPair} both angle for control before it settles.`);
+    } else {
+      leadershipLines.push(`${contestedPair} angles for control before it settles.`);
+    }
   } else {
     leadershipLines.push(`${displayName(leadership.topLeader, members, player.id)} steps up first, shaping the flow.`);
   }
@@ -1207,12 +1229,13 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           if (topLeader.id === runnerUp.id) {
             beats.push({ speaker: 'Narrator', text: `${topName} talks through a plan, and the tribe listens.` });
           } else if (topLeader.id === PLAYER_ID || runnerUp?.id === PLAYER_ID) {
-            const opponent = topLeader.id === PLAYER_ID ? runnerUp : topLeader;
-            const contestedNames = formatPair([topLeader.id, opponent?.id].filter(Boolean), members, PLAYER_ID);
-            beats.push({
-              speaker: 'Narrator',
-              text: `${contestedNames} both lean forward to claim direction. Neither wants to fade.`
+            const contestedLine = formatContestedLeaderLineWithPlayer({
+              topLeader,
+              runnerUp,
+              members,
+              playerId: PLAYER_ID
             });
+            beats.push({ speaker: 'Narrator', text: contestedLine });
           } else {
             beats.push({ speaker: 'Narrator', text: `${topName} and ${runnerName} both angle to steer—voices tightening until others chime in.` });
           }
