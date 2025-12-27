@@ -1600,10 +1600,10 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           if (beat?.type === 'finalize') {
             try {
               if (beat.onComplete) beat.onComplete();
-              else requestFinishEvent({ plan: gameManager.playerTribe?.day1Plan });
+              else requestFinishEvent({ plan: gm.playerTribe?.day1Plan });
             } finally {
               // If something prevented the callback from completing, make sure the overlay closes.
-              if (!finished) requestFinishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
+              if (!finished) requestFinishEvent({ plan: gm.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
             }
             return;
           }
@@ -1628,6 +1628,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] next button failed', err);
+          console.warn('[Day1FirstImpressions] nextBtnHandler failed; ending event early', err);
           requestFinishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
         }
       };
