@@ -857,7 +857,7 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
 }
 
 // Builds the final recap beat and ensures overlay closes cleanly.
-function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup, revealAllAssignments, finishEvent }) {
+function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup, revealAllAssignments, finishEvent: requestFinishEvent }) {
   const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
   const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
   const assignmentsByRole = {
@@ -984,7 +984,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       if (finalized) return;
       finalized = true;
       logDebug('runDay1FirstImpressions completed');
-      finishEvent({ plan: gameManager.playerTribe.day1Plan });
+      requestFinishEvent({ plan: gameManager.playerTribe.day1Plan });
     }
   };
 }
@@ -1097,6 +1097,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
     gm.flags.campEventActive = true;
     eventManager.publish(GameEvents.CAMP_EVENT_STARTED, { eventId: 'day1_first_impressions', id: 'day1_first_impressions' });
     let finished = false;
+    let finalizeRendered = false;
     let overlay;
     let nextBtn;
     let nextBtnHandler;
@@ -1106,6 +1107,11 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
     let choices;
     let statusLine;
     let awaitingChoice = { value: false };
+    let beatQueue = [];
+    let currentIndex = 0;
+    let forceFinalizeBeat = () => {};
+    let renderBeatUI = () => {};
+    let finalizeBeatExists = () => beatQueue.some(beat => beat?.type === 'finalize');
     const cleanup = () => {
       if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
       if (overlay) removeOverlay(overlay);
@@ -1117,7 +1123,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       }
     };
 
-    const finishEvent = (payload = {}) => {
+    const actuallyFinishEvent = (payload = {}) => {
       if (finished) return;
       finished = true;
       try {
@@ -1139,6 +1145,24 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         resolve(payload);
       }
     };
+
+    function requestFinishEvent(payload = {}) {
+      if (!finalizeRendered) {
+        console.warn('[Day1FirstImpressions] Blocked finish: finalize not rendered yet', { currentIndex, beatQueueLen: beatQueue.length });
+        if (!finalizeBeatExists()) {
+          forceFinalizeBeat('finish_requested_without_finalize');
+        } else {
+          const finalizeIndex = beatQueue.findIndex(beat => beat?.type === 'finalize');
+          if (finalizeIndex >= 0) {
+            currentIndex = finalizeIndex;
+            renderBeatUI();
+          }
+        }
+        return;
+      }
+
+      actuallyFinishEvent(payload);
+    }
 
     const showBlockingError = (message, meta = {}) => {
       logDebug('fatal_error', { message, meta });
@@ -1169,7 +1193,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       if (nextBtn) {
         nextBtnHandler = () => {
           const reason = meta?.reason || 'player_unresolved';
-          finishEvent({ error: true, reason, warnings: resolution.warnings, meta });
+          requestFinishEvent({ error: true, reason, warnings: resolution.warnings, meta });
         };
         nextBtn.addEventListener('click', nextBtnHandler);
       }
@@ -1202,7 +1226,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       let playerChoiceKey = null;
       let closingMood = 'tentative';
 
-      const finalizeBeatExists = () => beatQueue.some(beat => beat?.type === 'finalize');
+      finalizeBeatExists = () => beatQueue.some(beat => beat?.type === 'finalize');
 
       const buildFinalizeBeatSafe = metaReason => {
         try {
@@ -1219,7 +1243,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             gameManager: gm,
             cleanup,
             revealAllAssignments,
-            finishEvent
+            finishEvent: requestFinishEvent
           });
           if (metaReason) finalizeBeat.meta = { ...(finalizeBeat.meta || {}), reason: metaReason };
           return finalizeBeat;
@@ -1230,7 +1254,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             speaker: 'Narrator',
             type: 'finalize',
             text: 'Day 1 Summary (error building recap).',
-            onComplete: () => finishEvent({
+            onComplete: () => requestFinishEvent({
               plan: gm.playerTribe?.day1Plan,
               meta: { reason: 'finalize_build_failed', metaReason, message: finalizeError?.message }
             })
@@ -1238,7 +1262,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         }
       };
 
-      const forceFinalizeBeat = metaReason => {
+      forceFinalizeBeat = metaReason => {
         const finalizeBeat = buildFinalizeBeatSafe(metaReason || 'forced_finalize');
         const existingIndex = beatQueue.findIndex(beat => beat?.type === 'finalize');
         if (existingIndex >= 0) {
@@ -1282,7 +1306,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       };
       assignmentStatusUpdater = updateStatusLine;
 
-      const renderBeatUI = () => {
+      renderBeatUI = () => {
         const beat = beatQueue[currentIndex];
         if (!beat) return;
         setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar });
@@ -1305,6 +1329,9 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           nextBtn.style.display = 'inline-block';
           nextBtn.textContent = beat.type === 'finalize' ? 'Continue' : 'Next';
           choices.style.display = 'none';
+        }
+        if (beat?.type === 'finalize') {
+          finalizeRendered = true;
         }
         if (beat.renderChoices && beat.type === 'choice') beat.renderChoices();
         if (beat.reveal) revealRoleGroup(beat.reveal.roleKey, beat.reveal.ids);
@@ -1573,10 +1600,10 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           if (beat?.type === 'finalize') {
             try {
               if (beat.onComplete) beat.onComplete();
-              else finishEvent({ plan: gameManager.playerTribe?.day1Plan });
+              else requestFinishEvent({ plan: gameManager.playerTribe?.day1Plan });
             } finally {
               // If something prevented the callback from completing, make sure the overlay closes.
-              if (!finished) finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
+              if (!finished) requestFinishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
             }
             return;
           }
@@ -1601,7 +1628,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] next button failed', err);
-          finishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
+          requestFinishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
         }
       };
 
