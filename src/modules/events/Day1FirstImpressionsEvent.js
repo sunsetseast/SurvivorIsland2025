@@ -1521,10 +1521,10 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           if (beat?.type === 'finalize') {
             try {
               if (beat.onComplete) beat.onComplete();
-              else finishEvent({ plan: gameManager.playerTribe?.day1Plan });
+              else finishEvent({ plan: gm.playerTribe?.day1Plan });
             } finally {
               // If something prevented the callback from completing, make sure the overlay closes.
-              if (!finished) finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
+              if (!finished) finishEvent({ plan: gm.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
             }
             return;
           }
@@ -1537,11 +1537,12 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           } else {
             // Failsafe: if we're at the end of the queue but something prevented a finalize beat,
             // still close out the event so the camp state can resume.
-            finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'fallback_finalize' } });
+            finishEvent({ plan: gm.playerTribe?.day1Plan, meta: { reason: 'fallback_finalize' } });
           }
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] next button failed', err);
+          console.error('[Day1FirstImpressions] nextBtnHandler ReferenceError', err);
           finishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
         }
       };
