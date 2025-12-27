@@ -1106,6 +1106,12 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
     let choices;
     let statusLine;
     let awaitingChoice = { value: false };
+    let beatQueue = [];
+    let currentIndex = 0;
+    let finalizeRendered = false;
+    let finalizeBeat;
+    let renderBeatUI;
+    let ensureFinalizeBeat;
     const cleanup = () => {
       if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
       if (overlay) removeOverlay(overlay);
@@ -1140,6 +1146,24 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       }
     };
 
+    const requestFinishEvent = (payload = {}) => {
+      if (finished) return;
+      if (finalizeRendered) {
+        finishEvent(payload);
+        return;
+      }
+
+      // eslint-disable-next-line no-console
+      console.warn('[Day1FirstImpressions] Finish requested before finalize rendered', payload);
+      if (typeof ensureFinalizeBeat !== 'function' || typeof renderBeatUI !== 'function') {
+        finishEvent(payload);
+        return;
+      }
+      const finalizeIndex = ensureFinalizeBeat('finish_request_guard');
+      currentIndex = finalizeIndex;
+      renderBeatUI();
+    };
+
     const showBlockingError = (message, meta = {}) => {
       logDebug('fatal_error', { message, meta });
       if (!overlay) {
@@ -1169,7 +1193,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       if (nextBtn) {
         nextBtnHandler = () => {
           const reason = meta?.reason || 'player_unresolved';
-          finishEvent({ error: true, reason, warnings: resolution.warnings, meta });
+          requestFinishEvent({ error: true, reason, warnings: resolution.warnings, meta });
         };
         nextBtn.addEventListener('click', nextBtnHandler);
       }
@@ -1194,8 +1218,6 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const tasks = taskDefinitions(tribeSize);
       const revealedTasks = taskDefinitions(tribeSize).map(t => ({ ...t, assignedIds: [] }));
       const leadership = resolveLeadershipScenario(members, PLAYER);
-      const beatQueue = [];
-      let currentIndex = 0;
       awaitingChoice = { value: false };
       let choiceLocked = false;
       let chemistryMoments = [];
@@ -1231,9 +1253,58 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       };
       assignmentStatusUpdater = updateStatusLine;
 
-      const renderBeatUI = () => {
+      const renderedLogIndices = new Set();
+      const logRender = (beat) => {
+        if (renderedLogIndices.has(currentIndex)) return;
+        renderedLogIndices.add(currentIndex);
+        // eslint-disable-next-line no-console
+        console.info('[Day1FirstImpressions] Render beat', { index: currentIndex, type: beat?.type });
+      };
+
+      ensureFinalizeBeat = (reason = 'auto') => {
+        const existingIndexes = beatQueue.reduce((acc, beat, idx) => (beat?.type === 'finalize' ? [...acc, idx] : acc), []);
+        if (existingIndexes.length === 0) {
+          finalizeBeat = finalizeBeat || buildFinalizeBeat({
+            player: PLAYER,
+            members,
+            tasks,
+            leadership,
+            chemistryMoments,
+            closingMood,
+            playerChoiceKey,
+            overlay,
+            resolve,
+            gameManager: gm,
+            cleanup,
+            revealAllAssignments,
+            finishEvent: requestFinishEvent
+          });
+          beatQueue.push(finalizeBeat);
+          // eslint-disable-next-line no-console
+          console.info('[Day1FirstImpressions] Finalize beat appended', { reason, queueLength: beatQueue.length });
+          return beatQueue.length - 1;
+        }
+
+        finalizeBeat = finalizeBeat || beatQueue[existingIndexes[0]];
+        const [, ...extraIndexes] = existingIndexes;
+        for (let i = extraIndexes.length - 1; i >= 0; i -= 1) {
+          beatQueue.splice(extraIndexes[i], 1);
+        }
+        const finalIndex = beatQueue.findIndex(b => b?.type === 'finalize');
+        if (finalIndex !== beatQueue.length - 1) {
+          const [beat] = beatQueue.splice(finalIndex, 1);
+          beatQueue.push(beat);
+          // eslint-disable-next-line no-console
+          console.info('[Day1FirstImpressions] Finalize beat moved to end', { reason, queueLength: beatQueue.length });
+          return beatQueue.length - 1;
+        }
+        return finalIndex;
+      };
+
+      renderBeatUI = () => {
         const beat = beatQueue[currentIndex];
         if (!beat) return;
+        if (beat.type === 'finalize') finalizeRendered = true;
         setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar });
         if (beat.htmlText) {
           textArea.innerHTML = '';
@@ -1259,7 +1330,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         if (beat.reveal) revealRoleGroup(beat.reveal.roleKey, beat.reveal.ids);
         if (beat.onEnter) beat.onEnter();
         updateStatusLine();
-        logDebug('renderBeatUI', { index: currentIndex, type: beat.type, awaitingChoice: awaitingChoice.value });
+        logRender(beat);
       };
 
       const addBeat = beat => beatQueue.push(beat);
@@ -1454,10 +1525,11 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             ...buildAssignmentBeats(intent),
             ...addChemistryBeats(),
             ...addClosingBeat(),
-            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup, revealAllAssignments, finishEvent })
+            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup, revealAllAssignments, finishEvent: requestFinishEvent })
           ];
           logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
+          ensureFinalizeBeat('commit_choice');
           awaitingChoice.value = false;
           currentIndex += 1;
           renderBeatUI();
@@ -1513,37 +1585,45 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
 
       buildLeadershipBeats().forEach(addBeat);
       addChoiceBeat();
+      ensureFinalizeBeat('initial_queue');
 
       nextBtnHandler = () => {
         try {
           const beat = beatQueue[currentIndex];
-
-          if (beat?.type === 'finalize') {
-            try {
-              if (beat.onComplete) beat.onComplete();
-              else finishEvent({ plan: gm.playerTribe?.day1Plan });
-            } finally {
-              // If something prevented the callback from completing, make sure the overlay closes.
-              if (!finished) finishEvent({ plan: gm.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
-            }
-            return;
-          }
 
           if (awaitingChoice.value) return;
 
           if (currentIndex < beatQueue.length - 1) {
             currentIndex += 1;
             renderBeatUI();
-          } else {
-            // Failsafe: if we're at the end of the queue but something prevented a finalize beat,
-            // still close out the event so the camp state can resume.
-            finishEvent({ plan: gm.playerTribe?.day1Plan, meta: { reason: 'fallback_finalize' } });
+            return;
+          }
+
+          const lastBeat = beatQueue[beatQueue.length - 1];
+          if (!lastBeat || lastBeat.type !== 'finalize') {
+            const finalizeIndex = ensureFinalizeBeat('next_at_end');
+            currentIndex = finalizeIndex;
+            renderBeatUI();
+            return;
+          }
+
+          if (beat?.type !== 'finalize') {
+            currentIndex = beatQueue.length - 1;
+            renderBeatUI();
+            return;
+          }
+
+          try {
+            if (beat.onComplete) beat.onComplete();
+            else requestFinishEvent({ plan: gm.playerTribe?.day1Plan });
+          } finally {
+            if (!finished) requestFinishEvent({ plan: gm.playerTribe?.day1Plan, meta: { reason: 'finalize_guard' } });
           }
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] next button failed', err);
           console.error('[Day1FirstImpressions] nextBtnHandler ReferenceError', err);
-          finishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
+          requestFinishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
         }
       };
 
