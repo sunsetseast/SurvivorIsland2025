@@ -1218,8 +1218,6 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const tasks = taskDefinitions(tribeSize);
       const revealedTasks = taskDefinitions(tribeSize).map(t => ({ ...t, assignedIds: [] }));
       const leadership = resolveLeadershipScenario(members, PLAYER);
-      const beatQueue = [];
-      let currentIndex = 0;
       awaitingChoice = { value: false };
       let choiceLocked = false;
       let chemistryMoments = [];
@@ -1307,6 +1305,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       assignmentStatusUpdater = updateStatusLine;
 
       renderBeatUI = () => {
+        console.log('[Day1] render index/type', currentIndex, beatQueue[currentIndex]?.type);
         const beat = beatQueue[currentIndex];
         if (!beat) return;
         setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar });
@@ -1537,6 +1536,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           ];
           logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
+          console.log('[Day1] beats inserted', beatQueue.map(b => b.type));
           awaitingChoice.value = false;
           currentIndex += 1;
           renderBeatUI();
@@ -1614,6 +1614,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             currentIndex += 1;
             renderBeatUI();
           } else {
+            console.log('[Day1] end-of-queue', { len: beatQueue.length, finalizeExists: finalizeBeatExists() });
             if (!finalizeBeatExists()) {
               forceFinalizeBeat('next_end_without_finalize');
               return;
