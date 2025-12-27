@@ -1202,6 +1202,57 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       let playerChoiceKey = null;
       let closingMood = 'tentative';
 
+      const finalizeBeatExists = () => beatQueue.some(beat => beat?.type === 'finalize');
+
+      const buildFinalizeBeatSafe = metaReason => {
+        try {
+          const finalizeBeat = buildFinalizeBeat({
+            player: PLAYER,
+            members,
+            tasks,
+            leadership,
+            chemistryMoments,
+            closingMood,
+            playerChoiceKey,
+            overlay,
+            resolve,
+            gameManager: gm,
+            cleanup,
+            revealAllAssignments,
+            finishEvent
+          });
+          if (metaReason) finalizeBeat.meta = { ...(finalizeBeat.meta || {}), reason: metaReason };
+          return finalizeBeat;
+        } catch (finalizeError) {
+          // eslint-disable-next-line no-console
+          console.error('[Day1FirstImpressions] Failed to build finalize beat', finalizeError);
+          return {
+            speaker: 'Narrator',
+            type: 'finalize',
+            text: 'Day 1 Summary (error building recap).',
+            onComplete: () => finishEvent({
+              plan: gm.playerTribe?.day1Plan,
+              meta: { reason: 'finalize_build_failed', metaReason, message: finalizeError?.message }
+            })
+          };
+        }
+      };
+
+      const forceFinalizeBeat = metaReason => {
+        const finalizeBeat = buildFinalizeBeatSafe(metaReason || 'forced_finalize');
+        const existingIndex = beatQueue.findIndex(beat => beat?.type === 'finalize');
+        if (existingIndex >= 0) {
+          currentIndex = existingIndex;
+        } else if (currentIndex < beatQueue.length - 1) {
+          beatQueue.splice(currentIndex + 1, 0, finalizeBeat);
+          currentIndex += 1;
+        } else {
+          beatQueue.push(finalizeBeat);
+          currentIndex = beatQueue.length - 1;
+        }
+        renderBeatUI();
+      };
+
       if (!PLAYER) {
         showBlockingError('Internal error: could not identify the player.', { resolution });
         return;
@@ -1449,12 +1500,13 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           playerChoiceKey = choiceKey;
           const intent = applyPlayerChoice(choiceKey);
           const choiceBeat = { speaker: 'Narrator', text: `You claim: ${label || choiceKey}.` };
+          const finalizeBeat = buildFinalizeBeatSafe('commit_choice_finalize');
           const beats = [
             choiceBeat,
             ...buildAssignmentBeats(intent),
             ...addChemistryBeats(),
             ...addClosingBeat(),
-            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup, revealAllAssignments, finishEvent })
+            finalizeBeat
           ];
           logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
@@ -1535,9 +1587,16 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             currentIndex += 1;
             renderBeatUI();
           } else {
-            // Failsafe: if we're at the end of the queue but something prevented a finalize beat,
-            // still close out the event so the camp state can resume.
-            finishEvent({ plan: gameManager.playerTribe?.day1Plan, meta: { reason: 'fallback_finalize' } });
+            if (!finalizeBeatExists()) {
+              forceFinalizeBeat('next_end_without_finalize');
+              return;
+            }
+
+            const finalizeIndex = beatQueue.findIndex(b => b?.type === 'finalize');
+            if (finalizeIndex >= 0) {
+              currentIndex = finalizeIndex;
+              renderBeatUI();
+            }
           }
         } catch (err) {
           // eslint-disable-next-line no-console
