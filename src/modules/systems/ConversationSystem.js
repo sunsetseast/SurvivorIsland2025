@@ -1027,7 +1027,10 @@ class ConversationSystem {
   _handleNpcConfrontation({ survivor, location }) {
     if (!this._isInCamp() || !survivor || this.gameManager.flags?.campEventActive) return;
 
-    const pending = this.pendingMeetings.find(meeting => meeting.npcId === survivor.id && meeting.location === location && !meeting.hasTriggered);
+    const normalizedLocation = this._normalizeLocationKey(location);
+    const pending = this.pendingMeetings.find(
+      meeting => meeting.npcId === survivor.id && meeting.normalizedLocation === normalizedLocation && !meeting.hasTriggered
+    );
     if (pending) {
       pending.hasTriggered = true;
       this._startConversation(survivor, { isPurpose: true, meeting: pending, location, context: { initiator: 'npc' } });
@@ -1059,7 +1062,10 @@ class ConversationSystem {
   _handleCampViewLoaded({ viewName }) {
     if (!this._isInCamp() || this.gameManager.flags?.campEventActive) return;
 
-    const meeting = this.pendingMeetings.find(item => item.location === viewName && !item.hasTriggered);
+    const normalizedView = this._normalizeLocationKey(viewName);
+    const meeting = this.pendingMeetings.find(
+      item => item.normalizedLocation === normalizedView && !item.hasTriggered
+    );
     if (meeting) {
       meeting.hasTriggered = true;
       const survivor = this._getSurvivorById(meeting.npcId);
@@ -1110,10 +1116,12 @@ class ConversationSystem {
     if (!npc) return;
 
     const location = CAMP_LOCATIONS[getRandomInt(0, CAMP_LOCATIONS.length - 1)];
+    const normalizedLocation = this._normalizeLocationKey(location);
     const meeting = {
       phase,
       npcId: npc.id,
       location,
+      normalizedLocation,
       hasTriggered: false,
       type
     };
@@ -1121,6 +1129,15 @@ class ConversationSystem {
     this.pendingMeetings.push(meeting);
     this._highlightNpcIcon(npc.id, true);
     this._showInvitationToast(npc, location, type);
+
+    const currentView = typeof window !== 'undefined' ? window?.campScreen?.currentView : null;
+    if (
+      this._normalizeLocationKey(currentView) === normalizedLocation &&
+      this._isInCamp() &&
+      !this.gameManager.flags?.campEventActive
+    ) {
+      this._handleCampViewLoaded({ viewName: location });
+    }
   }
 
   _pickConversationNpc() {
@@ -9806,6 +9823,12 @@ class ConversationSystem {
       fishing: 'fishing spot'
     };
     return labels[location] || location;
+  }
+
+  _normalizeLocationKey(value) {
+    return typeof value === 'string'
+      ? value.trim().toLowerCase()
+      : (value == null ? '' : String(value).trim().toLowerCase());
   }
 
   _injectConversationStyles() {
