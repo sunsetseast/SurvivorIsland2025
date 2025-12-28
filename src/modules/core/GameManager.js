@@ -534,6 +534,7 @@ class GameManager {
 
   decreaseDayTimer() {
     this.dayTimer = Math.max(0, this.dayTimer - this.timeSpeed);
+    return this.dayTimer;
   }
 
   deductTime(seconds) {
