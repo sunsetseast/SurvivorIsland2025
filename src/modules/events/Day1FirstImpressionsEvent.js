@@ -1304,7 +1304,10 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       renderBeatUI = () => {
         const beat = beatQueue[currentIndex];
         if (!beat) return;
-        if (beat.type === 'finalize') finalizeRendered = true;
+        if (beat.type === 'finalize') {
+          // eslint-disable-next-line no-console
+          console.info('[Day1FirstImpressions] Rendering finalize beat', { index: currentIndex, queueLen: beatQueue.length });
+        }
         setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar });
         if (beat.htmlText) {
           textArea.innerHTML = '';
@@ -1328,7 +1331,15 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         }
         if (beat.renderChoices && beat.type === 'choice') beat.renderChoices();
         if (beat.reveal) revealRoleGroup(beat.reveal.roleKey, beat.reveal.ids);
-        if (beat.onEnter) beat.onEnter();
+        try {
+          if (beat.onEnter) beat.onEnter();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[Day1FirstImpressions] beat.onEnter failed', { index: currentIndex, type: beat?.type, err });
+          showBlockingError('Day 1 summary failed to load due to an internal error.', { reason: 'finalize_onEnter_failed', err });
+          return;
+        }
+        if (beat.type === 'finalize') finalizeRendered = true;
         updateStatusLine();
         logRender(beat);
       };
@@ -1622,8 +1633,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] next button failed', err);
-          console.error('[Day1FirstImpressions] nextBtnHandler ReferenceError', err);
-          requestFinishEvent({ error: true, reason: 'next_handler_failed', meta: { message: err?.message } });
+          showBlockingError('Something went wrong advancing the event.', { reason: 'next_handler_failed', err });
+          return;
         }
       };
 
