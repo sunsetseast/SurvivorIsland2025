@@ -307,7 +307,7 @@ function getSurvivorAvatarSrc(survivor) {
   return 'Assets/logo.png';
 }
 
-function setHeaderSpeakerUI({ beat, members, player, speakerEl, avatarEl }) {
+function setHeaderSpeakerUI({ beat, members, player, speakerEl, avatarEl, tribeAccentColor = '#c17f34' }) {
   const isNarrator = !beat.speakerId && beat.speaker === 'Narrator';
   let survivor = beat.speakerRef;
   if (!survivor && beat.speakerId) survivor = members.find(m => m.id === beat.speakerId);
@@ -323,6 +323,7 @@ function setHeaderSpeakerUI({ beat, members, player, speakerEl, avatarEl }) {
   avatarEl.style.visibility = 'visible';
   const avatarSrc = survivor ? getSurvivorAvatarSrc(survivor) : 'Assets/logo.png';
   avatarEl.src = avatarSrc;
+  avatarEl.style.borderColor = tribeAccentColor;
 }
 
 function taskDefinitions(tribeSize = 6) {
@@ -635,6 +636,12 @@ function groupAssignmentsByRole(tasks, members) {
   }));
 }
 
+function resolvePlayerRole(tasks = [], player) {
+  if (!player?.id) return 'Float';
+  const playerTask = tasks.find(t => (t.assignedIds || []).includes(player.id));
+  return playerTask ? playerTask.label : 'Float';
+}
+
 function buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
   const roleAssignments = key => {
     const task = getTask(tasks, key) || { assignedIds: [] };
@@ -687,8 +694,7 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
       ? 'Chaotic energy—sharp edges but action happens.'
       : 'Tentative calm—plans set, eyes watch to see if they hold.';
 
-  const playerTask = tasks.find(t => (t.assignedIds || []).includes(player.id));
-  const playerRole = playerTask ? playerTask.label : 'Float';
+  const playerRole = resolvePlayerRole(tasks, player);
 
   return {
     leadership: [`• ${leadershipLines[0]}`, clashLine],
@@ -865,6 +871,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
     delta: m.delta || 0,
     tag: m.tag
   }));
+  const chemistryMomentsCompact = chemistryMomentsDetailed.map(({ type, pairIds, delta, tag }) => ({ type, pairIds, delta, tag }));
   let finalized = false;
 
   const finalizeBeat = {
@@ -914,18 +921,23 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
 
       if (!gameManager.playerTribe) throw new Error('Finalize failed: missing gameManager.playerTribe');
 
+      const playerRole = resolvePlayerRole(tasks, player);
       const plan = {
         leaderId: leadership.topLeader?.id,
+        runnerUpId: leadership.runnerUp?.id,
         fireIds: getTask(tasks, 'fire').assignedIds,
         shelterIds: getTask(tasks, 'shelter').assignedIds,
         foodIds: getTask(tasks, 'food').assignedIds,
         materialsIds: getTask(tasks, 'materials').assignedIds,
         floatIds: getTask(tasks, 'float').assignedIds,
         floaterIds: getTask(tasks, 'float').assignedIds,
-        chemistryMoments: chemistryMomentsDetailed,
+        chemistryMoments: chemistryMomentsCompact,
         leadershipScenario: leadership.scenario,
         mood: closingMood,
-        choice: playerChoiceKey
+        choice: playerChoiceKey,
+        playerId: player?.id,
+        playerRole,
+        playerChoice: playerChoiceKey
       };
 
       tribe.day1Plan = plan;
@@ -962,9 +974,15 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         mood: closingMood,
         leadershipScenario: leadership.scenario,
         leaderId: leadership.topLeader?.id,
-        playerRole: recapHtml.sections.playerRole,
+        runnerUpId: leadership.runnerUp?.id,
+        playerId: player?.id,
+        playerRole,
+        playerChoiceKey,
         assignmentsByRole,
+        chemistryMoments: chemistryMomentsCompact,
         chemistryMomentsDetailed,
+        tribeId: gameManager.playerTribe?.id,
+        tone: closingMood,
         summaryText: recapText,
         summaryHtml: recapHtml.htmlString
       };
@@ -981,6 +999,9 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
           leaders: [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean),
           clashOccurred: leadership.scenario === 'contested',
           playerChoiceKey,
+          playerRole,
+          runnerUpId: leadership.runnerUp?.id,
+          playerId: player?.id,
           assignments: {
             fire: plan.fireIds,
             shelter: plan.shelterIds,
@@ -988,8 +1009,10 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
             materials: plan.materialsIds,
             float: plan.floatIds
           },
-          chemistryMoments: chemistryMoments.map(m => ({ type: m.type, pair: m.pair.map(p => p.id), delta: m.delta || 0, tag: m.tag })),
+          assignmentsByRole,
+          chemistryMoments: chemistryMomentsCompact,
           tone: closingMood,
+          mood: closingMood,
           summaryText: recapText,
           summaryHtml: recapHtml.htmlString,
           day1FirstImpressions: summaryPayload
@@ -1102,6 +1125,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
   const playerTribe = gm?.playerTribe || gm?.getPlayerTribe?.();
   const members = playerTribe?.members || [];
   const tribeSize = members.length;
+  const tribeAccentColor = playerTribe?.color || '#c17f34';
   const resolution = resolvePlayerIdentity(gm, playerTribe, members);
   const PLAYER_ID = resolution.playerId;
   const PLAYER = resolution.player;
@@ -1252,6 +1276,9 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       textArea = overlayEls.textArea;
       choices = overlayEls.choices;
       statusLine = overlayEls.statusLine;
+      if (avatar) {
+        avatar.style.borderColor = tribeAccentColor;
+      }
       const usedLines = new Set();
 
       const tasks = taskDefinitions(tribeSize);
@@ -1348,7 +1375,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           // eslint-disable-next-line no-console
           console.info('[Day1FirstImpressions] Rendering finalize beat', { index: currentIndex, queueLen: beatQueue.length });
         }
-        setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar });
+        setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar, tribeAccentColor });
         if (beat.htmlText) {
           textArea.innerHTML = '';
           if (typeof beat.htmlText === 'string') {
