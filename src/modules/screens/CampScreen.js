@@ -80,10 +80,16 @@ export default class CampScreen {
       this.ensureClockUI();
 
       if (this.isActive) {
+        // Force the local clock state to resync after the cinematic "Continue" flow
+        // ends. In some cases the interval may have been cleared without toggling
+        // the CampScreen flag, leaving the guard in startCampClockTick() thinking
+        // a timer is still running.
+        this.clockRunning = false;
         this.startCampClockTick();
       }
 
       if (eventId === 'day1_first_impressions') {
+        this.clockRunning = false;
         this.startDayClockTimer();
       }
 
