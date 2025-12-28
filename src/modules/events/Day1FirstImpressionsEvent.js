@@ -1162,12 +1162,12 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           nextBtn.disabled = true;
           if (nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
         }
-        cleanup?.();
         gm.flags = gm.flags || {};
+        gm.flags.campEventActive = false;
+        cleanup?.();
         const completed = !payload?.error;
         gm.flags.day1FirstImpressionsCompleted = completed;
         gm.flags.day1FirstImpressionsDone = completed;
-        gm.flags.campEventActive = false;
       } catch (error) {
         console.error('[Day1FirstImpressions] Error during finishEvent', error);
       } finally {
