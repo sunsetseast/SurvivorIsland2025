@@ -858,15 +858,6 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
 
 // Builds the final recap beat and ensures overlay closes cleanly.
 function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup, revealAllAssignments, finishEvent }) {
-  const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
-  const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
-  const assignmentsByRole = {
-    fire: getTask(tasks, 'fire').assignedIds,
-    shelter: getTask(tasks, 'shelter').assignedIds,
-    food: getTask(tasks, 'food').assignedIds,
-    materials: getTask(tasks, 'materials').assignedIds,
-    float: getTask(tasks, 'float').assignedIds
-  };
   const chemistryMomentsDetailed = chemistryMoments.map(m => ({
     type: m.type,
     pair: m.pair,
@@ -876,12 +867,12 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
   }));
   let finalized = false;
 
-  return {
+  const finalizeBeat = {
     speaker: 'Narrator',
     type: 'finalize',
-    text: recapText,
-    htmlText: recapHtml.element,
-    onEnter: () => {
+    text: '',
+    htmlText: null,
+    onEnter() {
       if (typeof revealAllAssignments === 'function') revealAllAssignments();
       const ensurePlayerLockedOnce = () => {
         const pid = player?.id;
@@ -944,6 +935,29 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       gameManager.flags.day1FirstImpressionsDone = true;
       gameManager.flags.day1FirstImpressionsCompleted = true;
 
+      const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+      const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+      const assignmentsByRole = {
+        fire: getTask(tasks, 'fire').assignedIds,
+        shelter: getTask(tasks, 'shelter').assignedIds,
+        food: getTask(tasks, 'food').assignedIds,
+        materials: getTask(tasks, 'materials').assignedIds,
+        float: getTask(tasks, 'float').assignedIds
+      };
+
+      const summaryContainer = overlay?.querySelector('#day1-text') || document.getElementById('day1-text');
+      if (summaryContainer) {
+        summaryContainer.innerHTML = '';
+        if (recapHtml?.element) {
+          summaryContainer.appendChild(recapHtml.element);
+        } else if (recapHtml?.htmlString) {
+          summaryContainer.innerHTML = recapHtml.htmlString;
+        }
+      }
+
+      finalizeBeat.text = recapText;
+      finalizeBeat.htmlText = recapHtml?.element || null;
+
       const summaryPayload = {
         mood: closingMood,
         leadershipScenario: leadership.scenario,
@@ -997,6 +1011,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       finishEvent({ plan: gameManager.playerTribe.day1Plan });
     }
   };
+
+  return finalizeBeat;
 }
 
 function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
@@ -1126,6 +1142,11 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
       if (overlay) removeOverlay(overlay);
       assignmentStatusUpdater = null;
+      try {
+        eventManager.publish(GameEvents.DIALOGUE_HIDDEN);
+      } catch (e) {
+        logDebug('Failed to publish bare dialogue hidden event during cleanup.', e);
+      }
       try {
         eventManager.publish(GameEvents.DIALOGUE_HIDDEN, { source: 'day1-first-impressions' });
       } catch (e) {
