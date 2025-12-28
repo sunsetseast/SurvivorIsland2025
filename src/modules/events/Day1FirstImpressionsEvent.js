@@ -1154,36 +1154,6 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       }
     };
 
-    const restartCampClockTick = () => {
-      const timerManager = gm?.timerManager || gm?.systems?.timerManager || window.timerManager;
-      if (!timerManager?.setInterval || !timerManager?.clearInterval || !gm?.decreaseDayTimer) return;
-
-      timerManager.clearInterval('campClockTick');
-      timerManager.setInterval('campClockTick', () => {
-        try {
-          const currentTime = gm.decreaseDayTimer();
-          const timeEl = document.getElementById('clock-time-text');
-          const dayEl = document.getElementById('clock-day-text');
-
-          if (timeEl) {
-            timeEl.textContent = gm.formatCampTime ? gm.formatCampTime(currentTime) : String(currentTime);
-          }
-
-          if (dayEl) {
-            const dayValue = typeof gm.getDay === 'function' ? gm.getDay() : (gm.day || 1);
-            dayEl.textContent = `Day ${dayValue}`;
-          }
-
-          if (currentTime <= 0) {
-            timerManager.clearInterval('campClockTick');
-            if (typeof gm.triggerTreeMailEvent === 'function') gm.triggerTreeMailEvent();
-          }
-        } catch (e) {
-          console.error('[CampClockTick] error', e);
-        }
-      }, 1000);
-    };
-
     const finishEvent = (payload = {}) => {
       if (finished) return;
       finished = true;
@@ -1195,7 +1165,14 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         gm.flags = gm.flags || {};
         gm.flags.campEventActive = false;
         cleanup?.();
-        restartCampClockTick();
+
+        // Hand control back to the CampScreen clock so the UI countdown resumes.
+        const campScreen = context?.campScreen || window.campScreen;
+        if (campScreen) {
+          campScreen.clockRunning = false;
+          campScreen.startDayClockTimer?.();
+        }
+
         const completed = !payload?.error;
         gm.flags.day1FirstImpressionsCompleted = completed;
         gm.flags.day1FirstImpressionsDone = completed;
