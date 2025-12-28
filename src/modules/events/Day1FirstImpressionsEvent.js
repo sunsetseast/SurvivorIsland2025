@@ -912,6 +912,17 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       };
 
       ensurePlayerLockedOnce();
+      const tribe = gameManager.playerTribe || gameManager.getPlayerTribe?.();
+      gameManager.playerTribe = tribe;
+
+      gameManager.flags = gameManager.flags || {};
+      gameManager.campLog = gameManager.campLog || [];
+
+      // eslint-disable-next-line no-console
+      console.error('[Day1Finalize] onEnter sanity', { hasTribe: !!gameManager.playerTribe, hasFlags: !!gameManager.flags, day: gameManager.day });
+
+      if (!gameManager.playerTribe) throw new Error('Finalize failed: missing gameManager.playerTribe');
+
       const plan = {
         leaderId: leadership.topLeader?.id,
         fireIds: getTask(tasks, 'fire').assignedIds,
@@ -926,10 +937,10 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         choice: playerChoiceKey
       };
 
-      gameManager.playerTribe.day1Plan = plan;
-      gameManager.playerTribe.day1PlanCreated = true;
-      gameManager.playerTribe.day1Mood = closingMood;
-      gameManager.playerTribe.day1Choice = playerChoiceKey;
+      tribe.day1Plan = plan;
+      tribe.day1PlanCreated = true;
+      tribe.day1Mood = closingMood;
+      tribe.day1Choice = playerChoiceKey;
       gameManager.flags.day1FirstImpressionsDone = true;
       gameManager.flags.day1FirstImpressionsCompleted = true;
 
@@ -972,7 +983,6 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         isCinematicEventSummary: true
       };
 
-      gameManager.campLog = gameManager.campLog || [];
       const existingIndex = gameManager.campLog.findIndex(entry => entry.id === summaryEntry.id);
       if (existingIndex >= 0) {
         gameManager.campLog[existingIndex] = summaryEntry;
@@ -1285,8 +1295,9 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           return beatQueue.length - 1;
         }
 
-        finalizeBeat = finalizeBeat || beatQueue[existingIndexes[0]];
-        const [, ...extraIndexes] = existingIndexes;
+        const lastIndex = existingIndexes[existingIndexes.length - 1];
+        finalizeBeat = beatQueue[lastIndex] || finalizeBeat;
+        const extraIndexes = existingIndexes.slice(0, -1);
         for (let i = extraIndexes.length - 1; i >= 0; i -= 1) {
           beatQueue.splice(extraIndexes[i], 1);
         }
