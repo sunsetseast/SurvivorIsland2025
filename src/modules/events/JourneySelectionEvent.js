@@ -49,8 +49,13 @@ function clampSuspicion(value) {
   return Math.max(0, num);
 }
 
-function getTribeKey(tribe) {
-  return tribe?.id ?? tribe?.name ?? tribe?.tribeName ?? tribe?.color ?? Math.random().toString(36).slice(2);
+function getTribeKey(tribe, index) {
+  if (tribe?.id != null) return String(tribe.id);
+  if (typeof tribe?.tribeName === 'string') return tribe.tribeName;
+  if (typeof tribe?.name === 'string') return tribe.name;
+  if (typeof tribe?.name?.name === 'string') return tribe.name.name;
+  if (typeof tribe?.color === 'string') return tribe.color;
+  return `tribe_${index}`;
 }
 
 function pickRandom(arr = []) {
@@ -65,12 +70,19 @@ const JourneySelectionEvent = {
     const ui = buildOverlay(container);
     const tribeKeyCache = new Map();
 
-    const resolveTribeKey = (tribe) => {
+    const resolveTribeKey = (tribe, index) => {
       if (tribeKeyCache.has(tribe)) return tribeKeyCache.get(tribe);
-      const key = getTribeKey(tribe);
+      const key = getTribeKey(tribe, index);
       tribeKeyCache.set(tribe, key);
       return key;
     };
+
+    const actualPlayerTribe =
+      playerTribe ||
+      tribes.find(t => (t.members || []).some(m => m.id === player?.id)) ||
+      null;
+
+    const isPlayerTribe = (tribe) => (tribe?.members || []).some(m => m.id === player?.id);
 
     const awaitContinue = async (lines) => new Promise(resolve => {
       renderLines(ui.textWrap, lines);
@@ -114,43 +126,56 @@ const JourneySelectionEvent = {
     }
 
     const participantsByTribe = {};
-    const participants = [];
+    const participantsSet = new Set();
+    const tribeKeys = [];
     let playerWasSelected = false;
 
-    tribes.forEach(tribe => {
-      const members = tribe?.members || [];
+    tribes.forEach((tribe, idx) => {
+      const key = resolveTribeKey(tribe, idx);
+      tribeKeys.push(key);
+      const members = (tribe?.members || []).filter(m => m?.id);
       let selected = null;
 
-      if (tribe === playerTribe || tribe?.id === playerTribe?.id) {
+      if (isPlayerTribe(tribe)) {
         if (playerChoice === 'push') {
           selected = player;
           playerWasSelected = true;
         } else if (playerChoice === 'sitout') {
           const others = members.filter(m => m.id !== player?.id);
-          selected = pickRandom(others) || player;
-          playerWasSelected = selected.id === player?.id;
+          selected = pickRandom(others);
+          playerWasSelected = selected?.id === player?.id;
         } else {
-          selected = pickRandom(members) || player;
-          playerWasSelected = selected.id === player?.id;
+          selected = pickRandom(members);
+          playerWasSelected = selected?.id === player?.id;
         }
       } else {
-        selected = pickRandom(members);
+        selected = pickRandom(members.filter(m => m.id !== player?.id));
       }
 
-      if (selected) {
-        const key = resolveTribeKey(tribe);
-        participantsByTribe[key] = selected.id;
-        participants.push(selected.id);
+      if (!selected && members.length) {
+        selected = members[0];
+      }
+
+      if (selected?.id === player?.id) {
+        playerWasSelected = true;
+      }
+
+      participantsByTribe[key] = selected?.id || null;
+      if (selected?.id) {
+        participantsSet.add(selected.id);
       }
     });
 
+    const participants = Array.from(participantsSet);
+
     await awaitContinue([
       'Alright. Decision made.',
-      ...tribes.map(tribe => {
-        const selectedId = participantsByTribe[resolveTribeKey(tribe)];
-        const selectedSurvivor = (tribe?.members || []).find(m => m.id === selectedId);
+      ...tribes.map((tribe, idx) => {
+        const selectedId = participantsByTribe[resolveTribeKey(tribe, idx)];
+        const selectedSurvivor = (tribe?.members || []).find(m => m.id === selectedId) ||
+          (gameManager?.survivors || []).find(s => s.id === selectedId);
         const tribeName = tribe?.tribeName || tribe?.name || 'Tribe';
-        const name = selectedSurvivor?.name || selectedSurvivor?.firstName || 'Someone';
+        const name = selectedSurvivor?.name || selectedSurvivor?.firstName || selectedId || 'Someone';
         return `From the ${tribeName} — ${name}. …`;
       })
     ]);
@@ -171,6 +196,13 @@ const JourneySelectionEvent = {
         playerWasSelected
       }
     };
+
+    console.log('[JourneySelectionEvent] selection summary', {
+      playerTribeResolved: actualPlayerTribe?.tribeName || actualPlayerTribe?.name || actualPlayerTribe?.id || null,
+      tribeKeys,
+      participantsByTribe,
+      participants
+    });
 
     ui.overlay.remove();
 
