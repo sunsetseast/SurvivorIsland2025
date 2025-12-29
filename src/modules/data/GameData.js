@@ -997,7 +997,13 @@ const DEFAULT_SURVIVORS = [
     firemaking: 4,
     avatarUrl: 'Assets/Avatars/russell.jpeg'
   },
-];
+].map(survivor => ({
+  ...survivor,
+  hasVote: survivor.hasVote ?? true,
+  votePenalty: survivor.votePenalty ?? null,
+  extraVotes: survivor.extraVotes ?? 0,
+  suspicion: Math.max(0, survivor.suspicion ?? 0)
+}));
 
 const DEFAULT_TRIBE_NAMES = [
   "Tagi",

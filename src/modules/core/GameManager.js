@@ -59,6 +59,7 @@ class GameManager {
     this.tribeCount = 2;
     this.survivors = [];
     this.player = null;
+    this.journey = null;
     this.jury = [];
     this.finalists = [];
     this.winner = null;
@@ -648,6 +649,18 @@ class GameManager {
     survivor.health = Math.max(0, Math.min(100, calculatedHealth));
 
     console.log(`Updated health for ${survivor.name}: ${survivor.health} (water: ${water}, hunger: ${hunger}, rest: ${rest})`);
+  }
+
+  consumeVotePenaltiesAfterTribal(attendeeIds = []) {
+    if (!Array.isArray(attendeeIds) || !this.survivors) return;
+
+    attendeeIds.forEach(id => {
+      const survivor = this.survivors.find(s => s.id === id);
+      if (survivor?.votePenalty?.type === 'LOST_VOTE_JOURNEY' && survivor.votePenalty.pending === true) {
+        survivor.hasVote = true;
+        survivor.votePenalty = null;
+      }
+    });
   }
 }
 
