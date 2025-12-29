@@ -8,6 +8,8 @@
 
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
+import JourneySelectionEvent from '../events/JourneySelectionEvent.js';
+import RiskProtectJourneyEvent from '../events/RiskProtectJourneyEvent.js';
 
 // ---------- tiny helpers ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1138,10 +1140,34 @@ const FirstContactView = {
     const btnRow = createElement('div', { style:`position:absolute; top:220px; left:50%; transform:translateX(-50%); display:flex; gap:12px;` });
     const nextBtn = createElement('button', {
       style:`width:140px; height:50px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`,
-      onclick:()=>{
-        const results = this._buildResults();
+      onclick: async () => {
+        if (nextBtn.disabled) return;
+        nextBtn.disabled = true;
+
+        const player = gameManager.getPlayerSurvivor();
+        const tribes = gameManager.getTribes();
+        const playerTribe = gameManager.getPlayerTribe();
+
+        const selectionResult = await JourneySelectionEvent.run(this.container, {
+          gameManager,
+          tribes,
+          player,
+          playerTribe,
+          challengeKey: 'firstContact',
+          day: gameManager.getDay()
+        });
+
+        if (selectionResult?.playerWasSelected) {
+          await RiskProtectJourneyEvent.run(this.container, {
+            gameManager,
+            journey: gameManager.journey,
+            player,
+            relationshipSystem: gameManager.systems.relationshipSystem
+          });
+        }
+
         if (window.challengeScreen && typeof window.challengeScreen.completeChallenge === 'function') {
-          window.challengeScreen.completeChallenge(results);
+          window.challengeScreen.completeChallenge(null);
         } else {
           gameManager.advanceGamePhase();
           gameManager.setGameState('camp');
