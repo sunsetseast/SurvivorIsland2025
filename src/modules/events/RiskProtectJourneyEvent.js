@@ -54,6 +54,8 @@ const RiskProtectJourneyEvent = {
     const { gameManager, journey, player, relationshipSystem } = options;
     const ui = buildOverlay(container);
 
+    const participantIds = Array.from(new Set(journey?.participants || [])).filter(Boolean);
+
     const awaitContinue = async (lines) => new Promise(resolve => {
       renderLines(ui.textWrap, lines);
       clearButtons(ui.buttons);
@@ -75,7 +77,7 @@ const RiskProtectJourneyEvent = {
       'Before you decide, you’re given time to talk. This is the only moment you’ll have together.'
     ]);
 
-    const otherParticipants = (journey?.participants || []).filter(id => id !== player?.id);
+    const otherParticipants = participantIds.filter(id => id !== player?.id);
     const pactEntries = [];
 
     await new Promise(resolve => {
@@ -121,9 +123,7 @@ const RiskProtectJourneyEvent = {
     });
 
     const decisions = [];
-    const participants = journey?.participants || [];
-
-    participants.forEach(id => {
+    participantIds.forEach(id => {
       if (id === player?.id) {
         decisions.push({ survivorId: id, choice: playerChoice });
       } else {
