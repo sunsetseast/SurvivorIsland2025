@@ -59,6 +59,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 3,
     leader: 3,
     fishing: 9,
+    laziness: 1,
     firemaking: 7,
     avatarUrl: 'Assets/Avatars/ozzy.jpeg'
   },
@@ -114,6 +115,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 5,
     leader: 5,
     fishing: 7,
+    laziness: 3,
     firemaking: 6,
     avatarUrl: 'Assets/Avatars/jay.jpeg'
   },
@@ -169,6 +171,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 5,
     leader: 8,
     fishing: 6,
+    laziness: 2,
     firemaking: 6,
     avatarUrl: 'Assets/Avatars/natalie.jpeg'
   },
@@ -224,6 +227,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 4,
     leader: 10,
     fishing: 5,
+    laziness: 2,
     firemaking: 8,
     avatarUrl: 'Assets/Avatars/bostonrob.jpeg'
   },
@@ -279,6 +283,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 5,
     leader: 5,
     fishing: 5,
+    laziness: 3,
     firemaking: 6,
     avatarUrl: 'Assets/Avatars/andrea.jpeg'
   },
@@ -334,6 +339,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 4,
     leader: 8,
     fishing: 6,
+    laziness: 2,
     firemaking: 7,
     avatarUrl: 'Assets/Avatars/jeremy.jpeg'
   },
@@ -389,6 +395,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 3,
     leader: 8,
     fishing: 5,
+    laziness: 1,
     firemaking: 7,
     avatarUrl: 'Assets/Avatars/yul.jpeg'
   },
@@ -444,6 +451,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 3,
     leader: 10,
     fishing: 5,
+    laziness: 2,
     firemaking: 7,
     avatarUrl: 'Assets/Avatars/kim.jpeg'
   },
@@ -499,6 +507,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 8,
     leader: 8,
     fishing: 4,
+    laziness: 4,
     firemaking: 6,
     avatarUrl: 'Assets/Avatars/tony.jpeg'
   },
@@ -554,6 +563,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 6,
     leader: 4,
     fishing: 3,
+    laziness: 7,
     firemaking: 2,
     avatarUrl: 'Assets/Avatars/cirie.jpeg'
   },
@@ -609,6 +619,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 5,
     leader: 3,
     fishing: 2,
+    laziness: 8,
     firemaking: 3,
     avatarUrl: 'Assets/Avatars/sandra.jpeg'
   },
@@ -664,6 +675,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 7,
     leader: 5,
     fishing: 5,
+    laziness: 4,
     firemaking: 6,
     avatarUrl: 'Assets/Avatars/kelley.jpeg'
   },
@@ -719,6 +731,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 5,
     leader: 9,
     fishing: 5,
+    laziness: 4,
     firemaking: 6,
     avatarUrl: 'Assets/Avatars/parvati.jpeg'
   },
@@ -774,6 +787,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 3,
     leader: 4,
     fishing: 4,
+    laziness: 3,
     firemaking: 4,
     avatarUrl: 'Assets/Avatars/michele.jpeg'
   },
@@ -829,6 +843,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 3,
     leader: 6,
     fishing: 6,
+    laziness: 2,
     firemaking: 7,
     avatarUrl: 'Assets/Avatars/wendell.jpeg'
   },
@@ -884,6 +899,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 4,
     leader: 8,
     fishing: 6,
+    laziness: 6,
     firemaking: 6,
     avatarUrl: 'Assets/Avatars/tyson.jpeg'
   },
@@ -939,6 +955,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 7,
     leader: 5,
     fishing: 4,
+    laziness: 5,
     firemaking: 5,
     avatarUrl: 'Assets/Avatars/carolyn.jpeg'
   },
@@ -994,6 +1011,7 @@ const DEFAULT_SURVIVORS = [
     paratend: 8,
     leader: 8,
     fishing: 4,
+    laziness: 5,
     firemaking: 4,
     avatarUrl: 'Assets/Avatars/russell.jpeg'
   },
