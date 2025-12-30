@@ -14,6 +14,7 @@ import { createNpcIcon } from "../ui/NpcIcon.js";
 let selectedCoBuilder = null;
 let bambooAdded = 0;
 let palmsAdded = 0;
+const BAMBOO_REQUIRED = 5;
 
 export default function renderShelter(container) {
   console.log('renderShelter() called');
@@ -202,11 +203,11 @@ function handleCenterButtonClick() {
   } else if (shelterValue === 4) {
     message = "You must have a luxury item to enhance your shelter further.";
   } else if (shelterValue >= 0 && shelterValue <= 3) {
-    if (bambooCount < 1 || palmsCount < 1) {
+    if (bambooCount < BAMBOO_REQUIRED || palmsCount < 1) {
       if (shelterValue === 0) {
-        message = "Before building a structure, you must gather 1 bamboo and 1 palm frond.";
+        message = `Before building a structure, you must gather ${BAMBOO_REQUIRED} bamboo and 1 palm frond.`;
       } else {
-        message = "Before continuing work on the shelter, you must gather 1 bamboo and 1 palm frond.";
+        message = `Before continuing work on the shelter, you must gather ${BAMBOO_REQUIRED} bamboo and 1 palm frond.`;
       }
     } else {
       message = "A good way to gain favor with the tribe is to help build a strong shelter. However, it's also physically demanding and can take time.\n\nChoose a tribe mate to join you in shelter building.";
@@ -579,7 +580,7 @@ function updateResourceButtonStyles() {
   }
 
   // Show start building button if both resources are added
-  if (bambooAdded >= 1 && palmsAdded >= 1) {
+  if (bambooAdded >= BAMBOO_REQUIRED && palmsAdded >= 1) {
     showStartBuildingButton();
   }
 }
@@ -591,14 +592,16 @@ function showResourcePopup(resourceType) {
   const resourceProperty = resourceType === 'bamboo' ? 'bamboo' : 'palms';
   const resourceCount = player[resourceProperty] || 0;
   const alreadyAdded = resourceType === 'bamboo' ? bambooAdded : palmsAdded;
-  const maxNeeded = 1;
+  const requiredAmount = resourceType === 'bamboo' ? BAMBOO_REQUIRED : 1;
+  const remainingNeeded = Math.max(0, requiredAmount - alreadyAdded);
+  const maxSelectable = Math.min(resourceCount, remainingNeeded);
 
   if (resourceCount <= 0) {
     showInsufficientResourceParchment(resourceType);
     return;
   }
 
-  if (alreadyAdded >= maxNeeded) {
+  if (remainingNeeded <= 0) {
     showParchmentPopup(`You've already added enough ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}.`);
     return;
   }
@@ -779,7 +782,7 @@ function showResourcePopup(resourceType) {
   });
 
   plusBtn.addEventListener('click', () => {
-    if (selectedAmount < Math.min(resourceCount, maxNeeded)) {
+    if (selectedAmount < maxSelectable) {
       selectedAmount++;
       amountDisplay.textContent = selectedAmount;
     }
@@ -791,10 +794,10 @@ function showResourcePopup(resourceType) {
       showResourceEffect(resourceType, selectedAmount);
 
       if (resourceType === 'bamboo') {
-        bambooAdded = selectedAmount;
+        bambooAdded = Math.min(requiredAmount, bambooAdded + selectedAmount);
         player.bamboo = Math.max(0, player.bamboo - selectedAmount);
       } else {
-        palmsAdded = selectedAmount;
+        palmsAdded = Math.min(requiredAmount, palmsAdded + selectedAmount);
         player.palms = Math.max(0, player.palms - selectedAmount);
       }
       overlay.remove();
