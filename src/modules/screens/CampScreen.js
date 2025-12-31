@@ -207,6 +207,12 @@ export default class CampScreen {
     const viewContainer = getElement('camp-content');
 
     // Always clear old view first
+    if (window.__campViewCleanup) {
+      try {
+        window.__campViewCleanup();
+      } catch (e) {}
+      window.__campViewCleanup = null;
+    }
     clearChildren(viewContainer);
 
     // Track previous view
