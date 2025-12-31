@@ -15,6 +15,8 @@ let selectedCoBuilder = null;
 let bambooAdded = 0;
 let palmsAdded = 0;
 const BAMBOO_REQUIRED = 5;
+let currentActionMode = null; // 'contribute' | 'build'
+let overlayOpen = false;
 
 export default function renderShelter(container) {
   console.log('renderShelter() called');
@@ -24,6 +26,7 @@ export default function renderShelter(container) {
 
   // Get player's tribe shelter value to determine background
   const playerTribe = gameManager.getPlayerTribe();
+  gameManager.ensureStockpileExists?.(playerTribe);
   const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
 
   // Set background based on shelter level
@@ -186,36 +189,94 @@ export default function renderShelter(container) {
 }
 
 function handleCenterButtonClick() {
-  const playerTribe = gameManager.getPlayerTribe();
-  const player = gameManager.getPlayerSurvivor();
+  if (overlayOpen) return;
+  overlayOpen = true;
+  addDebugBanner('Shelter action overlay opened', 'darkorange', 50);
 
-  if (!playerTribe || !player) return;
+  const overlay = createElement('div', {
+    id: 'shelter-overlay',
+    style: `
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    `
+  });
 
-  const shelterValue = playerTribe.shelter || 0;
-  const bambooCount = player.bamboo || 0;
-  const palmsCount = player.palms || 0;
+  const card = createElement('div', {
+    style: `
+      width: 340px;
+      background: rgba(255, 248, 225, 0.96);
+      border: 2px solid #c99a4b;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+      font-family: 'Survivant', serif;
+    `
+  });
 
-  let message = '';
-  let canProceed = false;
+  card.appendChild(createElement('div', { style: { fontSize: '20px', color: '#3c2415', fontWeight: 'bold' } }, 'Shelter Actions'));
 
-  if (shelterValue === 5) {
-    message = "This place can't get much better.";
-  } else if (shelterValue === 4) {
-    message = "You must have a luxury item to enhance your shelter further.";
-  } else if (shelterValue >= 0 && shelterValue <= 3) {
-    if (bambooCount < BAMBOO_REQUIRED || palmsCount < 1) {
-      if (shelterValue === 0) {
-        message = `Before building a structure, you must gather ${BAMBOO_REQUIRED} bamboo and 1 palm frond.`;
-      } else {
-        message = `Before continuing work on the shelter, you must gather ${BAMBOO_REQUIRED} bamboo and 1 palm frond.`;
-      }
-    } else {
-      message = "A good way to gain favor with the tribe is to help build a strong shelter. However, it's also physically demanding and can take time.\n\nChoose a tribe mate to join you in shelter building.";
-      canProceed = true;
+  const contributeBtn = createElement('button', {
+    className: 'rect-button alt',
+    style: `
+      background-image: url('Assets/rect-button-1.png');
+      background-size: 100% 100%;
+      border: none;
+      padding: 12px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    `
+  }, 'Contribute Resources');
+
+  const buildBtn = createElement('button', {
+    className: 'rect-button alt',
+    style: `
+      background-image: url('Assets/rect-button-1.png');
+      background-size: 100% 100%;
+      border: none;
+      padding: 12px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    `
+  }, 'Build Shelter');
+
+  contributeBtn.addEventListener('click', () => {
+    closeOverlay();
+    startContributionFlow();
+  });
+  buildBtn.addEventListener('click', () => {
+    closeOverlay();
+    startBuildFlow();
+  });
+
+  card.appendChild(contributeBtn);
+  card.appendChild(buildBtn);
+  overlay.appendChild(card);
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeOverlay();
     }
-  }
+  });
 
-  showParchmentPopup(message, canProceed);
+  document.body.appendChild(overlay);
+}
+
+function closeOverlay() {
+  const existing = document.getElementById('shelter-overlay');
+  if (existing) existing.remove();
+  overlayOpen = false;
+  addDebugBanner('Shelter action overlay closed', 'darkorange', 50);
 }
 
 function showParchmentPopup(message, canProceed = false) {
@@ -263,6 +324,299 @@ function showParchmentPopup(message, canProceed = false) {
       showCoBuilderSelection();
     }
   });
+}
+
+function ensureStockpileBanner(container, tribe) {
+  const existing = container.querySelector('#stockpile-banner');
+  if (existing) existing.remove();
+  const banner = createElement('div', {
+    id: 'stockpile-banner',
+    style: `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.55);
+      color: #fff8e7;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-family: 'Survivant', serif;
+      font-size: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+      z-index: 20;
+      white-space: pre-line;
+    `
+  });
+  const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
+  banner.textContent = `Tribe Stockpile\nBamboo: ${stockpile.bamboo || 0}\nPalms: ${stockpile.palms || 0}`;
+  container.appendChild(banner);
+}
+
+function startContributionFlow() {
+  currentActionMode = 'contribute';
+  const container = document.querySelector('.shelter-wrapper');
+  const tribe = gameManager.getPlayerTribe();
+  ensureStockpileBanner(container?.parentElement || document.body, tribe);
+  showResourceButtons();
+  showContributionSubmit();
+  addDebugBanner('Contribution flow started', 'teal', 60);
+}
+
+function showContributionSubmit() {
+  let submit = document.getElementById('submit-contribution-button');
+  if (submit) {
+    submit.style.display = 'block';
+    return;
+  }
+  submit = createElement('button', {
+    id: 'submit-contribution-button',
+    className: 'rect-button alt',
+    style: `
+      position: absolute;
+      bottom: 260px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-image: url('Assets/rect-button-1.png');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      border: none;
+      padding: 10px 14px;
+      color: white;
+      font-family: 'Survivant', serif;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 200;
+    `
+  }, 'Contribute');
+  submit.addEventListener('click', submitContribution);
+  document.body.appendChild(submit);
+}
+
+function submitContribution() {
+  const tribe = gameManager.getPlayerTribe();
+  const player = gameManager.getPlayerSurvivor();
+  if (!tribe || !player) return;
+  const bamboo = bambooAdded || 0;
+  const palms = palmsAdded || 0;
+  if (bamboo <= 0 && palms <= 0) {
+    showParchmentPopup('Add bamboo or palm fronds to contribute to the tribe.');
+    return;
+  }
+  gameManager.addToStockpile?.(tribe, 'bamboo', bamboo);
+  gameManager.addToStockpile?.(tribe, 'palms', palms);
+  player.bamboo = Math.max(0, (player.bamboo || 0) - bamboo);
+  player.palms = Math.max(0, (player.palms || 0) - palms);
+  activityTracker.trackActivity('camp_contribute', {
+    subtype: 'shelter_materials',
+    bamboo,
+    palms,
+    actorId: player.id
+  });
+  const day = gameManager.getCurrentDay();
+  gameManager.campLog = gameManager.campLog || [];
+  gameManager.campLog.push({
+    id: 'contribute_shelter_materials',
+    day,
+    actorId: player.id,
+    bamboo,
+    palms,
+    timestamp: Date.now(),
+    type: 'camp_contribute'
+  });
+  addDebugBanner('Contribution submitted', 'teal', 60);
+  bambooAdded = 0;
+  palmsAdded = 0;
+  updateResourceButtonStyles();
+  ensureStockpileBanner(document.querySelector('.shelter-wrapper')?.parentElement || document.body, tribe);
+}
+
+function startBuildFlow() {
+  currentActionMode = 'build';
+  addDebugBanner('Build flow started', 'saddlebrown', 60);
+  const tribe = gameManager.getPlayerTribe();
+  const player = gameManager.getPlayerSurvivor();
+  if (!tribe || !player) return;
+  const assignments = tribe.day1Plan?.shelterIds || tribe.day1Plan?.shelter || [];
+  const isAssigned = assignments.includes(player.id);
+  if (!assignments.length) {
+    showParchmentPopup('No one is officially assigned yet.');
+    logBuildAttempt('not_assigned', null, null, { reason: 'no_assignments' });
+    return;
+  }
+  if (!isAssigned) {
+    const speakers = assignments.slice(0, 2).map(id => tribe.members.find(m => m.id === id)?.firstName || 'Someone');
+    showParchmentPopup(`${speakers[0] || 'One castaway'} and ${speakers[1] || 'another'} wave you off. "We\'ve got shelter covered. If you want to help, bring bamboo or palm."`);
+    logBuildAttempt('not_assigned', speakers, null, {});
+    return;
+  }
+  const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
+  if ((stockpile.bamboo || 0) < BAMBOO_REQUIRED || (stockpile.palms || 0) < 1) {
+    showParchmentPopup('The tribe stockpile needs 5 bamboo and 1 palm frond before building.');
+    logBuildAttempt('blocked_insufficient_stockpile', null, null, { have: { bamboo: stockpile.bamboo || 0, palms: stockpile.palms || 0 } });
+    return;
+  }
+  const partnerId = assignments.find(id => id !== player.id);
+  const partner = tribe.members.find(m => m.id === partnerId);
+  const playerIsLeader = tribe.day1Plan?.leaderId === player.id || tribe.day1Plan?.leadershipScenario === 'player_leads' || gameManager.flags?.playerIsLeader;
+  showBuildStyleChoice(playerIsLeader, partner);
+}
+
+function logBuildAttempt(outcome, speakers, partnerId, extra = {}) {
+  const player = gameManager.getPlayerSurvivor();
+  const tribe = gameManager.getPlayerTribe();
+  const entry = {
+    type: 'camp_shelter_attempt',
+    outcome,
+    day: gameManager.getCurrentDay(),
+    actorId: player?.id,
+    speakers,
+    partnerId,
+    ...extra
+  };
+  activityTracker.trackActivity(entry.type, entry);
+  gameManager.campLog = gameManager.campLog || [];
+  gameManager.campLog.push({ ...entry, timestamp: Date.now() });
+}
+
+function showBuildStyleChoice(playerIsLeader, partner) {
+  const parchment = createElement('div', {
+    style: `
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2100;
+    `
+  });
+  const card = createElement('div', {
+    style: `
+      width: 360px;
+      background-image: url('Assets/parch-portrait.png');
+      background-size: cover;
+      padding: 40px;
+      color: white;
+      text-shadow: 2px 2px 4px black;
+      font-family: 'Survivant', serif;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-sizing: border-box;
+    `
+  });
+  const partnerName = partner?.firstName || 'your tribemate';
+  const introText = playerIsLeader ? 'Everyone expects you to call the shots on this shelter push.' : `You and ${partnerName} size up the frame. How do you want to run this?`;
+  card.appendChild(createElement('div', { style: { fontSize: '18px' } }, introText));
+
+  const buttonContainer = createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } });
+  const styles = playerIsLeader ? ['lead'] : ['lead', 'together', 'npc_lead'];
+  styles.forEach(style => {
+    const label = style === 'lead' ? 'Take the Lead' : style === 'together' ? 'Build Together' : `Let ${partnerName} Lead`;
+    const btn = createElement('button', {
+      className: 'rect-button alt',
+      style: `
+        background-image: url('Assets/rect-button-1.png');
+        background-size: 100% 100%;
+        border: none;
+        padding: 10px;
+        color: white;
+        cursor: pointer;
+      `
+    }, label);
+    btn.addEventListener('click', () => {
+      parchment.remove();
+      resolveBuild(style, partner);
+    });
+    buttonContainer.appendChild(btn);
+  });
+  card.appendChild(buttonContainer);
+  parchment.appendChild(card);
+  document.body.appendChild(parchment);
+}
+
+function resolveBuild(style, partner) {
+  const player = gameManager.getPlayerSurvivor();
+  const tribe = gameManager.getPlayerTribe();
+  if (!player || !tribe) return;
+  const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
+  if ((stockpile.bamboo || 0) < BAMBOO_REQUIRED || (stockpile.palms || 0) < 1) {
+    addDebugBanner('Guard prevented build without stockpile', 'crimson', 40);
+    return;
+  }
+  const partnerTraits = partner || {};
+  const pSkill = ((player.survival || 50) + (player.endurance || 50) + (player.leadership || 50)) / 3;
+  const nSkill = ((partnerTraits.survival || 45) + (partnerTraits.endurance || 45) + (partnerTraits.leadership || 45)) / 3;
+  const lazinessPenalty = ((player.laziness || 0) + (partnerTraits.laziness || 0)) / 300;
+  const teamBoost = ((player.teamPlayer || 50) + (partnerTraits.teamPlayer || 50)) / 200;
+  let base = (pSkill * 0.6 + nSkill * 0.4) / 100;
+  if (style === 'together') base += 0.05 * teamBoost;
+  if (style === 'lead') base += 0.1 * Math.random();
+  if (style === 'npc_lead') base += ((partnerTraits.leadership || 50) - (player.leadership || 50)) / 400;
+  base -= lazinessPenalty;
+  const variance = style === 'together' ? 0.05 : 0.12;
+  const roll = base + (Math.random() * variance - variance / 2);
+  const success = roll > 0.45;
+
+  let narration = '';
+  let spent = { bamboo: 0, palms: 0 };
+  const shelterBefore = tribe.shelter || 0;
+  if (success) {
+    gameManager.consumeFromStockpile?.(tribe, 'bamboo', BAMBOO_REQUIRED);
+    gameManager.consumeFromStockpile?.(tribe, 'palms', 1);
+    spent = { bamboo: BAMBOO_REQUIRED, palms: 1 };
+    tribe.shelter = Math.min(4, shelterBefore + 1);
+    narration = 'The frame tightens and the roof holds. The tribe steps back impressed.';
+    addDebugBanner('Shelter build success', 'darkgreen', 60);
+  } else {
+    gameManager.consumeFromStockpile?.(tribe, 'bamboo', 2);
+    gameManager.consumeFromStockpile?.(tribe, 'palms', 1);
+    spent = { bamboo: 2, palms: 1 };
+    narration = 'A gust snaps the lashings and the frame slumps. You salvage what you can, but time is lost.';
+    addDebugBanner('Shelter build failed', 'darkred', 60);
+  }
+  updateShelterVisuals(tribe.shelter || 0);
+  logShelterBuild(style, success ? 'success' : 'fail', spent, shelterBefore, tribe.shelter || 0, partner, narration);
+  showParchmentPopup(narration);
+}
+
+function updateShelterVisuals(level) {
+  const container = document.querySelector('.shelter-wrapper')?.parentElement;
+  if (container) {
+    container.style.backgroundImage = `url('Assets/Screens/shelter${level}.png')`;
+  }
+  for (let i = 0; i < 5; i++) {
+    const circle = document.getElementById(`shelter-level-${i}`);
+    if (circle) {
+      if (level > i) {
+        circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+        circle.style.borderColor = '#22c55e';
+        circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
+      } else {
+        circle.style.background = 'rgba(139, 69, 19, 0.3)';
+        circle.style.borderColor = '#2d8100';
+        circle.style.boxShadow = 'none';
+      }
+    }
+  }
+}
+
+function logShelterBuild(style, outcome, stockpileSpent, shelterBefore, shelterAfter, partner, narration) {
+  const player = gameManager.getPlayerSurvivor();
+  const entry = {
+    type: 'camp_shelter_build',
+    actorId: player?.id,
+    partnerId: partner?.id,
+    style,
+    outcome,
+    stockpileSpent,
+    shelterBefore,
+    shelterAfter,
+    narration,
+    day: gameManager.getCurrentDay()
+  };
+  activityTracker.trackActivity(entry.type, entry);
+  gameManager.campLog = gameManager.campLog || [];
+  gameManager.campLog.push({ ...entry, timestamp: Date.now() });
 }
 
 function showCoBuilderSelection() {
@@ -580,7 +934,7 @@ function updateResourceButtonStyles() {
   }
 
   // Show start building button if both resources are added
-  if (bambooAdded >= BAMBOO_REQUIRED && palmsAdded >= 1) {
+  if (currentActionMode === 'build' && bambooAdded >= BAMBOO_REQUIRED && palmsAdded >= 1) {
     showStartBuildingButton();
   }
 }
@@ -592,9 +946,9 @@ function showResourcePopup(resourceType) {
   const resourceProperty = resourceType === 'bamboo' ? 'bamboo' : 'palms';
   const resourceCount = player[resourceProperty] || 0;
   const alreadyAdded = resourceType === 'bamboo' ? bambooAdded : palmsAdded;
-  const requiredAmount = resourceType === 'bamboo' ? BAMBOO_REQUIRED : 1;
+  const requiredAmount = currentActionMode === 'contribute' ? resourceCount : resourceType === 'bamboo' ? BAMBOO_REQUIRED : 1;
   const remainingNeeded = Math.max(0, requiredAmount - alreadyAdded);
-  const maxSelectable = Math.min(resourceCount, remainingNeeded);
+  const maxSelectable = currentActionMode === 'contribute' ? resourceCount : Math.min(resourceCount, remainingNeeded);
 
   if (resourceCount <= 0) {
     showInsufficientResourceParchment(resourceType);
@@ -1134,7 +1488,7 @@ function startBuilding() {
   console.log(`Shelter building relationship change: ${relationshipDelta} between ${player.firstName} and ${selectedCoBuilder.firstName} (${collaborationMessage})`);
 
   // Update background
-  const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.jpeg')`;
+  const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.png')`;
   const container = document.querySelector('.shelter-wrapper').parentElement;
   container.style.backgroundImage = newBackgroundImage;
 
