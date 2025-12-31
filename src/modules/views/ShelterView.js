@@ -15,6 +15,16 @@ let overlayOpen = false;
 let shelterRoot = null;
 let currentActionMode = null; // 'build' | 'contribute'
 
+function isPlayerDay1Leader(player, tribe) {
+  const pid = String(player?.id);
+  const leaderId = tribe?.day1Plan?.leaderId != null ? String(tribe.day1Plan.leaderId) : null;
+  return (
+    leaderId === pid ||
+    tribe?.day1Plan?.leadershipScenario === 'player_leads' ||
+    gameManager.flags?.playerIsLeader === true
+  );
+}
+
 export default function renderShelter(container) {
   cleanupShelterUI();
   window.__campViewCleanup = cleanupShelterUI;
@@ -104,6 +114,7 @@ export default function renderShelter(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+  ensureStockpileBanner(wrapper, playerTribe);
 
   renderNPCsAtShelter(container);
   createResourceButtons(wrapper);
@@ -365,8 +376,9 @@ function ensureStockpileBanner(container, tribe) {
     id: 'stockpile-banner',
     style: `
       position: absolute;
-      top: 10px;
-      right: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 120px;
       background: rgba(0,0,0,0.55);
       color: #fff8e7;
       padding: 10px 14px;
@@ -374,7 +386,7 @@ function ensureStockpileBanner(container, tribe) {
       font-family: 'Survivant', serif;
       font-size: 14px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.35);
-      z-index: 20;
+      z-index: 60;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -594,15 +606,7 @@ function showApproachChoices(partner) {
   if (!player || !tribe || !partner) return;
   const root = getShelterRoot();
 
-  const pid = String(player.id);
-  const leaderId = tribe?.day1Plan?.leaderId != null
-    ? String(tribe.day1Plan.leaderId)
-    : null;
-
-  const forceLead =
-    leaderId === pid ||
-    tribe?.day1Plan?.leadershipScenario === 'player_leads' ||
-    gameManager.flags?.playerIsLeader === true;
+  const forceLead = isPlayerDay1Leader(player, tribe);
 
   const overlay = createElement('div', {
     className: 'shelter-temp-overlay',
@@ -637,13 +641,17 @@ function showApproachChoices(partner) {
     ? 'Your tribe is counting on you to lead this build.'
     : 'How do you want to build?';
   card.appendChild(createElement('div', { style: { fontSize: '20px', color: '#3c2415', fontWeight: 'bold' } }, headingText));
+  const subheadingText = forceLead
+    ? `${partner.firstName} looks to you for direction.`
+    : `You're building with ${partner.firstName}.`;
+  card.appendChild(createElement('div', { style: { color: '#5a3618', fontSize: '15px' } }, subheadingText));
 
   const options = forceLead
-    ? [{ key: 'lead', label: 'Take the lead' }]
+    ? [{ key: 'lead', label: `Take the lead (with ${partner.firstName} backing you up)` }]
     : [
-      { key: 'lead', label: 'Take the lead on design' },
-      { key: 'together', label: 'Equal collaboration' },
-      { key: 'npc_lead', label: 'Let them lead' }
+      { key: 'lead', label: `Take the lead (with ${partner.firstName} backing you up)` },
+      { key: 'together', label: `Work together with ${partner.firstName}` },
+      { key: 'npc_lead', label: `Let ${partner.firstName} take the lead` }
     ];
 
   const buttonRow = createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } });
@@ -685,7 +693,7 @@ function resolveBuildOutcome(style, partner) {
 
   const baseMinutes = 18;
   const relationshipScore = gameManager.systems?.relationshipSystem?.getRelationship?.(player.id, partner.id)?.score ?? 0;
-  const leadershipBoost = style === 'lead' && gameManager.flags?.playerIsLeader ? -3 : 0;
+  const leadershipBoost = style === 'lead' && isPlayerDay1Leader(player, tribe) ? -3 : 0;
   const lazinessPenalty = ((player.laziness || 0) + (partner.laziness || 0)) / 40;
   const relationshipFactor = -relationshipScore / 120; // better relationship reduces time
   const teamworkBonus = style === 'together' ? -2 : style === 'npc_lead' ? 1 : 0;
@@ -694,7 +702,7 @@ function resolveBuildOutcome(style, partner) {
   let actualMinutes = baseMinutes + leadershipBoost + lazinessPenalty + relationshipFactor + teamworkBonus + randomSwing;
   actualMinutes = Math.max(8, Math.min(28, actualMinutes));
 
-  const performanceScore = 0.7 - lazinessPenalty / 8 + (relationshipScore / 200) + (gameManager.flags?.playerIsLeader ? 0.05 : 0);
+  const performanceScore = 0.7 - lazinessPenalty / 8 + (relationshipScore / 200) + (isPlayerDay1Leader(player, tribe) ? 0.05 : 0);
   const styleBias = style === 'lead' ? 0.05 : style === 'npc_lead' ? -0.05 : 0.02;
   const successChance = Math.min(0.92, Math.max(0.45, 0.7 + performanceScore + styleBias + (getRandomInt(-8, 8) / 100)));
   const success = Math.random() < successChance;
@@ -714,14 +722,18 @@ function resolveBuildOutcome(style, partner) {
     relationshipDelta = wentSmooth ? 4 : 2;
     teamPlayerDelta = wentSmooth ? 10 : 8;
     narration = style === 'lead'
-      ? 'You drive the build. The frame tightens fast and the tribe nods at the clear vision.'
+      ? `You call the shots and ${partner.firstName} follows your plan, adjusting on the fly. The frame tightens fast and the tribe notices.`
       : style === 'npc_lead'
-        ? `${partner.firstName} sketches their plan; you reinforce it without ego. The shelter takes shape.`
-        : 'You trade ideas and work in rhythm. The new walls feel sturdier already.';
+        ? `${partner.firstName} sketches their plan and you prop beams, plug gaps, and back them up. Their design clicks and the shelter takes shape.`
+        : `You and ${partner.firstName} trade ideas and fall into a rhythm, passing lashings and beams without words. Teamwork makes the walls sturdier.`;
   } else {
     relationshipDelta = relationshipScore < -20 ? -6 : -3;
     teamPlayerDelta = -5;
-    narration = 'The lashings slip and tempers rise. You salvage what you can, but the shelter doesn\'t improve.';
+    narration = style === 'lead'
+      ? `${partner.firstName} bristles under your calls and you push back. The lashings slip, tension spikes, and the shelter doesn't improve.`
+      : style === 'npc_lead'
+        ? `You try to follow ${partner.firstName}'s plan, but directions get crossed and frustration builds. Nothing sturdy comes of it.`
+        : `You and ${partner.firstName} get out of sync, second-guessing each other. Tempers rise and the shelter stays the same.`;
   }
 
   const secondsSpent = Math.round(actualMinutes * 60);
