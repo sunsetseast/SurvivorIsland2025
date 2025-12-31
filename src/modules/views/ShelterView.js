@@ -1,35 +1,36 @@
-/**
- * @module ShelterView
- * Renders the shelter screen inside the Camp Phase with building functionality
- */
-
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
-import timerManager from '../utils/TimerManager.js';
 import activityTracker from '../utils/ActivityTracker.js';
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { createNpcIcon } from "../ui/NpcIcon.js";
+import npcLocationSystem from '../systems/NpcLocationSystem.js';
+import { createNpcIcon } from '../ui/NpcIcon.js';
+import { updateCampClockUI } from '../utils/ClockUtils.js';
+
+const BAMBOO_REQUIRED = 5;
+const PALM_REQUIRED = 1;
+const MAX_SHELTER_LEVEL = 4;
 
 let selectedCoBuilder = null;
 let bambooAdded = 0;
 let palmsAdded = 0;
-const BAMBOO_REQUIRED = 5;
-let currentActionMode = null; // 'contribute' | 'build'
 let overlayOpen = false;
+let shelterRoot = null;
+let currentActionMode = null; // 'build' | 'contribute'
 
 export default function renderShelter(container) {
+  cleanupShelterUI();
+  window.__campViewCleanup = cleanupShelterUI;
+
   console.log('renderShelter() called');
   addDebugBanner('renderShelter() called', 'darkgreen', 40);
 
   clearChildren(container);
+  shelterRoot = container;
 
-  // Get player's tribe shelter value to determine background
   const playerTribe = gameManager.getPlayerTribe();
   gameManager.ensureStockpileExists?.(playerTribe);
   const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
 
-  // Set background based on shelter level
   const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.png')`;
   container.style.backgroundImage = backgroundImage;
   container.style.backgroundSize = 'cover';
@@ -50,7 +51,6 @@ export default function renderShelter(container) {
     `
   });
 
-  // --- SHELTER LEVEL INDICATOR (5 circles on left side) ---
   const shelterLevelContainer = createElement('div', {
     id: 'shelter-level-indicator',
     style: `
@@ -65,8 +65,7 @@ export default function renderShelter(container) {
     `
   });
 
-  // Create 5 circles for shelter levels (bottom to top: level 1, 2, 3, 4, 5)
-  for (let i = 4; i >= 0; i--) { // Reverse order so bottom circle is index 0
+  for (let i = 4; i >= 0; i--) {
     const circle = createElement('div', {
       id: `shelter-level-${i}`,
       style: `
@@ -79,7 +78,6 @@ export default function renderShelter(container) {
       `
     });
 
-    // Light up circles based on current shelter level
     if (tribeShelterValue > i) {
       circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
       circle.style.borderColor = '#22c55e';
@@ -101,8 +99,6 @@ export default function renderShelter(container) {
       text-align: center;
       padding: 20px;
       z-index: 2;
-
-      /* Start fully visible and allow a fade transition */
       opacity: 1;
       transition: opacity 1s ease;
     `
@@ -110,39 +106,29 @@ export default function renderShelter(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
-  // ⭐ Render NPCs located at the shelter
-  renderNPCsAtShelter(container);
 
-  // Fade out after 3 seconds (3000ms)
+  renderNPCsAtShelter(container);
+  createResourceButtons(wrapper);
+
   setTimeout(() => {
-    const msgEl = document.getElementById('shelter-message');
-    if (msgEl) {
-      msgEl.style.opacity = '0';
-    }
+    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+    if (msgEl) msgEl.style.opacity = '0';
   }, 3000);
 
-  // Remove the message from DOM after 4 seconds (4000ms)
   setTimeout(() => {
-    const msgEl = document.getElementById('shelter-message');
-    if (msgEl) {
-      msgEl.remove();
-    }
+    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+    if (msgEl) msgEl.remove();
   }, 4000);
 
-  // Resource buttons (initially hidden)
-  createResourceButtons(container);
-
-  // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-
     actionButtons.style.justifyContent = 'center';
     actionButtons.style.gap = '20px';
     actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const btnWrapper = createElement('div', {
         style: `
           width: 260px;
           height: 150px;
@@ -164,20 +150,16 @@ export default function renderShelter(container) {
         `
       });
 
-      wrapper.appendChild(image);
-      if (onClick) wrapper.addEventListener('click', onClick);
-      return wrapper;
+      btnWrapper.appendChild(image);
+      if (onClick) btnWrapper.addEventListener('click', onClick);
+      return btnWrapper;
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      console.log('Left button clicked - returning to Campfire');
       window.campScreen.loadView('campfire');
     });
-
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', handleCenterButtonClick);
-
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-      console.log('Down button clicked — loading Fork1 View');
       window.campScreen.loadView('fork1');
     });
 
@@ -185,18 +167,55 @@ export default function renderShelter(container) {
     actionButtons.appendChild(centerButton);
     actionButtons.appendChild(downButton);
   }
+
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
 
+function getShelterRoot() {
+  return shelterRoot || document.querySelector('.shelter-wrapper')?.parentElement || document.getElementById('camp-content');
+}
+
+function cleanupShelterUI() {
+  const root = getShelterRoot();
+  if (!root) return;
+
+  const removableIds = [
+    'shelter-overlay',
+    'parchment-popup',
+    'submit-contribution-button',
+    'start-building-button',
+    'bamboo-selector-overlay',
+    'palm-selector-overlay',
+    'cobuilder-popup',
+    'confirm-popup'
+  ];
+
+  removableIds.forEach(id => root.querySelectorAll(`#${id}`).forEach(el => el.remove()));
+  root.querySelectorAll('.shelter-temp-overlay').forEach(el => el.remove());
+
+  const resourceButtons = root.querySelector('#shelter-resource-buttons');
+  if (resourceButtons) resourceButtons.style.display = 'none';
+  bambooAdded = 0;
+  palmsAdded = 0;
+  overlayOpen = false;
+  selectedCoBuilder = null;
+}
+
 function handleCenterButtonClick() {
-  if (overlayOpen) return;
+  if (overlayOpen) {
+    closeOverlay();
+    hideContributionUI();
+    return;
+  }
   overlayOpen = true;
   addDebugBanner('Shelter action overlay opened', 'darkorange', 50);
 
+  const root = getShelterRoot();
   const overlay = createElement('div', {
     id: 'shelter-overlay',
+    className: 'shelter-temp-overlay',
     style: `
-      position: fixed;
+      position: absolute;
       inset: 0;
       background: rgba(0,0,0,0.6);
       display: flex;
@@ -224,19 +243,6 @@ function handleCenterButtonClick() {
 
   card.appendChild(createElement('div', { style: { fontSize: '20px', color: '#3c2415', fontWeight: 'bold' } }, 'Shelter Actions'));
 
-  const contributeBtn = createElement('button', {
-    className: 'rect-button alt',
-    style: `
-      background-image: url('Assets/rect-button-1.png');
-      background-size: 100% 100%;
-      border: none;
-      padding: 12px;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    `
-  }, 'Contribute Resources');
-
   const buildBtn = createElement('button', {
     className: 'rect-button alt',
     style: `
@@ -250,45 +256,61 @@ function handleCenterButtonClick() {
     `
   }, 'Build Shelter');
 
-  contributeBtn.addEventListener('click', () => {
-    closeOverlay();
-    startContributionFlow();
-  });
+  const contributeBtn = createElement('button', {
+    className: 'rect-button alt',
+    style: `
+      background-image: url('Assets/rect-button-1.png');
+      background-size: 100% 100%;
+      border: none;
+      padding: 12px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    `
+  }, 'Contribute Resources');
+
   buildBtn.addEventListener('click', () => {
     closeOverlay();
     startBuildFlow();
   });
+  contributeBtn.addEventListener('click', () => {
+    closeOverlay();
+    startContributionFlow();
+  });
 
-  card.appendChild(contributeBtn);
   card.appendChild(buildBtn);
+  card.appendChild(contributeBtn);
   overlay.appendChild(card);
 
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
       closeOverlay();
+      hideContributionUI();
     }
   });
 
-  document.body.appendChild(overlay);
+  root.appendChild(overlay);
 }
 
 function closeOverlay() {
-  const existing = document.getElementById('shelter-overlay');
-  if (existing) existing.remove();
+  const root = getShelterRoot();
+  root?.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
   overlayOpen = false;
   addDebugBanner('Shelter action overlay closed', 'darkorange', 50);
 }
 
-function showParchmentPopup(message, canProceed = false) {
+function showParchmentPopup(message, onClose) {
+  const root = getShelterRoot();
   const popup = createElement('div', {
     id: 'parchment-popup',
+    className: 'shelter-temp-overlay',
     style: `
-      position: fixed;
+      position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 400px;
-      height: 300px;
+      width: 420px;
+      height: 320px;
       background-image: url('Assets/parch-portrait.png');
       background-size: 100% 100%;
       background-position: center;
@@ -296,7 +318,7 @@ function showParchmentPopup(message, canProceed = false) {
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 2100;
       cursor: pointer;
       padding: 40px;
       box-sizing: border-box;
@@ -316,14 +338,12 @@ function showParchmentPopup(message, canProceed = false) {
   }, message);
 
   popup.appendChild(text);
-  document.body.appendChild(popup);
-
   popup.addEventListener('click', () => {
     popup.remove();
-    if (canProceed) {
-      showCoBuilderSelection();
-    }
+    onClose?.();
   });
+
+  root?.appendChild(popup);
 }
 
 function ensureStockpileBanner(container, tribe) {
@@ -347,48 +367,61 @@ function ensureStockpileBanner(container, tribe) {
     `
   });
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
-  banner.textContent = `Tribe Stockpile\nBamboo: ${stockpile.bamboo || 0}\nPalms: ${stockpile.palms || 0}`;
+  banner.textContent = `Tribe Stockpile\nBamboo: ${stockpile.bamboo || 0}\nPalm fronds: ${stockpile.palms || 0}`;
   container.appendChild(banner);
 }
 
 function startContributionFlow() {
   currentActionMode = 'contribute';
-  const container = document.querySelector('.shelter-wrapper');
+  const root = getShelterRoot();
   const tribe = gameManager.getPlayerTribe();
-  ensureStockpileBanner(container?.parentElement || document.body, tribe);
+  ensureStockpileBanner(root, tribe);
   showResourceButtons();
-  showContributionSubmit();
+  updateContributionSubmit();
   addDebugBanner('Contribution flow started', 'teal', 60);
 }
 
-function showContributionSubmit() {
-  let submit = document.getElementById('submit-contribution-button');
-  if (submit) {
-    submit.style.display = 'block';
-    return;
+function updateContributionSubmit() {
+  const root = getShelterRoot();
+  let submit = root?.querySelector('#submit-contribution-button');
+  const stagedTotal = (bambooAdded || 0) + (palmsAdded || 0);
+  if (!submit) {
+    submit = createElement('button', {
+      id: 'submit-contribution-button',
+      className: 'rect-button alt',
+      style: `
+        position: absolute;
+        bottom: 260px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-image: url('Assets/rect-button-1.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        border: none;
+        padding: 10px 14px;
+        color: white;
+        font-family: 'Survivant', serif;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 200;
+        display: none;
+      `
+    }, 'Submit Contribution');
+    submit.addEventListener('click', submitContribution);
+    root?.appendChild(submit);
   }
-  submit = createElement('button', {
-    id: 'submit-contribution-button',
-    className: 'rect-button alt',
-    style: `
-      position: absolute;
-      bottom: 260px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-image: url('Assets/rect-button-1.png');
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      border: none;
-      padding: 10px 14px;
-      color: white;
-      font-family: 'Survivant', serif;
-      font-size: 16px;
-      cursor: pointer;
-      z-index: 200;
-    `
-  }, 'Contribute');
-  submit.addEventListener('click', submitContribution);
-  document.body.appendChild(submit);
+  submit.style.display = stagedTotal > 0 ? 'block' : 'none';
+}
+
+function hideContributionUI() {
+  const root = getShelterRoot();
+  const submit = root?.querySelector('#submit-contribution-button');
+  if (submit) submit.remove();
+  const resourceButtons = root?.querySelector('#shelter-resource-buttons');
+  if (resourceButtons) resourceButtons.style.display = 'none';
+  bambooAdded = 0;
+  palmsAdded = 0;
+  updateResourceButtonStyles();
 }
 
 function submitContribution() {
@@ -426,166 +459,240 @@ function submitContribution() {
   bambooAdded = 0;
   palmsAdded = 0;
   updateResourceButtonStyles();
-  ensureStockpileBanner(document.querySelector('.shelter-wrapper')?.parentElement || document.body, tribe);
+  ensureStockpileBanner(getShelterRoot(), tribe);
+  updateContributionSubmit();
+  showParchmentPopup('You add your gathered materials to the tribe stockpile.');
 }
 
 function startBuildFlow() {
   currentActionMode = 'build';
-  addDebugBanner('Build flow started', 'saddlebrown', 60);
   const tribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
   if (!tribe || !player) return;
+
+  if ((tribe.shelter || 0) >= MAX_SHELTER_LEVEL) {
+    showParchmentPopup('The shelter already feels solid at 4/4. Any further upgrades will have to wait.');
+    return;
+  }
+
   const assignments = tribe.day1Plan?.shelterIds || tribe.day1Plan?.shelter || [];
   const isAssigned = assignments.includes(player.id);
-  if (!assignments.length) {
-    showParchmentPopup('No one is officially assigned yet.');
+  if (!isAssigned) {
+    const partners = assignments
+      .map(id => tribe.members.find(m => m.id === id))
+      .filter(Boolean)
+      .map(m => m.firstName)
+      .slice(0, 2)
+      .join(' and ');
+    const msg = partners
+      ? `${partners} wave you off. "We've got the shelter covered—go focus on something else."`
+      : 'The shelter crew insists they have it handled for now.';
+    showParchmentPopup(msg);
     logBuildAttempt('not_assigned', null, null, { reason: 'no_assignments' });
     return;
   }
-  if (!isAssigned) {
-    const speakers = assignments.slice(0, 2).map(id => tribe.members.find(m => m.id === id)?.firstName || 'Someone');
-    showParchmentPopup(`${speakers[0] || 'One castaway'} and ${speakers[1] || 'another'} wave you off. "We\'ve got shelter covered. If you want to help, bring bamboo or palm."`);
-    logBuildAttempt('not_assigned', speakers, null, {});
-    return;
-  }
+
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
-  if ((stockpile.bamboo || 0) < BAMBOO_REQUIRED || (stockpile.palms || 0) < 1) {
-    showParchmentPopup('The tribe stockpile needs 5 bamboo and 1 palm frond before building.');
-    logBuildAttempt('blocked_insufficient_stockpile', null, null, { have: { bamboo: stockpile.bamboo || 0, palms: stockpile.palms || 0 } });
+  if ((stockpile.bamboo || 0) < BAMBOO_REQUIRED || (stockpile.palms || 0) < PALM_REQUIRED) {
+    showParchmentPopup('You don\'t have enough bamboo or palm fronds to make progress.');
+    logBuildAttempt('insufficient_resources', null, null, { bamboo: stockpile.bamboo, palms: stockpile.palms });
     return;
   }
-  const partnerId = assignments.find(id => id !== player.id);
-  const partner = tribe.members.find(m => m.id === partnerId);
-  const playerIsLeader = tribe.day1Plan?.leaderId === player.id || tribe.day1Plan?.leadershipScenario === 'player_leads' || gameManager.flags?.playerIsLeader;
-  showBuildStyleChoice(playerIsLeader, partner);
+
+  selectedCoBuilder = pickCoBuilder(tribe, player, assignments);
+  showApproachChoices();
 }
 
-function logBuildAttempt(outcome, speakers, partnerId, extra = {}) {
+function pickCoBuilder(tribe, player, assignments) {
+  const assignedPartners = assignments
+    .map(id => tribe.members.find(m => m.id === id && id !== player.id))
+    .filter(Boolean);
+  if (assignedPartners.length) return assignedPartners[0];
+  const others = tribe.members.filter(m => m.id !== player.id);
+  return others.sort((a, b) => (b.physical || 0) - (a.physical || 0))[0] || null;
+}
+
+function showApproachChoices() {
   const player = gameManager.getPlayerSurvivor();
-  const tribe = gameManager.getPlayerTribe();
-  const entry = {
-    type: 'camp_shelter_attempt',
-    outcome,
-    day: gameManager.getCurrentDay(),
-    actorId: player?.id,
-    speakers,
-    partnerId,
-    ...extra
-  };
-  activityTracker.trackActivity(entry.type, entry);
-  gameManager.campLog = gameManager.campLog || [];
-  gameManager.campLog.push({ ...entry, timestamp: Date.now() });
-}
+  if (!player) return;
+  const root = getShelterRoot();
+  const forceLead = Boolean(gameManager.flags?.playerIsLeader);
 
-function showBuildStyleChoice(playerIsLeader, partner) {
-  const parchment = createElement('div', {
+  const overlay = createElement('div', {
+    className: 'shelter-temp-overlay',
     style: `
-      position: fixed;
+      position: absolute;
       inset: 0;
       background: rgba(0,0,0,0.6);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 2100;
+      z-index: 2050;
     `
   });
+
   const card = createElement('div', {
     style: `
-      width: 360px;
-      background-image: url('Assets/parch-portrait.png');
-      background-size: cover;
-      padding: 40px;
-      color: white;
-      text-shadow: 2px 2px 4px black;
-      font-family: 'Survivant', serif;
+      width: 420px;
+      background: rgba(255, 248, 225, 0.96);
+      border: 2px solid #c99a4b;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      box-sizing: border-box;
+      gap: 12px;
+      text-align: center;
+      font-family: 'Survivant', serif;
     `
   });
-  const partnerName = partner?.firstName || 'your tribemate';
-  const introText = playerIsLeader ? 'Everyone expects you to call the shots on this shelter push.' : `You and ${partnerName} size up the frame. How do you want to run this?`;
-  card.appendChild(createElement('div', { style: { fontSize: '18px' } }, introText));
 
-  const buttonContainer = createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } });
-  const styles = playerIsLeader ? ['lead'] : ['lead', 'together', 'npc_lead'];
-  styles.forEach(style => {
-    const label = style === 'lead' ? 'Take the Lead' : style === 'together' ? 'Build Together' : `Let ${partnerName} Lead`;
+  card.appendChild(createElement('div', { style: { fontSize: '20px', color: '#3c2415', fontWeight: 'bold' } }, 'How do you want to build?'));
+
+  const options = [
+    { key: 'lead', label: 'Take the lead on design' },
+    { key: 'together', label: 'Equal collaboration' },
+    { key: 'npc_lead', label: 'Let them lead' }
+  ];
+
+  const buttonRow = createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } });
+  options.forEach(opt => {
+    if (forceLead && opt.key !== 'lead') return;
     const btn = createElement('button', {
       className: 'rect-button alt',
       style: `
         background-image: url('Assets/rect-button-1.png');
         background-size: 100% 100%;
         border: none;
-        padding: 10px;
+        padding: 12px;
         color: white;
+        font-size: 16px;
         cursor: pointer;
       `
-    }, label);
+    }, opt.label + (forceLead && opt.key === 'lead' ? ' (You stepped up as leader)' : ''));
     btn.addEventListener('click', () => {
-      parchment.remove();
-      resolveBuild(style, partner);
+      overlay.remove();
+      resolveBuildOutcome(opt.key, selectedCoBuilder);
     });
-    buttonContainer.appendChild(btn);
+    buttonRow.appendChild(btn);
   });
-  card.appendChild(buttonContainer);
-  parchment.appendChild(card);
-  document.body.appendChild(parchment);
+
+  if (forceLead && buttonRow.children.length === 0) {
+    const forcedBtn = createElement('button', { className: 'rect-button alt' }, 'Take the lead');
+    forcedBtn.addEventListener('click', () => {
+      overlay.remove();
+      resolveBuildOutcome('lead', selectedCoBuilder);
+    });
+    buttonRow.appendChild(forcedBtn);
+  }
+
+  card.appendChild(buttonRow);
+  overlay.appendChild(card);
+  root?.appendChild(overlay);
 }
 
-function resolveBuild(style, partner) {
+function resolveBuildOutcome(style, partner) {
   const player = gameManager.getPlayerSurvivor();
   const tribe = gameManager.getPlayerTribe();
-  if (!player || !tribe) return;
+  if (!player || !tribe || !partner) return;
+
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
-  if ((stockpile.bamboo || 0) < BAMBOO_REQUIRED || (stockpile.palms || 0) < 1) {
-    addDebugBanner('Guard prevented build without stockpile', 'crimson', 40);
+  if ((stockpile.bamboo || 0) < BAMBOO_REQUIRED || (stockpile.palms || 0) < PALM_REQUIRED) {
+    showParchmentPopup('You don\'t have enough materials after all.');
     return;
   }
-  const partnerTraits = partner || {};
-  const pSkill = ((player.survival || 50) + (player.endurance || 50) + (player.leadership || 50)) / 3;
-  const nSkill = ((partnerTraits.survival || 45) + (partnerTraits.endurance || 45) + (partnerTraits.leadership || 45)) / 3;
-  const lazinessPenalty = ((player.laziness || 0) + (partnerTraits.laziness || 0)) / 300;
-  const teamBoost = ((player.teamPlayer || 50) + (partnerTraits.teamPlayer || 50)) / 200;
-  let base = (pSkill * 0.6 + nSkill * 0.4) / 100;
-  if (style === 'together') base += 0.05 * teamBoost;
-  if (style === 'lead') base += 0.1 * Math.random();
-  if (style === 'npc_lead') base += ((partnerTraits.leadership || 50) - (player.leadership || 50)) / 400;
-  base -= lazinessPenalty;
-  const variance = style === 'together' ? 0.05 : 0.12;
-  const roll = base + (Math.random() * variance - variance / 2);
-  const success = roll > 0.45;
 
-  let narration = '';
-  let spent = { bamboo: 0, palms: 0 };
+  const baseMinutes = 18;
+  const relationshipScore = gameManager.systems?.relationshipSystem?.getRelationship?.(player.id, partner.id)?.score ?? 0;
+  const leadershipBoost = style === 'lead' && gameManager.flags?.playerIsLeader ? -3 : 0;
+  const lazinessPenalty = ((player.laziness || 0) + (partner.laziness || 0)) / 40;
+  const relationshipFactor = -relationshipScore / 120; // better relationship reduces time
+  const teamworkBonus = style === 'together' ? -2 : style === 'npc_lead' ? 1 : 0;
+  const randomSwing = getRandomInt(-120, 180) / 60; // +/- 2-3 minutes
+
+  let actualMinutes = baseMinutes + leadershipBoost + lazinessPenalty + relationshipFactor + teamworkBonus + randomSwing;
+  actualMinutes = Math.max(8, Math.min(28, actualMinutes));
+
+  const performanceScore = 0.7 - lazinessPenalty / 8 + (relationshipScore / 200) + (gameManager.flags?.playerIsLeader ? 0.05 : 0);
+  const styleBias = style === 'lead' ? 0.05 : style === 'npc_lead' ? -0.05 : 0.02;
+  const successChance = Math.min(0.92, Math.max(0.45, 0.7 + performanceScore + styleBias + (getRandomInt(-8, 8) / 100)));
+  const success = Math.random() < successChance;
+
+  gameManager.consumeFromStockpile?.(tribe, 'bamboo', BAMBOO_REQUIRED);
+  gameManager.consumeFromStockpile?.(tribe, 'palms', PALM_REQUIRED);
+
   const shelterBefore = tribe.shelter || 0;
+  let shelterAfter = shelterBefore;
+  let narration;
+  let relationshipDelta = 0;
+  let teamPlayerDelta = 0;
+
   if (success) {
-    gameManager.consumeFromStockpile?.(tribe, 'bamboo', BAMBOO_REQUIRED);
-    gameManager.consumeFromStockpile?.(tribe, 'palms', 1);
-    spent = { bamboo: BAMBOO_REQUIRED, palms: 1 };
-    tribe.shelter = Math.min(4, shelterBefore + 1);
-    narration = 'The frame tightens and the roof holds. The tribe steps back impressed.';
-    addDebugBanner('Shelter build success', 'darkgreen', 60);
+    shelterAfter = Math.min(MAX_SHELTER_LEVEL, shelterBefore + 1);
+    const wentSmooth = relationshipScore > 20 || style === 'together';
+    relationshipDelta = wentSmooth ? 4 : 2;
+    teamPlayerDelta = wentSmooth ? 10 : 8;
+    narration = style === 'lead'
+      ? 'You drive the build. The frame tightens fast and the tribe nods at the clear vision.'
+      : style === 'npc_lead'
+        ? `${partner.firstName} sketches their plan; you reinforce it without ego. The shelter takes shape.`
+        : 'You trade ideas and work in rhythm. The new walls feel sturdier already.';
   } else {
-    gameManager.consumeFromStockpile?.(tribe, 'bamboo', 2);
-    gameManager.consumeFromStockpile?.(tribe, 'palms', 1);
-    spent = { bamboo: 2, palms: 1 };
-    narration = 'A gust snaps the lashings and the frame slumps. You salvage what you can, but time is lost.';
-    addDebugBanner('Shelter build failed', 'darkred', 60);
+    relationshipDelta = relationshipScore < -20 ? -6 : -3;
+    teamPlayerDelta = -5;
+    narration = 'The lashings slip and tempers rise. You salvage what you can, but the shelter doesn\'t improve.';
   }
-  updateShelterVisuals(tribe.shelter || 0);
-  logShelterBuild(style, success ? 'success' : 'fail', spent, shelterBefore, tribe.shelter || 0, partner, narration);
-  showParchmentPopup(narration);
+
+  const secondsSpent = Math.round(actualMinutes * 60);
+  gameManager.deductTime(secondsSpent);
+  updateCampClockUI(gameManager.getDayTimer(), gameManager.getDay());
+
+  const clockElement = document.getElementById('clock-time-text');
+  if (clockElement) {
+    clockElement.style.color = 'red';
+    setTimeout(() => { clockElement.style.color = '#2b190a'; }, 500);
+  }
+
+  if (gameManager.systems?.relationshipSystem) {
+    gameManager.systems.relationshipSystem.changeRelationship(player.id, partner.id, relationshipDelta);
+  }
+  player.teamPlayer = (player.teamPlayer || 50) + teamPlayerDelta;
+  partner.teamPlayer = (partner.teamPlayer || 50) + teamPlayerDelta;
+
+  const newShelterLevel = success ? shelterAfter : shelterBefore;
+  tribe.shelter = newShelterLevel;
+  updateShelterVisuals(newShelterLevel);
+
+  activityTracker.trackShelterBuilding(success, partner.firstName, newShelterLevel, {
+    style,
+    narration,
+    partnerId: partner.id,
+    relationshipDelta,
+    teamPlayerDelta,
+    secondsSpent,
+    successChance
+  });
+
+  if (teamPlayerDelta !== 0) {
+    activityTracker.trackTeamPlayerPoints(
+      Math.max(teamPlayerDelta, 0),
+      Math.max(-teamPlayerDelta, 0),
+      `Shelter building with ${partner.firstName}`
+    );
+  }
+
+  showParchmentPopup(narration + (success ? `\n\nShelter level: ${newShelterLevel}/${MAX_SHELTER_LEVEL}` : '\n\nNo upgrade this time.' ));
+  logShelterBuild(style, success ? 'success' : 'fail', { bamboo: BAMBOO_REQUIRED, palms: PALM_REQUIRED }, shelterBefore, newShelterLevel, partner, narration);
+  hideContributionUI();
 }
 
 function updateShelterVisuals(level) {
-  const container = document.querySelector('.shelter-wrapper')?.parentElement;
+  const container = getShelterRoot();
   if (container) {
     container.style.backgroundImage = `url('Assets/Screens/shelter${level}.png')`;
   }
   for (let i = 0; i < 5; i++) {
-    const circle = document.getElementById(`shelter-level-${i}`);
+    const circle = container?.querySelector(`#shelter-level-${i}`);
     if (circle) {
       if (level > i) {
         circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
@@ -619,226 +726,13 @@ function logShelterBuild(style, outcome, stockpileSpent, shelterBefore, shelterA
   gameManager.campLog.push({ ...entry, timestamp: Date.now() });
 }
 
-function showCoBuilderSelection() {
-  const playerTribe = gameManager.getPlayerTribe();
-  const player = gameManager.getPlayerSurvivor();
-
-  if (!playerTribe || !player) return;
-
-  const tribeColor = playerTribe.color || 'blue';
-  const backgroundImage = `Assets/Tribe/${tribeColor}-banner.png`;
-
-  const popup = createElement('div', {
-    id: 'cobuilder-popup',
-    style: `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-image: url('${backgroundImage}');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 20px;
-      box-sizing: border-box;
-    `
+function logBuildAttempt(outcome, partner, style, extra) {
+  activityTracker.trackActivity('camp_shelter_build', {
+    outcome,
+    partnerId: partner?.id,
+    style,
+    ...extra
   });
-
-  const grid = createElement('div', {
-    style: `
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      max-width: 500px;
-      width: 90%;
-      padding: 40px 20px;
-      margin-top: 20px;
-    `
-  });
-
-  // Get tribe members excluding the player
-  const tribeMembers = playerTribe.members.filter(member => member.id !== player.id);
-
-  tribeMembers.forEach(survivor => {
-    const memberCard = createElement('div', {
-      style: `
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        cursor: pointer;
-        padding: 5px;
-        border-radius: 10px;
-        transition: background-color 0.3s;
-      `
-    });
-
-    memberCard.addEventListener('mouseenter', () => {
-      memberCard.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-    });
-
-    memberCard.addEventListener('mouseleave', () => {
-      memberCard.style.backgroundColor = 'transparent';
-    });
-
-    const avatar = createElement('img', {
-      src: survivor.avatarUrl,
-      alt: survivor.name,
-      style: `
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid white;
-        margin-bottom: 3px;
-      `
-    });
-
-    const name = createElement('div', {
-      style: `
-        font-family: 'Survivant', serif;
-        font-size: 12px;
-        color: white;
-        text-shadow: 1px 1px 2px black;
-        text-align: center;
-        margin-bottom: 1px;
-      `
-    }, survivor.firstName);
-
-    const physical = createElement('div', {
-      style: `
-        font-family: 'Survivant', serif;
-        font-size: 10px;
-        color: white;
-        text-shadow: 1px 1px 2px black;
-        text-align: center;
-      `
-    }, `Physical: ${survivor.physical}`);
-
-    memberCard.appendChild(avatar);
-    memberCard.appendChild(name);
-    memberCard.appendChild(physical);
-
-    memberCard.addEventListener('click', () => {
-      showConfirmationDialog(survivor, popup);
-    });
-
-    grid.appendChild(memberCard);
-  });
-
-  popup.appendChild(grid);
-  document.body.appendChild(popup);
-}
-
-function showConfirmationDialog(survivor, parentPopup) {
-  const confirmPopup = createElement('div', {
-    id: 'confirm-popup',
-    style: `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 300px;
-      height: 250px;
-      background-image: url('Assets/card-back.png');
-      background-size: 100% 100%;
-      background-position: center;
-      background-repeat: no-repeat;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 1001;
-      padding: 20px;
-      box-sizing: border-box;
-    `
-  });
-
-  const avatar = createElement('img', {
-    src: survivor.avatarUrl,
-    alt: survivor.name,
-    style: `
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 3px solid white;
-      margin-bottom: 10px;
-    `
-  });
-
-  const question = createElement('div', {
-    style: `
-      font-family: 'Survivant', serif;
-      font-size: 16px;
-      color: white;
-      text-shadow: 2px 2px 4px black;
-      text-align: center;
-      margin-bottom: 15px;
-    `
-  }, `Choose ${survivor.firstName}?`);
-
-  const buttonContainer = createElement('div', {
-    style: `
-      display: flex;
-      gap: 10px;
-    `
-  });
-
-  const confirmButton = createElement('button', {
-    className: 'rect-button small',
-    style: `
-      background-image: url('Assets/rect-button.png');
-      background-size: 100% 100%;
-      border: none;
-      width: 80px;
-      height: 35px;
-      font-family: 'Survivant', serif;
-      font-size: 12px;
-      color: white;
-      cursor: pointer;
-    `
-  }, 'Confirm');
-
-  const cancelButton = createElement('button', {
-    className: 'rect-button small',
-    style: `
-      background-image: url('Assets/rect-button.png');
-      background-size: 100% 100%;
-      border: none;
-      width: 80px;
-      height: 35px;
-      font-family: 'Survivant', serif;
-      font-size: 12px;
-      color: white;
-      cursor: pointer;
-    `
-  }, 'Cancel');
-
-  confirmButton.addEventListener('click', () => {
-    selectedCoBuilder = survivor;
-    confirmPopup.remove();
-    parentPopup.remove();
-    showResourceButtons();
-  });
-
-  cancelButton.addEventListener('click', () => {
-    confirmPopup.remove();
-  });
-
-  buttonContainer.appendChild(confirmButton);
-  buttonContainer.appendChild(cancelButton);
-
-  confirmPopup.appendChild(avatar);
-  confirmPopup.appendChild(question);
-  confirmPopup.appendChild(buttonContainer);
-
-  document.body.appendChild(confirmPopup);
 }
 
 function createResourceButtons(container) {
@@ -894,49 +788,39 @@ function createResourceButtons(container) {
 }
 
 function showResourceButtons() {
-  const resourceButtons = document.getElementById('shelter-resource-buttons');
-  if (resourceButtons) {
-    resourceButtons.style.display = 'flex';
-  }
-
-  // Reset resource counts
+  const resourceButtons = getShelterRoot()?.querySelector('#shelter-resource-buttons');
+  if (resourceButtons) resourceButtons.style.display = 'flex';
   bambooAdded = 0;
   palmsAdded = 0;
   updateResourceButtonStyles();
 }
 
 function updateResourceButtonStyles() {
-  const resourceButtons = document.getElementById('shelter-resource-buttons');
+  const resourceButtons = getShelterRoot()?.querySelector('#shelter-resource-buttons');
   if (!resourceButtons) return;
 
-  const bambooButton = resourceButtons.children[0];
-  const palmButton = resourceButtons.children[1];
-
-  // Add blurred gold glow effect when resources are added
-  if (bambooAdded >= 1) {
-    bambooButton.style.border = '2px solid gold';
-    bambooButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
-    bambooButton.style.borderRadius = '10px';
-  } else {
-    bambooButton.style.border = '2px solid transparent';
-    bambooButton.style.boxShadow = 'none';
-    bambooButton.style.borderRadius = '10px';
+  const [bambooButton, palmButton] = resourceButtons.children;
+  if (bambooButton) {
+    if (bambooAdded >= 1) {
+      bambooButton.style.border = '2px solid gold';
+      bambooButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
+    } else {
+      bambooButton.style.border = '2px solid transparent';
+      bambooButton.style.boxShadow = 'none';
+    }
   }
 
-  if (palmsAdded >= 1) {
-    palmButton.style.border = '2px solid gold';
-    palmButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
-    palmButton.style.borderRadius = '10px';
-  } else {
-    palmButton.style.border = '2px solid transparent';
-    palmButton.style.boxShadow = 'none';
-    palmButton.style.borderRadius = '10px';
+  if (palmButton) {
+    if (palmsAdded >= 1) {
+      palmButton.style.border = '2px solid gold';
+      palmButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
+    } else {
+      palmButton.style.border = '2px solid transparent';
+      palmButton.style.boxShadow = 'none';
+    }
   }
 
-  // Show start building button if both resources are added
-  if (currentActionMode === 'build' && bambooAdded >= BAMBOO_REQUIRED && palmsAdded >= 1) {
-    showStartBuildingButton();
-  }
+  updateContributionSubmit();
 }
 
 function showResourcePopup(resourceType) {
@@ -946,30 +830,33 @@ function showResourcePopup(resourceType) {
   const resourceProperty = resourceType === 'bamboo' ? 'bamboo' : 'palms';
   const resourceCount = player[resourceProperty] || 0;
   const alreadyAdded = resourceType === 'bamboo' ? bambooAdded : palmsAdded;
-  const requiredAmount = currentActionMode === 'contribute' ? resourceCount : resourceType === 'bamboo' ? BAMBOO_REQUIRED : 1;
-  const remainingNeeded = Math.max(0, requiredAmount - alreadyAdded);
-  const maxSelectable = currentActionMode === 'contribute' ? resourceCount : Math.min(resourceCount, remainingNeeded);
+  const remainingNeeded = currentActionMode === 'contribute'
+    ? resourceCount - alreadyAdded
+    : resourceType === 'bamboo'
+      ? BAMBOO_REQUIRED - alreadyAdded
+      : PALM_REQUIRED - alreadyAdded;
+  const maxSelectable = Math.max(0, Math.min(resourceCount, remainingNeeded));
 
   if (resourceCount <= 0) {
-    showInsufficientResourceParchment(resourceType);
+    showParchmentPopup(`You don't have any ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'} to add!`);
     return;
   }
-
   if (remainingNeeded <= 0) {
     showParchmentPopup(`You've already added enough ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}.`);
     return;
   }
 
   let selectedAmount = 0;
+  const root = getShelterRoot();
+  const overlayId = `${resourceType}-selector-overlay`;
+  root?.querySelectorAll(`#${overlayId}`).forEach(el => el.remove());
 
   const overlay = createElement('div', {
-    id: `${resourceType}-selector-overlay`,
+    id: overlayId,
+    className: 'shelter-temp-overlay',
     style: `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      position: absolute;
+      inset: 0;
       background-color: rgba(0, 0, 0, 0.7);
       display: flex;
       align-items: center;
@@ -1040,14 +927,6 @@ function showResourcePopup(resourceType) {
       transition: transform 0.2s;
     `
   });
-
-  minusBtn.addEventListener('mouseenter', () => {
-    minusBtn.style.transform = 'scale(1.1)';
-  });
-  minusBtn.addEventListener('mouseleave', () => {
-    minusBtn.style.transform = 'scale(1)';
-  });
-
   const amountDisplay = createElement('span', {
     style: `
       font-size: 28px;
@@ -1060,7 +939,6 @@ function showResourcePopup(resourceType) {
       display: inline-block;
     `
   }, '0');
-
   const plusBtn = createElement('img', {
     src: 'Assets/Buttons/add.png',
     alt: 'Increase',
@@ -1072,12 +950,17 @@ function showResourcePopup(resourceType) {
     `
   });
 
-  plusBtn.addEventListener('mouseenter', () => {
-    plusBtn.style.transform = 'scale(1.1)';
-  });
-  plusBtn.addEventListener('mouseleave', () => {
-    plusBtn.style.transform = 'scale(1)';
-  });
+  const updateAmount = (delta) => {
+    selectedAmount = Math.max(0, Math.min(maxSelectable, selectedAmount + delta));
+    amountDisplay.textContent = String(selectedAmount);
+  };
+
+  minusBtn.addEventListener('click', () => updateAmount(-1));
+  plusBtn.addEventListener('click', () => updateAmount(1));
+
+  controls.appendChild(minusBtn);
+  controls.appendChild(amountDisplay);
+  controls.appendChild(plusBtn);
 
   const buttonContainer = createElement('div', {
     style: `
@@ -1100,13 +983,20 @@ function showResourcePopup(resourceType) {
       border: none;
       color: #fff8e7;
       font-family: 'Survivant', fantasy;
-      font-size: 12px;
-      font-weight: bold;
       cursor: pointer;
-      text-shadow: 1px 1px 2px black;
-      box-shadow: none;
     `
   }, 'Add');
+
+  addButton.addEventListener('click', () => {
+    if (selectedAmount <= 0) return;
+    if (resourceType === 'bamboo') {
+      bambooAdded = Math.min(BAMBOO_REQUIRED, bambooAdded + selectedAmount);
+    } else {
+      palmsAdded = Math.min(PALM_REQUIRED, palmsAdded + selectedAmount);
+    }
+    updateResourceButtonStyles();
+    overlay.remove();
+  });
 
   const cancelButton = createElement('button', {
     className: 'rect-button small',
@@ -1120,52 +1010,11 @@ function showResourcePopup(resourceType) {
       border: none;
       color: #fff8e7;
       font-family: 'Survivant', fantasy;
-      font-size: 12px;
-      font-weight: bold;
       cursor: pointer;
-      text-shadow: 1px 1px 2px black;
-      box-shadow: none;
     `
   }, 'Cancel');
 
-  minusBtn.addEventListener('click', () => {
-    if (selectedAmount > 0) {
-      selectedAmount--;
-      amountDisplay.textContent = selectedAmount;
-    }
-  });
-
-  plusBtn.addEventListener('click', () => {
-    if (selectedAmount < maxSelectable) {
-      selectedAmount++;
-      amountDisplay.textContent = selectedAmount;
-    }
-  });
-
-  addButton.addEventListener('click', () => {
-    if (selectedAmount > 0) {
-      // Show resource deduction effect
-      showResourceEffect(resourceType, selectedAmount);
-
-      if (resourceType === 'bamboo') {
-        bambooAdded = Math.min(requiredAmount, bambooAdded + selectedAmount);
-        player.bamboo = Math.max(0, player.bamboo - selectedAmount);
-      } else {
-        palmsAdded = Math.min(requiredAmount, palmsAdded + selectedAmount);
-        player.palms = Math.max(0, player.palms - selectedAmount);
-      }
-      overlay.remove();
-      updateResourceButtonStyles();
-    }
-  });
-
-  cancelButton.addEventListener('click', () => {
-    overlay.remove();
-  });
-
-  controls.appendChild(minusBtn);
-  controls.appendChild(amountDisplay);
-  controls.appendChild(plusBtn);
+  cancelButton.addEventListener('click', () => overlay.remove());
 
   buttonContainer.appendChild(addButton);
   buttonContainer.appendChild(cancelButton);
@@ -1174,470 +1023,22 @@ function showResourcePopup(resourceType) {
   selector.appendChild(availableDisplay);
   selector.appendChild(controls);
   selector.appendChild(buttonContainer);
+
   overlay.appendChild(selector);
-  document.body.appendChild(overlay);
+  root?.appendChild(overlay);
 }
 
-function showInsufficientResourceParchment(resourceType) {
-  const overlay = createElement('div', {
-    id: `insufficient-${resourceType}-overlay`,
-    style: `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-color: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      cursor: pointer;
-    `
-  });
-
-  const parchment = createElement('div', {
-    style: `
-      width: 70vw;
-      max-width: 300px;
-      background-image: url('Assets/parch-landscape.png');
-      background-size: contain;
-      background-repeat: no-repeat;
-      background-position: center;
-      padding: 25px 20px;
-      box-sizing: border-box;
-    `
-  });
-
-  const text = createElement(
-    'div',
-    {
-      style: `
-        color: white;
-        font-family: 'Survivant', sans-serif;
-        font-size: 1rem;
-        text-align: center;
-        text-shadow: 2px 2px 4px black;
-        line-height: 1.3;
-      `
-    },
-    `You don't have any ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'} to add!`
-  );
-
-  parchment.appendChild(text);
-  overlay.appendChild(parchment);
-  document.body.appendChild(overlay);
-
-  overlay.addEventListener('click', () => {
-    overlay.remove();
-  });
-}
-
-function showResourceEffect(resourceType, amount) {
-  const effect = createElement('div', {
-    className: `${resourceType}-hit-effect`,
-    style: `
-      position: fixed;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 28px;
-      font-weight: bold;
-      color: #dc2626;
-      z-index: 9999;
-      pointer-events: none;
-    `
-  });
-
-  const minus = document.createElement('span');
-  minus.textContent = `-${amount}`;
-
-  const icon = document.createElement('img');
-  icon.src = `Assets/Resources/${resourceType === 'bamboo' ? 'bamboo' : 'palm'}.png`;
-  icon.style.height = '28px';
-  icon.style.width = 'auto';
-
-  effect.appendChild(minus);
-  effect.appendChild(icon);
-  document.body.appendChild(effect);
-
-  setTimeout(() => {
-    effect.remove();
-  }, 2500);
-}
-
-function showStartBuildingButton() {
-  const existingButton = document.getElementById('start-building-button');
-  if (existingButton) return;
-
-  const button = createElement('button', {
-    id: 'start-building-button',
-    className: 'rect-button alt',
-    style: `
-      position: absolute;
-      top: 35%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-image: url('Assets/rect-button-1.png');
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      background-position: center;
-      border: none;
-      font-family: 'Survivant', serif;
-      font-size: 16px;
-      font-weight: bold;
-      color: white;
-      text-shadow: 3px 3px 6px black;
-      cursor: pointer;
-      z-index: 100;
-      box-shadow: none;
-      filter: brightness(1.1);
-      padding: 8px;
-      line-height: 1.1;
-      text-align: center;
-    `
-  });
-
-  button.innerHTML = 'Start<br>Building';
-
-  button.addEventListener('click', startBuilding);
-  document.body.appendChild(button);
-}
-
-function computeShelterRelationshipDelta(player, coBuilder, actualBuildTime, expectedBuildTime) {
-  // 1. Performance Factor (more impactful)
-  const performanceFactor = expectedBuildTime / actualBuildTime;
-  
-  // 2. Style Compatibility (with negative potential)
-  const styleCompat = {
-    'aggressive|aggressive': 1.2,  // Can clash if both too forceful
-    'aggressive|balanced': 1.4,
-    'aggressive|cautious': 0.4,   // Very poor compatibility
-    'balanced|aggressive': 1.4,
-    'balanced|balanced': 1.5,
-    'balanced|cautious': 1.2,
-    'cautious|aggressive': 0.4,   // Very poor compatibility
-    'cautious|balanced': 1.2,
-    'cautious|cautious': 0.8      // Too slow together
-  };
-
-  const styleKey = `${player.gameplayStyle}|${coBuilder.gameplayStyle}`;
-  const styleFactor = styleCompat[styleKey] || 1.0;
-
-  // 3. Physical Balance (bigger penalty for mismatched abilities)
-  const physGap = Math.abs(player.physical - coBuilder.physical);
-  const maxPhysical = 100;
-  const physicalFactor = 1 - (physGap / maxPhysical) * 0.6; // Increased penalty
-
-  // 4. Personality Harmony (can be negative)
-  const avgTeam = (player.teamPlayer + coBuilder.teamPlayer) / 200;
-  const avgSocial = (player.social + coBuilder.social) / 200;
-  const avgMental = (player.mental + coBuilder.mental) / 200;
-  const harmonyFactor = (avgTeam * 1.3 + avgSocial * 1.2 + avgMental) / 3;
-
-  // 5. Stress / Suspicion Penalty (more impactful)
-  const threatAvg = (player.threat + coBuilder.threat) / 2 / 100;
-  const healthAvg = (player.health + coBuilder.health) / 2 / 100;
-  const stressFactor = 1 - (threatAvg * 0.4) - ((1 - healthAvg) * 0.3);
-
-  // 6. Determine if collaboration was successful or problematic
-  const collaborationQuality = performanceFactor * styleFactor * physicalFactor * harmonyFactor * stressFactor;
-  
-  let baseChange;
-  let message = '';
-  
-  if (collaborationQuality >= 1.2) {
-    // Excellent collaboration
-    baseChange = +5;
-    message = 'Excellent teamwork!';
-  } else if (collaborationQuality >= 0.9) {
-    // Good collaboration
-    baseChange = +3;
-    message = 'Good collaboration';
-  } else if (collaborationQuality >= 0.6) {
-    // Adequate but strained - can be slightly negative to slightly positive
-    baseChange = Math.random() < 0.5 ? -1 : +1; // Random between -1 and +1
-    message = 'Adequate but tense';
-  } else if (collaborationQuality >= 0.4) {
-    // Poor collaboration - relationship damage
-    baseChange = -2;
-    message = 'Poor collaboration caused friction';
-  } else {
-    // Very poor collaboration - significant damage
-    baseChange = -4;
-    message = 'Terrible collaboration caused conflict';
-  }
-
-  // 7. Apply final calculation
-  let delta = Math.round(baseChange * (0.5 + collaborationQuality * 0.5));
-  
-  // Special handling for adequate but tense range to ensure -2 to +2
-  if (collaborationQuality >= 0.6 && collaborationQuality < 0.9) {
-    delta = Math.max(-2, Math.min(2, delta));
-  } else {
-    // Clamp to reasonable bounds (-6 to +8) for other categories
-    delta = Math.max(-6, Math.min(8, delta));
-  }
-
-  console.log(`Shelter relationship calculation:
-    Performance: ${performanceFactor.toFixed(2)}
-    Style: ${styleFactor}
-    Physical: ${physicalFactor.toFixed(2)}
-    Harmony: ${harmonyFactor.toFixed(2)}
-    Stress: ${stressFactor.toFixed(2)}
-    Collaboration Quality: ${collaborationQuality.toFixed(2)}
-    Base: ${baseChange}
-    Final Delta: ${delta}
-    Result: ${message}`);
-
-  return { delta, message };
-}
-
-function startBuilding() {
-  const player = gameManager.getPlayerSurvivor();
-  const playerTribe = gameManager.getPlayerTribe();
-
-  if (!player || !selectedCoBuilder || !playerTribe) return;
-
-  // Calculate expected construction time based on physical values
-  const playerPhysical = player.physical || 30;
-  const coBuilderPhysical = selectedCoBuilder.physical || 30;
-  const averagePhysical = (playerPhysical + coBuilderPhysical) / 2;
-
-  // Convert average physical (28-45 range) to expected time (5-20 minutes)
-  // Higher physical = less time
-  const minTime = 5;
-  const maxTime = 20;
-  const minPhysical = 28;
-  const maxPhysical = 45;
-
-  const expectedBuildTime = Math.round(maxTime - ((averagePhysical - minPhysical) / (maxPhysical - minPhysical)) * (maxTime - minTime));
-
-  // Calculate actual build time with additional factors
-  let actualBuildTime = expectedBuildTime;
-
-  // Apply harmony factor to actual build time
-  const avgTeam = (player.teamPlayer + selectedCoBuilder.teamPlayer) / 200;
-  const avgSocial = (player.social + selectedCoBuilder.social) / 200;
-  const avgMental = (player.mental + selectedCoBuilder.mental) / 200;
-  const harmonyFactor = (avgTeam + avgSocial + avgMental) / 3;
-
-  // Apply style compatibility to build time
-  const styleCompat = {
-    'aggressive|aggressive': 0.9,
-    'aggressive|balanced': 1.1,
-    'aggressive|cautious': 0.8,
-    'balanced|aggressive': 1.1,
-    'balanced|balanced': 1.2,
-    'balanced|cautious': 1.0,
-    'cautious|aggressive': 0.8,
-    'cautious|balanced': 1.0,
-    'cautious|cautious': 1.1
-  };
-
-  const styleKey = `${player.gameplayStyle}|${selectedCoBuilder.gameplayStyle}`;
-  const styleFactor = styleCompat[styleKey] || 1.0;
-
-  // Apply stress factors
-  const threatAvg = (player.threat + selectedCoBuilder.threat) / 2 / 100;
-  const healthAvg = (player.health + selectedCoBuilder.health) / 2 / 100;
-  const stressFactor = 1 - (threatAvg * 0.3) - ((1 - healthAvg) * 0.2);
-
-  // Calculate final build time
-  actualBuildTime = Math.round(expectedBuildTime / (harmonyFactor * styleFactor * stressFactor));
-  actualBuildTime = Math.max(3, Math.min(30, actualBuildTime)); // Clamp between 3-30 minutes
-
-  const constructionTime = actualBuildTime;
-
-  // Calculate relationship delta FIRST
-  const relationshipResult = computeShelterRelationshipDelta(player, selectedCoBuilder, actualBuildTime, expectedBuildTime);
-  const relationshipDelta = relationshipResult.delta;
-  const collaborationMessage = relationshipResult.message;
-
-  // Increase shelter value
-  const newShelterLevel = (playerTribe.shelter || 0) + 1;
-  playerTribe.shelter = newShelterLevel;
-
-  // Track shelter building activity with relationship outcome
-  const relationshipOutcomePositive = relationshipDelta >= 0;
-  activityTracker.trackShelterBuilding(
-    relationshipOutcomePositive, // success based on relationship outcome
-    selectedCoBuilder.firstName,
-    newShelterLevel
-  );
-
-  // Track teamPlayer points gained
-  activityTracker.trackTeamPlayerPoints(
-    10, // pointsEarned
-    0,  // pointsLost
-    `Shelter building with ${selectedCoBuilder.firstName}`
-  );
-
-  // Add teamPlayer points
-  player.teamPlayer = (player.teamPlayer || 50) + 10;
-  selectedCoBuilder.teamPlayer = (selectedCoBuilder.teamPlayer || 50) + 10;
-
-  // Apply relationship changes using the relationship system
-  if (gameManager.systems && gameManager.systems.relationshipSystem) {
-    gameManager.systems.relationshipSystem.changeRelationship(player.id, selectedCoBuilder.id, relationshipDelta);
-  }
-
-  console.log(`Shelter building relationship change: ${relationshipDelta} between ${player.firstName} and ${selectedCoBuilder.firstName} (${collaborationMessage})`);
-
-  // Update background
-  const newBackgroundImage = `url('Assets/Screens/shelter${playerTribe.shelter}.png')`;
-  const container = document.querySelector('.shelter-wrapper').parentElement;
-  container.style.backgroundImage = newBackgroundImage;
-
-  // Update shelter level indicator
-  for (let i = 0; i < 5; i++) {
-    const circle = document.getElementById(`shelter-level-${i}`);
-    if (circle) {
-      if (newShelterLevel > i) {
-        circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
-        circle.style.borderColor = '#22c55e';
-        circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
-      } else {
-        circle.style.background = 'rgba(139, 69, 19, 0.3)';
-        circle.style.borderColor = '#2d8100';
-        circle.style.boxShadow = 'none';
-      }
-    }
-  }
-
-  // Show completion message with relationship context
-  let relationshipMessage = '';
-  if (relationshipDelta > 0) {
-    relationshipMessage = ` ${collaborationMessage} - your relationship with ${selectedCoBuilder.firstName} improved.`;
-  } else if (relationshipDelta < 0) {
-    relationshipMessage = ` ${collaborationMessage} - this strained your relationship with ${selectedCoBuilder.firstName}.`;
-  } else {
-    relationshipMessage = ` You and ${selectedCoBuilder.firstName} worked together without major incident.`;
-  }
-
-  const message = `Based on your teamwork, compatibility, and combined abilities, construction took ${constructionTime} minutes.${relationshipMessage}`;
-
-  // Deduct time from clock (convert minutes to seconds)
-  const timeInSeconds = constructionTime * 60;
-  gameManager.deductTime(timeInSeconds);
-
-  // Update clock display and flash red
-  const clockElement = document.getElementById('clock-time-text');
-  const dayElement = document.getElementById('clock-day-text');
-  if (clockElement && dayElement) {
-    const min = Math.floor(gameManager.dayTimer / 60);
-    const sec = gameManager.dayTimer % 60;
-    clockElement.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
-    dayElement.textContent = `Day ${gameManager.day}`;
-  }
-
-  // Flash red effect on the correct clock element
-  if (clockElement) {
-    clockElement.style.color = 'red';
-    setTimeout(() => {
-      clockElement.style.color = '#2b190a';
-    }, 500);
-  }
-
-  // Show teamPlayer animation (only if positive outcome)
-  if (relationshipDelta >= 0) {
-    showTeamPlayerAnimation();
-  }
-
-  // Clean up
-  const startButton = document.getElementById('start-building-button');
-  if (startButton) startButton.remove();
-
-  const resourceButtons = document.getElementById('shelter-resource-buttons');
-  if (resourceButtons) resourceButtons.style.display = 'none';
-
-  selectedCoBuilder = null;
-  bambooAdded = 0;
-  palmsAdded = 0;
-
-  showParchmentPopup(message);
-}
-
-function showTeamPlayerAnimation() {
-  const animationElement = createElement('div', {
-    style: `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 1010;
-      animation: fadeInOut 3s forwards;
-      pointer-events: none;
-    `
-  });
-
-  const teamPlayerIcon = createElement('img', {
-    src: 'Assets/Resources/teamPlayer.png',
-    alt: 'Team Player',
-    style: `
-      width: 40px;
-      height: 40px;
-    `
-  });
-
-  const text = createElement('div', {
-    style: `
-      font-family: 'Survivant', serif;
-      font-size: 24px;
-      color: white;
-      text-shadow: 2px 2px 4px black;
-      font-weight: bold;
-    `
-  }, '+10');
-
-  animationElement.appendChild(teamPlayerIcon);
-  animationElement.appendChild(text);
-
-  // Add CSS animation
-  const style = createElement('style');
-  style.textContent = `
-    @keyframes fadeInOut {
-      0% { opacity: 0; transform: translate(-50%, -50%) translateY(20px); }
-      30% { opacity: 1; transform: translate(-50%, -50%) translateY(0px); }
-      70% { opacity: 1; transform: translate(-50%, -50%) translateY(0px); }
-      100% { opacity: 0; transform: translate(-50%, -50%) translateY(-20px); }
-    }
-  `;
-  document.head.appendChild(style);
-
-  document.body.appendChild(animationElement);
-
-  setTimeout(() => {
-    animationElement.remove();
-    style.remove();
-  }, 3000);
-}
-
-/* --------------------------------------------------------------
-   ⭐ NEW: NPC RENDER FUNCTION FOR SHELTER VIEW
--------------------------------------------------------------- */
 function renderNPCsAtShelter(container) {
-  // Remove old NPC container if it exists
-  const old = container.querySelector(".npc-icon-container");
+  const old = container.querySelector('.npc-icon-container');
   if (old) old.remove();
 
-  // Create fresh container for NPC icons
-  const npcContainer = document.createElement("div");
-  npcContainer.classList.add("npc-icon-container");
+  const npcContainer = document.createElement('div');
+  npcContainer.classList.add('npc-icon-container');
 
-  // Get survivors located at ShelterView
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("ShelterView");
-
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation('ShelterView');
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {
-      console.log("Clicked NPC at Shelter:", survivor.name);
-      // TODO: open conversation UI (later step)
+      console.log('Clicked NPC at Shelter:', survivor.name);
     });
     npcContainer.appendChild(icon);
   });
