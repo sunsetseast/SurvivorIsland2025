@@ -9,8 +9,6 @@ import { updateCampClockUI } from '../utils/ClockUtils.js';
 const BAMBOO_REQUIRED = 5;
 const PALM_REQUIRED = 1;
 const MAX_SHELTER_LEVEL = 4;
-
-let selectedCoBuilder = null;
 let bambooAdded = 0;
 let palmsAdded = 0;
 let overlayOpen = false;
@@ -177,6 +175,8 @@ function getShelterRoot() {
 
 function cleanupShelterUI() {
   const root = getShelterRoot();
+  document.getElementById('shelter-resource-buttons')?.remove();
+  document.getElementById('submit-contribution-button')?.remove();
   if (!root) return;
 
   const removableIds = [
@@ -187,24 +187,25 @@ function cleanupShelterUI() {
     'bamboo-selector-overlay',
     'palm-selector-overlay',
     'cobuilder-popup',
-    'confirm-popup'
+    'confirm-popup',
+    'shelter-resource-buttons'
   ];
 
   removableIds.forEach(id => root.querySelectorAll(`#${id}`).forEach(el => el.remove()));
   root.querySelectorAll('.shelter-temp-overlay').forEach(el => el.remove());
 
   const resourceButtons = root.querySelector('#shelter-resource-buttons');
-  if (resourceButtons) resourceButtons.style.display = 'none';
+  if (resourceButtons) resourceButtons.remove();
   bambooAdded = 0;
   palmsAdded = 0;
   overlayOpen = false;
-  selectedCoBuilder = null;
 }
 
 function handleCenterButtonClick() {
+  hideContributionUI();
+  currentActionMode = null;
   if (overlayOpen) {
     closeOverlay();
-    hideContributionUI();
     return;
   }
   overlayOpen = true;
@@ -488,19 +489,19 @@ function startBuildFlow() {
       ? `${partners} wave you off. "We've got the shelter covered—go focus on something else."`
       : 'The shelter crew insists they have it handled for now.';
     showParchmentPopup(msg);
-    logBuildAttempt('not_assigned', null, null, { reason: 'no_assignments' });
+    logBuildAttempt('not_assigned', null, null, { reason: 'no_assignments', shelterBefore: tribe.shelter, shelterAfter: tribe.shelter });
     return;
   }
 
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
   if ((stockpile.bamboo || 0) < BAMBOO_REQUIRED || (stockpile.palms || 0) < PALM_REQUIRED) {
     showParchmentPopup('You don\'t have enough bamboo or palm fronds to make progress.');
-    logBuildAttempt('insufficient_resources', null, null, { bamboo: stockpile.bamboo, palms: stockpile.palms });
+    logBuildAttempt('insufficient_resources', null, null, { bamboo: stockpile.bamboo, palms: stockpile.palms, shelterBefore: tribe.shelter, shelterAfter: tribe.shelter });
     return;
   }
 
-  selectedCoBuilder = pickCoBuilder(tribe, player, assignments);
-  showApproachChoices();
+  const partner = pickCoBuilder(tribe, player, assignments);
+  showApproachChoices(partner);
 }
 
 function pickCoBuilder(tribe, player, assignments) {
@@ -512,11 +513,21 @@ function pickCoBuilder(tribe, player, assignments) {
   return others.sort((a, b) => (b.physical || 0) - (a.physical || 0))[0] || null;
 }
 
-function showApproachChoices() {
+function showApproachChoices(partner) {
   const player = gameManager.getPlayerSurvivor();
-  if (!player) return;
+  const tribe = gameManager.getPlayerTribe();
+  if (!player || !tribe || !partner) return;
   const root = getShelterRoot();
-  const forceLead = Boolean(gameManager.flags?.playerIsLeader);
+
+  const pid = String(player.id);
+  const leaderId = tribe?.day1Plan?.leaderId != null
+    ? String(tribe.day1Plan.leaderId)
+    : null;
+
+  const forceLead =
+    leaderId === pid ||
+    tribe?.day1Plan?.leadershipScenario === 'player_leads' ||
+    gameManager.flags?.playerIsLeader === true;
 
   const overlay = createElement('div', {
     className: 'shelter-temp-overlay',
@@ -547,17 +558,21 @@ function showApproachChoices() {
     `
   });
 
-  card.appendChild(createElement('div', { style: { fontSize: '20px', color: '#3c2415', fontWeight: 'bold' } }, 'How do you want to build?'));
+  const headingText = forceLead
+    ? 'Your tribe is counting on you to lead this build.'
+    : 'How do you want to build?';
+  card.appendChild(createElement('div', { style: { fontSize: '20px', color: '#3c2415', fontWeight: 'bold' } }, headingText));
 
-  const options = [
-    { key: 'lead', label: 'Take the lead on design' },
-    { key: 'together', label: 'Equal collaboration' },
-    { key: 'npc_lead', label: 'Let them lead' }
-  ];
+  const options = forceLead
+    ? [{ key: 'lead', label: 'Take the lead' }]
+    : [
+      { key: 'lead', label: 'Take the lead on design' },
+      { key: 'together', label: 'Equal collaboration' },
+      { key: 'npc_lead', label: 'Let them lead' }
+    ];
 
   const buttonRow = createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } });
   options.forEach(opt => {
-    if (forceLead && opt.key !== 'lead') return;
     const btn = createElement('button', {
       className: 'rect-button alt',
       style: `
@@ -572,19 +587,10 @@ function showApproachChoices() {
     }, opt.label + (forceLead && opt.key === 'lead' ? ' (You stepped up as leader)' : ''));
     btn.addEventListener('click', () => {
       overlay.remove();
-      resolveBuildOutcome(opt.key, selectedCoBuilder);
+      resolveBuildOutcome(opt.key, partner);
     });
     buttonRow.appendChild(btn);
   });
-
-  if (forceLead && buttonRow.children.length === 0) {
-    const forcedBtn = createElement('button', { className: 'rect-button alt' }, 'Take the lead');
-    forcedBtn.addEventListener('click', () => {
-      overlay.remove();
-      resolveBuildOutcome('lead', selectedCoBuilder);
-    });
-    buttonRow.appendChild(forcedBtn);
-  }
 
   card.appendChild(buttonRow);
   overlay.appendChild(card);
@@ -659,7 +665,7 @@ function resolveBuildOutcome(style, partner) {
   player.teamPlayer = (player.teamPlayer || 50) + teamPlayerDelta;
   partner.teamPlayer = (partner.teamPlayer || 50) + teamPlayerDelta;
 
-  const newShelterLevel = success ? shelterAfter : shelterBefore;
+  const newShelterLevel = Math.min(MAX_SHELTER_LEVEL, success ? shelterAfter : shelterBefore);
   tribe.shelter = newShelterLevel;
   updateShelterVisuals(newShelterLevel);
 
@@ -682,7 +688,19 @@ function resolveBuildOutcome(style, partner) {
   }
 
   showParchmentPopup(narration + (success ? `\n\nShelter level: ${newShelterLevel}/${MAX_SHELTER_LEVEL}` : '\n\nNo upgrade this time.' ));
-  logShelterBuild(style, success ? 'success' : 'fail', { bamboo: BAMBOO_REQUIRED, palms: PALM_REQUIRED }, shelterBefore, newShelterLevel, partner, narration);
+  logShelterBuild(
+    style,
+    success ? 'success' : 'fail',
+    { bamboo: BAMBOO_REQUIRED, palms: PALM_REQUIRED },
+    shelterBefore,
+    newShelterLevel,
+    partner,
+    narration,
+    relationshipDelta,
+    teamPlayerDelta,
+    secondsSpent,
+    success
+  );
   hideContributionUI();
 }
 
@@ -707,18 +725,23 @@ function updateShelterVisuals(level) {
   }
 }
 
-function logShelterBuild(style, outcome, stockpileSpent, shelterBefore, shelterAfter, partner, narration) {
+function logShelterBuild(style, outcome, stockpileSpent, shelterBefore, shelterAfter, partner, narration, relationshipDelta, teamPlayerDelta, secondsSpent, success) {
   const player = gameManager.getPlayerSurvivor();
   const entry = {
     type: 'camp_shelter_build',
+    phase: 'build',
     actorId: player?.id,
     partnerId: partner?.id,
     style,
     outcome,
+    success,
     stockpileSpent,
     shelterBefore,
     shelterAfter,
     narration,
+    relationshipDelta,
+    teamPlayerDelta,
+    secondsSpent,
     day: gameManager.getCurrentDay()
   };
   activityTracker.trackActivity(entry.type, entry);
@@ -727,12 +750,19 @@ function logShelterBuild(style, outcome, stockpileSpent, shelterBefore, shelterA
 }
 
 function logBuildAttempt(outcome, partner, style, extra) {
-  activityTracker.trackActivity('camp_shelter_build', {
+  const entry = {
+    type: 'camp_shelter_build',
+    phase: 'attempt',
     outcome,
     partnerId: partner?.id,
     style,
+    success: false,
+    day: gameManager.getCurrentDay(),
     ...extra
-  });
+  };
+  activityTracker.trackActivity(entry.type, entry);
+  gameManager.campLog = gameManager.campLog || [];
+  gameManager.campLog.push({ ...entry, timestamp: Date.now() });
 }
 
 function createResourceButtons(container) {
