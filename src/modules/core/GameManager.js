@@ -68,6 +68,9 @@ class GameManager {
     this.isMerged = false;
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
+    // Tracks whether the player stepped into an early leadership role (e.g., Day 1 First Impressions)
+    // Set to true when those events mark the player as the top leader.
+    this.flags.playerIsLeader = false;
     this.gameSettings = {
       enableIdols: true,
       enableAdvantages: true,
@@ -227,6 +230,46 @@ class GameManager {
     Object.values(this.systems).forEach(system => {
       if (system.reset) system.reset();
     });
+  }
+
+  ensureStockpileExists(tribe) {
+    if (!tribe) return null;
+    tribe.stockpile = tribe.stockpile || {
+      firewood: 0,
+      bamboo: 0,
+      palms: 0,
+      water: 0,
+      coconuts: 0,
+      fish1: 0,
+      fish2: 0,
+      fish3: 0
+    };
+    return tribe.stockpile;
+  }
+
+  addToStockpile(tribe, type, amount = 0) {
+    if (!tribe || !type || typeof amount !== 'number') return 0;
+    const stockpile = this.ensureStockpileExists(tribe);
+    const safeAmount = Math.max(0, amount);
+    if (stockpile[type] === undefined) {
+      stockpile[type] = 0;
+    }
+    stockpile[type] += safeAmount;
+    return stockpile[type];
+  }
+
+  consumeFromStockpile(tribe, type, amount = 0) {
+    if (!tribe || !type || typeof amount !== 'number') return false;
+    const stockpile = this.ensureStockpileExists(tribe);
+    const safeAmount = Math.max(0, amount);
+    if (stockpile[type] === undefined) {
+      stockpile[type] = 0;
+    }
+    if (stockpile[type] < safeAmount) {
+      return false;
+    }
+    stockpile[type] = Math.max(0, stockpile[type] - safeAmount);
+    return true;
   }
 
   setGameState(newState) {
