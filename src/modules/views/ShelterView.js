@@ -349,7 +349,18 @@ function showParchmentPopup(message, onClose) {
 
 function ensureStockpileBanner(container, tribe) {
   const existing = container.querySelector('#stockpile-banner');
-  if (existing) existing.remove();
+  const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
+  const bambooCount = stockpile.bamboo || 0;
+  const palmCount = stockpile.palms || 0;
+
+  if (existing) {
+    const bambooCountEl = existing.querySelector('.stockpile-count-bamboo');
+    const palmCountEl = existing.querySelector('.stockpile-count-palm');
+    if (bambooCountEl) bambooCountEl.textContent = bambooCount;
+    if (palmCountEl) palmCountEl.textContent = palmCount;
+    return;
+  }
+
   const banner = createElement('div', {
     id: 'stockpile-banner',
     style: `
@@ -364,11 +375,75 @@ function ensureStockpileBanner(container, tribe) {
       font-size: 14px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.35);
       z-index: 20;
-      white-space: pre-line;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     `
   });
-  const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
-  banner.textContent = `Tribe Stockpile\nBamboo: ${stockpile.bamboo || 0}\nPalm fronds: ${stockpile.palms || 0}`;
+
+  const title = createElement('div', {
+    style: `
+      text-align: center;
+      width: 100%;
+      color: #f5f5dc;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      letter-spacing: 0.3px;
+    `
+  }, 'Tribe Stockpile');
+
+  const row = createElement('div', {
+    style: `
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    `
+  });
+
+  const createStockpileItem = (src, alt, count, countClass) => {
+    const item = createElement('div', {
+      className: 'stockpile-item',
+      style: `
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      `
+    });
+
+    const icon = createElement('img', {
+      src,
+      alt,
+      style: `
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+      `
+    });
+
+    const countEl = createElement('span', {
+      className: countClass,
+      style: `
+        color: #f5f5dc;
+        font-family: 'Survivant', serif;
+        font-size: 16px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        display: inline-block;
+        min-width: 14px;
+        text-align: center;
+      `
+    }, count);
+
+    item.appendChild(icon);
+    item.appendChild(countEl);
+    return item;
+  };
+
+  row.appendChild(createStockpileItem('Assets/Minigame/bambooButton.png', 'Bamboo stockpile', bambooCount, 'stockpile-count-bamboo'));
+  row.appendChild(createStockpileItem('Assets/Minigame/palmsButton.png', 'Palm fronds stockpile', palmCount, 'stockpile-count-palm'));
+
+  banner.appendChild(title);
+  banner.appendChild(row);
   container.appendChild(banner);
 }
 
