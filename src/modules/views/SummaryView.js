@@ -27,6 +27,7 @@ function renderCampLogSection(campLog) {
     `
   });
   const uniqueLog = dedupeCampEntries(campLog);
+  const tribe = gameManager.getPlayerTribe();
 
   const cinematicSummary = (uniqueLog || []).find(entry => entry.id === 'day1_first_impressions');
   if (cinematicSummary) {
@@ -72,6 +73,13 @@ function renderCampLogSection(campLog) {
     wrapper.appendChild(header);
 
     dayEntries.forEach(entry => {
+      const isShelterBuild = entry.type === 'camp_shelter_build' && entry.day === dayEntries[0]?.day;
+      if (isShelterBuild) {
+        const shelterCard = renderShelterEntry(entry, tribe);
+        if (shelterCard) wrapper.appendChild(shelterCard);
+        return;
+      }
+
       const card = createElement('div', {
         style: `
           background: #fff8e1;
@@ -94,6 +102,59 @@ function renderCampLogSection(campLog) {
   });
 
   return wrapper;
+}
+
+function renderShelterEntry(entry, tribe) {
+  const partner = tribe?.members?.find(m => m.id === entry.partnerId);
+  const partnerName = partner?.firstName || 'someone';
+  const isBuildPhase = entry.phase === 'build';
+  const title = isBuildPhase
+    ? `Shelter Build: ${entry.success ? 'SUCCESS' : 'FAIL'}`
+    : 'Shelter Build Attempt';
+
+  const card = createElement('div', {
+    style: `
+      background: #fff8e1;
+      border: 1px solid #d2b48c;
+      border-radius: 10px;
+      padding: 12px;
+    `
+  });
+
+  card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, title));
+
+  const body = createElement('div', { style: { color: '#2b190a', marginTop: '6px', whiteSpace: 'pre-wrap', lineHeight: 1.35 } });
+
+  if (isBuildPhase) {
+    const minutesSpent = entry.secondsSpent ? Math.round((entry.secondsSpent / 60) * 10) / 10 : null;
+    const relationshipNote = entry.relationshipDelta
+      ? `Relationship: ${entry.relationshipDelta > 0 ? '+' : ''}${entry.relationshipDelta}`
+      : null;
+    const teamNote = entry.teamPlayerDelta
+      ? `Teamwork: ${entry.teamPlayerDelta > 0 ? '+' : ''}${entry.teamPlayerDelta}`
+      : null;
+    const metaPieces = [
+      `Partner: ${partnerName}`,
+      `Progress: ${entry.shelterBefore ?? '?'} -> ${entry.shelterAfter ?? '?'}`,
+      minutesSpent ? `Time: ${minutesSpent} min` : null,
+      relationshipNote,
+      teamNote
+    ].filter(Boolean);
+
+    const meta = metaPieces.join(' • ');
+    body.textContent = `${meta}\n${entry.narration || ''}`;
+  } else {
+    let attemptNote = 'Attempted to build shelter.';
+    if (entry.outcome === 'insufficient_resources') {
+      attemptNote = 'Tried to build shelter but lacked resources.';
+    } else if (entry.outcome === 'not_assigned') {
+      attemptNote = 'Not assigned to the shelter crew today.';
+    }
+    body.textContent = attemptNote;
+  }
+
+  card.appendChild(body);
+  return card;
 }
 
 function renderDay1FirstImpressionsSection(playerTribe) {
