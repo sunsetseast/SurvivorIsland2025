@@ -188,6 +188,8 @@ function cleanupShelterUI() {
   const root = getShelterRoot();
   document.getElementById('shelter-resource-buttons')?.remove();
   document.getElementById('submit-contribution-button')?.remove();
+  document.getElementById('shelter-overlay')?.remove();
+  document.getElementById('resource-popup')?.remove();
   if (!root) return;
 
   const removableIds = [
@@ -204,9 +206,6 @@ function cleanupShelterUI() {
 
   removableIds.forEach(id => root.querySelectorAll(`#${id}`).forEach(el => el.remove()));
   root.querySelectorAll('.shelter-temp-overlay').forEach(el => el.remove());
-
-  const resourceButtons = root.querySelector('#shelter-resource-buttons');
-  if (resourceButtons) resourceButtons.remove();
   bambooAdded = 0;
   palmsAdded = 0;
   overlayOpen = false;
@@ -564,10 +563,12 @@ function startBuildFlow() {
   }
 
   const assignments = tribe.day1Plan?.shelterIds || tribe.day1Plan?.shelter || [];
-  const isAssigned = assignments.includes(player.id);
+  const pid = String(player.id);
+  const normalizedAssignments = assignments.map(String);
+  const isAssigned = normalizedAssignments.includes(pid);
   if (!isAssigned) {
-    const partners = assignments
-      .map(id => tribe.members.find(m => m.id === id))
+    const partners = normalizedAssignments
+      .map(id => tribe.members.find(m => String(m.id) === id))
       .filter(Boolean)
       .map(m => m.firstName)
       .slice(0, 2)
@@ -587,16 +588,20 @@ function startBuildFlow() {
     return;
   }
 
-  const partner = pickCoBuilder(tribe, player, assignments);
+  const partnerId = normalizedAssignments.find(id => id !== pid) || null;
+  const partnerFromAssignments = partnerId
+    ? tribe.members.find(m => String(m.id) === partnerId || m.id === partnerId)
+    : null;
+  const partner = partnerFromAssignments || pickCoBuilder(tribe, player, normalizedAssignments);
   showApproachChoices(partner);
 }
 
 function pickCoBuilder(tribe, player, assignments) {
   const assignedPartners = assignments
-    .map(id => tribe.members.find(m => m.id === id && id !== player.id))
+    .map(id => tribe.members.find(m => String(m.id) === String(id) && String(id) !== String(player.id)))
     .filter(Boolean);
   if (assignedPartners.length) return assignedPartners[0];
-  const others = tribe.members.filter(m => m.id !== player.id);
+  const others = tribe.members.filter(m => String(m.id) !== String(player.id));
   return others.sort((a, b) => (b.physical || 0) - (a.physical || 0))[0] || null;
 }
 
@@ -749,8 +754,9 @@ function resolveBuildOutcome(style, partner) {
   if (gameManager.systems?.relationshipSystem) {
     gameManager.systems.relationshipSystem.changeRelationship(player.id, partner.id, relationshipDelta);
   }
-  player.teamPlayer = (player.teamPlayer || 50) + teamPlayerDelta;
-  partner.teamPlayer = (partner.teamPlayer || 50) + teamPlayerDelta;
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+  player.teamPlayer = clamp((player.teamPlayer || 50) + teamPlayerDelta, 0, 100);
+  partner.teamPlayer = clamp((partner.teamPlayer || 50) + teamPlayerDelta, 0, 100);
 
   const newShelterLevel = Math.min(MAX_SHELTER_LEVEL, success ? shelterAfter : shelterBefore);
   tribe.shelter = newShelterLevel;
@@ -947,19 +953,14 @@ function showResourcePopup(resourceType) {
   const resourceProperty = resourceType === 'bamboo' ? 'bamboo' : 'palms';
   const resourceCount = player[resourceProperty] || 0;
   const alreadyAdded = resourceType === 'bamboo' ? bambooAdded : palmsAdded;
-  const remainingNeeded = currentActionMode === 'contribute'
-    ? resourceCount - alreadyAdded
-    : resourceType === 'bamboo'
-      ? BAMBOO_REQUIRED - alreadyAdded
-      : PALM_REQUIRED - alreadyAdded;
-  const maxSelectable = Math.max(0, Math.min(resourceCount, remainingNeeded));
+  const maxSelectable = Math.max(0, resourceCount - alreadyAdded);
 
   if (resourceCount <= 0) {
     showParchmentPopup(`You don't have any ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'} to add!`);
     return;
   }
-  if (remainingNeeded <= 0) {
-    showParchmentPopup(`You've already added enough ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}.`);
+  if (maxSelectable <= 0) {
+    showParchmentPopup(`You've already staged all your available ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}.`);
     return;
   }
 
@@ -1011,7 +1012,7 @@ function showResourcePopup(resourceType) {
       line-height: 1.2;
     `
   });
-  title.innerHTML = `Add ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}<br>to shelter`;
+  title.innerHTML = `How many ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}<br>to contribute?`;
 
   const availableDisplay = createElement('div', {
     style: `
@@ -1107,9 +1108,9 @@ function showResourcePopup(resourceType) {
   addButton.addEventListener('click', () => {
     if (selectedAmount <= 0) return;
     if (resourceType === 'bamboo') {
-      bambooAdded = Math.min(BAMBOO_REQUIRED, bambooAdded + selectedAmount);
+      bambooAdded = Math.min(resourceCount, bambooAdded + selectedAmount);
     } else {
-      palmsAdded = Math.min(PALM_REQUIRED, palmsAdded + selectedAmount);
+      palmsAdded = Math.min(resourceCount, palmsAdded + selectedAmount);
     }
     updateResourceButtonStyles();
     overlay.remove();
