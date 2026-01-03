@@ -29,6 +29,7 @@ import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
 import { runDay1FirstImpressions, canRunDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
 
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
+const TASK_ICON_HIDDEN_VIEWS = new Set(['bamboo', 'firewood', 'fishing', 'shake', 'summary']);
 
 const campViews = {
   flag: renderTribeFlag,
@@ -64,6 +65,7 @@ export default class CampScreen {
     this.unsubscribeFromCampEventEnded = null;
     gameManager.flags = gameManager.flags || {};
     gameManager.flags.campEventActive = false;
+    this.taskOverlayOpen = false;
 
     this.unsubscribeFromCampEventStarted = eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, ({ eventId }) => {
       console.info('[CampScreen] Camp event started', eventId);
@@ -187,6 +189,7 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.style.display = 'block';
     this.isActive = true;
+    this.ensureTaskIcon();
     this.loadView('flag');
     this.renderClockUI();
     if (!gameManager.flags?.campEventActive) {
@@ -205,6 +208,10 @@ export default class CampScreen {
 
   loadView(viewName) {
     const viewContainer = getElement('camp-content');
+
+    this.ensureTaskIcon();
+    this.closeTaskOverlay();
+    this.setTaskIconVisible(!TASK_ICON_HIDDEN_VIEWS.has(viewName));
 
     // Always clear old view first
     if (window.__campViewCleanup) {
@@ -348,6 +355,123 @@ export default class CampScreen {
         if (healthValue) healthValue.textContent = player.health || 0;
       }
     }
+  }
+
+  ensureTaskIcon() {
+    const container = getElement('camp-screen');
+    if (!container) return;
+
+    let icon = document.getElementById('task-icon');
+    if (!icon) {
+      icon = document.createElement('img');
+      icon.id = 'task-icon';
+      icon.src = 'Assets/task-icon.png';
+      icon.alt = 'Tasks';
+      icon.addEventListener('click', () => this.toggleTaskOverlay());
+      container.appendChild(icon);
+    }
+
+    let overlay = document.getElementById('task-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'task-overlay';
+      overlay.style.display = 'none';
+      overlay.addEventListener('click', event => {
+        if (event.target === overlay) {
+          this.closeTaskOverlay();
+        }
+      });
+
+      const panel = document.createElement('div');
+      panel.id = 'task-panel';
+      panel.addEventListener('click', event => event.stopPropagation());
+
+      const linePositions = ['line1', 'line2', 'line3', 'line4'];
+      linePositions.forEach(lineClass => {
+        const line = document.createElement('div');
+        line.className = `task-line ${lineClass}`;
+        panel.appendChild(line);
+      });
+
+      const closeHit = document.createElement('div');
+      closeHit.id = 'task-close-hit';
+      closeHit.addEventListener('click', () => this.closeTaskOverlay());
+      panel.appendChild(closeHit);
+
+      overlay.appendChild(panel);
+      container.appendChild(overlay);
+    }
+
+    return icon;
+  }
+
+  setTaskIconVisible(isVisible) {
+    const icon = document.getElementById('task-icon');
+    if (icon) {
+      icon.style.display = isVisible ? 'block' : 'none';
+    }
+    if (!isVisible) {
+      this.closeTaskOverlay();
+    }
+  }
+
+  toggleTaskOverlay() {
+    if (this.taskOverlayOpen) {
+      this.closeTaskOverlay();
+    } else {
+      this.openTaskOverlay();
+    }
+  }
+
+  openTaskOverlay() {
+    this.ensureTaskIcon();
+    const overlay = document.getElementById('task-overlay');
+    if (!overlay) return;
+    this.renderTasksIntoOverlay();
+    overlay.style.display = 'flex';
+    this.taskOverlayOpen = true;
+  }
+
+  closeTaskOverlay() {
+    const overlay = document.getElementById('task-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'none';
+    this.taskOverlayOpen = false;
+  }
+
+  renderTasksIntoOverlay() {
+    const panel = document.getElementById('task-panel');
+    if (!panel) return;
+
+    const playerTribe = gameManager.getPlayerTribe?.();
+    let tasks = [];
+    const activeTasks = playerTribe?.activeTasks;
+    if (Array.isArray(activeTasks) && activeTasks.length) {
+      tasks = activeTasks;
+    } else if (Array.isArray(playerTribe?.campPhase?.tasks)) {
+      tasks = playerTribe.campPhase.tasks;
+    }
+
+    const normalized = tasks
+      .map(task => {
+        if (typeof task === 'string') return task;
+        if (task?.description) return task.description;
+        if (task?.text) return task.text;
+        if (task?.title) return task.title;
+        if (task?.name) return task.name;
+        return '';
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+
+    while (normalized.length < 4) {
+      normalized.push('');
+    }
+
+    const lines = panel.querySelectorAll('.task-line');
+    lines.forEach((line, idx) => {
+      line.textContent = normalized[idx] || '';
+    });
   }
 
   ensureClockUI() {
