@@ -74,6 +74,7 @@ export default class CampScreen {
 
       const campContent = getElement('camp-content');
       campContent?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
+      this.closeTaskOverlay();
     });
 
     this.unsubscribeFromCampEventEnded = eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, ({ eventId }) => {
@@ -202,6 +203,9 @@ export default class CampScreen {
     console.log('CampScreen teardown');
     this.isActive = false;
     this.stopCampClockTick();
+    document.getElementById('task-icon')?.remove();
+    document.getElementById('task-overlay')?.remove();
+    this.taskOverlayOpen = false;
     const clock = document.getElementById('camp-clock');
     if (clock) clock.remove();
   }
