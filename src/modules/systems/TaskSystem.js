@@ -336,6 +336,35 @@ export default class TaskSystem {
       });
     }
 
+    if (type === 'camp_contribute_food') {
+      tasks.forEach(task => {
+        if (task.status !== 'active') return;
+        if (task.role === 'food') {
+          ensureProgressFields(task.progress, ['coconutsThisPhase', 'fish3Total', 'fishAnyThisPhase']);
+          task.progress.coconutsThisPhase += coconutsFromEntry;
+          if (fishType === 3) {
+            task.progress.fish3Total += fishCount;
+          }
+          task.progress.fishAnyThisPhase += fishCount;
+          this.updateTaskCompletion(task, tribe);
+        }
+        if (task.role === 'float') {
+          ensureProgressFields(task.progress, [
+            'coconutsThisPhase',
+            'coconutsTotal',
+            'fishAnyThisPhase',
+            'fishAnyTotal'
+          ]);
+          task.progress.coconutsThisPhase += coconutsFromEntry;
+          task.progress.coconutsTotal += coconutsFromEntry;
+          task.progress.fishAnyThisPhase += fishCount;
+          task.progress.fishAnyTotal += fishCount;
+          this.updateFloatCategories(task);
+          this.updateTaskCompletion(task, tribe);
+        }
+      });
+    }
+
     if (['camp_gather_food', 'camp_food', 'camp_gather'].includes(type) || entry?.resource === 'coconut' || coconutsFromEntry > 0) {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
