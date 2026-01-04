@@ -429,6 +429,7 @@ export default class CampScreen {
 
   openTaskOverlay() {
     this.ensureTaskIcon();
+    gameManager.taskSystem?.ingestCampLogForTribe?.(gameManager, gameManager.getPlayerTribe?.());
     const overlay = document.getElementById('task-overlay');
     if (!overlay) return;
     this.renderTasksIntoOverlay();
@@ -447,6 +448,8 @@ export default class CampScreen {
     const panel = document.getElementById('task-panel');
     if (!panel) return;
 
+    const taskLines = gameManager.taskSystem?.getVisibleTasksForPlayer(gameManager) || [];
+
     const playerTribe = gameManager.getPlayerTribe?.();
     let tasks = [];
     const activeTasks = playerTribe?.activeTasks;
@@ -456,7 +459,7 @@ export default class CampScreen {
       tasks = playerTribe.campPhase.tasks;
     }
 
-    const normalized = tasks
+    const normalized = (taskLines.length ? taskLines : tasks
       .map(task => {
         if (typeof task === 'string') return task;
         if (task?.description) return task.description;
@@ -464,7 +467,7 @@ export default class CampScreen {
         if (task?.title) return task.title;
         if (task?.name) return task.name;
         return '';
-      })
+      }))
       .filter(Boolean)
       .slice(0, 4);
 
