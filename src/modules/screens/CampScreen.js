@@ -29,7 +29,7 @@ import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
 import { runDay1FirstImpressions, canRunDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
 
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
-const TASK_ICON_HIDDEN_VIEWS = new Set(['bamboo', 'firewood', 'fishing', 'shake', 'summary']);
+const TASK_ICON_HIDDEN_VIEWS = new Set();
 
 const campViews = {
   flag: renderTribeFlag,
@@ -215,7 +215,7 @@ export default class CampScreen {
 
     this.ensureTaskIcon();
     this.closeTaskOverlay();
-    this.setTaskIconVisible(!TASK_ICON_HIDDEN_VIEWS.has(viewName));
+    this.setTaskIconVisible(true);
 
     // Always clear old view first
     if (window.__campViewCleanup) {
@@ -375,6 +375,8 @@ export default class CampScreen {
       container.appendChild(icon);
     }
 
+    this.refreshTaskIconState();
+
     let overlay = document.getElementById('task-overlay');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -407,6 +409,17 @@ export default class CampScreen {
     }
 
     return icon;
+  }
+
+  refreshTaskIconState() {
+    const icon = document.getElementById('task-icon');
+    if (!icon) return;
+    const hasClaimable = gameManager.taskSystem?.hasClaimableTasksForPlayer?.(gameManager);
+    if (hasClaimable) {
+      icon.classList.add('task-icon-alert');
+    } else {
+      icon.classList.remove('task-icon-alert');
+    }
   }
 
   setTaskIconVisible(isVisible) {
@@ -448,37 +461,47 @@ export default class CampScreen {
     const panel = document.getElementById('task-panel');
     if (!panel) return;
 
-    const taskLines = gameManager.taskSystem?.getVisibleTasksForPlayer(gameManager) || [];
-
-    const playerTribe = gameManager.getPlayerTribe?.();
-    let tasks = [];
-    const activeTasks = playerTribe?.activeTasks;
-    if (Array.isArray(activeTasks) && activeTasks.length) {
-      tasks = activeTasks;
-    } else if (Array.isArray(playerTribe?.campPhase?.tasks)) {
-      tasks = playerTribe.campPhase.tasks;
-    }
-
-    const normalized = (taskLines.length ? taskLines : tasks
-      .map(task => {
-        if (typeof task === 'string') return task;
-        if (task?.description) return task.description;
-        if (task?.text) return task.text;
-        if (task?.title) return task.title;
-        if (task?.name) return task.name;
-        return '';
-      }))
-      .filter(Boolean)
-      .slice(0, 4);
-
-    while (normalized.length < 4) {
-      normalized.push('');
-    }
-
+    const taskData = gameManager.taskSystem?.getVisibleTasksForPlayer(gameManager) || { lines: [], tasksForUI: [] };
     const lines = panel.querySelectorAll('.task-line');
     lines.forEach((line, idx) => {
-      line.textContent = normalized[idx] || '';
+      const existingCheck = line.querySelector('.task-claim-check');
+      if (existingCheck) existingCheck.remove();
+
+      const textSpan = line.querySelector('.task-line-text') || document.createElement('span');
+      textSpan.className = 'task-line-text';
+      textSpan.textContent = taskData.lines[idx] || '';
+      if (!textSpan.parentElement) {
+        line.appendChild(textSpan);
+      }
+
+      const taskForLine = taskData.tasksForUI[idx];
+      if (taskForLine?.claimable) {
+        const check = document.createElement('div');
+        check.className = 'task-claim-check';
+        check.textContent = '✓';
+        check.title = 'Claim task reward';
+        check.addEventListener('click', event => {
+          event.stopPropagation();
+          this.handleClaimTask(taskForLine.id);
+        });
+        line.appendChild(check);
+      }
     });
+  }
+
+  handleClaimTask(taskId) {
+    const result = gameManager.taskSystem?.claimTaskForPlayer?.(gameManager, taskId);
+    if (result?.ok) {
+      const message = result.rewardText && result.rewardText.length
+        ? `Task Complete: ${result.task?.title}\nYour reward: ${result.rewardText}`
+        : 'Task Claimed!';
+      gameManager.systems?.dialogueSystem?.showNotification?.(message, 'success');
+    } else {
+      gameManager.systems?.dialogueSystem?.showNotification?.('Unable to claim task.', 'warning');
+    }
+
+    this.renderTasksIntoOverlay();
+    this.refreshTaskIconState();
   }
 
   ensureClockUI() {
@@ -546,6 +569,7 @@ export default class CampScreen {
       gameManager.decreaseDayTimer();
       const currentTime = gameManager.getDayTimer();
       updateCampClockUI(currentTime, gameManager.getDay());
+      this.refreshTaskIconState();
 
       // Check if time has run out
       if (currentTime <= 0) {

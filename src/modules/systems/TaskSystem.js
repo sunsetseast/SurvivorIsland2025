@@ -200,39 +200,48 @@ export default class TaskSystem {
 
     Object.entries(roleDefinitions).forEach(([role, def]) => {
       const assignees = getAssignees(role);
-      state.tasks.push({
-        id: `${role}_short_${newPhaseId}`,
-        title: def.short.title,
-        description: def.short.description,
-        type: `${role}_short`,
-        role,
-        assignees,
-        deadline: 'phase',
-        phaseId: newPhaseId,
-        status: 'active',
-        progress: { ...def.short.progress },
-        target: { ...def.short.target },
-        rewards: { ...def.short.rewards },
-        penalties: { ...def.short.penalties },
-        meta: {}
-      });
+      const shortId = `${role}_short_${newPhaseId}`;
+      const longId = `${role}_long`;
+      const shortExists = (state.tasks || []).some(task => task.id === shortId);
+      const longExists = (state.tasks || []).some(task => task.id === longId);
 
-      state.tasks.push({
-        id: `${role}_long`,
-        title: def.long.title,
-        description: def.long.description,
-        type: `${role}_long`,
-        role,
-        assignees,
-        deadline: 'none',
-        phaseId: null,
-        status: 'active',
-        progress: { ...def.long.progress },
-        target: { ...def.long.target },
-        rewards: { ...def.long.rewards },
-        penalties: { ...def.long.penalties },
-        meta: { ...(def.long.meta || {}), rewardApplied: false }
-      });
+      if (!shortExists) {
+        state.tasks.push({
+          id: shortId,
+          title: def.short.title,
+          description: def.short.description,
+          type: `${role}_short`,
+          role,
+          assignees,
+          deadline: 'phase',
+          phaseId: newPhaseId,
+          status: 'active',
+          progress: { ...def.short.progress },
+          target: { ...def.short.target },
+          rewards: { ...def.short.rewards },
+          penalties: { ...def.short.penalties },
+          meta: { claimed: false, rewardApplied: false }
+        });
+      }
+
+      if (!longExists) {
+        state.tasks.push({
+          id: longId,
+          title: def.long.title,
+          description: def.long.description,
+          type: `${role}_long`,
+          role,
+          assignees,
+          deadline: 'none',
+          phaseId: null,
+          status: 'active',
+          progress: { ...def.long.progress },
+          target: { ...def.long.target },
+          rewards: { ...def.long.rewards },
+          penalties: { ...def.long.penalties },
+          meta: { ...(def.long.meta || {}), claimed: false, rewardApplied: false }
+        });
+      }
     });
   }
 
@@ -382,10 +391,10 @@ export default class TaskSystem {
   updateTaskCompletion(task, tribe) {
     if (!task || task.status !== 'active') return;
     if (this.isTaskComplete(task)) {
+      task.meta = task.meta || {};
+      if (task.meta.claimed == null) task.meta.claimed = false;
+      if (task.meta.rewardApplied == null) task.meta.rewardApplied = false;
       task.status = 'complete';
-      if (task.deadline === 'none') {
-        this.applyRewards(tribe, task, { immediate: true });
-      }
     }
   }
 
@@ -494,14 +503,7 @@ export default class TaskSystem {
 
     (state.tasks || []).forEach(task => {
       if (task.deadline !== 'phase' || task.phaseId !== currentPhaseId) return;
-      if (task.status === 'complete') {
-        if (!task.meta?.rewardApplied) {
-          this.applyRewards(tribe, task, { immediate: true });
-          task.meta = task.meta || {};
-          task.meta.rewardApplied = true;
-        }
-        return;
-      }
+      if (task.status === 'complete') return;
       if (task.status !== 'active') return;
       const zeroProgress = !this.hasProgress(task);
       this.applyPenalties(tribe, task, { zeroProgress });
@@ -511,27 +513,103 @@ export default class TaskSystem {
     state.lastEvaluatedPhaseId = currentPhaseId;
   }
 
+  claimTaskForPlayer(gameManager, taskId) {
+    const gm = gameManager || this.gameManager;
+    const tribe = gm?.getPlayerTribe?.();
+    const state = this.ensureTribeTaskState(tribe);
+    if (!state) return { ok: false, reason: 'no_state' };
+
+    const playerId = gm?.getPlayerSurvivor?.()?.id || gm?.player?.id;
+    if (!playerId) return { ok: false, reason: 'no_player' };
+
+    const task = (state.tasks || []).find(t => `${t.id}` === `${taskId}`);
+    if (!task) return { ok: false, reason: 'no_task' };
+    const isMine = Array.isArray(task.assignees) && task.assignees.some(id => `${id}` === `${playerId}`);
+    if (!isMine) return { ok: false, reason: 'not_assigned' };
+    if (task.status !== 'complete') return { ok: false, reason: 'not_complete' };
+    if (task.meta?.claimed) return { ok: false, reason: 'already_claimed' };
+
+    task.meta = task.meta || {};
+
+    if (!task.meta.rewardApplied) {
+      this.applyRewards(tribe, task, { immediate: true });
+    }
+
+    task.meta.claimed = true;
+    task.meta.rewardApplied = true;
+    task.status = task.status === 'complete' ? 'claimed' : task.status;
+
+    const player = gm?.getPlayerSurvivor?.();
+    const rewards = task.rewards || {};
+    const rewardEntries = Object.entries(rewards).filter(([, delta]) => delta != null && delta !== 0);
+    const rewardText = rewardEntries
+      .map(([key, delta]) => `${delta >= 0 ? '+' : ''}${delta} ${key.replace(/([A-Z])/g, ' $1').trim()}`)
+      .join(', ');
+
+    return {
+      ok: true,
+      task,
+      rewardText,
+      playerName: player?.firstName || player?.name || 'You'
+    };
+  }
+
+  hasClaimableTasksForPlayer(gameManager) {
+    const gm = gameManager || this.gameManager;
+    const tribe = gm?.getPlayerTribe?.();
+    const state = this.ensureTribeTaskState(tribe);
+    if (!state) return false;
+
+    const playerId = gm?.getPlayerSurvivor?.()?.id || gm?.player?.id;
+    if (!playerId) return false;
+
+    this.ingestCampLogForTribe(gm, tribe);
+
+    const isMine = task => Array.isArray(task?.assignees) && task.assignees.some(id => `${id}` === `${playerId}`);
+    return (state.tasks || []).some(task => isMine(task) && task.status === 'complete' && task.meta?.claimed !== true);
+  }
+
   getVisibleTasksForPlayer(gameManager) {
     const gm = gameManager || this.gameManager;
     const tribe = gm?.getPlayerTribe?.();
     const state = this.ensureTribeTaskState(tribe);
-    if (!state) return [];
+    if (!state) return { lines: ['', '', '', ''], tasksForUI: [] };
+
+    const playerId = gm?.getPlayerSurvivor?.()?.id || gm?.player?.id;
+    if (!playerId) return { lines: ['', '', '', ''], tasksForUI: [] };
 
     this.ingestCampLogForTribe(gm, tribe);
 
-    const activeShort = (state.tasks || []).filter(task => task.deadline === 'phase' && task.status === 'active');
-    const completedShort = (state.tasks || []).filter(task => task.deadline === 'phase' && task.status === 'complete');
-    const longTerm = (state.tasks || []).filter(task => task.deadline === 'none');
+    const isMine = task => Array.isArray(task?.assignees) && task.assignees.some(id => `${id}` === `${playerId}`);
 
-    const summaryFor = task => {
-      if (!task) return '';
+    const activeShort = (state.tasks || []).filter(task => task.deadline === 'phase' && task.status === 'active' && isMine(task));
+    const claimableShort = (state.tasks || []).filter(
+      task => task.deadline === 'phase' && task.status === 'complete' && task.meta?.claimed !== true && isMine(task)
+    );
+    const longTerm = (state.tasks || []).filter(
+      task => task.deadline === 'none' && task.status === 'active' && task.meta?.claimed !== true && isMine(task)
+    );
+    const claimableLong = (state.tasks || []).filter(
+      task => task.deadline === 'none' && task.status === 'complete' && task.meta?.claimed !== true && isMine(task)
+    );
+
+    const ordered = [...activeShort, ...claimableShort, ...longTerm, ...claimableLong].slice(0, 4);
+
+    const tasksForUI = ordered.map(task => {
       const progressText = this.progressSummary(task);
-      return progressText ? `${task.title} (${progressText})` : task.title;
-    };
+      const titleLine = progressText ? `${task.title} (${progressText})` : task.title;
+      return {
+        id: task.id,
+        titleLine,
+        status: task.status,
+        claimable: task.status === 'complete' && task.meta?.claimed !== true
+      };
+    });
 
-    const lines = [...activeShort, ...completedShort, ...longTerm].map(summaryFor).filter(Boolean).slice(0, 4);
+    const lines = tasksForUI.map(t => t.titleLine).slice(0, 4);
     while (lines.length < 4) lines.push('');
-    return lines;
+
+    return { lines, tasksForUI };
   }
 
   progressSummary(task) {
