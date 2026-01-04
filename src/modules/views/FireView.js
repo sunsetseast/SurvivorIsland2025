@@ -14,11 +14,20 @@ import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
 
+let coconutsAdded = 0;
+let fish1Added = 0;
+let fish2Added = 0;
+let fish3Added = 0;
+let currentActionMode = null;
+let fireRoot = null;
+
 export default function renderFireView(container) {
   // --- Persistent state: has the fire been built already? ---
   const player = gameManager.getPlayerSurvivor();
   const playerTribe = gameManager.getPlayerTribe();
   const fireBuilt = playerTribe && playerTribe.fire >= 1;
+
+  fireRoot = container;
 
   // --- Clear existing content and set FireView background based on fire level ---
   clearChildren(container);
@@ -43,6 +52,8 @@ export default function renderFireView(container) {
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
   container.style.position = 'relative';
+
+  createFoodResourceButtons(container);
 
   // --- POT IMAGE (always visible and clickable) ---
   const potImg = createElement('img', {
@@ -295,7 +306,7 @@ export default function renderFireView(container) {
     }, 'Contribute Food');
     contributeBtn.addEventListener('click', () => {
       overlay.remove();
-      showFoodContributionOverlay();
+      startFoodContributionFlow();
     });
 
     const cookBtn = createElement('button', {
@@ -359,167 +370,594 @@ export default function renderFireView(container) {
     showCookingInterface();
   }
 
-  function showFoodContributionOverlay() {
-    const existing = document.getElementById('food-contribution-overlay');
-    if (existing) existing.remove();
-
-    const player = gameManager.getPlayerSurvivor();
+  function startFoodContributionFlow() {
+    currentActionMode = 'contribute';
     const tribe = gameManager.getPlayerTribe();
-    if (!player || !tribe) return;
+    ensureFoodStockpileBanner(getFireRoot(), tribe);
+    showFoodResourceButtons();
+    updateFoodContributionSubmit();
+  }
 
-    const overlay = createElement('div', {
-      id: 'food-contribution-overlay',
-      style: `
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1850;
-      `
-    });
-
-    const card = createElement('div', {
-      style: `
-        width: 320px;
-        background: rgba(255, 248, 225, 0.96);
-        border: 2px solid #c99a4b;
-        border-radius: 16px;
-        padding: 18px 16px;
-        box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        text-align: center;
-        font-family: 'Survivant', sans-serif;
-      `
-    });
-
-    const title = createElement('div', {
-      style: `
-        font-size: 1.3rem;
-        color: #3b2a10;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.15);
-      `
-    }, 'Contribute Food');
-
-    const subtitle = createElement('div', {
-      style: `
-        font-size: 0.95rem;
-        color: #4b3621;
-        opacity: 0.9;
-        line-height: 1.3;
-      `
-    }, 'Add food from your pack to the tribe\'s stockpile.');
-
-    const buttonWrapper = createElement('div', {
-      style: `
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
-      `
-    });
-
-    const buttonData = [
-      { key: 'coconuts', label: 'Coconut' },
-      { key: 'fish1', label: 'Fish 1' },
-      { key: 'fish2', label: 'Fish 2' },
-      { key: 'fish3', label: 'Fish 3' }
-    ];
-
-    buttonData.forEach(({ key, label }) => {
-      const count = Number(player[key] || 0);
-      const btn = createElement('button', {
+  function updateFoodContributionSubmit() {
+    const root = getFireRoot();
+    let submit = root?.querySelector('#submit-food-contribution-button');
+    const stagedTotal = (coconutsAdded || 0) + (fish1Added || 0) + (fish2Added || 0) + (fish3Added || 0);
+    if (!submit) {
+      submit = createElement('button', {
+        id: 'submit-food-contribution-button',
         className: 'rect-button alt',
         style: `
+          position: absolute;
+          bottom: 260px;
+          left: 50%;
+          transform: translateX(-50%);
           background-image: url('Assets/rect-button-1.png');
           background-size: 100% 100%;
           background-repeat: no-repeat;
           border: none;
           padding: 10px 14px;
           color: white;
-          font-size: 15px;
+          font-family: 'Survivant', serif;
+          font-size: 16px;
           cursor: pointer;
-          font-family: 'Survivant', sans-serif;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+          z-index: 200;
+          display: none;
         `
-      }, `${label} (You: ${count})`);
-      btn.addEventListener('click', () => contributeFoodItem(key, label));
-      buttonWrapper.appendChild(btn);
-    });
-
-    const closeBtn = createElement('button', {
-      className: 'rect-button alt',
-      style: `
-        background-image: url('Assets/rect-button-1.png');
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        border: none;
-        padding: 10px 14px;
-        color: white;
-        font-size: 15px;
-        cursor: pointer;
-        font-family: 'Survivant', sans-serif;
-      `
-    }, 'Close');
-    closeBtn.addEventListener('click', () => overlay.remove());
-
-    card.appendChild(title);
-    card.appendChild(subtitle);
-    card.appendChild(buttonWrapper);
-    card.appendChild(closeBtn);
-    overlay.appendChild(card);
-    overlay.addEventListener('click', event => {
-      if (event.target === overlay) overlay.remove();
-    });
-
-    document.body.appendChild(overlay);
+      }, 'Submit Contribution');
+      submit.addEventListener('click', submitFoodContribution);
+      root?.appendChild(submit);
+    }
+    submit.style.display = stagedTotal > 0 ? 'block' : 'none';
   }
 
-  function contributeFoodItem(typeKey, label) {
-    const player = gameManager.getPlayerSurvivor();
-    const tribe = gameManager.getPlayerTribe();
-    if (!player || !tribe) return;
+  function hideFoodContributionUI() {
+    const root = getFireRoot();
+    const submit = root?.querySelector('#submit-food-contribution-button');
+    if (submit) submit.remove();
+    const resourceButtons = root?.querySelector('#fire-resource-buttons');
+    if (resourceButtons) resourceButtons.style.display = 'none';
+    coconutsAdded = 0;
+    fish1Added = 0;
+    fish2Added = 0;
+    fish3Added = 0;
+    currentActionMode = null;
+    updateFoodResourceButtonStyles();
+    root?.querySelector('#food-quantity-overlay')?.remove();
+  }
 
-    const currentCount = Number(player[typeKey] || 0);
-    if (currentCount <= 0) {
-      alert(`You don't have any ${label} to contribute.`);
+  function submitFoodContribution() {
+    const tribe = gameManager.getPlayerTribe();
+    const player = gameManager.getPlayerSurvivor();
+    if (!tribe || !player) return;
+    const stagedTotal = (coconutsAdded || 0) + (fish1Added || 0) + (fish2Added || 0) + (fish3Added || 0);
+    if (stagedTotal <= 0) {
+      showParchmentPopup('Add food to contribute to the tribe.');
       return;
     }
 
-    gameManager.ensureStockpileExists?.(tribe);
-    gameManager.addToStockpile?.(tribe, typeKey, 1);
-    player[typeKey] = Math.max(0, currentCount - 1);
-    if (typeKey.startsWith('fish')) {
-      gameManager.updateSurvivorTotalFish?.(player);
-    }
+    const coconutCount = coconutsAdded || 0;
+    const fish1Count = fish1Added || 0;
+    const fish2Count = fish2Added || 0;
+    const fish3Count = fish3Added || 0;
 
-    const entry = {
-      type: 'camp_contribute_food',
-      survivorId: player.id,
-      day: gameManager.getCurrentDay?.(),
-      timestamp: Date.now()
+    gameManager.ensureStockpileExists?.(tribe);
+    gameManager.addToStockpile?.(tribe, 'coconuts', coconutCount);
+    gameManager.addToStockpile?.(tribe, 'fish1', fish1Count);
+    gameManager.addToStockpile?.(tribe, 'fish2', fish2Count);
+    gameManager.addToStockpile?.(tribe, 'fish3', fish3Count);
+
+    player.coconuts = Math.max(0, (player.coconuts || 0) - coconutCount);
+    player.fish1 = Math.max(0, (player.fish1 || 0) - fish1Count);
+    player.fish2 = Math.max(0, (player.fish2 || 0) - fish2Count);
+    player.fish3 = Math.max(0, (player.fish3 || 0) - fish3Count);
+
+    gameManager.updateSurvivorTotalFish?.(player);
+
+    activityTracker.trackActivity('camp_contribute', {
+      subtype: 'food',
+      coconuts: coconutCount,
+      fish1: fish1Count,
+      fish2: fish2Count,
+      fish3: fish3Count,
+      actorId: player.id
+    });
+
+    const day = gameManager.getCurrentDay?.();
+    gameManager.campLog = gameManager.campLog || [];
+    gameManager.campLog.push({
+      id: 'contribute_food',
+      day,
+      actorId: player.id,
+      coconuts: coconutCount,
+      fish1: fish1Count,
+      fish2: fish2Count,
+      fish3: fish3Count,
+      timestamp: Date.now(),
+      type: 'camp_contribute'
+    });
+
+    coconutsAdded = 0;
+    fish1Added = 0;
+    fish2Added = 0;
+    fish3Added = 0;
+    updateFoodResourceButtonStyles();
+    ensureFoodStockpileBanner(getFireRoot(), tribe);
+    updateFoodContributionSubmit();
+    showParchmentPopup('You add your gathered food to the tribe stockpile.', hideFoodContributionUI);
+  }
+
+  function createFoodResourceButtons(container) {
+    const existing = container.querySelector('#fire-resource-buttons');
+    if (existing) return existing;
+
+    const resourceContainer = createElement('div', {
+      id: 'fire-resource-buttons',
+      style: `
+        position: absolute;
+        bottom: 180px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        gap: 20px;
+        z-index: 10;
+      `
+    });
+
+    const createButton = (src, alt, resourceType) => {
+      const button = createElement('div', {
+        style: `
+          width: 80px;
+          height: 80px;
+          background-image: url('${src}');
+          background-size: contain;
+          background-position: center;
+          background-repeat: no-repeat;
+          cursor: pointer;
+          border: 3px solid transparent;
+          border-radius: 10px;
+          transition: border-color 0.3s, box-shadow 0.3s, filter 0.3s, opacity 0.3s;
+        `
+      });
+      button.dataset.resource = resourceType;
+      button.title = alt;
+      button.addEventListener('click', () => showFoodQuantityPopup(resourceType));
+      return button;
     };
 
-    if (typeKey === 'coconuts') {
-      entry.food = { coconuts: 1 };
-    } else {
-      const fishNumber = Number(typeKey.replace('fish', '')) || 0;
-      entry.fish = { type: fishNumber, count: 1 };
+    resourceContainer.appendChild(createButton('Assets/Minigame/coconutButton.png', 'Coconuts', 'coconuts'));
+    resourceContainer.appendChild(createButton('Assets/Minigame/fish1Button.png', 'Fish 1', 'fish1'));
+    resourceContainer.appendChild(createButton('Assets/Minigame/fish2Button.png', 'Fish 2', 'fish2'));
+    resourceContainer.appendChild(createButton('Assets/Minigame/fish3Button.png', 'Fish 3', 'fish3'));
+
+    container.appendChild(resourceContainer);
+    return resourceContainer;
+  }
+
+  function showFoodResourceButtons() {
+    const resourceButtons = getFireRoot()?.querySelector('#fire-resource-buttons');
+    if (resourceButtons) resourceButtons.style.display = 'flex';
+    coconutsAdded = 0;
+    fish1Added = 0;
+    fish2Added = 0;
+    fish3Added = 0;
+    updateFoodResourceButtonStyles();
+  }
+
+  function updateFoodResourceButtonStyles() {
+    const resourceButtons = getFireRoot()?.querySelector('#fire-resource-buttons');
+    if (!resourceButtons) return;
+    const player = gameManager.getPlayerSurvivor();
+
+    const resourceMap = {
+      coconuts: { added: coconutsAdded, count: player?.coconuts || 0 },
+      fish1: { added: fish1Added, count: player?.fish1 || 0 },
+      fish2: { added: fish2Added, count: player?.fish2 || 0 },
+      fish3: { added: fish3Added, count: player?.fish3 || 0 }
+    };
+
+    [...resourceButtons.children].forEach(button => {
+      const key = button.dataset.resource;
+      const info = resourceMap[key];
+      if (!info) return;
+
+      if (info.added > 0) {
+        button.style.border = '2px solid gold';
+        button.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
+      } else {
+        button.style.border = '2px solid transparent';
+        button.style.boxShadow = 'none';
+      }
+
+      if (info.count <= 0) {
+        button.style.filter = 'grayscale(70%)';
+        button.style.opacity = '0.6';
+      } else {
+        button.style.filter = 'none';
+        button.style.opacity = '1';
+      }
+    });
+
+    updateFoodContributionSubmit();
+  }
+
+  function showFoodQuantityPopup(resourceType) {
+    const player = gameManager.getPlayerSurvivor();
+    if (!player) return;
+
+    const resourceCount = player[resourceType] || 0;
+    const alreadyAdded =
+      resourceType === 'coconuts'
+        ? coconutsAdded
+        : resourceType === 'fish1'
+          ? fish1Added
+          : resourceType === 'fish2'
+            ? fish2Added
+            : fish3Added;
+    const maxSelectable = Math.max(0, resourceCount - alreadyAdded);
+
+    const labels = {
+      coconuts: 'coconuts',
+      fish1: 'fish (type 1)',
+      fish2: 'fish (type 2)',
+      fish3: 'fish (type 3)'
+    };
+
+    if (resourceCount <= 0) {
+      showParchmentPopup(`You don't have any ${labels[resourceType] || 'resources'} to add!`);
+      return;
+    }
+    if (maxSelectable <= 0) {
+      showParchmentPopup(`You've already staged all your available ${labels[resourceType] || 'resources'}.`);
+      return;
     }
 
-    gameManager.campLog = gameManager.campLog || [];
-    gameManager.campLog.push(entry);
+    let selectedAmount = 0;
+    const root = getFireRoot();
+    root?.querySelector('#food-quantity-overlay')?.remove();
 
-    if (window.refreshMenuCard) window.refreshMenuCard();
+    const overlay = createElement('div', {
+      id: 'food-quantity-overlay',
+      style: `
+        position: absolute;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      `
+    });
 
-    alert(`You contribute 1 ${label} to the tribe stockpile.`);
+    const selector = createElement('div', {
+      style: `
+        width: 260px;
+        height: 280px;
+        background-image: url('Assets/card-back.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 15px;
+        box-sizing: border-box;
+      `
+    });
 
-    const overlay = document.getElementById('food-contribution-overlay');
-    if (overlay) overlay.remove();
+    const title = createElement('h3', {
+      style: `
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        font-weight: bold;
+        color: #fff8e7;
+        text-shadow: 2px 2px 4px black;
+        font-family: 'Survivant', fantasy;
+        text-align: center;
+        line-height: 1.2;
+      `
+    });
+    const resourceLabel = resourceType === 'coconuts' ? 'coconuts' : labels[resourceType] || 'resources';
+    title.innerHTML = `How many ${resourceLabel}<br>to contribute?`;
+
+    const availableDisplay = createElement('div', {
+      style: `
+        margin-bottom: 12px;
+        font-size: 14px;
+        color: #fff8e7;
+        text-shadow: 1px 1px 2px black;
+        font-family: 'Survivant', fantasy;
+        text-align: center;
+      `
+    }, `Available: ${resourceCount}`);
+
+    const controls = createElement('div', {
+      style: `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        margin: 12px 0;
+      `
+    });
+
+    const minusBtn = createElement('img', {
+      src: 'Assets/Buttons/minus.png',
+      alt: 'Decrease',
+      style: `
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      `
+    });
+    const amountDisplay = createElement('span', {
+      style: `
+        font-size: 28px;
+        font-weight: bold;
+        color: #fff8e7;
+        text-shadow: 2px 2px 4px black;
+        font-family: 'Survivant', fantasy;
+        min-width: 50px;
+        text-align: center;
+        display: inline-block;
+      `
+    }, '0');
+    const plusBtn = createElement('img', {
+      src: 'Assets/Buttons/add.png',
+      alt: 'Increase',
+      style: `
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      `
+    });
+
+    const updateAmount = delta => {
+      selectedAmount = Math.max(0, Math.min(maxSelectable, selectedAmount + delta));
+      amountDisplay.textContent = String(selectedAmount);
+    };
+
+    minusBtn.addEventListener('click', () => updateAmount(-1));
+    plusBtn.addEventListener('click', () => updateAmount(1));
+
+    controls.appendChild(minusBtn);
+    controls.appendChild(amountDisplay);
+    controls.appendChild(plusBtn);
+
+    const buttonContainer = createElement('div', {
+      style: `
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        justify-content: center;
+      `
+    });
+
+    const addButton = createElement('button', {
+      className: 'rect-button small',
+      style: `
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 70px;
+        height: 35px;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        cursor: pointer;
+      `
+    }, 'Add');
+
+    addButton.addEventListener('click', () => {
+      if (selectedAmount <= 0) return;
+      if (resourceType === 'coconuts') {
+        coconutsAdded = Math.min(resourceCount, coconutsAdded + selectedAmount);
+      } else if (resourceType === 'fish1') {
+        fish1Added = Math.min(resourceCount, fish1Added + selectedAmount);
+      } else if (resourceType === 'fish2') {
+        fish2Added = Math.min(resourceCount, fish2Added + selectedAmount);
+      } else {
+        fish3Added = Math.min(resourceCount, fish3Added + selectedAmount);
+      }
+      updateFoodResourceButtonStyles();
+      updateFoodContributionSubmit();
+      overlay.remove();
+    });
+
+    const cancelButton = createElement('button', {
+      className: 'rect-button small',
+      style: `
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 70px;
+        height: 35px;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        cursor: pointer;
+      `
+    }, 'Cancel');
+
+    cancelButton.addEventListener('click', () => overlay.remove());
+
+    buttonContainer.appendChild(addButton);
+    buttonContainer.appendChild(cancelButton);
+
+    selector.appendChild(title);
+    selector.appendChild(availableDisplay);
+    selector.appendChild(controls);
+    selector.appendChild(buttonContainer);
+
+    overlay.appendChild(selector);
+    root?.appendChild(overlay);
+  }
+
+  function ensureFoodStockpileBanner(container, tribe) {
+    const existing = container?.querySelector('#food-stockpile-banner');
+    const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
+    const coconutCount = stockpile.coconuts || 0;
+    const fish1Count = stockpile.fish1 || 0;
+    const fish2Count = stockpile.fish2 || 0;
+    const fish3Count = stockpile.fish3 || 0;
+
+    if (existing) {
+      const coconutEl = existing.querySelector('.stockpile-count-coconut');
+      const fish1El = existing.querySelector('.stockpile-count-fish1');
+      const fish2El = existing.querySelector('.stockpile-count-fish2');
+      const fish3El = existing.querySelector('.stockpile-count-fish3');
+      if (coconutEl) coconutEl.textContent = coconutCount;
+      if (fish1El) fish1El.textContent = fish1Count;
+      if (fish2El) fish2El.textContent = fish2Count;
+      if (fish3El) fish3El.textContent = fish3Count;
+      return;
+    }
+
+    const banner = createElement('div', {
+      id: 'food-stockpile-banner',
+      style: `
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 120px;
+        background: rgba(0,0,0,0.55);
+        color: #fff8e7;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-family: 'Survivant', serif;
+        font-size: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+        z-index: 60;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      `
+    });
+
+    const title = createElement('div', {
+      style: `
+        text-align: center;
+        width: 100%;
+        color: #f5f5dc;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        letter-spacing: 0.3px;
+      `
+    }, 'Tribe Stockpile');
+
+    const row = createElement('div', {
+      style: `
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+      `
+    });
+
+    const createStockpileItem = (src, alt, count, countClass) => {
+      const item = createElement('div', {
+        className: 'stockpile-item',
+        style: `
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(0,0,0,0.35);
+          padding: 4px 8px;
+          border-radius: 8px;
+        `
+      });
+
+      const icon = createElement('img', {
+        src,
+        alt,
+        style: `
+          width: 28px;
+          height: 28px;
+          object-fit: contain;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+        `
+      });
+
+      const countEl = createElement('span', {
+        className: countClass,
+        style: `
+          color: #f5f5dc;
+          font-family: 'Survivant', serif;
+          font-size: 16px;
+          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+          display: inline-block;
+          min-width: 14px;
+          text-align: center;
+        `
+      }, count);
+
+      item.appendChild(icon);
+      item.appendChild(countEl);
+      return item;
+    };
+
+    row.appendChild(createStockpileItem('Assets/Minigame/coconutButton.png', 'Coconut stockpile', coconutCount, 'stockpile-count-coconut'));
+    row.appendChild(createStockpileItem('Assets/Minigame/fish1Button.png', 'Fish 1 stockpile', fish1Count, 'stockpile-count-fish1'));
+    row.appendChild(createStockpileItem('Assets/Minigame/fish2Button.png', 'Fish 2 stockpile', fish2Count, 'stockpile-count-fish2'));
+    row.appendChild(createStockpileItem('Assets/Minigame/fish3Button.png', 'Fish 3 stockpile', fish3Count, 'stockpile-count-fish3'));
+
+    banner.appendChild(title);
+    banner.appendChild(row);
+    container?.appendChild(banner);
+  }
+
+  function showParchmentPopup(message, onClose) {
+    const root = getFireRoot();
+    root?.querySelector('#parchment-popup')?.remove();
+    const popup = createElement('div', {
+      id: 'parchment-popup',
+      style: `
+        position: absolute;
+        inset: 0;
+        background-color: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        cursor: pointer;
+      `
+    });
+
+    const text = createElement('div', {
+      style: `
+        min-width: 220px;
+        max-width: 320px;
+        min-height: 120px;
+        background-image: url('Assets/parch-landscape.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        padding: 30px;
+        box-sizing: border-box;
+        font-family: 'Survivant', serif;
+        font-size: 18px;
+        color: white;
+        text-shadow: 3px 3px 6px black;
+        text-align: center;
+        line-height: 1.4;
+        white-space: pre-line;
+      `
+    }, message);
+
+    popup.appendChild(text);
+    popup.addEventListener('click', () => {
+      popup.remove();
+      onClose?.();
+    });
+
+    root?.appendChild(popup);
+  }
+
+  function getFireRoot() {
+    return fireRoot || document.getElementById('camp-content');
   }
 
   function showWeakFireParchment() {
