@@ -228,7 +228,7 @@ function handleCenterButtonClick() {
     style: `
       position: absolute;
       inset: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.55);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -236,23 +236,14 @@ function handleCenterButtonClick() {
     `
   });
 
-  const card = createElement('div', {
+  const buttonColumn = createElement('div', {
     style: `
-      width: 340px;
-      background: rgba(255, 248, 225, 0.96);
-      border: 2px solid #c99a4b;
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      text-align: center;
-      font-family: 'Survivant', serif;
+      gap: 16px;
+      align-items: center;
     `
   });
-
-  card.appendChild(createElement('div', { style: { fontSize: '20px', color: '#3c2415', fontWeight: 'bold' } }, 'Shelter Actions'));
 
   const buildBtn = createElement('button', {
     className: 'rect-button alt',
@@ -289,9 +280,9 @@ function handleCenterButtonClick() {
     startContributionFlow();
   });
 
-  card.appendChild(buildBtn);
-  card.appendChild(contributeBtn);
-  overlay.appendChild(card);
+  buttonColumn.appendChild(buildBtn);
+  buttonColumn.appendChild(contributeBtn);
+  overlay.appendChild(buttonColumn);
 
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
