@@ -203,9 +203,9 @@ function buildOverlay() {
   avatar.id = 'day1-avatar';
   avatar.alt = 'Speaker avatar';
   avatar.style.position = 'absolute';
-  avatar.style.width = '38%';
-  avatar.style.height = '38%';
-  avatar.style.top = '10%';
+  avatar.style.width = '28%';
+  avatar.style.height = '28%';
+  avatar.style.top = '12%';
   avatar.style.left = '6%';
   avatar.style.objectFit = 'cover';
   avatar.style.borderRadius = '50%';
@@ -237,11 +237,11 @@ function buildOverlay() {
   const headerTileText = document.createElement('div');
   headerTileText.id = 'day1-header-tile';
   headerTileText.style.position = 'absolute';
-  headerTileText.style.top = '6%';
-  headerTileText.style.left = '26%';
-  headerTileText.style.right = '26%';
+  headerTileText.style.top = '8%';
+  headerTileText.style.left = '30%';
+  headerTileText.style.right = '30%';
   headerTileText.style.textAlign = 'center';
-  headerTileText.style.fontSize = '1rem';
+  headerTileText.style.fontSize = '1.02rem';
   headerTileText.style.fontWeight = '700';
   headerTileText.style.color = '#fdf2d4';
   headerTileText.style.textShadow = '0 1px 2px rgba(0,0,0,0.6)';
@@ -249,12 +249,13 @@ function buildOverlay() {
 
   const contentArea = document.createElement('div');
   contentArea.style.position = 'absolute';
-  contentArea.style.top = '23%';
-  contentArea.style.left = '12%';
-  contentArea.style.right = '12%';
-  contentArea.style.bottom = '26%';
+  contentArea.style.top = '22%';
+  contentArea.style.left = '14%';
+  contentArea.style.right = '14%';
+  contentArea.style.bottom = '24%';
   contentArea.style.display = 'flex';
   contentArea.style.flexDirection = 'column';
+  contentArea.style.alignItems = 'center';
   contentArea.style.gap = '10px';
   contentArea.style.padding = '8px 10px';
   contentArea.style.color = '#2b1a0f';
@@ -265,13 +266,15 @@ function buildOverlay() {
   textArea.id = 'day1-text';
   textArea.style.flex = '1';
   textArea.style.overflowY = 'auto';
-  textArea.style.padding = '8px 10px';
-  textArea.style.background = 'rgba(255,255,255,0.72)';
-  textArea.style.border = '2px solid rgba(61,36,21,0.35)';
+  textArea.style.padding = '6px 10px';
+  textArea.style.background = 'transparent';
+  textArea.style.border = 'none';
   textArea.style.borderRadius = '12px';
   textArea.style.color = '#2d1b0d';
   textArea.style.lineHeight = '1.5';
   textArea.style.fontSize = '0.98rem';
+  textArea.style.maxWidth = '88%';
+  textArea.style.margin = '0 auto';
   textArea.style.pointerEvents = 'auto';
 
   const choices = document.createElement('div');
@@ -289,13 +292,13 @@ function buildOverlay() {
   const rolesPanel = document.createElement('div');
   rolesPanel.id = 'day1-roles-panel';
   rolesPanel.style.position = 'absolute';
-  rolesPanel.style.left = '10%';
-  rolesPanel.style.bottom = '10%';
-  rolesPanel.style.width = '42%';
+  rolesPanel.style.left = '11%';
+  rolesPanel.style.bottom = '12%';
+  rolesPanel.style.width = '44%';
   rolesPanel.style.display = 'flex';
   rolesPanel.style.flexDirection = 'column';
-  rolesPanel.style.gap = '6px';
-  rolesPanel.style.fontSize = '0.75rem';
+  rolesPanel.style.gap = '4px';
+  rolesPanel.style.fontSize = '0.72rem';
   rolesPanel.style.color = '#f6e4c1';
   rolesPanel.style.textShadow = '0 1px 2px rgba(0,0,0,0.65)';
   rolesPanel.style.pointerEvents = 'none';
@@ -305,17 +308,25 @@ function buildOverlay() {
   nextBtn.textContent = 'Next';
   nextBtn.style.position = 'absolute';
   nextBtn.style.right = '12%';
-  nextBtn.style.bottom = '9%';
-  nextBtn.style.padding = '10px 16px';
-  nextBtn.style.background = 'rgba(39,20,10,0.38)';
+  nextBtn.style.bottom = '11%';
+  nextBtn.style.padding = '8px 6px';
+  nextBtn.style.background = 'transparent';
   nextBtn.style.color = '#fef3d9';
-  nextBtn.style.border = '2px solid rgba(0,0,0,0.45)';
+  nextBtn.style.border = 'none';
   nextBtn.style.borderRadius = '12px';
   nextBtn.style.fontWeight = '700';
+  nextBtn.style.fontSize = '0.95rem';
   nextBtn.style.textTransform = 'uppercase';
-  nextBtn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.35)';
+  nextBtn.style.boxShadow = 'none';
   nextBtn.style.cursor = 'pointer';
   nextBtn.style.pointerEvents = 'auto';
+  nextBtn.style.minWidth = '90px';
+  nextBtn.style.height = '42px';
+  nextBtn.style.display = 'flex';
+  nextBtn.style.alignItems = 'center';
+  nextBtn.style.justifyContent = 'center';
+  nextBtn.style.letterSpacing = '0.5px';
+  nextBtn.style.textShadow = '0 1px 2px rgba(0,0,0,0.55)';
 
   contentLayer.appendChild(headerTileText);
   contentLayer.appendChild(contentArea);
@@ -328,7 +339,7 @@ function buildOverlay() {
   overlay.appendChild(beatFrame);
 
   document.body.appendChild(overlay);
-  return { overlay, beatFrame, templateImg, headerTileText, avatar, textArea, choices, nextBtn, rolesPanel };
+  return { overlay, beatFrame, templateImg, headerTileText, avatar, textArea, choices, nextBtn, rolesPanel, contentArea };
 }
 
 function removeOverlay(overlay) {
@@ -368,8 +379,9 @@ function resolveSpeakerSurvivor(beat, members = []) {
 function setNarratorBeatUI({ templateImg, headerTileText, avatarEl }) {
   templateImg.src = 'Assets/beat-ui.png';
   headerTileText.textContent = 'DAY 1';
-  headerTileText.style.left = '26%';
-  headerTileText.style.right = '26%';
+  headerTileText.style.top = '8%';
+  headerTileText.style.left = '32%';
+  headerTileText.style.right = '32%';
   headerTileText.style.textAlign = 'center';
   avatarEl.style.display = 'none';
 }
@@ -377,12 +389,42 @@ function setNarratorBeatUI({ templateImg, headerTileText, avatarEl }) {
 function setSpeakerBeatUI({ templateImg, headerTileText, avatarEl, survivor, tribeColor }) {
   templateImg.src = 'Assets/beat-avatar-ui.png';
   headerTileText.textContent = (survivor?.firstName || survivor?.name || 'SURVIVOR').toUpperCase();
-  headerTileText.style.left = '58%';
-  headerTileText.style.right = '12%';
+  headerTileText.style.top = '8.5%';
+  headerTileText.style.left = '57%';
+  headerTileText.style.right = '10%';
   headerTileText.style.textAlign = 'center';
   avatarEl.style.display = 'block';
+  avatarEl.style.width = '28%';
+  avatarEl.style.height = '28%';
+  avatarEl.style.top = '12%';
+  avatarEl.style.left = '6%';
   avatarEl.src = getSurvivorAvatarSrc(survivor);
   avatarEl.style.borderColor = tribeColor;
+}
+
+function applyBeatModeStyles({ textArea, contentArea }) {
+  contentArea.style.alignItems = 'center';
+  contentArea.style.justifyContent = 'flex-start';
+  textArea.style.background = 'transparent';
+  textArea.style.border = 'none';
+  textArea.style.boxShadow = 'none';
+  textArea.style.padding = '6px 12px';
+  textArea.style.maxWidth = '88%';
+  textArea.style.margin = '0 auto';
+  textArea.style.textAlign = 'left';
+  textArea.style.display = 'block';
+}
+
+function applySummaryModeStyles({ textArea, contentArea }) {
+  contentArea.style.alignItems = 'stretch';
+  contentArea.style.justifyContent = 'flex-start';
+  textArea.style.background = 'transparent';
+  textArea.style.border = 'none';
+  textArea.style.boxShadow = 'none';
+  textArea.style.padding = '0';
+  textArea.style.maxWidth = '100%';
+  textArea.style.margin = '0 auto';
+  textArea.style.textAlign = 'left';
 }
 
 function styleChoiceButton(btn) {
@@ -400,8 +442,8 @@ function styleChoiceButton(btn) {
 
 function createAvatarBadge(survivor, gameManager) {
   const wrap = document.createElement('div');
-  wrap.style.width = '26px';
-  wrap.style.height = '26px';
+  wrap.style.width = '24px';
+  wrap.style.height = '24px';
   wrap.style.borderRadius = '50%';
   wrap.style.overflow = 'hidden';
   wrap.style.border = `2px solid ${resolveTribeColor(survivor, gameManager)}`;
@@ -422,8 +464,8 @@ function createAvatarBadge(survivor, gameManager) {
 function createPlaceholderBadge() {
   const placeholder = document.createElement('div');
   placeholder.textContent = '—';
-  placeholder.style.width = '26px';
-  placeholder.style.height = '26px';
+  placeholder.style.width = '24px';
+  placeholder.style.height = '24px';
   placeholder.style.borderRadius = '50%';
   placeholder.style.border = '2px dashed rgba(255,255,255,0.35)';
   placeholder.style.display = 'flex';
@@ -442,18 +484,18 @@ function buildRoleRows(rolesPanel, tasks) {
     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.alignItems = 'center';
-    row.style.gap = '8px';
+    row.style.gap = '6px';
 
     const label = document.createElement('div');
     label.textContent = `${task.label.toUpperCase()}:`;
-    label.style.minWidth = '72px';
+    label.style.minWidth = '64px';
     label.style.fontWeight = '800';
     label.style.letterSpacing = '0.5px';
 
     const slot = document.createElement('div');
     slot.style.display = 'flex';
     slot.style.flexWrap = 'wrap';
-    slot.style.gap = '6px';
+    slot.style.gap = '5px';
 
     row.appendChild(label);
     row.appendChild(slot);
@@ -1312,6 +1354,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
     let textArea;
     let choices;
     let rolesPanel;
+    let contentArea;
     let roleSlots;
     let awaitingChoice = { value: false };
     let beatQueue = [];
@@ -1402,6 +1445,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         choices = overlayEls.choices;
         nextBtn = overlayEls.nextBtn;
         rolesPanel = overlayEls.rolesPanel;
+        contentArea = overlayEls.contentArea;
       }
       if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
       awaitingChoice.value = false;
@@ -1437,6 +1481,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       textArea = overlayEls.textArea;
       choices = overlayEls.choices;
       rolesPanel = overlayEls.rolesPanel;
+      contentArea = overlayEls.contentArea;
       const usedLines = new Set();
 
       const tasks = taskDefinitions(tribeSize);
@@ -1544,6 +1589,11 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         } else {
           const speakerColor = resolveTribeColor(speakerSurvivor, gm, tribeAccentColor);
           setSpeakerBeatUI({ templateImg, headerTileText, avatarEl: avatar, survivor: speakerSurvivor, tribeColor: speakerColor });
+        }
+        if (beat.type === 'finalize') {
+          applySummaryModeStyles({ textArea, contentArea });
+        } else {
+          applyBeatModeStyles({ textArea, contentArea });
         }
         if (beat.htmlText) {
           textArea.innerHTML = '';
