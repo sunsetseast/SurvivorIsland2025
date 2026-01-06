@@ -188,109 +188,147 @@ function buildOverlay() {
   overlay.style.alignItems = 'center';
   overlay.style.justifyContent = 'center';
 
-  const panel = document.createElement('div');
-  panel.className = 'parchment-panel';
-  panel.style.background = "url('Assets/parchment-bg.png'), #f5e6c5";
-  panel.style.backgroundSize = 'cover';
-  panel.style.border = '4px solid #7a4a1e';
-  panel.style.borderRadius = '18px';
-  panel.style.width = '88%';
-  panel.style.maxWidth = '1020px';
-  panel.style.maxHeight = '88%';
-  panel.style.display = 'flex';
-  panel.style.flexDirection = 'column';
-  panel.style.padding = '18px';
-  panel.style.boxShadow = '0 8px 20px rgba(0,0,0,0.45)';
-  panel.style.fontFamily = "'Survivant', sans-serif";
-
-  const header = document.createElement('div');
-  header.style.display = 'flex';
-  header.style.justifyContent = 'space-between';
-  header.style.alignItems = 'center';
-  header.style.marginBottom = '10px';
-
-  const speakerWrap = document.createElement('div');
-  speakerWrap.style.display = 'flex';
-  speakerWrap.style.alignItems = 'center';
-  speakerWrap.style.gap = '10px';
+  const beatFrame = document.createElement('div');
+  beatFrame.id = 'day1-beat-frame';
+  beatFrame.style.position = 'relative';
+  beatFrame.style.width = 'min(92vw, 520px)';
+  beatFrame.style.maxHeight = '92vh';
+  beatFrame.style.aspectRatio = '2 / 3';
+  beatFrame.style.display = 'flex';
+  beatFrame.style.alignItems = 'stretch';
+  beatFrame.style.justifyContent = 'center';
+  beatFrame.style.fontFamily = "'Survivant', sans-serif";
 
   const avatar = document.createElement('img');
   avatar.id = 'day1-avatar';
-  avatar.style.width = '52px';
-  avatar.style.height = '52px';
-  avatar.style.borderRadius = '50%';
-  avatar.style.objectFit = 'cover';
-  avatar.style.border = '3px solid #c17f34';
-  avatar.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
-  avatar.style.background = '#f8ead4';
   avatar.alt = 'Speaker avatar';
+  avatar.style.position = 'absolute';
+  avatar.style.width = '38%';
+  avatar.style.height = '38%';
+  avatar.style.top = '10%';
+  avatar.style.left = '6%';
+  avatar.style.objectFit = 'cover';
+  avatar.style.borderRadius = '50%';
+  avatar.style.border = '4px solid #caa15a';
+  avatar.style.boxShadow = '0 4px 14px rgba(0,0,0,0.35)';
+  avatar.style.display = 'none';
+  avatar.style.zIndex = '1';
 
-  const speaker = document.createElement('div');
-  speaker.id = 'day1-speaker';
-  speaker.style.fontWeight = 'bold';
-  speaker.style.fontSize = '1.3rem';
-  speaker.style.color = '#3c2415';
+  const templateImg = document.createElement('img');
+  templateImg.id = 'day1-template-img';
+  templateImg.src = 'Assets/beat-ui.png';
+  templateImg.alt = 'Beat template';
+  templateImg.style.position = 'absolute';
+  templateImg.style.inset = '0';
+  templateImg.style.width = '100%';
+  templateImg.style.height = '100%';
+  templateImg.style.objectFit = 'contain';
+  templateImg.style.pointerEvents = 'none';
+  templateImg.style.zIndex = '2';
 
-  speakerWrap.appendChild(avatar);
-  speakerWrap.appendChild(speaker);
+  const contentLayer = document.createElement('div');
+  contentLayer.style.position = 'absolute';
+  contentLayer.style.inset = '0';
+  contentLayer.style.display = 'flex';
+  contentLayer.style.flexDirection = 'column';
+  contentLayer.style.justifyContent = 'flex-start';
+  contentLayer.style.zIndex = '3';
 
-  const phaseLabel = document.createElement('div');
-  phaseLabel.id = 'day1-phase-label';
-  phaseLabel.style.fontSize = '0.95rem';
-  phaseLabel.style.color = '#6b4c2b';
-  phaseLabel.textContent = 'First Impressions';
+  const headerTileText = document.createElement('div');
+  headerTileText.id = 'day1-header-tile';
+  headerTileText.style.position = 'absolute';
+  headerTileText.style.top = '6%';
+  headerTileText.style.left = '26%';
+  headerTileText.style.right = '26%';
+  headerTileText.style.textAlign = 'center';
+  headerTileText.style.fontSize = '1rem';
+  headerTileText.style.fontWeight = '700';
+  headerTileText.style.color = '#fdf2d4';
+  headerTileText.style.textShadow = '0 1px 2px rgba(0,0,0,0.6)';
+  headerTileText.style.letterSpacing = '1px';
 
-  header.appendChild(speakerWrap);
-  header.appendChild(phaseLabel);
+  const contentArea = document.createElement('div');
+  contentArea.style.position = 'absolute';
+  contentArea.style.top = '23%';
+  contentArea.style.left = '12%';
+  contentArea.style.right = '12%';
+  contentArea.style.bottom = '26%';
+  contentArea.style.display = 'flex';
+  contentArea.style.flexDirection = 'column';
+  contentArea.style.gap = '10px';
+  contentArea.style.padding = '8px 10px';
+  contentArea.style.color = '#2b1a0f';
+  contentArea.style.textShadow = '0 1px 1px rgba(255,255,255,0.35)';
+  contentArea.style.pointerEvents = 'auto';
 
   const textArea = document.createElement('div');
   textArea.id = 'day1-text';
   textArea.style.flex = '1';
   textArea.style.overflowY = 'auto';
-  textArea.style.padding = '12px';
-  textArea.style.background = 'rgba(255,255,255,0.8)';
-  textArea.style.border = '1px solid #d2b48c';
+  textArea.style.padding = '8px 10px';
+  textArea.style.background = 'rgba(255,255,255,0.72)';
+  textArea.style.border = '2px solid rgba(61,36,21,0.35)';
   textArea.style.borderRadius = '12px';
   textArea.style.color = '#2d1b0d';
   textArea.style.lineHeight = '1.5';
+  textArea.style.fontSize = '0.98rem';
+  textArea.style.pointerEvents = 'auto';
 
   const choices = document.createElement('div');
   choices.id = 'day1-choices';
-  choices.style.display = 'flex';
+  choices.style.display = 'none';
   choices.style.flexDirection = 'column';
   choices.style.gap = '10px';
-  choices.style.marginTop = '12px';
-  choices.style.maxHeight = '220px';
+  choices.style.maxHeight = '45%';
   choices.style.overflowY = 'auto';
+  choices.style.pointerEvents = 'auto';
 
-  const footer = document.createElement('div');
-  footer.style.display = 'flex';
-  footer.style.justifyContent = 'space-between';
-  footer.style.alignItems = 'center';
-  footer.style.marginTop = '12px';
+  contentArea.appendChild(textArea);
+  contentArea.appendChild(choices);
 
-  const statusLine = document.createElement('div');
-  statusLine.id = 'day1-status';
-  statusLine.style.color = '#4a2c0a';
-  statusLine.style.fontSize = '0.9rem';
+  const rolesPanel = document.createElement('div');
+  rolesPanel.id = 'day1-roles-panel';
+  rolesPanel.style.position = 'absolute';
+  rolesPanel.style.left = '10%';
+  rolesPanel.style.bottom = '10%';
+  rolesPanel.style.width = '42%';
+  rolesPanel.style.display = 'flex';
+  rolesPanel.style.flexDirection = 'column';
+  rolesPanel.style.gap = '6px';
+  rolesPanel.style.fontSize = '0.75rem';
+  rolesPanel.style.color = '#f6e4c1';
+  rolesPanel.style.textShadow = '0 1px 2px rgba(0,0,0,0.65)';
+  rolesPanel.style.pointerEvents = 'none';
 
   const nextBtn = document.createElement('button');
   nextBtn.id = 'day1-next';
-  nextBtn.className = 'rect-button';
   nextBtn.textContent = 'Next';
-  nextBtn.style.alignSelf = 'flex-end';
+  nextBtn.style.position = 'absolute';
+  nextBtn.style.right = '12%';
+  nextBtn.style.bottom = '9%';
+  nextBtn.style.padding = '10px 16px';
+  nextBtn.style.background = 'rgba(39,20,10,0.38)';
+  nextBtn.style.color = '#fef3d9';
+  nextBtn.style.border = '2px solid rgba(0,0,0,0.45)';
+  nextBtn.style.borderRadius = '12px';
+  nextBtn.style.fontWeight = '700';
+  nextBtn.style.textTransform = 'uppercase';
+  nextBtn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.35)';
+  nextBtn.style.cursor = 'pointer';
+  nextBtn.style.pointerEvents = 'auto';
 
-  footer.appendChild(statusLine);
-  footer.appendChild(nextBtn);
+  contentLayer.appendChild(headerTileText);
+  contentLayer.appendChild(contentArea);
+  contentLayer.appendChild(rolesPanel);
+  contentLayer.appendChild(nextBtn);
 
-  panel.appendChild(header);
-  panel.appendChild(textArea);
-  panel.appendChild(choices);
-  panel.appendChild(footer);
-  overlay.appendChild(panel);
+  beatFrame.appendChild(avatar);
+  beatFrame.appendChild(templateImg);
+  beatFrame.appendChild(contentLayer);
+  overlay.appendChild(beatFrame);
 
   document.body.appendChild(overlay);
-  return { overlay, speaker, avatar, textArea, choices, nextBtn, phaseLabel, statusLine };
+  return { overlay, beatFrame, templateImg, headerTileText, avatar, textArea, choices, nextBtn, rolesPanel };
 }
 
 function removeOverlay(overlay) {
@@ -307,23 +345,141 @@ function getSurvivorAvatarSrc(survivor) {
   return 'Assets/logo.png';
 }
 
-function setHeaderSpeakerUI({ beat, members, player, speakerEl, avatarEl, tribeAccentColor = '#c17f34' }) {
-  const isNarrator = !beat.speakerId && beat.speaker === 'Narrator';
-  let survivor = beat.speakerRef;
-  if (!survivor && beat.speakerId) survivor = members.find(m => m.id === beat.speakerId);
-  const name = survivor ? displayName(survivor, members, player.id) : beat.speaker || 'Narrator';
-  speakerEl.textContent = name;
-
-  if (isNarrator) {
-    avatarEl.style.visibility = 'hidden';
-    avatarEl.src = 'Assets/logo.png';
-    return;
+function resolveTribeColor(survivor, gameManager, fallback = '#caa15a') {
+  if (!survivor) return fallback;
+  if (survivor.tribeColor) return survivor.tribeColor;
+  if (survivor.tribe?.color) return survivor.tribe.color;
+  if (gameManager?.getTribes) {
+    const tribes = gameManager.getTribes();
+    const match = tribes?.find(t => (t.members || []).some(m => m.id === survivor.id));
+    if (match?.color) return match.color;
   }
+  if (survivor.color) return survivor.color;
+  return fallback;
+}
 
-  avatarEl.style.visibility = 'visible';
-  const avatarSrc = survivor ? getSurvivorAvatarSrc(survivor) : 'Assets/logo.png';
-  avatarEl.src = avatarSrc;
-  avatarEl.style.borderColor = tribeAccentColor;
+function resolveSpeakerSurvivor(beat, members = []) {
+  if (!beat) return null;
+  if (beat.speakerRef) return beat.speakerRef;
+  if (beat.speakerId) return members.find(m => m.id === beat.speakerId) || null;
+  return null;
+}
+
+function setNarratorBeatUI({ templateImg, headerTileText, avatarEl }) {
+  templateImg.src = 'Assets/beat-ui.png';
+  headerTileText.textContent = 'DAY 1';
+  headerTileText.style.left = '26%';
+  headerTileText.style.right = '26%';
+  headerTileText.style.textAlign = 'center';
+  avatarEl.style.display = 'none';
+}
+
+function setSpeakerBeatUI({ templateImg, headerTileText, avatarEl, survivor, tribeColor }) {
+  templateImg.src = 'Assets/beat-avatar-ui.png';
+  headerTileText.textContent = (survivor?.firstName || survivor?.name || 'SURVIVOR').toUpperCase();
+  headerTileText.style.left = '58%';
+  headerTileText.style.right = '12%';
+  headerTileText.style.textAlign = 'center';
+  avatarEl.style.display = 'block';
+  avatarEl.src = getSurvivorAvatarSrc(survivor);
+  avatarEl.style.borderColor = tribeColor;
+}
+
+function styleChoiceButton(btn) {
+  btn.style.background = 'linear-gradient(180deg, rgba(255,245,228,0.92) 0%, rgba(237,214,175,0.92) 100%)';
+  btn.style.border = '2px solid rgba(60,36,21,0.45)';
+  btn.style.borderRadius = '12px';
+  btn.style.padding = '10px 12px';
+  btn.style.boxShadow = '0 3px 6px rgba(0,0,0,0.25)';
+  btn.style.cursor = 'pointer';
+  btn.style.fontWeight = '700';
+  btn.style.fontSize = '0.95rem';
+  btn.style.color = '#2d1b0d';
+  btn.style.textAlign = 'left';
+}
+
+function createAvatarBadge(survivor, gameManager) {
+  const wrap = document.createElement('div');
+  wrap.style.width = '26px';
+  wrap.style.height = '26px';
+  wrap.style.borderRadius = '50%';
+  wrap.style.overflow = 'hidden';
+  wrap.style.border = `2px solid ${resolveTribeColor(survivor, gameManager)}`;
+  wrap.style.background = 'rgba(0,0,0,0.2)';
+  wrap.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+
+  const img = document.createElement('img');
+  img.src = getSurvivorAvatarSrc(survivor);
+  img.alt = survivor?.firstName || 'Survivor';
+  img.style.width = '100%';
+  img.style.height = '100%';
+  img.style.objectFit = 'cover';
+
+  wrap.appendChild(img);
+  return wrap;
+}
+
+function createPlaceholderBadge() {
+  const placeholder = document.createElement('div');
+  placeholder.textContent = '—';
+  placeholder.style.width = '26px';
+  placeholder.style.height = '26px';
+  placeholder.style.borderRadius = '50%';
+  placeholder.style.border = '2px dashed rgba(255,255,255,0.35)';
+  placeholder.style.display = 'flex';
+  placeholder.style.alignItems = 'center';
+  placeholder.style.justifyContent = 'center';
+  placeholder.style.color = '#f6e4c1';
+  placeholder.style.fontWeight = '700';
+  placeholder.style.opacity = '0.85';
+  return placeholder;
+}
+
+function buildRoleRows(rolesPanel, tasks) {
+  const map = new Map();
+  rolesPanel.innerHTML = '';
+  tasks.forEach(task => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '8px';
+
+    const label = document.createElement('div');
+    label.textContent = `${task.label.toUpperCase()}:`;
+    label.style.minWidth = '72px';
+    label.style.fontWeight = '800';
+    label.style.letterSpacing = '0.5px';
+
+    const slot = document.createElement('div');
+    slot.style.display = 'flex';
+    slot.style.flexWrap = 'wrap';
+    slot.style.gap = '6px';
+
+    row.appendChild(label);
+    row.appendChild(slot);
+    rolesPanel.appendChild(row);
+    map.set(task.key, slot);
+  });
+  return map;
+}
+
+function renderRoleAssignments(roleSlots, revealedTasks, members, gameManager) {
+  revealedTasks.forEach(task => {
+    const slot = roleSlots.get(task.key);
+    if (!slot) return;
+    slot.innerHTML = '';
+    if (!task.assignedIds.length) {
+      slot.appendChild(createPlaceholderBadge());
+      return;
+    }
+    task.assignedIds.forEach(id => {
+      const survivor = members.find(m => m.id === id);
+      if (survivor) {
+        slot.appendChild(createAvatarBadge(survivor, gameManager));
+      }
+    });
+    if (!slot.children.length) slot.appendChild(createPlaceholderBadge());
+  });
 }
 
 function taskDefinitions(tribeSize = 6) {
@@ -1150,11 +1306,13 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
     let overlay;
     let nextBtn;
     let nextBtnHandler;
-    let speaker;
+    let templateImg;
+    let headerTileText;
     let avatar;
     let textArea;
     let choices;
-    let statusLine;
+    let rolesPanel;
+    let roleSlots;
     let awaitingChoice = { value: false };
     let beatQueue = [];
     let currentIndex = 0;
@@ -1237,24 +1395,21 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       if (!overlay) {
         const overlayEls = buildOverlay();
         overlay = overlayEls.overlay;
-        speaker = overlayEls.speaker;
+        templateImg = overlayEls.templateImg;
+        headerTileText = overlayEls.headerTileText;
         avatar = overlayEls.avatar;
         textArea = overlayEls.textArea;
         choices = overlayEls.choices;
         nextBtn = overlayEls.nextBtn;
-        statusLine = overlayEls.statusLine;
+        rolesPanel = overlayEls.rolesPanel;
       }
       if (nextBtn && nextBtnHandler) nextBtn.removeEventListener('click', nextBtnHandler);
       awaitingChoice.value = false;
       if (choices) choices.style.display = 'none';
       if (nextBtn) nextBtn.style.display = 'inline-block';
       if (nextBtn) nextBtn.textContent = 'Close';
-      if (statusLine) statusLine.textContent = '';
-      if (speaker) speaker.textContent = 'Narrator';
-      if (avatar) {
-        avatar.src = 'Assets/logo.png';
-        avatar.style.visibility = 'hidden';
-      }
+      if (rolesPanel) rolesPanel.innerHTML = '';
+      if (templateImg && headerTileText && avatar) setNarratorBeatUI({ templateImg, headerTileText, avatarEl: avatar });
       if (textArea) {
         textArea.textContent = `${message}\n(Please report this.)`;
       }
@@ -1276,18 +1431,20 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const overlayEls = buildOverlay();
       overlay = overlayEls.overlay;
       nextBtn = overlayEls.nextBtn;
-      speaker = overlayEls.speaker;
+      templateImg = overlayEls.templateImg;
+      headerTileText = overlayEls.headerTileText;
       avatar = overlayEls.avatar;
       textArea = overlayEls.textArea;
       choices = overlayEls.choices;
-      statusLine = overlayEls.statusLine;
-      if (avatar) {
-        avatar.style.borderColor = tribeAccentColor;
-      }
+      rolesPanel = overlayEls.rolesPanel;
       const usedLines = new Set();
 
       const tasks = taskDefinitions(tribeSize);
       const revealedTasks = taskDefinitions(tribeSize).map(t => ({ ...t, assignedIds: [] }));
+      roleSlots = buildRoleRows(rolesPanel, revealedTasks);
+      if (avatar) {
+        avatar.style.borderColor = tribeAccentColor;
+      }
       const leadership = resolveLeadershipScenario(members, PLAYER);
       awaitingChoice = { value: false };
       let choiceLocked = false;
@@ -1301,8 +1458,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       }
 
       const updateStatusLine = () => {
-        const pieces = revealedTasks.map(t => `${t.label}: ${formatIdsAsNameList(t.assignedIds, members, PLAYER_ID) || '—'}`);
-        statusLine.textContent = pieces.join(' | ');
+        if (!rolesPanel || !roleSlots) return;
+        renderRoleAssignments(roleSlots, revealedTasks, members, gm);
       };
       const revealAssignment = (roleKey, survivorId) => {
         if (!roleKey || !survivorId) return;
@@ -1380,7 +1537,14 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           // eslint-disable-next-line no-console
           console.info('[Day1FirstImpressions] Rendering finalize beat', { index: currentIndex, queueLen: beatQueue.length });
         }
-        setHeaderSpeakerUI({ beat, members, player: PLAYER, speakerEl: speaker, avatarEl: avatar, tribeAccentColor });
+        const speakerSurvivor = resolveSpeakerSurvivor(beat, members);
+        const isNarratorBeat = !speakerSurvivor && (beat.speaker === 'Narrator' || !beat.speakerId);
+        if (isNarratorBeat) {
+          setNarratorBeatUI({ templateImg, headerTileText, avatarEl: avatar });
+        } else {
+          const speakerColor = resolveTribeColor(speakerSurvivor, gm, tribeAccentColor);
+          setSpeakerBeatUI({ templateImg, headerTileText, avatarEl: avatar, survivor: speakerSurvivor, tribeColor: speakerColor });
+        }
         if (beat.htmlText) {
           textArea.innerHTML = '';
           if (typeof beat.htmlText === 'string') {
@@ -1471,8 +1635,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             options.forEach(option => {
               const btn = document.createElement('button');
               btn.textContent = option.label;
-              btn.className = 'rect-button';
-              btn.style.textAlign = 'left';
+              styleChoiceButton(btn);
               btn.addEventListener('click', () => {
                 if (!awaitingChoice.value || choiceLocked) return;
                 choiceLocked = true;
