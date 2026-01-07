@@ -486,68 +486,79 @@ body {
 }
 
 #task-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  display: flex;
+  width: 100vw;
+  height: 100vh;
+  display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0,0,0,0.65);
   z-index: 2500;
 }
 
 #task-panel {
   position: relative;
-  width: min(98vw, 1060px);
-  height: auto;
-  aspect-ratio: 1024 / 597;
+  height: 78vh;
+  width: min(86vw, calc(78vh * 0.75));
   background-image: url('Assets/task-ui.png');
-  background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+  background-size: contain;
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+  transition: opacity 220ms ease, transform 260ms cubic-bezier(.2,.9,.2,1);
+}
+
+@media (min-height: 800px) {
+  #task-panel {
+    height: 82vh;
+    width: min(86vw, calc(82vh * 0.75));
+  }
+}
+
+#task-panel.task-panel-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .task-line {
   position: absolute;
-  left: 155px;
-  right: 150px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  font-family: Survivant, sans-serif;
-  font-size: 16px;
+  left: 22%;
+  width: 62%;
+  font-family: Survivant, serif;
+  font-size: clamp(14px, 1.8vh, 20px);
+  line-height: 1.15;
+  font-weight: 800;
   color: #2b190a;
-  text-shadow: 1px 1px 0 rgba(255,255,255,0.35);
-  line-height: 1.25;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.15);
+  pointer-events: none;
 }
 
-.task-line.line1 { top: 190px; }
-.task-line.line2 { top: 280px; }
-.task-line.line3 { top: 370px; }
-.task-line.line4 { top: 460px; }
-
-.task-line-text {
-  flex: 1;
-  padding-right: 16px;
+.task-line .task-line-text {
+  display: block;
+  white-space: pre-wrap;
 }
+
+.task-line.line1 { top: 36%; }
+.task-line.line2 { top: 49%; }
+.task-line.line3 { top: 62%; }
+.task-line.line4 { top: 75%; }
 
 .task-claim-check {
   position: absolute;
-  left: -72px;
-  width: 54px;
-  height: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  color: #34d058;
-  text-shadow: 0 0 6px rgba(0,0,0,0.65), 0 0 4px rgba(255,255,255,0.4);
+  left: -18%;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: clamp(18px, 3vh, 26px);
+  color: #20ff3a;
+  text-shadow: 0 0 6px rgba(0,0,0,0.8);
   cursor: pointer;
-  user-select: none;
-  transition: transform 0.12s ease;
-}
-
-.task-claim-check:hover {
-  transform: scale(1.08);
+  pointer-events: auto;
 }
 
 @keyframes taskIconPulse {
@@ -558,10 +569,10 @@ body {
 
 #task-close-hit {
   position: absolute;
-  width: 180px;
-  height: 70px;
-  right: 40px;
-  bottom: 35px;
+  right: 12%;
+  bottom: 6%;
+  width: 28%;
+  height: 10%;
   cursor: pointer;
 }
 

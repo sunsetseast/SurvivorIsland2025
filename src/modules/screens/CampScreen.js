@@ -447,13 +447,22 @@ export default class CampScreen {
     if (!overlay) return;
     this.renderTasksIntoOverlay();
     overlay.style.display = 'flex';
+    const panel = document.getElementById('task-panel');
+    if (panel) {
+      panel.classList.remove('task-panel-open');
+      requestAnimationFrame(() => panel.classList.add('task-panel-open'));
+    }
     this.taskOverlayOpen = true;
   }
 
   closeTaskOverlay() {
     const overlay = document.getElementById('task-overlay');
     if (!overlay) return;
-    overlay.style.display = 'none';
+    const panel = document.getElementById('task-panel');
+    panel?.classList.remove('task-panel-open');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 150);
     this.taskOverlayOpen = false;
   }
 
