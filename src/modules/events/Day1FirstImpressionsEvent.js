@@ -178,7 +178,7 @@ function getPersonalityProfile(survivor) {
 
 function buildOverlay() {
   const overlay = document.createElement('div');
-  overlay.id = 'day1-overlay';
+  overlay.id = 'day1-event-overlay';
   overlay.className = 'conversation-overlay';
   overlay.style.position = 'fixed';
   overlay.style.inset = '0';
@@ -190,6 +190,7 @@ function buildOverlay() {
 
   const beatFrame = document.createElement('div');
   beatFrame.id = 'day1-beat-frame';
+  beatFrame.className = 'day1-frame';
   beatFrame.style.position = 'relative';
   beatFrame.style.width = 'min(92vw, 520px)';
   beatFrame.style.maxHeight = '92vh';
@@ -201,21 +202,24 @@ function buildOverlay() {
 
   const avatar = document.createElement('img');
   avatar.id = 'day1-avatar';
+  avatar.className = 'day1-speaker-avatar';
   avatar.alt = 'Speaker avatar';
   avatar.style.position = 'absolute';
   avatar.style.width = '28%';
   avatar.style.height = '28%';
-  avatar.style.top = '12%';
-  avatar.style.left = '6%';
+  avatar.style.top = '8.5%';
+  avatar.style.left = '7%';
   avatar.style.objectFit = 'cover';
+  avatar.style.aspectRatio = '1 / 1';
   avatar.style.borderRadius = '50%';
-  avatar.style.border = '4px solid #caa15a';
-  avatar.style.boxShadow = '0 4px 14px rgba(0,0,0,0.35)';
+  avatar.style.border = 'none';
+  avatar.style.boxShadow = 'none';
   avatar.style.display = 'none';
   avatar.style.zIndex = '1';
 
   const templateImg = document.createElement('img');
   templateImg.id = 'day1-template-img';
+  templateImg.className = 'day1-frame-img';
   templateImg.src = 'Assets/beat-ui.png';
   templateImg.alt = 'Beat template';
   templateImg.style.position = 'absolute';
@@ -236,6 +240,7 @@ function buildOverlay() {
 
   const headerTileText = document.createElement('div');
   headerTileText.id = 'day1-header-tile';
+  headerTileText.className = 'day1-header';
   headerTileText.style.position = 'absolute';
   headerTileText.style.top = '8%';
   headerTileText.style.left = '30%';
@@ -249,40 +254,55 @@ function buildOverlay() {
 
   const contentArea = document.createElement('div');
   contentArea.style.position = 'absolute';
-  contentArea.style.top = '22%';
-  contentArea.style.left = '14%';
-  contentArea.style.right = '14%';
-  contentArea.style.bottom = '24%';
+  contentArea.style.top = '23%';
+  contentArea.style.left = '12%';
+  contentArea.style.right = '10%';
+  contentArea.style.bottom = '26%';
   contentArea.style.display = 'flex';
   contentArea.style.flexDirection = 'column';
-  contentArea.style.alignItems = 'center';
+  contentArea.style.alignItems = 'stretch';
   contentArea.style.gap = '10px';
-  contentArea.style.padding = '8px 10px';
+  contentArea.style.padding = '0';
   contentArea.style.color = '#2b1a0f';
   contentArea.style.textShadow = '0 1px 1px rgba(255,255,255,0.35)';
   contentArea.style.pointerEvents = 'auto';
+  contentArea.style.overflow = 'hidden';
 
   const textArea = document.createElement('div');
   textArea.id = 'day1-text';
-  textArea.style.flex = '1';
-  textArea.style.overflowY = 'auto';
-  textArea.style.padding = '6px 10px';
+  textArea.className = 'day1-text';
+  textArea.style.position = 'absolute';
+  textArea.style.left = '0';
+  textArea.style.right = '0';
+  textArea.style.top = '0';
+  textArea.style.bottom = '0';
+  textArea.style.padding = '0';
   textArea.style.background = 'transparent';
   textArea.style.border = 'none';
-  textArea.style.borderRadius = '12px';
+  textArea.style.borderRadius = '0';
   textArea.style.color = '#2d1b0d';
   textArea.style.lineHeight = '1.5';
-  textArea.style.fontSize = '0.98rem';
-  textArea.style.maxWidth = '88%';
+  textArea.style.fontSize = '0.96rem';
+  textArea.style.maxWidth = '100%';
   textArea.style.margin = '0 auto';
   textArea.style.pointerEvents = 'auto';
+  textArea.style.display = 'flex';
+  textArea.style.alignItems = 'flex-start';
+  textArea.style.justifyContent = 'center';
+  textArea.style.textAlign = 'center';
+  textArea.style.overflow = 'hidden';
 
   const choices = document.createElement('div');
   choices.id = 'day1-choices';
+  choices.className = 'day1-choices';
   choices.style.display = 'none';
+  choices.style.position = 'absolute';
+  choices.style.left = '8%';
+  choices.style.right = '6%';
+  choices.style.bottom = '4%';
   choices.style.flexDirection = 'column';
   choices.style.gap = '10px';
-  choices.style.maxHeight = '45%';
+  choices.style.maxHeight = '40%';
   choices.style.overflowY = 'auto';
   choices.style.pointerEvents = 'auto';
 
@@ -293,35 +313,38 @@ function buildOverlay() {
   rolesPanel.id = 'day1-roles-panel';
   rolesPanel.style.position = 'absolute';
   rolesPanel.style.left = '11%';
-  rolesPanel.style.bottom = '12%';
-  rolesPanel.style.width = '44%';
+  rolesPanel.style.bottom = '10%';
+  rolesPanel.style.width = '50%';
+  rolesPanel.style.height = '20%';
   rolesPanel.style.display = 'flex';
   rolesPanel.style.flexDirection = 'column';
-  rolesPanel.style.gap = '4px';
+  rolesPanel.style.gap = '5px';
   rolesPanel.style.fontSize = '0.72rem';
   rolesPanel.style.color = '#f6e4c1';
   rolesPanel.style.textShadow = '0 1px 2px rgba(0,0,0,0.65)';
   rolesPanel.style.pointerEvents = 'none';
+  rolesPanel.style.overflow = 'hidden';
 
   const nextBtn = document.createElement('button');
   nextBtn.id = 'day1-next';
   nextBtn.textContent = 'Next';
   nextBtn.style.position = 'absolute';
-  nextBtn.style.right = '12%';
-  nextBtn.style.bottom = '11%';
-  nextBtn.style.padding = '8px 6px';
+  nextBtn.style.right = '10%';
+  nextBtn.style.bottom = '10%';
+  nextBtn.style.width = '28%';
+  nextBtn.style.height = '11%';
+  nextBtn.style.padding = '0';
   nextBtn.style.background = 'transparent';
   nextBtn.style.color = '#fef3d9';
   nextBtn.style.border = 'none';
-  nextBtn.style.borderRadius = '12px';
+  nextBtn.style.borderRadius = '0';
   nextBtn.style.fontWeight = '700';
-  nextBtn.style.fontSize = '0.95rem';
+  nextBtn.style.fontSize = '0.98rem';
   nextBtn.style.textTransform = 'uppercase';
   nextBtn.style.boxShadow = 'none';
   nextBtn.style.cursor = 'pointer';
   nextBtn.style.pointerEvents = 'auto';
-  nextBtn.style.minWidth = '90px';
-  nextBtn.style.height = '42px';
+  nextBtn.style.minWidth = '0';
   nextBtn.style.display = 'flex';
   nextBtn.style.alignItems = 'center';
   nextBtn.style.justifyContent = 'center';
@@ -337,6 +360,9 @@ function buildOverlay() {
   beatFrame.appendChild(templateImg);
   beatFrame.appendChild(contentLayer);
   overlay.appendChild(beatFrame);
+
+  // eslint-disable-next-line no-console
+  console.log('[Day1Event] Using beat-ui.png / beat-avatar-ui.png frame layout');
 
   document.body.appendChild(overlay);
   return { overlay, beatFrame, templateImg, headerTileText, avatar, textArea, choices, nextBtn, rolesPanel, contentArea };
@@ -380,8 +406,8 @@ function setNarratorBeatUI({ templateImg, headerTileText, avatarEl }) {
   templateImg.src = 'Assets/beat-ui.png';
   headerTileText.textContent = 'DAY 1';
   headerTileText.style.top = '8%';
-  headerTileText.style.left = '32%';
-  headerTileText.style.right = '32%';
+  headerTileText.style.left = '30%';
+  headerTileText.style.right = '30%';
   headerTileText.style.textAlign = 'center';
   avatarEl.style.display = 'none';
 }
@@ -389,30 +415,31 @@ function setNarratorBeatUI({ templateImg, headerTileText, avatarEl }) {
 function setSpeakerBeatUI({ templateImg, headerTileText, avatarEl, survivor, tribeColor }) {
   templateImg.src = 'Assets/beat-avatar-ui.png';
   headerTileText.textContent = (survivor?.firstName || survivor?.name || 'SURVIVOR').toUpperCase();
-  headerTileText.style.top = '8.5%';
-  headerTileText.style.left = '57%';
-  headerTileText.style.right = '10%';
+  headerTileText.style.top = '8%';
+  headerTileText.style.left = '55%';
+  headerTileText.style.right = '5%';
   headerTileText.style.textAlign = 'center';
   avatarEl.style.display = 'block';
   avatarEl.style.width = '28%';
   avatarEl.style.height = '28%';
-  avatarEl.style.top = '12%';
-  avatarEl.style.left = '6%';
+  avatarEl.style.top = '8.5%';
+  avatarEl.style.left = '7%';
   avatarEl.src = getSurvivorAvatarSrc(survivor);
   avatarEl.style.borderColor = tribeColor;
 }
 
 function applyBeatModeStyles({ textArea, contentArea }) {
-  contentArea.style.alignItems = 'center';
+  contentArea.style.alignItems = 'stretch';
   contentArea.style.justifyContent = 'flex-start';
   textArea.style.background = 'transparent';
   textArea.style.border = 'none';
   textArea.style.boxShadow = 'none';
-  textArea.style.padding = '6px 12px';
-  textArea.style.maxWidth = '88%';
+  textArea.style.padding = '0';
+  textArea.style.maxWidth = '100%';
   textArea.style.margin = '0 auto';
-  textArea.style.textAlign = 'left';
-  textArea.style.display = 'block';
+  textArea.style.textAlign = 'center';
+  textArea.style.overflow = 'hidden';
+  textArea.style.justifyContent = 'center';
 }
 
 function applySummaryModeStyles({ textArea, contentArea }) {
@@ -425,19 +452,24 @@ function applySummaryModeStyles({ textArea, contentArea }) {
   textArea.style.maxWidth = '100%';
   textArea.style.margin = '0 auto';
   textArea.style.textAlign = 'left';
+  textArea.style.justifyContent = 'flex-start';
+  textArea.style.overflow = 'auto';
 }
 
 function styleChoiceButton(btn) {
-  btn.style.background = 'linear-gradient(180deg, rgba(255,245,228,0.92) 0%, rgba(237,214,175,0.92) 100%)';
-  btn.style.border = '2px solid rgba(60,36,21,0.45)';
-  btn.style.borderRadius = '12px';
-  btn.style.padding = '10px 12px';
-  btn.style.boxShadow = '0 3px 6px rgba(0,0,0,0.25)';
+  btn.style.background = 'transparent';
+  btn.style.border = 'none';
+  btn.style.borderRadius = '0';
+  btn.style.boxShadow = 'none';
+  btn.style.setProperty('padding', '10px 12px', 'important');
+  btn.style.setProperty('margin', '0', 'important');
+  btn.style.width = '100%';
   btn.style.cursor = 'pointer';
   btn.style.fontWeight = '700';
   btn.style.fontSize = '0.95rem';
   btn.style.color = '#2d1b0d';
-  btn.style.textAlign = 'left';
+  btn.style.textAlign = 'center';
+  btn.style.textShadow = '0 1px 2px rgba(255,255,255,0.5)';
 }
 
 function createAvatarBadge(survivor, gameManager) {
@@ -488,7 +520,8 @@ function buildRoleRows(rolesPanel, tasks) {
 
     const label = document.createElement('div');
     label.textContent = `${task.label.toUpperCase()}:`;
-    label.style.minWidth = '64px';
+    label.style.minWidth = '90px';
+    label.style.maxWidth = '90px';
     label.style.fontWeight = '800';
     label.style.letterSpacing = '0.5px';
 
@@ -711,7 +744,7 @@ export function canRunDay1FirstImpressions(gameManager) {
     playerName: resolution.player?.firstName,
     warnings: resolution.warnings
   });
-  const overlayExists = typeof document !== 'undefined' && document.getElementById('day1-overlay');
+  const overlayExists = typeof document !== 'undefined' && document.getElementById('day1-event-overlay');
   const campLogHasEntry = (gm?.campLog || []).some(entry => entry.id === 'day1_first_impressions');
   const alreadyPlanned = playerTribe?.day1Plan || playerTribe?.day1PlanCreated;
   const alreadyDone = gm?.flags?.day1FirstImpressionsCompleted || gm?.flags?.day1FirstImpressionsDone;
