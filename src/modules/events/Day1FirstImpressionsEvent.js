@@ -205,12 +205,12 @@ function buildOverlay() {
   avatar.className = 'day1-speaker-avatar';
   avatar.alt = 'Speaker avatar';
   avatar.style.position = 'absolute';
-  avatar.style.width = '28%';
-  avatar.style.height = '28%';
-  avatar.style.top = '8.5%';
-  avatar.style.left = '7%';
-  avatar.style.objectFit = 'cover';
   avatar.style.aspectRatio = '1 / 1';
+  avatar.style.width = '36%';
+  avatar.style.height = 'auto';
+  avatar.style.top = '10%';
+  avatar.style.left = '9%';
+  avatar.style.objectFit = 'cover';
   avatar.style.borderRadius = '50%';
   avatar.style.border = 'none';
   avatar.style.boxShadow = 'none';
@@ -242,7 +242,7 @@ function buildOverlay() {
   headerTileText.id = 'day1-header-tile';
   headerTileText.className = 'day1-header';
   headerTileText.style.position = 'absolute';
-  headerTileText.style.top = '8%';
+  headerTileText.style.top = '7.5%';
   headerTileText.style.left = '30%';
   headerTileText.style.right = '30%';
   headerTileText.style.textAlign = 'center';
@@ -255,8 +255,8 @@ function buildOverlay() {
   const contentArea = document.createElement('div');
   contentArea.style.position = 'absolute';
   contentArea.style.top = '23%';
-  contentArea.style.left = '12%';
-  contentArea.style.right = '10%';
+  contentArea.style.left = '16%';
+  contentArea.style.right = '16%';
   contentArea.style.bottom = '26%';
   contentArea.style.display = 'flex';
   contentArea.style.flexDirection = 'column';
@@ -287,10 +287,12 @@ function buildOverlay() {
   textArea.style.margin = '0 auto';
   textArea.style.pointerEvents = 'auto';
   textArea.style.display = 'flex';
-  textArea.style.alignItems = 'flex-start';
+  textArea.style.alignItems = 'center';
   textArea.style.justifyContent = 'center';
   textArea.style.textAlign = 'center';
+  textArea.style.padding = '0 2%';
   textArea.style.overflow = 'hidden';
+  textArea.style.wordBreak = 'break-word';
 
   const choices = document.createElement('div');
   choices.id = 'day1-choices';
@@ -312,14 +314,15 @@ function buildOverlay() {
   const rolesPanel = document.createElement('div');
   rolesPanel.id = 'day1-roles-panel';
   rolesPanel.style.position = 'absolute';
-  rolesPanel.style.left = '11%';
-  rolesPanel.style.bottom = '10%';
-  rolesPanel.style.width = '50%';
-  rolesPanel.style.height = '20%';
+  rolesPanel.style.left = '14%';
+  rolesPanel.style.bottom = '11%';
+  rolesPanel.style.width = '40%';
+  rolesPanel.style.height = '18%';
   rolesPanel.style.display = 'flex';
   rolesPanel.style.flexDirection = 'column';
-  rolesPanel.style.gap = '5px';
-  rolesPanel.style.fontSize = '0.72rem';
+  rolesPanel.style.gap = '2px';
+  rolesPanel.style.fontSize = '0.68rem';
+  rolesPanel.style.lineHeight = '1.05';
   rolesPanel.style.color = '#f6e4c1';
   rolesPanel.style.textShadow = '0 1px 2px rgba(0,0,0,0.65)';
   rolesPanel.style.pointerEvents = 'none';
@@ -405,9 +408,9 @@ function resolveSpeakerSurvivor(beat, members = []) {
 function setNarratorBeatUI({ templateImg, headerTileText, avatarEl }) {
   templateImg.src = 'Assets/beat-ui.png';
   headerTileText.textContent = 'DAY 1';
-  headerTileText.style.top = '8%';
-  headerTileText.style.left = '30%';
-  headerTileText.style.right = '30%';
+  headerTileText.style.top = '7.5%';
+  headerTileText.style.left = '26%';
+  headerTileText.style.right = '26%';
   headerTileText.style.textAlign = 'center';
   avatarEl.style.display = 'none';
 }
@@ -415,15 +418,15 @@ function setNarratorBeatUI({ templateImg, headerTileText, avatarEl }) {
 function setSpeakerBeatUI({ templateImg, headerTileText, avatarEl, survivor, tribeColor }) {
   templateImg.src = 'Assets/beat-avatar-ui.png';
   headerTileText.textContent = (survivor?.firstName || survivor?.name || 'SURVIVOR').toUpperCase();
-  headerTileText.style.top = '8%';
-  headerTileText.style.left = '55%';
-  headerTileText.style.right = '5%';
+  headerTileText.style.top = '7.5%';
+  headerTileText.style.left = '54%';
+  headerTileText.style.right = '10%';
   headerTileText.style.textAlign = 'center';
   avatarEl.style.display = 'block';
-  avatarEl.style.width = '28%';
-  avatarEl.style.height = '28%';
-  avatarEl.style.top = '8.5%';
-  avatarEl.style.left = '7%';
+  avatarEl.style.width = '36%';
+  avatarEl.style.height = 'auto';
+  avatarEl.style.top = '10%';
+  avatarEl.style.left = '9%';
   avatarEl.src = getSurvivorAvatarSrc(survivor);
   avatarEl.style.borderColor = tribeColor;
 }
@@ -439,6 +442,8 @@ function applyBeatModeStyles({ textArea, contentArea }) {
   textArea.style.margin = '0 auto';
   textArea.style.textAlign = 'center';
   textArea.style.overflow = 'hidden';
+  textArea.style.wordBreak = 'break-word';
+  textArea.style.alignItems = 'center';
   textArea.style.justifyContent = 'center';
 }
 
@@ -448,12 +453,14 @@ function applySummaryModeStyles({ textArea, contentArea }) {
   textArea.style.background = 'transparent';
   textArea.style.border = 'none';
   textArea.style.boxShadow = 'none';
-  textArea.style.padding = '0';
+  textArea.style.padding = '0 2%';
   textArea.style.maxWidth = '100%';
   textArea.style.margin = '0 auto';
   textArea.style.textAlign = 'left';
+  textArea.style.alignItems = 'flex-start';
   textArea.style.justifyContent = 'flex-start';
   textArea.style.overflow = 'auto';
+  textArea.style.wordBreak = 'break-word';
 }
 
 function styleChoiceButton(btn) {
@@ -516,19 +523,22 @@ function buildRoleRows(rolesPanel, tasks) {
     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.alignItems = 'center';
+    row.style.flexWrap = 'wrap';
     row.style.gap = '6px';
 
     const label = document.createElement('div');
     label.textContent = `${task.label.toUpperCase()}:`;
-    label.style.minWidth = '90px';
-    label.style.maxWidth = '90px';
+    label.style.minWidth = '0';
+    label.style.maxWidth = '100%';
     label.style.fontWeight = '800';
     label.style.letterSpacing = '0.5px';
+    label.style.wordBreak = 'break-word';
 
     const slot = document.createElement('div');
     slot.style.display = 'flex';
     slot.style.flexWrap = 'wrap';
     slot.style.gap = '5px';
+    slot.style.maxWidth = '100%';
 
     row.appendChild(label);
     row.appendChild(slot);
