@@ -1,6 +1,7 @@
 import { getRandomInt, shuffleArray } from '../utils/CommonUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { GamePhase } from '../core/GameManager.js';
+import { gameManager as sharedGameManager } from '../core/index.js';
 
 // What changed:
 // - Fixed dead choice buttons (ReferenceError: applyPlayerChoice was missing) causing clicks to do nothing.
@@ -479,6 +480,29 @@ function styleChoiceButton(btn) {
   btn.style.textShadow = '0 1px 2px rgba(255,255,255,0.5)';
 }
 
+function applyRelationshipDeltas(gameManager, checkpointReport, deltas) {
+  const gm = gameManager || sharedGameManager;
+  const relationshipSystem = gm?.systems?.relationshipSystem;
+  const applied = [];
+  (deltas || []).forEach(delta => {
+    if (!delta?.fromId || !delta?.toId || !delta?.delta) return;
+    if (relationshipSystem?.changeRelationship) {
+      relationshipSystem.changeRelationship(delta.fromId, delta.toId, delta.delta);
+    } else {
+      gm.campLog = gm.campLog || [];
+      gm.campLog.push({
+        type: 'relationship_delta',
+        day: gm.getCurrentDay?.() ?? gm.day ?? 1,
+        timestamp: Date.now(),
+        ...delta
+      });
+    }
+    applied.push({ ...delta });
+  });
+  checkpointReport.relationshipDeltasApplied = applied;
+  return applied;
+}
+
 function createAvatarBadge(survivor, gameManager) {
   const wrap = document.createElement('div');
   wrap.style.width = '24px';
@@ -800,6 +824,175 @@ export function canRunDay1FirstImpressions(gameManager) {
   }
 
   return { ok: true, reason: 'ready', details: { ...details, playerTribeId: playerTribe?.id } };
+}
+
+export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpointReport) {
+  const gm = gameManager || sharedGameManager;
+  if (!gm || !checkpointReport?.drama?.shouldTrigger) {
+    return Promise.resolve({ skipped: true, reason: 'no_drama' });
+  }
+
+  const tribe = gm.getPlayerTribe?.() || gm.playerTribe;
+  if (!tribe) return Promise.resolve({ skipped: true, reason: 'missing_tribe' });
+
+  gm.flags = gm.flags || {};
+  if (gm.flags.campEventActive) {
+    return Promise.resolve({ skipped: true, reason: 'camp_event_active' });
+  }
+
+  gm.flags.campEventActive = true;
+  eventManager.publish(GameEvents.CAMP_EVENT_STARTED, { eventId: 'day1_first_impressions_part2', id: 'day1_first_impressions_part2' });
+
+  const members = tribe.members || [];
+  const resolution = resolvePlayerIdentity(gm, tribe, members);
+  const playerId = resolution.playerId;
+
+  const candidate = checkpointReport.drama.candidates?.[0] || {};
+  const builder = members.find(m => m.id === candidate.builderId);
+  const blamed = members.find(m => m.id === candidate.blamedId);
+  const builderName = displayName(builder, members, playerId);
+  const blamedName = displayName(blamed, members, playerId);
+  const topic = candidate.topic || 'supplies';
+
+  const playerIsBuilder = playerId && String(candidate.builderId) === String(playerId);
+  const playerIsBlamed = playerId && String(candidate.blamedId) === String(playerId);
+
+  const beats = [
+    { speaker: 'Narrator', text: 'About an hour in, the camp tempo hits a snag.' },
+    {
+      speaker: 'Narrator',
+      text: `${builderName} calls out the missing ${topic}. ${blamedName === 'You' ? 'All eyes swing your way.' : `${blamedName} stiffens.`}`
+    }
+  ];
+
+  const overlayEls = buildOverlay();
+  const { overlay, templateImg, headerTileText, avatar, textArea, choices, nextBtn, contentArea } = overlayEls;
+
+  let awaitingChoice = false;
+  let choiceLocked = false;
+  let currentIndex = 0;
+  let choiceResult = null;
+
+  const applyChoice = choiceKey => {
+    const base = checkpointReport.relationshipDeltasProposed || [];
+    const modified = base.map(delta => {
+      let shift = 0;
+      if (playerIsBuilder && String(delta.fromId) === String(playerId)) {
+        if (choiceKey === 'callout') shift = -2;
+        if (choiceKey === 'keep_cool') shift = 2;
+        if (choiceKey === 'do_it') shift = 1;
+      }
+      if (playerIsBlamed && String(delta.toId) === String(playerId)) {
+        if (choiceKey === 'apologize') shift = 3;
+        if (choiceKey === 'deflect') shift = -2;
+        if (choiceKey === 'defensive') shift = -4;
+      }
+      return { ...delta, delta: delta.delta + shift };
+    });
+    checkpointReport.relationshipDeltasProposed = modified;
+    applyRelationshipDeltas(gm, checkpointReport, modified);
+  };
+
+  if (playerIsBuilder || playerIsBlamed) {
+    beats.push({
+      speaker: 'Narrator',
+      type: 'choice',
+      text: 'How do you handle it?',
+      renderChoices: () => {
+        choices.innerHTML = '';
+        const options = playerIsBuilder
+          ? [
+              { key: 'callout', label: 'Call them out' },
+              { key: 'keep_cool', label: 'Keep cool' },
+              { key: 'do_it', label: 'Do it yourself' }
+            ]
+          : [
+              { key: 'apologize', label: 'Apologize' },
+              { key: 'deflect', label: 'Deflect' },
+              { key: 'defensive', label: 'Get defensive' }
+            ];
+        options.forEach(option => {
+          const btn = document.createElement('button');
+          btn.textContent = option.label;
+          styleChoiceButton(btn);
+          btn.addEventListener('click', () => {
+            if (!awaitingChoice || choiceLocked) return;
+            choiceLocked = true;
+            choices.querySelectorAll('button').forEach(button => {
+              button.disabled = true;
+              button.style.opacity = '0.8';
+              button.style.pointerEvents = 'none';
+            });
+            choiceResult = option.key;
+            applyChoice(option.key);
+            awaitingChoice = false;
+            currentIndex += 1;
+            renderBeat();
+          });
+          choices.appendChild(btn);
+        });
+      }
+    });
+  }
+
+  beats.push({ speaker: 'Narrator', text: 'The work picks back up, but the mood has shifted.' });
+
+  const cleanup = () => {
+    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  };
+
+  const finish = () => {
+    gm.flags.campEventActive = false;
+    cleanup();
+    eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions_part2', id: 'day1_first_impressions_part2' });
+    gm.saveGame?.();
+  };
+
+  const renderBeat = () => {
+    const beat = beats[currentIndex];
+    if (!beat) return;
+    const speakerSurvivor = resolveSpeakerSurvivor(beat, members);
+    const isNarratorBeat = !speakerSurvivor && (beat.speaker === 'Narrator' || !beat.speakerId);
+    if (isNarratorBeat) {
+      setNarratorBeatUI({ templateImg, headerTileText, avatarEl: avatar });
+    } else {
+      const speakerColor = resolveTribeColor(speakerSurvivor, gm);
+      setSpeakerBeatUI({ templateImg, headerTileText, avatarEl: avatar, survivor: speakerSurvivor, tribeColor: speakerColor });
+    }
+    applyBeatModeStyles({ textArea, contentArea });
+    textArea.textContent = beat.text || '';
+    if (beat.type === 'choice') {
+      awaitingChoice = true;
+      choices.style.display = 'flex';
+      nextBtn.style.display = 'none';
+      beat.renderChoices?.();
+    } else {
+      awaitingChoice = false;
+      choices.style.display = 'none';
+      nextBtn.style.display = 'inline-block';
+      nextBtn.textContent = currentIndex === beats.length - 1 ? 'Continue' : 'Next';
+    }
+  };
+
+  nextBtn.addEventListener('click', () => {
+    if (awaitingChoice) return;
+    if (currentIndex >= beats.length - 1) {
+      if (!checkpointReport.relationshipDeltasApplied?.length && !choiceResult) {
+        applyRelationshipDeltas(gm, checkpointReport, checkpointReport.relationshipDeltasProposed);
+      }
+      finish();
+      return;
+    }
+    currentIndex += 1;
+    renderBeat();
+  });
+
+  renderBeat();
+  return Promise.resolve({ started: true });
+}
+
+export function runPart2FromCheckpointReport(report) {
+  return runDay1FirstImpressionsPart2FromCheckpoint(sharedGameManager, report);
 }
 
 // Ensures core coverage happens before mass floating.

@@ -148,6 +148,10 @@ export default function renderTreeMail(container) {
       // Add click handler
       buttonWrapper.addEventListener('click', () => {
         console.log('Tree Mail button clicked - loading summary view');
+        if (!gameManager.flags?.taskSimEndCompleted) {
+          gameManager.runTaskSimCheckpoint?.('end', { triggerDramaEvent: false });
+          gameManager.taskSystem?.ingestCampLogForTribe?.(gameManager, gameManager.getPlayerTribe?.());
+        }
         window.campScreen.loadView('summary');
       });
 
