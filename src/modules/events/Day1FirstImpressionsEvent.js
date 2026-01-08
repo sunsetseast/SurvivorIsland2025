@@ -828,8 +828,9 @@ export function canRunDay1FirstImpressions(gameManager) {
 
 export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpointReport) {
   const gm = gameManager || sharedGameManager;
-  if (!gm || !checkpointReport?.drama?.shouldTrigger) {
-    return Promise.resolve({ skipped: true, reason: 'no_drama' });
+  const intent = checkpointReport?.uiIntent;
+  if (!gm || !intent) {
+    return Promise.resolve({ skipped: true, reason: 'no_intent' });
   }
 
   const tribe = gm.getPlayerTribe?.() || gm.playerTribe;
@@ -848,22 +849,30 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
   const playerId = resolution.playerId;
 
   const candidate = checkpointReport.drama.candidates?.[0] || {};
-  const builder = members.find(m => m.id === candidate.builderId);
-  const blamed = members.find(m => m.id === candidate.blamedId);
+  const builder = members.find(m => m.id === (intent.builderId ?? candidate.builderId));
+  const blamed = members.find(m => m.id === (intent.blamedId ?? candidate.blamedId));
   const builderName = displayName(builder, members, playerId);
   const blamedName = displayName(blamed, members, playerId);
-  const topic = candidate.topic || 'supplies';
+  const topic = intent.topic || candidate.topic || 'supplies';
 
-  const playerIsBuilder = playerId && String(candidate.builderId) === String(playerId);
-  const playerIsBlamed = playerId && String(candidate.blamedId) === String(playerId);
+  const playerIsBuilder = playerId && String(intent.builderId ?? candidate.builderId) === String(playerId);
+  const playerIsBlamed = playerId && String(intent.blamedId ?? candidate.blamedId) === String(playerId);
 
-  const beats = [
-    { speaker: 'Narrator', text: 'About an hour in, the camp tempo hits a snag.' },
-    {
+  const beats = [];
+  if (intent.type === 'drama') {
+    beats.push(
+      { speaker: 'Narrator', text: 'About an hour in, the camp tempo hits a snag.' },
+      {
+        speaker: 'Narrator',
+        text: `${builderName} calls out the missing ${topic}. ${blamedName === 'You' ? 'All eyes swing your way.' : `${blamedName} stiffens.`}`
+      }
+    );
+  } else if (intent.type === 'builder_ready') {
+    beats.push({
       speaker: 'Narrator',
-      text: `${builderName} calls out the missing ${topic}. ${blamedName === 'You' ? 'All eyes swing your way.' : `${blamedName} stiffens.`}`
-    }
-  ];
+      text: `${builderName} has brought back enough materials to begin building.`
+    });
+  }
 
   const overlayEls = buildOverlay();
   const { overlay, templateImg, headerTileText, avatar, textArea, choices, nextBtn, contentArea } = overlayEls;
@@ -893,7 +902,7 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
     applyRelationshipDeltas(gm, checkpointReport, modified);
   };
 
-  if (playerIsBuilder || playerIsBlamed) {
+  if (intent.type === 'drama' && (playerIsBuilder || playerIsBlamed)) {
     beats.push({
       speaker: 'Narrator',
       type: 'choice',
@@ -935,7 +944,9 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
     });
   }
 
-  beats.push({ speaker: 'Narrator', text: 'The work picks back up, but the mood has shifted.' });
+  if (intent.type === 'drama') {
+    beats.push({ speaker: 'Narrator', text: 'The work picks back up, but the mood has shifted.' });
+  }
 
   const cleanup = () => {
     if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);

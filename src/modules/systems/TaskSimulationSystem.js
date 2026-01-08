@@ -14,6 +14,16 @@ const DEFAULT_DELTAS = {
   fish3: 0
 };
 
+const RESOURCE_DISPLAY_NAMES = {
+  bamboo: 'bamboo',
+  palms: 'palms',
+  firewood: 'firewood',
+  coconuts: 'coconuts',
+  fish1: 'small fish',
+  fish2: 'big fish',
+  fish3: 'rare fish'
+};
+
 export default class TaskSimulationSystem {
   constructor(gameManager) {
     this.gameManager = gameManager;
@@ -40,8 +50,13 @@ export default class TaskSimulationSystem {
 
     const report = this.buildCheckpointReportBase(checkpoint, tribe);
     this.simulateGatherPass(checkpoint, tribe, report);
-    this.simulateBuildPass(checkpoint, tribe, report);
-    this.evaluateDrama(report, tribe);
+    if (checkpoint === 'end') {
+      this.simulateBuildPass(checkpoint, tribe, report);
+      this.applyFloatAssistCredits(report, tribe);
+    } else {
+      this.populateMidpointSnapshots(tribe, report);
+      this.evaluateMidpointIntent(report, tribe);
+    }
     this.finalizeCheckpoint(report, tribe, { triggerDramaEvent });
 
     gm.flags[flagKey] = true;
@@ -78,6 +93,7 @@ export default class TaskSimulationSystem {
           attemptedBy: null,
           pivotedToGather: false,
           gatheredByBuilder: {},
+          missing: {},
           blamed: []
         },
         fire: {
@@ -87,19 +103,23 @@ export default class TaskSimulationSystem {
           attemptedBy: null,
           pivotedToGather: false,
           gatheredByBuilder: {},
+          missing: {},
           blamed: []
         }
       },
+      teamPlayerDeltas: [],
       relationshipDeltasProposed: [],
       relationshipDeltasApplied: [],
-      drama: { shouldTrigger: false, score: 0, reasons: [], candidates: [] }
+      drama: { shouldTrigger: false, score: 0, reasons: [], candidates: [] },
+      uiIntent: null,
+      floatCredits: []
     };
   }
 
   simulateGatherPass(checkpoint, tribe, report) {
     const gm = this.gameManager;
     const assignments = report.assignments || {};
-    const gatherRoles = Object.keys(assignments).filter(role => !['shelter', 'fire'].includes(role));
+    const gatherRoles = Object.keys(assignments).filter(role => ['food', 'materials', 'float'].includes(role));
 
     gatherRoles.forEach(role => {
       const ids = assignments[role] || [];
@@ -110,21 +130,13 @@ export default class TaskSimulationSystem {
 
         if (role === 'food') {
           const coconuts = this.rollAmount(0, 2, effort);
+          const palms = this.rollAmount(0, 1, effort);
           if (coconuts) this.addContribution(id, role, 'coconuts', coconuts, report, tribe);
-          const fishRoll = Math.random();
-          if (fishRoll < 0.08) {
-            this.addContribution(id, role, 'fish3', 1, report, tribe);
-          } else if (fishRoll < 0.2) {
-            this.addContribution(id, role, 'fish2', 1, report, tribe);
-          } else if (fishRoll < 0.45) {
-            this.addContribution(id, role, 'fish1', 1, report, tribe);
-          }
+          if (palms) this.addContribution(id, role, 'palms', palms, report, tribe);
         } else if (role === 'materials' || role === 'resources') {
           const bamboo = this.rollAmount(0, 3, effort);
-          const palms = this.rollAmount(0, 1, effort);
           const firewood = this.rollAmount(0, 4, effort);
           if (bamboo) this.addContribution(id, role, 'bamboo', bamboo, report, tribe);
-          if (palms) this.addContribution(id, role, 'palms', palms, report, tribe);
           if (firewood) this.addContribution(id, role, 'firewood', firewood, report, tribe);
         } else if (role === 'float') {
           const picks = ['bamboo', 'palms', 'firewood', 'coconuts'];
@@ -132,9 +144,6 @@ export default class TaskSimulationSystem {
           const max = chosen === 'firewood' ? 4 : chosen === 'bamboo' ? 3 : chosen === 'coconuts' ? 2 : 1;
           const amount = this.rollAmount(0, max, effort);
           if (amount) this.addContribution(id, role, chosen, amount, report, tribe);
-        } else if (role === 'water') {
-          const waterAmount = this.rollAmount(0, 2, effort);
-          if (waterAmount) this.addContribution(id, role, 'water', waterAmount, report, tribe);
         }
       });
     });
@@ -158,12 +167,24 @@ export default class TaskSimulationSystem {
       const isPlayerAssigned = playerId && assignedIds.some(id => String(id) === String(playerId));
       const playerDidBuild = this.didPlayerBuild(buildType, playerId);
 
-      if (checkpoint === 'mid' && isPlayerAssigned) {
-        return;
-      }
-
       let builderId = primaryBuilderId;
-      if (checkpoint === 'end' && isPlayerAssigned && !playerDidBuild) {
+      if (
+        checkpoint === 'end' &&
+        isPlayerAssigned &&
+        !playerDidBuild &&
+        String(primaryBuilderId) === String(playerId)
+      ) {
+        const missing = this.computeMissing(requirements, stockpile);
+        const missingTotal = Object.values(missing).reduce((sum, amount) => sum + amount, 0);
+        if (missingTotal > 0) {
+          buildData.missing = { ...missing };
+          const blamed = this.resolveBlame(buildType, missing, assignments, report);
+          buildData.blamed = blamed;
+          this.addBlameDeltas(report, builderId, blamed, missing, buildType);
+          console.log(`[TaskSim] ${buildType} build skipped by player, missing materials`);
+          return;
+        }
+
         builderId = this.selectStepUpBuilder(assignedIds, assignments, playerId) || primaryBuilderId;
         if (builderId && String(builderId) !== String(playerId)) {
           this.pushRelationshipDelta(
@@ -205,85 +226,98 @@ export default class TaskSimulationSystem {
           return;
         }
 
-        const blamed = this.resolveBlame(buildType, attempt.missing, assignments);
+        buildData.missing = { ...(retry.missing || attempt.missing) };
+        const blamed = this.resolveBlame(buildType, buildData.missing, assignments, report);
         buildData.blamed = blamed;
-        this.addBlameDeltas(report, builderId, blamed, attempt.missing, buildType);
+        this.addBlameDeltas(report, builderId, blamed, buildData.missing, buildType);
         console.log(`[TaskSim] ${buildType} build still blocked after pivot`);
       }
     };
 
-    runBuild('shelter', SHELTER_REQUIREMENTS);
     runBuild('fire', FIRE_REQUIREMENTS);
+    runBuild('shelter', SHELTER_REQUIREMENTS);
   }
 
-  evaluateDrama(report, tribe) {
+  populateMidpointSnapshots(tribe, report) {
+    const gm = this.gameManager;
+    const stockpile = gm.ensureStockpileExists?.(tribe) ?? tribe.stockpile ?? {};
+    Object.entries(report.builds).forEach(([buildType, buildData]) => {
+      buildData.hadBefore = this.pickRequirementSnapshot(stockpile, buildData.required || {});
+      buildData.attemptedBy = (report.assignments?.[buildType] || [])[0] ?? null;
+    });
+  }
+
+  evaluateMidpointIntent(report, tribe) {
     const gm = this.gameManager;
     const playerId = gm.getPlayerSurvivor?.()?.id;
-    let score = 0;
-    const reasons = [];
-    let candidateBuild = null;
-    let candidateMissing = null;
+    if (gm.day !== 1 || gm.gamePhase !== GamePhase.PRE_CHALLENGE) {
+      report.uiIntent = null;
+      report.drama.shouldTrigger = false;
+      return;
+    }
+    const stockpile = gm.ensureStockpileExists?.(tribe) ?? tribe.stockpile ?? {};
+    const assignments = report.assignments || {};
+    let dramaCandidate = null;
+    let builderReady = null;
 
     Object.entries(report.builds).forEach(([buildType, buildData]) => {
       const required = buildData.required || {};
-      const had = buildData.hadBefore || {};
-      const missing = this.computeMissing(required, had);
-      const missingTotal = Object.values(missing).reduce((sum, amt) => sum + amt, 0);
+      const missing = this.computeMissing(required, stockpile);
+      const missingEntries = Object.entries(missing || {});
+      if (!missingEntries.length) {
+        const assignedIds = assignments[buildType] || [];
+        if (playerId && assignedIds.some(id => String(id) === String(playerId)) && !builderReady) {
+          builderReady = {
+            type: 'builder_ready',
+            builderId: playerId,
+            buildType
+          };
+        }
+        return;
+      }
+
       const requiredTotal = Object.values(required).reduce((sum, amt) => sum + amt, 0) || 1;
+      const missingTotal = missingEntries.reduce((sum, [, amt]) => sum + amt, 0);
       const missingFraction = missingTotal / requiredTotal;
+      const [topic, missingAmount] = missingEntries.sort((a, b) => b[1] - a[1])[0] || ['bamboo', 0];
+      const blamedId = this.resolveBlame(buildType, { [topic]: missingAmount }, assignments, report)[0] || null;
 
-      if (!buildData.succeeded && missingTotal > 0) {
-        score += 50;
-        reasons.push(`${buildType}_blocked`);
-      }
-      if (buildData.pivotedToGather) {
-        score += 30;
-        reasons.push(`${buildType}_pivoted`);
-      }
-      if (playerId && (String(buildData.attemptedBy) === String(playerId) || buildData.blamed.some(id => String(id) === String(playerId)))) {
-        score += 40;
-        reasons.push('player_involved');
-      }
-      if (missingFraction > 0) {
-        score += missingFraction * 20;
-      }
-
-      if (!candidateBuild && missingTotal > 0) {
-        candidateBuild = buildType;
-        candidateMissing = missing;
+      if (missingFraction >= 0.3 && blamedId && buildData.attemptedBy && !dramaCandidate) {
+        dramaCandidate = {
+          type: 'drama',
+          builderId: buildData.attemptedBy,
+          blamedId,
+          topic,
+          missing: { ...missing },
+          required: { ...required },
+          buildType
+        };
       }
     });
 
-    const shouldTrigger =
-      report.checkpoint === 'mid' &&
-      gm.day === 1 &&
-      gm.gamePhase === GamePhase.PRE_CHALLENGE &&
-      score >= 60;
-
-    report.drama.score = Math.round(score);
-    report.drama.reasons = reasons;
-    report.drama.shouldTrigger = shouldTrigger;
-
-    if (shouldTrigger && candidateBuild) {
-      const build = report.builds[candidateBuild];
-      const missingEntries = Object.entries(candidateMissing || {});
-      const [topic, missingAmount] = missingEntries.sort((a, b) => b[1] - a[1])[0] || ['bamboo', 0];
+    report.drama.shouldTrigger = Boolean(dramaCandidate);
+    report.uiIntent = dramaCandidate || builderReady;
+    if (dramaCandidate) {
       report.drama.candidates.push({
         type: 'callout',
-        builderId: build.attemptedBy,
-        blamedId: build.blamed[0] || null,
-        topic,
-        intensity: clamp((missingAmount / (build.required?.[topic] || 1)) || 0.2, 0, 1),
+        builderId: dramaCandidate.builderId,
+        blamedId: dramaCandidate.blamedId,
+        topic: dramaCandidate.topic,
+        intensity: clamp(
+          (dramaCandidate.missing?.[dramaCandidate.topic] / (dramaCandidate.required?.[dramaCandidate.topic] || 1)) || 0,
+          0,
+          1
+        ),
         context: {
-          required: build.required?.[topic] || 0,
-          had: build.hadBefore?.[topic] || 0,
-          missing: missingAmount,
-          pivoted: build.pivotedToGather
+          required: dramaCandidate.required?.[dramaCandidate.topic] || 0,
+          had: report.builds?.[dramaCandidate.buildType]?.hadBefore?.[dramaCandidate.topic] || 0,
+          missing: dramaCandidate.missing?.[dramaCandidate.topic] || 0,
+          pivoted: false
         }
       });
     }
 
-    console.log(`[TaskSim] drama triggered? ${shouldTrigger ? 'yes' : 'no'} score=${Math.round(score)}`);
+    console.log(`[TaskSim] midpoint intent: ${report.uiIntent?.type || 'none'}`);
   }
 
   finalizeCheckpoint(report, tribe, { triggerDramaEvent = true } = {}) {
@@ -294,7 +328,10 @@ export default class TaskSimulationSystem {
     gm.campLog = gm.campLog || [];
     gm.campLog.push({ ...report, type: 'checkpoint_report', timestamp: Date.now() });
 
-    const shouldApply = report.checkpoint === 'end' || !report.drama?.shouldTrigger || !triggerDramaEvent;
+    const shouldApply =
+      report.checkpoint === 'end' ||
+      report.uiIntent?.type !== 'drama' ||
+      !triggerDramaEvent;
     if (shouldApply) {
       report.relationshipDeltasApplied = this.applyRelationshipDeltas(report.relationshipDeltasProposed);
     }
@@ -490,21 +527,24 @@ export default class TaskSimulationSystem {
     return clamp(base, 0, missingAmount);
   }
 
-  resolveBlame(buildType, missing, assignments) {
+  resolveBlame(buildType, missing, assignments, report) {
     if (!missing) return [];
-    const blamed = new Set();
-    if (buildType === 'shelter') {
-      (assignments.materials || []).forEach(id => blamed.add(id));
-    }
-    if (buildType === 'fire') {
-      const floatIds = assignments.float || [];
-      if (floatIds.length) {
-        floatIds.forEach(id => blamed.add(id));
-      } else {
-        (assignments.materials || []).forEach(id => blamed.add(id));
-      }
-    }
-    return Array.from(blamed);
+    const missingEntries = Object.entries(missing);
+    if (!missingEntries.length) return [];
+
+    const [resource] = missingEntries.sort((a, b) => b[1] - a[1])[0];
+    const roleKey = this.getResponsibleRole(resource);
+    if (!roleKey) return [];
+    const roleIds = assignments[roleKey] || [];
+    if (!roleIds.length) return [];
+
+    const scored = roleIds.map(id => ({
+      id,
+      amount: this.getContributionAmount(report, id, resource)
+    }));
+    scored.sort((a, b) => a.amount - b.amount);
+    const blamedId = scored[0]?.id;
+    return blamedId ? [blamedId] : [];
   }
 
   addBlameDeltas(report, builderId, blamedIds, missing, buildType) {
@@ -521,6 +561,97 @@ export default class TaskSimulationSystem {
         ['blame', buildType]
       );
     });
+  }
+
+  applyFloatAssistCredits(report, tribe) {
+    const gm = this.gameManager;
+    const assignments = report.assignments || {};
+    const floatIds = assignments.float || [];
+    if (!floatIds.length) return;
+
+    Object.entries(report.builds).forEach(([buildType, buildData]) => {
+      const missing = this.computeMissing(buildData.required || {}, buildData.hadBefore || {});
+      const missingEntries = Object.entries(missing || {});
+      if (!missingEntries.length) return;
+
+      const creditedFloats = new Set();
+      missingEntries.forEach(([resource, missingAmount]) => {
+        if (!missingAmount) return;
+        const roleKey = this.getResponsibleRole(resource);
+        if (!roleKey) return;
+        const responsibleIds = assignments[roleKey] || [];
+        if (!responsibleIds.length) return;
+
+        const floatContribution = floatIds.reduce((sum, id) => sum + this.getContributionAmount(report, id, resource), 0);
+        if (!floatContribution) return;
+
+        floatIds.forEach(floatId => {
+          if (creditedFloats.has(floatId)) return;
+          const contributorAmount = this.getContributionAmount(report, floatId, resource);
+          if (!contributorAmount) return;
+          creditedFloats.add(floatId);
+          const delta = clamp(getRandomInt(1, 3), 1, 3);
+          this.applyTeamPlayerDelta(report, tribe, floatId, delta, 'float_step_up');
+
+          if (buildData.attemptedBy) {
+            this.pushRelationshipDelta(
+              report,
+              buildData.attemptedBy,
+              floatId,
+              2,
+              `float_help_${buildType}`,
+              ['float_credit', buildType]
+            );
+          }
+
+          const floatSurvivor = this.getSurvivorById(tribe, floatId);
+          const floatName = floatSurvivor?.firstName || 'Float';
+          const resourceName = RESOURCE_DISPLAY_NAMES[resource] || resource;
+          report.floatCredits.push({
+            floatId,
+            buildType,
+            resource,
+            amount: contributorAmount,
+            teamPlayerDelta: delta,
+            text: `${floatName} stepped up when the assigned gatherer fell short on ${resourceName}.`
+          });
+
+          gm.campLog = gm.campLog || [];
+          gm.campLog.push({
+            type: 'float_step_up',
+            day: gm.getCurrentDay?.() ?? gm.day ?? 1,
+            floatId,
+            buildType,
+            resource,
+            amount: contributorAmount,
+            teamPlayerDelta: delta,
+            text: `${floatName} stepped up when the assigned gatherer fell short on ${resourceName}.`
+          });
+        });
+      });
+    });
+  }
+
+  applyTeamPlayerDelta(report, tribe, survivorId, delta, reason) {
+    if (!survivorId || !delta) return;
+    const survivor = this.getSurvivorById(tribe, survivorId);
+    if (!survivor) return;
+    const current = Number.isFinite(survivor.teamPlayer) ? survivor.teamPlayer : 50;
+    survivor.teamPlayer = clamp(current + delta, 0, 100);
+    report.teamPlayerDeltas.push({ survivorId, delta, reason });
+  }
+
+  getResponsibleRole(resource) {
+    if (['bamboo', 'firewood'].includes(resource)) return 'materials';
+    if (['palms', 'coconuts'].includes(resource)) return 'food';
+    return null;
+  }
+
+  getContributionAmount(report, survivorId, resource) {
+    if (!report?.contributions?.length) return 0;
+    return report.contributions
+      .filter(entry => String(entry.survivorId) === String(survivorId) && entry.resource === resource)
+      .reduce((sum, entry) => sum + (entry.amount || 0), 0);
   }
 
   pushRelationshipDelta(report, fromId, toId, delta, reason, tags = []) {
