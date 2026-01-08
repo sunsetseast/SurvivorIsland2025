@@ -575,6 +575,9 @@ export default class CampScreen {
     let lastShelterLevel = gameManager.getPlayerTribe()?.shelter || 0;
 
     timerManager.setInterval(CAMP_CLOCK_TIMER_ID, () => {
+      if (gameManager.flags?.campEventActive) {
+        return;
+      }
       gameManager.decreaseDayTimer();
       const currentTime = gameManager.getDayTimer();
       updateCampClockUI(currentTime, gameManager.getDay());
@@ -583,11 +586,10 @@ export default class CampScreen {
       if (
         gameManager.gamePhase !== GamePhase.POST_CHALLENGE &&
         currentTime <= 3600 &&
-        !gameManager.flags?.taskSimMidCompleted &&
-        !gameManager.flags?.campEventActive
+        !gameManager.flags?.taskSimMidCompleted
       ) {
         const report = gameManager.runTaskSimCheckpoint?.('mid', { triggerDramaEvent: true });
-        if (report?.drama?.shouldTrigger) {
+        if (report?.uiIntent) {
           runPart2FromCheckpointReport?.(report);
         }
       }

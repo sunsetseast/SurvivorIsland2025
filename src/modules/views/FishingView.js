@@ -591,11 +591,11 @@ export default function renderFishingView(container) {
     const src = currentFish.getAttribute('src');
     if (src.includes('fish2.png')) {
       fishType = 'fish2';
-      fishDescription = 'You caught 1 medium fish.';
+      fishDescription = 'You caught 1 big fish.';
     }
     if (src.includes('fish3.png')) {
       fishType = 'fish3';
-      fishDescription = 'You caught 1 large fish.';
+      fishDescription = 'You caught 1 rare fish.';
     }
 
     // 3) Update player inventory with specific fish type (always +1)

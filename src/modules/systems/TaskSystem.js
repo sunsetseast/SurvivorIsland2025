@@ -1,4 +1,4 @@
-import { clamp } from '../utils/CommonUtils.js';
+import { clamp, getRandomInt } from '../utils/CommonUtils.js';
 
 const ZERO = 0;
 
@@ -149,14 +149,6 @@ export default class TaskSystem {
           progress: { coconutsThisPhase: 0 },
           rewards: { teamPlayer: 2 },
           penalties: { teamPlayer: -2, suspicion: 1 }
-        },
-        long: {
-          title: 'Food: Catch a rare fish (long-term)',
-          description: 'Food: Catch a rare fish (long-term)',
-          target: { fish3Total: 1 },
-          progress: { fish3Total: 0 },
-          rewards: { teamPlayer: 4 },
-          penalties: {}
         }
       },
       resources: {
@@ -224,7 +216,7 @@ export default class TaskSystem {
         });
       }
 
-      if (!longExists) {
+      if (def.long && !longExists) {
         state.tasks.push({
           id: longId,
           title: def.long.title,
@@ -243,6 +235,123 @@ export default class TaskSystem {
         });
       }
     });
+
+    this.ensureOptionalFishingTasks(state, tribe);
+  }
+
+  ensureOptionalFishingTasks(state, tribe) {
+    if (!state || !tribe) return;
+    const baseId = 'fish_optional_base';
+    const baseExists = (state.tasks || []).some(task => task.id === baseId);
+    if (baseExists) return;
+
+    const assignees = (tribe.members || []).map(member => `${member.id}`);
+    state.tasks.push({
+      id: baseId,
+      title: 'Fishing: Catch 1 fish (any kind)',
+      description: 'Fishing: Catch 1 fish (any kind)',
+      type: 'fish_optional_base',
+      role: 'fishing',
+      assignees,
+      deadline: 'none',
+      phaseId: null,
+      status: 'active',
+      progress: { fishAnyTotal: 0 },
+      target: { fishAnyTotal: 1 },
+      rewards: { teamPlayer: 2 },
+      penalties: {},
+      meta: { optional: true, claimed: false, rewardApplied: false, followupUnlocked: false }
+    });
+  }
+
+  unlockFishingFollowupTask(tribe, baseTask) {
+    const state = this.ensureTribeTaskState(tribe);
+    if (!state || !baseTask || baseTask.meta?.followupUnlocked) return;
+
+    const options = [
+      {
+        id: 'fish_optional_followup_big_one',
+        title: 'Fishing: Catch 1 big fish (optional)',
+        description: 'Fishing: Catch 1 big fish (optional)',
+        progress: { fish2Total: 0 },
+        target: { fish2Total: 1 },
+        rewards: { teamPlayer: 3 }
+      },
+      {
+        id: 'fish_optional_followup_big_two',
+        title: 'Fishing: Catch 2 big fish (optional)',
+        description: 'Fishing: Catch 2 big fish (optional)',
+        progress: { fish2Total: 0 },
+        target: { fish2Total: 2 },
+        rewards: { teamPlayer: 4 }
+      },
+      {
+        id: 'fish_optional_followup_small_five',
+        title: 'Fishing: Catch 5 small fish (optional)',
+        description: 'Fishing: Catch 5 small fish (optional)',
+        progress: { fish1Total: 0 },
+        target: { fish1Total: 5 },
+        rewards: { teamPlayer: 3 }
+      },
+      {
+        id: 'fish_optional_followup_rare_one',
+        title: 'Fishing: Catch 1 rare fish (optional)',
+        description: 'Fishing: Catch 1 rare fish (optional)',
+        progress: { fish3Total: 0 },
+        target: { fish3Total: 1 },
+        rewards: { teamPlayer: 5, threat: 1 }
+      }
+    ];
+
+    const choice = options[getRandomInt(0, options.length - 1)];
+    const exists = (state.tasks || []).some(task => task.id === choice.id);
+    if (!exists) {
+      state.tasks.push({
+        id: choice.id,
+        title: choice.title,
+        description: choice.description,
+        type: choice.id,
+        role: 'fishing',
+        assignees: baseTask.assignees || [],
+        deadline: 'none',
+        phaseId: null,
+        status: 'active',
+        progress: { ...choice.progress },
+        target: { ...choice.target },
+        rewards: { ...choice.rewards },
+        penalties: {},
+        meta: { optional: true, claimed: false, rewardApplied: false }
+      });
+    }
+
+    baseTask.meta = baseTask.meta || {};
+    baseTask.meta.followupUnlocked = true;
+  }
+
+  updateOptionalFishProgress(task, fishType, fishCount) {
+    if (!task || !fishCount) return;
+    if (task.type === 'fish_optional_base') {
+      ensureProgressFields(task.progress, ['fishAnyTotal']);
+      task.progress.fishAnyTotal += fishCount;
+      return;
+    }
+
+    if (task.type === 'fish_optional_followup_big_one' || task.type === 'fish_optional_followup_big_two') {
+      ensureProgressFields(task.progress, ['fish2Total']);
+      if (fishType === 2) task.progress.fish2Total += fishCount;
+      return;
+    }
+
+    if (task.type === 'fish_optional_followup_small_five') {
+      ensureProgressFields(task.progress, ['fish1Total']);
+      if (fishType === 1) task.progress.fish1Total += fishCount;
+      return;
+    }
+
+    if (task.type === 'fish_optional_followup_rare_one') {
+      ensureProgressFields(task.progress, ['fish3Total']);
+      if (fishType === 3) task.progress.fish3Total += fishCount;
+    }
   }
 
   ingestCampLogForTribe(gameManager, tribe) {
@@ -340,12 +449,8 @@ export default class TaskSystem {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
         if (task.role === 'food') {
-          ensureProgressFields(task.progress, ['coconutsThisPhase', 'fish3Total', 'fishAnyThisPhase']);
+          ensureProgressFields(task.progress, ['coconutsThisPhase']);
           task.progress.coconutsThisPhase += coconutsFromEntry;
-          if (fishType === 3) {
-            task.progress.fish3Total += fishCount;
-          }
-          task.progress.fishAnyThisPhase += fishCount;
           this.updateTaskCompletion(task, tribe);
         }
         if (task.role === 'float') {
@@ -360,6 +465,10 @@ export default class TaskSystem {
           task.progress.fishAnyThisPhase += fishCount;
           task.progress.fishAnyTotal += fishCount;
           this.updateFloatCategories(task);
+          this.updateTaskCompletion(task, tribe);
+        }
+        if (task.type?.startsWith('fish_optional')) {
+          this.updateOptionalFishProgress(task, fishType, fishCount);
           this.updateTaskCompletion(task, tribe);
         }
       });
@@ -386,19 +495,15 @@ export default class TaskSystem {
     if (type === 'camp_fishing' || type === 'camp_fish') {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
-        if (task.role === 'food') {
-          ensureProgressFields(task.progress, ['fish3Total', 'fishAnyThisPhase']);
-          if (fishType === 3) {
-            task.progress.fish3Total += fishCount;
-          }
-          task.progress.fishAnyThisPhase += fishCount;
-          this.updateTaskCompletion(task, tribe);
-        }
         if (task.role === 'float') {
           ensureProgressFields(task.progress, ['fishAnyThisPhase', 'fishAnyTotal']);
           task.progress.fishAnyThisPhase += fishCount;
           task.progress.fishAnyTotal += fishCount;
           this.updateFloatCategories(task);
+          this.updateTaskCompletion(task, tribe);
+        }
+        if (task.type?.startsWith('fish_optional')) {
+          this.updateOptionalFishProgress(task, fishType, fishCount);
           this.updateTaskCompletion(task, tribe);
         }
       });
@@ -424,6 +529,9 @@ export default class TaskSystem {
       if (task.meta.claimed == null) task.meta.claimed = false;
       if (task.meta.rewardApplied == null) task.meta.rewardApplied = false;
       task.status = 'complete';
+      if (task.type === 'fish_optional_base') {
+        this.unlockFishingFollowupTask(tribe, task);
+      }
     }
   }
 
@@ -440,7 +548,15 @@ export default class TaskSystem {
         return (p.fireLevel || 0) >= 4;
       case 'food_short':
         return (p.coconutsThisPhase || 0) >= 3;
-      case 'food_long':
+      case 'fish_optional_base':
+        return (p.fishAnyTotal || 0) >= 1;
+      case 'fish_optional_followup_big_one':
+        return (p.fish2Total || 0) >= 1;
+      case 'fish_optional_followup_big_two':
+        return (p.fish2Total || 0) >= 2;
+      case 'fish_optional_followup_small_five':
+        return (p.fish1Total || 0) >= 5;
+      case 'fish_optional_followup_rare_one':
         return (p.fish3Total || 0) >= 1;
       case 'resources_short':
         return (p.bambooContributedThisPhase || 0) >= 5 && (p.palmsContributedThisPhase || 0) >= 1;
@@ -490,9 +606,10 @@ export default class TaskSystem {
     if (task.deadline === 'none' && task.meta?.rewardApplied) return;
 
     const teamPlayerDelta = task.rewards?.teamPlayer || 0;
-    if (teamPlayerDelta === 0) return;
+    const threatDelta = task.rewards?.threat || 0;
+    if (teamPlayerDelta === 0 && threatDelta === 0) return;
 
-    task.assignees.forEach(id => this.adjustSurvivorStats(tribe, id, { teamPlayer: teamPlayerDelta }));
+    task.assignees.forEach(id => this.adjustSurvivorStats(tribe, id, { teamPlayer: teamPlayerDelta, threat: threatDelta }));
 
     if (task.deadline === 'none') {
       task.meta = task.meta || {};
@@ -513,13 +630,15 @@ export default class TaskSystem {
     task.assignees.forEach(id => this.adjustSurvivorStats(tribe, id, { teamPlayer: teamPlayerDelta, suspicion: suspicionPenalty }));
   }
 
-  adjustSurvivorStats(tribe, survivorId, { teamPlayer = 0, suspicion = 0 } = {}) {
+  adjustSurvivorStats(tribe, survivorId, { teamPlayer = 0, suspicion = 0, threat = 0 } = {}) {
     const survivor = tribe?.members?.find?.(m => `${m.id}` === `${survivorId}`);
     if (!survivor) return;
     const existingTeam = survivor.teamPlayer != null ? survivor.teamPlayer : 50;
     const existingSuspicion = survivor.suspicion != null ? survivor.suspicion : 0;
+    const existingThreat = survivor.threat != null ? survivor.threat : 0;
     survivor.teamPlayer = clamp(existingTeam + teamPlayer, 0, 100);
     survivor.suspicion = clamp(existingSuspicion + suspicion, 0, 100);
+    survivor.threat = clamp(existingThreat + threat, 0, 10);
   }
 
   evaluatePhaseForTribe(gameManager, tribe, phaseId) {
@@ -654,8 +773,16 @@ export default class TaskSystem {
         return `${p.fireLevel || 0}/4`;
       case 'food_short':
         return `${p.coconutsThisPhase || 0}/3`;
-      case 'food_long':
-        return `${p.fish3Total || 0}/1`;
+      case 'fish_optional_base':
+        return `${p.fishAnyTotal || 0}/1`;
+      case 'fish_optional_followup_big_one':
+        return `${p.fish2Total || 0}/1 big fish`;
+      case 'fish_optional_followup_big_two':
+        return `${p.fish2Total || 0}/2 big fish`;
+      case 'fish_optional_followup_small_five':
+        return `${p.fish1Total || 0}/5 small fish`;
+      case 'fish_optional_followup_rare_one':
+        return `${p.fish3Total || 0}/1 rare fish`;
       case 'resources_short':
         return `${p.bambooContributedThisPhase || 0}/5 bamboo, ${p.palmsContributedThisPhase || 0}/1 palms`;
       case 'resources_long':

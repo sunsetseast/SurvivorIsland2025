@@ -5,8 +5,30 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
-import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
+
+const RESOURCE_LABELS = {
+  bamboo: 'bamboo',
+  palms: 'palm',
+  firewood: 'firewood',
+  coconuts: 'coconut',
+  fish1: 'small fish',
+  fish2: 'big fish',
+  fish3: 'rare fish'
+};
+
+function displayNameById(id, tribe, playerId) {
+  const survivor = tribe?.members?.find(member => member.id === id);
+  if (!survivor) return 'Someone';
+  return survivor.id === playerId ? 'You' : survivor.firstName || 'Someone';
+}
+
+function formatResourceLabel(resource, amount) {
+  const base = RESOURCE_LABELS[resource] || resource;
+  if (amount === 1) return base;
+  if (base.endsWith('s')) return base;
+  return `${base}s`;
+}
 
 function dedupeCampEntries(entries = []) {
   const seen = new Set();
@@ -102,6 +124,101 @@ function renderCampLogSection(campLog) {
   });
 
   return wrapper;
+}
+
+function renderCheckpointReportSection(report, tribe) {
+  if (!report || !tribe) return null;
+  const playerId = gameManager.getPlayerSurvivor?.()?.id;
+
+  const section = createElement('div', {
+    style: `
+      background: #fff8e1;
+      border: 2px solid #d2b48c;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    `
+  });
+
+  section.appendChild(createElement('div', {
+    style: { fontWeight: 'bold', color: '#3c2415', fontSize: '1.2rem', marginBottom: '8px' }
+  }, 'Day 1 Task Report'));
+
+  const contributionsBySurvivor = new Map();
+  (report.contributions || []).forEach(entry => {
+    if (!entry?.survivorId || !entry?.resource || !entry?.amount) return;
+    const existing = contributionsBySurvivor.get(entry.survivorId) || {};
+    existing[entry.resource] = (existing[entry.resource] || 0) + entry.amount;
+    contributionsBySurvivor.set(entry.survivorId, existing);
+  });
+
+  if (contributionsBySurvivor.size) {
+    section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, 'Resource contributions'));
+    const list = createElement('ul', { style: { margin: '6px 0 12px 18px', color: '#2b190a' } });
+    contributionsBySurvivor.forEach((resources, survivorId) => {
+      const pieces = Object.entries(resources).map(([resource, amount]) => `${amount} ${formatResourceLabel(resource, amount)}`);
+      const name = displayNameById(survivorId, tribe, playerId);
+      list.appendChild(createElement('li', {}, `${name}: ${pieces.join(', ')}`));
+    });
+    section.appendChild(list);
+  }
+
+  const buildOrder = ['fire', 'shelter'];
+  const buildLines = buildOrder.map(buildType => {
+    const build = report.builds?.[buildType];
+    if (!build) return null;
+    const name = displayNameById(build.attemptedBy, tribe, playerId);
+    if (build.succeeded) {
+      return `${buildType === 'fire' ? 'Fire' : 'Shelter'} built by ${name}.`;
+    }
+    const missing = build.missing || {};
+    const missingParts = Object.entries(missing).map(([resource, amount]) => `${amount} ${formatResourceLabel(resource, amount)}`);
+    const missingText = missingParts.length ? `Missing ${missingParts.join(', ')}.` : 'Missing materials.';
+    const blamedId = build.blamed?.[0];
+    const blamedName = blamedId ? displayNameById(blamedId, tribe, playerId) : null;
+    const blameText = blamedName ? ` Blame fell on ${blamedName}.` : '';
+    return `${buildType === 'fire' ? 'Fire' : 'Shelter'} blocked. ${missingText}${blameText}`;
+  }).filter(Boolean);
+
+  if (buildLines.length) {
+    section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, 'Build outcomes'));
+    const list = createElement('ul', { style: { margin: '6px 0 12px 18px', color: '#2b190a' } });
+    buildLines.forEach(line => list.appendChild(createElement('li', {}, line)));
+    section.appendChild(list);
+  }
+
+  if (report.floatCredits?.length) {
+    section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, 'Float stepped up'));
+    const list = createElement('ul', { style: { margin: '6px 0 12px 18px', color: '#2b190a' } });
+    report.floatCredits.forEach(credit => {
+      list.appendChild(createElement('li', {}, credit.text || 'A floater stepped up.'));
+    });
+    section.appendChild(list);
+  }
+
+  if (report.teamPlayerDeltas?.length) {
+    section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, 'Team player changes'));
+    const list = createElement('ul', { style: { margin: '6px 0 12px 18px', color: '#2b190a' } });
+    report.teamPlayerDeltas.forEach(delta => {
+      const name = displayNameById(delta.survivorId, tribe, playerId);
+      list.appendChild(createElement('li', {}, `${name} teamPlayer ${delta.delta >= 0 ? '+' : ''}${delta.delta}.`));
+    });
+    section.appendChild(list);
+  }
+
+  if (report.relationshipDeltasApplied?.length) {
+    section.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, 'Relationship shifts'));
+    const list = createElement('ul', { style: { margin: '6px 0 12px 18px', color: '#2b190a' } });
+    report.relationshipDeltasApplied.forEach(delta => {
+      const fromName = displayNameById(delta.fromId, tribe, playerId);
+      const toName = displayNameById(delta.toId, tribe, playerId);
+      list.appendChild(createElement('li', {}, `${fromName} ➜ ${toName}: ${delta.delta >= 0 ? '+' : ''}${delta.delta}.`));
+    });
+    section.appendChild(list);
+  }
+
+  return section;
 }
 
 function renderShelterEntry(entry, tribe) {
@@ -517,7 +634,14 @@ export default function renderSummary(container) {
   if (campLog.length > 0) {
     const firstImpressionsSection = renderDay1FirstImpressionsSection(playerTribe);
     if (firstImpressionsSection) summaryContent.appendChild(firstImpressionsSection);
-    summaryContent.appendChild(renderCampLogSection(campLog));
+    if (summaryData.checkpointReport) {
+      const reportSection = renderCheckpointReportSection(summaryData.checkpointReport, playerTribe);
+      if (reportSection) summaryContent.appendChild(reportSection);
+    }
+    const filteredLog = campLog.filter(entry => entry.type !== 'checkpoint_report');
+    if (filteredLog.length) {
+      summaryContent.appendChild(renderCampLogSection(filteredLog));
+    }
   } else {
     summaryText = generateSummaryText(summaryData);
     const textElement = createElement('div', {
@@ -635,7 +759,6 @@ export default function renderSummary(container) {
 function generateSummaryData() {
   const playerTribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
-  const tribeMembers = playerTribe.members.filter(m => !m.isPlayer);
   const hasDay1Cinematic = (gameManager.campLog || []).some(entry => entry.id === 'day1_first_impressions');
 
   // Get tracked activities for the current day
@@ -652,7 +775,8 @@ function generateSummaryData() {
     playerResourceStats: activityTracker.getResourceStats(),
     playerFishingStats: activityTracker.getFishingStats(),
     currentFire: playerTribe.fire || 0,
-    currentShelter: playerTribe.shelter || 0
+    currentShelter: playerTribe.shelter || 0,
+    player
   };
 
   const phaseId = gameManager.taskSystem?.getCurrentPhaseId?.(gameManager) ?? gameManager.getCurrentCampPhaseId?.();
@@ -667,157 +791,6 @@ function generateSummaryData() {
     return data;
   }
 
-  // Determine leadership based on gameplay styles and traits
-  const leadershipCandidates = tribeMembers.filter(m => 
-    m.gameplayStyle === 'Power Player' || 
-    m.gameplayStyle === 'Social Genius' || 
-    m.traitClass === 'Mental'
-  );
-
-  if (leadershipCandidates.length > 0) {
-    const leader = leadershipCandidates[getRandomInt(0, leadershipCandidates.length - 1)];
-    data.leadership.push(leader);
-  }
-
-  // Determine fire attempts - check ActivityTracker for actual fire building
-  const fireBuilders = [];
-  const playerFireActivities = dayActivities.filter(a => a.type === 'fire_building');
-
-  if (playerFireActivities.length > 0) {
-    const lastFireAttempt = playerFireActivities[playerFireActivities.length - 1];
-    fireBuilders.push({ survivor: player, success: lastFireAttempt.success || data.currentFire > 0 });
-  } else {
-    const physicalSurvivors = tribeMembers.filter(m => m.traitClass === 'Physical');
-    if (physicalSurvivors.length > 0) {
-      const fireBuilder = physicalSurvivors[getRandomInt(0, physicalSurvivors.length - 1)];
-      const success = Math.random() < 0.6; // 60% success rate
-      fireBuilders.push({ survivor: fireBuilder, success });
-      if (success && data.currentFire === 0) {
-        data.currentFire = 1;
-      }
-    }
-  }
-  data.fireAttempts = fireBuilders;
-
-  // Determine shelter builders - check ActivityTracker for actual shelter building
-  const playerShelterActivities = dayActivities.filter(a => a.type === 'shelter_building');
-
-  if (playerShelterActivities.length > 0) {
-    // Player built shelter, use the actual co-builder from the activity
-    const shelterActivity = playerShelterActivities[0];
-    const coBuilderName = shelterActivity.coBuilder;
-    const coBuilder = tribeMembers.find(m => m.firstName === coBuilderName);
-
-    if (coBuilder) {
-      data.shelterBuilders = [player, coBuilder];
-    } else {
-      // Fallback if co-builder not found
-      const fallbackCoBuilder = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
-      data.shelterBuilders = [player, fallbackCoBuilder];
-    }
-  } else {
-    // Pick 2 NPCs to build shelter
-    const shuffled = [...tribeMembers].sort(() => Math.random() - 0.5);
-    data.shelterBuilders = shuffled.slice(0, 2);
-  }
-
-  // Set shelter level if builders were chosen
-  if (data.shelterBuilders.length === 2 && data.currentShelter === 0) {
-    data.currentShelter = 1;
-  }
-
-  // Generate resource gathering for each survivor
-  tribeMembers.forEach(survivor => {
-    const resourceCount = getRandomInt(0, 3);
-    const resources = ['fish', 'coconuts', 'palms', 'bamboo', 'firewood'];
-    const gathered = [];
-
-    for (let i = 0; i < resourceCount; i++) {
-      const resource = resources[getRandomInt(0, resources.length - 1)];
-      if (!gathered.includes(resource)) {
-        gathered.push(resource);
-      }
-    }
-
-    data.resourceGathering[survivor.id] = gathered;
-  });
-
-  // Ensure shelter builders have palms and bamboo
-  data.shelterBuilders.forEach(builder => {
-    if (!builder.isPlayer) {
-      if (!data.resourceGathering[builder.id].includes('palms')) {
-        data.resourceGathering[builder.id].push('palms');
-      }
-      if (!data.resourceGathering[builder.id].includes('bamboo')) {
-        data.resourceGathering[builder.id].push('bamboo');
-      }
-    }
-  });
-
-  // Ensure fire builders have firewood
-  data.fireAttempts.forEach(attempt => {
-    if (!attempt.survivor.isPlayer) {
-      if (!data.resourceGathering[attempt.survivor.id].includes('firewood')) {
-        data.resourceGathering[attempt.survivor.id].push('firewood');
-      }
-    }
-  });
-
-  // Generate relationship changes - ensure player is involved in some interactions
-  const relationshipSystem = gameManager.systems.relationshipSystem;
-  if (relationshipSystem) {
-    // 70% chance player is involved in a bonding event
-    if (Math.random() < 0.7 && tribeMembers.length > 0) {
-      const bondingPartner = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
-      data.relationships.push({
-        survivors: [player, bondingPartner],
-        type: 'bonding',
-        change: getRandomInt(5, 12)
-      });
-    }
-
-    // Create some NPC bonding pairs
-    for (let i = 0; i < 1; i++) {
-      if (tribeMembers.length >= 2) {
-        const pair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
-        if (Math.random() < 0.6) {
-          data.relationships.push({
-            survivors: pair,
-            type: 'bonding',
-            change: getRandomInt(5, 12)
-          });
-        }
-      }
-    }
-
-    // 30% chance of conflict involving player or NPCs
-    if (Math.random() < 0.3) {
-      let conflictPair;
-      if (Math.random() < 0.5 && tribeMembers.length > 0) {
-        // Player involved in conflict
-        const conflictPartner = tribeMembers[getRandomInt(0, tribeMembers.length - 1)];
-        conflictPair = [player, conflictPartner];
-      } else if (tribeMembers.length >= 2) {
-        // NPC conflict
-        conflictPair = [...tribeMembers].sort(() => Math.random() - 0.5).slice(0, 2);
-      }
-
-      if (conflictPair) {
-        data.relationships.push({
-          survivors: conflictPair,
-          type: 'conflict',
-          change: -getRandomInt(3, 8)
-        });
-      }
-    }
-  }
-
-   // Store shelter activity data
-   const shelterActivities = dayActivities.filter(a => a.type === 'shelter_building');
-   if (shelterActivities.length > 0) {
-       data.shelterActivity = shelterActivities[0]; // Use the first shelter activity found
-   }
-
   return data;
 }
 
@@ -829,8 +802,7 @@ function generateSummaryText(data) {
   // Leadership
   if (data.leadership.length > 0) {
     const leader = data.leadership[0];
-    const threatIncrease = getRandomInt(2, 4);
-    text += `<p><strong>Leadership:</strong> ${leader.firstName} ${leader.lastName} stepped up as a natural leader, organizing the tribe's initial efforts. Their authoritative presence has increased their threat level. <em>(Threat +${threatIncrease})</em></p>`;
+    text += `<p><strong>Leadership:</strong> ${leader.firstName} ${leader.lastName} stepped up as a natural leader, organizing the tribe's initial efforts. Their authoritative presence has increased their threat level.</p>`;
   }
 
   // Fire attempts
@@ -1008,75 +980,13 @@ function generateSummaryText(data) {
 
 function applySummaryChanges(data) {
   const playerTribe = gameManager.getPlayerTribe();
-  const relationshipSystem = gameManager.systems.relationshipSystem;
 
   if (data.checkpointReport) {
     return;
   }
 
   if (data.day1Plan) {
-    playerTribe.fire = playerTribe.fire || 0;
-    playerTribe.shelter = playerTribe.shelter || 0;
     return;
   }
-
-  // Update tribe fire and shelter levels
-  playerTribe.fire = data.currentFire;
-  playerTribe.shelter = data.currentShelter;
-
-  // Update threat levels for leaders
-  data.leadership.forEach(leader => {
-    leader.threat = Math.min(10, leader.threat + getRandomInt(2, 4));
-  });
-
-  // Update teamPlayer values for those who didn't gather resources
-  const teamPlayerChanges = {};
-  Object.keys(data.resourceGathering).forEach(survivorId => {
-    const survivor = playerTribe.members.find(m => m.id == survivorId);
-    if (survivor && data.resourceGathering[survivorId].length === 0) {
-      const penalty = getRandomInt(3, 8);
-      survivor.teamPlayer = Math.max(0, survivor.teamPlayer - penalty);
-      teamPlayerChanges[survivorId] = -penalty;
-    }
-  });
-
-  // Store team player changes for display
-  data.teamPlayerChanges = teamPlayerChanges;
-
-  // Apply relationship changes
-  if (relationshipSystem) {
-    data.relationships.forEach(rel => {
-      const survivor1 = rel.survivors[0];
-      const survivor2 = rel.survivors[1];
-      relationshipSystem.changeRelationship(survivor1.id, survivor2.id, rel.change);
-    });
-  }
-
-  const currentTribe = gameManager.getPlayerTribe();
-  // Apply resource gathering
-      Object.keys(data.resourceGathering).forEach(survivorId => {
-        const survivor = currentTribe.members.find(m => m.id == survivorId);
-        if (survivor) {
-          data.resourceGathering[survivorId].forEach(resource => {
-            if (resource === 'fish1' || resource === 'fish2' || resource === 'fish3') {
-              // Fish types always add 1
-              if (survivor[resource] !== undefined) {
-                survivor[resource] += 1;
-              } else {
-                survivor[resource] = 1;
-              }
-              // Update total fish count
-              gameManager.updateSurvivorTotalFish(survivor);
-            } else {
-              // Other resources add random amount
-              const amount = getRandomInt(1, 3);
-              if (survivor[resource] !== undefined) {
-                survivor[resource] += amount;
-              }
-            }
-          });
-        }
-      });
-
-  console.log('Summary changes applied to game state');
+  return;
 }
