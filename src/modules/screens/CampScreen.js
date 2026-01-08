@@ -26,7 +26,7 @@ import renderPostChallengeSummaryView from '../views/PostChallengeSummaryView.js
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
-import { runDay1FirstImpressions, canRunDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
+import { runDay1FirstImpressions, canRunDay1FirstImpressions, runPart2FromCheckpointReport } from '../events/Day1FirstImpressionsEvent.js';
 
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
 const TASK_ICON_HIDDEN_VIEWS = new Set();
@@ -579,6 +579,18 @@ export default class CampScreen {
       const currentTime = gameManager.getDayTimer();
       updateCampClockUI(currentTime, gameManager.getDay());
       this.refreshTaskIconState();
+
+      if (
+        gameManager.gamePhase !== GamePhase.POST_CHALLENGE &&
+        currentTime <= 3600 &&
+        !gameManager.flags?.taskSimMidCompleted &&
+        !gameManager.flags?.campEventActive
+      ) {
+        const report = gameManager.runTaskSimCheckpoint?.('mid', { triggerDramaEvent: true });
+        if (report?.drama?.shouldTrigger) {
+          runPart2FromCheckpointReport?.(report);
+        }
+      }
 
       // Check if time has run out
       if (currentTime <= 0) {

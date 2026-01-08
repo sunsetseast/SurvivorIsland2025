@@ -655,6 +655,13 @@ function generateSummaryData() {
     currentShelter: playerTribe.shelter || 0
   };
 
+  const phaseId = gameManager.taskSystem?.getCurrentPhaseId?.(gameManager) ?? gameManager.getCurrentCampPhaseId?.();
+  const checkpointReport = (gameManager.campLog || []).find(entry => entry.type === 'checkpoint_report' && entry.day === currentDay && entry.phaseId === phaseId);
+  if (checkpointReport) {
+    data.checkpointReport = checkpointReport;
+    return data;
+  }
+
   if ((playerTribe.day1PlanCreated && playerTribe.day1Plan) || hasDay1Cinematic) {
     data.day1Plan = playerTribe.day1Plan;
     return data;
@@ -1002,6 +1009,10 @@ function generateSummaryText(data) {
 function applySummaryChanges(data) {
   const playerTribe = gameManager.getPlayerTribe();
   const relationshipSystem = gameManager.systems.relationshipSystem;
+
+  if (data.checkpointReport) {
+    return;
+  }
 
   if (data.day1Plan) {
     playerTribe.fire = playerTribe.fire || 0;

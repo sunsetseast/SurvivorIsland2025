@@ -16,6 +16,7 @@ import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 import TaskSystem from '../systems/TaskSystem.js';
+import TaskSimulationSystem from '../systems/TaskSimulationSystem.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
 import { npcLocationSystem, ConversationSystem } from '../systems/index.js';
@@ -82,6 +83,7 @@ class GameManager {
     this.dayTimer = 7200;     // 2 hours in seconds
     this.timeSpeed = 8;       // countdown rate per tick
     this.taskSystem = new TaskSystem(this);
+    this.systems.taskSimulationSystem = new TaskSimulationSystem(this);
   }
 
   initialize() {
@@ -594,6 +596,10 @@ class GameManager {
 
   getCurrentDay() {
     return this.day;
+  }
+
+  runTaskSimCheckpoint(checkpoint, opts) {
+    return this.systems?.taskSimulationSystem?.runCheckpoint?.(checkpoint, opts);
   }
 
   saveGame() {
