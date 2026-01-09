@@ -159,8 +159,8 @@ function buildCapabilities(survivor) {
     leadership: leadership + confidence * 0.35 + social * 0.3,
     fire: survival * 1.3 + confidence * 0.6 + leadership * 0.2,
     shelter: strength * 1.05 + practicality * 0.6 + leadership * 0.25,
-    food: survival * 1.15 + strength * 0.35 + confidence * 0.25,
-    materials: strength * 0.95 + practicality * 0.45 + social * 0.1,
+    resources: survival * 1.15 + strength * 0.35 + confidence * 0.25,
+    wood: strength * 0.95 + practicality * 0.45 + social * 0.1,
     workEthic: clamp(100 - laziness + confidence * 0.25, 0, 100),
     social,
     stubbornness: getTraitValue(survivor, ['aggression', 'risk', 'pride', 'fortitude'], 45)
@@ -592,13 +592,13 @@ function renderRoleAssignments(roleSlots, revealedTasks, members, gameManager) {
 }
 
 function taskDefinitions(tribeSize = 6) {
-  const materialsCap = tribeSize === 9 ? 3 : 2;
-  const foodCap = tribeSize === 9 ? 2 : 1;
+  const woodCap = tribeSize === 9 ? 3 : 2;
+  const resourcesCap = tribeSize === 9 ? 2 : 1;
   return [
-    { key: 'fire', label: 'Fire', cap: 1, assignedIds: [] },
-    { key: 'shelter', label: 'Shelter', cap: 2, assignedIds: [] },
-    { key: 'materials', label: 'Materials', cap: materialsCap, assignedIds: [] },
-    { key: 'food', label: 'Food', cap: foodCap, assignedIds: [] },
+    { key: 'fire', label: 'Fire Builder', cap: 1, assignedIds: [] },
+    { key: 'shelter', label: 'Shelter Builder', cap: 2, assignedIds: [] },
+    { key: 'wood', label: 'Wood Gatherer', cap: woodCap, assignedIds: [] },
+    { key: 'resources', label: 'Resource Gatherer', cap: resourcesCap, assignedIds: [] },
     { key: 'float', label: 'Float', cap: tribeSize, assignedIds: [] }
   ];
 }
@@ -654,11 +654,12 @@ function resolveLeadershipScenario(members, player) {
 }
 
 function minCoverageState(tasks) {
+  const playerChoiceLabel = playerChoiceKey ? (getTask(tasks, playerChoiceKey)?.label || playerChoiceKey) : '';
   return {
     fire: getTask(tasks, 'fire').assignedIds.length >= 1,
     shelter: getTask(tasks, 'shelter').assignedIds.length >= 2,
-    materials: getTask(tasks, 'materials').assignedIds.length >= 1,
-    food: getTask(tasks, 'food').assignedIds.length >= 1
+    wood: getTask(tasks, 'wood').assignedIds.length >= 1,
+    resources: getTask(tasks, 'resources').assignedIds.length >= 1
   };
 }
 
@@ -676,14 +677,12 @@ function playerIntentFromChoice(choiceKey) {
       return { key: choiceKey, posture: 'claim', preferredRole: 'fire', assertiveness: 80 };
     case 'shelter':
       return { key: choiceKey, posture: 'claim', preferredRole: 'shelter', assertiveness: 75 };
-    case 'materials':
-      return { key: choiceKey, posture: 'support/materials', preferredRole: 'materials', assertiveness: 60 };
-    case 'food':
-      return { key: choiceKey, posture: 'support/food', preferredRole: 'food', assertiveness: 60 };
+    case 'wood':
+      return { key: choiceKey, posture: 'support/wood', preferredRole: 'wood', assertiveness: 60 };
+    case 'resources':
+      return { key: choiceKey, posture: 'support/resources', preferredRole: 'resources', assertiveness: 60 };
     case 'float':
       return { key: choiceKey, posture: 'float/flex', preferredRole: 'float', assertiveness: 20 };
-    case 'flex':
-      return { key: choiceKey, posture: 'float/flex', preferredRole: null, assertiveness: 25 };
     default:
       return { key: choiceKey, posture: 'float/flex', preferredRole: null, assertiveness: 25 };
   }
@@ -692,12 +691,20 @@ function playerIntentFromChoice(choiceKey) {
 function groupBeatsByRole(assignments, members, playerId, describeLine, usedLines) {
   // Groups large clusters into combined narration and spotlights.
   const beats = [];
+  const roleLabels = {
+    fire: 'the fire build',
+    shelter: 'the shelter build',
+    wood: 'wood gathering',
+    resources: 'resource gathering',
+    float: 'a flexible stance'
+  };
   const withReveal = (beat, roleKey, ids = []) => ({ ...beat, reveal: { roleKey, ids } });
   assignments.forEach(({ role, survivors }) => {
     const roleIds = survivors.map(s => s.id).filter(Boolean);
     if (survivors.length >= 3) {
       const names = formatIdsAsNameList(roleIds, members, playerId);
-      beats.push(withReveal({ speaker: 'Narrator', text: `${names} all keep to ${role === 'float' ? 'a flexible stance' : role}. They cluster together before splitting up.` }, role, roleIds));
+      const roleText = roleLabels[role] || role;
+      beats.push(withReveal({ speaker: 'Narrator', text: `${names} all keep to ${roleText}. They cluster together before splitting up.` }, role, roleIds));
       shuffleArray(survivors).slice(0, 2).forEach(survivor => {
         beats.push(withReveal({ speaker: displayName(survivor, members, playerId), speakerId: survivor.id, speakerRef: survivor, text: describeLine(survivor, role, usedLines, members, playerId) }, role, [survivor.id]));
       });
@@ -735,14 +742,14 @@ function describeAssignmentLine(survivor, taskKey, usedLines, members, playerId)
     withQuote('You slot in beside the builder.', `${name} slots in beside the builder.`, 'I’ll keep this side tight.')
   ];
 
-  const foodPool = [
-    withQuote('You shoulder a woven bag.', `${name} shoulders a woven bag.`, 'I’ll forage and fish. Back soon.'),
-    withQuote('You scan the tide line.', `${name} scans the tide line.`, 'Let me hunt for crabs and coconuts.')
+  const resourcesPool = [
+    withQuote('You shoulder a woven bag.', `${name} shoulders a woven bag.`, 'I’ll get palms and coconuts. Back soon.'),
+    withQuote('You scan the tide line.', `${name} scans the tide line.`, 'I’m on palms and coconuts. Don’t wait up.')
   ];
 
-  const materialsPool = [
-    withQuote('You eye the tree line like a supply map.', `${name} eyes the tree line like a supply map.`, 'I’ll keep bamboo and wood flowing.'),
-    withQuote('You loosen your shoulders, ready to haul.', `${name} loosens their shoulders, ready to haul.`, 'Less talk, more wood. I’m on materials.')
+  const woodPool = [
+    withQuote('You eye the tree line like a supply map.', `${name} eyes the tree line like a supply map.`, 'I’ll keep bamboo and firewood flowing.'),
+    withQuote('You loosen your shoulders, ready to haul.', `${name} loosens their shoulders, ready to haul.`, 'Less talk, more wood. I’ve got it.')
   ];
 
   const floatPool = [
@@ -757,10 +764,10 @@ function describeAssignmentLine(survivor, taskKey, usedLines, members, playerId)
       return pick(firePool);
     case 'shelter':
       return bossy || proud ? pick(shelterLeadPool) : pick(shelterHelperPool);
-    case 'food':
-      return pick(foodPool);
-    case 'materials':
-      return pick(materialsPool);
+    case 'resources':
+      return pick(resourcesPool);
+    case 'wood':
+      return pick(woodPool);
     default:
       return strategicFloater ? withQuote('You hover near conversations.', `${name} hovers near conversations.`, 'Floating keeps me informed.') : pick(floatPool);
   }
@@ -853,7 +860,22 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
   const blamed = members.find(m => m.id === (intent.blamedId ?? candidate.blamedId));
   const builderName = displayName(builder, members, playerId);
   const blamedName = displayName(blamed, members, playerId);
-  const topic = intent.topic || candidate.topic || 'supplies';
+  const missing = intent.missing || candidate.missing || {};
+  const resourceNames = {
+    bamboo: 'bamboo',
+    firewood: 'firewood',
+    palms: 'palms',
+    coconuts: 'coconuts'
+  };
+  const missingResources = Object.keys(missing).filter(key => missing[key] > 0);
+  const formatResourceList = resources => {
+    if (!resources.length) return 'supplies';
+    if (resources.length === 1) return resourceNames[resources[0]] || resources[0];
+    if (resources.length === 2) return `${resourceNames[resources[0]] || resources[0]} and ${resourceNames[resources[1]] || resources[1]}`;
+    const names = resources.map(resource => resourceNames[resource] || resource);
+    return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+  };
+  const missingSummary = formatResourceList(missingResources);
 
   const playerIsBuilder = playerId && String(intent.builderId ?? candidate.builderId) === String(playerId);
   const playerIsBlamed = playerId && String(intent.blamedId ?? candidate.blamedId) === String(playerId);
@@ -863,14 +885,24 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
     beats.push(
       { speaker: 'Narrator', text: 'About an hour in, the camp tempo hits a snag.' },
       {
+        speaker: builderName,
+        speakerId: builder?.id,
+        speakerRef: builder,
+        text: formatNarrationQuote(
+          `${builderName} squares up, eyes on ${blamedName}.`,
+          `${blamedName}, we needed ${missingSummary}. You were on it.`
+        )
+      },
+      {
         speaker: 'Narrator',
-        text: `${builderName} calls out the missing ${topic}. ${blamedName === 'You' ? 'All eyes swing your way.' : `${blamedName} stiffens.`}`
+        text: `${blamedName === 'You' ? 'All eyes swing your way.' : `${blamedName} stiffens.`} The air goes thin for a beat.`
       }
     );
   } else if (intent.type === 'builder_ready') {
+    const buildMaterialText = intent.buildType === 'fire' ? 'firewood' : 'bamboo and palm';
     beats.push({
       speaker: 'Narrator',
-      text: `${builderName} has brought back enough materials to begin building.`
+      text: `${builderName} returns with enough ${buildMaterialText}. You can finally start the ${intent.buildType === 'fire' ? 'fire' : 'shelter frame'}.`
     });
   }
 
@@ -892,14 +924,93 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
         if (choiceKey === 'do_it') shift = 1;
       }
       if (playerIsBlamed && String(delta.toId) === String(playerId)) {
-        if (choiceKey === 'apologize') shift = 3;
-        if (choiceKey === 'deflect') shift = -2;
+        if (choiceKey === 'apologetic') shift = 3;
         if (choiceKey === 'defensive') shift = -4;
+        if (choiceKey === 'counter_accuse') shift = -6;
       }
       return { ...delta, delta: delta.delta + shift };
     });
-    checkpointReport.relationshipDeltasProposed = modified;
-    applyRelationshipDeltas(gm, checkpointReport, modified);
+
+    const extraDeltas = [];
+    if (playerIsBlamed && builder?.id) {
+      if (choiceKey === 'apologetic') {
+        extraDeltas.push({ fromId: builder.id, toId: playerId, delta: 2, reason: 'apology_landed', tags: ['midpoint', 'apology'] });
+      }
+      if (choiceKey === 'defensive') {
+        extraDeltas.push({ fromId: builder.id, toId: playerId, delta: -3, reason: 'defensive_pushback', tags: ['midpoint', 'defensive'] });
+      }
+      if (choiceKey === 'counter_accuse') {
+        extraDeltas.push({ fromId: builder.id, toId: playerId, delta: -5, reason: 'counter_accusation', tags: ['midpoint', 'counter'] });
+      }
+    }
+
+    const merged = [...modified, ...extraDeltas];
+    checkpointReport.relationshipDeltasProposed = merged;
+    applyRelationshipDeltas(gm, checkpointReport, merged);
+
+    const choiceLogText = (() => {
+      if (playerIsBuilder) {
+        if (choiceKey === 'keep_cool') return `${builderName} cooled the temperature and pushed everyone back toward the ${missingSummary}.`;
+        if (choiceKey === 'do_it') return `${builderName} decided to grab the ${missingSummary} alone, leaving a hush behind.`;
+        return `${builderName} drew a hard line, calling ${blamedName} out over the missing ${missingSummary}.`;
+      }
+      if (choiceKey === 'apologetic') return `${blamedName} owned the miss on the ${missingSummary}, trying to steady the mood.`;
+      if (choiceKey === 'defensive') return `${blamedName} bristled and pushed back on the blame for the ${missingSummary}.`;
+      return `${blamedName} fired back, turning the blame over the missing ${missingSummary} toward ${builderName}.`;
+    })();
+    gm.campLog = gm.campLog || [];
+    gm.campLog.push({
+      type: 'day1_midpoint_choice',
+      day: gm.getCurrentDay?.() ?? gm.day ?? 1,
+      title: 'Midpoint Tension',
+      text: choiceLogText,
+      timestamp: Date.now(),
+      data: {
+        choiceKey,
+        builderId: builder?.id,
+        blamedId: blamed?.id,
+        buildType: intent.buildType || candidate.buildType,
+        missing: { ...missing }
+      }
+    });
+  };
+
+  const buildChoiceBeats = choiceKey => {
+    if (playerIsBuilder) {
+      if (choiceKey === 'callout') {
+        return [
+          { speaker: 'You', speakerId: playerId, speakerRef: builder, text: formatNarrationQuote('You hold the stare.', `${blamedName}, this is on you. We needed ${missingSummary}.`) },
+          { speaker: 'Narrator', text: `${blamedName} shifts under the heat, and a few heads nod with you.` }
+        ];
+      }
+      if (choiceKey === 'keep_cool') {
+        return [
+          { speaker: 'You', speakerId: playerId, speakerRef: builder, text: formatNarrationQuote('You lower your voice.', `We’re short on ${missingSummary}. Let’s fix it, not fight.`) },
+          { speaker: 'Narrator', text: 'The edge softens, but the tension hangs like smoke.' }
+        ];
+      }
+      return [
+        { speaker: 'You', speakerId: playerId, speakerRef: builder, text: formatNarrationQuote('You exhale and grab your pack.', `I’ll go get the ${missingSummary} myself.`) },
+        { speaker: 'Narrator', text: 'A few people exchange looks—impressed, but uneasy about the tone.' }
+      ];
+    }
+
+    if (choiceKey === 'apologetic') {
+      return [
+        { speaker: 'You', speakerId: playerId, speakerRef: blamed, text: formatNarrationQuote('You own it before anyone else can.', `You’re right. I came up short on the ${missingSummary}. I’ll make it right.`) },
+        { speaker: 'Narrator', text: `${builderName} studies you for a beat, then gives a short nod.` }
+      ];
+    }
+    if (choiceKey === 'defensive') {
+      return [
+        { speaker: 'You', speakerId: playerId, speakerRef: blamed, text: formatNarrationQuote('You bristle, voice sharp.', `I didn’t have help. Don’t pin all of ${missingSummary} on me.`) },
+        { speaker: 'Narrator', text: 'The circle tightens. A few survivors look away.' }
+      ];
+    }
+    return [
+      { speaker: 'You', speakerId: playerId, speakerRef: blamed, text: formatNarrationQuote('You snap back, eyes locked on the builder.', `Maybe if you actually checked the stockpile, you’d see why we’re short on ${missingSummary}.`) },
+      { speaker: 'Narrator', text: `${builderName} stiffens, and the camp splits between staring and pretending not to.` }
+    ];
   };
 
   if (intent.type === 'drama' && (playerIsBuilder || playerIsBlamed)) {
@@ -916,9 +1027,9 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
               { key: 'do_it', label: 'Do it yourself' }
             ]
           : [
-              { key: 'apologize', label: 'Apologize' },
-              { key: 'deflect', label: 'Deflect' },
-              { key: 'defensive', label: 'Get defensive' }
+              { key: 'defensive', label: 'Defensive' },
+              { key: 'apologetic', label: 'Apologetic' },
+              { key: 'counter_accuse', label: 'Counter-accuse' }
             ];
         options.forEach(option => {
           const btn = document.createElement('button');
@@ -934,6 +1045,10 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
             });
             choiceResult = option.key;
             applyChoice(option.key);
+            const inserted = buildChoiceBeats(option.key);
+            if (inserted.length) {
+              beats.splice(currentIndex + 1, 0, ...inserted);
+            }
             awaitingChoice = false;
             currentIndex += 1;
             renderBeat();
@@ -1011,8 +1126,8 @@ function enforceMinimumCoverage(tasks, members, player, playerIntent, leaderIds 
   const coverageOrder = [
     { key: 'fire', need: 1 },
     { key: 'shelter', need: 2 },
-    { key: 'materials', need: 1 },
-    { key: 'food', need: 1 }
+    { key: 'wood', need: 1 },
+    { key: 'resources', need: 1 }
   ];
 
   const unassigned = members.filter(m => !tasks.some(t => t.assignedIds.includes(m.id)));
@@ -1034,10 +1149,10 @@ function enforceMinimumCoverage(tasks, members, player, playerIntent, leaderIds 
   const coverageMet = minCoverageState(tasks);
   const floatTask = getTask(tasks, 'float');
   const currentFloaters = floatTask.assignedIds.map(id => members.find(m => m.id === id)).filter(Boolean);
-  const beforeCoverageFloats = coverageMet.fire && coverageMet.shelter && coverageMet.materials && coverageMet.food ? Infinity : 1;
+  const beforeCoverageFloats = coverageMet.fire && coverageMet.shelter && coverageMet.wood && coverageMet.resources ? Infinity : 1;
 
   // Remove excess floaters before coverage.
-  if (!coverageMet.fire || !coverageMet.shelter || !coverageMet.materials || !coverageMet.food) {
+  if (!coverageMet.fire || !coverageMet.shelter || !coverageMet.wood || !coverageMet.resources) {
     while (currentFloaters.length > beforeCoverageFloats) {
       const pulled = currentFloaters.shift();
       floatTask.assignedIds = floatTask.assignedIds.filter(id => id !== pulled.id);
@@ -1146,13 +1261,13 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
     assignments: [
       `• Fire: ${roleAssignments('fire')}`,
       `• Shelter: ${roleAssignments('shelter')}`,
-      `• Food: ${roleAssignments('food')}`,
-      `• Materials: ${roleAssignments('materials')}`,
+      `• Wood: ${roleAssignments('wood')}`,
+      `• Resources: ${roleAssignments('resources')}`,
       `• Float: ${roleAssignments('float')}`
     ],
     chemistry: chemistryLines,
     tone: [`• ${toneLine}`],
-    yourRole: [`• You end up on ${playerRole}${playerChoiceKey ? ` (you chose ${playerChoiceKey})` : ''}.`],
+    yourRole: [`• You end up on ${playerRole}${playerChoiceLabel ? ` (you chose ${playerChoiceLabel})` : ''}.`],
     playerRole
   };
 }
@@ -1248,10 +1363,10 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
   assignmentsSection.appendChild(assignmentsHeading);
 
   const assignmentRoles = [
-    { label: 'Fire', ids: getTask(tasks, 'fire')?.assignedIds || [] },
-    { label: 'Shelter', ids: getTask(tasks, 'shelter')?.assignedIds || [] },
-    { label: 'Food', ids: getTask(tasks, 'food')?.assignedIds || [] },
-    { label: 'Materials', ids: getTask(tasks, 'materials')?.assignedIds || [] },
+    { label: 'Fire Builder', ids: getTask(tasks, 'fire')?.assignedIds || [] },
+    { label: 'Shelter Builder', ids: getTask(tasks, 'shelter')?.assignedIds || [] },
+    { label: 'Wood Gatherer', ids: getTask(tasks, 'wood')?.assignedIds || [] },
+    { label: 'Resource Gatherer', ids: getTask(tasks, 'resources')?.assignedIds || [] },
     { label: 'Float', ids: getTask(tasks, 'float')?.assignedIds || [] }
   ];
 
@@ -1329,11 +1444,9 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       const ensurePlayerLockedOnce = () => {
         const pid = player?.id;
         if (!pid) return;
-        const desiredKey = ['fire', 'shelter', 'materials', 'food', 'float'].includes(playerChoiceKey)
+        const desiredKey = ['fire', 'shelter', 'wood', 'resources', 'float'].includes(playerChoiceKey)
           ? playerChoiceKey
-          : playerChoiceKey === 'flex'
-            ? 'float'
-            : null;
+          : null;
         let occurrences = 0;
         tasks.forEach(task => {
           if (task.assignedIds.includes(pid)) occurrences += 1;
@@ -1372,8 +1485,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         runnerUpId: leadership.runnerUp?.id,
         fireIds: getTask(tasks, 'fire').assignedIds,
         shelterIds: getTask(tasks, 'shelter').assignedIds,
-        foodIds: getTask(tasks, 'food').assignedIds,
-        materialsIds: getTask(tasks, 'materials').assignedIds,
+        woodIds: getTask(tasks, 'wood').assignedIds,
+        resourcesIds: getTask(tasks, 'resources').assignedIds,
         floatIds: getTask(tasks, 'float').assignedIds,
         floaterIds: getTask(tasks, 'float').assignedIds,
         chemistryMoments: chemistryMomentsCompact,
@@ -1397,8 +1510,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       const assignmentsByRole = {
         fire: getTask(tasks, 'fire').assignedIds,
         shelter: getTask(tasks, 'shelter').assignedIds,
-        food: getTask(tasks, 'food').assignedIds,
-        materials: getTask(tasks, 'materials').assignedIds,
+        wood: getTask(tasks, 'wood').assignedIds,
+        resources: getTask(tasks, 'resources').assignedIds,
         float: getTask(tasks, 'float').assignedIds
       };
 
@@ -1450,8 +1563,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
           assignments: {
             fire: plan.fireIds,
             shelter: plan.shelterIds,
-            food: plan.foodIds,
-            materials: plan.materialsIds,
+            wood: plan.woodIds,
+            resources: plan.resourcesIds,
             float: plan.floatIds
           },
           assignmentsByRole,
@@ -1533,10 +1646,10 @@ function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
     }
   }
 
-  const materialsTask = getTask(tasks, 'materials');
+  const woodTask = getTask(tasks, 'wood');
   const floatTask = getTask(tasks, 'float');
-  if (materialsTask.assignedIds.length && floatTask.assignedIds.length) {
-    const worker = members.find(m => m.id === materialsTask.assignedIds[0]);
+  if (woodTask.assignedIds.length && floatTask.assignedIds.length) {
+    const worker = members.find(m => m.id === woodTask.assignedIds[0]);
     const floater = members.find(m => m.id === floatTask.assignedIds[0]);
     if (worker && floater) {
       moments.push({
@@ -1921,12 +2034,11 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           renderChoices: () => {
             choices.innerHTML = '';
             const options = [
-              { key: 'fire', label: 'Take fire' },
-              { key: 'shelter', label: 'Take shelter' },
-              { key: 'materials', label: 'Gather materials' },
-              { key: 'food', label: 'Hunt/forage' },
-              { key: 'float', label: 'Float and observe' },
-              { key: 'flex', label: 'Stay flexible' }
+              { key: 'fire', label: 'Fire Builder' },
+              { key: 'shelter', label: 'Shelter Builder' },
+              { key: 'wood', label: 'Wood Gatherer' },
+              { key: 'resources', label: 'Resource Gatherer' },
+              { key: 'float', label: 'Float' }
             ];
             logDebug('renderChoices', { options: options.map(o => o.key) });
             options.forEach(option => {
@@ -2093,7 +2205,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           const leaderInLane = target.assignedIds.find(id => leadership.topLeader && leadership.topLeader.id === id);
           if (leaderInLane && leadership.topLeader.id !== PLAYER_ID) {
             beats.push({ speaker: displayName(leadership.topLeader, members, PLAYER_ID), speakerId: leadership.topLeader.id, speakerRef: leadership.topLeader, text: formatNarrationQuote(`${displayName(leadership.topLeader, members, PLAYER_ID)} stiffens when you speak up.`, 'I called this lane already.') });
-            beats.push({ speaker: 'You', speakerId: PLAYER_ID, speakerRef: PLAYER, text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${intent.preferredRole}. I’m in.`) });
+            const roleLabel = target?.label ? target.label.toLowerCase() : intent.preferredRole;
+            beats.push({ speaker: 'You', speakerId: PLAYER_ID, speakerRef: PLAYER, text: formatNarrationQuote('You keep your tone steady.', `We need two hands on ${roleLabel}. I’m in.`) });
           }
         }
 
@@ -2117,7 +2230,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         const frictionCount = chemistryMoments.filter(m => m.type !== 'bond').length;
         const clarityScore = leadership.scenario === 'npc_leads' || leadership.scenario === 'player_leads' ? 1 : 0;
         const coverageState = minCoverageState(tasks);
-        const coverageMet = coverageState.fire && coverageState.shelter && coverageState.materials && coverageState.food;
+        const coverageMet = coverageState.fire && coverageState.shelter && coverageState.wood && coverageState.resources;
         const ids = tasks.flatMap(t => t.assignedIds);
         const scores = ids.map(id => buildCapabilities(members.find(m => m.id === id)).workEthic);
         const averageWork = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 50;

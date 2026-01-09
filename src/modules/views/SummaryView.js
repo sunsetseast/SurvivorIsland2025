@@ -295,10 +295,10 @@ function renderDay1FirstImpressionsSection(playerTribe) {
 
   const leader = playerTribe.members.find(m => m.id === plan.leaderId);
   section.appendChild(createElement('div', { style: { color: '#2b190a' } }, `Leader emergence: ${leader?.firstName || 'None'} (${plan.leadershipScenario || 'unclear'})`));
-  section.appendChild(createElement('div', {}, `Fire: ${listNames(plan.fireIds || [])}`));
-  section.appendChild(createElement('div', {}, `Shelter: ${listNames(plan.shelterIds || [])}`));
-  section.appendChild(createElement('div', {}, `Food: ${listNames(plan.foodIds || [])}`));
-  section.appendChild(createElement('div', {}, `Materials: ${listNames(plan.materialsIds || [])}`));
+  section.appendChild(createElement('div', {}, `Fire Builder: ${listNames(plan.fireIds || [])}`));
+  section.appendChild(createElement('div', {}, `Shelter Builder: ${listNames(plan.shelterIds || [])}`));
+  section.appendChild(createElement('div', {}, `Wood Gatherer: ${listNames(plan.woodIds || plan.materialsIds || [])}`));
+  section.appendChild(createElement('div', {}, `Resource Gatherer: ${listNames(plan.resourcesIds || plan.foodIds || [])}`));
   if ((plan.floaterIds || []).length) section.appendChild(createElement('div', {}, `Float: ${listNames(plan.floaterIds || [])}`));
 
   if (Array.isArray(plan.chemistryMoments) && plan.chemistryMoments.length) {
@@ -343,8 +343,8 @@ function evaluateDay1FollowThrough(playerTribe) {
 
   const fireIds = plan.fireIds || plan.fire || [];
   const shelterIds = plan.shelterIds || plan.shelter || [];
-  const foodIds = plan.foodIds || plan.food || [];
-  const materialsIds = plan.materialsIds || plan.materials || [];
+  const resourcesIds = plan.resourcesIds || plan.resources || plan.foodIds || plan.food || [];
+  const woodIds = plan.woodIds || plan.wood || plan.materialsIds || plan.materials || [];
 
   const fireDone = checkResource('fire');
   evaluateIds(fireIds, fireDone);
@@ -358,14 +358,14 @@ function evaluateDay1FollowThrough(playerTribe) {
     logEntries.push({ day: 1, type: 'shelter_miss', title: 'Shelter Follow-through', text: 'Shelter progress stalled compared to what was promised.' });
   }
 
-  const foodDone = checkResource('fish') || checkResource('food');
-  evaluateIds(foodIds, foodDone);
-  const materialDone = checkResource('bamboo') || checkResource('palms');
-  evaluateIds(materialsIds, materialDone);
+  const resourcesDone = checkResource('coconuts') || checkResource('palms');
+  evaluateIds(resourcesIds, resourcesDone);
+  const woodDone = checkResource('bamboo') || checkResource('firewood');
+  evaluateIds(woodIds, woodDone);
 
   const player = gameManager.getPlayerSurvivor();
-  if (materialsIds.includes(player?.id) && !materialDone) {
-    logEntries.push({ day: 1, type: 'player_miss', title: 'Your Promise', text: 'You didn\'t gather as many materials as planned.' });
+  if (woodIds.includes(player?.id) && !woodDone) {
+    logEntries.push({ day: 1, type: 'player_miss', title: 'Your Promise', text: 'You didn\'t bring back the wood you promised.' });
   }
 
   if (logEntries.length) {
