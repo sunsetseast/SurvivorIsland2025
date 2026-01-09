@@ -119,7 +119,7 @@ export default class TaskSimulationSystem {
   simulateGatherPass(checkpoint, tribe, report) {
     const gm = this.gameManager;
     const assignments = report.assignments || {};
-    const gatherRoles = Object.keys(assignments).filter(role => ['food', 'materials', 'float'].includes(role));
+    const gatherRoles = Object.keys(assignments).filter(role => ['wood', 'resources', 'float'].includes(role));
 
     gatherRoles.forEach(role => {
       const ids = assignments[role] || [];
@@ -128,12 +128,12 @@ export default class TaskSimulationSystem {
         if (!survivor) return;
         const effort = this.getWorkMultiplier(survivor);
 
-        if (role === 'food') {
+        if (role === 'resources') {
           const coconuts = this.rollAmount(0, 2, effort);
           const palms = this.rollAmount(0, 1, effort);
           if (coconuts) this.addContribution(id, role, 'coconuts', coconuts, report, tribe);
           if (palms) this.addContribution(id, role, 'palms', palms, report, tribe);
-        } else if (role === 'materials' || role === 'resources') {
+        } else if (role === 'wood') {
           const bamboo = this.rollAmount(0, 3, effort);
           const firewood = this.rollAmount(0, 4, effort);
           if (bamboo) this.addContribution(id, role, 'bamboo', bamboo, report, tribe);
@@ -459,9 +459,9 @@ export default class TaskSimulationSystem {
     const assignments = {
       fire: [],
       shelter: [],
-      food: [],
+      wood: [],
+      resources: [],
       water: [],
-      materials: [],
       float: []
     };
 
@@ -485,8 +485,8 @@ export default class TaskSimulationSystem {
     if (plan) {
       mergeIds('fire', plan.fireIds || plan.fire || plan.fireTeam || plan.fireBuilder);
       mergeIds('shelter', plan.shelterIds || plan.shelter || plan.shelterTeam);
-      mergeIds('food', plan.foodIds || plan.food || plan.foodTeam);
-      mergeIds('materials', plan.materialsIds || plan.materials || plan.resources || plan.materialsTeam);
+      mergeIds('wood', plan.woodIds || plan.wood || plan.woodTeam || plan.materialsIds || plan.materials || plan.materialsTeam);
+      mergeIds('resources', plan.resourcesIds || plan.resources || plan.resourcesTeam || plan.foodIds || plan.food || plan.foodTeam);
       mergeIds('float', plan.floatIds || plan.floaterIds || plan.float || plan.floatTeam || plan.floaters);
       mergeIds('water', plan.waterIds || plan.waterTeam);
     }
@@ -516,8 +516,8 @@ export default class TaskSimulationSystem {
     if (nonPlayer) return nonPlayer;
     const floatId = (assignments.float || []).find(id => String(id) !== String(playerId));
     if (floatId) return floatId;
-    const materialsId = (assignments.materials || []).find(id => String(id) !== String(playerId));
-    return materialsId || null;
+    const woodId = (assignments.wood || []).find(id => String(id) !== String(playerId));
+    return woodId || null;
   }
 
   rollBuilderGatherAmount(missingAmount, survivor) {
@@ -642,8 +642,8 @@ export default class TaskSimulationSystem {
   }
 
   getResponsibleRole(resource) {
-    if (['bamboo', 'firewood'].includes(resource)) return 'materials';
-    if (['palms', 'coconuts'].includes(resource)) return 'food';
+    if (['bamboo', 'firewood'].includes(resource)) return 'wood';
+    if (['palms', 'coconuts'].includes(resource)) return 'resources';
     return null;
   }
 

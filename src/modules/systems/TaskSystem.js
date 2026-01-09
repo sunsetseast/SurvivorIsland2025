@@ -98,7 +98,8 @@ export default class TaskSystem {
         plan[`${role}`]
       ];
       if (role === 'fire') candidates.push(plan.fireBuilder);
-      if (role === 'resources') candidates.push(plan.materialsTeam, plan.materialsIds, plan.materials);
+      if (role === 'wood') candidates.push(plan.woodTeam, plan.woodIds, plan.materialsTeam, plan.materialsIds, plan.materials);
+      if (role === 'resources') candidates.push(plan.resourcesTeam, plan.resourcesIds, plan.foodTeam, plan.foodIds, plan.food);
       if (role === 'float') candidates.push(plan.floaterIds, plan.floatIds, plan.floatTeam, plan.floaters);
       const chosen = candidates.find(Array.isArray);
       return uniqueIds(chosen || []);
@@ -107,8 +108,8 @@ export default class TaskSystem {
     const roleDefinitions = {
       shelter: {
         short: {
-          title: 'Shelter: Raise it by 1 this phase',
-          description: 'Shelter: Raise it by 1 this phase',
+          title: 'Build shelter once materials are gathered.',
+          description: 'Build shelter once materials are gathered.',
           target: { shelterDelta: 1 },
           progress: { shelterDelta: 0 },
           rewards: { teamPlayer: 2 },
@@ -125,8 +126,8 @@ export default class TaskSystem {
       },
       fire: {
         short: {
-          title: 'Fire: Build it up 1 stage this phase',
-          description: 'Fire: Build it up 1 stage this phase',
+          title: 'Build fire once enough firewood is gathered.',
+          description: 'Build fire once enough firewood is gathered.',
           target: { fireDelta: 1 },
           progress: { fireDelta: 0 },
           rewards: { teamPlayer: 2 },
@@ -141,38 +142,30 @@ export default class TaskSystem {
           penalties: {}
         }
       },
-      food: {
+      wood: {
         short: {
-          title: 'Food: Gather 3 coconuts this phase',
-          description: 'Food: Gather 3 coconuts this phase',
-          target: { coconutsThisPhase: 3 },
-          progress: { coconutsThisPhase: 0 },
+          title: 'Contribute bamboo and firewood.',
+          description: 'Contribute bamboo and firewood.',
+          target: {},
+          progress: { bambooContributedThisPhase: 0, firewoodThisPhase: 0 },
           rewards: { teamPlayer: 2 },
           penalties: { teamPlayer: -2, suspicion: 1 }
         }
       },
       resources: {
         short: {
-          title: 'Resources: Contribute 5 bamboo + 1 palm this phase',
-          description: 'Resources: Contribute 5 bamboo + 1 palm this phase',
-          target: { bambooContributedThisPhase: 5, palmsContributedThisPhase: 1 },
-          progress: { bambooContributedThisPhase: 0, palmsContributedThisPhase: 0 },
+          title: 'Gather 3 coconuts.',
+          description: 'Gather 3 coconuts.',
+          target: { coconutsThisPhase: 3 },
+          progress: { coconutsThisPhase: 0, palmsContributedThisPhase: 0 },
           rewards: { teamPlayer: 2 },
           penalties: { teamPlayer: -2, suspicion: 1 }
-        },
-        long: {
-          title: 'Resources: Stockpile 10 bamboo + 2 palms (long-term)',
-          description: 'Resources: Stockpile 10 bamboo + 2 palms (long-term)',
-          target: { bambooContributedTotal: 10, palmsContributedTotal: 2 },
-          progress: { bambooContributedTotal: 0, palmsContributedTotal: 0 },
-          rewards: { teamPlayer: 4 },
-          penalties: {}
         }
       },
       float: {
         short: {
-          title: 'Float: Help anywhere this phase',
-          description: 'Float: Help anywhere this phase',
+          title: 'Assist the tribe where needed.',
+          description: 'Assist the tribe where needed.',
           target: {},
           progress: { firewoodThisPhase: 0, bambooContributedThisPhase: 0, palmsContributedThisPhase: 0, coconutsThisPhase: 0, fishAnyThisPhase: 0 },
           rewards: { teamPlayer: 2 },
@@ -421,14 +414,15 @@ export default class TaskSystem {
     if (type === 'camp_contribute' || bamboo || palms || firewood) {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
+        if (task.role === 'wood') {
+          ensureProgressFields(task.progress, ['bambooContributedThisPhase', 'firewoodThisPhase']);
+          task.progress.bambooContributedThisPhase += bamboo;
+          task.progress.firewoodThisPhase += firewood;
+          this.updateTaskCompletion(task, tribe);
+        }
         if (task.role === 'resources') {
-          ensureProgressFields(task.progress, ['bambooContributedTotal', 'palmsContributedTotal', 'bambooContributedThisPhase', 'palmsContributedThisPhase']);
-          task.progress.bambooContributedTotal += bamboo;
-          task.progress.palmsContributedTotal += palms;
-          if (task.deadline === 'phase') {
-            task.progress.bambooContributedThisPhase += bamboo;
-            task.progress.palmsContributedThisPhase += palms;
-          }
+          ensureProgressFields(task.progress, ['palmsContributedThisPhase']);
+          task.progress.palmsContributedThisPhase += palms;
           this.updateTaskCompletion(task, tribe);
         }
         if (task.role === 'float') {
@@ -448,7 +442,7 @@ export default class TaskSystem {
     if (type === 'camp_contribute_food') {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
-        if (task.role === 'food') {
+        if (task.role === 'resources') {
           ensureProgressFields(task.progress, ['coconutsThisPhase']);
           task.progress.coconutsThisPhase += coconutsFromEntry;
           this.updateTaskCompletion(task, tribe);
@@ -477,8 +471,8 @@ export default class TaskSystem {
     if (['camp_gather_food', 'camp_food', 'camp_gather'].includes(type) || entry?.resource === 'coconut' || coconutsFromEntry > 0) {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
-        if (task.role === 'food') {
-          ensureProgressFields(task.progress, ['coconutsThisPhase', 'fish3Total']);
+        if (task.role === 'resources') {
+          ensureProgressFields(task.progress, ['coconutsThisPhase']);
           task.progress.coconutsThisPhase += coconutsFromEntry;
           this.updateTaskCompletion(task, tribe);
         }
@@ -546,7 +540,9 @@ export default class TaskSystem {
         return (p.fireDelta || 0) >= 1;
       case 'fire_long':
         return (p.fireLevel || 0) >= 4;
-      case 'food_short':
+      case 'wood_short':
+        return (p.bambooContributedThisPhase || 0) > 0 || (p.firewoodThisPhase || 0) > 0;
+      case 'resources_short':
         return (p.coconutsThisPhase || 0) >= 3;
       case 'fish_optional_base':
         return (p.fishAnyTotal || 0) >= 1;
@@ -558,10 +554,6 @@ export default class TaskSystem {
         return (p.fish1Total || 0) >= 5;
       case 'fish_optional_followup_rare_one':
         return (p.fish3Total || 0) >= 1;
-      case 'resources_short':
-        return (p.bambooContributedThisPhase || 0) >= 5 && (p.palmsContributedThisPhase || 0) >= 1;
-      case 'resources_long':
-        return (p.bambooContributedTotal || 0) >= 10 && (p.palmsContributedTotal || 0) >= 2;
       case 'float_short':
         return (
           (p.firewoodThisPhase || 0) >= 10 ||
@@ -584,10 +576,10 @@ export default class TaskSystem {
         return (p.shelterDelta || 0) > 0;
       case 'fire_short':
         return (p.fireDelta || 0) > 0;
-      case 'food_short':
-        return (p.coconutsThisPhase || 0) > 0;
+      case 'wood_short':
+        return (p.bambooContributedThisPhase || 0) > 0 || (p.firewoodThisPhase || 0) > 0;
       case 'resources_short':
-        return (p.bambooContributedThisPhase || 0) > 0 || (p.palmsContributedThisPhase || 0) > 0;
+        return (p.coconutsThisPhase || 0) > 0 || (p.palmsContributedThisPhase || 0) > 0;
       case 'float_short':
         return (
           (p.firewoodThisPhase || 0) > 0 ||
@@ -764,14 +756,16 @@ export default class TaskSystem {
     const p = task.progress || {};
     switch (task.type) {
       case 'shelter_short':
-        return `${p.shelterDelta || 0}/1`;
+        return '';
       case 'shelter_long':
         return `${p.shelterLevel || 0}/4`;
       case 'fire_short':
-        return `${p.fireDelta || 0}/1`;
+        return '';
       case 'fire_long':
         return `${p.fireLevel || 0}/4`;
-      case 'food_short':
+      case 'wood_short':
+        return '';
+      case 'resources_short':
         return `${p.coconutsThisPhase || 0}/3`;
       case 'fish_optional_base':
         return `${p.fishAnyTotal || 0}/1`;
@@ -783,18 +777,8 @@ export default class TaskSystem {
         return `${p.fish1Total || 0}/5 small fish`;
       case 'fish_optional_followup_rare_one':
         return `${p.fish3Total || 0}/1 rare fish`;
-      case 'resources_short':
-        return `${p.bambooContributedThisPhase || 0}/5 bamboo, ${p.palmsContributedThisPhase || 0}/1 palms`;
-      case 'resources_long':
-        return `${p.bambooContributedTotal || 0}/10 bamboo, ${p.palmsContributedTotal || 0}/2 palms`;
       case 'float_short': {
-        const options = [];
-        options.push(`firewood ${p.firewoodThisPhase || 0}/10`);
-        options.push(`bamboo ${p.bambooContributedThisPhase || 0}/5`);
-        options.push(`palms ${p.palmsContributedThisPhase || 0}/1`);
-        options.push(`coconuts ${p.coconutsThisPhase || 0}/3`);
-        options.push(`fish ${p.fishAnyThisPhase || 0}/1`);
-        return options.join(' | ');
+        return '';
       }
       case 'float_long':
         return `${(task.meta?.categories || []).length}/2 categories`;
