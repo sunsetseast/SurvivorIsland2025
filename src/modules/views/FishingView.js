@@ -619,6 +619,7 @@ export default function renderFishingView(container) {
       gameManager.updateSurvivorTotalFish(player);
       
       console.log(`Player now has ${player.fish} total fish (${player.fish1} fish1, ${player.fish2} fish2, ${player.fish3} fish3).`);
+      gameManager.taskSystem?.recordResourceGain?.(player.id, fishType, 1, 'fishing');
     }
 
     // 4) Track successful fishing attempt

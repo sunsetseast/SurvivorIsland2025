@@ -342,6 +342,7 @@ export default function renderBambooView(container) {
       
       // Track bamboo gathering activity
       activityTracker.trackResourceGathering('bamboo', bamboo, 'Bamboo Cutting');
+      gameManager.taskSystem?.recordResourceGain?.(player.id, 'bamboo', bamboo, 'bamboo_cutting');
     }
 
     const timerEl = document.getElementById('clock-time-text');
