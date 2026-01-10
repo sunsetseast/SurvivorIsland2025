@@ -671,6 +671,19 @@ function pickBestCandidate(candidates, roleKey) {
     .map(entry => entry.member)[0] || null;
 }
 
+function normalizeRoleKey(key) {
+  switch (key) {
+    case 'materials':
+      return 'wood';
+    case 'food':
+      return 'resources';
+    case 'flex':
+      return 'float';
+    default:
+      return key;
+  }
+}
+
 function playerIntentFromChoice(choiceKey) {
   switch (choiceKey) {
     case 'fire':
@@ -2025,6 +2038,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         return beats;
       };
 
+      let resetChoiceButtons = null;
+
       const addChoiceBeat = () => {
         awaitingChoice.value = true;
         const beat = {
@@ -2033,6 +2048,13 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           text: 'Where do you plant your flag?',
           renderChoices: () => {
             choices.innerHTML = '';
+            const setChoiceButtonsDisabled = isDisabled => {
+              choices.querySelectorAll('button').forEach(b => {
+                b.disabled = isDisabled;
+                b.style.opacity = isDisabled ? '0.8' : '1';
+                b.style.pointerEvents = isDisabled ? 'none' : 'auto';
+              });
+            };
             const options = [
               { key: 'fire', label: 'Fire Builder' },
               { key: 'shelter', label: 'Shelter Builder' },
@@ -2049,28 +2071,26 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
                 if (!awaitingChoice.value || choiceLocked) return;
                 choiceLocked = true;
                 logDebug('choice_clicked', { key: option.key });
-                choices.querySelectorAll('button').forEach(b => {
-                  b.disabled = true;
-                  b.style.opacity = '0.8';
-                  b.style.pointerEvents = 'none';
-                });
+                setChoiceButtonsDisabled(true);
                 commitChoice(option.key, option.label);
               });
               choices.appendChild(btn);
             });
+            resetChoiceButtons = () => setChoiceButtonsDisabled(false);
           }
         };
         addBeat(beat);
       };
 
       const applyPlayerChoice = choiceKey => {
-        logDebug('applyPlayerChoice_enter', { choiceKey });
+        const normalizedChoiceKey = normalizeRoleKey(choiceKey);
+        logDebug('applyPlayerChoice_enter', { choiceKey, normalizedChoiceKey });
         // Reset assignments to keep the function idempotent if triggered twice.
         tasks.forEach(task => {
           task.assignedIds = [];
         });
 
-        const intent = playerIntentFromChoice(choiceKey);
+        const intent = playerIntentFromChoice(normalizedChoiceKey);
         const leaderIds = [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean);
         const leaderIdsForCoverage = leaderIds.filter(id => !(PLAYER && id === PLAYER_ID && intent.posture === 'float/flex' && !intent.preferredRole));
         const safeAssign = (roleKey, survivor) => {
@@ -2168,19 +2188,20 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       };
 
       const commitChoice = (choiceKey, label) => {
-        logDebug('commitChoice_enter', { choiceKey, awaiting: awaitingChoice.value });
+        const normalizedChoiceKey = normalizeRoleKey(choiceKey);
+        logDebug('commitChoice_enter', { choiceKey, normalizedChoiceKey, awaiting: awaitingChoice.value });
         if (!awaitingChoice.value && !choiceLocked) return;
 
         try {
-          playerChoiceKey = choiceKey;
-          const intent = applyPlayerChoice(choiceKey);
-          const choiceBeat = { speaker: 'Narrator', text: `You claim: ${label || choiceKey}.` };
+          playerChoiceKey = normalizedChoiceKey;
+          const intent = applyPlayerChoice(normalizedChoiceKey);
+          const choiceBeat = { speaker: 'Narrator', text: `You claim: ${label || normalizedChoiceKey}.` };
           const beats = [
             choiceBeat,
             ...buildAssignmentBeats(intent),
             ...addChemistryBeats(),
             ...addClosingBeat(),
-            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: choiceKey, overlay, resolve, gameManager: gm, cleanup, revealAllAssignments, finishEvent: requestFinishEvent })
+            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: normalizedChoiceKey, overlay, resolve, gameManager: gm, cleanup, revealAllAssignments, finishEvent: requestFinishEvent })
           ];
           logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
@@ -2191,7 +2212,9 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] commitChoice failed', err);
-          awaitingChoice.value = false;
+          if (typeof resetChoiceButtons === 'function') resetChoiceButtons();
+          awaitingChoice.value = true;
+          choiceLocked = false;
         } finally {
           choiceLocked = false;
         }
