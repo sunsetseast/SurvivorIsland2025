@@ -1783,7 +1783,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         const tribe = gm.getPlayerTribe?.() || gm.playerTribe;
         const phaseId = gm.taskSystem?.getCurrentPhaseId?.() ?? gm.getCurrentCampPhaseId?.();
         gm.taskSystem?.startPhaseForTribe?.(tribe, phaseId);
-        gm.taskSystem?.createDay1TasksFromPlan?.(tribe, phaseId);
+        gm.taskSystem?.createDay1TasksFromPlan?.(tribe, phaseId, { force: true });
       } catch (error) {
         console.error('[Day1FirstImpressions] Error during finishEvent', error);
       } finally {
