@@ -67,7 +67,9 @@ export default class TaskSystem {
     if (!task?.progress) return;
     const keys = [
       'bambooContributedThisPhase',
+      'bambooThisPhase',
       'palmsContributedThisPhase',
+      'palmsThisPhase',
       'coconutsThisPhase',
       'firewoodThisPhase',
       'fishAnyThisPhase'
@@ -143,24 +145,48 @@ export default class TaskSystem {
         }
       },
       wood: {
-        short: {
-          title: 'Contribute bamboo and firewood.',
-          description: 'Contribute bamboo and firewood.',
-          target: {},
-          progress: { bambooContributedThisPhase: 0, firewoodThisPhase: 0 },
-          rewards: { teamPlayer: 2 },
-          penalties: { teamPlayer: -2, suspicion: 1 }
-        }
+        short: [
+          {
+            key: 'bamboo',
+            title: 'GATHER 5 BAMBOO.',
+            description: 'GATHER 5 BAMBOO.',
+            target: { bambooThisPhase: 5 },
+            progress: { bambooThisPhase: 0 },
+            rewards: { teamPlayer: 2 },
+            penalties: { teamPlayer: -2, suspicion: 1 }
+          },
+          {
+            key: 'firewood',
+            title: 'GATHER 3 FIREWOOD.',
+            description: 'GATHER 3 FIREWOOD.',
+            target: { firewoodThisPhase: 3 },
+            progress: { firewoodThisPhase: 0 },
+            rewards: { teamPlayer: 2 },
+            penalties: { teamPlayer: -2, suspicion: 1 }
+          }
+        ]
       },
       resources: {
-        short: {
-          title: 'Gather 3 coconuts.',
-          description: 'Gather 3 coconuts.',
-          target: { coconutsThisPhase: 3 },
-          progress: { coconutsThisPhase: 0, palmsContributedThisPhase: 0 },
-          rewards: { teamPlayer: 2 },
-          penalties: { teamPlayer: -2, suspicion: 1 }
-        }
+        short: [
+          {
+            key: 'coconuts',
+            title: 'GATHER 3 COCONUTS.',
+            description: 'GATHER 3 COCONUTS.',
+            target: { coconutsThisPhase: 3 },
+            progress: { coconutsThisPhase: 0 },
+            rewards: { teamPlayer: 2 },
+            penalties: { teamPlayer: -2, suspicion: 1 }
+          },
+          {
+            key: 'palms',
+            title: 'GATHER 1 PALM.',
+            description: 'GATHER 1 PALM.',
+            target: { palmsThisPhase: 1 },
+            progress: { palmsThisPhase: 0 },
+            rewards: { teamPlayer: 2 },
+            penalties: { teamPlayer: -2, suspicion: 1 }
+          }
+        ]
       },
       float: {
         short: {
@@ -185,30 +211,34 @@ export default class TaskSystem {
 
     Object.entries(roleDefinitions).forEach(([role, def]) => {
       const assignees = getAssignees(role);
-      const shortId = `${role}_short_${newPhaseId}`;
+      const shortDefs = Array.isArray(def.short) ? def.short : [def.short];
+      shortDefs.forEach(shortDef => {
+        const shortKey = shortDef?.key ? `${role}_${shortDef.key}_short_${newPhaseId}` : `${role}_short_${newPhaseId}`;
+        const shortType = shortDef?.type || (shortDef?.key ? `${role}_${shortDef.key}_short` : `${role}_short`);
+        const shortExists = (state.tasks || []).some(task => task.id === shortKey);
+
+        if (!shortExists) {
+          state.tasks.push({
+            id: shortKey,
+            title: shortDef.title,
+            description: shortDef.description,
+            type: shortType,
+            role,
+            assignees,
+            deadline: 'phase',
+            phaseId: newPhaseId,
+            status: 'active',
+            progress: { ...shortDef.progress },
+            target: { ...shortDef.target },
+            rewards: { ...shortDef.rewards },
+            penalties: { ...shortDef.penalties },
+            meta: { claimed: false, rewardApplied: false }
+          });
+        }
+      });
+
       const longId = `${role}_long`;
-      const shortExists = (state.tasks || []).some(task => task.id === shortId);
       const longExists = (state.tasks || []).some(task => task.id === longId);
-
-      if (!shortExists) {
-        state.tasks.push({
-          id: shortId,
-          title: def.short.title,
-          description: def.short.description,
-          type: `${role}_short`,
-          role,
-          assignees,
-          deadline: 'phase',
-          phaseId: newPhaseId,
-          status: 'active',
-          progress: { ...def.short.progress },
-          target: { ...def.short.target },
-          rewards: { ...def.short.rewards },
-          penalties: { ...def.short.penalties },
-          meta: { claimed: false, rewardApplied: false }
-        });
-      }
-
       if (def.long && !longExists) {
         state.tasks.push({
           id: longId,
@@ -241,8 +271,8 @@ export default class TaskSystem {
     const assignees = (tribe.members || []).map(member => `${member.id}`);
     state.tasks.push({
       id: baseId,
-      title: 'Fishing: Catch 1 fish (any kind)',
-      description: 'Fishing: Catch 1 fish (any kind)',
+      title: 'FISHING: CATCH 1 FISH (ANY KIND)',
+      description: 'FISHING: CATCH 1 FISH (ANY KIND)',
       type: 'fish_optional_base',
       role: 'fishing',
       assignees,
@@ -347,6 +377,95 @@ export default class TaskSystem {
     }
   }
 
+  recordResourceGain(survivorId, resourceKey, amount = 0, source = 'gain', tribeOverride = null) {
+    if (!amount) return;
+    const gm = this.gameManager;
+    const tribe = tribeOverride || gm?.getPlayerTribe?.() || gm?.playerTribe;
+    const state = this.ensureTribeTaskState(tribe);
+    if (!state) return;
+    const playerId = survivorId || gm?.getPlayerSurvivor?.()?.id;
+    if (!playerId) return;
+
+    const normalizedResource = resourceKey === 'coconut' ? 'coconuts' : resourceKey === 'palm' ? 'palms' : resourceKey;
+    const fishCount = ['fish1', 'fish2', 'fish3', 'fish'].includes(normalizedResource) ? amount : 0;
+    const fishType = normalizedResource === 'fish1' ? 1 : normalizedResource === 'fish2' ? 2 : normalizedResource === 'fish3' ? 3 : null;
+
+    const resourcePayload = {
+      bamboo: normalizedResource === 'bamboo' ? amount : 0,
+      firewood: normalizedResource === 'firewood' ? amount : 0,
+      coconuts: normalizedResource === 'coconuts' ? amount : 0,
+      palms: normalizedResource === 'palms' ? amount : 0,
+      fishCount,
+      fishType,
+      source
+    };
+
+    (state.tasks || []).forEach(task => {
+      if (!task || task.status !== 'active') return;
+      const isMine = Array.isArray(task.assignees) && task.assignees.some(id => `${id}` === `${playerId}`);
+      if (!isMine) return;
+      this.applyResourceProgress(task, resourcePayload, tribe);
+    });
+  }
+
+  applyResourceProgress(task, { bamboo = 0, firewood = 0, coconuts = 0, palms = 0, fishCount = 0, fishType = null } = {}, tribe = null) {
+    if (!task || task.status !== 'active') return;
+
+    switch (task.type) {
+      case 'wood_bamboo_short':
+        ensureProgressFields(task.progress, ['bambooThisPhase']);
+        task.progress.bambooThisPhase += bamboo;
+        break;
+      case 'wood_firewood_short':
+        ensureProgressFields(task.progress, ['firewoodThisPhase']);
+        task.progress.firewoodThisPhase += firewood;
+        break;
+      case 'resources_coconuts_short':
+        ensureProgressFields(task.progress, ['coconutsThisPhase']);
+        task.progress.coconutsThisPhase += coconuts;
+        break;
+      case 'resources_palms_short':
+        ensureProgressFields(task.progress, ['palmsThisPhase']);
+        task.progress.palmsThisPhase += palms;
+        break;
+      case 'wood_short':
+        ensureProgressFields(task.progress, ['bambooContributedThisPhase', 'firewoodThisPhase']);
+        task.progress.bambooContributedThisPhase += bamboo;
+        task.progress.firewoodThisPhase += firewood;
+        break;
+      case 'resources_short':
+        ensureProgressFields(task.progress, ['coconutsThisPhase', 'palmsContributedThisPhase']);
+        task.progress.coconutsThisPhase += coconuts;
+        task.progress.palmsContributedThisPhase += palms;
+        break;
+      case 'float_short':
+        ensureProgressFields(task.progress, ['firewoodThisPhase', 'bambooContributedThisPhase', 'palmsContributedThisPhase', 'coconutsThisPhase', 'fishAnyThisPhase']);
+        task.progress.firewoodThisPhase += firewood;
+        task.progress.bambooContributedThisPhase += bamboo;
+        task.progress.palmsContributedThisPhase += palms;
+        task.progress.coconutsThisPhase += coconuts;
+        task.progress.fishAnyThisPhase += fishCount;
+        break;
+      case 'float_long':
+        ensureProgressFields(task.progress, ['firewoodContributedTotal', 'bambooContributedTotal', 'palmsContributedTotal', 'coconutsTotal', 'fishAnyTotal']);
+        task.progress.firewoodContributedTotal += firewood;
+        task.progress.bambooContributedTotal += bamboo;
+        task.progress.palmsContributedTotal += palms;
+        task.progress.coconutsTotal += coconuts;
+        task.progress.fishAnyTotal += fishCount;
+        this.updateFloatCategories(task);
+        break;
+      default:
+        break;
+    }
+
+    if (task.type?.startsWith('fish_optional')) {
+      this.updateOptionalFishProgress(task, fishType, fishCount);
+    }
+
+    this.updateTaskCompletion(task, tribe || this.gameManager?.getPlayerTribe?.() || this.gameManager?.playerTribe);
+  }
+
   ingestCampLogForTribe(gameManager, tribe) {
     const gm = gameManager || this.gameManager;
     const state = this.ensureTribeTaskState(tribe);
@@ -372,6 +491,10 @@ export default class TaskSystem {
     const coconutsFromEntry = safeNumber(entry?.food?.coconuts ?? entry?.coconuts ?? (entry?.resource === 'coconut' ? entry?.count : ZERO));
     const fishType = entry?.fish?.type ?? entry?.fishType;
     const fishCount = safeNumber(entry?.fish?.count ?? entry?.count);
+    const fish1 = safeNumber(entry?.fish1 ?? entry?.resources?.fish1);
+    const fish2 = safeNumber(entry?.fish2 ?? entry?.resources?.fish2);
+    const fish3 = safeNumber(entry?.fish3 ?? entry?.resources?.fish3);
+    const fishTotal = fishCount || fish1 + fish2 + fish3;
 
     if (type === 'camp_shelter_build') {
       const before = safeNumber(entry?.shelterBefore);
@@ -411,30 +534,26 @@ export default class TaskSystem {
       });
     }
 
-    if (type === 'camp_contribute' || bamboo || palms || firewood) {
+    if (type === 'camp_contribute' || bamboo || palms || firewood || coconutsFromEntry || fishTotal) {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
-        if (task.role === 'wood') {
-          ensureProgressFields(task.progress, ['bambooContributedThisPhase', 'firewoodThisPhase']);
-          task.progress.bambooContributedThisPhase += bamboo;
-          task.progress.firewoodThisPhase += firewood;
-          this.updateTaskCompletion(task, tribe);
-        }
-        if (task.role === 'resources') {
-          ensureProgressFields(task.progress, ['palmsContributedThisPhase']);
-          task.progress.palmsContributedThisPhase += palms;
-          this.updateTaskCompletion(task, tribe);
-        }
-        if (task.role === 'float') {
-          ensureProgressFields(task.progress, ['firewoodThisPhase', 'bambooContributedThisPhase', 'palmsContributedThisPhase', 'coconutsThisPhase', 'fishAnyThisPhase', 'firewoodContributedTotal', 'bambooContributedTotal', 'palmsContributedTotal', 'coconutsTotal', 'fishAnyTotal']);
-          task.progress.firewoodThisPhase += firewood;
-          task.progress.bambooContributedThisPhase += bamboo;
-          task.progress.palmsContributedThisPhase += palms;
-          task.progress.firewoodContributedTotal += firewood;
-          task.progress.bambooContributedTotal += bamboo;
-          task.progress.palmsContributedTotal += palms;
-          this.updateFloatCategories(task);
-          this.updateTaskCompletion(task, tribe);
+        if (['wood', 'resources', 'float'].includes(task.role) || task.type?.startsWith('fish_optional')) {
+          this.applyResourceProgress(task, {
+            bamboo,
+            firewood,
+            coconuts: coconutsFromEntry,
+            palms,
+            fishCount: fishTotal,
+            fishType
+          }, tribe);
+          if (fish1 || fish2 || fish3) {
+            if (task.type?.startsWith('fish_optional')) {
+              if (fish1) this.updateOptionalFishProgress(task, 1, fish1);
+              if (fish2) this.updateOptionalFishProgress(task, 2, fish2);
+              if (fish3) this.updateOptionalFishProgress(task, 3, fish3);
+              this.updateTaskCompletion(task, tribe);
+            }
+          }
         }
       });
     }
@@ -442,28 +561,12 @@ export default class TaskSystem {
     if (type === 'camp_contribute_food') {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
-        if (task.role === 'resources') {
-          ensureProgressFields(task.progress, ['coconutsThisPhase']);
-          task.progress.coconutsThisPhase += coconutsFromEntry;
-          this.updateTaskCompletion(task, tribe);
-        }
-        if (task.role === 'float') {
-          ensureProgressFields(task.progress, [
-            'coconutsThisPhase',
-            'coconutsTotal',
-            'fishAnyThisPhase',
-            'fishAnyTotal'
-          ]);
-          task.progress.coconutsThisPhase += coconutsFromEntry;
-          task.progress.coconutsTotal += coconutsFromEntry;
-          task.progress.fishAnyThisPhase += fishCount;
-          task.progress.fishAnyTotal += fishCount;
-          this.updateFloatCategories(task);
-          this.updateTaskCompletion(task, tribe);
-        }
-        if (task.type?.startsWith('fish_optional')) {
-          this.updateOptionalFishProgress(task, fishType, fishCount);
-          this.updateTaskCompletion(task, tribe);
+        if (task.role === 'resources' || task.role === 'float' || task.type?.startsWith('fish_optional')) {
+          this.applyResourceProgress(task, {
+            coconuts: coconutsFromEntry,
+            fishCount,
+            fishType
+          }, tribe);
         }
       });
     }
@@ -471,17 +574,8 @@ export default class TaskSystem {
     if (['camp_gather_food', 'camp_food', 'camp_gather'].includes(type) || entry?.resource === 'coconut' || coconutsFromEntry > 0) {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
-        if (task.role === 'resources') {
-          ensureProgressFields(task.progress, ['coconutsThisPhase']);
-          task.progress.coconutsThisPhase += coconutsFromEntry;
-          this.updateTaskCompletion(task, tribe);
-        }
-        if (task.role === 'float') {
-          ensureProgressFields(task.progress, ['coconutsThisPhase', 'coconutsTotal']);
-          task.progress.coconutsThisPhase += coconutsFromEntry;
-          task.progress.coconutsTotal += coconutsFromEntry;
-          this.updateFloatCategories(task);
-          this.updateTaskCompletion(task, tribe);
+        if (task.role === 'resources' || task.role === 'float') {
+          this.applyResourceProgress(task, { coconuts: coconutsFromEntry }, tribe);
         }
       });
     }
@@ -489,16 +583,8 @@ export default class TaskSystem {
     if (type === 'camp_fishing' || type === 'camp_fish') {
       tasks.forEach(task => {
         if (task.status !== 'active') return;
-        if (task.role === 'float') {
-          ensureProgressFields(task.progress, ['fishAnyThisPhase', 'fishAnyTotal']);
-          task.progress.fishAnyThisPhase += fishCount;
-          task.progress.fishAnyTotal += fishCount;
-          this.updateFloatCategories(task);
-          this.updateTaskCompletion(task, tribe);
-        }
-        if (task.type?.startsWith('fish_optional')) {
-          this.updateOptionalFishProgress(task, fishType, fishCount);
-          this.updateTaskCompletion(task, tribe);
+        if (task.role === 'float' || task.type?.startsWith('fish_optional')) {
+          this.applyResourceProgress(task, { fishCount, fishType }, tribe);
         }
       });
     }
@@ -540,8 +626,16 @@ export default class TaskSystem {
         return (p.fireDelta || 0) >= 1;
       case 'fire_long':
         return (p.fireLevel || 0) >= 4;
+      case 'wood_bamboo_short':
+        return (p.bambooThisPhase || 0) >= 5;
+      case 'wood_firewood_short':
+        return (p.firewoodThisPhase || 0) >= 3;
       case 'wood_short':
         return (p.bambooContributedThisPhase || 0) > 0 || (p.firewoodThisPhase || 0) > 0;
+      case 'resources_coconuts_short':
+        return (p.coconutsThisPhase || 0) >= 3;
+      case 'resources_palms_short':
+        return (p.palmsThisPhase || 0) >= 1;
       case 'resources_short':
         return (p.coconutsThisPhase || 0) >= 3;
       case 'fish_optional_base':
@@ -576,8 +670,16 @@ export default class TaskSystem {
         return (p.shelterDelta || 0) > 0;
       case 'fire_short':
         return (p.fireDelta || 0) > 0;
+      case 'wood_bamboo_short':
+        return (p.bambooThisPhase || 0) > 0;
+      case 'wood_firewood_short':
+        return (p.firewoodThisPhase || 0) > 0;
       case 'wood_short':
         return (p.bambooContributedThisPhase || 0) > 0 || (p.firewoodThisPhase || 0) > 0;
+      case 'resources_coconuts_short':
+        return (p.coconutsThisPhase || 0) > 0;
+      case 'resources_palms_short':
+        return (p.palmsThisPhase || 0) > 0;
       case 'resources_short':
         return (p.coconutsThisPhase || 0) > 0 || (p.palmsContributedThisPhase || 0) > 0;
       case 'float_short':
@@ -763,8 +865,16 @@ export default class TaskSystem {
         return '';
       case 'fire_long':
         return `${p.fireLevel || 0}/4`;
+      case 'wood_bamboo_short':
+        return `${p.bambooThisPhase || 0}/5`;
+      case 'wood_firewood_short':
+        return `${p.firewoodThisPhase || 0}/3`;
       case 'wood_short':
         return '';
+      case 'resources_coconuts_short':
+        return `${p.coconutsThisPhase || 0}/3`;
+      case 'resources_palms_short':
+        return `${p.palmsThisPhase || 0}/1`;
       case 'resources_short':
         return `${p.coconutsThisPhase || 0}/3`;
       case 'fish_optional_base':

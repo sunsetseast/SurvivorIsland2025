@@ -291,6 +291,9 @@ export default function renderShakeView(container) {
         player.coconuts = (player.coconuts || 0) + rewards.coconuts;
         player.palms = (player.palms || 0) + rewards.palms;
         console.log(`Player now has ${player.coconuts} coconuts and ${player.palms} palm fronds`);
+
+        gameManager.taskSystem?.recordResourceGain?.(player.id, 'coconuts', rewards.coconuts, 'tree_shake');
+        gameManager.taskSystem?.recordResourceGain?.(player.id, 'palms', rewards.palms, 'tree_shake');
         
         // Track both resource collections
         activityTracker.trackResourceGathering('coconuts', rewards.coconuts, 'Tree Shaking');
@@ -301,6 +304,8 @@ export default function renderShakeView(container) {
         if (rewards.coconuts > 0) {
           player.coconuts = (player.coconuts || 0) + rewards.coconuts;
           console.log(`Player now has ${player.coconuts} coconuts`);
+
+          gameManager.taskSystem?.recordResourceGain?.(player.id, 'coconuts', rewards.coconuts, 'tree_shake');
           
           // Track coconut collection
           activityTracker.trackResourceGathering('coconuts', rewards.coconuts, 'Tree Shaking');
@@ -310,6 +315,8 @@ export default function renderShakeView(container) {
         if (rewards.palms > 0) {
           player.palms = (player.palms || 0) + rewards.palms;
           console.log(`Player now has ${player.palms} palm fronds`);
+
+          gameManager.taskSystem?.recordResourceGain?.(player.id, 'palms', rewards.palms, 'tree_shake');
           
           // Track palm collection
           activityTracker.trackResourceGathering('palms', rewards.palms, 'Tree Shaking');
