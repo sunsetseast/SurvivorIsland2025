@@ -654,12 +654,16 @@ function resolveLeadershipScenario(members, player) {
 }
 
 function minCoverageState(tasks) {
-  const playerChoiceLabel = playerChoiceKey ? (getTask(tasks, playerChoiceKey)?.label || playerChoiceKey) : '';
+  const taskList = Array.isArray(tasks) ? tasks : [];
+  const fireAssignedCount = getTask(taskList, 'fire')?.assignedIds?.length ?? 0;
+  const shelterAssignedCount = getTask(taskList, 'shelter')?.assignedIds?.length ?? 0;
+  const woodAssignedCount = getTask(taskList, 'wood')?.assignedIds?.length ?? 0;
+  const resourcesAssignedCount = getTask(taskList, 'resources')?.assignedIds?.length ?? 0;
   return {
-    fire: getTask(tasks, 'fire').assignedIds.length >= 1,
-    shelter: getTask(tasks, 'shelter').assignedIds.length >= 2,
-    wood: getTask(tasks, 'wood').assignedIds.length >= 1,
-    resources: getTask(tasks, 'resources').assignedIds.length >= 1
+    fire: fireAssignedCount >= 1,
+    shelter: shelterAssignedCount >= 2,
+    wood: woodAssignedCount >= 1,
+    resources: resourcesAssignedCount >= 1
   };
 }
 
@@ -1220,6 +1224,7 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
     const task = getTask(tasks, key) || { assignedIds: [] };
     return formatIdsAsNameList(task.assignedIds, members, player.id) || 'None';
   };
+  const choiceLabel = playerChoiceKey ? (getTask(tasks, playerChoiceKey)?.label || playerChoiceKey) : '';
 
   const leadershipLines = [];
   if (leadership.scenario === 'player_leads') {
@@ -1280,7 +1285,7 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
     ],
     chemistry: chemistryLines,
     tone: [`• ${toneLine}`],
-    yourRole: [`• You end up on ${playerRole}${playerChoiceLabel ? ` (you chose ${playerChoiceLabel})` : ''}.`],
+    yourRole: [`• You end up on ${playerRole}${choiceLabel ? ` (you chose ${choiceLabel})` : ''}.`],
     playerRole
   };
 }
@@ -2212,9 +2217,13 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[Day1FirstImpressions] commitChoice failed', err);
-          if (typeof resetChoiceButtons === 'function') resetChoiceButtons();
+          if (err?.stack) {
+            // eslint-disable-next-line no-console
+            console.error('[Day1FirstImpressions] commitChoice stack', err.stack);
+          }
           awaitingChoice.value = true;
           choiceLocked = false;
+          if (typeof resetChoiceButtons === 'function') resetChoiceButtons();
         } finally {
           choiceLocked = false;
         }
