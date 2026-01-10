@@ -83,10 +83,16 @@ export default class TaskSystem {
     if (task.type === 'fire_short') task.progress.fireDelta = 0;
   }
 
-  createDay1TasksFromPlan(tribe, phaseId) {
+  createDay1TasksFromPlan(tribe, phaseId, { force = false } = {}) {
     const state = this.ensureTribeTaskState(tribe);
     if (!state) return;
     const newPhaseId = phaseId || this.getCurrentPhaseId();
+    if (force) {
+      state.tasks = (state.tasks || []).filter(task => !(task.deadline === 'phase' && task.phaseId === newPhaseId && task.type?.includes('_short')));
+      if (state.lastEvaluatedPhaseId === newPhaseId) {
+        state.lastEvaluatedPhaseId = null;
+      }
+    }
     const alreadyCreated = (state.tasks || []).some(task => task.phaseId === newPhaseId && task.type?.includes('_short'));
     if (alreadyCreated) return;
 
@@ -157,9 +163,9 @@ export default class TaskSystem {
           },
           {
             key: 'firewood',
-            title: 'GATHER 3 FIREWOOD.',
-            description: 'GATHER 3 FIREWOOD.',
-            target: { firewoodThisPhase: 3 },
+            title: 'GATHER 10 FIREWOOD.',
+            description: 'GATHER 10 FIREWOOD.',
+            target: { firewoodThisPhase: 10 },
             progress: { firewoodThisPhase: 0 },
             rewards: { teamPlayer: 2 },
             penalties: { teamPlayer: -2, suspicion: 1 }
@@ -629,7 +635,7 @@ export default class TaskSystem {
       case 'wood_bamboo_short':
         return (p.bambooThisPhase || 0) >= 5;
       case 'wood_firewood_short':
-        return (p.firewoodThisPhase || 0) >= 3;
+        return (p.firewoodThisPhase || 0) >= 10;
       case 'wood_short':
         return (p.bambooContributedThisPhase || 0) > 0 || (p.firewoodThisPhase || 0) > 0;
       case 'resources_coconuts_short':
@@ -868,7 +874,7 @@ export default class TaskSystem {
       case 'wood_bamboo_short':
         return `${p.bambooThisPhase || 0}/5`;
       case 'wood_firewood_short':
-        return `${p.firewoodThisPhase || 0}/3`;
+        return `${p.firewoodThisPhase || 0}/10`;
       case 'wood_short':
         return '';
       case 'resources_coconuts_short':
