@@ -216,7 +216,7 @@ export default class TaskSimulationSystem {
         const missingTotal = Object.values(missing).reduce((sum, amount) => sum + amount, 0);
         if (missingTotal > 0) {
           buildData.missing = { ...missing };
-          const blamed = this.resolveBlame(buildType, missing, assignments, report);
+          const blamed = this.resolveBlame(buildType, missing, assignments, report, tribe);
           buildData.blamed = blamed;
           this.addBlameDeltas(report, builderId, blamed, missing, buildType);
           console.log(`[TaskSim] ${buildType} build skipped by player, missing materials`);
@@ -265,7 +265,7 @@ export default class TaskSimulationSystem {
         }
 
         buildData.missing = { ...(retry.missing || attempt.missing) };
-        const blamed = this.resolveBlame(buildType, buildData.missing, assignments, report);
+        const blamed = this.resolveBlame(buildType, buildData.missing, assignments, report, tribe);
         buildData.blamed = blamed;
         this.addBlameDeltas(report, builderId, blamed, buildData.missing, buildType);
         console.log(`[TaskSim] ${buildType} build still blocked after pivot`);
@@ -318,7 +318,7 @@ export default class TaskSimulationSystem {
       const missingTotal = missingEntries.reduce((sum, [, amt]) => sum + amt, 0);
       const missingFraction = missingTotal / requiredTotal;
       const [topic, missingAmount] = missingEntries.sort((a, b) => b[1] - a[1])[0] || ['bamboo', 0];
-      const blamedId = this.resolveBlame(buildType, { [topic]: missingAmount }, assignments, report)[0] || null;
+      const blamedId = this.resolveBlame(buildType, { [topic]: missingAmount }, assignments, report, tribe)[0] || null;
 
       if (missingFraction >= 0.3 && blamedId && buildData.attemptedBy && !dramaCandidate) {
         dramaCandidate = {
@@ -336,6 +336,16 @@ export default class TaskSimulationSystem {
     report.drama.shouldTrigger = Boolean(dramaCandidate);
     report.uiIntent = dramaCandidate || builderReady;
     if (dramaCandidate) {
+      const resourceName = RESOURCE_DISPLAY_NAMES[dramaCandidate.topic] || dramaCandidate.topic;
+      const singularName = resourceName.endsWith('s') ? resourceName.slice(0, -1) : resourceName;
+      const missingAmount = dramaCandidate.missing?.[dramaCandidate.topic] || 0;
+      const buildLabel = dramaCandidate.buildType === 'shelter' ? 'Shelter' : 'Fire';
+      const reason = `${buildLabel} is missing ${missingAmount} ${missingAmount === 1 ? singularName : resourceName}`;
+      report.drama.type = 'blocked_build';
+      report.drama.builderId = dramaCandidate.builderId;
+      report.drama.blamedId = dramaCandidate.blamedId;
+      report.drama.missing = { [dramaCandidate.topic]: missingAmount };
+      report.drama.reason = reason;
       report.drama.candidates.push({
         type: 'callout',
         builderId: dramaCandidate.builderId,
@@ -583,7 +593,7 @@ export default class TaskSimulationSystem {
     return clamp(base, 0, missingAmount);
   }
 
-  resolveBlame(buildType, missing, assignments, report) {
+  resolveBlame(buildType, missing, assignments, report, tribe) {
     if (!missing) return [];
     const missingEntries = Object.entries(missing);
     if (!missingEntries.length) return [];
@@ -594,11 +604,17 @@ export default class TaskSimulationSystem {
     const roleIds = assignments[roleKey] || [];
     if (!roleIds.length) return [];
 
-    const scored = roleIds.map(id => ({
-      id,
-      amount: this.getContributionAmount(report, id, resource)
-    }));
-    scored.sort((a, b) => a.amount - b.amount);
+    const scored = roleIds.map((id, index) => {
+      const survivor = tribe ? this.getSurvivorById(tribe, id) : null;
+      const teamPlayer = Number.isFinite(survivor?.teamPlayer) ? survivor.teamPlayer : 50;
+      return {
+        id,
+        amount: this.getContributionAmount(report, id, resource),
+        teamPlayer,
+        index
+      };
+    });
+    scored.sort((a, b) => a.amount - b.amount || a.teamPlayer - b.teamPlayer || a.index - b.index);
     const blamedId = scored[0]?.id;
     return blamedId ? [blamedId] : [];
   }
@@ -663,13 +679,16 @@ export default class TaskSimulationSystem {
           const floatSurvivor = this.getSurvivorById(tribe, floatId);
           const floatName = floatSurvivor?.firstName || 'Float';
           const resourceName = RESOURCE_DISPLAY_NAMES[resource] || resource;
+          const singularName = resourceName.endsWith('s') ? resourceName.slice(0, -1) : resourceName;
+          const reason = `Covered missing ${contributorAmount === 1 ? singularName : resourceName} when assigned gatherer fell short.`;
           report.floatCredits.push({
             floatId,
             buildType,
             resource,
             amount: contributorAmount,
             teamPlayerDelta: delta,
-            text: `${floatName} stepped up when the assigned gatherer fell short on ${resourceName}.`
+            text: `${floatName} stepped up when the assigned gatherer fell short on ${resourceName}.`,
+            reason
           });
 
           gm.campLog = gm.campLog || [];
@@ -681,7 +700,8 @@ export default class TaskSimulationSystem {
             resource,
             amount: contributorAmount,
             teamPlayerDelta: delta,
-            text: `${floatName} stepped up when the assigned gatherer fell short on ${resourceName}.`
+            text: `${floatName} stepped up when the assigned gatherer fell short on ${resourceName}.`,
+            reason
           });
         });
       });
@@ -759,7 +779,7 @@ export default class TaskSimulationSystem {
   }
 
   getWorkMultiplier(survivor) {
-    const teamPlayer = Number.isFinite(survivor?.teamPlayer) ? survivor.teamPlayer : 5;
+    const teamPlayer = Number.isFinite(survivor?.teamPlayer) ? survivor.teamPlayer : 50;
     const lazy = Number.isFinite(survivor?.lazy)
       ? survivor.lazy
       : Number.isFinite(survivor?.laziness)
