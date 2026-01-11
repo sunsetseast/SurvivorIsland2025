@@ -35,100 +35,6 @@ export default function renderShelter(container) {
   clearChildren(container);
   shelterRoot = container;
 
-  const playerTribe = gameManager.getPlayerTribe();
-  gameManager.ensureStockpileExists?.(playerTribe);
-  const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
-
-  const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.png')`;
-  container.style.backgroundImage = backgroundImage;
-  container.style.backgroundSize = 'cover';
-  container.style.backgroundPosition = 'center';
-  container.style.backgroundRepeat = 'no-repeat';
-
-  const wrapper = createElement('div', {
-    className: 'shelter-wrapper',
-    style: `
-      position: relative;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    `
-  });
-
-  const shelterLevelContainer = createElement('div', {
-    id: 'shelter-level-indicator',
-    style: `
-      position: absolute;
-      left: 5px;
-      top: 50%;
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      z-index: 10;
-    `
-  });
-
-  for (let i = 4; i >= 0; i--) {
-    const circle = createElement('div', {
-      id: `shelter-level-${i}`,
-      style: `
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        border: 3px solid #8B4513;
-        background: rgba(139, 69, 19, 0.3);
-        transition: all 0.4s ease;
-      `
-    });
-
-    if (tribeShelterValue > i) {
-      circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
-      circle.style.borderColor = '#22c55e';
-      circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
-    }
-
-    shelterLevelContainer.appendChild(circle);
-  }
-
-  container.appendChild(shelterLevelContainer);
-
-  const message = createElement('div', {
-    id: 'shelter-message',
-    style: `
-      color: white;
-      text-shadow: 2px 2px 4px black;
-      font-size: 1.8rem;
-      font-family: 'Survivant', sans-serif;
-      text-align: center;
-      padding: 20px;
-      z-index: 2;
-      opacity: 1;
-      transition: opacity 1s ease;
-    `
-  }, 'Shelter: Rest, recover, and prepare for the next challenge.');
-
-  wrapper.appendChild(message);
-  container.appendChild(wrapper);
-  ensureStockpileBanner(wrapper, playerTribe);
-
-  renderNPCsAtShelter(container);
-  createResourceButtons(wrapper);
-
-  setTimeout(() => {
-    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
-    if (msgEl) msgEl.style.opacity = '0';
-  }, 3000);
-
-  setTimeout(() => {
-    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
-    if (msgEl) msgEl.remove();
-  }, 4000);
-
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
@@ -175,6 +81,104 @@ export default function renderShelter(container) {
     actionButtons.appendChild(leftButton);
     actionButtons.appendChild(centerButton);
     actionButtons.appendChild(downButton);
+  }
+
+  try {
+    const playerTribe = gameManager.getPlayerTribe();
+    gameManager.ensureStockpileExists?.(playerTribe);
+    const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
+
+    const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.png')`;
+    container.style.backgroundImage = backgroundImage;
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundPosition = 'center';
+    container.style.backgroundRepeat = 'no-repeat';
+
+    const wrapper = createElement('div', {
+      className: 'shelter-wrapper',
+      style: `
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      `
+    });
+
+    const shelterLevelContainer = createElement('div', {
+      id: 'shelter-level-indicator',
+      style: `
+        position: absolute;
+        left: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 10;
+      `
+    });
+
+    for (let i = 4; i >= 0; i--) {
+      const circle = createElement('div', {
+        id: `shelter-level-${i}`,
+        style: `
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          border: 3px solid #8B4513;
+          background: rgba(139, 69, 19, 0.3);
+          transition: all 0.4s ease;
+        `
+      });
+
+      if (tribeShelterValue > i) {
+        circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+        circle.style.borderColor = '#22c55e';
+        circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
+      }
+
+      shelterLevelContainer.appendChild(circle);
+    }
+
+    container.appendChild(shelterLevelContainer);
+
+    const message = createElement('div', {
+      id: 'shelter-message',
+      style: `
+        color: white;
+        text-shadow: 2px 2px 4px black;
+        font-size: 1.8rem;
+        font-family: 'Survivant', sans-serif;
+        text-align: center;
+        padding: 20px;
+        z-index: 2;
+        opacity: 1;
+        transition: opacity 1s ease;
+      `
+    }, 'Shelter: Rest, recover, and prepare for the next challenge.');
+
+    wrapper.appendChild(message);
+    container.appendChild(wrapper);
+    ensureStockpileBanner(wrapper, playerTribe);
+
+    renderNPCsAtShelter(container);
+    createResourceButtons(wrapper);
+
+    setTimeout(() => {
+      const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+      if (msgEl) msgEl.style.opacity = '0';
+    }, 3000);
+
+    setTimeout(() => {
+      const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+      if (msgEl) msgEl.remove();
+    }, 4000);
+  } catch (error) {
+    console.error('Shelter view render error:', error);
   }
 
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
