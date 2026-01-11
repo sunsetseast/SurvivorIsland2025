@@ -48,6 +48,8 @@ export default class TaskSimulationSystem {
 
     console.log(`[TaskSim] running checkpoint ${checkpoint}`);
 
+    gm.taskSystem?.createDay1TasksFromPlan?.(tribe, null, { force: false });
+
     const report = this.buildCheckpointReportBase(checkpoint, tribe);
     this.simulateGatherPass(checkpoint, tribe, report);
     if (checkpoint === 'end') {
@@ -121,6 +123,40 @@ export default class TaskSimulationSystem {
     const assignments = report.assignments || {};
     const gatherRoles = Object.keys(assignments).filter(role => ['wood', 'resources', 'float'].includes(role));
 
+    const targets = {
+      resources: { coconuts: 3, palms: 1 },
+      wood: { bamboo: 5, firewood: 10 }
+    };
+
+    const getStockpileSnapshot = () => report.stockpileAfter || report.stockpileBefore || {};
+
+    const getRemaining = () => {
+      const stockpile = getStockpileSnapshot();
+      return {
+        coconuts: Math.max(0, targets.resources.coconuts - (stockpile.coconuts ?? stockpile.coconut ?? 0)),
+        palms: Math.max(0, targets.resources.palms - (stockpile.palms ?? 0)),
+        bamboo: Math.max(0, targets.wood.bamboo - (stockpile.bamboo ?? 0)),
+        firewood: Math.max(0, targets.wood.firewood - (stockpile.firewood ?? 0))
+      };
+    };
+
+    const applyRemainingCap = (rolled, remaining) => {
+      if (!rolled || rolled <= 0) return 0;
+      if (remaining > 0) return Math.min(rolled, remaining);
+      return getRandomInt(0, 1) ? Math.min(rolled, 1) : 0;
+    };
+
+    const selectFloatTarget = remaining => {
+      const blockers = ['firewood', 'bamboo', 'palms'];
+      const blockingNeeded = blockers.filter(resource => remaining[resource] > 0);
+      if (blockingNeeded.length) {
+        return blockingNeeded.sort((a, b) => remaining[b] - remaining[a])[0];
+      }
+      if (remaining.coconuts > 0) return 'coconuts';
+      const fallback = ['bamboo', 'palms', 'firewood', 'coconuts'];
+      return fallback[getRandomInt(0, fallback.length - 1)];
+    };
+
     gatherRoles.forEach(role => {
       const ids = assignments[role] || [];
       ids.forEach(id => {
@@ -129,20 +165,22 @@ export default class TaskSimulationSystem {
         const effort = this.getWorkMultiplier(survivor);
 
         if (role === 'resources') {
-          const coconuts = this.rollAmount(0, 2, effort);
-          const palms = this.rollAmount(0, 1, effort);
+          const remaining = getRemaining();
+          const coconuts = applyRemainingCap(this.rollAmount(0, 2, effort), remaining.coconuts);
+          const palms = applyRemainingCap(this.rollAmount(0, 1, effort), remaining.palms);
           if (coconuts) this.addContribution(id, role, 'coconuts', coconuts, report, tribe);
           if (palms) this.addContribution(id, role, 'palms', palms, report, tribe);
         } else if (role === 'wood') {
-          const bamboo = this.rollAmount(0, 3, effort);
-          const firewood = this.rollAmount(0, 4, effort);
+          const remaining = getRemaining();
+          const bamboo = applyRemainingCap(this.rollAmount(0, 3, effort), remaining.bamboo);
+          const firewood = applyRemainingCap(this.rollAmount(0, 4, effort), remaining.firewood);
           if (bamboo) this.addContribution(id, role, 'bamboo', bamboo, report, tribe);
           if (firewood) this.addContribution(id, role, 'firewood', firewood, report, tribe);
         } else if (role === 'float') {
-          const picks = ['bamboo', 'palms', 'firewood', 'coconuts'];
-          const chosen = picks[getRandomInt(0, picks.length - 1)];
+          const remaining = getRemaining();
+          const chosen = selectFloatTarget(remaining);
           const max = chosen === 'firewood' ? 4 : chosen === 'bamboo' ? 3 : chosen === 'coconuts' ? 2 : 1;
-          const amount = this.rollAmount(0, max, effort);
+          const amount = applyRemainingCap(this.rollAmount(0, max, effort), remaining[chosen] ?? 0);
           if (amount) this.addContribution(id, role, chosen, amount, report, tribe);
         }
       });
@@ -466,6 +504,12 @@ export default class TaskSimulationSystem {
     };
 
     const plan = tribe?.day1Plan || tribe?.plan || {};
+    const planAssignments = plan.assignments || {};
+    const aliasMap = {
+      wood: 'materials',
+      resources: 'food',
+      float: 'flex'
+    };
 
     const mergeIds = (target, values) => {
       const existing = assignments[target] || [];
@@ -483,20 +527,32 @@ export default class TaskSimulationSystem {
     };
 
     if (plan) {
-      mergeIds('fire', plan.fireIds || plan.fire || plan.fireTeam || plan.fireBuilder);
-      mergeIds('shelter', plan.shelterIds || plan.shelter || plan.shelterTeam);
-      mergeIds('wood', plan.woodIds || plan.wood || plan.woodTeam || plan.materialsIds || plan.materials || plan.materialsTeam);
-      mergeIds('resources', plan.resourcesIds || plan.resources || plan.resourcesTeam || plan.foodIds || plan.food || plan.foodTeam);
-      mergeIds('float', plan.floatIds || plan.floaterIds || plan.float || plan.floatTeam || plan.floaters);
-      mergeIds('water', plan.waterIds || plan.waterTeam);
+      mergeIds('fire', planAssignments.fire);
+      mergeIds('fire', plan.fireIds || plan.fireTeam || plan.fire || plan.fireBuilder);
+      mergeIds('shelter', planAssignments.shelter);
+      mergeIds('shelter', plan.shelterIds || plan.shelterTeam || plan.shelter);
+
+      ['wood', 'resources', 'float'].forEach(role => {
+        const alias = aliasMap[role];
+        mergeIds(role, planAssignments[role]);
+        if (alias) mergeIds(role, planAssignments[alias]);
+        mergeIds(role, plan[`${role}Ids`] || plan[`${role}Team`] || plan[role]);
+        if (alias) mergeIds(role, plan[`${alias}Ids`] || plan[`${alias}Team`] || plan[alias]);
+      });
+
+      mergeIds('wood', plan.materialsIds || plan.materialsTeam || plan.materials);
+      mergeIds('resources', plan.foodIds || plan.foodTeam || plan.food);
+      mergeIds('float', plan.floatIds || plan.floaterIds || plan.floatTeam || plan.float || plan.floaters);
+      mergeIds('water', planAssignments.water);
+      mergeIds('water', plan.waterIds || plan.waterTeam || plan.water);
     }
 
     if (!Object.values(assignments).some(list => list.length)) {
       const tasks = tribe?.taskState?.tasks || [];
       tasks.forEach(task => {
-        if (!task?.role || !Array.isArray(task.assignedIds)) return;
+        if (!task?.role || !Array.isArray(task.assignees)) return;
         if (!assignments[task.role]) assignments[task.role] = [];
-        mergeIds(task.role, task.assignedIds);
+        mergeIds(task.role, task.assignees);
       });
     }
 
@@ -742,7 +798,7 @@ export default class TaskSimulationSystem {
       bamboo: stockpile.bamboo || 0,
       palms: stockpile.palms || 0,
       water: stockpile.water || 0,
-      coconuts: stockpile.coconuts || 0,
+      coconuts: stockpile.coconuts ?? stockpile.coconut ?? 0,
       fish1: stockpile.fish1 || 0,
       fish2: stockpile.fish2 || 0,
       fish3: stockpile.fish3 || 0
