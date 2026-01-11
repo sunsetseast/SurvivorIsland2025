@@ -98,8 +98,16 @@ export default class TaskSystem {
 
     const plan = tribe?.day1Plan || {};
     const getAssignees = role => {
+      const assignments = plan.assignments || {};
+      const assignmentAliases = { wood: 'materials', resources: 'food', float: 'flex' };
+      const assignmentList = Array.isArray(assignments[role])
+        ? assignments[role]
+        : Array.isArray(assignments[assignmentAliases[role]])
+          ? assignments[assignmentAliases[role]]
+          : undefined;
       const candidates = [
-        plan.assignments?.[role],
+        assignmentList,
+        assignments[role],
         plan.roles?.[role],
         plan[`${role}Team`],
         plan[`${role}Ids`],

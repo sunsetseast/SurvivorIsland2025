@@ -23,6 +23,15 @@ function logSkip(reason, payload = null) {
   console.info(`[Day1FirstImpressions] Skipped: ${reason}`, payload);
 }
 
+function normalizeRoleKey(key) {
+  if (!key) return key;
+  const k = String(key).toLowerCase();
+  if (k === 'materials') return 'wood';
+  if (k === 'food') return 'resources';
+  if (k === 'flex') return 'float';
+  return k;
+}
+
 logDebug('module_loaded');
 
 function resolvePlayerIdentity(gameManager, playerTribe, members = []) {
@@ -675,19 +684,6 @@ function pickBestCandidate(candidates, roleKey) {
     .map(entry => entry.member)[0] || null;
 }
 
-function normalizeRoleKey(key) {
-  switch (key) {
-    case 'materials':
-      return 'wood';
-    case 'food':
-      return 'resources';
-    case 'flex':
-      return 'float';
-    default:
-      return key;
-  }
-}
-
 function playerIntentFromChoice(choiceKey) {
   switch (choiceKey) {
     case 'fire':
@@ -1219,12 +1215,52 @@ function resolvePlayerRole(tasks = [], player) {
   return playerTask ? playerTask.label : 'Float';
 }
 
-function buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
+function getRoleLabel(roleKey) {
+  const normalizedKey = normalizeRoleKey(roleKey);
+  const labels = {
+    fire: 'Fire Builder',
+    shelter: 'Shelter Builder',
+    wood: 'Wood Gatherer',
+    resources: 'Resource Gatherer',
+    float: 'Float'
+  };
+  return labels[normalizedKey] || normalizedKey || '';
+}
+
+function formatTaskSummaryTitle(title) {
+  if (!title) return '';
+  const trimmed = String(title).trim().replace(/\.$/, '');
+  const lower = trimmed.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+function buildRoleTaskSummary({ tribe, roleKey, phaseId }) {
+  const normalizedKey = normalizeRoleKey(roleKey);
+  const fallback = {
+    fire: 'Build fire once enough firewood is gathered',
+    shelter: 'Build shelter once materials are gathered',
+    wood: 'Gather 5 bamboo and gather 10 firewood',
+    resources: 'Gather 3 coconuts and gather 1 palm',
+    float: 'Assist the tribe where needed'
+  };
+
+  const stateTasks = tribe?.taskState?.tasks || [];
+  const roleTasks = stateTasks.filter(task => task.role === normalizedKey && task.deadline === 'phase' && (!phaseId || task.phaseId === phaseId));
+  const titles = roleTasks.map(task => task.title || task.description).filter(Boolean);
+  if (!titles.length) return fallback[normalizedKey] || '';
+
+  const formatted = titles.map(formatTaskSummaryTitle).filter(Boolean);
+  if (!formatted.length) return fallback[normalizedKey] || '';
+  return formatted.join(' and ');
+}
+
+function buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary) {
   const roleAssignments = key => {
     const task = getTask(tasks, key) || { assignedIds: [] };
     return formatIdsAsNameList(task.assignedIds, members, player.id) || 'None';
   };
-  const choiceLabel = playerChoiceKey ? (getTask(tasks, playerChoiceKey)?.label || playerChoiceKey) : '';
+  const normalizedChoiceKey = normalizeRoleKey(playerChoiceKey);
+  const choiceLabel = normalizedChoiceKey ? (getTask(tasks, normalizedChoiceKey)?.label || getRoleLabel(normalizedChoiceKey)) : '';
 
   const leadershipLines = [];
   if (leadership.scenario === 'player_leads') {
@@ -1273,6 +1309,7 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
       : 'Tentative calm—plans set, eyes watch to see if they hold.';
 
   const playerRole = resolvePlayerRole(tasks, player);
+  const taskLine = roleTaskSummary ? `• Your task: ${roleTaskSummary}.` : null;
 
   return {
     leadership: [`• ${leadershipLines[0]}`, clashLine],
@@ -1285,13 +1322,13 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
     ],
     chemistry: chemistryLines,
     tone: [`• ${toneLine}`],
-    yourRole: [`• You end up on ${playerRole}${choiceLabel ? ` (you chose ${choiceLabel})` : ''}.`],
+    yourRole: [`• You end up on ${playerRole}${choiceLabel ? ` (you chose ${choiceLabel})` : ''}.`, taskLine].filter(Boolean),
     playerRole
   };
 }
 
-function buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
-  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+function buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary) {
+  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary);
   return [
     'Leadership:',
     ...sections.leadership,
@@ -1310,8 +1347,8 @@ function buildRecapText(player, members, tasks, leadership, chemistryMoments, cl
   ].join('\n');
 }
 
-function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey) {
-  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary) {
+  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary);
   const container = document.createElement('div');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
@@ -1462,8 +1499,9 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       const ensurePlayerLockedOnce = () => {
         const pid = player?.id;
         if (!pid) return;
-        const desiredKey = ['fire', 'shelter', 'wood', 'resources', 'float'].includes(playerChoiceKey)
-          ? playerChoiceKey
+        const normalizedChoiceKey = normalizeRoleKey(playerChoiceKey);
+        const desiredKey = ['fire', 'shelter', 'wood', 'resources', 'float'].includes(normalizedChoiceKey)
+          ? normalizedChoiceKey
           : null;
         let occurrences = 0;
         tasks.forEach(task => {
@@ -1497,7 +1535,9 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
 
       if (!gameManager.playerTribe) throw new Error('Finalize failed: missing gameManager.playerTribe');
 
+      const normalizedPlayerChoiceKey = normalizeRoleKey(playerChoiceKey);
       const playerRole = resolvePlayerRole(tasks, player);
+      const playerRoleKey = normalizeRoleKey(tasks.find(t => (t.assignedIds || []).includes(player?.id))?.key || 'float');
       const plan = {
         leaderId: leadership.topLeader?.id,
         runnerUpId: leadership.runnerUp?.id,
@@ -1507,24 +1547,36 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         resourcesIds: getTask(tasks, 'resources').assignedIds,
         floatIds: getTask(tasks, 'float').assignedIds,
         floaterIds: getTask(tasks, 'float').assignedIds,
+        assignments: {
+          fire: getTask(tasks, 'fire').assignedIds,
+          shelter: getTask(tasks, 'shelter').assignedIds,
+          wood: getTask(tasks, 'wood').assignedIds,
+          resources: getTask(tasks, 'resources').assignedIds,
+          float: getTask(tasks, 'float').assignedIds
+        },
         chemistryMoments: chemistryMomentsCompact,
         leadershipScenario: leadership.scenario,
         mood: closingMood,
-        choice: playerChoiceKey,
+        choice: normalizedPlayerChoiceKey,
         playerId: player?.id,
         playerRole,
-        playerChoice: playerChoiceKey
+        playerChoice: normalizedPlayerChoiceKey
       };
 
       tribe.day1Plan = plan;
       tribe.day1PlanCreated = true;
       tribe.day1Mood = closingMood;
-      tribe.day1Choice = playerChoiceKey;
+      tribe.day1Choice = normalizedPlayerChoiceKey;
       gameManager.flags.day1FirstImpressionsDone = true;
       gameManager.flags.day1FirstImpressionsCompleted = true;
 
-      const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
-      const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey);
+      const phaseId = gameManager.taskSystem?.getCurrentPhaseId?.(gameManager) ?? gameManager.getCurrentCampPhaseId?.();
+      gameManager.taskSystem?.startPhaseForTribe?.(tribe, phaseId);
+      gameManager.taskSystem?.createDay1TasksFromPlan?.(tribe, phaseId);
+      const roleTaskSummary = buildRoleTaskSummary({ tribe, roleKey: playerRoleKey, phaseId });
+
+      const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, normalizedPlayerChoiceKey, roleTaskSummary);
+      const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, normalizedPlayerChoiceKey, roleTaskSummary);
       const assignmentsByRole = {
         fire: getTask(tasks, 'fire').assignedIds,
         shelter: getTask(tasks, 'shelter').assignedIds,
@@ -1553,7 +1605,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         runnerUpId: leadership.runnerUp?.id,
         playerId: player?.id,
         playerRole,
-        playerChoiceKey,
+        playerChoiceKey: normalizedPlayerChoiceKey,
         assignmentsByRole,
         chemistryMoments: chemistryMomentsCompact,
         chemistryMomentsDetailed,
@@ -1574,7 +1626,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
           leadershipScenario: leadership.scenario,
           leaders: [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean),
           clashOccurred: leadership.scenario === 'contested',
-          playerChoiceKey,
+          playerChoiceKey: normalizedPlayerChoiceKey,
           playerRole,
           runnerUpId: leadership.runnerUp?.id,
           playerId: player?.id,
