@@ -234,7 +234,9 @@ export default function renderTribeFlag(container) {
       });
 
       wrapper.appendChild(image);
-      wrapper.addEventListener('click', onClick);
+      if (onClick) {
+        wrapper.addEventListener('click', onClick);
+      }
       return wrapper;
     };
 
@@ -242,6 +244,8 @@ export default function renderTribeFlag(container) {
       console.log('Left button clicked');
       screenManager.screens['camp'].loadView('beach');
     });
+
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - loading Campfire');
@@ -282,6 +286,7 @@ export default function renderTribeFlag(container) {
     }, 'SKIP TIME');
 
     actionButtons.appendChild(leftButton);
+    actionButtons.appendChild(blankButton);
     actionButtons.appendChild(rightButton);
     wrapper.appendChild(testButton);
   }

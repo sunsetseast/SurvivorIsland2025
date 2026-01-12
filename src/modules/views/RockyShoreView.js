@@ -89,7 +89,9 @@ export default function renderRockyShore(container) {
       });
 
       wrapper.appendChild(image);
-      wrapper.addEventListener('click', onClick);
+      if (onClick) {
+        wrapper.addEventListener('click', onClick);
+      }
       return wrapper;
     };
 
@@ -98,7 +100,10 @@ export default function renderRockyShore(container) {
       window.campScreen.loadView('beach');
     });
 
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+
     actionButtons.appendChild(downButton);
+    actionButtons.appendChild(blankButton);
   }
 
   addDebugBanner('Rocky Shore view rendered!', 'darkslategray', 170);

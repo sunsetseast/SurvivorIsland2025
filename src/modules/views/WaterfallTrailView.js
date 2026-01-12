@@ -60,8 +60,9 @@ export default function renderWaterfallTrail(container) {
   if (actionButtons) {
     clearChildren(actionButtons);
 
-    actionButtons.style.justifyContent = 'space-between';
-    actionButtons.style.padding = '0 40px';
+    actionButtons.style.justifyContent = 'center';
+    actionButtons.style.gap = '20px';
+    actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -96,12 +97,15 @@ export default function renderWaterfallTrail(container) {
       window.campScreen.loadView('treemail');
     });
 
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - going to Water Well');
       window.campScreen.loadView('waterWell');
     });
 
     actionButtons.appendChild(leftButton);
+    actionButtons.appendChild(blankButton);
     actionButtons.appendChild(rightButton);
   }
 
