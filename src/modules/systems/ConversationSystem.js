@@ -1133,7 +1133,7 @@ class ConversationSystem {
   _queuePhaseInvitations(phase) {
     if (this.gameManager.flags?.campEventActive) return;
     const phaseType = this._normalizePhase(phase);
-    socialEngine?.runOffscreenNpcChatter?.({ phaseType });
+    socialEngine?.runOffscreenNpcChatter?.({ phaseType, beatId: 'phaseIntro' });
     this._scheduleMeetingInvitation(phase, 'phaseIntro');
 
     if (this.midPhaseTimerId) {
@@ -1144,7 +1144,7 @@ class ConversationSystem {
       `conversation-mid-${phase}-${this.gameManager.day}`,
       () => {
         if (this._isInCamp() && this.gameManager.gamePhase === phase) {
-          socialEngine?.runOffscreenNpcChatter?.({ phaseType });
+          socialEngine?.runOffscreenNpcChatter?.({ phaseType, beatId: 'midPhase' });
           this._scheduleMeetingInvitation(phase, 'midPhase');
         }
       },
@@ -1180,7 +1180,6 @@ class ConversationSystem {
     this._highlightNpcIcon(npc.id, true);
     this._showInvitationToast(npc, location, type);
 
-    const currentView = typeof window !== 'undefined' ? window?.campScreen?.currentView : null;
     if (
       this._normalizeLocationKey(currentView) === normalizedLocation &&
       this._isInCamp() &&
