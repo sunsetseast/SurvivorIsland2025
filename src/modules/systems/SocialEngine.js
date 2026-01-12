@@ -18,6 +18,7 @@ class NpcIntentPlanner {
         this.perNpcCooldownRangeMs = [60000, 120000];
         this.perDayNpcApproachCap = 2;
         this.dayStamp = null;
+        this.chatterKeys = new Set();
     }
 
     // RESET at start of camp phase
@@ -61,8 +62,42 @@ class NpcIntentPlanner {
         if (!player) return null;
         const dayValue = this._getCurrentDay();
         const memorySystem = gameManager.systems?.socialMemorySystem || socialMemorySystem;
-        const intents = this.planPhaseIntents({ phaseType: phase, currentView });
-        const filtered = intents.filter(intent => {
+        const locationSystem = gameManager.systems?.npcLocationSystem || npcLocationSystem;
+        const resolvedView = currentView || window?.campScreen?.currentView || null;
+        const intents = this.planPhaseIntents({ phaseType: phase, currentView: resolvedView });
+
+        let intentsToConsider = intents;
+        let usedNearbyFilter = false;
+        if (resolvedView && typeof locationSystem?.getSurvivorsAtLocation === "function") {
+            const nearby = locationSystem.getSurvivorsAtLocation(resolvedView) || [];
+            const nearbyIds = new Set(
+                nearby
+                    .map(entry => (entry?.id != null ? entry.id : entry))
+                    .filter(id => id != null)
+                    .map(id => String(id))
+            );
+            if (nearbyIds.size > 0) {
+                const filteredNearby = intents.filter(intent => nearbyIds.has(String(intent.npcId)));
+                if (filteredNearby.length > 0) {
+                    intentsToConsider = filteredNearby;
+                    usedNearbyFilter = true;
+                }
+            }
+        }
+
+        if (!usedNearbyFilter && resolvedView) {
+            intentsToConsider = intents.map(intent => {
+                const reasons = Array.isArray(intent.reasons) ? [...intent.reasons] : [];
+                reasons.push("NPC was not nearby — conversation felt more forced.");
+                return {
+                    ...intent,
+                    urgency: this._clamp01((intent.urgency ?? 0) - 0.15),
+                    reasons
+                };
+            });
+        }
+
+        const filtered = intentsToConsider.filter(intent => {
             const npcCooldown = this.perNpcCooldowns.get(intent.npcId);
             if (npcCooldown && npcCooldown > Date.now()) return false;
             const counters = memorySystem?.getDailyCounters?.(intent.npcId, dayValue) || { playerTalks: 0 };
@@ -109,8 +144,12 @@ class NpcIntentPlanner {
         }
 
         this._debugLog("picked", {
+            day: dayValue,
+            phase,
+            direction: `${picked.npcId}→${player.id}`,
             npc: picked.npcId,
             intent: picked.intent,
+            target: targetName || picked.targetId || null,
             urgency: picked.urgency,
             reasons: picked.reasons,
             location: picked.location
@@ -124,6 +163,7 @@ class NpcIntentPlanner {
         const allianceSystem = gameManager.systems?.allianceSystem;
         const memorySystem = gameManager.systems?.socialMemorySystem || socialMemorySystem;
         const locationSystem = gameManager.systems?.npcLocationSystem || npcLocationSystem;
+        const location = locationSystem?.getLocation?.(npc.id) || null;
 
         const relValue = relationshipSystem?.getRelationship?.(player.id, npc.id)?.value ?? 50;
         const trust = memorySystem?.getTrust?.(npc.id) ?? 50;
@@ -174,6 +214,23 @@ class NpcIntentPlanner {
         }
 
         const weights = this._buildIntentWeights({ phase, relValue, trust, reliability, alliedWithPlayer });
+        const locationBias = this._getLocationBias(location);
+        if (locationBias?.reason) {
+            reasons.push(locationBias.reason);
+        }
+        if (locationBias?.weights) {
+            Object.entries(locationBias.weights).forEach(([intentKey, delta]) => {
+                if (weights[intentKey] != null) {
+                    weights[intentKey] += delta;
+                }
+            });
+        }
+
+        if (this._isIsolatedLocation(location)) {
+            weights.softStrategy += 0.08;
+            weights.idolSuspicion += 0.08;
+            reasons.push("isolated location favors private strategy");
+        }
 
         if (!alliedWithPlayer && relValue >= 60) {
             weights.allianceInvite += phase === "post" ? 0.3 : 0.1;
@@ -232,7 +289,6 @@ class NpcIntentPlanner {
             npcId: npc.id
         });
 
-        const location = locationSystem?.getLocation?.(npc.id) || null;
         const view = currentView || window?.campScreen?.currentView || null;
         if (location) {
             reasons.push(`location ${location}`);
@@ -342,9 +398,13 @@ class NpcIntentPlanner {
         return resolved?.firstName || null;
     }
 
-    runOffscreenNpcChatter({ phaseType } = {}) {
+    runOffscreenNpcChatter({ phaseType, beatId = null } = {}) {
         if (gameManager.flags?.campEventActive) return;
         const phase = this._normalizePhase(phaseType || this.phaseType);
+        const dayValue = this._getCurrentDay();
+        const chatterKey = `${dayValue}-${phase}-${beatId || "phase"}`;
+        if (this.chatterKeys.has(chatterKey)) return;
+        this.chatterKeys.add(chatterKey);
         const memorySystem = gameManager.systems?.socialMemorySystem || socialMemorySystem;
         const relationshipSystem = gameManager.systems?.relationshipSystem;
         const locationSystem = gameManager.systems?.npcLocationSystem || npcLocationSystem;
@@ -384,21 +444,13 @@ class NpcIntentPlanner {
             if (pair) pickedPairs.push({ pair, location });
         });
 
-        while (pickedPairs.length < maxPairs) {
-            const pair = pickPairFromList(npcs);
-            if (!pair) break;
-            pickedPairs.push({ pair, location: locationSystem?.getLocation?.(pair[0].id) || "camp" });
-        }
-
         if (pickedPairs.length === 0) return;
 
-        const chatterTypes = ["gossip", "name_thrown_out", "target", "alliance_rumor", "warning"];
-        const dayValue = this._getCurrentDay();
         const chatterLogs = [];
 
         pickedPairs.forEach(({ pair, location }) => {
             const [speaker, listener] = pair;
-            const type = chatterTypes[Math.floor(Math.random() * chatterTypes.length)];
+            const type = this._pickChatterType();
             const targetPick = this._pickChatterTarget([speaker.id, listener.id]);
             const targetName = targetPick?.name || null;
             const targetId = targetPick?.id || null;
@@ -479,11 +531,21 @@ class NpcIntentPlanner {
                         shortText: `${speaker.firstName || "Someone"} warned ${listener.firstName || "someone"} about ${targetName}.`
                     });
                 }
+            } else if (type === "apology" || type === "confrontation") {
+                if (type === "apology") {
+                    memorySystem?.recordApology?.(speaker.id, listener.id, "uncertain");
+                } else {
+                    memorySystem?.recordConfrontation?.(speaker.id, listener.id, "tense");
+                }
             }
 
             const delta = this._rollChatterRelationshipDelta(type);
             if (relationshipSystem?.changeRelationship && delta !== 0) {
                 relationshipSystem.changeRelationship(speaker.id, listener.id, delta);
+            }
+            if (location) {
+                memorySystem?.recordMeetingContext?.(speaker.id, location);
+                memorySystem?.recordMeetingContext?.(listener.id, location);
             }
 
             memorySystem?.incrementDailyCounter?.(speaker.id, "npcTalks", dayValue);
@@ -499,7 +561,7 @@ class NpcIntentPlanner {
         });
 
         const summary = `offscreen chatter: ${chatterLogs.map(entry => `${entry.speaker}→${entry.listener}`).join(", ")}`;
-        this._debugLog("offscreen-chatter", { phase, chatter: chatterLogs, summary }, { banner: true });
+        this._debugLog("offscreen-chatter", { day: dayValue, phase, chatter: chatterLogs, summary }, { banner: true });
     }
 
     _normalizePhase(phaseType) {
@@ -517,7 +579,7 @@ class NpcIntentPlanner {
 
     _debugLog(label, payload, { banner = false } = {}) {
         console.log(`[NpcIntentPlanner] ${label}`, payload);
-        if (banner && typeof window !== "undefined" && typeof window.debugBanner === "function") {
+        if (banner && typeof window !== "undefined" && window.DEBUG_SOCIAL_SIM && typeof window.debugBanner === "function") {
             const summary = payload?.summary || `${label}: ${payload?.intent || "intent"} (${payload?.npc || "npc"})`;
             window.debugBanner(summary, payload?.reasons?.slice?.(0, 2)?.join(" | ") || "");
         }
@@ -528,6 +590,7 @@ class NpcIntentPlanner {
         if (this.dayStamp !== dayValue) {
             this.dayStamp = dayValue;
             this.phaseBeatCounts = { pre: 0, post: 0 };
+            this.chatterKeys = new Set();
         }
     }
 
@@ -547,6 +610,41 @@ class NpcIntentPlanner {
             .replace(/[\s_-]+/g, "");
     }
 
+    _getLocationBias(location) {
+        const normalized = this._normalizeLocation(location);
+        if (!normalized) return null;
+        if (["beach", "shelter"].includes(normalized)) {
+            return {
+                reason: "camp comfort spot favors bonding",
+                weights: { bonding: 0.22, allianceInvite: 0.1 }
+            };
+        }
+        if (normalized === "campfire") {
+            return {
+                reason: "campfire chatter leans strategic",
+                weights: { softStrategy: 0.18, warning: 0.12 }
+            };
+        }
+        if (["jungletrail", "waterfalltrail"].includes(normalized)) {
+            return {
+                reason: "trail meetup feels private",
+                weights: { idolSuspicion: 0.18, softStrategy: 0.12 }
+            };
+        }
+        if (normalized === "rocky") {
+            return {
+                reason: "rocky stretch invites confrontation",
+                weights: { warning: 0.18, targeting: 0.12 }
+            };
+        }
+        return null;
+    }
+
+    _isIsolatedLocation(location) {
+        const normalized = this._normalizeLocation(location);
+        return ["jungletrail", "waterfalltrail", "rocky"].includes(normalized);
+    }
+
     _pickChatterTarget(excludeIds = []) {
         const survivors = gameManager.survivors || [];
         const exclude = new Set(excludeIds.map(id => String(id)));
@@ -556,10 +654,30 @@ class NpcIntentPlanner {
         return { id: pick.id, name: pick.firstName || null };
     }
 
+    _pickChatterType() {
+        const weighted = [
+            { type: "gossip", weight: 0.28 },
+            { type: "name_thrown_out", weight: 0.22 },
+            { type: "target", weight: 0.18 },
+            { type: "alliance_rumor", weight: 0.16 },
+            { type: "warning", weight: 0.12 },
+            { type: "apology", weight: 0.02 },
+            { type: "confrontation", weight: 0.02 }
+        ];
+        const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+        let roll = Math.random() * total;
+        for (const entry of weighted) {
+            roll -= entry.weight;
+            if (roll <= 0) return entry.type;
+        }
+        return "gossip";
+    }
+
     _rollChatterRelationshipDelta(type) {
         const magnitude = 1 + Math.floor(Math.random() * 3);
-        if (type === "alliance_rumor" || type === "warning") return magnitude;
+        if (type === "alliance_rumor" || type === "warning" || type === "apology") return magnitude;
         if (type === "target") return -magnitude;
+        if (type === "confrontation") return -magnitude;
         return Math.random() < 0.5 ? magnitude : -magnitude;
     }
 }
