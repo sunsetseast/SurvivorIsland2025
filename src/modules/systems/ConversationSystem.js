@@ -4,6 +4,7 @@ import challengeManager from '../core/ChallengeManager.js';
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
+import socialEngine from './SocialEngine.js';
 
 // DEV NOTE (ConversationSystem)
 // - Intents: player-facing actions (pre + post) are enumerated below and drive intent -> NPC response templates.
@@ -1033,7 +1034,24 @@ class ConversationSystem {
     );
     if (pending) {
       pending.hasTriggered = true;
-      this._startConversation(survivor, { isPurpose: true, meeting: pending, location, context: { initiator: 'npc' } });
+      const intentOverride = pending.intent?.intent
+        ? this._mapSocialTypeToIntent(pending.intent.intent, this._normalizePhase(pending.phase))
+        : null;
+      this._startConversation(survivor, {
+        isPurpose: true,
+        meeting: pending,
+        location,
+        intentOverride,
+        context: {
+          initiator: 'npc',
+          initiatedByNpc: true,
+          location: pending.intent?.location || location || null,
+          reasons: pending.intent?.reasons || [],
+          targetId: pending.intent?.targetId || null,
+          phase: this._normalizePhase(pending.phase),
+          lastChallengeSummary: this.gameManager.lastChallengeSummary || null
+        }
+      });
       return;
     }
 
@@ -1070,7 +1088,24 @@ class ConversationSystem {
       meeting.hasTriggered = true;
       const survivor = this._getSurvivorById(meeting.npcId);
       if (survivor) {
-        this._startConversation(survivor, { isPurpose: true, meeting, location: viewName, context: { initiator: 'npc' } });
+        const intentOverride = meeting.intent?.intent
+          ? this._mapSocialTypeToIntent(meeting.intent.intent, this._normalizePhase(meeting.phase))
+          : null;
+        this._startConversation(survivor, {
+          isPurpose: true,
+          meeting,
+          location: viewName,
+          intentOverride,
+          context: {
+            initiator: 'npc',
+            initiatedByNpc: true,
+            location: meeting.intent?.location || viewName || null,
+            reasons: meeting.intent?.reasons || [],
+            targetId: meeting.intent?.targetId || null,
+            phase: this._normalizePhase(meeting.phase),
+            lastChallengeSummary: this.gameManager.lastChallengeSummary || null
+          }
+        });
       }
     }
   }
@@ -1112,18 +1147,22 @@ class ConversationSystem {
 
   _scheduleMeetingInvitation(phase, type) {
     if (this.gameManager.flags?.campEventActive) return;
-    const npc = this._pickConversationNpc();
+    const phaseType = this._normalizePhase(phase);
+    const plannedIntent = socialEngine?.pickBestIntentForPlayer?.({ phaseType });
+    const npc = plannedIntent?.npcId ? this._getSurvivorById(plannedIntent.npcId) : this._pickConversationNpc();
     if (!npc) return;
 
-    const location = CAMP_LOCATIONS[getRandomInt(0, CAMP_LOCATIONS.length - 1)];
+    const fallbackLocation = CAMP_LOCATIONS[getRandomInt(0, CAMP_LOCATIONS.length - 1)];
+    const location = plannedIntent?.location || fallbackLocation;
     const normalizedLocation = this._normalizeLocationKey(location);
     const meeting = {
-      phase,
+      phase: phaseType,
       npcId: npc.id,
       location,
       normalizedLocation,
       hasTriggered: false,
-      type
+      type,
+      intent: plannedIntent || null
     };
 
     this.pendingMeetings.push(meeting);
