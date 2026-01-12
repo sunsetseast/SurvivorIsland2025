@@ -164,6 +164,7 @@ export default function renderShelter(container) {
     wrapper.appendChild(message);
     container.appendChild(wrapper);
     ensureStockpileBanner(wrapper, playerTribe);
+    updateStockpileValuesUI(playerTribe);
 
     renderNPCsAtShelter(container);
     createResourceButtons(wrapper);
@@ -350,6 +351,52 @@ function showParchmentPopup(message, onClose) {
   });
 
   root?.appendChild(popup);
+}
+
+function updateStockpileValuesUI(tribe) {
+  const activeTribe = tribe || gameManager.getPlayerTribe();
+  if (!activeTribe) {
+    console.warn('[ShelterView] Unable to update stockpile UI: missing tribe.');
+    return;
+  }
+
+  const stockpile = gameManager.ensureStockpileExists?.(activeTribe);
+  if (!stockpile) {
+    console.warn('[ShelterView] Unable to update stockpile UI: missing stockpile data.');
+    return;
+  }
+
+  const root = getShelterRoot();
+  if (root) {
+    ensureStockpileBanner(root, activeTribe);
+  } else {
+    console.warn('[ShelterView] Unable to update stockpile UI: missing shelter root.');
+  }
+
+  const inventoryValues = {
+    'value-bamboo': stockpile.bamboo ?? 0,
+    'value-palms': stockpile.palms ?? 0,
+    'value-firewood': stockpile.firewood ?? 0,
+    'value-water': stockpile.water ?? 0,
+    'value-coconut': stockpile.coconuts ?? 0,
+    'value-fish1': stockpile.fish1 ?? 0,
+    'value-fish2': stockpile.fish2 ?? 0,
+    'value-fish3': stockpile.fish3 ?? 0
+  };
+
+  const missingNodes = [];
+  Object.entries(inventoryValues).forEach(([id, value]) => {
+    const node = document.getElementById(id);
+    if (node) {
+      node.textContent = value;
+    } else {
+      missingNodes.push(id);
+    }
+  });
+
+  if (missingNodes.length) {
+    console.warn('[ShelterView] Missing inventory value nodes:', missingNodes.join(', '));
+  }
 }
 
 function ensureStockpileBanner(container, tribe) {
@@ -541,7 +588,8 @@ function submitContribution() {
   bambooAdded = 0;
   palmsAdded = 0;
   updateResourceButtonStyles();
-  ensureStockpileBanner(getShelterRoot(), tribe);
+  updateStockpileValuesUI(tribe);
+  window.refreshMenuCard?.();
   updateContributionSubmit();
   showParchmentPopup('You add your gathered materials to the tribe stockpile.');
 }
@@ -756,6 +804,8 @@ function resolveBuildOutcome(style, partner) {
   const newShelterLevel = Math.min(MAX_SHELTER_LEVEL, success ? shelterAfter : shelterBefore);
   tribe.shelter = newShelterLevel;
   updateShelterVisuals(newShelterLevel);
+  updateStockpileValuesUI(tribe);
+  window.refreshMenuCard?.();
 
   activityTracker.trackShelterBuilding(success, partner.firstName, newShelterLevel, {
     style,

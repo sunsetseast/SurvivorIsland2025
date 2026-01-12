@@ -1077,14 +1077,48 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
   }
 
   const cleanup = () => {
-    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    if (overlay) removeOverlay(overlay);
+    try {
+      eventManager.publish(GameEvents.DIALOGUE_HIDDEN);
+    } catch (e) {
+      logDebug('Failed to publish bare dialogue hidden event during checkpoint cleanup.', e);
+    }
+    try {
+      eventManager.publish(GameEvents.DIALOGUE_HIDDEN, { source: 'day1-first-impressions-checkpoint' });
+    } catch (e) {
+      logDebug('Failed to publish dialogue hidden event during checkpoint cleanup.', e);
+    }
   };
 
   const finish = () => {
-    gm.flags.campEventActive = false;
-    cleanup();
-    eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions_part2', id: 'day1_first_impressions_part2' });
-    gm.saveGame?.();
+    let cleanedUp = false;
+    try {
+      cleanup();
+      cleanedUp = true;
+      eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions_part2', id: 'day1_first_impressions_part2' });
+
+      const campContainer = document?.getElementById('camp-screen');
+      if (campContainer) {
+        campContainer.style.pointerEvents = '';
+      }
+      const campContent = document?.getElementById('camp-content');
+      if (campContent) {
+        campContent.style.pointerEvents = '';
+      }
+
+      if (typeof window?.refreshMenuCard === 'function') {
+        window.refreshMenuCard();
+      }
+      const campScreen = window?.campScreen;
+      campScreen?.refreshHUD?.();
+      campScreen?.updateHUD?.();
+      gm.saveGame?.();
+    } finally {
+      if (!cleanedUp) {
+        cleanup();
+      }
+      gm.flags.campEventActive = false;
+    }
   };
 
   const renderBeat = () => {
