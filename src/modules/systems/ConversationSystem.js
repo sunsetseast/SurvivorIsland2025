@@ -1048,6 +1048,8 @@ class ConversationSystem {
           location: pending.intent?.location || location || null,
           reasons: pending.intent?.reasons || [],
           targetId: pending.intent?.targetId || null,
+          targetName: pending.intent?.targetName || null,
+          socialType: pending.intent?.intent || null,
           phase: this._normalizePhase(pending.phase),
           lastChallengeSummary: this.gameManager.lastChallengeSummary || null
         }
@@ -1102,6 +1104,8 @@ class ConversationSystem {
             location: meeting.intent?.location || viewName || null,
             reasons: meeting.intent?.reasons || [],
             targetId: meeting.intent?.targetId || null,
+            targetName: meeting.intent?.targetName || null,
+            socialType: meeting.intent?.intent || null,
             phase: this._normalizePhase(meeting.phase),
             lastChallengeSummary: this.gameManager.lastChallengeSummary || null
           }
@@ -1128,6 +1132,8 @@ class ConversationSystem {
 
   _queuePhaseInvitations(phase) {
     if (this.gameManager.flags?.campEventActive) return;
+    const phaseType = this._normalizePhase(phase);
+    socialEngine?.runOffscreenNpcChatter?.({ phaseType });
     this._scheduleMeetingInvitation(phase, 'phaseIntro');
 
     if (this.midPhaseTimerId) {
@@ -1138,6 +1144,7 @@ class ConversationSystem {
       `conversation-mid-${phase}-${this.gameManager.day}`,
       () => {
         if (this._isInCamp() && this.gameManager.gamePhase === phase) {
+          socialEngine?.runOffscreenNpcChatter?.({ phaseType });
           this._scheduleMeetingInvitation(phase, 'midPhase');
         }
       },
@@ -1148,7 +1155,10 @@ class ConversationSystem {
   _scheduleMeetingInvitation(phase, type) {
     if (this.gameManager.flags?.campEventActive) return;
     const phaseType = this._normalizePhase(phase);
-    const plannedIntent = socialEngine?.pickBestIntentForPlayer?.({ phaseType });
+    const currentView = typeof window !== 'undefined' ? window?.campScreen?.currentView : null;
+    const plannedIntent = socialEngine?.shouldTriggerBeatNow?.({ phaseType })
+      ? socialEngine?.pickBestIntentForPlayer?.({ phaseType, currentView })
+      : null;
     const npc = plannedIntent?.npcId ? this._getSurvivorById(plannedIntent.npcId) : this._pickConversationNpc();
     if (!npc) return;
 
@@ -1162,6 +1172,7 @@ class ConversationSystem {
       normalizedLocation,
       hasTriggered: false,
       type,
+      socialType: plannedIntent?.intent || null,
       intent: plannedIntent || null
     };
 
@@ -4611,7 +4622,12 @@ class ConversationSystem {
     }
 
     const baseDelta = this._getIntentRelationshipDelta(intent, npcStance);
-    const appliedDelta = typeof option.delta === 'number' ? option.delta : baseDelta;
+    let appliedDelta = typeof option.delta === 'number' ? option.delta : baseDelta;
+    if ([PRE_PHASE_INTENTS.bond_smalltalk, PRE_PHASE_INTENTS.bond_personal].includes(intent) || context.socialType === 'bonding') {
+      appliedDelta = typeof appliedDelta === 'number'
+        ? Math.min(6, Math.max(2, appliedDelta))
+        : getRandomInt(2, 6);
+    }
 
     if (player && relationshipSystem && typeof relationshipSystem.changeRelationship === 'function' && typeof survivor?.id !== 'undefined') {
       relationshipSystem.changeRelationship(player.id, survivor.id, appliedDelta || 0);
@@ -4619,7 +4635,7 @@ class ConversationSystem {
 
     const relationshipDelta = typeof option.relationshipDelta === 'number'
       ? option.relationshipDelta
-      : (typeof option.delta === 'number' ? option.delta : (typeof baseDelta === 'number' ? baseDelta : null));
+      : (typeof appliedDelta === 'number' ? appliedDelta : (typeof baseDelta === 'number' ? baseDelta : null));
 
     if (relationshipDelta !== null) {
       socialLog.relationship.push({
@@ -4660,6 +4676,17 @@ class ConversationSystem {
 
     this._shiftMood(survivor.id, option.mood);
     this._rememberConversation(survivor, intent, option, meeting);
+
+    if ((intent === POST_PHASE_INTENTS.idol_suspicion || context.socialType === 'idolSuspicion') && player && relationshipSystem?.changeRelationship) {
+      const penalty = -getRandomInt(1, 3);
+      relationshipSystem.changeRelationship(player.id, survivor.id, penalty);
+      socialLog.relationship.push({
+        id: survivor.id,
+        with: survivor.firstName,
+        amount: penalty,
+        context: 'idolSuspicion'
+      });
+    }
 
     let followupText = option.followup || this._pickNpcResponse(intent, npcStance, {
       subjectName: targetName,
@@ -5748,7 +5775,7 @@ class ConversationSystem {
       case 'idolSuspicion':
         return POST_PHASE_INTENTS.idol_suspicion;
       case 'allianceInvite':
-        return POST_PHASE_INTENTS.alliance_commitment;
+        return 'allianceInvite';
       case 'askIntel':
         return POST_PHASE_INTENTS.ask_intel;
       default:
@@ -9463,6 +9490,7 @@ class ConversationSystem {
     const phase = context.phase || this._getConversationPhase();
     const npcName = survivor.firstName;
     const targetLabel = topicName || this._getSurvivorById(targetId)?.firstName || null;
+    const socialType = context.socialType || intent;
 
     memory.recordConversationIntent?.({
       npcId: survivor.id,
@@ -9487,7 +9515,7 @@ class ConversationSystem {
     if (topicName) {
       if (intent === 'hardStrategy' || intent === 'lightStrategy') {
         this._recordMention({ speaker: speakerName, about: topicName, context: 'pushed_target', tone: 'truthful' });
-      } else if (intent === 'warning') {
+      } else if (intent === 'warning' || intent === POST_PHASE_INTENTS.plant_seed) {
         this._recordMention({ speaker: speakerName, about: topicName, context: 'warned_about', tone: 'truthful' });
       } else if (intent === 'gossip') {
         this._recordMention({ speaker: speakerName, about: topicName, context: 'gossip', tone: 'unknown' });
@@ -9498,6 +9526,18 @@ class ConversationSystem {
       this._recordStrategicContext({ speaker: speakerName, context: 'vague_vote' });
     }
     switch (intent) {
+      case PRE_PHASE_INTENTS.bond_smalltalk:
+      case PRE_PHASE_INTENTS.bond_personal:
+      case 'bonding':
+        logSocial('BONDING_MOMENT');
+        this._recordStructuredSocialEvent({
+          type: 'BONDING_MOMENT',
+          speakerId: playerId || survivor.id,
+          listenerId: survivor.id,
+          data: { tone: 'positive' },
+          summary: `You shared a bonding moment with ${npcName}.`
+        });
+        break;
       case PRE_PHASE_INTENTS.check_trust:
         logSocial('TRUST_CHECK');
         break;
@@ -9545,6 +9585,16 @@ class ConversationSystem {
             });
           }
         }
+        if (targetLabel) {
+          memory.recordNamedIntel?.({
+            about: targetLabel,
+            context: 'target',
+            from: speakerName,
+            day: dayValue,
+            phase,
+            confidence: 55
+          });
+        }
         break;
       case POST_PHASE_INTENTS.deflect_target:
         if (targetId) logSocial('TARGET_DEFLECT', { alternateId: context.alternateId, alternateName: context.alternateName });
@@ -9556,6 +9606,19 @@ class ConversationSystem {
             subjectId: targetId,
             data: { alternateId: context.alternateId || null },
             summary: `You tried to deflect heat off ${targetLabel || 'someone'} with ${npcName}.`
+          });
+        }
+        break;
+      case POST_PHASE_INTENTS.plant_seed:
+      case 'warning':
+        if (targetLabel) {
+          memory.recordNamedIntel?.({
+            about: targetLabel,
+            context: 'warning',
+            from: speakerName,
+            day: dayValue,
+            phase,
+            confidence: 50
           });
         }
         break;
@@ -9612,6 +9675,16 @@ class ConversationSystem {
             summary: `You shared idol suspicion about ${targetLabel || 'someone'} with ${npcName}.`
           });
         }
+        if (targetLabel) {
+          memory.recordNamedIntel?.({
+            about: targetLabel,
+            context: 'idol_suspicion',
+            from: speakerName,
+            day: dayValue,
+            phase,
+            confidence: context.intelPayload?.confidence || 50
+          });
+        }
         break;
       case POST_PHASE_INTENTS.verify_story:
         logSocial('RUMOR_SHARED', { verified: false });
@@ -9650,6 +9723,19 @@ class ConversationSystem {
       case POST_PHASE_INTENTS.ask_intel:
       case PRE_PHASE_INTENTS.ask_general_info:
         logSocial('RUMOR_SHARED');
+        break;
+      case PRE_PHASE_INTENTS.light_strategy:
+      case 'softStrategy':
+        if (targetLabel && Math.random() < 0.6) {
+          memory.recordNamedIntel?.({
+            about: targetLabel,
+            context: 'name_thrown_out',
+            from: speakerName,
+            day: dayValue,
+            phase,
+            confidence: 50
+          });
+        }
         break;
       case 'trust':
         if (ally?.id) memory.recordTrustStatement(playerId || survivor.id, ally.id, 'positive', 'player_prompt');
@@ -9711,6 +9797,26 @@ class ConversationSystem {
             survivorId: survivor.id,
             day: dayValue,
             phase
+          });
+        }
+        if (intent === 'targeting' && targetLabel) {
+          memory.recordNamedIntel?.({
+            about: targetLabel,
+            context: 'target',
+            from: speakerName,
+            day: dayValue,
+            phase,
+            confidence: 55
+          });
+        }
+        if (intent === 'warning' && targetLabel) {
+          memory.recordNamedIntel?.({
+            about: targetLabel,
+            context: 'warning',
+            from: speakerName,
+            day: dayValue,
+            phase,
+            confidence: 50
           });
         }
         break;
