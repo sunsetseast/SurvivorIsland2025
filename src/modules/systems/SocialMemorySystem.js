@@ -720,6 +720,40 @@ class SocialMemorySystem {
         }
     }
 
+    getNpcConversationIntents(npcId, { day = null, phase = null, limit = 8 } = {}) {
+        if (npcId == null) return [];
+        this.initNPC(npcId);
+        const intents = Array.isArray(this.memory[npcId].conversationIntents)
+            ? this.memory[npcId].conversationIntents
+            : [];
+        const filtered = intents.filter(entry => {
+            if (day != null && entry.day !== day) return false;
+            if (phase != null && entry.phase !== phase) return false;
+            return true;
+        });
+        if (limit == null) return filtered.slice();
+        return filtered.slice(-Math.max(0, limit));
+    }
+
+    getLatestConversationIntent(npcId, { phase = null } = {}) {
+        const intents = this.getNpcConversationIntents(npcId, { phase, limit: 1 });
+        return intents.length ? intents[intents.length - 1] : null;
+    }
+
+    clearOldConversationIntents({ beforeDay } = {}) {
+        if (beforeDay == null) return 0;
+        let removed = 0;
+        Object.keys(this.memory || {}).forEach(npcId => {
+            const intents = Array.isArray(this.memory[npcId].conversationIntents)
+                ? this.memory[npcId].conversationIntents
+                : [];
+            const filtered = intents.filter(entry => entry.day == null || entry.day >= beforeDay);
+            removed += intents.length - filtered.length;
+            this.memory[npcId].conversationIntents = filtered;
+        });
+        return removed;
+    }
+
     getRecentIntelAbout(survivorId, limit = 6) {
         if (survivorId == null) return [];
         const compare = String(survivorId);
