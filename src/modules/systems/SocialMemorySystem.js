@@ -54,6 +54,7 @@ class SocialMemorySystem {
                 plotPackets: [],
                 accusations: [],
                 nameMentions: [],
+                dailyCounters: {},
                 misc: [],
                 lastTopics: [],
                 lastLines: [],
@@ -601,6 +602,50 @@ class SocialMemorySystem {
         this.memory[npcId].meetingNotes.push({
             day: window.gameManager?.getCurrentDay() || 1,
             location
+        });
+    }
+
+    getDailyCounters(npcId, day) {
+        if (npcId == null) {
+            return { playerTalks: 0, npcTalks: 0 };
+        }
+        this.initNPC(npcId);
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const counters = this.memory[npcId].dailyCounters || {};
+        const bucket = counters[dayValue] || { playerTalks: 0, npcTalks: 0 };
+        return {
+            playerTalks: bucket.playerTalks || 0,
+            npcTalks: bucket.npcTalks || 0
+        };
+    }
+
+    incrementDailyCounter(npcId, key, day) {
+        if (npcId == null || !key) return;
+        this.initNPC(npcId);
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const memory = this.memory[npcId];
+        if (!memory.dailyCounters || typeof memory.dailyCounters !== 'object') {
+            memory.dailyCounters = {};
+        }
+        if (!memory.dailyCounters[dayValue]) {
+            memory.dailyCounters[dayValue] = { playerTalks: 0, npcTalks: 0 };
+        }
+        const bucket = memory.dailyCounters[dayValue];
+        bucket[key] = (bucket[key] || 0) + 1;
+    }
+
+    wasRecentIntent(npcId, intent, withinDays = 1, phase = null) {
+        if (npcId == null || !intent) return false;
+        this.initNPC(npcId);
+        const day = window.gameManager?.getCurrentDay?.() || 1;
+        const intents = Array.isArray(this.memory[npcId].conversationIntents)
+            ? this.memory[npcId].conversationIntents
+            : [];
+        return intents.some(entry => {
+            if (entry.intent !== intent) return false;
+            if (phase != null && entry.phase !== phase) return false;
+            if (entry.day == null) return true;
+            return day - entry.day <= withinDays;
         });
     }
 
