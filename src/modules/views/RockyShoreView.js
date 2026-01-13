@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -100,7 +101,9 @@ export default function renderRockyShore(container) {
       window.campScreen.loadView('beach');
     });
 
-    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
+      openIdolHuntMenu(container, 'RockyShoreView');
+    });
 
     actionButtons.appendChild(downButton);
     actionButtons.appendChild(blankButton);

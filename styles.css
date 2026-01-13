@@ -2312,6 +2312,18 @@ body {
   min-width: 30px;
 }
 
+.clue-icon {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.clue-expired .clue-icon {
+  opacity: 0.5;
+  filter: grayscale(1) drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.6));
+}
+
 @keyframes hitPing {
   0% {
     transform: translateX(-50%) scale(1);

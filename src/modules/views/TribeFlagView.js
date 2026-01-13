@@ -7,6 +7,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import screenManager from '../core/ScreenManager.js';
 import { createSurvivorCard } from '../ui/SurvivorCardFactory.js';
+import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
 
 export default function renderTribeFlag(container) {
   console.log('renderTribeFlag() called');
@@ -246,7 +247,9 @@ export default function renderTribeFlag(container) {
       screenManager.screens['camp'].loadView('beach');
     });
 
-    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
+      openIdolHuntMenu(container, 'TribeFlagView');
+    });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - loading Campfire');

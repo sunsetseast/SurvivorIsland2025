@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -138,6 +139,17 @@ export default function renderJungleTrail(container) {
   popupContent.appendChild(popupTitle);
   popupContent.appendChild(firewoodButton);
   popupContent.appendChild(bambooButton);
+
+  const huntButton = createElement('button', {
+    className: 'rect-button alt'
+  }, 'Hunt for an Idol');
+
+  huntButton.addEventListener('click', () => {
+    resourcePopup.style.display = 'none';
+    openIdolHuntOptions(container, 'JungleTrailView');
+  });
+
+  popupContent.appendChild(huntButton);
   resourcePopup.appendChild(popupContent);
   container.appendChild(resourcePopup);
 

@@ -358,6 +358,12 @@ function endGame() {
     // Track firewood gathering activity
     activityTracker.trackResourceGathering('firewood', firewood, 'Wood Chopping');
     gameManager.taskSystem?.recordResourceGain?.(player.id, 'firewood', firewood, 'wood_chopping');
+
+    gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
+      player.id,
+      'JungleTrailView',
+      'firewood'
+    );
   } else {
     console.warn('No player survivor found to assign firewood.');
   }

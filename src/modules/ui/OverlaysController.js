@@ -1,3 +1,5 @@
+import { renderClueInventory } from './ClueOverlay.js';
+
 let initialized = false;
 let currentInventoryPage = 1;
 
@@ -19,6 +21,7 @@ function handleBagClick() {
   hideMenuAndOverlay();
   const inventoryOverlay = document.getElementById('inventory-overlay');
   if (inventoryOverlay) inventoryOverlay.style.display = 'block';
+  renderClueInventory();
 }
 
 function handleHandshakeClick() {
@@ -49,6 +52,8 @@ function toggleInventoryPage() {
     inventoryValues.style.display = 'block';
     currentInventoryPage = 1;
   }
+
+  renderClueInventory();
 }
 
 function resetInventoryPage() {
@@ -58,6 +63,7 @@ function resetInventoryPage() {
   if (inventoryImage) inventoryImage.src = 'Assets/inventory1.png';
   if (inventoryValues) inventoryValues.style.display = 'block';
   currentInventoryPage = 1;
+  renderClueInventory();
 }
 
 function closeInventoryOverlay() {

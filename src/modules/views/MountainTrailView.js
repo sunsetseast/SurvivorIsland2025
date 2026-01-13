@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -57,6 +58,69 @@ export default function renderMountainTrail(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+
+  const actionPopup = createElement('div', {
+    id: 'mountain-action-popup',
+    style: `
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 1005;
+      align-items: center;
+      justify-content: center;
+    `
+  });
+
+  const popupContent = createElement('div', {
+    id: 'mountain-action-content',
+    style: `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: none;
+      padding: 20px;
+      gap: 12px;
+      z-index: 1006;
+    `
+  });
+
+  const popupTitle = createElement('div', {
+    style: `
+      color: white;
+      font-family: 'Survivant', sans-serif;
+      font-size: 1.4rem;
+    `
+  }, 'Trail Actions:');
+
+  const shakeButton = createElement('button', { className: 'rect-button alt' }, 'Shake Trees');
+  shakeButton.addEventListener('click', () => {
+    actionPopup.style.display = 'none';
+    document.getElementById('camp-content').style.transform = 'scaleX(1)';
+    window.previousCampView = 'mountainTrail';
+    window.campScreen.loadView('shake');
+  });
+
+  const huntButton = createElement('button', { className: 'rect-button alt' }, 'Hunt for an Idol');
+  huntButton.addEventListener('click', () => {
+    actionPopup.style.display = 'none';
+    openIdolHuntOptions(container, 'MountainTrailView');
+  });
+
+  popupContent.appendChild(popupTitle);
+  popupContent.appendChild(shakeButton);
+  popupContent.appendChild(huntButton);
+  actionPopup.appendChild(popupContent);
+  container.appendChild(actionPopup);
+
+  actionPopup.addEventListener('click', (event) => {
+    if (event.target === actionPopup) {
+      actionPopup.style.display = 'none';
+    }
+  });
 
   /* ⭐ NEW NPC RENDERING -------------------------------------------------- */
   renderNPCsAtMountainTrail(container);
@@ -121,10 +185,7 @@ export default function renderMountainTrail(container) {
         });
 
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', () => {
-      console.log('Center: go to ShakeView');
-      document.getElementById('camp-content').style.transform = 'scaleX(1)';
-      window.previousCampView = 'mountainTrail';
-      window.campScreen.loadView('shake');
+      actionPopup.style.display = actionPopup.style.display === 'none' ? 'flex' : 'none';
     });
 
     const downButton = fromTreeMail

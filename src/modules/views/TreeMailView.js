@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
 
 export default function renderTreeMail(container) {
   console.log('renderTreeMail() called');
@@ -172,7 +173,9 @@ export default function renderTreeMail(container) {
         window.campScreen.loadView('mountainTrail');
       });
 
-      const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+      const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
+        openIdolHuntMenu(container, 'TreeMailView');
+      });
 
       const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
         console.log('Right button clicked - loading Waterfall Trail View');

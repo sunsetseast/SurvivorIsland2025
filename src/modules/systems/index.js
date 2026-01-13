@@ -11,6 +11,7 @@ export { default as RelationshipSystem, RelationshipType } from './RelationshipS
 export { default as AllianceSystem } from './AllianceSystem.js';
 export { default as ConversationSystem } from './ConversationSystem.js';
 export { default as StrategyPhaseSystem } from './StrategyPhaseSystem.js';
+export { default as NpcIdolHuntAI } from './NpcIdolHuntAI.js';
 
 // ⭐ NEW: NPC SYSTEMS (NpcLocationSystem default export is the singleton instance)
 export { default as npcLocationSystem } from './NpcLocationSystem.js';
@@ -24,6 +25,7 @@ import RelationshipSystem, { RelationshipType } from './RelationshipSystem.js';
 import AllianceSystem from './AllianceSystem.js';
 import ConversationSystem from './ConversationSystem.js';
 import StrategyPhaseSystem from './StrategyPhaseSystem.js';
+import NpcIdolHuntAI from './NpcIdolHuntAI.js';
 
 import npcLocationSystem from './NpcLocationSystem.js';
 import NpcAutoRenderer from '../ui/NpcAutoRenderer.js';
@@ -37,6 +39,7 @@ export default {
   AllianceSystem,
   ConversationSystem,
   StrategyPhaseSystem,
+  NpcIdolHuntAI,
 
   // ⭐ NPC systems must be included here
   npcLocationSystem,
