@@ -3,8 +3,8 @@
  * Handles clue inventory icon and modal display.
  */
 
-import { createElement } from '../utils/index.js';
-import { gameManager } from '../core/index.js';
+import { createElement } from '../utils/DOMUtils.js';
+import gameManager from '../core/GameManager.js';
 
 function ensureClueModal() {
   let overlay = document.getElementById('clue-overlay');
@@ -92,7 +92,7 @@ function ensureClueModal() {
   return overlay;
 }
 
-function openClueModal(clue) {
+export function openClueModal(clue) {
   const overlay = ensureClueModal();
   const text = overlay.querySelector('#clue-text');
   const expiredTag = overlay.querySelector('#clue-expired-tag');

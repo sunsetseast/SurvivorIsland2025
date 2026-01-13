@@ -6,6 +6,8 @@
 import { createElement } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import { openClueModal } from './ClueOverlay.js';
+import { showHuntResultOverlay } from './HuntResultOverlay.js';
 
 function closeOverlay(overlay) {
   if (overlay && overlay.parentNode) {
@@ -14,6 +16,7 @@ function closeOverlay(overlay) {
 }
 
 export function openIdolHuntOptions(container, locationKey) {
+  const parent = document.body;
   const overlay = createElement('div', {
     className: 'idol-hunt-overlay',
     style: `
@@ -67,7 +70,20 @@ export function openIdolHuntOptions(container, locationKey) {
 
   const attemptHunt = (mode) => {
     if (!player || !idolSystem) return;
-    idolSystem.attemptIntentionalHunt(player.id, locationKey, mode);
+    const result = idolSystem.attemptIntentionalHunt(player.id, locationKey, mode);
+    const inventory = idolSystem.getSurvivorInventory?.(player.id);
+    const clue = result?.clueId
+      ? inventory?.clues?.find(item => item.id === result.clueId)
+      : null;
+
+    showHuntResultOverlay(result, {
+      onReadClue: clue
+        ? () => {
+            openClueModal(clue);
+            idolSystem.markClueRead?.(player.id, clue.id);
+          }
+        : null
+    });
     updateCampClockUI(gameManager.getDayTimer(), gameManager.getCurrentDay());
     closeOverlay(overlay);
   };
@@ -94,11 +110,12 @@ export function openIdolHuntOptions(container, locationKey) {
     }
   });
 
-  container.appendChild(overlay);
+  parent.appendChild(overlay);
   return overlay;
 }
 
 export function openIdolHuntMenu(container, locationKey) {
+  const parent = document.body;
   const overlay = createElement('div', {
     className: 'idol-hunt-menu-overlay',
     style: `
@@ -144,6 +161,6 @@ export function openIdolHuntMenu(container, locationKey) {
     }
   });
 
-  container.appendChild(overlay);
+  parent.appendChild(overlay);
   return overlay;
 }

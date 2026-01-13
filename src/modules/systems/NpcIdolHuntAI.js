@@ -118,10 +118,7 @@ const NpcIdolHuntAI = {
     if (!npcSurvivor || npcSurvivor.isPlayer) return null;
     if (!gameManager?.gameSettings?.enableIdols) return null;
 
-    const tribeIndex = gameManager.getTribes().findIndex(tribe =>
-      tribe.members.some(member => member.id === npcSurvivor.id)
-    );
-    const tribeId = npcSurvivor.tribeId || (tribeIndex >= 0 ? tribeIndex + 1 : null);
+    const tribeId = idolSystem.getTribeIdForSurvivor?.(npcSurvivor.id);
     if (!tribeId) return null;
 
     const idolState = idolSystem.getTribeIdolState(tribeId);
