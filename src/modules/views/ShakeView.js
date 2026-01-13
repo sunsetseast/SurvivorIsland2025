@@ -329,6 +329,12 @@ export default function renderShakeView(container) {
       if (rewards.coconuts === 0 && rewards.palms === 0) {
         activityTracker.trackResourceGathering('none', 0, 'Tree Shaking - No rewards');
       }
+
+      gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
+        player.id,
+        'MountainTrailView',
+        'shakeGather'
+      );
     } else {
       console.warn('No player survivor found to assign resources.');
     }

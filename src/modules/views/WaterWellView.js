@@ -5,6 +5,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { MAX_WATER } from '../data/GameData.js';
 import activityTracker from '../utils/ActivityTracker.js';
 
@@ -157,10 +158,12 @@ export default function renderWaterWell(container) {
 
   const forYourselfButton = createElement('button', { className: 'rect-button alt' }, 'For Yourself');
   const forTribeButton = createElement('button', { className: 'rect-button alt' }, 'For the Tribe');
+  const huntButton = createElement('button', { className: 'rect-button alt' }, 'Hunt for an Idol');
 
   popupContent.appendChild(popupTitle);
   popupContent.appendChild(forYourselfButton);
   popupContent.appendChild(forTribeButton);
+  popupContent.appendChild(huntButton);
   waterPopup.appendChild(popupContent);
   container.appendChild(waterPopup);
 
@@ -169,6 +172,11 @@ export default function renderWaterWell(container) {
     if (!content.contains(e.target)) {
       waterPopup.style.display = 'none';
     }
+  });
+
+  huntButton.addEventListener('click', () => {
+    waterPopup.style.display = 'none';
+    openIdolHuntOptions(container, 'WaterWellView');
   });
 
   function flashClockRed() {
@@ -360,6 +368,11 @@ export default function renderWaterWell(container) {
     player.water = Math.min(MAX_WATER, (player.water || 0) + 100);
 
     activityTracker.trackWaterGathering(100, false);
+    gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
+      player.id,
+      'WaterWellView',
+      'getWater'
+    );
 
     showWaterEffect(container);
 
@@ -396,6 +409,11 @@ export default function renderWaterWell(container) {
     });
 
     activityTracker.trackWaterGathering(100, true);
+    gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
+      player.id,
+      'WaterWellView',
+      'getWater'
+    );
 
     if (otherMembersCount > 0) {
       if (typeof player.teamPlayer !== 'number') {

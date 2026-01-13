@@ -68,6 +68,9 @@ export const GameEvents = {
   // Idol events
   IDOL_FOUND: 'idol:found',
   IDOL_PLAYED: 'idol:played',
+  IDOL_USED: 'idol:used',
+  CLUE_FOUND: 'clue:found',
+  CLUE_EXPIRED: 'clue:expired',
 
   // Health events
   HEALTH_CHANGED: 'health:changed',

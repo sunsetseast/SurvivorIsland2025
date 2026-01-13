@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
 
 /* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -97,7 +98,9 @@ export default function renderWaterfallTrail(container) {
       window.campScreen.loadView('treemail');
     });
 
-    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank');
+    const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
+      openIdolHuntMenu(container, 'WaterfallTrailView');
+    });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - going to Water Well');

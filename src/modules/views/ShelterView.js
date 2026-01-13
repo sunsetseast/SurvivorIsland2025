@@ -5,6 +5,7 @@ import activityTracker from '../utils/ActivityTracker.js';
 import npcLocationSystem from '../systems/NpcLocationSystem.js';
 import { createNpcIcon } from '../ui/NpcIcon.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
+import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 
 const BAMBOO_REQUIRED = 5;
 const PALM_REQUIRED = 1;
@@ -285,8 +286,27 @@ function handleCenterButtonClick() {
     startContributionFlow();
   });
 
+  const huntBtn = createElement('button', {
+    className: 'rect-button alt',
+    style: `
+      background-image: url('Assets/rect-button-1.png');
+      background-size: 100% 100%;
+      border: none;
+      padding: 12px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    `
+  }, 'Hunt for an Idol');
+
+  huntBtn.addEventListener('click', () => {
+    closeOverlay();
+    openIdolHuntOptions(root, 'ShelterView');
+  });
+
   buttonColumn.appendChild(buildBtn);
   buttonColumn.appendChild(contributeBtn);
+  buttonColumn.appendChild(huntBtn);
   overlay.appendChild(buttonColumn);
 
   overlay.addEventListener('click', (e) => {
