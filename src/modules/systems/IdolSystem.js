@@ -114,7 +114,7 @@ class IdolSystem {
   initialize() {
     eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, ({ phase }) => {
       if (phase === GamePhase.PRE_CHALLENGE || phase === GamePhase.POST_CHALLENGE) {
-        this.startNewCampPhase();
+        this.currentCampPhaseId = this.currentCampPhaseId || this._buildCampPhaseId();
       }
     });
   }
@@ -146,9 +146,14 @@ class IdolSystem {
     this.initialSpawnCompleted = true;
   }
 
-  startNewCampPhase() {
-    this.currentCampPhaseId = this.gameManager.getCurrentCampPhaseId?.() || `day${this.gameManager.getDay()}_phase`;
+  startNewCampPhase(reason = {}) {
+    this.currentCampPhaseId = this._buildCampPhaseId();
     this.casualSearchCounts.clear();
+    return {
+      ok: true,
+      reason,
+      campPhaseId: this.currentCampPhaseId
+    };
   }
 
   respawnAfterIdolUsed(tribeId) {
@@ -167,25 +172,86 @@ class IdolSystem {
   }
 
   attemptIntentionalHunt(survivorId, locationKey, mode) {
-    if (!this.gameManager.gameSettings?.enableIdols) return null;
+    const safeLocationKey = locationKey || 'unknown';
+    const via = 'intentional';
+
+    if (!this.gameManager.gameSettings?.enableIdols) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId: 'unknown',
+        message: 'Idol hunting is currently disabled.'
+      });
+    }
 
     const survivor = this._getSurvivorById(survivorId);
-    if (!survivor) return null;
+    if (!survivor) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId: 'unknown',
+        message: 'Unable to find the survivor for this hunt.'
+      });
+    }
 
-    if (!ELIGIBLE_IDOL_LOCATIONS.includes(locationKey)) return null;
+    if (!ELIGIBLE_IDOL_LOCATIONS.includes(safeLocationKey)) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId: 'unknown',
+        message: 'This location cannot be searched for idols.'
+      });
+    }
 
-    const tribeId = this._getSurvivorTribeId(survivorId);
-    if (!tribeId) return null;
+    const tribeId = this.getTribeIdForSurvivor(survivorId);
+    if (!tribeId) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId: 'unknown',
+        message: 'Unable to determine tribe for this hunt.'
+      });
+    }
 
     const settings = HUNT_SETTINGS[mode];
-    if (!settings) return null;
+    if (!settings) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'Unknown hunt mode.'
+      });
+    }
 
     if (mode === 'casual') {
-      const casualCount = this.getCasualSearchCount(survivorId, locationKey);
+      const casualCount = this.getCasualSearchCount(survivorId, safeLocationKey);
       if (casualCount >= 2) {
-        return { ok: false, reason: 'casual_limit' };
+        return this._buildResult({
+          ok: false,
+          outcome: 'BLOCKED',
+          via,
+          mode,
+          locationKey: safeLocationKey,
+          tribeId,
+          message: 'You have already searched this area twice during this camp phase.'
+        });
       }
-      this._incrementCasualSearch(survivorId, locationKey);
+      this._incrementCasualSearch(survivorId, safeLocationKey);
     }
 
     this.gameManager.deductTime(settings.timeCost);
@@ -201,7 +267,7 @@ class IdolSystem {
       idolState &&
       !idolState.isFound &&
       !idolState.isUsed &&
-      idolState.locationKey === locationKey;
+      idolState.locationKey === safeLocationKey;
 
     let idolChance = settings.idolChance;
     if (idolHiddenHere && this._hasActiveClueForLocation(survivorId, idolState.locationKey)) {
@@ -209,46 +275,105 @@ class IdolSystem {
     }
 
     if (idolHiddenHere && Math.random() < idolChance) {
-      this._handleIdolFound({
+      const clueExpired = this._handleIdolFound({
         idolState,
         survivor,
         tribeId,
-        locationKey,
+        locationKey: safeLocationKey,
         via: 'intentional',
         mode
       });
-      return { ok: true, type: 'idol', idol: idolState };
+      return this._buildResult({
+        ok: true,
+        outcome: 'IDOL_FOUND',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'You found a Hidden Immunity Idol!',
+        foundIdol: true,
+        idolId: idolState.id,
+        clueExpired
+      });
     }
 
     const clueHiddenHere =
       clueState &&
       !clueState.isFound &&
       !clueState.expired &&
-      clueState.hiddenAtLocationKey === locationKey;
+      clueState.hiddenAtLocationKey === safeLocationKey;
 
     if (clueHiddenHere && Math.random() < settings.clueChance) {
       this._handleClueFound({
         clueState,
         survivor,
         tribeId,
-        locationKey,
+        locationKey: safeLocationKey,
         via: 'intentional',
         mode
       });
-      return { ok: true, type: 'clue', clue: clueState };
+      return this._buildResult({
+        ok: true,
+        outcome: 'CLUE_FOUND',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'You discovered a clue to the hidden idol.',
+        foundClue: true,
+        clueId: clueState.id
+      });
     }
 
-    return { ok: true, type: 'none' };
+    return this._buildResult({
+      ok: true,
+      outcome: 'NOTHING',
+      via,
+      mode,
+      locationKey: safeLocationKey,
+      tribeId,
+      message: 'You search the area but find nothing unusual.'
+    });
   }
 
   attemptIncidentalFind(survivorId, mappedLocationKey, sourceTag) {
-    if (!this.gameManager.gameSettings?.enableIdols) return null;
+    const safeLocationKey = mappedLocationKey || 'unknown';
+    const via = 'incidental';
+
+    if (!this.gameManager.gameSettings?.enableIdols) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        locationKey: safeLocationKey,
+        tribeId: 'unknown',
+        message: 'Idol discoveries are currently disabled.'
+      });
+    }
 
     const survivor = this._getSurvivorById(survivorId);
-    if (!survivor) return null;
+    if (!survivor) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        locationKey: safeLocationKey,
+        tribeId: 'unknown',
+        message: 'Unable to identify the survivor for this find.'
+      });
+    }
 
-    const tribeId = this._getSurvivorTribeId(survivorId);
-    if (!tribeId) return null;
+    const tribeId = this.getTribeIdForSurvivor(survivorId);
+    if (!tribeId) {
+      return this._buildResult({
+        ok: false,
+        outcome: 'ERROR',
+        via,
+        locationKey: safeLocationKey,
+        tribeId: 'unknown',
+        message: 'Unable to determine the survivor tribe.'
+      });
+    }
 
     const idolState = this.tribeIdolStates.get(tribeId);
     const clueState = this.tribeClueStates.get(tribeId);
@@ -265,12 +390,30 @@ class IdolSystem {
       !clueState.expired &&
       clueState.hiddenAtLocationKey === mappedLocationKey;
 
-    if (!idolHiddenHere && !clueHiddenHere) return null;
+    if (!idolHiddenHere && !clueHiddenHere) {
+      return this._buildResult({
+        ok: true,
+        outcome: 'NOTHING',
+        via,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'Nothing unusual catches your eye.'
+      });
+    }
 
-    if (Math.random() >= 0.06) return null;
+    if (Math.random() >= 0.06) {
+      return this._buildResult({
+        ok: true,
+        outcome: 'NOTHING',
+        via,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'You notice nothing out of the ordinary.'
+      });
+    }
 
     if (idolHiddenHere) {
-      this._handleIdolFound({
+      const clueExpired = this._handleIdolFound({
         idolState,
         survivor,
         tribeId,
@@ -278,7 +421,17 @@ class IdolSystem {
         via: 'incidental',
         sourceTag
       });
-      return { type: 'idol', idol: idolState };
+      return this._buildResult({
+        ok: true,
+        outcome: 'IDOL_FOUND',
+        via,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'A hidden idol turns up unexpectedly.',
+        foundIdol: true,
+        idolId: idolState.id,
+        clueExpired
+      });
     }
 
     if (clueHiddenHere) {
@@ -290,10 +443,26 @@ class IdolSystem {
         via: 'incidental',
         sourceTag
       });
-      return { type: 'clue', clue: clueState };
+      return this._buildResult({
+        ok: true,
+        outcome: 'CLUE_FOUND',
+        via,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'You stumble upon an idol clue.',
+        foundClue: true,
+        clueId: clueState.id
+      });
     }
 
-    return null;
+    return this._buildResult({
+      ok: true,
+      outcome: 'NOTHING',
+      via,
+      locationKey: safeLocationKey,
+      tribeId,
+      message: 'Nothing unusual turns up.'
+    });
   }
 
   getTribeIdolState(tribeId) {
@@ -384,7 +553,7 @@ class IdolSystem {
       inventory.idols.push(idolState);
     }
 
-    this._expireClueForTribe(tribeId);
+    const clueExpired = this._expireClueForTribe(tribeId);
 
     eventManager.publish(GameEvents.IDOL_FOUND, {
       survivorId: survivor.id,
@@ -399,6 +568,8 @@ class IdolSystem {
     if (survivor.isPlayer) {
       this._showPlayerNotification('You found a Hidden Immunity Idol!', 'success');
     }
+
+    return clueExpired;
   }
 
   _handleClueFound({ clueState, survivor, tribeId, locationKey, via, mode, sourceTag }) {
@@ -428,7 +599,7 @@ class IdolSystem {
 
   _expireClueForTribe(tribeId) {
     const clueState = this.tribeClueStates.get(tribeId);
-    if (!clueState || clueState.expired) return;
+    if (!clueState || clueState.expired) return false;
 
     clueState.expired = true;
 
@@ -444,6 +615,8 @@ class IdolSystem {
       tribeId,
       clueId: clueState.id
     });
+
+    return true;
   }
 
   _showPlayerNotification(message, type) {
@@ -465,6 +638,46 @@ class IdolSystem {
 
   _casualCountKey(survivorId, locationKey) {
     return `${this.currentCampPhaseId || 'camp'}:${survivorId}:${locationKey}`;
+  }
+
+  _buildCampPhaseId() {
+    const day = this.gameManager.getDay?.() ?? this.gameManager.day ?? 1;
+    const phase = this.gameManager.getGamePhase?.() ?? this.gameManager.gamePhase ?? 'camp';
+    return `day${day}_${phase}`;
+  }
+
+  _buildResult({
+    ok = true,
+    outcome = 'NOTHING',
+    via,
+    mode,
+    locationKey,
+    tribeId,
+    message,
+    foundIdol = false,
+    foundClue = false,
+    idolId,
+    clueId,
+    clueExpired = false
+  }) {
+    return {
+      ok,
+      outcome,
+      via,
+      mode,
+      locationKey,
+      tribeId,
+      message,
+      foundIdol,
+      foundClue,
+      idolId,
+      clueId,
+      clueExpired
+    };
+  }
+
+  getTribeIdForSurvivor(survivorId) {
+    return this._getSurvivorTribeId(survivorId);
   }
 
   _pickRandomLocation(exclude = []) {

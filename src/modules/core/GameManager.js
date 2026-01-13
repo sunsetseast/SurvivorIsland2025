@@ -290,6 +290,14 @@ class GameManager {
         this.gamePhase = GamePhase.PRE_CHALLENGE;
       }
 
+      if (oldState !== GameState.CAMP) {
+        this.systems?.idolSystem?.startNewCampPhase?.({
+          reason: 'enter_camp',
+          day: this.day,
+          phase: this.gamePhase
+        });
+      }
+
       const gate = canRunDay1FirstImpressions?.(this);
       const shouldBlockCampSystems = !!gate?.ok;
 
