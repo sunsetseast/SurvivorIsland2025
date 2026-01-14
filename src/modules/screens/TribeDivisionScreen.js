@@ -261,6 +261,8 @@ export default class TribeDivisionScreen {
       const groups = [brains, brawn, beauty];
 
       tribes = groups.map((group, i) => ({
+        id: i + 1,
+        tribeId: i + 1,
         color: chosenColors[i],
         name: shuffledNames[i],
         members: group
@@ -272,6 +274,8 @@ export default class TribeDivisionScreen {
       const groups = [males, females];
 
       tribes = groups.map((group, i) => ({
+        id: i + 1,
+        tribeId: i + 1,
         color: chosenColors[i],
         name: shuffledNames[i],
         members: group
@@ -300,6 +304,8 @@ export default class TribeDivisionScreen {
         index += size;
 
         tribes.push({
+          id: i + 1,
+          tribeId: i + 1,
           color: chosenColors[i],
           name: shuffledNames[i],
           members
@@ -446,11 +452,6 @@ export default class TribeDivisionScreen {
 
         // Move into CAMP using GameManager (this triggers correct events)
         gameManager.setGameState(GameState.CAMP);
-
-        // Publish the phase change (ConversationSystem relies on this)
-        if (typeof gameManager._publishPhaseChange === 'function') {
-          gameManager._publishPhaseChange();
-        }
 
         // ⭐ TELL THE GAME "TRIBES ARE FINAL" → NPCs can be placed now
         eventManager.publish(GameEvents.TRIBES_CREATED, {
