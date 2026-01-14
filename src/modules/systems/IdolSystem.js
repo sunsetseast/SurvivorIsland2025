@@ -4,7 +4,6 @@
  */
 
 import eventManager, { GameEvents } from '../core/EventManager.js';
-import { GamePhase } from '../core/GameManager.js';
 import { generateId, getRandomInt } from '../utils/CommonUtils.js';
 
 export const ELIGIBLE_IDOL_LOCATIONS = [
@@ -109,14 +108,13 @@ class IdolSystem {
     this.casualSearchCounts = new Map();
     this.currentCampPhaseId = null;
     this.initialSpawnCompleted = false;
+    this.debugMode = false;
+    this.debugForceFind = { idol: false, clue: false };
+    this.debugButtonId = 'idol-debug-button';
   }
 
   initialize() {
-    eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, ({ phase }) => {
-      if (phase === GamePhase.PRE_CHALLENGE || phase === GamePhase.POST_CHALLENGE) {
-        this.currentCampPhaseId = this.currentCampPhaseId || this._buildCampPhaseId();
-      }
-    });
+    return;
   }
 
   reset() {
@@ -126,6 +124,7 @@ class IdolSystem {
     this.casualSearchCounts.clear();
     this.currentCampPhaseId = null;
     this.initialSpawnCompleted = false;
+    this.debugForceFind = { idol: false, clue: false };
   }
 
   spawnInitialForAllTribes() {
@@ -140,6 +139,9 @@ class IdolSystem {
       const tribeId = this._getTribeIdFromTribe(tribe, index);
       if (tribeId) {
         this._spawnIdolAndClueForTribe(tribeId, { requireNewLocations: false });
+        if (this.debugMode) {
+          this._logDebugSpawn(tribeId);
+        }
       }
     });
 
@@ -274,6 +276,29 @@ class IdolSystem {
       idolChance += 0.1;
     }
 
+    if (idolHiddenHere && this._consumeDebugForceFind('idol')) {
+      const clueExpired = this._handleIdolFound({
+        idolState,
+        survivor,
+        tribeId,
+        locationKey: safeLocationKey,
+        via: 'intentional',
+        mode
+      });
+      return this._buildResult({
+        ok: true,
+        outcome: 'IDOL_FOUND',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'You found a Hidden Immunity Idol!',
+        foundIdol: true,
+        idolId: idolState.id,
+        clueExpired
+      });
+    }
+
     if (idolHiddenHere && Math.random() < idolChance) {
       const clueExpired = this._handleIdolFound({
         idolState,
@@ -302,6 +327,28 @@ class IdolSystem {
       !clueState.isFound &&
       !clueState.expired &&
       clueState.hiddenAtLocationKey === safeLocationKey;
+
+    if (clueHiddenHere && this._consumeDebugForceFind('clue')) {
+      this._handleClueFound({
+        clueState,
+        survivor,
+        tribeId,
+        locationKey: safeLocationKey,
+        via: 'intentional',
+        mode
+      });
+      return this._buildResult({
+        ok: true,
+        outcome: 'CLUE_FOUND',
+        via,
+        mode,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'You discovered a clue to the hidden idol.',
+        foundClue: true,
+        clueId: clueState.id
+      });
+    }
 
     if (clueHiddenHere && Math.random() < settings.clueChance) {
       this._handleClueFound({
@@ -401,6 +448,49 @@ class IdolSystem {
       });
     }
 
+    if (idolHiddenHere && this._consumeDebugForceFind('idol')) {
+      const clueExpired = this._handleIdolFound({
+        idolState,
+        survivor,
+        tribeId,
+        locationKey: mappedLocationKey,
+        via: 'incidental',
+        sourceTag
+      });
+      return this._buildResult({
+        ok: true,
+        outcome: 'IDOL_FOUND',
+        via,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'A hidden idol turns up unexpectedly.',
+        foundIdol: true,
+        idolId: idolState.id,
+        clueExpired
+      });
+    }
+
+    if (clueHiddenHere && this._consumeDebugForceFind('clue')) {
+      this._handleClueFound({
+        clueState,
+        survivor,
+        tribeId,
+        locationKey: mappedLocationKey,
+        via: 'incidental',
+        sourceTag
+      });
+      return this._buildResult({
+        ok: true,
+        outcome: 'CLUE_FOUND',
+        via,
+        locationKey: safeLocationKey,
+        tribeId,
+        message: 'You stumble upon an idol clue.',
+        foundClue: true,
+        clueId: clueState.id
+      });
+    }
+
     if (Math.random() >= 0.06) {
       return this._buildResult({
         ok: true,
@@ -471,6 +561,75 @@ class IdolSystem {
 
   getTribeClueState(tribeId) {
     return this.tribeClueStates.get(tribeId) || null;
+  }
+
+  setDebugMode(enabled = false) {
+    this.debugMode = !!enabled;
+
+    if (this.debugMode) {
+      this._attachDebugWindowHook();
+      this._ensureDebugButton();
+    } else {
+      this._detachDebugWindowHook();
+      this._removeDebugButton();
+      this.debugForceFind = { idol: false, clue: false };
+    }
+  }
+
+  isDebugMode() {
+    return this.debugMode;
+  }
+
+  setDebugForceFind({ idol = false, clue = false } = {}) {
+    if (!this.debugMode) {
+      this.debugForceFind = { idol: false, clue: false };
+      return;
+    }
+    this.debugForceFind = {
+      idol: !!idol,
+      clue: !!clue
+    };
+  }
+
+  getDebugSnapshot() {
+    const tribeIds = new Set([
+      ...this.tribeIdolStates.keys(),
+      ...this.tribeClueStates.keys()
+    ]);
+
+    const tribes = [];
+    tribeIds.forEach(tribeId => {
+      const idolState = this.tribeIdolStates.get(tribeId);
+      const clueState = this.tribeClueStates.get(tribeId);
+      tribes.push({
+        tribeId,
+        idol: idolState
+          ? {
+              id: idolState.id,
+              locationKey: idolState.locationKey,
+              isFound: idolState.isFound,
+              isUsed: idolState.isUsed,
+              foundById: idolState.foundById
+            }
+          : null,
+        clue: clueState
+          ? {
+              id: clueState.id,
+              hiddenAtLocationKey: clueState.hiddenAtLocationKey,
+              pointsToLocationKey: clueState.pointsToLocationKey,
+              isFound: clueState.isFound,
+              expired: clueState.expired,
+              foundById: clueState.foundById
+            }
+          : null
+      });
+    });
+
+    return {
+      debugMode: this.debugMode,
+      initialSpawnCompleted: this.initialSpawnCompleted,
+      tribes
+    };
   }
 
   getSurvivorInventory(survivorId) {
@@ -565,7 +724,7 @@ class IdolSystem {
       sourceTag
     });
 
-    if (survivor.isPlayer) {
+    if (survivor.isPlayer && via === 'incidental') {
       this._showPlayerNotification('You found a Hidden Immunity Idol!', 'success');
     }
 
@@ -592,7 +751,7 @@ class IdolSystem {
       sourceTag
     });
 
-    if (survivor.isPlayer) {
+    if (survivor.isPlayer && via === 'incidental') {
       this._showPlayerNotification('You found an idol clue!', 'info');
     }
   }
@@ -719,6 +878,84 @@ class IdolSystem {
     if (tribe?.tribeId) return tribe.tribeId;
     const memberId = tribe?.members?.[0]?.tribeId;
     return memberId || index + 1;
+  }
+
+  _consumeDebugForceFind(kind) {
+    if (!this.debugMode) return false;
+    if (!this.debugForceFind?.[kind]) return false;
+    this.debugForceFind = { ...this.debugForceFind, [kind]: false };
+    return true;
+  }
+
+  _logDebugSpawn(tribeId) {
+    const idolState = this.tribeIdolStates.get(tribeId);
+    const clueState = this.tribeClueStates.get(tribeId);
+    if (!idolState || !clueState) return;
+    console.info('[IdolSystem][Debug] Spawned idol/clue', {
+      tribeId,
+      idolLocationKey: idolState.locationKey,
+      clueHiddenAtLocationKey: clueState.hiddenAtLocationKey,
+      cluePointsToLocationKey: clueState.pointsToLocationKey
+    });
+  }
+
+  _attachDebugWindowHook() {
+    if (typeof window === 'undefined') return;
+    window.IdolDebug = {
+      snapshot: () => this.getDebugSnapshot(),
+      setDebug: (on) => this.setDebugMode(on),
+      forceFind: (opts) => this.setDebugForceFind(opts)
+    };
+  }
+
+  _detachDebugWindowHook() {
+    if (typeof window === 'undefined') return;
+    if (window.IdolDebug) {
+      delete window.IdolDebug;
+    }
+  }
+
+  _ensureDebugButton() {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById(this.debugButtonId)) return;
+    const button = document.createElement('button');
+    button.id = this.debugButtonId;
+    button.type = 'button';
+    button.textContent = '🐛';
+    button.title = 'Idol debug snapshot';
+    button.style.cssText = `
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 2500;
+    `;
+    button.addEventListener('click', () => {
+      const snapshot = this.getDebugSnapshot();
+      const lines = snapshot.tribes.map(tribe => {
+        const idolLocation = tribe.idol?.locationKey ?? 'unknown';
+        const clueHidden = tribe.clue?.hiddenAtLocationKey ?? 'unknown';
+        const cluePoints = tribe.clue?.pointsToLocationKey ?? 'unknown';
+        return `Tribe ${tribe.tribeId}: Idol @ ${idolLocation}, Clue hidden @ ${clueHidden}, Clue points to ${cluePoints}`;
+      });
+      alert(lines.join('\n') || 'No idol/clue data available.');
+    });
+    document.body.appendChild(button);
+  }
+
+  _removeDebugButton() {
+    if (typeof document === 'undefined') return;
+    const button = document.getElementById(this.debugButtonId);
+    if (button?.parentNode) {
+      button.parentNode.removeChild(button);
+    }
   }
 }
 

@@ -458,8 +458,6 @@ export default class TribeDivisionScreen {
         });
         addDebugBanner('TRIBES_CREATED fired from Begin Day 1', 'teal', 50);
 
-        gameManager.systems?.idolSystem?.spawnInitialForAllTribes?.();
-
         // Reveal hamburger icon
         const hamburger = document.getElementById('hamburger-icon');
         if (hamburger) hamburger.style.display = 'block';

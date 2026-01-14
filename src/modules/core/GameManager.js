@@ -291,11 +291,8 @@ class GameManager {
       }
 
       if (oldState !== GameState.CAMP) {
-        this.systems?.idolSystem?.startNewCampPhase?.({
-          reason: 'enter_camp',
-          day: this.day,
-          phase: this.gamePhase
-        });
+        this.systems?.idolSystem?.startNewCampPhase?.('enterCamp');
+        this.systems?.idolSystem?.spawnInitialForAllTribes?.();
       }
 
       const gate = canRunDay1FirstImpressions?.(this);
@@ -483,6 +480,12 @@ class GameManager {
   }
 
   _publishPhaseChange() {
+    if (
+      this.gameState === GameState.CAMP &&
+      (this.gamePhase === GamePhase.PRE_CHALLENGE || this.gamePhase === GamePhase.POST_CHALLENGE)
+    ) {
+      this.systems?.idolSystem?.startNewCampPhase?.('phaseChange');
+    }
     eventManager.publish(GameEvents.GAME_PHASE_CHANGED, { 
       phase: this.gamePhase,
       day: this.day 
