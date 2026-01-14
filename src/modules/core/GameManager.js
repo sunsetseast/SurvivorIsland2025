@@ -381,6 +381,7 @@ class GameManager {
 
       this.tribes.push({
         id: i + 1,
+        tribeId: i + 1,
         tribeName: shuffledNames[i].name,
         tribeColor: chosenColors[i],
         members,

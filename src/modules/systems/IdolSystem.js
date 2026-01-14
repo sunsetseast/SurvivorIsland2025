@@ -86,6 +86,7 @@ const CLUE_TEMPLATES = {
 };
 
 const HUNT_SETTINGS = {
+  INCIDENTAL_CHANCE: 0.06,
   casual: {
     timeCost: 300,
     idolChance: 0.12,
@@ -148,7 +149,7 @@ class IdolSystem {
     this.initialSpawnCompleted = true;
   }
 
-  startNewCampPhase(reason = {}) {
+  startNewCampPhase(reason = '') {
     this.currentCampPhaseId = this._buildCampPhaseId();
     this.casualSearchCounts.clear();
     return {
@@ -491,7 +492,7 @@ class IdolSystem {
       });
     }
 
-    if (Math.random() >= 0.06) {
+    if (Math.random() >= HUNT_SETTINGS.INCIDENTAL_CHANCE) {
       return this._buildResult({
         ok: true,
         outcome: 'NOTHING',
@@ -876,6 +877,7 @@ class IdolSystem {
 
   _getTribeIdFromTribe(tribe, index) {
     if (tribe?.tribeId) return tribe.tribeId;
+    if (tribe?.id) return tribe.id;
     const memberId = tribe?.members?.[0]?.tribeId;
     return memberId || index + 1;
   }

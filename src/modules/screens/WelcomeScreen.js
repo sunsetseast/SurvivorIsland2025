@@ -85,8 +85,76 @@ export class WelcomeScreen {
       }
     }, 'v1.0.0');
 
+    const debugStorageKey = 'idolDebugMode';
+    const readDebugPreference = () => localStorage.getItem(debugStorageKey) === '1';
+    const writeDebugPreference = (enabled) => {
+      localStorage.setItem(debugStorageKey, enabled ? '1' : '0');
+    };
+
+    let debugEnabled = readDebugPreference();
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    if (urlParams?.get('debugIdols') === '1') {
+      debugEnabled = true;
+      writeDebugPreference(true);
+    }
+
+    const applyDebugMode = (enabled, { announce = false } = {}) => {
+      const idolSystem = gameManager.systems?.idolSystem;
+      if (idolSystem?.setDebugMode) {
+        idolSystem.setDebugMode(enabled);
+        if (enabled && announce) {
+          console.info('Idol Debug Mode ENABLED. Use window.IdolDebug.snapshot() to view spawn state.');
+        }
+      }
+    };
+
+    applyDebugMode(debugEnabled, { announce: debugEnabled });
+
+    const debugButton = createElement('button', {
+      type: 'button',
+      className: 'debug-toggle-button',
+      style: {
+        position: 'absolute',
+        bottom: '1rem',
+        left: '1rem',
+        fontSize: '0.7rem',
+        padding: '6px 10px',
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.3)',
+        background: 'rgba(0,0,0,0.35)',
+        color: '#ddd',
+        cursor: 'pointer'
+      }
+    });
+
+    const syncDebugLabel = () => {
+      const idolSystem = gameManager.systems?.idolSystem;
+      if (idolSystem?.isDebugMode) {
+        debugEnabled = idolSystem.isDebugMode();
+      }
+      debugButton.textContent = `Debug: ${debugEnabled ? 'ON' : 'OFF'}`;
+    };
+
+    syncDebugLabel();
+
+    debugButton.addEventListener('click', () => {
+      debugEnabled = !debugEnabled;
+      writeDebugPreference(debugEnabled);
+      applyDebugMode(debugEnabled, { announce: debugEnabled });
+      syncDebugLabel();
+    });
+
+    if (this._debugInitUnsub) {
+      this._debugInitUnsub();
+    }
+    this._debugInitUnsub = eventManager.subscribe(GameEvents.GAME_INITIALIZED, () => {
+      applyDebugMode(debugEnabled, { announce: debugEnabled });
+      syncDebugLabel();
+    });
+
     welcomeScreen.appendChild(menuContainer);
     welcomeScreen.appendChild(versionInfo);
+    welcomeScreen.appendChild(debugButton);
 
     eventManager.publish(GameEvents.SCREEN_CHANGED, { screenId: 'welcome', data });
   }
@@ -112,5 +180,10 @@ export class WelcomeScreen {
 
     const filterOptions = getElement('filter-options');
     if (filterOptions) filterOptions.remove();
+
+    if (this._debugInitUnsub) {
+      this._debugInitUnsub();
+      this._debugInitUnsub = null;
+    }
   }
 }
