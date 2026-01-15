@@ -19,6 +19,22 @@ class JourneyBeatUI {
   constructor(container) {
     this.container = container;
     this.frameMode = 'beat-ui1';
+    this.currentBackground = null;
+    this.fadeDurationMs = 200;
+
+    this.backgroundLayer = createElement('div', {
+      style: `
+        position:absolute;
+        inset:0;
+        background-size:cover;
+        background-position:center;
+        background-repeat:no-repeat;
+        opacity:1;
+        transition: opacity ${this.fadeDurationMs}ms ease;
+        z-index:0;
+        pointer-events:none;
+      `
+    });
 
     this.overlay = createElement('div', {
       style: `position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:7000;`
@@ -117,6 +133,7 @@ class JourneyBeatUI {
 
     this.setFrame('beat-ui1');
 
+    container.appendChild(this.backgroundLayer);
     container.appendChild(this.overlay);
   }
 
@@ -127,9 +144,37 @@ class JourneyBeatUI {
       this.container.style.backgroundSize = 'cover';
       this.container.style.backgroundPosition = 'center';
       this.container.style.backgroundRepeat = 'no-repeat';
+      if (this.backgroundLayer) {
+        this.backgroundLayer.style.backgroundImage = `url('${src}')`;
+      }
     } else {
       this.container.style.backgroundImage = 'none';
+      if (this.backgroundLayer) {
+        this.backgroundLayer.style.backgroundImage = 'none';
+      }
     }
+    this.currentBackground = src || null;
+  }
+
+  transitionBackground(src) {
+    if (!this.backgroundLayer) {
+      this.setSceneBackground(src);
+      return Promise.resolve();
+    }
+    if (src === this.currentBackground) {
+      return Promise.resolve();
+    }
+
+    return new Promise(resolve => {
+      this.backgroundLayer.style.opacity = '0';
+      setTimeout(() => {
+        this.setSceneBackground(src);
+        requestAnimationFrame(() => {
+          this.backgroundLayer.style.opacity = '1';
+          setTimeout(resolve, this.fadeDurationMs);
+        });
+      }, this.fadeDurationMs);
+    });
   }
 
   setFrame(mode) {
@@ -250,6 +295,10 @@ class JourneyBeatUI {
 
   destroy() {
     this.overlay?.remove();
+    this.backgroundLayer?.remove();
+    if (this.container) {
+      this.container.style.backgroundImage = 'none';
+    }
   }
 }
 
