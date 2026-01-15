@@ -1,3 +1,4 @@
+import { clearChildren } from '../utils/DOMUtils.js';
 import JourneyBeatUI from '../ui/JourneyBeatUI.js';
 
 function clampSuspicion(value) {
@@ -23,6 +24,10 @@ function pickRandom(arr = []) {
 const JourneySelectionEvent = {
   async run(container, options = {}) {
     const { gameManager, tribes = [], player, playerTribe, challengeKey, day } = options;
+    if (container) {
+      clearChildren(container);
+      container.style.position = 'relative';
+    }
     const ui = new JourneyBeatUI(container);
     const tribeKeyCache = new Map();
 

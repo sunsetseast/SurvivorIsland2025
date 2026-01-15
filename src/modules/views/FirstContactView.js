@@ -167,9 +167,17 @@ class JeffBubble {
 const FirstContactView = {
   render(container) {
     this.container = container;
+    this._destroyed = false;
     clearChildren(container);
     container.style.position = 'relative';
     container.style.overflow = 'hidden';
+
+    const root = createElement('div', {
+      id: 'first-contact-root',
+      style: 'position:relative; width:100%; height:100%; overflow:hidden;'
+    });
+    container.appendChild(root);
+    this._root = root;
 
     // data
     this.tribes = gameManager.getTribes();
@@ -180,7 +188,7 @@ const FirstContactView = {
     this._buildBands();
     this._buildLanes();
     this._buildScoreboard();
-    this.jeff = new JeffBubble(container);
+    this.jeff = new JeffBubble(root);
     this.jeff.setDock('topBelowScoreboard', this.scoreboardEl);
 
     this._onResize = () => {
@@ -410,7 +418,7 @@ const FirstContactView = {
   // ---------- layout ----------
   _buildBands() {
     const bands = createElement('div', { style:`position:absolute; inset:0; z-index:1;` });
-    this.container.appendChild(bands);
+    this._root.appendChild(bands);
     this.bandsRoot = bands;
     this.bandRects = [];
     this.bandEls = [];
@@ -435,12 +443,12 @@ const FirstContactView = {
 
   _buildLanes() {
     const lanes = createElement('div', { style:`position:absolute; inset:0; z-index:2;` });
-    this.container.appendChild(lanes);
-    const W = this.container.clientWidth || 800;
+    this._root.appendChild(lanes);
+    const W = this._root.clientWidth || 800;
     const laneW = Math.floor(W / this.tribes.length);
     this.lanes = [];
     this.sidelines = {};      // [tribeKey][segIdx] -> {x,y,count}
-    this.bleachersY = (this.container.clientHeight||600) * (1 - SEGMENTS[3].end) + CFG.bleachersYPad;
+    this.bleachersY = (this._root.clientHeight||600) * (1 - SEGMENTS[3].end) + CFG.bleachersYPad;
     this.bleachersSlots = {}; // [tribeKey] -> counter
     this.finishedSlots = {};  // [tribeKey] -> counter
 
@@ -456,7 +464,7 @@ const FirstContactView = {
       this.sidelines[key] = {};
       SEGMENTS.forEach((s, idx) => {
         const yPct = (1 - s.start) * 100;
-        const y = (this.container.clientHeight||600) * (yPct/100) - 60;
+        const y = (this._root.clientHeight||600) * (yPct/100) - 60;
         const x = (i*laneW) + CFG.sidelineOffsetX;
         this.sidelines[key][idx] = { x, y, count: 0 };
       });
@@ -475,7 +483,7 @@ const FirstContactView = {
     const orderEl = createElement('div', { style:`display:flex; justify-content:center; gap:14px; font-size:.95rem; text-shadow:1px 1px 2px #000; flex-wrap:wrap;` });
     const rowsEl  = createElement('div', { style:`display:flex; justify-content:center; gap:14px; margin-top:6px; flex-wrap:wrap;` });
     root.append(orderEl, rowsEl);
-    this.container.appendChild(root);
+    this._root.appendChild(root);
     this.scoreboardEl = root;
     this.scoreboardDock = 'top';
 
@@ -609,7 +617,7 @@ const FirstContactView = {
           style:`position:absolute; font-family:'Survivant',sans-serif; font-size:${CFG.avatar.labelSize}px;
                  color:${ms.tribe.color || ms.tribe.tribeColor || '#fff'}; text-shadow:1px 1px 2px #000; z-index:11;`
         }, (ms.survivor.firstName || '').split(' ')[0]);
-        this.container.append(img,label);
+        this._root.append(img,label);
         ms.avatar = img; ms.label = label;
 
         if (ms.status === 'bleachers') {
@@ -622,14 +630,14 @@ const FirstContactView = {
   },
 
   _laneX(tribe) {
-    const W = this.container.clientWidth || 800;
+    const W = this._root.clientWidth || 800;
     const laneW = Math.floor(W / this.tribes.length);
     const idx = this.tribes.findIndex(t => getKey(t)===getKey(tribe));
     return idx*laneW;
   },
 
   _segmentRect(segIdx) {
-    const H = this.container.clientHeight || 600;
+    const H = this._root.clientHeight || 600;
     const r = this.bandRects[segIdx];
     const top = (r.topPct/100) * H;
     const height = (r.heightPct/100) * H;
@@ -670,8 +678,8 @@ const FirstContactView = {
     if (this.finishedSlots[key] == null) this.finishedSlots[key] = 0;
 
     const slot = this.finishedSlots[key]++;
-    const W = this.container.clientWidth || 800;
-    const H = this.container.clientHeight || 600;
+    const W = this._root.clientWidth || 800;
+    const H = this._root.clientHeight || 600;
     const pad = 8;
 
     const setPos = (x, y) => {
@@ -817,8 +825,8 @@ const FirstContactView = {
     this.state.puzzleUnified = true;
     if (this.bandsRoot) this.bandsRoot.style.display = 'none';
     if (this.bandEls) this.bandEls.forEach(el => el.style.display = 'none');
-    this.container.style.backgroundImage = `url('${SEGMENTS[3].bg}')`;
-    this.container.style.backgroundSize = 'cover';
+    this._root.style.backgroundImage = `url('${SEGMENTS[3].bg}')`;
+    this._root.style.backgroundSize = 'cover';
 
     if (!this.state.puzzleAllInFired && (now - this.state.lastNarrationAt >= this.state.narrationCooldownMs)) {
       this.state.puzzleAllInFired = true;
@@ -937,6 +945,7 @@ const FirstContactView = {
   },
 
   _tick() {
+    if (this._destroyed) return;
     const now = performance.now();
     const dt = Math.min(200, now - this.state.lastTick) / 1000;
     this.state.lastTick = now;
@@ -970,7 +979,7 @@ const FirstContactView = {
 
         const r = this._segmentRect(segIdx);
         const laneX = this._laneX(ms.tribe);
-        const x = laneX + (this.container.clientWidth/this.tribes.length)/2 + jitter(ms.survivor.id, 8) - CFG.avatar.size/2;
+        const x = laneX + (this._root.clientWidth/this.tribes.length)/2 + jitter(ms.survivor.id, 8) - CFG.avatar.size/2;
         const y = r.top + r.height - (r.height * ms.perLeg[segIdx]) - CFG.avatar.size/2;
         ms.avatar.style.left = `${x}px`; ms.avatar.style.top = `${y}px`;
         ms.label.style.left = `${x}px`;  ms.label.style.top = `${y + CFG.avatar.size + 2}px`;
@@ -1104,8 +1113,15 @@ const FirstContactView = {
   },
 
   _showFinalResults() {
-    clearChildren(this.container);
-    this.container.style.backgroundImage = `url('Assets/jeff-screen.png')`;
+    if (this._breakdownOverlay) {
+      this._breakdownOverlay.remove();
+      this._breakdownOverlay = null;
+    }
+    clearChildren(this._root);
+    this._root.style.backgroundImage = `url('Assets/jeff-screen.png')`;
+    this._root.style.backgroundSize = 'cover';
+    this._root.style.backgroundPosition = 'center';
+    this._root.style.backgroundRepeat = 'no-repeat';
 
     const winnersKeys = this.isThree ? this.state.finishedOrder.slice(0, 2) : this.state.finishedOrder.slice(0, 1);
     const loserKeys = this.tribes.map(t => getKey(t)).filter(k => !winnersKeys.includes(k));
@@ -1144,11 +1160,17 @@ const FirstContactView = {
         if (nextBtn.disabled) return;
         nextBtn.disabled = true;
 
+        const activeContainer = this.container;
+        this.destroy();
+        if (activeContainer) {
+          clearChildren(activeContainer);
+        }
+
         const player = gameManager.getPlayerSurvivor();
         const tribes = gameManager.getTribes();
         const playerTribe = gameManager.getPlayerTribe();
 
-        const selectionResult = await JourneySelectionEvent.run(this.container, {
+        const selectionResult = await JourneySelectionEvent.run(activeContainer, {
           gameManager,
           tribes,
           player,
@@ -1158,7 +1180,7 @@ const FirstContactView = {
         });
 
         if (selectionResult?.playerWasSelected) {
-          await RiskProtectJourneyEvent.run(this.container, {
+          await RiskProtectJourneyEvent.run(activeContainer, {
             gameManager,
             journey: gameManager.journey,
             player,
@@ -1180,15 +1202,24 @@ const FirstContactView = {
     }, 'Performance Breakdown');
     btnRow.append(nextBtn, brkBtn);
 
-    this.container.append(wrap, btnRow);
+    this._root.append(wrap, btnRow);
   },
 
   _showBreakdownPopup() {
-    const overlay = createElement('div', { style:`position:absolute; inset:0; background:rgba(0,0,0,.6); z-index:5000; display:flex; align-items:center; justify-content:center;` });
-    const card = createElement('div', { style:`width:min(92vw,780px); max-height:80vh; overflow:auto; background:rgba(0,0,0,.85); border-radius:12px; padding:14px; color:#fff; font-family:'Survivant',sans-serif; box-shadow:0 8px 24px rgba(0,0,0,.5); position:relative;` });
+    if (this._breakdownOverlay) {
+      this._breakdownOverlay.remove();
+      this._breakdownOverlay = null;
+    }
+    const overlay = createElement('div', { style:`position:absolute; inset:0; background:rgba(0,0,0,0.6); z-index:5000; display:flex; align-items:center; justify-content:center;` });
+    const card = createElement('div', { style:`width:min(92vw,780px); max-height:80vh; overflow:auto; background:rgba(0,0,0,0.85); border-radius:12px; padding:14px; color:#fff; font-family:'Survivant',sans-serif; box-shadow:0 8px 24px rgba(0,0,0,.5); position:relative;` });
     const title = createElement('div', { style:`font-size:1.2rem; font-weight:bold; text-align:center; margin-bottom:10px; color:#f3d37a;` }, 'Performance Breakdown');
     const close = createElement('div', { style:`position:absolute; right:12px; top:8px; cursor:pointer; font-weight:bold;` }, '✕');
-    close.onclick = ()=> overlay.remove();
+    close.onclick = ()=> {
+      overlay.remove();
+      if (this._breakdownOverlay === overlay) {
+        this._breakdownOverlay = null;
+      }
+    };
 
     const content = createElement('div', { style:`display:flex; flex-direction:column; gap:10px;` });
     const stagePerformance = this._computeStagePerformance();
@@ -1226,7 +1257,27 @@ const FirstContactView = {
 
     card.append(title, content, close);
     overlay.appendChild(card);
-    this.container.appendChild(overlay);
+    this._root.appendChild(overlay);
+    this._breakdownOverlay = overlay;
+  },
+
+  destroy() {
+    this._destroyed = true;
+    if (this._breakdownOverlay) {
+      this._breakdownOverlay.remove();
+      this._breakdownOverlay = null;
+    }
+    if (this._root) {
+      this._root.remove();
+      this._root = null;
+    }
+    if (this._onResize) {
+      window.removeEventListener('resize', this._onResize);
+      window.removeEventListener('orientationchange', this._onResize);
+      this._onResize = null;
+    }
+    this.jeff = null;
+    this.container = null;
   }
 };
 

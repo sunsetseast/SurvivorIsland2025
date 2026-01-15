@@ -1,4 +1,4 @@
-import { createElement } from '../utils/DOMUtils.js';
+import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import JourneyBeatUI, { getSurvivorAvatarSrc } from '../ui/JourneyBeatUI.js';
 
 function findSurvivor(gameManager, id) {
@@ -240,17 +240,19 @@ function awardExtraVote(survivor, journey) {
 const RiskProtectJourneyEvent = {
   async run(container, options = {}) {
     const { gameManager, journey, player, relationshipSystem } = options;
+    if (container) {
+      clearChildren(container);
+      container.style.position = 'relative';
+    }
     const ui = new JourneyBeatUI(container);
     let currentBackground = null;
-
-    container.style.position = 'relative';
-
     const participantIds = Array.from(new Set(journey?.participants || [])).filter(Boolean);
-    const otherParticipants = participantIds.filter(id => id !== player?.id);
+    const resolvedParticipantIds = participantIds.length ? participantIds : (player?.id ? [player.id] : []);
+    const otherParticipants = resolvedParticipantIds.filter(id => id !== player?.id);
     const npcSurvivors = otherParticipants.map(id => findSurvivor(gameManager, id)).filter(Boolean);
 
     const wheelImage = createElement('img', {
-      style: `position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:min(360px, 70vw); height:auto; z-index:2000; display:none; pointer-events:none;`
+      style: `position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:min(360px, 70vw); height:auto; z-index:2000; display:none; opacity:0; transition:opacity 200ms ease; pointer-events:none;`
     });
     container.appendChild(wheelImage);
 
@@ -259,33 +261,38 @@ const RiskProtectJourneyEvent = {
         wheelImage.src = src;
       }
       wheelImage.style.display = 'block';
+      requestAnimationFrame(() => {
+        wheelImage.style.opacity = '1';
+      });
     };
 
     const hideWheel = () => {
-      wheelImage.style.display = 'none';
+      wheelImage.style.opacity = '0';
+      setTimeout(() => {
+        wheelImage.style.display = 'none';
+      }, 200);
     };
 
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    const setBackgroundWithDelay = async (background) => {
+    const transitionBackground = async (background) => {
       if (background && background !== currentBackground) {
-        ui.setSceneBackground(background);
+        await ui.transitionBackground(background);
         currentBackground = background;
-        ui.hideOverlay();
-        await delay(3000);
       }
     };
 
-    const awaitJeffBeat = (lines) => new Promise(resolve => {
-      ui.setSceneBackground('Assets/jeff-screen.png');
-      ui.renderJeffBeat({ textLines: lines, onContinue: resolve });
+    const awaitJeffBeat = async (lines) => new Promise(resolve => {
+      transitionBackground('Assets/jeff-screen.png').then(() => {
+        hideWheel();
+        ui.renderJeffBeat({ textLines: lines, onContinue: resolve });
+      });
     });
 
     const awaitBeat = async ({ background, title, textLines, html }) => {
       if (background) {
-        await setBackgroundWithDelay(background);
+        await transitionBackground(background);
       }
       return new Promise(resolve => {
+        hideWheel();
         ui.setFrame('beat-ui1');
         ui.renderBeat({
           title,
@@ -309,7 +316,7 @@ const RiskProtectJourneyEvent = {
       style: 'display:flex; flex-direction:column; gap:10px; width:100%;'
     });
 
-    participantIds.forEach(id => {
+    resolvedParticipantIds.forEach(id => {
       const survivor = findSurvivor(gameManager, id);
       if (!survivor) return;
       const tribe = findTribeForSurvivor(gameManager, id);
@@ -397,14 +404,11 @@ const RiskProtectJourneyEvent = {
     journey.socialContext = socialContext;
 
     if ('Assets/Journey/arrival.png' !== currentBackground) {
-      ui.setSceneBackground('Assets/Journey/arrival.png');
+      await transitionBackground('Assets/Journey/arrival.png');
       currentBackground = 'Assets/Journey/arrival.png';
-      ui.hideOverlay();
-      showWheel('Assets/Journey/risk-protect.png');
-      await delay(3000);
-    } else {
-      showWheel('Assets/Journey/risk-protect.png');
     }
+    ui.hideOverlay();
+    showWheel('Assets/Journey/risk-protect.png');
 
     const playerChoice = await new Promise(resolve => {
       ui.setFrame('beat-ui1');
@@ -422,16 +426,16 @@ const RiskProtectJourneyEvent = {
 
     ui.hideOverlay();
     showWheel('Assets/Journey/risk-protect.png');
-    await delay(2000);
+    await new Promise(resolve => setTimeout(resolve, 220));
     showWheel(playerChoice === 'risk' ? 'Assets/Journey/risk.png' : 'Assets/Journey/protect.png');
-    await delay(2000);
+    await new Promise(resolve => setTimeout(resolve, 220));
 
-    const decisions = participantIds.map(id => {
+    const decisions = resolvedParticipantIds.map(id => {
       if (id === player?.id) {
         return { survivorId: id, choice: playerChoice };
       }
       const npc = findSurvivor(gameManager, id);
-      const npcChoice = computeNpcChoice(npc, socialContext, relationshipSystem, player?.id);
+      const npcChoice = npc ? computeNpcChoice(npc, socialContext, relationshipSystem, player?.id) : 'protect';
       return { survivorId: id, choice: npcChoice };
     });
 
