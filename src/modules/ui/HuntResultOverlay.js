@@ -39,6 +39,8 @@ function resolveMessage(result) {
 }
 
 export function showHuntResultOverlay(result, { onReadClue } = {}) {
+  const panelBackground =
+    result?.outcome === 'IDOL_FOUND' ? 'Assets/Idols/clue-ui1.png' : 'Assets/parch-landscape.png';
   const overlay = createElement('div', {
     className: 'hunt-result-overlay',
     style: `
@@ -57,22 +59,32 @@ export function showHuntResultOverlay(result, { onReadClue } = {}) {
 
   const panel = createElement('div', {
     style: `
-      background-image: url('Assets/parch-landscape.png');
+      background-image: url('${panelBackground}');
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
       width: min(90vw, 620px);
       height: min(70vh, 380px);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      padding: 40px 60px;
+      padding: 24px 28px;
       text-align: center;
       color: #2b190a;
       font-family: 'Survivant', sans-serif;
       position: relative;
+    `
+  });
+
+  const content = createElement('div', {
+    style: `
+      width: min(80%, 420px);
+      max-height: 85%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
     `
   });
 
@@ -126,7 +138,7 @@ export function showHuntResultOverlay(result, { onReadClue } = {}) {
       font-size: 1rem;
       line-height: 1.4;
       text-shadow: 1px 1px 2px rgba(255,255,255,0.35);
-      max-width: 420px;
+      max-width: 100%;
     `
   }, resolveMessage(result));
 
@@ -161,10 +173,11 @@ export function showHuntResultOverlay(result, { onReadClue } = {}) {
     buttonRow.appendChild(readButton);
   }
 
-  panel.appendChild(title);
-  panel.appendChild(iconWrapper);
-  panel.appendChild(message);
-  panel.appendChild(buttonRow);
+  content.appendChild(title);
+  content.appendChild(iconWrapper);
+  content.appendChild(message);
+  content.appendChild(buttonRow);
+  panel.appendChild(content);
   overlay.appendChild(panel);
 
   overlay.addEventListener('click', (event) => {

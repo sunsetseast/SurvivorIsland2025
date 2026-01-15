@@ -130,7 +130,7 @@ const NpcIdolHuntAI = {
     const locationKey = pickHuntLocation(npcSurvivor, idolSystem) || idolState.locationKey;
     const mode = decideHuntMode(npcSurvivor, context, idolSystem);
 
-    return idolSystem.attemptIntentionalHunt(npcSurvivor.id, locationKey, mode);
+    return idolSystem.attemptIntentionalHunt(npcSurvivor.id, locationKey, mode, { isNpc: true });
   }
 };
 
