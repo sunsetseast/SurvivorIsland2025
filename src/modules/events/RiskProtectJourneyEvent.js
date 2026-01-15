@@ -6,6 +6,11 @@ function findSurvivor(gameManager, id) {
   return pool.find(s => s.id === id) || null;
 }
 
+function findTribeForSurvivor(gameManager, survivorId) {
+  const tribes = gameManager?.getTribes?.() || gameManager?.tribes || [];
+  return tribes.find(tribe => (tribe?.members || []).some(member => member.id === survivorId)) || null;
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -33,6 +38,7 @@ function gatherDescriptors(npc) {
   };
 
   pushValue(npc?.gameplayStyle);
+  pushValue(npc?.archetype);
   pushValue(npc?.personality);
   pushValue(npc?.traits?.mental);
   pushValue(npc?.traits?.social);
@@ -140,7 +146,7 @@ function buildSocialContext({ playerApproach, npcSurvivors, relationshipSystem, 
     tagsByNpcId[npc.id] = tags;
   });
 
-  const baseExpectation = playerApproach === 'mergeSoft' ? 0.6 : playerApproach === 'danger' ? 0.25 : 0.3;
+  const baseExpectation = playerApproach === 'mergeSoft' ? 0.55 : playerApproach === 'danger' ? 0.25 : 0.35;
   const avgTrust = npcSurvivors.length
     ? npcSurvivors.reduce((sum, npc) => sum + getRelationshipValue(relationshipSystem, playerId, npc.id), 0) / npcSurvivors.length
     : 50;
@@ -200,83 +206,164 @@ function computeNpcChoice(npcSurvivor, socialContext, relationshipSystem, player
     riskProbability += ((npcSurvivor.loyalty - 50) / 100) * 0.06;
   }
 
-  riskProbability += (Math.random() - 0.5) * 0.08;
+  riskProbability += (Math.random() - 0.5) * 0.1;
   riskProbability = clamp(riskProbability, 0.05, 0.95);
 
   return Math.random() < riskProbability ? 'risk' : 'protect';
 }
 
 function awardExtraVote(survivor, journey) {
-  const legacyCount = Array.isArray(survivor.extraVotes)
-    ? survivor.extraVotes.length
-    : (Number.isFinite(survivor.extraVotes) ? survivor.extraVotes : 0);
-
-  if (!Array.isArray(survivor.extraVotes)) {
-    survivor.extraVotes = [];
-    for (let i = 0; i < legacyCount; i += 1) {
-      survivor.extraVotes.push({
-        type: 'LEGACY_EXTRA_VOTE',
-        createdDay: journey?.day,
-        createdChallengeKey: journey?.challengeKey,
-        expiresAtSurvivorsRemaining: 6,
-        used: false,
-        legacy: true
-      });
-    }
+  if (!survivor.advantages) {
+    survivor.advantages = {};
   }
+  if (!survivor.advantages.extraVote) {
+    survivor.advantages.extraVote = { count: 0, expiresAtSurvivorsRemaining: 6 };
+  }
+  survivor.advantages.extraVote.count += 1;
+  survivor.advantages.extraVote.expiresAtSurvivorsRemaining = 6;
 
-  survivor.extraVotes.push({
-    type: 'JOURNEY_EXTRA_VOTE',
-    createdDay: journey?.day,
-    createdChallengeKey: journey?.challengeKey,
-    expiresAtSurvivorsRemaining: 6,
-    used: false
-  });
-
-  survivor.extraVoteCount = (survivor.extraVoteCount || 0) + 1;
+  if (Array.isArray(survivor.extraVotes)) {
+    survivor.extraVotes.push({
+      type: 'JOURNEY_EXTRA_VOTE',
+      createdDay: journey?.day,
+      createdChallengeKey: journey?.challengeKey,
+      expiresAtSurvivorsRemaining: 6,
+      used: false
+    });
+  } else if (Number.isFinite(survivor.extraVotes)) {
+    survivor.extraVotes += 1;
+  } else {
+    survivor.extraVotes = 1;
+  }
 }
 
 const RiskProtectJourneyEvent = {
   async run(container, options = {}) {
     const { gameManager, journey, player, relationshipSystem } = options;
     const ui = new JourneyBeatUI(container);
+    let currentBackground = null;
+
+    container.style.position = 'relative';
 
     const participantIds = Array.from(new Set(journey?.participants || [])).filter(Boolean);
     const otherParticipants = participantIds.filter(id => id !== player?.id);
     const npcSurvivors = otherParticipants.map(id => findSurvivor(gameManager, id)).filter(Boolean);
 
-    const awaitContinue = async (lines, { background, frame, title } = {}) => new Promise(resolve => {
-      if (background !== undefined) {
-        ui.setBackground(background);
+    const wheelImage = createElement('img', {
+      style: `position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:min(360px, 70vw); height:auto; z-index:2000; display:none; pointer-events:none;`
+    });
+    container.appendChild(wheelImage);
+
+    const showWheel = (src) => {
+      if (src) {
+        wheelImage.src = src;
       }
-      if (frame) {
-        ui.setFrame(frame);
-      } else {
-        ui.setFrame('beat-ui1');
+      wheelImage.style.display = 'block';
+    };
+
+    const hideWheel = () => {
+      wheelImage.style.display = 'none';
+    };
+
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const setBackgroundWithDelay = async (background) => {
+      if (background && background !== currentBackground) {
+        ui.setSceneBackground(background);
+        currentBackground = background;
+        ui.hideOverlay();
+        await delay(3000);
       }
-      ui.renderBeat({
-        title,
-        textLines: lines,
-        buttons: [{ label: 'Continue', onClick: resolve }]
-      });
+    };
+
+    const awaitJeffBeat = (lines) => new Promise(resolve => {
+      ui.setSceneBackground('Assets/jeff-screen.png');
+      ui.renderJeffBeat({ textLines: lines, onContinue: resolve });
     });
 
-    await awaitContinue([
-      'Welcome to the journey.',
-      'You’ve been brought here because every choice in this game has consequences — and today, that choice belongs to you.'
-    ], { background: 'Assets/Journey/arrival.png' });
+    const awaitBeat = async ({ background, title, textLines, html }) => {
+      if (background) {
+        await setBackgroundWithDelay(background);
+      }
+      return new Promise(resolve => {
+        ui.setFrame('beat-ui1');
+        ui.renderBeat({
+          title,
+          textLines,
+          html,
+          buttons: [{ label: 'Continue', onClick: resolve }]
+        });
+      });
+    };
 
-    await awaitContinue([
-      'You’ll each decide whether to protect your vote… or risk it for a potential advantage.',
-      'You’ll make that decision privately. No discussion when it’s time.'
-    ], { background: 'Assets/Journey/arrival.png' });
+    await awaitJeffBeat([
+      'Survivors… this is where the journey begins.',
+      'You’ll travel away from camp and face a private decision that could change the game.'
+    ]);
 
-    await awaitContinue([
-      'Before you decide, you’re given time to talk. This is the only moment you’ll have together.'
-    ], { background: 'Assets/Journey/trail.png' });
+    await awaitJeffBeat([
+      'You’ll have a brief moment to talk, and then you’ll choose to protect your vote… or risk it for an advantage.'
+    ]);
+
+    const arrivalList = createElement('div', {
+      style: 'display:flex; flex-direction:column; gap:10px; width:100%;'
+    });
+
+    participantIds.forEach(id => {
+      const survivor = findSurvivor(gameManager, id);
+      if (!survivor) return;
+      const tribe = findTribeForSurvivor(gameManager, id);
+      const tribeName = tribe?.tribeName || tribe?.name || 'Tribe';
+      const tribeColor = tribe?.tribeColor || tribe?.color || '#8d6b3f';
+      const row = createElement('div', {
+        style: `display:flex; align-items:center; gap:12px; padding:8px 10px; background:rgba(231,214,182,0.75); border-radius:12px; border:1px solid rgba(94,63,32,0.35); box-shadow:0 3px 10px rgba(0,0,0,0.18);`
+      });
+      const avatar = createElement('img', {
+        src: getSurvivorAvatarSrc(survivor),
+        style: 'width:50px; height:50px; border-radius:50%; object-fit:cover; border:3px solid #7a4a1e;'
+      });
+      const name = createElement('div', {
+        style: 'font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#2b1b0f;'
+      }, survivor?.firstName || survivor?.name || 'Unknown');
+      const tribeLabel = createElement('div', {
+        style: `margin-left:auto; font-weight:700; font-size:clamp(0.8rem, 2.4vw, 0.95rem); color:${tribeColor}; text-transform:uppercase; letter-spacing:0.5px;`
+      }, tribeName);
+      row.append(avatar, name, tribeLabel);
+      arrivalList.appendChild(row);
+    });
+
+    await awaitBeat({
+      background: 'Assets/Journey/arrival.png',
+      title: 'On the Journey',
+      html: arrivalList
+    });
+
+    await awaitBeat({
+      background: 'Assets/Journey/boat.png',
+      textLines: ['Grab your things. Your journey starts now.']
+    });
+
+    ui.hideOverlay();
+
+    await new Promise(resolve => {
+      const button = createElement('button', {
+        className: 'rect-button',
+        style: 'position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:3000;'
+      }, 'Continue');
+      button.addEventListener('click', () => {
+        button.remove();
+        resolve();
+      });
+      container.appendChild(button);
+    });
+
+
+    await awaitBeat({
+      background: 'Assets/Journey/trail.png',
+      textLines: ['You’re given a short walk together. It’s the only time you can speak freely.']
+    });
 
     const playerApproach = await new Promise(resolve => {
-      ui.setBackground('Assets/Journey/trail.png');
       ui.setFrame('beat-ui1');
       ui.renderBeat({
         title: 'How do you handle the brief conversation?',
@@ -298,7 +385,6 @@ const RiskProtectJourneyEvent = {
     });
 
     for (const npc of npcSurvivors) {
-      ui.setBackground('Assets/Journey/trail.png');
       await new Promise(resolve => {
         ui.renderAvatarBeat({
           speakerSurvivor: npc,
@@ -308,28 +394,24 @@ const RiskProtectJourneyEvent = {
       });
     }
 
-    const summaryLines = playerApproach === 'danger'
-      ? [
-        'The conversation turns cautious. Hesitation rises about risking votes, and most keep their guard up.'
-      ]
-      : playerApproach === 'mergeSoft'
-        ? [
-          'A quiet pact feels possible. Cooperation increases, but trust varies from person to person.'
-        ]
-        : [
-          'Nobody reveals anything. Trust feels thin, and a little paranoia hangs in the air.'
-        ];
-
-    await awaitContinue(summaryLines, { background: 'Assets/Journey/trail.png' });
-
     journey.socialContext = socialContext;
 
+    if ('Assets/Journey/arrival.png' !== currentBackground) {
+      ui.setSceneBackground('Assets/Journey/arrival.png');
+      currentBackground = 'Assets/Journey/arrival.png';
+      ui.hideOverlay();
+      showWheel('Assets/Journey/risk-protect.png');
+      await delay(3000);
+    } else {
+      showWheel('Assets/Journey/risk-protect.png');
+    }
+
     const playerChoice = await new Promise(resolve => {
-      ui.setBackground('Assets/Journey/risk-protect.png');
       ui.setFrame('beat-ui1');
       ui.renderBeat({
         textLines: [
-          'Privately, you face the decision: protect your vote… or risk it?'
+          'Now you’ll make your choices in private.',
+          'Protect your vote… or risk it?'
         ],
         buttons: [
           { label: 'Protect your vote', onClick: () => resolve('protect') },
@@ -338,24 +420,24 @@ const RiskProtectJourneyEvent = {
       });
     });
 
-    await awaitContinue([
-      playerChoice === 'protect'
-        ? 'You keep your vote safe for the next Tribal Council.'
-        : 'You decide to gamble for the advantage.'
-    ], { background: playerChoice === 'protect' ? 'Assets/Journey/protect.png' : 'Assets/Journey/risk.png' });
+    ui.hideOverlay();
+    showWheel('Assets/Journey/risk-protect.png');
+    await delay(2000);
+    showWheel(playerChoice === 'risk' ? 'Assets/Journey/risk.png' : 'Assets/Journey/protect.png');
+    await delay(2000);
 
-    const decisions = [];
-    participantIds.forEach(id => {
+    const decisions = participantIds.map(id => {
       if (id === player?.id) {
-        decisions.push({ survivorId: id, choice: playerChoice });
-      } else {
-        const npc = findSurvivor(gameManager, id);
-        const npcChoice = computeNpcChoice(npc, socialContext, relationshipSystem, player?.id);
-        decisions.push({ survivorId: id, choice: npcChoice });
+        return { survivorId: id, choice: playerChoice };
       }
+      const npc = findSurvivor(gameManager, id);
+      const npcChoice = computeNpcChoice(npc, socialContext, relationshipSystem, player?.id);
+      return { survivorId: id, choice: npcChoice };
     });
 
     const allRisk = decisions.every(d => d.choice === 'risk');
+    const allProtect = decisions.every(d => d.choice === 'protect');
+    const mixed = !allRisk && !allProtect;
 
     decisions.forEach(decision => {
       const survivor = findSurvivor(gameManager, decision.survivorId);
@@ -372,7 +454,7 @@ const RiskProtectJourneyEvent = {
         };
       } else {
         survivor.hasVote = true;
-        if (decision.choice === 'risk') {
+        if (mixed && decision.choice === 'risk') {
           awardExtraVote(survivor, journey);
         }
       }
@@ -384,52 +466,51 @@ const RiskProtectJourneyEvent = {
         survivorId: decision.survivorId,
         choice: decision.choice,
         hasVoteAfter: survivor?.hasVote,
-        extraVotesGained: !allRisk && decision.choice === 'risk' ? 1 : 0
+        extraVotesGained: mixed && decision.choice === 'risk' ? 1 : 0
       };
     });
 
-    ui.setBackground('Assets/Journey/arrival.png');
-    ui.setFrame('beat-ui1');
+    hideWheel();
 
     const resultsList = createElement('div', {
-      style: 'display:flex; flex-direction:column; gap:12px; width:100%;'
+      style: 'display:flex; flex-direction:column; gap:10px; width:100%;'
     });
 
     decisions.forEach(decision => {
       const survivor = findSurvivor(gameManager, decision.survivorId);
       const row = createElement('div', {
-        style: `display:flex; align-items:center; gap:14px; padding:10px 14px; background:rgba(231,214,182,0.75); border-radius:12px; border:1px solid rgba(94,63,32,0.35); box-shadow:0 3px 10px rgba(0,0,0,0.18);`
+        style: `display:flex; align-items:center; gap:14px; padding:10px 12px; background:rgba(231,214,182,0.75); border-radius:12px; border:1px solid rgba(94,63,32,0.35); box-shadow:0 3px 10px rgba(0,0,0,0.18);`
       });
       const avatar = createElement('img', {
         src: getSurvivorAvatarSrc(survivor),
-        style: 'width:54px; height:54px; border-radius:50%; object-fit:cover; border:3px solid #7a4a1e;'
+        style: 'width:52px; height:52px; border-radius:50%; object-fit:cover; border:3px solid #7a4a1e;'
       });
       const name = createElement('div', {
-        style: 'flex:1; text-align:left; font-weight:bold; font-size:1.05rem; color:#2b1b0f;'
-      }, survivor?.name || survivor?.firstName || 'Unknown');
+        style: 'flex:1; text-align:left; font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#2b1b0f;'
+      }, survivor?.firstName || survivor?.name || 'Unknown');
       const outcome = createElement('div', {
-        style: 'text-align:right; min-width:160px; font-weight:bold; color:#5a2d12;'
+        style: 'text-align:right; min-width:150px; font-weight:bold; color:#5a2d12;'
       });
-      const choice = createElement('div', { style: 'font-size:1rem; letter-spacing:0.5px;' }, decision.choice.toUpperCase());
-      const detailText = allRisk
-        ? 'LOST VOTE'
-        : decision.choice === 'risk'
-          ? '+1 Extra Vote (until Final 6)'
-          : 'Vote protected';
-      const detail = createElement('div', { style: 'font-size:0.85rem; font-weight:600; color:#3c2a1a;' }, detailText);
+      const choice = createElement('div', { style: 'font-size:0.95rem; letter-spacing:0.5px;' }, decision.choice.toUpperCase());
+      let detailText = 'VOTE PROTECTED';
+      if (allRisk) {
+        detailText = 'LOST VOTE';
+      } else if (mixed && decision.choice === 'risk') {
+        detailText = 'EXTRA VOTE EARNED';
+      }
+      const detail = createElement('div', { style: 'font-size:0.8rem; font-weight:600; color:#3c2a1a;' }, detailText);
       outcome.append(choice, detail);
       row.append(avatar, name, outcome);
       resultsList.appendChild(row);
     });
 
-    await new Promise(resolve => {
-      ui.renderBeat({
-        title: 'Journey Results',
-        html: resultsList,
-        buttons: [{ label: 'Continue', onClick: resolve }]
-      });
+    await awaitBeat({
+      background: 'Assets/Journey/arrival.png',
+      title: 'Journey Results',
+      html: resultsList
     });
 
+    wheelImage.remove();
     ui.destroy();
 
     return {

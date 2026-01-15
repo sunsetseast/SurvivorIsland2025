@@ -1,4 +1,4 @@
-import { createElement } from '../utils/DOMUtils.js';
+import { createElement, clearChildren } from '../utils/DOMUtils.js';
 
 const FRAME_ASSETS = {
   'beat-ui1': 'Assets/beat-ui1.png',
@@ -24,20 +24,20 @@ class JourneyBeatUI {
       style: `position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:7000;`
     });
 
-    this.backgroundLayer = createElement('div', {
-      style: `position:absolute; inset:0; background:#000; background-size:cover; background-position:center;`
+    this.vignetteLayer = createElement('div', {
+      style: `position:absolute; inset:0; background:radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%);`
     });
 
-    this.vignetteLayer = createElement('div', {
-      style: `position:absolute; inset:0; background:radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.6) 100%);`
+    this.beatLayer = createElement('div', {
+      style: `position:absolute; inset:0; display:flex; align-items:center; justify-content:center;`
     });
 
     this.panel = createElement('div', {
-      style: `position:relative; width:min(980px, 95vw); min-height:420px; display:flex; align-items:center; justify-content:center;`
+      style: `position:relative; width:min(960px, 94vw); aspect-ratio: 16 / 9; max-height: 86vh; display:flex; align-items:center; justify-content:center;`
     });
 
     this.avatarImg = createElement('img', {
-      style: `position:absolute; width:36%; height:auto; top:10%; left:9%; border-radius:50%; object-fit:cover; border:5px solid #caa15a; display:none; z-index:0;`
+      style: `position:absolute; width:36%; height:auto; top:10%; left:9%; border-radius:50%; object-fit:cover; border:4px solid #caa15a; display:none; z-index:0;`
     });
 
     this.frameImg = createElement('img', {
@@ -45,39 +45,90 @@ class JourneyBeatUI {
     });
 
     this.nameLabel = createElement('div', {
-      style: `position:absolute; top:7.5%; left:54%; right:10%; text-align:center; font-family:'Survivant', sans-serif; font-weight:700; letter-spacing:1px; color:#f7e6c5; text-shadow:0 2px 4px rgba(0,0,0,0.55); display:none; z-index:2;`
+      style: `position:absolute; top:11%; left:40%; right:10%; text-align:center; font-family:'Survivant', sans-serif; font-weight:700; letter-spacing:1px; color:#f7e6c5; text-shadow:0 2px 4px rgba(0,0,0,0.55); display:none; z-index:2; font-size:clamp(0.9rem, 2.6vw, 1.15rem);`
     });
 
     this.contentArea = createElement('div', {
-      style: `position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:'Survivant', sans-serif; color:#2b1b0f; text-shadow:0 1px 0 rgba(255,255,255,0.6); gap:12px; z-index:2;`
+      style: `position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:'Survivant', sans-serif; color:#2b1b0f; text-shadow:0 1px 0 rgba(255,255,255,0.6); gap:clamp(8px, 2vw, 14px); z-index:2;`
     });
 
     this.titleEl = createElement('div', {
-      style: `font-size:1.25rem; font-weight:700; text-transform:uppercase; letter-spacing:1px;`
+      style: `font-size:clamp(0.95rem, 3vw, 1.2rem); font-weight:700; text-transform:uppercase; letter-spacing:1px;`
     });
 
     this.textArea = createElement('div', {
-      style: `width:100%; display:flex; flex-direction:column; gap:8px; font-size:1.05rem; line-height:1.4;`
+      style: `width:100%; display:flex; flex-direction:column; gap:8px; font-size:clamp(0.9rem, 2.6vw, 1.08rem); line-height:1.4;`
     });
 
     this.buttonsArea = createElement('div', {
-      style: `position:absolute; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:12px; z-index:2;`
+      style: `position:absolute; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:10px; z-index:2;`
     });
 
     this.contentArea.append(this.titleEl, this.textArea);
     this.panel.append(this.avatarImg, this.frameImg, this.nameLabel, this.contentArea, this.buttonsArea);
-    this.overlay.append(this.backgroundLayer, this.vignetteLayer, this.panel);
+    this.beatLayer.append(this.panel);
+
+    this.jeffLayer = createElement('div', {
+      style: `position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column;`
+    });
+
+    this.parchmentWrapper = createElement('div', {
+      style: `position:relative; width:min(90vw, 360px); margin:20px auto 0;`
+    });
+
+    this.parchmentImg = createElement('img', {
+      src: 'Assets/parch-landscape.png',
+      style: `width:100%; max-width:360px; max-height:200px; display:block; margin:0 auto;`
+    });
+
+    this.jeffText = createElement('div', {
+      className: 'parchment-text',
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        margin: -150px auto 0;
+        max-width: 280px;
+        font-size: clamp(0.9rem, 2.9vw, 1.05rem);
+        line-height: 1.35;
+        text-shadow:
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+      `
+    });
+
+    this.jeffButton = createElement('button', {
+      className: 'rect-button',
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+      `
+    }, 'Continue');
+
+    this.parchmentWrapper.append(this.parchmentImg, this.jeffText);
+    this.jeffLayer.append(this.parchmentWrapper, this.jeffButton);
+
+    this.overlay.append(this.vignetteLayer, this.beatLayer, this.jeffLayer);
 
     this.setFrame('beat-ui1');
 
     container.appendChild(this.overlay);
   }
 
-  setBackground(src) {
+  setSceneBackground(src) {
+    if (!this.container) return;
     if (src) {
-      this.backgroundLayer.style.backgroundImage = `url('${src}')`;
+      this.container.style.backgroundImage = `url('${src}')`;
+      this.container.style.backgroundSize = 'cover';
+      this.container.style.backgroundPosition = 'center';
+      this.container.style.backgroundRepeat = 'no-repeat';
     } else {
-      this.backgroundLayer.style.backgroundImage = 'none';
+      this.container.style.backgroundImage = 'none';
     }
   }
 
@@ -89,23 +140,23 @@ class JourneyBeatUI {
     if (mode === 'beat-avatar-ui') {
       this.avatarImg.style.display = 'block';
       this.nameLabel.style.display = 'block';
-      this.contentArea.style.top = '22%';
-      this.contentArea.style.left = '45%';
+      this.contentArea.style.top = '26%';
+      this.contentArea.style.left = '42%';
       this.contentArea.style.right = '10%';
       this.contentArea.style.bottom = '24%';
       this.buttonsArea.style.bottom = '10%';
-      this.buttonsArea.style.width = '45%';
-      this.buttonsArea.style.maxWidth = '380px';
+      this.buttonsArea.style.width = '48%';
+      this.buttonsArea.style.maxWidth = '360px';
     } else {
       this.avatarImg.style.display = 'none';
       this.nameLabel.style.display = 'none';
-      this.contentArea.style.top = '20%';
-      this.contentArea.style.left = '12%';
+      this.contentArea.style.top = '18%';
+      this.contentArea.style.left = '10%';
       this.contentArea.style.right = '12%';
       this.contentArea.style.bottom = '24%';
       this.buttonsArea.style.bottom = '10%';
-      this.buttonsArea.style.width = '60%';
-      this.buttonsArea.style.maxWidth = '460px';
+      this.buttonsArea.style.width = '62%';
+      this.buttonsArea.style.maxWidth = '440px';
     }
   }
 
@@ -120,12 +171,35 @@ class JourneyBeatUI {
 
   createButton(label, onClick) {
     return createElement('button', {
-      style: `width:100%; min-width:180px; padding:12px 18px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`,
+      className: 'rect-button',
+      style: `width:100%; min-width:180px;`,
       onclick: onClick
     }, label);
   }
 
+  showOverlay() {
+    this.overlay.style.display = 'flex';
+  }
+
+  hideOverlay() {
+    this.overlay.style.display = 'none';
+  }
+
+  showBeatLayer() {
+    this.vignetteLayer.style.display = 'block';
+    this.beatLayer.style.display = 'flex';
+    this.jeffLayer.style.display = 'none';
+  }
+
+  showJeffLayer() {
+    this.vignetteLayer.style.display = 'none';
+    this.beatLayer.style.display = 'none';
+    this.jeffLayer.style.display = 'flex';
+  }
+
   renderBeat({ title, textLines, html, buttons = [] }) {
+    this.showOverlay();
+    this.showBeatLayer();
     if (title) {
       this.titleEl.textContent = title;
       this.titleEl.style.display = 'block';
@@ -158,6 +232,20 @@ class JourneyBeatUI {
     this.setFrame('beat-avatar-ui');
     this.setSpeaker(speakerSurvivor);
     this.renderBeat({ title, textLines, buttons });
+  }
+
+  renderJeffBeat({ textLines = [], html, buttonLabel = 'Continue', onContinue }) {
+    this.showOverlay();
+    this.showJeffLayer();
+    if (html instanceof HTMLElement) {
+      clearChildren(this.jeffText);
+      this.jeffText.appendChild(html);
+    } else {
+      const lines = Array.isArray(textLines) ? textLines : [String(textLines)];
+      this.jeffText.innerHTML = lines.map(line => `<div>${line}</div>`).join('<div style="height:8px;"></div>');
+    }
+    this.jeffButton.textContent = buttonLabel;
+    this.jeffButton.onclick = onContinue;
   }
 
   destroy() {
