@@ -21,6 +21,7 @@ class JourneyBeatUI {
     this.frameMode = 'beat-ui1';
     this.currentBackground = null;
     this.fadeDurationMs = 200;
+    this._styleEl = null;
 
     this.backgroundLayer = createElement('div', {
       style: `
@@ -37,6 +38,7 @@ class JourneyBeatUI {
     });
 
     this.overlay = createElement('div', {
+      className: 'journey-overlay-root',
       style: `position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:7000;`
     });
 
@@ -137,23 +139,14 @@ class JourneyBeatUI {
     container.appendChild(this.overlay);
   }
 
-  setSceneBackground(src) {
-    if (!this.container) return;
-    if (src) {
-      this.container.style.backgroundImage = `url('${src}')`;
-      this.container.style.backgroundSize = 'cover';
-      this.container.style.backgroundPosition = 'center';
-      this.container.style.backgroundRepeat = 'no-repeat';
-      if (this.backgroundLayer) {
-        this.backgroundLayer.style.backgroundImage = `url('${src}')`;
-      }
-    } else {
-      this.container.style.backgroundImage = 'none';
-      if (this.backgroundLayer) {
-        this.backgroundLayer.style.backgroundImage = 'none';
-      }
-    }
+  setBackground(src) {
+    if (!this.backgroundLayer) return;
+    this.backgroundLayer.style.backgroundImage = src ? `url('${src}')` : 'none';
     this.currentBackground = src || null;
+  }
+
+  setSceneBackground(src) {
+    this.setBackground(src);
   }
 
   transitionBackground(src) {
@@ -165,15 +158,33 @@ class JourneyBeatUI {
       return Promise.resolve();
     }
 
+    const waitForTransition = () => new Promise(resolve => {
+      const duration = window.getComputedStyle(this.backgroundLayer).transitionDuration || '0s';
+      const maxDuration = duration
+        .split(',')
+        .map(value => parseFloat(value) || 0)
+        .reduce((max, value) => Math.max(max, value), 0);
+      if (!maxDuration) {
+        resolve();
+        return;
+      }
+      const handleTransition = (event) => {
+        if (event.target !== this.backgroundLayer || event.propertyName !== 'opacity') return;
+        this.backgroundLayer.removeEventListener('transitionend', handleTransition);
+        resolve();
+      };
+      this.backgroundLayer.addEventListener('transitionend', handleTransition, { once: true });
+    });
+
     return new Promise(resolve => {
       this.backgroundLayer.style.opacity = '0';
-      setTimeout(() => {
+      waitForTransition().then(() => {
         this.setSceneBackground(src);
         requestAnimationFrame(() => {
           this.backgroundLayer.style.opacity = '1';
-          setTimeout(resolve, this.fadeDurationMs);
+          waitForTransition().then(resolve);
         });
-      }, this.fadeDurationMs);
+      });
     });
   }
 
@@ -296,9 +307,11 @@ class JourneyBeatUI {
   destroy() {
     this.overlay?.remove();
     this.backgroundLayer?.remove();
-    if (this.container) {
-      this.container.style.backgroundImage = 'none';
+    if (this._styleEl) {
+      this._styleEl.remove();
+      this._styleEl = null;
     }
+    this.container = null;
   }
 }
 
