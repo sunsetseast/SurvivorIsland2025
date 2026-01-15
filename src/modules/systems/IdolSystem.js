@@ -115,7 +115,7 @@ class IdolSystem {
   }
 
   initialize() {
-    return;
+    // No event subscriptions needed; IdolSystem is driven by GameManager camp-entry hooks and direct calls.
   }
 
   reset() {
@@ -174,7 +174,7 @@ class IdolSystem {
     this._spawnIdolAndClueForTribe(tribeId, { requireNewLocations: true });
   }
 
-  attemptIntentionalHunt(survivorId, locationKey, mode) {
+  attemptIntentionalHunt(survivorId, locationKey, mode, opts = {}) {
     const safeLocationKey = locationKey || 'unknown';
     const via = 'intentional';
 
@@ -202,6 +202,8 @@ class IdolSystem {
         message: 'Unable to find the survivor for this hunt.'
       });
     }
+
+    const isNpc = opts.isNpc === true || survivor.isPlayer !== true;
 
     if (!ELIGIBLE_IDOL_LOCATIONS.includes(safeLocationKey)) {
       return this._buildResult({
@@ -257,7 +259,11 @@ class IdolSystem {
       this._incrementCasualSearch(survivorId, safeLocationKey);
     }
 
-    this.gameManager.deductTime(settings.timeCost);
+    if (survivor.isPlayer === true) {
+      this.gameManager.deductTime(settings.timeCost);
+    } else if (isNpc) {
+      // NPC hunts do not consume the global camp timer.
+    }
 
     if (mode === 'aggressive') {
       survivor.suspicion = (survivor.suspicion || 0) + settings.suspicion;

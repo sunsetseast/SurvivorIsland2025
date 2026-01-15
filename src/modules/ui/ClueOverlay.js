@@ -25,10 +25,9 @@ function ensureClueModal() {
       width: min(90vw, 460px);
       height: min(80vh, 520px);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 40px 50px 50px;
+      padding: 24px 28px 32px;
       text-align: center;
       color: #2b190a;
       font-family: 'Survivant', sans-serif;
@@ -36,11 +35,22 @@ function ensureClueModal() {
     `
   });
 
+  const content = createElement('div', {
+    style: `
+      width: min(80%, 320px);
+      max-height: 85%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    `
+  });
+
   const title = createElement('div', {
     id: 'clue-title',
     style: `
       font-size: 1.2rem;
-      margin-bottom: 12px;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
     `
   }, 'Idol Clue');
@@ -64,6 +74,7 @@ function ensureClueModal() {
       font-size: 1rem;
       line-height: 1.4;
       text-shadow: 1px 1px 2px rgba(255,255,255,0.4);
+      max-width: 100%;
     `
   });
 
@@ -76,10 +87,11 @@ function ensureClueModal() {
     overlay.style.display = 'none';
   });
 
-  panel.appendChild(title);
-  panel.appendChild(expiredTag);
-  panel.appendChild(text);
-  panel.appendChild(closeButton);
+  content.appendChild(title);
+  content.appendChild(expiredTag);
+  content.appendChild(text);
+  content.appendChild(closeButton);
+  panel.appendChild(content);
   overlay.appendChild(panel);
 
   overlay.addEventListener('click', (event) => {
