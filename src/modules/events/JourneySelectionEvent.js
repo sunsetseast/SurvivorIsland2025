@@ -40,9 +40,14 @@ const JourneySelectionEvent = {
 
     const isPlayerTribe = (tribe) => (tribe?.members || []).some(m => m.id === player?.id);
 
+    const awaitJeffContinue = async (lines) => new Promise(resolve => {
+      ui.setSceneBackground('Assets/jeff-screen.png');
+      ui.renderJeffBeat({ textLines: lines, onContinue: resolve });
+    });
+
     const awaitContinue = async (lines, { background } = {}) => new Promise(resolve => {
       if (background !== undefined) {
-        ui.setBackground(background);
+        ui.setSceneBackground(background);
       }
       ui.setFrame('beat-ui1');
       ui.renderBeat({
@@ -51,16 +56,16 @@ const JourneySelectionEvent = {
       });
     });
 
-    await awaitContinue([
+    await awaitJeffContinue([
       'Survivors… that was a hard-fought challenge. One tribe comes away with immunity — and safety tonight. But for the rest of you… the game doesn’t stop here.'
     ]);
 
-    await awaitContinue([
+    await awaitJeffContinue([
       'In this game, advantages can change everything. Today, the next twist begins right now.',
       'Each tribe is going to send one person on a journey — away from camp… and straight into a decision that could affect your vote at Tribal Council.'
     ]);
 
-    await awaitContinue([
+    await awaitJeffContinue([
       'On this journey, you’ll face a choice: protect your vote… or risk it for a possible advantage.',
       'But here’s the catch — you won’t know what the others choose until it’s over.'
     ]);
