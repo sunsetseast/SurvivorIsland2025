@@ -1,48 +1,4 @@
-import { createElement } from '../utils/DOMUtils.js';
-
-function buildOverlay(container) {
-  const overlay = createElement('div', {
-    style: `position:absolute; inset:0; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:7000;`
-  });
-
-  const panel = createElement('div', {
-    style: `background: url('Assets/parch-landscape.png') center/contain no-repeat, #f0e2c2; width: min(900px, 92vw); min-height: 340px; padding: 40px 32px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); border-radius: 14px; position: relative; display:flex; flex-direction:column; align-items:center; gap:24px; font-family:'Survivant', sans-serif; color:#2b1b0f; text-align:center;`
-  });
-
-  const textWrap = createElement('div', {
-    style: `width:100%; max-width:700px; font-size:1.05rem; line-height:1.4; text-shadow:0 1px 0 rgba(255,255,255,0.6);`
-  });
-
-  const buttons = createElement('div', {
-    style: `display:flex; flex-wrap:wrap; gap:12px; justify-content:center; width:100%;`
-  });
-
-  panel.append(textWrap, buttons);
-  overlay.appendChild(panel);
-  container.appendChild(overlay);
-
-  return { overlay, textWrap, buttons };
-}
-
-function renderLines(textWrap, lines = []) {
-  textWrap.innerHTML = '';
-  lines.forEach(line => {
-    const p = createElement('div', { style: 'margin:6px 0;' });
-    p.textContent = line;
-    textWrap.appendChild(p);
-  });
-}
-
-function clearButtons(buttons) {
-  buttons.innerHTML = '';
-}
-
-function createButton(label, onClick) {
-  return createElement('button', {
-    style: `min-width:180px; padding:12px 18px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`,
-    onclick: onClick
-  }, label);
-}
+import JourneyBeatUI from '../ui/JourneyBeatUI.js';
 
 function clampSuspicion(value) {
   const num = Number.isFinite(value) ? value : 0;
@@ -67,7 +23,7 @@ function pickRandom(arr = []) {
 const JourneySelectionEvent = {
   async run(container, options = {}) {
     const { gameManager, tribes = [], player, playerTribe, challengeKey, day } = options;
-    const ui = buildOverlay(container);
+    const ui = new JourneyBeatUI(container);
     const tribeKeyCache = new Map();
 
     const resolveTribeKey = (tribe, index) => {
@@ -84,11 +40,15 @@ const JourneySelectionEvent = {
 
     const isPlayerTribe = (tribe) => (tribe?.members || []).some(m => m.id === player?.id);
 
-    const awaitContinue = async (lines) => new Promise(resolve => {
-      renderLines(ui.textWrap, lines);
-      clearButtons(ui.buttons);
-      const btn = createButton('Continue', () => resolve());
-      ui.buttons.appendChild(btn);
+    const awaitContinue = async (lines, { background } = {}) => new Promise(resolve => {
+      if (background !== undefined) {
+        ui.setBackground(background);
+      }
+      ui.setFrame('beat-ui1');
+      ui.renderBeat({
+        textLines: lines,
+        buttons: [{ label: 'Continue', onClick: resolve }]
+      });
     });
 
     await awaitContinue([
@@ -106,17 +66,18 @@ const JourneySelectionEvent = {
     ]);
 
     const playerChoice = await new Promise(resolve => {
-      renderLines(ui.textWrap, [
-        'How do you respond?',
-        'This is the moment to decide how badly you want that journey slot.'
-      ]);
-      clearButtons(ui.buttons);
-
-      const pushBtn = createButton('Push hard to go on the journey.', () => resolve('push'));
-      const sitBtn = createButton('Sit this one out.', () => resolve('sitout'));
-      const rocksBtn = createButton('Suggest drawing rocks.', () => resolve('rocks'));
-
-      ui.buttons.append(pushBtn, sitBtn, rocksBtn);
+      ui.setFrame('beat-ui1');
+      ui.renderBeat({
+        textLines: [
+          'How do you respond?',
+          'This is the moment to decide how badly you want that journey slot.'
+        ],
+        buttons: [
+          { label: 'Push hard to go on the journey.', onClick: () => resolve('push') },
+          { label: 'Sit this one out.', onClick: () => resolve('sitout') },
+          { label: 'Suggest drawing rocks.', onClick: () => resolve('rocks') }
+        ]
+      });
     });
 
     if (playerChoice === 'push') {
@@ -178,11 +139,11 @@ const JourneySelectionEvent = {
         const name = selectedSurvivor?.name || selectedSurvivor?.firstName || selectedId || 'Someone';
         return `From the ${tribeName} — ${name}. …`;
       })
-    ]);
+    ], { background: 'Assets/Journey/boat.png' });
 
     await awaitContinue([
       'Grab your things. Your journey starts now.'
-    ]);
+    ], { background: 'Assets/Journey/boat.png' });
 
     gameManager.journey = {
       active: true,
@@ -204,7 +165,7 @@ const JourneySelectionEvent = {
       participants
     });
 
-    ui.overlay.remove();
+    ui.destroy();
 
     return {
       playerWasSelected,
