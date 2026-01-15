@@ -1,5 +1,5 @@
 import { createElement } from '../utils/DOMUtils.js';
-import JourneyBeatUI, { getSurvivorAvatarSrc } from './JourneyBeatUI.js';
+import JourneyBeatUI, { getSurvivorAvatarSrc } from '../ui/JourneyBeatUI.js';
 
 function findSurvivor(gameManager, id) {
   const pool = gameManager?.survivors || [];

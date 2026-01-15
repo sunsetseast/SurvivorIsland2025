@@ -1,4 +1,4 @@
-import JourneyBeatUI from './JourneyBeatUI.js';
+import JourneyBeatUI from '../ui/JourneyBeatUI.js';
 
 function clampSuspicion(value) {
   const num = Number.isFinite(value) ? value : 0;
