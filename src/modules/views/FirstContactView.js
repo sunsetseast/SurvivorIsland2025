@@ -1113,10 +1113,7 @@ const FirstContactView = {
   },
 
   _showFinalResults() {
-    if (this._breakdownOverlay) {
-      this._breakdownOverlay.remove();
-      this._breakdownOverlay = null;
-    }
+    this.cleanupOverlays();
     clearChildren(this._root);
     this._root.style.backgroundImage = `url('Assets/jeff-screen.png')`;
     this._root.style.backgroundSize = 'cover';
@@ -1147,6 +1144,10 @@ const FirstContactView = {
     }
 
     // parchment
+    const resultsOverlay = createElement('div', {
+      className: 'challenge-results-overlay',
+      style: 'position:absolute; inset:0; z-index:4500;'
+    });
     const wrap = createElement('div', { style:`position:absolute; top:30px; left:50%; transform:translateX(-50%); width:100%; max-width:320px; z-index:1000;` });
     const parch = createElement('img', { src:'Assets/parch-landscape.png', style:`width:100%; max-width:320px; max-height:180px; display:block; margin:0 auto;` });
     const txt = createElement('div', { style:`position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:80%; max-width:260px; color:#fff; font-family:'Survivant',sans-serif; font-size:.9rem; font-weight:bold; line-height:1.2; text-align:center; text-shadow:0 1px 0 #000,0 2px 0 #000,0 3px 0 #000,0 4px 4px rgba(0,0,0,.5);` });
@@ -1155,54 +1156,64 @@ const FirstContactView = {
 
     const btnRow = createElement('div', { style:`position:absolute; top:220px; left:50%; transform:translateX(-50%); display:flex; gap:12px;` });
     const nextBtn = createElement('button', {
-      style:`width:140px; height:50px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`,
-      onclick: async () => {
-        if (nextBtn.disabled) return;
-        nextBtn.disabled = true;
-
-        const activeContainer = this.container;
-        this.destroy();
-        if (activeContainer) {
-          clearChildren(activeContainer);
-        }
-
-        const player = gameManager.getPlayerSurvivor();
-        const tribes = gameManager.getTribes();
-        const playerTribe = gameManager.getPlayerTribe();
-
-        const selectionResult = await JourneySelectionEvent.run(activeContainer, {
-          gameManager,
-          tribes,
-          player,
-          playerTribe,
-          challengeKey: 'firstContact',
-          day: gameManager.getDay()
-        });
-
-        if (selectionResult?.playerWasSelected) {
-          await RiskProtectJourneyEvent.run(activeContainer, {
-            gameManager,
-            journey: gameManager.journey,
-            player,
-            relationshipSystem: gameManager.systems.relationshipSystem
-          });
-        }
-
-        if (window.challengeScreen && typeof window.challengeScreen.completeChallenge === 'function') {
-          window.challengeScreen.completeChallenge(null);
-        } else {
-          gameManager.advanceGamePhase();
-          gameManager.setGameState('camp');
-        }
-      }
+      style:`width:140px; height:50px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`
     }, 'Continue');
     const brkBtn = createElement('button', {
-      style:`width:200px; height:50px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`,
-      onclick:()=> this._showBreakdownPopup()
+      style:`width:200px; height:50px; background:url('Assets/rect-button.png') center/cover no-repeat; border:none; color:#fff; font-family:'Survivant',sans-serif; font-size:1rem; font-weight:bold; cursor:pointer; text-shadow:1px 1px 2px black;`
     }, 'Performance Breakdown');
+    const handleContinue = async () => {
+      if (nextBtn.disabled) return;
+      nextBtn.disabled = true;
+
+      this.cleanupOverlays();
+
+      const activeContainer = this.container;
+      this.destroy();
+      if (activeContainer) {
+        clearChildren(activeContainer);
+      }
+
+      const player = gameManager.getPlayerSurvivor();
+      const tribes = gameManager.getTribes();
+      const playerTribe = gameManager.getPlayerTribe();
+
+      const selectionResult = await JourneySelectionEvent.run(activeContainer, {
+        gameManager,
+        tribes,
+        player,
+        playerTribe,
+        challengeKey: 'firstContact',
+        day: gameManager.getDay()
+      });
+
+      if (selectionResult?.playerWasSelected) {
+        await RiskProtectJourneyEvent.run(activeContainer, {
+          gameManager,
+          journey: gameManager.journey,
+          player,
+          relationshipSystem: gameManager.systems.relationshipSystem
+        });
+      }
+
+      if (window.challengeScreen && typeof window.challengeScreen.completeChallenge === 'function') {
+        window.challengeScreen.completeChallenge(null);
+      } else {
+        gameManager.advanceGamePhase();
+        gameManager.setGameState('camp');
+      }
+    };
+    const handleBreakdown = () => this._showBreakdownPopup();
+    nextBtn.addEventListener('click', handleContinue, { once: true });
+    brkBtn.addEventListener('click', handleBreakdown);
     btnRow.append(nextBtn, brkBtn);
 
-    this._root.append(wrap, btnRow);
+    resultsOverlay.append(wrap, btnRow);
+    this._root.append(resultsOverlay);
+    this._resultsOverlay = resultsOverlay;
+    this._resultsContinueBtn = nextBtn;
+    this._resultsBreakdownBtn = brkBtn;
+    this._onResultsContinue = handleContinue;
+    this._onResultsBreakdown = handleBreakdown;
   },
 
   _showBreakdownPopup() {
@@ -1210,16 +1221,24 @@ const FirstContactView = {
       this._breakdownOverlay.remove();
       this._breakdownOverlay = null;
     }
-    const overlay = createElement('div', { style:`position:absolute; inset:0; background:rgba(0,0,0,0.6); z-index:5000; display:flex; align-items:center; justify-content:center;` });
+    const overlay = createElement('div', {
+      className: 'performance-breakdown-overlay',
+      style:`position:absolute; inset:0; background:rgba(0,0,0,0.6); z-index:5000; display:flex; align-items:center; justify-content:center;`
+    });
     const card = createElement('div', { style:`width:min(92vw,780px); max-height:80vh; overflow:auto; background:rgba(0,0,0,0.85); border-radius:12px; padding:14px; color:#fff; font-family:'Survivant',sans-serif; box-shadow:0 8px 24px rgba(0,0,0,.5); position:relative;` });
     const title = createElement('div', { style:`font-size:1.2rem; font-weight:bold; text-align:center; margin-bottom:10px; color:#f3d37a;` }, 'Performance Breakdown');
     const close = createElement('div', { style:`position:absolute; right:12px; top:8px; cursor:pointer; font-weight:bold;` }, '✕');
-    close.onclick = ()=> {
+    const handleClose = () => {
       overlay.remove();
       if (this._breakdownOverlay === overlay) {
         this._breakdownOverlay = null;
       }
+      if (this._breakdownCloseBtn === close) {
+        this._breakdownCloseBtn = null;
+        this._onBreakdownClose = null;
+      }
     };
+    close.addEventListener('click', handleClose);
 
     const content = createElement('div', { style:`display:flex; flex-direction:column; gap:10px;` });
     const stagePerformance = this._computeStagePerformance();
@@ -1259,14 +1278,42 @@ const FirstContactView = {
     overlay.appendChild(card);
     this._root.appendChild(overlay);
     this._breakdownOverlay = overlay;
+    this._breakdownCloseBtn = close;
+    this._onBreakdownClose = handleClose;
+  },
+
+  cleanupOverlays() {
+    if (this._resultsContinueBtn && this._onResultsContinue) {
+      this._resultsContinueBtn.removeEventListener('click', this._onResultsContinue);
+    }
+    if (this._resultsBreakdownBtn && this._onResultsBreakdown) {
+      this._resultsBreakdownBtn.removeEventListener('click', this._onResultsBreakdown);
+    }
+    if (this._breakdownCloseBtn && this._onBreakdownClose) {
+      this._breakdownCloseBtn.removeEventListener('click', this._onBreakdownClose);
+    }
+    if (this._resultsOverlay) {
+      this._resultsOverlay.remove();
+    }
+    if (this._breakdownOverlay) {
+      this._breakdownOverlay.remove();
+    }
+    if (this._root) {
+      this._root.querySelectorAll('.challenge-results-overlay, .performance-breakdown-overlay').forEach(el => el.remove());
+    }
+    this._resultsOverlay = null;
+    this._resultsContinueBtn = null;
+    this._resultsBreakdownBtn = null;
+    this._onResultsContinue = null;
+    this._onResultsBreakdown = null;
+    this._breakdownOverlay = null;
+    this._breakdownCloseBtn = null;
+    this._onBreakdownClose = null;
   },
 
   destroy() {
     this._destroyed = true;
-    if (this._breakdownOverlay) {
-      this._breakdownOverlay.remove();
-      this._breakdownOverlay = null;
-    }
+    this.cleanupOverlays();
     if (this._root) {
       this._root.remove();
       this._root = null;
