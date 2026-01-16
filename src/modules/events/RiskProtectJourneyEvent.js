@@ -243,13 +243,13 @@ const RiskProtectJourneyEvent = {
     if (container) {
       clearChildren(container);
       container.style.position = 'relative';
+      JourneyBeatUI.forceCleanup(container);
     }
     if (this.ui) {
       this.ui.destroy();
     }
     const ui = new JourneyBeatUI(container);
     this.ui = ui;
-    ui.resetState();
     let currentBackground = null;
     const participantIds = Array.from(new Set(journey?.participants || [])).filter(Boolean);
     const resolvedParticipantIds = participantIds.length ? participantIds : (player?.id ? [player.id] : []);
@@ -480,6 +480,9 @@ const RiskProtectJourneyEvent = {
       if (this.ui) {
         this.ui.destroy();
         this.ui = null;
+      }
+      if (container) {
+        JourneyBeatUI.forceCleanup(container);
       }
     }
   }

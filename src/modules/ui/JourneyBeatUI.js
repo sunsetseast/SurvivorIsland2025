@@ -23,6 +23,7 @@ class JourneyBeatUI {
     this.fadeDurationMs = 200;
     this._styleEl = null;
     this.overlayToken = 'true';
+    this._defaultPanelMinHeight = '320px';
 
     this.backgroundLayer = createElement('div', {
       dataset: { journeyOverlay: this.overlayToken },
@@ -46,6 +47,7 @@ class JourneyBeatUI {
     });
 
     this.vignetteLayer = createElement('div', {
+      dataset: { journeyOverlay: this.overlayToken },
       style: `position:absolute; inset:0; background:radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%); pointer-events:none;`
     });
 
@@ -54,7 +56,7 @@ class JourneyBeatUI {
     });
 
     this.panel = createElement('div', {
-      style: `position:relative; width:min(92vw, 900px); height:min(72vh, 560px); max-height:72vh; display:flex; align-items:center; justify-content:center;`
+      style: `position:relative; width:min(92vw, 900px); height:min(74vh, 600px); max-height:74vh; display:flex; align-items:center; justify-content:center;`
     });
 
     this.avatarImg = createElement('img', {
@@ -81,9 +83,7 @@ class JourneyBeatUI {
       style: `width:100%; display:flex; flex-direction:column; gap:8px; font-size:clamp(0.9rem, 2.6vw, 1.08rem); line-height:1.4;`
     });
 
-    this.buttonsArea = createElement('div', {
-      style: `position:absolute; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:10px; z-index:2;`
-    });
+    this.buttonsArea = this.createButtonsArea();
 
     this.contentArea.append(this.titleEl, this.textArea);
     this.panel.append(this.avatarImg, this.frameImg, this.nameLabel, this.contentArea, this.buttonsArea);
@@ -143,6 +143,12 @@ class JourneyBeatUI {
 
     container.appendChild(this.backgroundLayer);
     container.appendChild(this.overlay);
+  }
+
+  createButtonsArea() {
+    return createElement('div', {
+      style: `position:absolute; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:10px; z-index:2; max-height:32%; overflow-y:auto; padding:4px 0;`
+    });
   }
 
   setBackground(src) {
@@ -209,40 +215,48 @@ class JourneyBeatUI {
 
   applyBeatUI1Layout() {
     this.panel.style.width = 'min(92vw, 900px)';
-    this.panel.style.height = 'min(72vh, 560px)';
-    this.panel.style.maxHeight = '72vh';
+    this.panel.style.height = 'min(74vh, 600px)';
+    this.panel.style.maxHeight = '74vh';
     this.panel.style.aspectRatio = '';
     this.panel.style.transform = 'none';
-    this.panel.style.minHeight = '320px';
+    this.panel.style.minHeight = this._defaultPanelMinHeight;
+    this.panel.style.maxWidth = '900px';
+    this.panel.style.backgroundSize = 'contain';
+    this.panel.style.backgroundRepeat = 'no-repeat';
 
     this.avatarImg.style.display = 'none';
     this.nameLabel.style.display = 'none';
     this.contentArea.style.top = '18%';
     this.contentArea.style.left = '10%';
     this.contentArea.style.right = '12%';
-    this.contentArea.style.bottom = '24%';
+    this.contentArea.style.bottom = '30%';
     this.buttonsArea.style.bottom = '10%';
     this.buttonsArea.style.width = '62%';
     this.buttonsArea.style.maxWidth = '440px';
+    this.buttonsArea.style.maxHeight = '28%';
   }
 
   applyAvatarUILayout() {
     this.panel.style.width = 'min(92vw, 900px)';
-    this.panel.style.height = 'min(72vh, 560px)';
-    this.panel.style.maxHeight = '72vh';
+    this.panel.style.height = 'min(74vh, 620px)';
+    this.panel.style.maxHeight = '74vh';
     this.panel.style.aspectRatio = '';
     this.panel.style.transform = 'none';
-    this.panel.style.minHeight = '320px';
+    this.panel.style.minHeight = this._defaultPanelMinHeight;
+    this.panel.style.maxWidth = '900px';
+    this.panel.style.backgroundSize = 'contain';
+    this.panel.style.backgroundRepeat = 'no-repeat';
 
     this.avatarImg.style.display = 'block';
     this.nameLabel.style.display = 'block';
     this.contentArea.style.top = '26%';
     this.contentArea.style.left = '42%';
     this.contentArea.style.right = '10%';
-    this.contentArea.style.bottom = '24%';
+    this.contentArea.style.bottom = '30%';
     this.buttonsArea.style.bottom = '10%';
     this.buttonsArea.style.width = '48%';
     this.buttonsArea.style.maxWidth = '360px';
+    this.buttonsArea.style.maxHeight = '28%';
   }
 
   setTopMode(enabled) {
@@ -296,10 +310,15 @@ class JourneyBeatUI {
   }
 
   resetState() {
-    this.clearButtons();
+    if (this.buttonsArea) {
+      this.buttonsArea.remove();
+    }
+    this.buttonsArea = this.createButtonsArea();
+    this.panel.appendChild(this.buttonsArea);
     this.titleEl.textContent = '';
     this.titleEl.style.display = 'none';
     this.textArea.innerHTML = '';
+    this.textArea.style.width = '100%';
     this.avatarImg.style.display = 'none';
     this.nameLabel.style.display = 'none';
     this.jeffText.innerHTML = '';
@@ -378,6 +397,7 @@ class JourneyBeatUI {
   destroy() {
     this.overlay?.remove();
     this.backgroundLayer?.remove();
+    this.vignetteLayer?.remove();
     if (this._styleEl) {
       this._styleEl.remove();
       this._styleEl = null;
