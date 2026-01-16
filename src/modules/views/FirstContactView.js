@@ -178,7 +178,7 @@ const FirstContactView = {
       style: 'position:relative; width:100%; height:100%; overflow:hidden;'
     });
     container.appendChild(root);
-    this._root = root;
+    this._rootEl = root;
 
     // data
     this.tribes = gameManager.getTribes();
@@ -419,7 +419,7 @@ const FirstContactView = {
   // ---------- layout ----------
   _buildBands() {
     const bands = createElement('div', { style:`position:absolute; inset:0; z-index:1;` });
-    this._root.appendChild(bands);
+    this._rootEl.appendChild(bands);
     this.bandsRoot = bands;
     this.bandRects = [];
     this.bandEls = [];
@@ -444,12 +444,12 @@ const FirstContactView = {
 
   _buildLanes() {
     const lanes = createElement('div', { style:`position:absolute; inset:0; z-index:2;` });
-    this._root.appendChild(lanes);
-    const W = this._root.clientWidth || 800;
+    this._rootEl.appendChild(lanes);
+    const W = this._rootEl.clientWidth || 800;
     const laneW = Math.floor(W / this.tribes.length);
     this.lanes = [];
     this.sidelines = {};      // [tribeKey][segIdx] -> {x,y,count}
-    this.bleachersY = (this._root.clientHeight||600) * (1 - SEGMENTS[3].end) + CFG.bleachersYPad;
+    this.bleachersY = (this._rootEl.clientHeight||600) * (1 - SEGMENTS[3].end) + CFG.bleachersYPad;
     this.bleachersSlots = {}; // [tribeKey] -> counter
     this.finishedSlots = {};  // [tribeKey] -> counter
 
@@ -465,7 +465,7 @@ const FirstContactView = {
       this.sidelines[key] = {};
       SEGMENTS.forEach((s, idx) => {
         const yPct = (1 - s.start) * 100;
-        const y = (this._root.clientHeight||600) * (yPct/100) - 60;
+        const y = (this._rootEl.clientHeight||600) * (yPct/100) - 60;
         const x = (i*laneW) + CFG.sidelineOffsetX;
         this.sidelines[key][idx] = { x, y, count: 0 };
       });
@@ -484,7 +484,7 @@ const FirstContactView = {
     const orderEl = createElement('div', { style:`display:flex; justify-content:center; gap:14px; font-size:.95rem; text-shadow:1px 1px 2px #000; flex-wrap:wrap;` });
     const rowsEl  = createElement('div', { style:`display:flex; justify-content:center; gap:14px; margin-top:6px; flex-wrap:wrap;` });
     root.append(orderEl, rowsEl);
-    this._root.appendChild(root);
+    this._rootEl.appendChild(root);
     this.scoreboardEl = root;
     this.scoreboardDock = 'top';
 
@@ -618,7 +618,7 @@ const FirstContactView = {
           style:`position:absolute; font-family:'Survivant',sans-serif; font-size:${CFG.avatar.labelSize}px;
                  color:${ms.tribe.color || ms.tribe.tribeColor || '#fff'}; text-shadow:1px 1px 2px #000; z-index:11;`
         }, (ms.survivor.firstName || '').split(' ')[0]);
-        this._root.append(img,label);
+        this._rootEl.append(img,label);
         ms.avatar = img; ms.label = label;
 
         if (ms.status === 'bleachers') {
@@ -631,14 +631,14 @@ const FirstContactView = {
   },
 
   _laneX(tribe) {
-    const W = this._root.clientWidth || 800;
+    const W = this._rootEl.clientWidth || 800;
     const laneW = Math.floor(W / this.tribes.length);
     const idx = this.tribes.findIndex(t => getKey(t)===getKey(tribe));
     return idx*laneW;
   },
 
   _segmentRect(segIdx) {
-    const H = this._root.clientHeight || 600;
+    const H = this._rootEl.clientHeight || 600;
     const r = this.bandRects[segIdx];
     const top = (r.topPct/100) * H;
     const height = (r.heightPct/100) * H;
@@ -679,8 +679,8 @@ const FirstContactView = {
     if (this.finishedSlots[key] == null) this.finishedSlots[key] = 0;
 
     const slot = this.finishedSlots[key]++;
-    const W = this._root.clientWidth || 800;
-    const H = this._root.clientHeight || 600;
+    const W = this._rootEl.clientWidth || 800;
+    const H = this._rootEl.clientHeight || 600;
     const pad = 8;
 
     const setPos = (x, y) => {
@@ -826,8 +826,8 @@ const FirstContactView = {
     this.state.puzzleUnified = true;
     if (this.bandsRoot) this.bandsRoot.style.display = 'none';
     if (this.bandEls) this.bandEls.forEach(el => el.style.display = 'none');
-    this._root.style.backgroundImage = `url('${SEGMENTS[3].bg}')`;
-    this._root.style.backgroundSize = 'cover';
+    this._rootEl.style.backgroundImage = `url('${SEGMENTS[3].bg}')`;
+    this._rootEl.style.backgroundSize = 'cover';
 
     if (!this.state.puzzleAllInFired && (now - this.state.lastNarrationAt >= this.state.narrationCooldownMs)) {
       this.state.puzzleAllInFired = true;
@@ -980,7 +980,7 @@ const FirstContactView = {
 
         const r = this._segmentRect(segIdx);
         const laneX = this._laneX(ms.tribe);
-        const x = laneX + (this._root.clientWidth/this.tribes.length)/2 + jitter(ms.survivor.id, 8) - CFG.avatar.size/2;
+        const x = laneX + (this._rootEl.clientWidth/this.tribes.length)/2 + jitter(ms.survivor.id, 8) - CFG.avatar.size/2;
         const y = r.top + r.height - (r.height * ms.perLeg[segIdx]) - CFG.avatar.size/2;
         ms.avatar.style.left = `${x}px`; ms.avatar.style.top = `${y}px`;
         ms.label.style.left = `${x}px`;  ms.label.style.top = `${y + CFG.avatar.size + 2}px`;
@@ -1118,11 +1118,11 @@ const FirstContactView = {
 
   _showFinalResults() {
     this.cleanupResultsUI();
-    clearChildren(this._root);
-    this._root.style.backgroundImage = `url('Assets/jeff-screen.png')`;
-    this._root.style.backgroundSize = 'cover';
-    this._root.style.backgroundPosition = 'center';
-    this._root.style.backgroundRepeat = 'no-repeat';
+    clearChildren(this._rootEl);
+    this._rootEl.style.backgroundImage = `url('Assets/jeff-screen.png')`;
+    this._rootEl.style.backgroundSize = 'cover';
+    this._rootEl.style.backgroundPosition = 'center';
+    this._rootEl.style.backgroundRepeat = 'no-repeat';
 
     const winnersKeys = this.isThree ? this.state.finishedOrder.slice(0, 2) : this.state.finishedOrder.slice(0, 1);
     const loserKeys = this.tribes.map(t => getKey(t)).filter(k => !winnersKeys.includes(k));
@@ -1213,7 +1213,7 @@ const FirstContactView = {
     btnRow.append(nextBtn, brkBtn);
 
     resultsOverlay.append(wrap, btnRow);
-    this._root.append(resultsOverlay);
+    this._rootEl.append(resultsOverlay);
     this._resultsOverlay = resultsOverlay;
     this._resultsContinueBtn = nextBtn;
     this._resultsBreakdownBtn = brkBtn;
@@ -1222,9 +1222,9 @@ const FirstContactView = {
   },
 
   _showBreakdownPopup() {
-    if (this._breakdownOverlay) {
-      this._breakdownOverlay.remove();
-      this._breakdownOverlay = null;
+    if (this._breakdownEl) {
+      this._breakdownEl.remove();
+      this._breakdownEl = null;
     }
     const overlay = createElement('div', {
       className: 'performance-breakdown-overlay',
@@ -1235,8 +1235,8 @@ const FirstContactView = {
     const close = createElement('div', { style:`position:absolute; right:12px; top:8px; cursor:pointer; font-weight:bold;` }, '✕');
     const handleClose = () => {
       overlay.remove();
-      if (this._breakdownOverlay === overlay) {
-        this._breakdownOverlay = null;
+      if (this._breakdownEl === overlay) {
+        this._breakdownEl = null;
       }
       if (this._breakdownCloseBtn === close) {
         this._breakdownCloseBtn = null;
@@ -1281,8 +1281,8 @@ const FirstContactView = {
 
     card.append(title, content, close);
     overlay.appendChild(card);
-    this._root.appendChild(overlay);
-    this._breakdownOverlay = overlay;
+    this._rootEl.appendChild(overlay);
+    this._breakdownEl = overlay;
     this._breakdownCloseBtn = close;
     this._onBreakdownClose = handleClose;
   },
@@ -1304,18 +1304,18 @@ const FirstContactView = {
     if (this._resultsOverlay) {
       this._resultsOverlay.remove();
     }
-    if (this._breakdownOverlay) {
-      this._breakdownOverlay.remove();
+    if (this._breakdownEl) {
+      this._breakdownEl.remove();
     }
-    if (this._root) {
-      this._root.querySelectorAll('.challenge-results-overlay, .performance-breakdown-overlay').forEach(el => el.remove());
+    if (this._rootEl) {
+      this._rootEl.querySelectorAll('.challenge-results-overlay, .performance-breakdown-overlay').forEach(el => el.remove());
     }
     this._resultsOverlay = null;
     this._resultsContinueBtn = null;
     this._resultsBreakdownBtn = null;
     this._onResultsContinue = null;
     this._onResultsBreakdown = null;
-    this._breakdownOverlay = null;
+    this._breakdownEl = null;
     this._breakdownCloseBtn = null;
     this._onBreakdownClose = null;
   },
@@ -1327,9 +1327,9 @@ const FirstContactView = {
   destroy() {
     this._destroyed = true;
     this.cleanupResultsUI();
-    if (this._root) {
-      this._root.remove();
-      this._root = null;
+    if (this._rootEl) {
+      this._rootEl.remove();
+      this._rootEl = null;
     }
     if (this._onResize) {
       window.removeEventListener('resize', this._onResize);

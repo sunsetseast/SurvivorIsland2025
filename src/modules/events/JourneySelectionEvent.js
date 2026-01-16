@@ -27,6 +27,7 @@ const JourneySelectionEvent = {
     if (container) {
       clearChildren(container);
       container.style.position = 'relative';
+      JourneyBeatUI.forceCleanup(container);
     }
     if (this.ui) {
       this.ui.destroy();
@@ -49,50 +50,69 @@ const JourneySelectionEvent = {
 
     const isPlayerTribe = (tribe) => (tribe?.members || []).some(m => m.id === player?.id);
 
-    const awaitJeffBeat = async (lines) => new Promise(resolve => {
-      ui.setSceneBackground('Assets/jeff-screen.png');
-      ui.renderJeffBeat({
-        textLines: lines,
+    const showBeatAndWait = async (config) => new Promise(resolve => {
+      if (config?.background !== undefined) {
+        ui.setSceneBackground(config.background);
+      }
+      ui.renderBeat({
+        title: config?.title,
+        textLines: config?.textLines,
+        html: config?.html,
+        frameMode: config?.frameMode,
+        layout: config?.layout,
         buttons: [{ label: 'Continue', onClick: () => resolve() }]
       });
     });
 
-    const awaitBeat = async (lines, { background, title } = {}) => new Promise(resolve => {
-      if (background !== undefined) {
-        ui.setSceneBackground(background);
+    const showChoiceBeat = async (config) => new Promise(resolve => {
+      if (config?.background !== undefined) {
+        ui.setSceneBackground(config.background);
       }
       ui.renderBeat({
-        title,
-        textLines: lines,
-        buttons: [{ label: 'Continue', onClick: () => resolve() }]
+        title: config?.title,
+        textLines: config?.textLines,
+        html: config?.html,
+        frameMode: config?.frameMode,
+        layout: config?.layout,
+        buttons: (config?.buttons || []).map(btn => ({
+          label: btn.label,
+          onClick: () => resolve(btn.value)
+        }))
       });
     });
 
     try {
-      await awaitJeffBeat([
+      await showBeatAndWait({
+        background: 'Assets/jeff-screen.png',
+        textLines: [
         'Survivors… that was a hard-fought challenge. One tribe comes away with immunity — and safety tonight. But for the rest of you… the game doesn’t stop here.'
-      ]);
-      await awaitJeffBeat([
+        ]
+      });
+      await showBeatAndWait({
+        background: 'Assets/jeff-screen.png',
+        textLines: [
         'In this game, advantages can change everything. Today, the next twist begins right now.',
         'Each tribe is going to send one person on a journey — away from camp… and straight into a decision that could affect your vote at Tribal Council.'
-      ]);
+        ]
+      });
 
-      await awaitJeffBeat([
+      await showBeatAndWait({
+        background: 'Assets/jeff-screen.png',
+        textLines: [
         'On this journey, you’ll face a choice: protect your vote… or risk it for a possible advantage.',
         'But here’s the catch — you won’t know what the others choose until it’s over.'
-      ]);
+        ]
+      });
 
-      const playerChoice = await new Promise(resolve => {
-        ui.setSceneBackground('Assets/jeff-screen.png');
-        ui.renderBeat({
-          title: 'How do you respond?',
-          textLines: ['This is the moment to decide how badly you want that journey slot.'],
-          buttons: [
-            { label: 'Push hard to go on the journey.', onClick: () => resolve('push') },
-            { label: 'Sit this one out.', onClick: () => resolve('sitout') },
-            { label: 'Suggest drawing rocks.', onClick: () => resolve('rocks') }
-          ]
-        });
+      const playerChoice = await showChoiceBeat({
+        background: 'Assets/jeff-screen.png',
+        title: 'How do you respond?',
+        textLines: ['This is the moment to decide how badly you want that journey slot.'],
+        buttons: [
+          { label: 'Push hard to go on the journey.', value: 'push' },
+          { label: 'Sit this one out.', value: 'sitout' },
+          { label: 'Suggest drawing rocks.', value: 'rocks' }
+        ]
       });
 
       if (playerChoice === 'push') {
@@ -144,7 +164,9 @@ const JourneySelectionEvent = {
 
       const participants = Array.from(participantsSet);
 
-      await awaitBeat([
+      await showBeatAndWait({
+        background: 'Assets/jeff-screen.png',
+        textLines: [
         'Alright. Decision made.',
         ...tribes.map((tribe, idx) => {
           const selectedId = participantsByTribe[resolveTribeKey(tribe, idx)];
@@ -154,11 +176,15 @@ const JourneySelectionEvent = {
           const name = selectedSurvivor?.name || selectedSurvivor?.firstName || selectedId || 'Someone';
           return `From the ${tribeName} — ${name}. …`;
         })
-      ], { background: 'Assets/jeff-screen.png' });
+        ]
+      });
 
-      await awaitBeat([
+      await showBeatAndWait({
+        background: 'Assets/Journey/boat.png',
+        textLines: [
         'Grab your things. Your journey starts now.'
-      ], { background: 'Assets/Journey/boat.png' });
+        ]
+      });
 
       gameManager.journey = {
         active: true,
@@ -188,6 +214,9 @@ const JourneySelectionEvent = {
       if (this.ui) {
         this.ui.destroy();
         this.ui = null;
+      }
+      if (container) {
+        JourneyBeatUI.forceCleanup(container);
       }
     }
   }
