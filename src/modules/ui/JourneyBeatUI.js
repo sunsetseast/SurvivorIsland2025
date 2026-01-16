@@ -43,7 +43,7 @@ class JourneyBeatUI {
     });
 
     this.vignetteLayer = createElement('div', {
-      style: `position:absolute; inset:0; background:radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%);`
+      style: `position:absolute; inset:0; background:radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%); pointer-events:none;`
     });
 
     this.beatLayer = createElement('div', {
@@ -189,30 +189,64 @@ class JourneyBeatUI {
   }
 
   setFrame(mode) {
-    this.frameMode = mode;
-    const frameSrc = FRAME_ASSETS[mode] || FRAME_ASSETS['beat-ui1'];
+    const resolvedMode = mode || 'beat-ui1';
+    this.frameMode = resolvedMode;
+    const frameSrc = FRAME_ASSETS[resolvedMode] || FRAME_ASSETS['beat-ui1'];
     this.frameImg.src = frameSrc;
 
-    if (mode === 'beat-avatar-ui') {
-      this.avatarImg.style.display = 'block';
-      this.nameLabel.style.display = 'block';
-      this.contentArea.style.top = '26%';
-      this.contentArea.style.left = '42%';
-      this.contentArea.style.right = '10%';
-      this.contentArea.style.bottom = '24%';
-      this.buttonsArea.style.bottom = '10%';
-      this.buttonsArea.style.width = '48%';
-      this.buttonsArea.style.maxWidth = '360px';
+    if (resolvedMode === 'beat-avatar-ui') {
+      this.applyAvatarUILayout();
     } else {
-      this.avatarImg.style.display = 'none';
-      this.nameLabel.style.display = 'none';
-      this.contentArea.style.top = '18%';
-      this.contentArea.style.left = '10%';
-      this.contentArea.style.right = '12%';
-      this.contentArea.style.bottom = '24%';
-      this.buttonsArea.style.bottom = '10%';
-      this.buttonsArea.style.width = '62%';
-      this.buttonsArea.style.maxWidth = '440px';
+      this.applyBeatUI1Layout();
+    }
+  }
+
+  applyBeatUI1Layout() {
+    this.panel.style.width = 'min(960px, 94vw)';
+    this.panel.style.maxHeight = '86vh';
+    this.panel.style.aspectRatio = '16 / 9';
+    this.panel.style.transform = 'none';
+    this.panel.style.minHeight = '';
+
+    this.avatarImg.style.display = 'none';
+    this.nameLabel.style.display = 'none';
+    this.contentArea.style.top = '18%';
+    this.contentArea.style.left = '10%';
+    this.contentArea.style.right = '12%';
+    this.contentArea.style.bottom = '24%';
+    this.buttonsArea.style.bottom = '10%';
+    this.buttonsArea.style.width = '62%';
+    this.buttonsArea.style.maxWidth = '440px';
+  }
+
+  applyAvatarUILayout() {
+    this.panel.style.width = 'min(960px, 94vw)';
+    this.panel.style.maxHeight = '86vh';
+    this.panel.style.aspectRatio = '16 / 9';
+    this.panel.style.transform = 'none';
+    this.panel.style.minHeight = '';
+
+    this.avatarImg.style.display = 'block';
+    this.nameLabel.style.display = 'block';
+    this.contentArea.style.top = '26%';
+    this.contentArea.style.left = '42%';
+    this.contentArea.style.right = '10%';
+    this.contentArea.style.bottom = '24%';
+    this.buttonsArea.style.bottom = '10%';
+    this.buttonsArea.style.width = '48%';
+    this.buttonsArea.style.maxWidth = '360px';
+  }
+
+  setTopMode(enabled) {
+    this.isTopMode = Boolean(enabled);
+    if (this.isTopMode) {
+      this.beatLayer.style.alignItems = 'flex-start';
+      this.beatLayer.style.paddingTop = 'clamp(16px, 4vh, 48px)';
+      this.beatLayer.style.paddingBottom = '0';
+    } else {
+      this.beatLayer.style.alignItems = 'center';
+      this.beatLayer.style.paddingTop = '0';
+      this.beatLayer.style.paddingBottom = '0';
     }
   }
 
@@ -253,7 +287,21 @@ class JourneyBeatUI {
     this.jeffLayer.style.display = 'flex';
   }
 
-  renderBeat({ title, textLines, html, buttons = [] }) {
+  resetState() {
+    this.clearButtons();
+    this.titleEl.textContent = '';
+    this.titleEl.style.display = 'none';
+    this.textArea.innerHTML = '';
+    this.avatarImg.style.display = 'none';
+    this.nameLabel.style.display = 'none';
+    this.jeffText.innerHTML = '';
+    this.jeffButton.onclick = null;
+    this.setTopMode(false);
+    this.frameMode = 'beat-ui1';
+    this.applyBeatUI1Layout();
+  }
+
+  renderBeatContent({ title, textLines, html, buttons = [] }) {
     this.showOverlay();
     this.showBeatLayer();
     if (title) {
@@ -284,13 +332,22 @@ class JourneyBeatUI {
     });
   }
 
+  renderBeat({ title, textLines, html, buttons = [], frameMode, layout = 'center' } = {}) {
+    this.resetState();
+    this.setFrame(frameMode || 'beat-ui1');
+    this.setTopMode(layout === 'top');
+    this.renderBeatContent({ title, textLines, html, buttons });
+  }
+
   renderAvatarBeat({ speakerSurvivor, title, textLines, buttons = [] }) {
+    this.resetState();
     this.setFrame('beat-avatar-ui');
     this.setSpeaker(speakerSurvivor);
-    this.renderBeat({ title, textLines, buttons });
+    this.renderBeatContent({ title, textLines, buttons });
   }
 
   renderJeffBeat({ textLines = [], html, buttonLabel = 'Continue', onContinue }) {
+    this.resetState();
     this.showOverlay();
     this.showJeffLayer();
     if (html instanceof HTMLElement) {

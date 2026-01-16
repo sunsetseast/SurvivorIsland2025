@@ -49,41 +49,41 @@ const JourneySelectionEvent = {
 
     const isPlayerTribe = (tribe) => (tribe?.members || []).some(m => m.id === player?.id);
 
-    const awaitJeffContinue = async (lines) => new Promise(resolve => {
+    const awaitNarration = async (lines) => new Promise(resolve => {
       ui.setSceneBackground('Assets/jeff-screen.png');
-      ui.renderJeffBeat({
+      ui.renderBeat({
         textLines: lines,
-        onContinue: () => resolve()
+        layout: 'top',
+        buttons: [{ label: 'Continue', onClick: () => resolve() }]
       });
     });
 
-    const awaitContinue = async (lines, { background } = {}) => new Promise(resolve => {
+    const awaitContinue = async (lines, { background, layout = 'center' } = {}) => new Promise(resolve => {
       if (background !== undefined) {
         ui.setSceneBackground(background);
       }
-      ui.setFrame('beat-ui1');
       ui.renderBeat({
         textLines: lines,
+        layout,
         buttons: [{ label: 'Continue', onClick: () => resolve() }]
       });
     });
 
     try {
-      await awaitJeffContinue([
+      await awaitNarration([
         'Survivors… that was a hard-fought challenge. One tribe comes away with immunity — and safety tonight. But for the rest of you… the game doesn’t stop here.'
       ]);
-      await awaitJeffContinue([
+      await awaitNarration([
         'In this game, advantages can change everything. Today, the next twist begins right now.',
         'Each tribe is going to send one person on a journey — away from camp… and straight into a decision that could affect your vote at Tribal Council.'
       ]);
 
-      await awaitJeffContinue([
+      await awaitNarration([
         'On this journey, you’ll face a choice: protect your vote… or risk it for a possible advantage.',
         'But here’s the catch — you won’t know what the others choose until it’s over.'
       ]);
 
       const playerChoice = await new Promise(resolve => {
-        ui.setFrame('beat-ui1');
         ui.renderBeat({
           textLines: [
             'How do you respond?',
