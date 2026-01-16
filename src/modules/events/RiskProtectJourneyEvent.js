@@ -249,6 +249,7 @@ const RiskProtectJourneyEvent = {
     }
     const ui = new JourneyBeatUI(container);
     this.ui = ui;
+    ui.resetState();
     let currentBackground = null;
     const participantIds = Array.from(new Set(journey?.participants || [])).filter(Boolean);
     const resolvedParticipantIds = participantIds.length ? participantIds : (player?.id ? [player.id] : []);
@@ -300,27 +301,25 @@ const RiskProtectJourneyEvent = {
       wheelImage.style.display = 'none';
     };
 
-    const transitionBackground = async (background) => {
+    const setBackground = (background) => {
       if (background && background !== currentBackground) {
-        await ui.transitionBackground(background);
+        ui.setSceneBackground(background);
         currentBackground = background;
       }
     };
 
     const awaitJeffBeat = async (lines) => new Promise(resolve => {
-      transitionBackground('Assets/jeff-screen.png').then(async () => {
-        await hideWheel();
-        ui.renderJeffBeat({ textLines: lines, onContinue: () => resolve() });
-      });
+      setBackground('Assets/jeff-screen.png');
+      hideWheel();
+      ui.renderJeffBeat({ textLines: lines, onContinue: () => resolve() });
     });
 
     const awaitBeat = async ({ background, title, textLines, html }) => {
       if (background) {
-        await transitionBackground(background);
+        setBackground(background);
       }
       await hideWheel();
       return new Promise(resolve => {
-        ui.setFrame('beat-ui1');
         ui.renderBeat({
           title,
           textLines,
@@ -432,14 +431,12 @@ const RiskProtectJourneyEvent = {
       journey.socialContext = socialContext;
 
       if ('Assets/Journey/arrival.png' !== currentBackground) {
-        await transitionBackground('Assets/Journey/arrival.png');
-        currentBackground = 'Assets/Journey/arrival.png';
+        setBackground('Assets/Journey/arrival.png');
       }
       ui.hideOverlay();
       await showWheel('Assets/Journey/risk-protect.png');
 
       const playerChoice = await new Promise(resolve => {
-        ui.setFrame('beat-ui1');
         ui.renderBeat({
           textLines: [
             'Now you’ll make your choices in private.',

@@ -1031,7 +1031,10 @@ const FirstContactView = {
     const allDone = this.tribes.every(t => this.state.progressByTribe[getKey(t)] >= 1);
     if (allDone) {
       this._applyChallengeThreatAdjustments();
-      setTimeout(()=> this._showFinalResults(), 800);
+      this._resultsTimeout = setTimeout(() => {
+        this._resultsTimeout = null;
+        this._showFinalResults();
+      }, 800);
       return;
     }
 
@@ -1113,7 +1116,7 @@ const FirstContactView = {
   },
 
   _showFinalResults() {
-    this.cleanupOverlays();
+    this.cleanupResultsUI();
     clearChildren(this._root);
     this._root.style.backgroundImage = `url('Assets/jeff-screen.png')`;
     this._root.style.backgroundSize = 'cover';
@@ -1165,7 +1168,7 @@ const FirstContactView = {
       if (nextBtn.disabled) return;
       nextBtn.disabled = true;
 
-      this.cleanupOverlays();
+      this.cleanupResultsUI();
 
       const activeContainer = this.container;
       this.destroy();
@@ -1282,7 +1285,11 @@ const FirstContactView = {
     this._onBreakdownClose = handleClose;
   },
 
-  cleanupOverlays() {
+  cleanupResultsUI() {
+    if (this._resultsTimeout) {
+      clearTimeout(this._resultsTimeout);
+      this._resultsTimeout = null;
+    }
     if (this._resultsContinueBtn && this._onResultsContinue) {
       this._resultsContinueBtn.removeEventListener('click', this._onResultsContinue);
     }
@@ -1311,9 +1318,13 @@ const FirstContactView = {
     this._onBreakdownClose = null;
   },
 
+  cleanupOverlays() {
+    this.cleanupResultsUI();
+  },
+
   destroy() {
     this._destroyed = true;
-    this.cleanupOverlays();
+    this.cleanupResultsUI();
     if (this._root) {
       this._root.remove();
       this._root = null;
