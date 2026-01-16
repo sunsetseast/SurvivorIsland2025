@@ -21,6 +21,21 @@ function pickRandom(arr = []) {
   return arr[idx];
 }
 
+function getFirstName(fullName) {
+  if (!fullName || typeof fullName !== 'string') return '';
+  return fullName.trim().split(' ')[0] || '';
+}
+
+const FALLBACK_TRIBE_COLORS = {
+  red: '#d64541',
+  orange: '#e67e22',
+  blue: '#3498db',
+  purple: '#9b59b6',
+  green: '#27ae60',
+  yellow: '#f1c40f',
+  teal: '#1abc9c'
+};
+
 const JourneySelectionEvent = {
   async run(container, options = {}) {
     const { gameManager, tribes = [], player, playerTribe, challengeKey, day } = options;
@@ -36,12 +51,30 @@ const JourneySelectionEvent = {
     this.ui = ui;
     let isPreBoat = true;
     const tribeKeyCache = new Map();
+    const tribeColorCache = new Map();
 
     const resolveTribeKey = (tribe, index) => {
       if (tribeKeyCache.has(tribe)) return tribeKeyCache.get(tribe);
       const key = getTribeKey(tribe, index);
       tribeKeyCache.set(tribe, key);
       return key;
+    };
+
+    const getTribeColorHex = (tribeKeyOrName) => {
+      if (!tribeKeyOrName) return FALLBACK_TRIBE_COLORS.green;
+      if (tribeColorCache.has(tribeKeyOrName)) return tribeColorCache.get(tribeKeyOrName);
+      const match = tribes.find((tribe, idx) => resolveTribeKey(tribe, idx) === tribeKeyOrName ||
+        tribe?.tribeName === tribeKeyOrName ||
+        tribe?.name === tribeKeyOrName);
+      const rawColor = match?.tribeColor || match?.color || match?.tribeColor || null;
+      if (rawColor && /^#([0-9a-f]{3}){1,2}$/i.test(rawColor)) {
+        tribeColorCache.set(tribeKeyOrName, rawColor);
+        return rawColor;
+      }
+      const normalized = (rawColor || tribeKeyOrName || '').toString().toLowerCase();
+      const fallback = FALLBACK_TRIBE_COLORS[normalized] || FALLBACK_TRIBE_COLORS.green;
+      tribeColorCache.set(tribeKeyOrName, fallback);
+      return fallback;
     };
 
     const actualPlayerTribe =
@@ -66,14 +99,29 @@ const JourneySelectionEvent = {
       if (background !== undefined) {
         ui.setSceneBackground(background);
       }
-      ui.renderBeat({
-        title: config?.title,
-        textLines: config?.textLines,
-        html: config?.html,
-        frameMode: config?.frameMode,
-        layout: config?.layout,
-        buttons: [{ label: 'Continue', onClick: () => resolve() }]
-      });
+      if (config?.sceneFirst) {
+        ui.renderSceneFirst({
+          backgroundSrc: background,
+          onAdvance: () => resolve()
+        });
+      } else if (config?.layout === 'parchTop') {
+        ui.renderParchTopBeat({
+          title: config?.title,
+          textLines: config?.textLines,
+          html: config?.html,
+          buttons: config?.buttons,
+          onAdvance: () => resolve()
+        });
+      } else {
+        ui.renderBeat({
+          title: config?.title,
+          textLines: config?.textLines,
+          html: config?.html,
+          frameMode: config?.frameMode,
+          layout: config?.layout,
+          buttons: [{ label: 'Continue', onClick: () => resolve() }]
+        });
+      }
     });
 
     const showChoiceBeat = async (config) => new Promise(resolve => {
@@ -103,7 +151,13 @@ const JourneySelectionEvent = {
       await showBeatAndWait({
         background: 'Assets/jeff-screen.png',
         textLines: [
-        'In this game, advantages can change everything. Today, the next twist begins right now.',
+        'In this game, advantages can change everything. Today, the next twist begins right now.'
+        ]
+      });
+
+      await showBeatAndWait({
+        background: 'Assets/jeff-screen.png',
+        textLines: [
         'Each tribe is going to send one person on a journey — away from camp… and straight into a decision that could affect your vote at Tribal Council.'
         ]
       });
@@ -120,6 +174,7 @@ const JourneySelectionEvent = {
         background: 'Assets/jeff-screen.png',
         title: 'How do you respond?',
         textLines: ['This is the moment to decide how badly you want that journey slot.'],
+        layout: 'choiceColumnTop',
         buttons: [
           { label: 'Push hard to go on the journey.', value: 'push' },
           { label: 'Sit this one out.', value: 'sitout' },
@@ -178,21 +233,30 @@ const JourneySelectionEvent = {
 
       await showBeatAndWait({
         background: 'Assets/jeff-screen.png',
-        textLines: [
-        'Alright. Decision made.',
-        ...tribes.map((tribe, idx) => {
-          const selectedId = participantsByTribe[resolveTribeKey(tribe, idx)];
-          const selectedSurvivor = (tribe?.members || []).find(m => m.id === selectedId) ||
-            (gameManager?.survivors || []).find(s => s.id === selectedId);
-          const tribeName = tribe?.tribeName || tribe?.name || 'Tribe';
-          const name = selectedSurvivor?.name || selectedSurvivor?.firstName || selectedId || 'Someone';
-          return `From the ${tribeName} — ${name}. …`;
-        })
-        ]
+        html: [
+          '<div>Alright. Decision made.</div>',
+          ...tribes.map((tribe, idx) => {
+            const selectedId = participantsByTribe[resolveTribeKey(tribe, idx)];
+            const selectedSurvivor = (tribe?.members || []).find(m => m.id === selectedId) ||
+              (gameManager?.survivors || []).find(s => s.id === selectedId);
+            const tribeName = tribe?.tribeName || tribe?.name || 'Tribe';
+            const tribeColor = getTribeColorHex(resolveTribeKey(tribe, idx)) || getTribeColorHex(tribeName);
+            const fullName = selectedSurvivor?.name || selectedSurvivor?.firstName || selectedId || 'Someone';
+            const name = getFirstName(fullName) || fullName;
+            return `From the <span class="tribe-name" style="color: ${tribeColor};">${tribeName}</span> — ${name}. …`;
+          })
+        ].join('<div style="height:8px;"></div>')
       });
 
       await showBeatAndWait({
         background: 'Assets/Journey/boat.png',
+        layout: 'sceneFirst',
+        sceneFirst: true
+      });
+
+      await showBeatAndWait({
+        background: 'Assets/Journey/boat.png',
+        layout: 'parchTop',
         textLines: [
         'Grab your things. Your journey starts now.'
         ]

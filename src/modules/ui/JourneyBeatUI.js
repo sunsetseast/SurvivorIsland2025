@@ -24,6 +24,10 @@ class JourneyBeatUI {
     this._styleEl = null;
     this.overlayToken = 'true';
     this._defaultPanelMinHeight = '320px';
+    this._clickAnywhereHandler = null;
+    this._clickAnywhereTarget = null;
+    this._buttonHandlers = new Map();
+    this._timeouts = new Set();
 
     this.backgroundLayer = createElement('div', {
       dataset: { journeyOverlay: this.overlayToken },
@@ -203,7 +207,93 @@ class JourneyBeatUI {
     this.topParchmentWrapper.append(this.topParchmentImg, this.topParchmentText);
     this.topParchmentLayer.append(this.topParchmentWrapper, this.topParchmentButton);
 
-    this.overlay.append(this.vignetteLayer, this.beatLayer, this.jeffLayer, this.topParchmentLayer);
+    this.parchTopLayer = createElement('div', {
+      style: `position:absolute; inset:0; display:none; align-items:flex-start; justify-content:center; padding-top:clamp(16px, 5vh, 56px); pointer-events:auto;`
+    });
+
+    this.parchTopContent = createElement('div', {
+      style: `display:flex; flex-direction:column; align-items:center; width:100%;`
+    });
+
+    this.parchTopWrapper = createElement('div', {
+      style: `position:relative; width:min(75vw, 760px); max-width:760px;`
+    });
+
+    this.parchTopImg = createElement('img', {
+      src: 'Assets/parch-landscape.png',
+      style: `width:100%; height:auto; display:block; margin:0 auto;`
+    });
+
+    this.parchTopText = createElement('div', {
+      style: `
+        position:absolute;
+        inset:12% 8% 12% 8%;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        align-items:center;
+        color:#fff;
+        font-family:'Survivant', sans-serif;
+        font-weight:700;
+        text-align:center;
+        font-size:clamp(0.9rem, 2.6vw, 1.08rem);
+        line-height:1.4;
+        text-shadow:
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 6px rgba(0, 0, 0, 0.6);
+      `
+    });
+
+    this.parchTopButtons = createElement('div', {
+      style: `margin:12px auto 0; display:flex; flex-direction:column; align-items:center; gap:10px; width:min(70vw, 360px);`
+    });
+
+    this.parchTopWrapper.append(this.parchTopImg, this.parchTopText);
+    this.parchTopContent.append(this.parchTopWrapper, this.parchTopButtons);
+    this.parchTopLayer.append(this.parchTopContent);
+
+    this.sceneFirstLayer = createElement('div', {
+      style: `position:absolute; inset:0; display:none; align-items:flex-end; justify-content:center; padding-bottom:clamp(24px, 6vh, 64px); pointer-events:auto;`
+    });
+
+    this.sceneFirstButton = createElement('button', {
+      style: `
+        width:64px;
+        height:64px;
+        background-image: url('Assets/up.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        background-color: transparent;
+        cursor: pointer;
+      `,
+      type: 'button'
+    });
+
+    this.sceneFirstLayer.append(this.sceneFirstButton);
+
+    this.bottomChoiceLayer = createElement('div', {
+      style: `position:absolute; inset:0; display:none; align-items:flex-end; justify-content:center; padding-bottom:clamp(24px, 6vh, 64px); pointer-events:auto;`
+    });
+
+    this.bottomChoiceBar = createElement('div', {
+      style: `display:flex; gap:clamp(16px, 4vw, 40px); align-items:center; justify-content:center;`
+    });
+
+    this.bottomChoiceLayer.append(this.bottomChoiceBar);
+
+    this.overlay.append(
+      this.vignetteLayer,
+      this.beatLayer,
+      this.jeffLayer,
+      this.topParchmentLayer,
+      this.parchTopLayer,
+      this.sceneFirstLayer,
+      this.bottomChoiceLayer
+    );
 
     this.setFrame('beat-ui1');
 
@@ -343,16 +433,57 @@ class JourneyBeatUI {
     this.nameLabel.textContent = (survivor?.firstName || survivor?.name || 'SURVIVOR').toUpperCase();
   }
 
+  setButtonHandler(button, handler) {
+    const existing = this._buttonHandlers.get(button);
+    if (existing) {
+      button.removeEventListener('click', existing);
+      this._buttonHandlers.delete(button);
+    }
+    if (handler) {
+      button.addEventListener('click', handler);
+      this._buttonHandlers.set(button, handler);
+    }
+  }
+
+  clearButtonHandlers() {
+    this._buttonHandlers.forEach((handler, button) => {
+      button.removeEventListener('click', handler);
+    });
+    this._buttonHandlers.clear();
+  }
+
+  clearClickAnywhere() {
+    if (this._clickAnywhereHandler && this._clickAnywhereTarget) {
+      this._clickAnywhereTarget.removeEventListener('click', this._clickAnywhereHandler);
+    }
+    this._clickAnywhereHandler = null;
+    this._clickAnywhereTarget = null;
+  }
+
+  enableClickAnywhere(onAdvance) {
+    if (typeof onAdvance !== 'function') return;
+    this.clearClickAnywhere();
+    const handler = (event) => {
+      if (event.target.closest('button')) return;
+      onAdvance();
+    };
+    this._clickAnywhereHandler = handler;
+    this._clickAnywhereTarget = this.overlay;
+    this._clickAnywhereTarget.addEventListener('click', handler);
+  }
+
   clearButtons() {
     this.buttonsArea.innerHTML = '';
   }
 
   createButton(label, onClick) {
-    return createElement('button', {
+    const button = createElement('button', {
       className: 'rect-button',
       style: `width:100%; min-width:180px;`,
-      onclick: onClick
+      type: 'button'
     }, label);
+    this.setButtonHandler(button, onClick);
+    return button;
   }
 
   showOverlay() {
@@ -368,6 +499,9 @@ class JourneyBeatUI {
     this.beatLayer.style.display = 'flex';
     this.jeffLayer.style.display = 'none';
     this.topParchmentLayer.style.display = 'none';
+    this.parchTopLayer.style.display = 'none';
+    this.sceneFirstLayer.style.display = 'none';
+    this.bottomChoiceLayer.style.display = 'none';
   }
 
   showJeffLayer() {
@@ -375,6 +509,9 @@ class JourneyBeatUI {
     this.beatLayer.style.display = 'none';
     this.jeffLayer.style.display = 'flex';
     this.topParchmentLayer.style.display = 'none';
+    this.parchTopLayer.style.display = 'none';
+    this.sceneFirstLayer.style.display = 'none';
+    this.bottomChoiceLayer.style.display = 'none';
   }
 
   showTopParchmentLayer() {
@@ -382,9 +519,44 @@ class JourneyBeatUI {
     this.beatLayer.style.display = 'none';
     this.jeffLayer.style.display = 'none';
     this.topParchmentLayer.style.display = 'block';
+    this.parchTopLayer.style.display = 'none';
+    this.sceneFirstLayer.style.display = 'none';
+    this.bottomChoiceLayer.style.display = 'none';
+  }
+
+  showParchTopLayer() {
+    this.vignetteLayer.style.display = 'none';
+    this.beatLayer.style.display = 'none';
+    this.jeffLayer.style.display = 'none';
+    this.topParchmentLayer.style.display = 'none';
+    this.parchTopLayer.style.display = 'flex';
+    this.sceneFirstLayer.style.display = 'none';
+    this.bottomChoiceLayer.style.display = 'none';
+  }
+
+  showSceneFirstLayer() {
+    this.vignetteLayer.style.display = 'none';
+    this.beatLayer.style.display = 'none';
+    this.jeffLayer.style.display = 'none';
+    this.topParchmentLayer.style.display = 'none';
+    this.parchTopLayer.style.display = 'none';
+    this.sceneFirstLayer.style.display = 'flex';
+    this.bottomChoiceLayer.style.display = 'none';
+  }
+
+  showBottomChoiceLayer() {
+    this.vignetteLayer.style.display = 'none';
+    this.beatLayer.style.display = 'none';
+    this.jeffLayer.style.display = 'none';
+    this.topParchmentLayer.style.display = 'none';
+    this.parchTopLayer.style.display = 'none';
+    this.sceneFirstLayer.style.display = 'none';
+    this.bottomChoiceLayer.style.display = 'flex';
   }
 
   resetState() {
+    this.clearClickAnywhere();
+    this.clearButtonHandlers();
     if (this.buttonsArea) {
       this.buttonsArea.remove();
     }
@@ -394,14 +566,21 @@ class JourneyBeatUI {
     this.titleEl.style.display = 'none';
     this.textArea.innerHTML = '';
     this.textArea.style.width = '100%';
+    this.textArea.style.textAlign = 'center';
+    this.contentArea.style.justifyContent = 'center';
+    this.contentArea.style.alignItems = 'center';
     this.avatarImg.style.display = 'none';
     this.nameLabel.style.display = 'none';
     this.jeffText.innerHTML = '';
     this.jeffButtonsArea.innerHTML = '';
     this.topParchmentText.innerHTML = '';
     this.topParchmentButton.textContent = 'Continue';
-    this.topParchmentButton.onclick = null;
+    this.setButtonHandler(this.topParchmentButton, null);
     this.topParchmentLayer.style.display = 'none';
+    this.parchTopText.innerHTML = '';
+    this.parchTopButtons.innerHTML = '';
+    this.setButtonHandler(this.sceneFirstButton, null);
+    this.bottomChoiceBar.innerHTML = '';
     this.setTopMode(false);
     this.frameMode = 'beat-ui1';
     this.applyBeatUI1Layout();
@@ -441,7 +620,13 @@ class JourneyBeatUI {
   renderBeat({ title, textLines, html, buttons = [], frameMode, layout = 'center' } = {}) {
     this.resetState();
     this.setFrame(frameMode || 'beat-ui1');
-    this.setTopMode(layout === 'top');
+    if (layout === 'top') {
+      this.setTopMode(true);
+    } else if (layout === 'choiceColumnTop') {
+      this.applyChoiceColumnTopLayout();
+    } else {
+      this.setTopMode(false);
+    }
     this.renderBeatContent({ title, textLines, html, buttons });
   }
 
@@ -487,10 +672,126 @@ class JourneyBeatUI {
       : '';
     this.topParchmentText.innerHTML = `${titleMarkup}${lines.map(line => `<div>${line}</div>`).join('<div style="height:8px;"></div>')}`;
     this.topParchmentButton.textContent = buttonLabel;
-    this.topParchmentButton.onclick = onContinue;
+    this.setButtonHandler(this.topParchmentButton, onContinue);
+  }
+
+  renderParchTopBeat({ background, title, textLines = [], html, buttons = [], onAdvance } = {}) {
+    this.resetState();
+    this.showOverlay();
+    this.showParchTopLayer();
+    if (background) {
+      this.setSceneBackground(background);
+    }
+
+    clearChildren(this.parchTopText);
+    if (title) {
+      const titleEl = createElement('div', { style: 'font-size:1.05rem; margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.5px;' });
+      titleEl.textContent = title;
+      this.parchTopText.appendChild(titleEl);
+    }
+
+    if (html instanceof HTMLElement) {
+      this.parchTopText.appendChild(html);
+    } else if (typeof html === 'string') {
+      const htmlWrapper = createElement('div');
+      htmlWrapper.innerHTML = html;
+      this.parchTopText.appendChild(htmlWrapper);
+    } else {
+      const lines = Array.isArray(textLines) ? textLines : [String(textLines)];
+      lines.forEach(line => {
+        const lineEl = createElement('div', { style: 'margin:4px 0;' });
+        lineEl.textContent = line;
+        this.parchTopText.appendChild(lineEl);
+      });
+    }
+
+    this.parchTopButtons.innerHTML = '';
+    (buttons || []).forEach(btn => {
+      const buttonEl = this.createButton(btn.label, btn.onClick);
+      this.parchTopButtons.appendChild(buttonEl);
+    });
+
+    if ((buttons || []).length <= 1 && typeof onAdvance === 'function') {
+      this.enableClickAnywhere(onAdvance);
+    }
+  }
+
+  renderSceneFirst({ backgroundSrc, onAdvance } = {}) {
+    this.resetState();
+    this.showOverlay();
+    this.showSceneFirstLayer();
+    if (backgroundSrc) {
+      this.setSceneBackground(backgroundSrc);
+    }
+    this.setButtonHandler(this.sceneFirstButton, onAdvance);
+  }
+
+  renderBottomChoiceBar({ leftButton, rightButton } = {}) {
+    this.resetState();
+    this.showOverlay();
+    this.showBottomChoiceLayer();
+    this.bottomChoiceBar.innerHTML = '';
+
+    const createBottomButton = (label, handler) => {
+      const button = createElement('button', {
+        style: `
+          width:clamp(200px, 32vw, 320px);
+          height:clamp(60px, 9vh, 90px);
+          background-image: url('Assets/rect-button.png');
+          background-size: contain;
+          background-repeat: no-repeat;
+          background-position: center;
+          border: none;
+          color: white;
+          font-family: 'Survivant', sans-serif;
+          font-weight: bold;
+          font-size: clamp(0.9rem, 2.4vw, 1.1rem);
+          text-shadow: 1px 1px 2px #000;
+          cursor: pointer;
+        `,
+        type: 'button'
+      }, label);
+      this.setButtonHandler(button, handler);
+      return button;
+    };
+
+    if (leftButton) {
+      this.bottomChoiceBar.appendChild(createBottomButton(leftButton.label, leftButton.onClick));
+    }
+    if (rightButton) {
+      this.bottomChoiceBar.appendChild(createBottomButton(rightButton.label, rightButton.onClick));
+    }
+  }
+
+  applyChoiceColumnTopLayout() {
+    this.setTopMode(true);
+    this.contentArea.style.top = '12%';
+    this.contentArea.style.left = '10%';
+    this.contentArea.style.right = '10%';
+    this.contentArea.style.bottom = '56%';
+    this.contentArea.style.justifyContent = 'flex-start';
+    this.textArea.style.textAlign = 'center';
+    this.buttonsArea.style.top = '44%';
+    this.buttonsArea.style.bottom = '10%';
+    this.buttonsArea.style.width = '68%';
+    this.buttonsArea.style.maxWidth = '520px';
+    this.buttonsArea.style.maxHeight = '44%';
+  }
+
+  scheduleTimeout(callback, delayMs) {
+    const id = window.setTimeout(() => {
+      this._timeouts.delete(id);
+      callback();
+    }, delayMs);
+    this._timeouts.add(id);
+    return id;
   }
 
   destroy() {
+    this.clearClickAnywhere();
+    this.clearButtonHandlers();
+    this._timeouts.forEach(id => window.clearTimeout(id));
+    this._timeouts.clear();
     this.overlay?.remove();
     this.backgroundLayer?.remove();
     this.vignetteLayer?.remove();
