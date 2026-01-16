@@ -22,8 +22,10 @@ class JourneyBeatUI {
     this.currentBackground = null;
     this.fadeDurationMs = 200;
     this._styleEl = null;
+    this.overlayToken = 'true';
 
     this.backgroundLayer = createElement('div', {
+      dataset: { journeyOverlay: this.overlayToken },
       style: `
         position:absolute;
         inset:0;
@@ -39,6 +41,7 @@ class JourneyBeatUI {
 
     this.overlay = createElement('div', {
       className: 'journey-overlay-root',
+      dataset: { journeyOverlay: this.overlayToken },
       style: `position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:7000;`
     });
 
@@ -51,7 +54,7 @@ class JourneyBeatUI {
     });
 
     this.panel = createElement('div', {
-      style: `position:relative; width:min(960px, 94vw); aspect-ratio: 16 / 9; max-height: 86vh; display:flex; align-items:center; justify-content:center;`
+      style: `position:relative; width:min(92vw, 900px); height:min(72vh, 560px); max-height:72vh; display:flex; align-items:center; justify-content:center;`
     });
 
     this.avatarImg = createElement('img', {
@@ -87,49 +90,52 @@ class JourneyBeatUI {
     this.beatLayer.append(this.panel);
 
     this.jeffLayer = createElement('div', {
-      style: `position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column;`
+      style: `position:absolute; inset:0; display:none; align-items:flex-start; justify-content:flex-start; flex-direction:column; padding-top:clamp(24px, 6vh, 72px);`
+    });
+
+    this.jeffContent = createElement('div', {
+      style: `width:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:clamp(12px, 3vh, 22px);`
     });
 
     this.parchmentWrapper = createElement('div', {
-      style: `position:relative; width:min(90vw, 360px); margin:20px auto 0;`
+      style: `position:relative; width:min(92vw, 900px); max-width:900px;`
     });
 
     this.parchmentImg = createElement('img', {
       src: 'Assets/parch-landscape.png',
-      style: `width:100%; max-width:360px; max-height:200px; display:block; margin:0 auto;`
+      style: `width:100%; height:auto; display:block; margin:0 auto;`
     });
 
     this.jeffText = createElement('div', {
       className: 'parchment-text',
       style: `
-        color: white;
+        position:absolute;
+        inset:12% 8% 12% 8%;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        align-items:center;
+        color: #fff;
         font-family: 'Survivant', sans-serif;
-        font-weight: bold;
+        font-weight: 700;
         text-align: center;
-        margin: -150px auto 0;
-        max-width: 280px;
-        font-size: clamp(0.9rem, 2.9vw, 1.05rem);
-        line-height: 1.35;
+        font-size: clamp(0.95rem, 2.6vw, 1.1rem);
+        line-height: 1.4;
         text-shadow:
           0 1px 0 #000,
           0 2px 0 #000,
           0 3px 0 #000,
-          0 4px 4px rgba(0, 0, 0, 0.5);
+          0 4px 6px rgba(0, 0, 0, 0.6);
       `
     });
 
-    this.jeffButton = createElement('button', {
-      className: 'rect-button',
-      style: `
-        position: absolute;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-      `
-    }, 'Continue');
+    this.jeffButtonsArea = createElement('div', {
+      style: `display:flex; flex-direction:column; align-items:center; gap:10px; width:min(70vw, 360px);`
+    });
 
     this.parchmentWrapper.append(this.parchmentImg, this.jeffText);
-    this.jeffLayer.append(this.parchmentWrapper, this.jeffButton);
+    this.jeffContent.append(this.parchmentWrapper, this.jeffButtonsArea);
+    this.jeffLayer.append(this.jeffContent);
 
     this.overlay.append(this.vignetteLayer, this.beatLayer, this.jeffLayer);
 
@@ -202,11 +208,12 @@ class JourneyBeatUI {
   }
 
   applyBeatUI1Layout() {
-    this.panel.style.width = 'min(960px, 94vw)';
-    this.panel.style.maxHeight = '86vh';
-    this.panel.style.aspectRatio = '16 / 9';
+    this.panel.style.width = 'min(92vw, 900px)';
+    this.panel.style.height = 'min(72vh, 560px)';
+    this.panel.style.maxHeight = '72vh';
+    this.panel.style.aspectRatio = '';
     this.panel.style.transform = 'none';
-    this.panel.style.minHeight = '';
+    this.panel.style.minHeight = '320px';
 
     this.avatarImg.style.display = 'none';
     this.nameLabel.style.display = 'none';
@@ -220,11 +227,12 @@ class JourneyBeatUI {
   }
 
   applyAvatarUILayout() {
-    this.panel.style.width = 'min(960px, 94vw)';
-    this.panel.style.maxHeight = '86vh';
-    this.panel.style.aspectRatio = '16 / 9';
+    this.panel.style.width = 'min(92vw, 900px)';
+    this.panel.style.height = 'min(72vh, 560px)';
+    this.panel.style.maxHeight = '72vh';
+    this.panel.style.aspectRatio = '';
     this.panel.style.transform = 'none';
-    this.panel.style.minHeight = '';
+    this.panel.style.minHeight = '320px';
 
     this.avatarImg.style.display = 'block';
     this.nameLabel.style.display = 'block';
@@ -295,7 +303,7 @@ class JourneyBeatUI {
     this.avatarImg.style.display = 'none';
     this.nameLabel.style.display = 'none';
     this.jeffText.innerHTML = '';
-    this.jeffButton.onclick = null;
+    this.jeffButtonsArea.innerHTML = '';
     this.setTopMode(false);
     this.frameMode = 'beat-ui1';
     this.applyBeatUI1Layout();
@@ -346,10 +354,13 @@ class JourneyBeatUI {
     this.renderBeatContent({ title, textLines, buttons });
   }
 
-  renderJeffBeat({ textLines = [], html, buttonLabel = 'Continue', onContinue }) {
+  renderJeffBeat({ textLines = [], html, buttons = [], backgroundSrc } = {}) {
     this.resetState();
     this.showOverlay();
     this.showJeffLayer();
+    if (backgroundSrc) {
+      this.setSceneBackground(backgroundSrc);
+    }
     if (html instanceof HTMLElement) {
       clearChildren(this.jeffText);
       this.jeffText.appendChild(html);
@@ -357,8 +368,11 @@ class JourneyBeatUI {
       const lines = Array.isArray(textLines) ? textLines : [String(textLines)];
       this.jeffText.innerHTML = lines.map(line => `<div>${line}</div>`).join('<div style="height:8px;"></div>');
     }
-    this.jeffButton.textContent = buttonLabel;
-    this.jeffButton.onclick = onContinue;
+    this.jeffButtonsArea.innerHTML = '';
+    (buttons || []).forEach(btn => {
+      const buttonEl = this.createButton(btn.label, btn.onClick);
+      this.jeffButtonsArea.appendChild(buttonEl);
+    });
   }
 
   destroy() {
@@ -369,6 +383,11 @@ class JourneyBeatUI {
       this._styleEl = null;
     }
     this.container = null;
+  }
+
+  static forceCleanup(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-journey-overlay="true"]').forEach(el => el.remove());
   }
 }
 

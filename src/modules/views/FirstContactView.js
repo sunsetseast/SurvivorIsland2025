@@ -10,6 +10,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import JourneySelectionEvent from '../events/JourneySelectionEvent.js';
 import RiskProtectJourneyEvent from '../events/RiskProtectJourneyEvent.js';
+import JourneyBeatUI from '../ui/JourneyBeatUI.js';
 
 // ---------- tiny helpers ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1175,6 +1176,7 @@ const FirstContactView = {
       if (activeContainer) {
         clearChildren(activeContainer);
       }
+      JourneyBeatUI.forceCleanup(activeContainer);
 
       const player = gameManager.getPlayerSurvivor();
       const tribes = gameManager.getTribes();
