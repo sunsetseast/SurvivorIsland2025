@@ -256,51 +256,6 @@ const RiskProtectJourneyEvent = {
     const otherParticipants = resolvedParticipantIds.filter(id => id !== player?.id);
     const npcSurvivors = otherParticipants.map(id => findSurvivor(gameManager, id)).filter(Boolean);
 
-    const wheelImage = createElement('img', {
-      style: `position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:min(360px, 70vw); height:auto; z-index:2000; display:none; opacity:0; transition:opacity 200ms ease; pointer-events:none;`
-    });
-    container.appendChild(wheelImage);
-
-    const waitForTransition = (element) => new Promise(resolve => {
-      if (!element) {
-        resolve();
-        return;
-      }
-      const duration = window.getComputedStyle(element).transitionDuration || '0s';
-      const maxDuration = duration
-        .split(',')
-        .map(value => parseFloat(value) || 0)
-        .reduce((max, value) => Math.max(max, value), 0);
-      if (!maxDuration) {
-        resolve();
-        return;
-      }
-      const handleTransition = (event) => {
-        if (event.target !== element || event.propertyName !== 'opacity') return;
-        element.removeEventListener('transitionend', handleTransition);
-        resolve();
-      };
-      element.addEventListener('transitionend', handleTransition, { once: true });
-    });
-
-    const showWheel = async (src) => {
-      if (src) {
-        wheelImage.src = src;
-      }
-      wheelImage.style.display = 'block';
-      wheelImage.style.opacity = '0';
-      requestAnimationFrame(() => {
-        wheelImage.style.opacity = '1';
-      });
-      await waitForTransition(wheelImage);
-    };
-
-    const hideWheel = async () => {
-      wheelImage.style.opacity = '0';
-      await waitForTransition(wheelImage);
-      wheelImage.style.display = 'none';
-    };
-
     const setBackground = (background) => {
       if (background && background !== currentBackground) {
         ui.setSceneBackground(background);
@@ -308,17 +263,10 @@ const RiskProtectJourneyEvent = {
       }
     };
 
-    const awaitJeffBeat = async (lines) => new Promise(resolve => {
-      setBackground('Assets/jeff-screen.png');
-      hideWheel();
-      ui.renderJeffBeat({ textLines: lines, onContinue: () => resolve() });
-    });
-
     const awaitBeat = async ({ background, title, textLines, html }) => {
       if (background) {
         setBackground(background);
       }
-      await hideWheel();
       return new Promise(resolve => {
         ui.renderBeat({
           title,
@@ -330,14 +278,20 @@ const RiskProtectJourneyEvent = {
     };
 
     try {
-      await awaitJeffBeat([
-        'Survivors… this is where the journey begins.',
-        'You’ll travel away from camp and face a private decision that could change the game.'
-      ]);
+      await awaitBeat({
+        background: 'Assets/Journey/arrival.png',
+        textLines: [
+          'Survivors… this is where the journey begins.',
+          'You’ll travel away from camp and face a private decision that could change the game.'
+        ]
+      });
 
-      await awaitJeffBeat([
-        'You’ll have a brief moment to talk, and then you’ll choose to protect your vote… or risk it for an advantage.'
-      ]);
+      await awaitBeat({
+        background: 'Assets/Journey/arrival.png',
+        textLines: [
+          'You’ll have a brief moment to talk, and then you’ll choose to protect your vote… or risk it for an advantage.'
+        ]
+      });
 
       const arrivalList = createElement('div', {
         style: 'display:flex; flex-direction:column; gap:10px; width:100%;'
@@ -373,31 +327,12 @@ const RiskProtectJourneyEvent = {
       });
 
       await awaitBeat({
-        background: 'Assets/Journey/boat.png',
-        textLines: ['Grab your things. Your journey starts now.']
-      });
-
-      ui.hideOverlay();
-
-      await new Promise(resolve => {
-        const button = createElement('button', {
-          className: 'rect-button',
-          style: 'position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:3000;'
-        }, 'Continue');
-        button.addEventListener('click', () => {
-          button.remove();
-          resolve();
-        }, { once: true });
-        container.appendChild(button);
-      });
-
-
-      await awaitBeat({
         background: 'Assets/Journey/trail.png',
         textLines: ['You’re given a short walk together. It’s the only time you can speak freely.']
       });
 
       const playerApproach = await new Promise(resolve => {
+        setBackground('Assets/Journey/trail.png');
         ui.setFrame('beat-ui1');
         ui.renderBeat({
           title: 'How do you handle the brief conversation?',
@@ -419,6 +354,7 @@ const RiskProtectJourneyEvent = {
       });
 
       for (const npc of npcSurvivors) {
+        setBackground('Assets/Journey/trail.png');
         await new Promise(resolve => {
           ui.renderAvatarBeat({
             speakerSurvivor: npc,
@@ -430,13 +366,13 @@ const RiskProtectJourneyEvent = {
 
       journey.socialContext = socialContext;
 
-      if ('Assets/Journey/arrival.png' !== currentBackground) {
-        setBackground('Assets/Journey/arrival.png');
-      }
-      ui.hideOverlay();
-      await showWheel('Assets/Journey/risk-protect.png');
+      await awaitBeat({
+        background: 'Assets/Journey/trail.png',
+        textLines: ['The conversation ends and you move on, knowing the real choice is still ahead.']
+      });
 
       const playerChoice = await new Promise(resolve => {
+        setBackground('Assets/Journey/risk-protect.png');
         ui.renderBeat({
           textLines: [
             'Now you’ll make your choices in private.',
@@ -449,9 +385,10 @@ const RiskProtectJourneyEvent = {
         });
       });
 
-      ui.hideOverlay();
-      await showWheel('Assets/Journey/risk-protect.png');
-      await showWheel(playerChoice === 'risk' ? 'Assets/Journey/risk.png' : 'Assets/Journey/protect.png');
+      await awaitBeat({
+        background: playerChoice === 'risk' ? 'Assets/Journey/risk.png' : 'Assets/Journey/protect.png',
+        textLines: [playerChoice === 'risk' ? 'You choose to risk your vote.' : 'You choose to protect your vote.']
+      });
 
       const decisions = resolvedParticipantIds.map(id => {
         if (id === player?.id) {
@@ -497,8 +434,6 @@ const RiskProtectJourneyEvent = {
         };
       });
 
-      await hideWheel();
-
       const resultsList = createElement('div', {
         style: 'display:flex; flex-direction:column; gap:10px; width:100%;'
       });
@@ -537,16 +472,11 @@ const RiskProtectJourneyEvent = {
         html: resultsList
       });
 
-      wheelImage.remove();
-
       return {
         results: journey.results,
         playerChoice
       };
     } finally {
-      if (wheelImage && wheelImage.isConnected) {
-        wheelImage.remove();
-      }
       if (this.ui) {
         this.ui.destroy();
         this.ui = null;

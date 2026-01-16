@@ -49,46 +49,44 @@ const JourneySelectionEvent = {
 
     const isPlayerTribe = (tribe) => (tribe?.members || []).some(m => m.id === player?.id);
 
-    const awaitNarration = async (lines) => new Promise(resolve => {
+    const awaitJeffBeat = async (lines) => new Promise(resolve => {
       ui.setSceneBackground('Assets/jeff-screen.png');
-      ui.renderBeat({
+      ui.renderJeffBeat({
         textLines: lines,
-        layout: 'top',
         buttons: [{ label: 'Continue', onClick: () => resolve() }]
       });
     });
 
-    const awaitContinue = async (lines, { background, layout = 'center' } = {}) => new Promise(resolve => {
+    const awaitBeat = async (lines, { background, title } = {}) => new Promise(resolve => {
       if (background !== undefined) {
         ui.setSceneBackground(background);
       }
       ui.renderBeat({
+        title,
         textLines: lines,
-        layout,
         buttons: [{ label: 'Continue', onClick: () => resolve() }]
       });
     });
 
     try {
-      await awaitNarration([
+      await awaitJeffBeat([
         'Survivors… that was a hard-fought challenge. One tribe comes away with immunity — and safety tonight. But for the rest of you… the game doesn’t stop here.'
       ]);
-      await awaitNarration([
+      await awaitJeffBeat([
         'In this game, advantages can change everything. Today, the next twist begins right now.',
         'Each tribe is going to send one person on a journey — away from camp… and straight into a decision that could affect your vote at Tribal Council.'
       ]);
 
-      await awaitNarration([
+      await awaitJeffBeat([
         'On this journey, you’ll face a choice: protect your vote… or risk it for a possible advantage.',
         'But here’s the catch — you won’t know what the others choose until it’s over.'
       ]);
 
       const playerChoice = await new Promise(resolve => {
+        ui.setSceneBackground('Assets/jeff-screen.png');
         ui.renderBeat({
-          textLines: [
-            'How do you respond?',
-            'This is the moment to decide how badly you want that journey slot.'
-          ],
+          title: 'How do you respond?',
+          textLines: ['This is the moment to decide how badly you want that journey slot.'],
           buttons: [
             { label: 'Push hard to go on the journey.', onClick: () => resolve('push') },
             { label: 'Sit this one out.', onClick: () => resolve('sitout') },
@@ -146,7 +144,7 @@ const JourneySelectionEvent = {
 
       const participants = Array.from(participantsSet);
 
-      await awaitContinue([
+      await awaitBeat([
         'Alright. Decision made.',
         ...tribes.map((tribe, idx) => {
           const selectedId = participantsByTribe[resolveTribeKey(tribe, idx)];
@@ -156,9 +154,9 @@ const JourneySelectionEvent = {
           const name = selectedSurvivor?.name || selectedSurvivor?.firstName || selectedId || 'Someone';
           return `From the ${tribeName} — ${name}. …`;
         })
-      ], { background: 'Assets/Journey/boat.png' });
+      ], { background: 'Assets/jeff-screen.png' });
 
-      await awaitContinue([
+      await awaitBeat([
         'Grab your things. Your journey starts now.'
       ], { background: 'Assets/Journey/boat.png' });
 
