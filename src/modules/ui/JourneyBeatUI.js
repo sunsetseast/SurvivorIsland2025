@@ -137,7 +137,73 @@ class JourneyBeatUI {
     this.jeffContent.append(this.parchmentWrapper, this.jeffButtonsArea);
     this.jeffLayer.append(this.jeffContent);
 
-    this.overlay.append(this.vignetteLayer, this.beatLayer, this.jeffLayer);
+    this.topParchmentLayer = createElement('div', {
+      style: 'position:absolute; inset:0; display:none; pointer-events:auto;'
+    });
+
+    this.topParchmentWrapper = createElement('div', {
+      style: `
+        position: relative;
+        width: 100%;
+        max-width: 320px;
+        margin: 30px auto 0;
+      `
+    });
+
+    this.topParchmentImg = createElement('img', {
+      src: 'Assets/parch-landscape.png',
+      style: `
+        width: 100%;
+        max-width: 320px;
+        max-height: 180px;
+        display: block;
+        margin: 0 auto;
+      `
+    });
+
+    this.topParchmentText = createElement('div', {
+      style: `
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        margin: -160px auto 0;
+        max-width: 260px;
+        font-size: 0.95rem;
+        line-height: 1.3;
+        text-shadow:
+          0 1px 0 #000,
+          0 2px 0 #000,
+          0 3px 0 #000,
+          0 4px 4px rgba(0, 0, 0, 0.5);
+      `
+    });
+
+    this.topParchmentButton = createElement('button', {
+      style: `
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 130px;
+        height: 60px;
+        background-image: url('Assets/rect-button.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: none;
+        color: white;
+        font-family: 'Survivant', sans-serif;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px #000;
+        cursor: pointer;
+      `
+    }, 'Continue');
+
+    this.topParchmentWrapper.append(this.topParchmentImg, this.topParchmentText);
+    this.topParchmentLayer.append(this.topParchmentWrapper, this.topParchmentButton);
+
+    this.overlay.append(this.vignetteLayer, this.beatLayer, this.jeffLayer, this.topParchmentLayer);
 
     this.setFrame('beat-ui1');
 
@@ -301,12 +367,21 @@ class JourneyBeatUI {
     this.vignetteLayer.style.display = 'block';
     this.beatLayer.style.display = 'flex';
     this.jeffLayer.style.display = 'none';
+    this.topParchmentLayer.style.display = 'none';
   }
 
   showJeffLayer() {
     this.vignetteLayer.style.display = 'none';
     this.beatLayer.style.display = 'none';
     this.jeffLayer.style.display = 'flex';
+    this.topParchmentLayer.style.display = 'none';
+  }
+
+  showTopParchmentLayer() {
+    this.vignetteLayer.style.display = 'none';
+    this.beatLayer.style.display = 'none';
+    this.jeffLayer.style.display = 'none';
+    this.topParchmentLayer.style.display = 'block';
   }
 
   resetState() {
@@ -323,6 +398,10 @@ class JourneyBeatUI {
     this.nameLabel.style.display = 'none';
     this.jeffText.innerHTML = '';
     this.jeffButtonsArea.innerHTML = '';
+    this.topParchmentText.innerHTML = '';
+    this.topParchmentButton.textContent = 'Continue';
+    this.topParchmentButton.onclick = null;
+    this.topParchmentLayer.style.display = 'none';
     this.setTopMode(false);
     this.frameMode = 'beat-ui1';
     this.applyBeatUI1Layout();
@@ -392,6 +471,23 @@ class JourneyBeatUI {
       const buttonEl = this.createButton(btn.label, btn.onClick);
       this.jeffButtonsArea.appendChild(buttonEl);
     });
+  }
+
+  renderTopParchmentBeat({ background, title, textLines = [], buttonLabel = 'Continue', onContinue } = {}) {
+    this.resetState();
+    this.showOverlay();
+    this.showTopParchmentLayer();
+    if (background) {
+      this.setSceneBackground(background);
+    }
+
+    const lines = Array.isArray(textLines) ? textLines : [String(textLines)];
+    const titleMarkup = title
+      ? `<div style="font-size:1.05rem; margin-bottom:0.35rem;">${title}</div>`
+      : '';
+    this.topParchmentText.innerHTML = `${titleMarkup}${lines.map(line => `<div>${line}</div>`).join('<div style="height:8px;"></div>')}`;
+    this.topParchmentButton.textContent = buttonLabel;
+    this.topParchmentButton.onclick = onContinue;
   }
 
   destroy() {

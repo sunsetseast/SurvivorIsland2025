@@ -34,6 +34,7 @@ const JourneySelectionEvent = {
     }
     const ui = new JourneyBeatUI(container);
     this.ui = ui;
+    let isPreBoat = true;
     const tribeKeyCache = new Map();
 
     const resolveTribeKey = (tribe, index) => {
@@ -51,8 +52,19 @@ const JourneySelectionEvent = {
     const isPlayerTribe = (tribe) => (tribe?.members || []).some(m => m.id === player?.id);
 
     const showBeatAndWait = async (config) => new Promise(resolve => {
-      if (config?.background !== undefined) {
-        ui.setSceneBackground(config.background);
+      const background = config?.background;
+      const useTopParchment = isPreBoat && background === 'Assets/jeff-screen.png';
+      if (useTopParchment) {
+        ui.renderTopParchmentBeat({
+          background,
+          title: config?.title,
+          textLines: config?.textLines,
+          onContinue: () => resolve()
+        });
+        return;
+      }
+      if (background !== undefined) {
+        ui.setSceneBackground(background);
       }
       ui.renderBeat({
         title: config?.title,
@@ -185,6 +197,7 @@ const JourneySelectionEvent = {
         'Grab your things. Your journey starts now.'
         ]
       });
+      isPreBoat = false;
 
       gameManager.journey = {
         active: true,

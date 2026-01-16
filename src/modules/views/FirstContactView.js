@@ -170,7 +170,14 @@ const FirstContactView = {
     this.container = container;
     this._destroyed = false;
     clearChildren(container);
-    container.style.position = 'relative';
+    container.style.position = 'absolute';
+    container.style.inset = '0';
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.margin = '0';
+    container.style.padding = '0';
+    container.style.backgroundColor = '#000';
+    container.style.backgroundImage = '';
     container.style.overflow = 'hidden';
 
     const root = createElement('div', {
