@@ -47,6 +47,11 @@ function gatherDescriptors(npc) {
   return descriptors;
 }
 
+function getFirstName(name) {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().split(' ')[0] || '';
+}
+
 function getNpcProfile(npc) {
   const descriptors = gatherDescriptors(npc);
   const has = (keywords) => keywords.some(keyword => descriptors.some(desc => desc.includes(keyword)));
@@ -268,16 +273,23 @@ const RiskProtectJourneyEvent = {
         setBackground(background);
       }
       return new Promise(resolve => {
-        ui.renderBeat({
+        ui.renderParchTopBeat({
           title,
           textLines,
           html,
-          buttons: [{ label: 'Continue', onClick: () => resolve() }]
+          onAdvance: () => resolve()
         });
       });
     };
 
     try {
+      await new Promise(resolve => {
+        ui.renderSceneFirst({
+          backgroundSrc: 'Assets/Journey/arrival.png',
+          onAdvance: () => resolve()
+        });
+      });
+
       await awaitBeat({
         background: 'Assets/Journey/arrival.png',
         textLines: [
@@ -333,8 +345,7 @@ const RiskProtectJourneyEvent = {
 
       const playerApproach = await new Promise(resolve => {
         setBackground('Assets/Journey/trail.png');
-        ui.setFrame('beat-ui1');
-        ui.renderBeat({
+        ui.renderParchTopBeat({
           title: 'How do you handle the brief conversation?',
           textLines: ['Choose your approach wisely.'],
           buttons: [
@@ -356,10 +367,10 @@ const RiskProtectJourneyEvent = {
       for (const npc of npcSurvivors) {
         setBackground('Assets/Journey/trail.png');
         await new Promise(resolve => {
-          ui.renderAvatarBeat({
-            speakerSurvivor: npc,
+          ui.renderParchTopBeat({
+            title: getFirstName(npc?.firstName || npc?.name || 'Survivor'),
             textLines: [generateNpcReactionLine(npc, playerApproach, socialContext)],
-            buttons: [{ label: 'Continue', onClick: () => resolve() }]
+            onAdvance: () => resolve()
           });
         });
       }
@@ -373,16 +384,15 @@ const RiskProtectJourneyEvent = {
 
       const playerChoice = await new Promise(resolve => {
         setBackground('Assets/Journey/risk-protect.png');
-        ui.renderBeat({
-          textLines: [
-            'Now you’ll make your choices in private.',
-            'Protect your vote… or risk it?'
-          ],
-          buttons: [
-            { label: 'Protect your vote', onClick: () => resolve('protect') },
-            { label: 'Risk your vote', onClick: () => resolve('risk') }
-          ]
+        ui.renderBottomChoiceBar({
+          leftButton: { label: 'PROTECT YOUR VOTE', onClick: () => resolve('protect') },
+          rightButton: { label: 'RISK YOUR VOTE', onClick: () => resolve('risk') }
         });
+      });
+
+      await new Promise(resolve => {
+        setBackground(playerChoice === 'risk' ? 'Assets/Journey/risk.png' : 'Assets/Journey/protect.png');
+        ui.scheduleTimeout(resolve, 750);
       });
 
       await awaitBeat({
