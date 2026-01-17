@@ -419,8 +419,8 @@ function updateStockpileValuesUI(tribe) {
   }
 }
 
-function ensureStockpileBanner(container, tribe) {
-  const existing = container.querySelector('#stockpile-banner');
+function ensureStockpileBanner(root, tribe) {
+  const existing = root.querySelector('#stockpile-banner');
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
   const bambooCount = stockpile.bamboo || 0;
   const palmCount = stockpile.palms || 0;
@@ -517,9 +517,9 @@ function ensureStockpileBanner(container, tribe) {
 
   banner.appendChild(title);
   banner.appendChild(row);
-  container.appendChild(banner);
-  if (!container.classList?.contains('shelter-wrapper')) {
-    console.warn('[ShelterView] Stockpile banner anchored to non-wrapper root:', container);
+  root.appendChild(banner);
+  if (!root.classList || !root.classList.contains('shelter-wrapper')) {
+    console.warn('[ShelterView] Stockpile banner anchored to NON-wrapper root:', root);
   }
 }
 
