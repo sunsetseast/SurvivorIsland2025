@@ -658,7 +658,7 @@ class JourneyBeatUI {
     });
   }
 
-  renderTopParchmentBeat({ background, title, textLines = [], buttonLabel = 'Continue', onContinue } = {}) {
+  renderTopParchmentBeat({ background, title, textLines, html, buttonLabel = 'Continue', onContinue } = {}) {
     this.resetState();
     this.showOverlay();
     this.showTopParchmentLayer();
@@ -666,11 +666,28 @@ class JourneyBeatUI {
       this.setSceneBackground(background);
     }
 
-    const lines = Array.isArray(textLines) ? textLines : [String(textLines)];
-    const titleMarkup = title
-      ? `<div style="font-size:1.05rem; margin-bottom:0.35rem;">${title}</div>`
-      : '';
-    this.topParchmentText.innerHTML = `${titleMarkup}${lines.map(line => `<div>${line}</div>`).join('<div style="height:8px;"></div>')}`;
+    this.topParchmentText.innerHTML = '';
+    if (title) {
+      const titleEl = createElement('div', { style: 'font-size:1.05rem; margin-bottom:0.35rem;' });
+      titleEl.textContent = title;
+      this.topParchmentText.appendChild(titleEl);
+    }
+
+    if (html instanceof HTMLElement) {
+      this.topParchmentText.appendChild(html);
+    } else if (typeof html === 'string') {
+      const htmlWrapper = createElement('div');
+      htmlWrapper.innerHTML = html;
+      this.topParchmentText.appendChild(htmlWrapper);
+    } else if (Array.isArray(textLines)) {
+      textLines.forEach(line => {
+        const lineEl = createElement('div', { style: 'margin:4px 0;' });
+        lineEl.textContent = line;
+        this.topParchmentText.appendChild(lineEl);
+      });
+    } else if (typeof textLines === 'string') {
+      this.topParchmentText.textContent = textLines;
+    }
     this.topParchmentButton.textContent = buttonLabel;
     this.setButtonHandler(this.topParchmentButton, onContinue);
   }

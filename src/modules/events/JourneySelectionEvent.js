@@ -92,6 +92,7 @@ const JourneySelectionEvent = {
           background,
           title: config?.title,
           textLines: config?.textLines,
+          html: config?.html,
           onContinue: () => resolve()
         });
         return;
