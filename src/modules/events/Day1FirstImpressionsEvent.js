@@ -1095,6 +1095,8 @@ export function runDay1FirstImpressionsPart2FromCheckpoint(gameManager, checkpoi
     try {
       cleanup();
       cleanedUp = true;
+      document.getElementById('day1-event-overlay')?.remove();
+      gm.flags.campEventActive = false;
       eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions_part2', id: 'day1_first_impressions_part2' });
 
       const campContainer = document?.getElementById('camp-screen');
