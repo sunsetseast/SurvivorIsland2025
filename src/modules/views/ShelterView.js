@@ -34,7 +34,6 @@ export default function renderShelter(container) {
   addDebugBanner('renderShelter() called', 'darkgreen', 40);
 
   clearChildren(container);
-  shelterRoot = container;
 
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
@@ -108,6 +107,7 @@ export default function renderShelter(container) {
         overflow: hidden;
       `
     });
+    shelterRoot = wrapper;
 
     const shelterLevelContainer = createElement('div', {
       id: 'shelter-level-indicator',
@@ -187,7 +187,7 @@ export default function renderShelter(container) {
 }
 
 function getShelterRoot() {
-  return shelterRoot || document.querySelector('.shelter-wrapper')?.parentElement || document.getElementById('camp-content');
+  return shelterRoot || document.querySelector('.shelter-wrapper') || document.getElementById('camp-content');
 }
 
 function cleanupShelterUI() {
@@ -386,7 +386,7 @@ function updateStockpileValuesUI(tribe) {
     return;
   }
 
-  const root = getShelterRoot();
+  const root = document.querySelector('.shelter-wrapper') || getShelterRoot();
   if (root) {
     ensureStockpileBanner(root, activeTribe);
   } else {
@@ -518,6 +518,9 @@ function ensureStockpileBanner(container, tribe) {
   banner.appendChild(title);
   banner.appendChild(row);
   container.appendChild(banner);
+  if (!container.classList?.contains('shelter-wrapper')) {
+    console.warn('[ShelterView] Stockpile banner anchored to non-wrapper root:', container);
+  }
 }
 
 function startContributionFlow() {
