@@ -262,7 +262,7 @@ class JourneyBeatUI {
       style: `
         width:64px;
         height:64px;
-        background-image: url('Assets/up.png');
+        background-image: url('Assets/Buttons/up.png');
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
