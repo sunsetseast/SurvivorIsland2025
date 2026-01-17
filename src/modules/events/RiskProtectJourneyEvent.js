@@ -15,6 +15,30 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+const FALLBACK_TRIBE_COLORS = {
+  red: '#d64541',
+  orange: '#e67e22',
+  blue: '#3498db',
+  purple: '#9b59b6',
+  green: '#27ae60',
+  yellow: '#f1c40f',
+  teal: '#1abc9c'
+};
+
+function resolveTribeColor(tribe) {
+  const rawColor = tribe?.tribeColor || tribe?.color || null;
+  if (rawColor && /^#([0-9a-f]{3}){1,2}$/i.test(rawColor)) {
+    return rawColor;
+  }
+  const name = (tribe?.tribeName || tribe?.name || rawColor || '').toString().trim().toLowerCase();
+  return FALLBACK_TRIBE_COLORS[name] || '#333';
+}
+
+function getSurvivorTribeColor(gameManager, survivorId) {
+  const tribe = findTribeForSurvivor(gameManager, survivorId);
+  return resolveTribeColor(tribe);
+}
+
 function getRelationshipValue(relationshipSystem, playerId, npcId) {
   if (!playerId || !npcId) return 50;
   if (typeof relationshipSystem?.getRelationshipValue === 'function') {
@@ -306,7 +330,8 @@ const RiskProtectJourneyEvent = {
       });
 
       const arrivalList = createElement('div', {
-        style: 'display:flex; flex-direction:column; gap:10px; width:100%;'
+        dataset: { journeyPanel: 'centered' },
+        style: 'display:flex; flex-direction:column; gap:12px; width:100%; max-width:100%; padding:clamp(6px, 1.5vw, 14px); box-sizing:border-box;'
       });
 
       resolvedParticipantIds.forEach(id => {
@@ -314,19 +339,19 @@ const RiskProtectJourneyEvent = {
         if (!survivor) return;
         const tribe = findTribeForSurvivor(gameManager, id);
         const tribeName = tribe?.tribeName || tribe?.name || 'Tribe';
-        const tribeColor = tribe?.tribeColor || tribe?.color || '#8d6b3f';
+        const tribeColor = resolveTribeColor(tribe);
         const row = createElement('div', {
-          style: `display:flex; align-items:center; gap:12px; padding:8px 10px; background:rgba(231,214,182,0.75); border-radius:12px; border:1px solid rgba(94,63,32,0.35); box-shadow:0 3px 10px rgba(0,0,0,0.18);`
+          style: `display:flex; align-items:center; gap:12px; width:100%; box-sizing:border-box; padding:8px 12px; background:rgba(231,214,182,0.75); border-radius:12px; border:1px solid rgba(94,63,32,0.35); box-shadow:0 3px 10px rgba(0,0,0,0.18);`
         });
         const avatar = createElement('img', {
           src: getSurvivorAvatarSrc(survivor),
-          style: 'width:50px; height:50px; border-radius:50%; object-fit:cover; border:3px solid #7a4a1e;'
+          style: `width:50px; height:50px; border-radius:50%; object-fit:cover; border:4px solid ${tribeColor};`
         });
         const name = createElement('div', {
-          style: 'font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#fff;'
+          style: 'flex:1; min-width:0; text-align:left; font-weight:bold; font-size:clamp(0.9rem, 2.4vw, 1.02rem); color:#fff; white-space:normal; word-break:break-word;'
         }, survivor?.firstName || survivor?.name || 'Unknown');
         const tribeLabel = createElement('div', {
-          style: `margin-left:auto; font-weight:700; font-size:clamp(0.8rem, 2.4vw, 0.95rem); color:${tribeColor}; text-transform:uppercase; letter-spacing:0.5px;`
+          style: `flex:0 1 40%; min-width:0; margin-left:auto; text-align:right; font-weight:700; font-size:clamp(0.75rem, 2.2vw, 0.9rem); color:${tribeColor}; text-transform:uppercase; letter-spacing:0.5px; white-space:normal; word-break:break-word;`
         }, tribeName);
         row.append(avatar, name, tribeLabel);
         arrivalList.appendChild(row);
@@ -355,7 +380,7 @@ const RiskProtectJourneyEvent = {
           ]
         });
         ui.parchTopButtons.querySelectorAll('button').forEach(button => {
-          button.style.fontSize = 'clamp(0.75rem, 2vw, 0.9rem)';
+          button.style.fontSize = 'clamp(14px, 2.2vw, 22px)';
         });
       });
 
@@ -369,8 +394,7 @@ const RiskProtectJourneyEvent = {
 
       for (const npc of npcSurvivors) {
         setBackground('Assets/Journey/trail.png');
-        const npcTribe = findTribeForSurvivor(gameManager, npc?.id);
-        const tribeColor = npcTribe?.tribeColor || npcTribe?.color || '#8d6b3f';
+        const tribeColor = getSurvivorTribeColor(gameManager, npc?.id);
         const npcHeader = createElement('div', {
           style: 'display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:8px;'
         });
@@ -467,23 +491,25 @@ const RiskProtectJourneyEvent = {
       });
 
       const resultsList = createElement('div', {
-        style: 'display:flex; flex-direction:column; gap:10px; width:100%;'
+        dataset: { journeyPanel: 'centered' },
+        style: 'display:flex; flex-direction:column; gap:12px; width:100%; max-width:100%; padding:clamp(6px, 1.5vw, 14px); box-sizing:border-box;'
       });
 
       decisions.forEach(decision => {
         const survivor = findSurvivor(gameManager, decision.survivorId);
+        const tribeColor = getSurvivorTribeColor(gameManager, decision.survivorId);
         const row = createElement('div', {
-          style: `display:flex; align-items:center; gap:14px; padding:10px 12px; background:rgba(231,214,182,0.75); border-radius:12px; border:1px solid rgba(94,63,32,0.35); box-shadow:0 3px 10px rgba(0,0,0,0.18);`
+          style: `display:flex; align-items:center; gap:14px; width:100%; box-sizing:border-box; padding:10px 12px; background:rgba(231,214,182,0.75); border-radius:12px; border:1px solid rgba(94,63,32,0.35); box-shadow:0 3px 10px rgba(0,0,0,0.18);`
         });
         const avatar = createElement('img', {
           src: getSurvivorAvatarSrc(survivor),
-          style: 'width:52px; height:52px; border-radius:50%; object-fit:cover; border:3px solid #7a4a1e;'
+          style: `width:52px; height:52px; border-radius:50%; object-fit:cover; border:4px solid ${tribeColor};`
         });
         const name = createElement('div', {
-          style: 'flex:1; text-align:left; font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#fff;'
+          style: 'flex:1; min-width:0; text-align:left; font-weight:bold; font-size:clamp(0.9rem, 2.4vw, 1.02rem); color:#fff; white-space:normal; word-break:break-word;'
         }, survivor?.firstName || survivor?.name || 'Unknown');
         const outcome = createElement('div', {
-          style: 'text-align:right; min-width:150px; font-weight:bold; color:#fff;'
+          style: 'flex:0 1 40%; min-width:0; text-align:right; font-weight:bold; color:#fff; display:flex; flex-direction:column; align-items:flex-end; gap:2px;'
         });
         const choiceColor = decision.choice === 'risk' ? '#e14b3b' : '#46b96a';
         const choice = createElement('div', { style: `font-size:0.95rem; letter-spacing:0.5px; color:${choiceColor};` }, decision.choice.toUpperCase());
