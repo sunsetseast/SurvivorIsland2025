@@ -28,6 +28,9 @@ class JourneyBeatUI {
     this._clickAnywhereTarget = null;
     this._buttonHandlers = new Map();
     this._timeouts = new Set();
+    this._beatToken = 0;
+    this._advanceLocked = false;
+    this.onAdvance = null;
 
     this.backgroundLayer = createElement('div', {
       dataset: { journeyOverlay: this.overlayToken },
@@ -458,8 +461,12 @@ class JourneyBeatUI {
       this._buttonHandlers.delete(button);
     }
     if (handler) {
-      button.addEventListener('click', handler);
-      this._buttonHandlers.set(button, handler);
+      const wrapped = (event) => {
+        this.onAdvance = handler;
+        this.safeAdvance(event);
+      };
+      button.addEventListener('click', wrapped);
+      this._buttonHandlers.set(button, wrapped);
     }
   }
 
@@ -478,12 +485,36 @@ class JourneyBeatUI {
     this._clickAnywhereTarget = null;
   }
 
+  removeAllAdvanceListeners() {
+    this.clearClickAnywhere();
+    this.clearButtonHandlers();
+    this._timeouts.forEach(id => window.clearTimeout(id));
+    this._timeouts.clear();
+  }
+
+  safeAdvance(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (this._advanceLocked) return;
+    this._advanceLocked = true;
+
+    this.removeAllAdvanceListeners();
+
+    if (typeof this.onAdvance === 'function') {
+      this.onAdvance();
+    }
+  }
+
   enableClickAnywhere(onAdvance) {
     if (typeof onAdvance !== 'function') return;
     this.clearClickAnywhere();
+    this.onAdvance = onAdvance;
     const handler = (event) => {
       if (event.target.closest('button')) return;
-      onAdvance();
+      this.safeAdvance(event);
     };
     this._clickAnywhereHandler = handler;
     this._clickAnywhereTarget = this.overlay;
@@ -573,8 +604,8 @@ class JourneyBeatUI {
   }
 
   resetState() {
-    this.clearClickAnywhere();
-    this.clearButtonHandlers();
+    this.removeAllAdvanceListeners();
+    this.onAdvance = null;
     if (this.buttonsArea) {
       this.buttonsArea.remove();
     }
@@ -639,6 +670,8 @@ class JourneyBeatUI {
   }
 
   renderBeat({ title, textLines, html, buttons = [], frameMode, layout = 'center' } = {}) {
+    this._beatToken += 1;
+    this._advanceLocked = false;
     this.resetState();
     this.setFrame(frameMode || 'beat-ui1');
     if (layout === 'top') {
@@ -652,6 +685,8 @@ class JourneyBeatUI {
   }
 
   renderAvatarBeat({ speakerSurvivor, title, textLines, buttons = [] }) {
+    this._beatToken += 1;
+    this._advanceLocked = false;
     this.resetState();
     this.setFrame('beat-avatar-ui');
     this.setSpeaker(speakerSurvivor);
@@ -659,6 +694,8 @@ class JourneyBeatUI {
   }
 
   renderJeffBeat({ textLines = [], html, buttons = [], backgroundSrc } = {}) {
+    this._beatToken += 1;
+    this._advanceLocked = false;
     this.resetState();
     this.showOverlay();
     this.showJeffLayer();
@@ -680,6 +717,8 @@ class JourneyBeatUI {
   }
 
   renderTopParchmentBeat({ background, title, textLines, html, buttonLabel = 'Continue', onContinue } = {}) {
+    this._beatToken += 1;
+    this._advanceLocked = false;
     this.resetState();
     this.showOverlay();
     this.showTopParchmentLayer();
@@ -714,6 +753,8 @@ class JourneyBeatUI {
   }
 
   renderParchTopBeat({ background, title, textLines = [], html, buttons = [], onAdvance } = {}) {
+    this._beatToken += 1;
+    this._advanceLocked = false;
     this.resetState();
     this.showOverlay();
     this.showParchTopLayer();
@@ -766,6 +807,8 @@ class JourneyBeatUI {
   }
 
   renderSceneFirst({ backgroundSrc, onAdvance } = {}) {
+    this._beatToken += 1;
+    this._advanceLocked = false;
     this.resetState();
     this.showOverlay();
     this.showSceneFirstLayer();
@@ -776,6 +819,8 @@ class JourneyBeatUI {
   }
 
   renderBottomChoiceBar({ leftButton, rightButton } = {}) {
+    this._beatToken += 1;
+    this._advanceLocked = false;
     this.resetState();
     this.showOverlay();
     this.showBottomChoiceLayer();
@@ -859,10 +904,7 @@ class JourneyBeatUI {
   }
 
   destroy() {
-    this.clearClickAnywhere();
-    this.clearButtonHandlers();
-    this._timeouts.forEach(id => window.clearTimeout(id));
-    this._timeouts.clear();
+    this.removeAllAdvanceListeners();
     if (this._sceneAdvancePressHandlers) {
       this.sceneFirstButton?.removeEventListener('pointerdown', this._sceneAdvancePressHandlers.down);
       this.sceneFirstButton?.removeEventListener('pointerup', this._sceneAdvancePressHandlers.up);
