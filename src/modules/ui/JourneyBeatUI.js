@@ -228,6 +228,8 @@ class JourneyBeatUI {
       style: `
         position:absolute;
         inset:12% 8% 12% 8%;
+        padding:clamp(8px, 2vw, 18px);
+        box-sizing:border-box;
         display:flex;
         flex-direction:column;
         justify-content:center;
@@ -255,22 +257,26 @@ class JourneyBeatUI {
     this.parchTopLayer.append(this.parchTopContent);
 
     this.sceneFirstLayer = createElement('div', {
-      style: `position:absolute; inset:0; display:none; align-items:flex-end; justify-content:center; padding-bottom:clamp(24px, 6vh, 64px); pointer-events:auto;`
+      style: `position:absolute; inset:0; display:none; pointer-events:none;`
     });
 
-    this.sceneFirstButton = createElement('button', {
+    this.sceneFirstButton = createElement('img', {
+      src: 'Assets/Buttons/up.png',
+      alt: 'Continue',
       style: `
-        width:64px;
-        height:64px;
-        background-image: url('Assets/Buttons/up.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        border: none;
-        background-color: transparent;
+        position:absolute;
+        left:50%;
+        bottom:clamp(18px, 4vh, 36px);
+        transform:translateX(-50%);
+        width:min(220px, 46vw);
+        height:auto;
+        max-width:240px;
         cursor: pointer;
+        pointer-events:auto;
+        transition: transform 0.08s ease;
       `,
-      type: 'button'
+      role: 'button',
+      tabIndex: 0
     });
 
     this.sceneFirstLayer.append(this.sceneFirstButton);
@@ -299,6 +305,18 @@ class JourneyBeatUI {
 
     container.appendChild(this.backgroundLayer);
     container.appendChild(this.overlay);
+
+    this._sceneAdvancePressHandlers = {
+      down: () => {
+        this.sceneFirstButton.style.transform = 'translateX(-50%) scale(0.98)';
+      },
+      up: () => {
+        this.sceneFirstButton.style.transform = 'translateX(-50%)';
+      }
+    };
+    this.sceneFirstButton.addEventListener('pointerdown', this._sceneAdvancePressHandlers.down);
+    this.sceneFirstButton.addEventListener('pointerup', this._sceneAdvancePressHandlers.up);
+    this.sceneFirstButton.addEventListener('pointerleave', this._sceneAdvancePressHandlers.up);
   }
 
   createButtonsArea() {
@@ -578,10 +596,13 @@ class JourneyBeatUI {
     this.setButtonHandler(this.topParchmentButton, null);
     this.topParchmentLayer.style.display = 'none';
     this.parchTopText.innerHTML = '';
+    this.parchTopText.style.alignItems = 'center';
+    this.parchTopText.style.textAlign = 'center';
     this.parchTopButtons.innerHTML = '';
     this.setButtonHandler(this.sceneFirstButton, null);
     this.bottomChoiceBar.innerHTML = '';
     this.setTopMode(false);
+    this.applyParchTopLayout({ centered: false });
     this.frameMode = 'beat-ui1';
     this.applyBeatUI1Layout();
   }
@@ -701,6 +722,9 @@ class JourneyBeatUI {
     }
 
     clearChildren(this.parchTopText);
+    const shouldCenterPanel = html instanceof HTMLElement && html.dataset?.journeyPanel === 'centered';
+    this.applyParchTopLayout({ centered: shouldCenterPanel });
+    this.parchTopText.style.alignItems = shouldCenterPanel ? 'stretch' : 'center';
     if (title) {
       const titleEl = createElement('div', { style: 'font-size:1.05rem; margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.5px;' });
       titleEl.textContent = title;
@@ -727,6 +751,14 @@ class JourneyBeatUI {
       const buttonEl = this.createButton(btn.label, btn.onClick);
       this.parchTopButtons.appendChild(buttonEl);
     });
+    if ((buttons || []).length > 1) {
+      this.parchTopButtons.querySelectorAll('button').forEach(button => {
+        button.style.fontSize = 'clamp(14px, 2.2vw, 22px)';
+        button.style.lineHeight = '1.2';
+        button.style.whiteSpace = 'normal';
+        button.style.textAlign = 'center';
+      });
+    }
 
     if ((buttons || []).length <= 1 && typeof onAdvance === 'function') {
       this.enableClickAnywhere(onAdvance);
@@ -780,6 +812,28 @@ class JourneyBeatUI {
     }
   }
 
+  applyParchTopLayout({ centered = false } = {}) {
+    if (centered) {
+      this.parchTopLayer.style.alignItems = 'center';
+      this.parchTopLayer.style.justifyContent = 'center';
+      this.parchTopLayer.style.paddingTop = '0';
+      this.parchTopContent.style.position = 'absolute';
+      this.parchTopContent.style.left = '50%';
+      this.parchTopContent.style.top = '50%';
+      this.parchTopContent.style.transform = 'translate(-50%, -50%)';
+      this.parchTopContent.style.width = 'min(92vw, 760px)';
+    } else {
+      this.parchTopLayer.style.alignItems = 'flex-start';
+      this.parchTopLayer.style.justifyContent = 'center';
+      this.parchTopLayer.style.paddingTop = 'clamp(16px, 5vh, 56px)';
+      this.parchTopContent.style.position = 'relative';
+      this.parchTopContent.style.left = '';
+      this.parchTopContent.style.top = '';
+      this.parchTopContent.style.transform = '';
+      this.parchTopContent.style.width = '100%';
+    }
+  }
+
   applyChoiceColumnTopLayout() {
     this.setTopMode(true);
     this.contentArea.style.top = '12%';
@@ -809,6 +863,12 @@ class JourneyBeatUI {
     this.clearButtonHandlers();
     this._timeouts.forEach(id => window.clearTimeout(id));
     this._timeouts.clear();
+    if (this._sceneAdvancePressHandlers) {
+      this.sceneFirstButton?.removeEventListener('pointerdown', this._sceneAdvancePressHandlers.down);
+      this.sceneFirstButton?.removeEventListener('pointerup', this._sceneAdvancePressHandlers.up);
+      this.sceneFirstButton?.removeEventListener('pointerleave', this._sceneAdvancePressHandlers.up);
+      this._sceneAdvancePressHandlers = null;
+    }
     this.overlay?.remove();
     this.backgroundLayer?.remove();
     this.vignetteLayer?.remove();
