@@ -323,7 +323,7 @@ const RiskProtectJourneyEvent = {
           style: 'width:50px; height:50px; border-radius:50%; object-fit:cover; border:3px solid #7a4a1e;'
         });
         const name = createElement('div', {
-          style: 'font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#2b1b0f;'
+          style: 'font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#fff;'
         }, survivor?.firstName || survivor?.name || 'Unknown');
         const tribeLabel = createElement('div', {
           style: `margin-left:auto; font-weight:700; font-size:clamp(0.8rem, 2.4vw, 0.95rem); color:${tribeColor}; text-transform:uppercase; letter-spacing:0.5px;`
@@ -354,6 +354,9 @@ const RiskProtectJourneyEvent = {
             { label: 'Stay vague and noncommittal.', onClick: () => resolve('vague') }
           ]
         });
+        ui.parchTopButtons.querySelectorAll('button').forEach(button => {
+          button.style.fontSize = 'clamp(0.75rem, 2vw, 0.9rem)';
+        });
       });
 
       const socialContext = buildSocialContext({
@@ -366,10 +369,29 @@ const RiskProtectJourneyEvent = {
 
       for (const npc of npcSurvivors) {
         setBackground('Assets/Journey/trail.png');
+        const npcTribe = findTribeForSurvivor(gameManager, npc?.id);
+        const tribeColor = npcTribe?.tribeColor || npcTribe?.color || '#8d6b3f';
+        const npcHeader = createElement('div', {
+          style: 'display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:8px;'
+        });
+        const npcAvatar = createElement('img', {
+          src: getSurvivorAvatarSrc(npc),
+          style: `width:46px; height:46px; border-radius:50%; object-fit:cover; border:3px solid ${tribeColor};`
+        });
+        const npcName = createElement('div', {
+          style: 'font-weight:700; letter-spacing:0.5px; text-transform:uppercase;'
+        }, getFirstName(npc?.firstName || npc?.name || 'Survivor'));
+        npcHeader.append(npcAvatar, npcName);
+        const npcDialogue = createElement('div', {
+          style: 'display:flex; flex-direction:column; align-items:center;'
+        });
+        npcDialogue.append(
+          npcHeader,
+          createElement('div', { style: 'margin-top:2px;' }, generateNpcReactionLine(npc, playerApproach, socialContext))
+        );
         await new Promise(resolve => {
           ui.renderParchTopBeat({
-            title: getFirstName(npc?.firstName || npc?.name || 'Survivor'),
-            textLines: [generateNpcReactionLine(npc, playerApproach, socialContext)],
+            html: npcDialogue,
             onAdvance: () => resolve()
           });
         });
@@ -458,19 +480,20 @@ const RiskProtectJourneyEvent = {
           style: 'width:52px; height:52px; border-radius:50%; object-fit:cover; border:3px solid #7a4a1e;'
         });
         const name = createElement('div', {
-          style: 'flex:1; text-align:left; font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#2b1b0f;'
+          style: 'flex:1; text-align:left; font-weight:bold; font-size:clamp(0.95rem, 2.6vw, 1.05rem); color:#fff;'
         }, survivor?.firstName || survivor?.name || 'Unknown');
         const outcome = createElement('div', {
-          style: 'text-align:right; min-width:150px; font-weight:bold; color:#5a2d12;'
+          style: 'text-align:right; min-width:150px; font-weight:bold; color:#fff;'
         });
-        const choice = createElement('div', { style: 'font-size:0.95rem; letter-spacing:0.5px;' }, decision.choice.toUpperCase());
+        const choiceColor = decision.choice === 'risk' ? '#e14b3b' : '#46b96a';
+        const choice = createElement('div', { style: `font-size:0.95rem; letter-spacing:0.5px; color:${choiceColor};` }, decision.choice.toUpperCase());
         let detailText = 'VOTE PROTECTED';
         if (allRisk) {
           detailText = 'LOST VOTE';
         } else if (mixed && decision.choice === 'risk') {
           detailText = 'EXTRA VOTE EARNED';
         }
-        const detail = createElement('div', { style: 'font-size:0.8rem; font-weight:600; color:#3c2a1a;' }, detailText);
+        const detail = createElement('div', { style: 'font-size:0.8rem; font-weight:600; color:#fff;' }, detailText);
         outcome.append(choice, detail);
         row.append(avatar, name, outcome);
         resultsList.appendChild(row);
