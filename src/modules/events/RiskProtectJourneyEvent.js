@@ -348,10 +348,10 @@ const RiskProtectJourneyEvent = {
           style: `width:50px; height:50px; border-radius:50%; object-fit:cover; border:4px solid ${tribeColor};`
         });
         const name = createElement('div', {
-          style: 'flex:1; min-width:0; text-align:left; font-weight:bold; font-size:clamp(0.9rem, 2.4vw, 1.02rem); color:#fff; white-space:normal; word-break:break-word;'
+          style: 'flex:1; min-width:0; text-align:left; font-weight:bold; font-size:clamp(0.9rem, 2.4vw, 1.02rem); color:#fff; text-shadow:0 2px 4px rgba(0,0,0,0.65); white-space:normal; word-break:break-word;'
         }, survivor?.firstName || survivor?.name || 'Unknown');
         const tribeLabel = createElement('div', {
-          style: `flex:0 1 40%; min-width:0; margin-left:auto; text-align:right; font-weight:700; font-size:clamp(0.75rem, 2.2vw, 0.9rem); color:${tribeColor}; text-transform:uppercase; letter-spacing:0.5px; white-space:normal; word-break:break-word;`
+          style: `flex:0 1 40%; min-width:0; margin-left:auto; text-align:right; font-weight:700; font-size:clamp(0.75rem, 2.2vw, 0.9rem); color:${tribeColor}; text-shadow:0 2px 4px rgba(0,0,0,0.65); text-transform:uppercase; letter-spacing:0.5px; white-space:normal; word-break:break-word;`
         }, tribeName);
         row.append(avatar, name, tribeLabel);
         arrivalList.appendChild(row);
@@ -506,7 +506,7 @@ const RiskProtectJourneyEvent = {
           style: `width:52px; height:52px; border-radius:50%; object-fit:cover; border:4px solid ${tribeColor};`
         });
         const name = createElement('div', {
-          style: 'flex:1; min-width:0; text-align:left; font-weight:bold; font-size:clamp(0.9rem, 2.4vw, 1.02rem); color:#fff; white-space:normal; word-break:break-word;'
+          style: 'flex:1; min-width:0; text-align:left; font-weight:bold; font-size:clamp(0.9rem, 2.4vw, 1.02rem); color:#fff; text-shadow:0 2px 4px rgba(0,0,0,0.65); white-space:normal; word-break:break-word;'
         }, survivor?.firstName || survivor?.name || 'Unknown');
         const outcome = createElement('div', {
           style: 'flex:0 1 40%; min-width:0; text-align:right; font-weight:bold; color:#fff; display:flex; flex-direction:column; align-items:flex-end; gap:2px;'
@@ -519,7 +519,7 @@ const RiskProtectJourneyEvent = {
         } else if (mixed && decision.choice === 'risk') {
           detailText = 'EXTRA VOTE EARNED';
         }
-        const detail = createElement('div', { style: 'font-size:0.8rem; font-weight:600; color:#fff;' }, detailText);
+        const detail = createElement('div', { style: 'font-size:0.8rem; font-weight:600; color:#fff; text-shadow:0 2px 4px rgba(0,0,0,0.65);' }, detailText);
         outcome.append(choice, detail);
         row.append(avatar, name, outcome);
         resultsList.appendChild(row);

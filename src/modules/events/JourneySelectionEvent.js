@@ -61,7 +61,7 @@ const JourneySelectionEvent = {
     };
 
     const getTribeColorHex = (tribeKeyOrName) => {
-      if (!tribeKeyOrName) return FALLBACK_TRIBE_COLORS.green;
+      if (!tribeKeyOrName) return '#333';
       if (tribeColorCache.has(tribeKeyOrName)) return tribeColorCache.get(tribeKeyOrName);
       const match = tribes.find((tribe, idx) => resolveTribeKey(tribe, idx) === tribeKeyOrName ||
         tribe?.tribeName === tribeKeyOrName ||
@@ -72,7 +72,7 @@ const JourneySelectionEvent = {
         return rawColor;
       }
       const normalized = (rawColor || tribeKeyOrName || '').toString().toLowerCase();
-      const fallback = FALLBACK_TRIBE_COLORS[normalized] || FALLBACK_TRIBE_COLORS.green;
+      const fallback = FALLBACK_TRIBE_COLORS[normalized] || '#333';
       tribeColorCache.set(tribeKeyOrName, fallback);
       return fallback;
     };
@@ -244,7 +244,7 @@ const JourneySelectionEvent = {
             const tribeColor = getTribeColorHex(resolveTribeKey(tribe, idx)) || getTribeColorHex(tribeName);
             const fullName = selectedSurvivor?.name || selectedSurvivor?.firstName || selectedId || 'Someone';
             const name = getFirstName(fullName) || fullName;
-            return `From the <span class="tribe-name" style="color: ${tribeColor};">${tribeName}</span> — ${name}. …`;
+            return `From the <span class="tribe-name" style="color: ${tribeColor}; text-shadow: 0 2px 4px rgba(0,0,0,0.65);">${tribeName}</span> — <span style="color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.65);">${name}</span>. …`;
           })
         ].join('<div style="height:8px;"></div>')
       });
