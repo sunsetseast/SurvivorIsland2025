@@ -103,6 +103,15 @@ export default class CampScreen {
       gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors);
       gameManager.systems?.socialEngine?.resetForNewPhase?.(phaseKey);
 
+      if (this.currentView === 'shelter') {
+        const campContent = getElement('camp-content');
+        const hasShelterWrapper = campContent?.querySelector('.shelter-wrapper');
+        const hasStockpileBanner = campContent?.querySelector('#stockpile-banner');
+        if (campContent && (!hasShelterWrapper || !hasStockpileBanner)) {
+          renderShelter(campContent);
+        }
+      }
+
       eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
         viewName: this.currentView,
         container: getElement('camp-content')
