@@ -14,18 +14,30 @@ const dbg = window.debugBanner || function () {};
 // ----------------------------------------------
 // ✔ MATCHES CampScreen.js VIEW KEYS
 // ----------------------------------------------
+export const LocationKeys = {
+  BEACH: "beach",
+  SHELTER: "shelter",
+  CAMPFIRE: "campfire",
+  WATER_WELL: "waterWell",
+  ROCKY: "rocky",
+  JUNGLE_TRAIL: "jungleTrail",
+  MOUNTAIN_TRAIL: "mountainTrail",
+  WATERFALL_TRAIL: "waterfallTrail",
+  TREEMAIL: "treemail"
+};
+
 export const CAMP_LOCATION_WEIGHTS = {
-  beach: 4,
-  shelter: 4,
-  campfire: 3,
-  waterWell: 3,
+  [LocationKeys.BEACH]: 4,
+  [LocationKeys.SHELTER]: 4,
+  [LocationKeys.CAMPFIRE]: 3,
+  [LocationKeys.WATER_WELL]: 3,
 
-  rocky: 1,
-  jungleTrail: 1,
-  mountainTrail: 1,
-  waterfallTrail: 1,
+  [LocationKeys.ROCKY]: 1,
+  [LocationKeys.JUNGLE_TRAIL]: 1,
+  [LocationKeys.MOUNTAIN_TRAIL]: 1,
+  [LocationKeys.WATERFALL_TRAIL]: 1,
 
-  treemail: 1 // Player can walk here
+  [LocationKeys.TREEMAIL]: 1 // Player can walk here
 };
 
 // Dynamically derived key list
@@ -158,7 +170,7 @@ class NpcLocationSystem {
 
     if (pool.length === 0) {
       dbg("⚠ No weighted pool — defaulting to shelter for", npc.firstName);
-      return "shelter";
+      return LocationKeys.SHELTER;
     }
 
     const index = getRandomInt(0, pool.length - 1);

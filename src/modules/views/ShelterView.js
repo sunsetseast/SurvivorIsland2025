@@ -2,7 +2,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
-import npcLocationSystem from '../systems/NpcLocationSystem.js';
+import npcLocationSystem, { LocationKeys } from '../systems/NpcLocationSystem.js';
 import { createNpcIcon } from '../ui/NpcIcon.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
@@ -83,105 +83,105 @@ export default function renderShelter(container) {
     actionButtons.appendChild(downButton);
   }
 
-  try {
-    const playerTribe = gameManager.getPlayerTribe();
-    gameManager.ensureStockpileExists?.(playerTribe);
-    const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
+  const playerTribe = gameManager.getPlayerTribe();
+  gameManager.ensureStockpileExists?.(playerTribe);
+  const tribeShelterValue = playerTribe && typeof playerTribe.shelter === 'number' ? playerTribe.shelter : 0;
 
-    const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.png')`;
-    container.style.backgroundImage = backgroundImage;
-    container.style.backgroundSize = 'cover';
-    container.style.backgroundPosition = 'center';
-    container.style.backgroundRepeat = 'no-repeat';
+  const backgroundImage = `url('Assets/Screens/shelter${tribeShelterValue}.png')`;
+  container.style.backgroundImage = backgroundImage;
+  container.style.backgroundSize = 'cover';
+  container.style.backgroundPosition = 'center';
+  container.style.backgroundRepeat = 'no-repeat';
 
-    const wrapper = createElement('div', {
-      className: 'shelter-wrapper',
+  const wrapper = createElement('div', {
+    className: 'shelter-wrapper',
+    style: `
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    `
+  });
+  shelterRoot = wrapper;
+
+  const shelterLevelContainer = createElement('div', {
+    id: 'shelter-level-indicator',
+    style: `
+      position: absolute;
+      left: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    `
+  });
+
+  for (let i = 4; i >= 0; i--) {
+    const circle = createElement('div', {
+      id: `shelter-level-${i}`,
       style: `
-        position: relative;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid #8B4513;
+        background: rgba(139, 69, 19, 0.3);
+        transition: all 0.4s ease;
       `
     });
-    shelterRoot = wrapper;
 
-    const shelterLevelContainer = createElement('div', {
-      id: 'shelter-level-indicator',
-      style: `
-        position: absolute;
-        left: 5px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        z-index: 10;
-      `
-    });
-
-    for (let i = 4; i >= 0; i--) {
-      const circle = createElement('div', {
-        id: `shelter-level-${i}`,
-        style: `
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          border: 3px solid #8B4513;
-          background: rgba(139, 69, 19, 0.3);
-          transition: all 0.4s ease;
-        `
-      });
-
-      if (tribeShelterValue > i) {
-        circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
-        circle.style.borderColor = '#22c55e';
-        circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
-      }
-
-      shelterLevelContainer.appendChild(circle);
+    if (tribeShelterValue > i) {
+      circle.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+      circle.style.borderColor = '#22c55e';
+      circle.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.8)';
     }
 
-    container.appendChild(shelterLevelContainer);
-
-    const message = createElement('div', {
-      id: 'shelter-message',
-      style: `
-        color: white;
-        text-shadow: 2px 2px 4px black;
-        font-size: 1.8rem;
-        font-family: 'Survivant', sans-serif;
-        text-align: center;
-        padding: 20px;
-        z-index: 2;
-        opacity: 1;
-        transition: opacity 1s ease;
-      `
-    }, 'Shelter: Rest, recover, and prepare for the next challenge.');
-
-    wrapper.appendChild(message);
-    container.appendChild(wrapper);
-    ensureStockpileBanner(wrapper, playerTribe);
-    updateStockpileValuesUI(playerTribe);
-
-    renderNPCsAtShelter(container);
-    createResourceButtons(wrapper);
-
-    setTimeout(() => {
-      const msgEl = getShelterRoot()?.querySelector('#shelter-message');
-      if (msgEl) msgEl.style.opacity = '0';
-    }, 3000);
-
-    setTimeout(() => {
-      const msgEl = getShelterRoot()?.querySelector('#shelter-message');
-      if (msgEl) msgEl.remove();
-    }, 4000);
-  } catch (error) {
-    console.error('Shelter view render error:', error);
+    shelterLevelContainer.appendChild(circle);
   }
+
+  container.appendChild(shelterLevelContainer);
+
+  const message = createElement('div', {
+    id: 'shelter-message',
+    style: `
+      color: white;
+      text-shadow: 2px 2px 4px black;
+      font-size: 1.8rem;
+      font-family: 'Survivant', sans-serif;
+      text-align: center;
+      padding: 20px;
+      z-index: 2;
+      opacity: 1;
+      transition: opacity 1s ease;
+    `
+  }, 'Shelter: Rest, recover, and prepare for the next challenge.');
+
+  wrapper.appendChild(message);
+  container.appendChild(wrapper);
+  ensureStockpileBanner(wrapper, playerTribe);
+  updateStockpileValuesUI(playerTribe);
+
+  try {
+    renderNPCsAtShelter(container);
+  } catch (err) {
+    console.warn('[ShelterView] NPC render failed (non-fatal):', err);
+  }
+  createResourceButtons(wrapper);
+
+  setTimeout(() => {
+    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+    if (msgEl) msgEl.style.opacity = '0';
+  }, 3000);
+
+  setTimeout(() => {
+    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+    if (msgEl) msgEl.remove();
+  }, 4000);
 
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
@@ -301,7 +301,7 @@ function handleCenterButtonClick() {
 
   huntBtn.addEventListener('click', () => {
     closeOverlay();
-    openIdolHuntOptions(root, 'ShelterView');
+    openIdolHuntOptions(root, LocationKeys.SHELTER);
   });
 
   buttonColumn.appendChild(buildBtn);
@@ -1221,7 +1221,7 @@ function renderNPCsAtShelter(container) {
   const npcContainer = document.createElement('div');
   npcContainer.classList.add('npc-icon-container');
 
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation('ShelterView');
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.SHELTER);
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {
       console.log('Clicked NPC at Shelter:', survivor.name);
