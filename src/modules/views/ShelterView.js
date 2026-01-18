@@ -187,15 +187,7 @@ export default function renderShelter(container) {
 }
 
 function getShelterRoot() {
-  if (shelterRoot?.isConnected) return shelterRoot;
-  const wrapper = document.querySelector('.shelter-wrapper');
-  if (wrapper) {
-    shelterRoot = wrapper;
-    return wrapper;
-  }
-  const campContent = document.getElementById('camp-content');
-  shelterRoot = campContent;
-  return campContent;
+  return shelterRoot || document.querySelector('.shelter-wrapper') || document.getElementById('camp-content');
 }
 
 function cleanupShelterUI() {
