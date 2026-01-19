@@ -6,6 +6,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderBambooView(container) {
   console.log('renderBambooView() called');
@@ -161,7 +162,7 @@ export default function renderBambooView(container) {
       if (window.previousCampView) {
         window.campScreen.loadView(window.previousCampView);
       } else {
-        window.campScreen.loadView('campfire');
+        window.campScreen.loadView(LocationKeys.CAMPFIRE);
       }
     });
 

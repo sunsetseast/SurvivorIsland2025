@@ -8,6 +8,7 @@ import { gameManager } from '../core/index.js';
 import screenManager from '../core/ScreenManager.js';
 import { createSurvivorCard } from '../ui/SurvivorCardFactory.js';
 import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderTribeFlag(container) {
   console.log('renderTribeFlag() called');
@@ -244,16 +245,16 @@ export default function renderTribeFlag(container) {
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
       console.log('Left button clicked');
-      screenManager.screens['camp'].loadView('beach');
+      screenManager.screens['camp'].loadView(LocationKeys.BEACH);
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
-      openIdolHuntMenu(container, 'TribeFlagView');
+      openIdolHuntMenu(container, LocationKeys.TRIBE_FLAG);
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - loading Campfire');
-      window.campScreen.loadView('campfire');
+      window.campScreen.loadView(LocationKeys.CAMPFIRE);
     });
 
     // Testing button to reset clock timer to zero

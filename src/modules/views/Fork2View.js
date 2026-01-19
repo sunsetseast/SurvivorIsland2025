@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderFork2(container) {
   console.log('renderFork2() called');
@@ -85,19 +86,19 @@ export default function renderFork2(container) {
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
       console.log('Left button clicked - returning to Jungle Trail');
-      window.campScreen.loadView('jungleTrail');
+      window.campScreen.loadView(LocationKeys.JUNGLE_TRAIL);
     });
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       console.log('Down button clicked - returning to Mountain Trail');
       // Reset mirror view if it was flipped previously
       document.getElementById('camp-content').style.transform = 'scaleX(1)';
-      window.campScreen.loadView('mountainTrail');
+      window.campScreen.loadView(LocationKeys.MOUNTAIN_TRAIL);
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - returning to Shelter');
-      window.campScreen.loadView('shelter');
+      window.campScreen.loadView(LocationKeys.SHELTER);
     });
 
     actionButtons.appendChild(leftButton);

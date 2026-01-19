@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -95,16 +96,16 @@ export default function renderWaterfallTrail(container) {
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
       console.log('Left button clicked - returning to Tree Mail');
-      window.campScreen.loadView('treemail');
+      window.campScreen.loadView(LocationKeys.TREE_MAIL);
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
-      openIdolHuntMenu(container, 'WaterfallTrailView');
+      openIdolHuntMenu(container, LocationKeys.WATERFALL_TRAIL);
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - going to Water Well');
-      window.campScreen.loadView('waterWell');
+      window.campScreen.loadView(LocationKeys.WATER_WELL);
     });
 
     actionButtons.appendChild(leftButton);
@@ -125,7 +126,7 @@ function renderNPCsAtWaterfallTrail(container) {
   npcContainer.classList.add("npc-icon-container");
 
   // Get NPCs whose location is "WaterfallTrailView"
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("WaterfallTrailView");
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.WATERFALL_TRAIL);
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {

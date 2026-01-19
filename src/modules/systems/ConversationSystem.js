@@ -5,6 +5,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import socialEngine from './SocialEngine.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 // DEV NOTE (ConversationSystem)
 // - Intents: player-facing actions (pre + post) are enumerated below and drive intent -> NPC response templates.
@@ -188,7 +189,16 @@ const TOPIC_TO_INTENT = {
   humor: 'fun'
 };
 
-const CAMP_LOCATIONS = ['beach', 'shelter', 'campfire', 'waterWell', 'rocky', 'fork1', 'fork2', 'fork3'];
+const CAMP_LOCATIONS = [
+  LocationKeys.BEACH,
+  LocationKeys.SHELTER,
+  LocationKeys.CAMPFIRE,
+  LocationKeys.WATER_WELL,
+  LocationKeys.ROCKY_SHORE,
+  LocationKeys.FORK1,
+  LocationKeys.FORK2,
+  LocationKeys.FORK3
+];
 
 const PRE_PHASE_INTENTS = {
   bond_smalltalk: 'bond_smalltalk',
@@ -4441,7 +4451,7 @@ class ConversationSystem {
 
     if (subTopic === 'nameHeard') {
       if (trustScore > 60) {
-        return `${npc?.firstName || 'They'} answers, "It came up at the ${context.location || 'shelter'}. ${targetName} was floated because of ${targetRel < 45 ? 'trust issues' : 'challenge worries'}."`;
+        return `${npc?.firstName || 'They'} answers, "It came up at the ${context.location || LocationKeys.SHELTER}. ${targetName} was floated because of ${targetRel < 45 ? 'trust issues' : 'challenge worries'}."`;
       }
       return `${npc?.firstName || 'They'} deflects. "Just scattered whispers. Keep your ears open at the water runs."`;
     }
@@ -4491,7 +4501,7 @@ class ConversationSystem {
     });
 
     if (disclosure.mode === 'truth') {
-      return `${npc?.firstName || 'They'} says, "It’s coming from ${disclosure.detail?.pusherName || 'a couple people'} near the ${disclosure.detail?.location || 'shelter'}."`;
+      return `${npc?.firstName || 'They'} says, "It’s coming from ${disclosure.detail?.pusherName || 'a couple people'} near the ${disclosure.detail?.location || LocationKeys.SHELTER}."`;
     }
     if (disclosure.mode === 'lie') {
       return `${npc?.firstName || 'They'} claims, "It’s ${disclosure.detail?.pusherName || 'one person'} pushing it after the challenge."`;
@@ -7182,7 +7192,7 @@ class ConversationSystem {
     const sourceName = disclosure.mode === 'dodge' ? null : (disclosure.detail?.pusherName || null);
     const sourceId = sourceName ? this._getSurvivorByName(sourceName)?.id || null : null;
     const confidence = Math.max(20, Math.min(90, Math.round(trustScore + (disclosure.mode === 'truth' ? 12 : disclosure.mode === 'lie' ? -12 : -4))));
-    const location = disclosure.detail?.location || context.location || 'shelter';
+    const location = disclosure.detail?.location || context.location || LocationKeys.SHELTER;
     const timeHint = disclosure.detail?.timeHint || 'earlier';
 
     let line = '';
@@ -7504,7 +7514,7 @@ class ConversationSystem {
       return report;
     }
 
-    const baseContext = { location: 'campfire', phase: this._getConversationPhase() };
+    const baseContext = { location: LocationKeys.CAMPFIRE, phase: this._getConversationPhase() };
     const pickerActions = new Set(['pickSource', 'pitchPlan', 'floatName']);
     const registerNode = (map, node) => {
       if (!node) return null;
@@ -7641,7 +7651,7 @@ class ConversationSystem {
       return;
     }
 
-    const baseContext = { location: 'campfire', phase: this._getConversationPhase() };
+    const baseContext = { location: LocationKeys.CAMPFIRE, phase: this._getConversationPhase() };
     const validActions = new Set(['changeTopic', 'endConversation', 'askFollowup', 'tradeInfo', 'offerDealMenu', 'pitchPlan', 'pickSource', 'goBack']);
 
     const checkOption = (intent, option) => {
@@ -7768,7 +7778,7 @@ class ConversationSystem {
       return;
     }
     const player = this.gameManager.getPlayerSurvivor?.();
-    const baseContext = { location: 'campfire', phase: this._getConversationPhase() };
+    const baseContext = { location: LocationKeys.CAMPFIRE, phase: this._getConversationPhase() };
     const maxDepth = 6;
     const validActions = new Set(['changeTopic', 'endConversation', 'askFollowup', 'tradeInfo', 'offerDealMenu', 'pitchPlan', 'pickSource', 'goBack']);
 
@@ -9949,24 +9959,25 @@ class ConversationSystem {
 
   _formatLocation(location) {
     if (!location) return '';
+    const normalized = this._normalizeLocationKey(location);
     const labels = {
-      beach: 'beach',
-      shelter: 'shelter',
-      campfire: 'campfire',
-      waterWell: 'water well',
-      rocky: 'rocky shore',
-      fork1: 'jungle fork',
-      fork2: 'jungle path',
-      fork3: 'hidden trail',
-      treemail: 'tree mail',
-      mountainTrail: 'mountain trail',
-      jungleTrail: 'jungle trail',
-      waterfallTrail: 'waterfall trail',
-      firewood: 'firewood pile',
-      bamboo: 'bamboo grove',
-      fishing: 'fishing spot'
+      [LocationKeys.BEACH.toLowerCase()]: 'beach',
+      [LocationKeys.SHELTER.toLowerCase()]: 'shelter',
+      [LocationKeys.CAMPFIRE.toLowerCase()]: 'campfire',
+      [LocationKeys.WATER_WELL.toLowerCase()]: 'water well',
+      [LocationKeys.ROCKY_SHORE.toLowerCase()]: 'rocky shore',
+      [LocationKeys.FORK1.toLowerCase()]: 'jungle fork',
+      [LocationKeys.FORK2.toLowerCase()]: 'jungle path',
+      [LocationKeys.FORK3.toLowerCase()]: 'hidden trail',
+      [LocationKeys.TREE_MAIL.toLowerCase()]: 'tree mail',
+      [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: 'mountain trail',
+      [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: 'jungle trail',
+      [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: 'waterfall trail',
+      [LocationKeys.FIREWOOD.toLowerCase()]: 'firewood pile',
+      [LocationKeys.BAMBOO.toLowerCase()]: 'bamboo grove',
+      [LocationKeys.FISHING.toLowerCase()]: 'fishing spot'
     };
-    return labels[location] || location;
+    return labels[normalized] || location;
   }
 
   _normalizeLocationKey(value) {

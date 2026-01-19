@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -98,11 +99,11 @@ export default function renderRockyShore(container) {
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       console.log('Down button clicked (return to Beach)');
-      window.campScreen.loadView('beach');
+      window.campScreen.loadView(LocationKeys.BEACH);
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
-      openIdolHuntMenu(container, 'RockyShoreView');
+      openIdolHuntMenu(container, LocationKeys.ROCKY_SHORE);
     });
 
     actionButtons.appendChild(downButton);
@@ -124,7 +125,7 @@ function renderNPCsAtRocky(container) {
   npcContainer.classList.add("npc-icon-container");
 
   // Get NPCs located at RockyShoreView
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("RockyShoreView");
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.ROCKY_SHORE);
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {

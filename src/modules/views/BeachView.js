@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager, screenManager } from '../core/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC ICON SYSTEM -------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -95,7 +96,7 @@ export default function renderBeach(container) {
 
   fishingButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    window.campScreen.loadView('fishing');
+    window.campScreen.loadView(LocationKeys.FISHING);
   });
 
   const huntButton = createElement('button', {
@@ -104,7 +105,7 @@ export default function renderBeach(container) {
 
   huntButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    openIdolHuntOptions(container, 'BeachView');
+    openIdolHuntOptions(container, LocationKeys.BEACH);
   });
 
   popupContent.appendChild(popupTitle);
@@ -162,7 +163,7 @@ export default function renderBeach(container) {
 
     const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
       console.log('Up button clicked - going to Rocky Shore');
-      window.campScreen.loadView('rocky');
+      window.campScreen.loadView(LocationKeys.ROCKY_SHORE);
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
@@ -171,7 +172,7 @@ export default function renderBeach(container) {
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - returning to Tribe Flag');
-      window.campScreen.loadView('flag');
+      window.campScreen.loadView(LocationKeys.TRIBE_FLAG);
     });
 
     actionButtons.appendChild(upButton);
@@ -192,7 +193,7 @@ function renderNPCsAtBeach(container) {
   npcContainer.classList.add("npc-icon-container");
 
   // Fetch survivors located at BeachView
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("BeachView");
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.BEACH);
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {

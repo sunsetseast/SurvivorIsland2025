@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderFork3(container) {
   console.log('renderFork3() called');
@@ -85,17 +86,17 @@ export default function renderFork3(container) {
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
       console.log('Left button clicked - returning to Shelter');
-      window.campScreen.loadView('shelter');
+      window.campScreen.loadView(LocationKeys.SHELTER);
     });
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       console.log('Down button clicked - going to Jungle Trail');
-      window.campScreen.loadView('jungleTrail');
+      window.campScreen.loadView(LocationKeys.JUNGLE_TRAIL);
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - going to Mountain Trail');
-      window.campScreen.loadView('mountainTrail');
+      window.campScreen.loadView(LocationKeys.MOUNTAIN_TRAIL);
     });
 
     actionButtons.appendChild(leftButton);

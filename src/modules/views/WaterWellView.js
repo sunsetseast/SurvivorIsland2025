@@ -8,6 +8,7 @@ import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { MAX_WATER } from '../data/GameData.js';
 import activityTracker from '../utils/ActivityTracker.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -176,7 +177,7 @@ export default function renderWaterWell(container) {
 
   huntButton.addEventListener('click', () => {
     waterPopup.style.display = 'none';
-    openIdolHuntOptions(container, 'WaterWellView');
+    openIdolHuntOptions(container, LocationKeys.WATER_WELL);
   });
 
   function flashClockRed() {
@@ -475,7 +476,7 @@ export default function renderWaterWell(container) {
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      window.campScreen.loadView('waterfallTrail');
+      window.campScreen.loadView(LocationKeys.WATERFALL_TRAIL);
     });
 
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', () => {
@@ -483,8 +484,8 @@ export default function renderWaterWell(container) {
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      window.previousCampView = 'waterWell';
-      window.campScreen.loadView('jungleTrail');
+      window.previousCampView = LocationKeys.WATER_WELL;
+      window.campScreen.loadView(LocationKeys.JUNGLE_TRAIL);
     });
 
     actionButtons.appendChild(leftButton);
@@ -503,7 +504,7 @@ function renderNPCsAtWaterWell(container) {
   const npcContainer = document.createElement("div");
   npcContainer.classList.add("npc-icon-container");
 
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("WaterWellView");
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.WATER_WELL);
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {

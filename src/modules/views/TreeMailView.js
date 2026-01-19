@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderTreeMail(container) {
   console.log('renderTreeMail() called');
@@ -153,7 +154,7 @@ export default function renderTreeMail(container) {
           gameManager.runTaskSimCheckpoint?.('end', { triggerDramaEvent: false });
           gameManager.taskSystem?.ingestCampLogForTribe?.(gameManager, gameManager.getPlayerTribe?.());
         }
-        window.campScreen.loadView('summary');
+        window.campScreen.loadView(LocationKeys.SUMMARY);
       });
 
       buttonWrapper.appendChild(blankImage);
@@ -170,16 +171,16 @@ export default function renderTreeMail(container) {
       // Normal navigation buttons when timer hasn't expired
       const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
         console.log('Left button clicked - returning to Mountain Trail');
-        window.campScreen.loadView('mountainTrail');
+        window.campScreen.loadView(LocationKeys.MOUNTAIN_TRAIL);
       });
 
       const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
-        openIdolHuntMenu(container, 'TreeMailView');
+        openIdolHuntMenu(container, LocationKeys.TREE_MAIL);
       });
 
       const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
         console.log('Right button clicked - loading Waterfall Trail View');
-        window.campScreen.loadView('waterfallTrail');
+        window.campScreen.loadView(LocationKeys.WATERFALL_TRAIL);
       });
 
       actionButtons.appendChild(leftButton);
