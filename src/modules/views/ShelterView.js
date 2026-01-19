@@ -225,6 +225,21 @@ function cleanupShelterUI() {
   messageTimeouts.forEach(id => clearTimeout(id));
   messageTimeouts = [];
 
+  // Remove any orphaned shelter overlays/buttons anywhere in DOM
+  [
+    '#shelter-overlay',
+    '#parchment-popup',
+    '#submit-contribution-button',
+    '#start-building-button',
+    '#bamboo-selector-overlay',
+    '#palm-selector-overlay',
+    '#cobuilder-popup',
+    '#confirm-popup',
+    '#shelter-resource-buttons',
+    '#shelter-message',
+    '#stockpile-banner'
+  ].forEach(sel => document.querySelectorAll(sel).forEach(el => el.remove()));
+
   const wrapper = getShelterRoot();
   if (wrapper) {
     const removableIds = [
@@ -260,8 +275,10 @@ function handleCenterButtonClick() {
     closeOverlay();
     return;
   }
+  document.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
   overlayOpen = true;
   addDebugBanner('Shelter action overlay opened', 'darkorange', 50);
+  console.log('[ShelterView] overlay count:', document.querySelectorAll('#shelter-overlay').length);
 
   const root = getShelterRoot();
   if (!root) {
@@ -360,10 +377,10 @@ function handleCenterButtonClick() {
 }
 
 function closeOverlay() {
-  const root = getShelterRoot();
-  root?.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
+  document.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
   overlayOpen = false;
   addDebugBanner('Shelter action overlay closed', 'darkorange', 50);
+  console.log('[ShelterView] overlay count:', document.querySelectorAll('#shelter-overlay').length);
 }
 
 function showParchmentPopup(message, onClose) {
