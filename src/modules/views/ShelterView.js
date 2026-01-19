@@ -13,9 +13,8 @@ const MAX_SHELTER_LEVEL = 4;
 let bambooAdded = 0;
 let palmsAdded = 0;
 let overlayOpen = false;
-let shelterRoot = null;
-let shelterWrapperEl = null;
 let currentActionMode = null; // 'build' | 'contribute'
+let messageTimeouts = [];
 
 function isPlayerDay1Leader(player, tribe) {
   const pid = String(player?.id);
@@ -28,6 +27,8 @@ function isPlayerDay1Leader(player, tribe) {
 }
 
 export default function renderShelter(container) {
+  messageTimeouts.forEach(id => clearTimeout(id));
+  messageTimeouts = [];
   cleanupShelterUI();
 
   console.log('renderShelter() called');
@@ -106,8 +107,6 @@ export default function renderShelter(container) {
       overflow: hidden;
     `
   });
-  shelterRoot = wrapper;
-  shelterWrapperEl = wrapper;
 
   const shelterLevelContainer = createElement('div', {
     id: 'shelter-level-indicator',
@@ -165,43 +164,55 @@ export default function renderShelter(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
   const messageEl = message;
-  const wrapperEl = wrapper;
   window.__campViewCleanup = cleanupShelterUI;
-  ensureStockpileBanner(wrapper, playerTribe);
-  updateStockpileValuesUI(playerTribe);
+  try {
+    ensureStockpileBanner(wrapper, playerTribe);
+  } catch (err) {
+    console.warn('[ShelterView] Stockpile banner render failed (non-fatal):', err);
+  }
+  try {
+    updateStockpileValuesUI(playerTribe);
+  } catch (err) {
+    console.warn('[ShelterView] Stockpile values update failed (non-fatal):', err);
+  }
 
   try {
     renderNPCsAtShelter(container);
   } catch (err) {
     console.warn('[ShelterView] NPC render failed (non-fatal):', err);
   }
-  createResourceButtons(wrapper);
+  try {
+    createResourceButtons(wrapper);
+  } catch (err) {
+    console.warn('[ShelterView] Resource buttons render failed (non-fatal):', err);
+  }
 
-  setTimeout(() => {
-    if (messageEl && messageEl.isConnected && wrapperEl?.isConnected) messageEl.style.opacity = '0';
+  const t1 = setTimeout(() => {
+    if (messageEl && messageEl.isConnected) messageEl.style.opacity = '0';
   }, 3000);
+  messageTimeouts.push(t1);
 
-  setTimeout(() => {
-    if (messageEl && messageEl.isConnected && wrapperEl?.isConnected) messageEl.remove();
+  const t2 = setTimeout(() => {
+    if (messageEl && messageEl.isConnected) messageEl.remove();
   }, 4000);
+  messageTimeouts.push(t2);
 
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
 
 function getShelterRoot() {
-  return shelterRoot || document.querySelector('.shelter-wrapper') || document.getElementById('camp-content');
+  return document.getElementById('camp-content');
 }
 
 function getShelterWrapper() {
-  if (shelterWrapperEl && shelterWrapperEl.isConnected) {
-    return shelterWrapperEl;
-  }
-
-  shelterWrapperEl = document.querySelector('#camp-content .shelter-wrapper') || document.querySelector('.shelter-wrapper');
-  return shelterWrapperEl;
+  return document.querySelector('#camp-content .shelter-wrapper');
 }
 
 function cleanupShelterUI() {
+  // clear pending message timeouts
+  messageTimeouts.forEach(id => clearTimeout(id));
+  messageTimeouts = [];
+
   const wrapper = getShelterWrapper();
   if (wrapper) {
     const removableIds = [
@@ -213,19 +224,21 @@ function cleanupShelterUI() {
       'palm-selector-overlay',
       'cobuilder-popup',
       'confirm-popup',
-      'shelter-resource-buttons'
+      'shelter-resource-buttons',
+      'shelter-message'
     ];
 
     removableIds.forEach(id => wrapper.querySelectorAll(`#${id}`).forEach(el => el.remove()));
     wrapper.querySelectorAll('.shelter-temp-overlay').forEach(el => el.remove());
-    wrapper.querySelectorAll('#shelter-message').forEach(el => el.remove());
   }
+
+  // Also remove any stray stockpile banners (in case an old one survived)
+  document.querySelectorAll('#stockpile-banner').forEach(el => el.remove());
+
   bambooAdded = 0;
   palmsAdded = 0;
   overlayOpen = false;
   currentActionMode = null;
-  shelterRoot = null;
-  shelterWrapperEl = null;
 }
 
 function handleCenterButtonClick() {
@@ -534,19 +547,19 @@ function ensureStockpileBanner(root, tribe) {
 function startContributionFlow() {
   currentActionMode = 'contribute';
   let wrapper = getShelterWrapper();
-  if (!wrapper) {
-    console.warn('[ShelterView] No wrapper found for contribution flow');
+  if (!wrapper || !wrapper.isConnected) {
+    console.warn('[ShelterView] startContributionFlow aborted: wrapper missing/disconnected');
     return;
   }
   let isWrapper = wrapper.classList?.contains('shelter-wrapper');
   console.info('[ShelterView] Contribution flow wrapper is shelter-wrapper:', isWrapper);
   if (!isWrapper) {
-    wrapper = document.querySelector('#camp-content .shelter-wrapper');
-    isWrapper = wrapper?.classList?.contains('shelter-wrapper');
-    if (!isWrapper) {
+    const alternateWrapper = document.querySelector('#camp-content .shelter-wrapper');
+    if (!alternateWrapper || !alternateWrapper.isConnected || !alternateWrapper.classList?.contains('shelter-wrapper')) {
       console.error('[ShelterView] Contribution flow failed: unable to find shelter-wrapper.');
       return;
     }
+    wrapper = alternateWrapper;
   }
   const tribe = gameManager.getPlayerTribe();
   ensureStockpileBanner(wrapper, tribe);
@@ -557,6 +570,7 @@ function startContributionFlow() {
 
 function updateContributionSubmit(wrapper) {
   const targetWrapper = wrapper || getShelterWrapper();
+  if (!targetWrapper || !targetWrapper.isConnected) return;
   let submit = targetWrapper?.querySelector('#submit-contribution-button');
   const stagedTotal = (bambooAdded || 0) + (palmsAdded || 0);
   if (!submit) {
