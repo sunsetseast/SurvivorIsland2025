@@ -15,6 +15,17 @@ export default function renderTribeFlag(container) {
   addDebugBanner('renderTribeFlag() called', 'teal', 40);
 
   clearChildren(container);
+  const loadCampView = (locationKey) => {
+    if (window.campScreen?.loadView) {
+      window.campScreen.loadView(locationKey);
+      return;
+    }
+    if (screenManager.screens?.camp?.loadView) {
+      screenManager.screens.camp.loadView(locationKey);
+      return;
+    }
+    console.warn('[TribeFlagView] Unable to load camp view', { locationKey });
+  };
 
   container.style.backgroundImage = "url('Assets/Screens/tribe-flag.png')";
   container.style.backgroundSize = 'cover';
@@ -245,7 +256,7 @@ export default function renderTribeFlag(container) {
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
       console.log('Left button clicked');
-      screenManager.screens['camp'].loadView(LocationKeys.BEACH);
+      loadCampView(LocationKeys.BEACH);
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
@@ -254,7 +265,7 @@ export default function renderTribeFlag(container) {
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - loading Campfire');
-      window.campScreen.loadView(LocationKeys.CAMPFIRE);
+      loadCampView(LocationKeys.CAMPFIRE);
     });
 
     // Testing button to reset clock timer to zero
