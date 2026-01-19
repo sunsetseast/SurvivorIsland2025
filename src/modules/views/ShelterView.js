@@ -34,6 +34,13 @@ export default function renderShelter(container) {
   addDebugBanner('renderShelter() called', 'darkgreen', 40);
 
   clearChildren(container);
+  const loadCampView = (locationKey) => {
+    if (window.campScreen?.loadView) {
+      window.campScreen.loadView(locationKey);
+      return;
+    }
+    console.warn('[ShelterView] Unable to load camp view', { locationKey });
+  };
 
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
@@ -71,11 +78,11 @@ export default function renderShelter(container) {
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      window.campScreen.loadView(LocationKeys.CAMPFIRE);
+      loadCampView(LocationKeys.CAMPFIRE);
     });
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', handleCenterButtonClick);
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-      window.campScreen.loadView(LocationKeys.FORK1);
+      loadCampView(LocationKeys.FORK1);
     });
 
     actionButtons.appendChild(leftButton);

@@ -19,6 +19,13 @@ export default function renderCampfire(container) {
   addDebugBanner('renderCampfire() called', 'orangered', 40);
 
   clearChildren(container);
+  const loadCampView = (locationKey) => {
+    if (window.campScreen?.loadView) {
+      window.campScreen.loadView(locationKey);
+      return;
+    }
+    console.warn('[CampfireView] Unable to load camp view', { locationKey });
+  };
 
   // Get player's tribe fire value to determine background
   const playerTribe = gameManager.getPlayerTribe();
@@ -198,19 +205,19 @@ export default function renderCampfire(container) {
       return wrapper;
     };
 
-    const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
-      console.log('Up button clicked - returning to Tribe Flag');
-      window.campScreen.loadView(LocationKeys.TRIBE_FLAG);
-    });
+  const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
+    console.log('Up button clicked - returning to Tribe Flag');
+    loadCampView(LocationKeys.TRIBE_FLAG);
+  });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
       actionPopup.style.display = actionPopup.style.display === 'none' ? 'flex' : 'none';
     });
 
-    const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-      console.log('Down button clicked - loading Shelter');
-      window.campScreen.loadView(LocationKeys.SHELTER);
-    });
+  const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
+    console.log('Down button clicked - loading Shelter');
+    loadCampView(LocationKeys.SHELTER);
+  });
 
     actionButtons.appendChild(upButton);
     actionButtons.appendChild(blankButton);
