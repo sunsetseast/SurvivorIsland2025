@@ -104,7 +104,7 @@ export default function renderShelter(container) {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      overflow: visible;
     `
   });
 
@@ -144,8 +144,6 @@ export default function renderShelter(container) {
     shelterLevelContainer.appendChild(circle);
   }
 
-  container.appendChild(shelterLevelContainer);
-
   const message = createElement('div', {
     id: 'shelter-message',
     style: `
@@ -161,10 +159,11 @@ export default function renderShelter(container) {
     `
   }, 'Shelter: Rest, recover, and prepare for the next challenge.');
 
+  wrapper.appendChild(shelterLevelContainer);
   wrapper.appendChild(message);
   container.appendChild(wrapper);
   const root = getShelterRoot();
-  const msgEl = root ? root.querySelector('#shelter-message') : null;
+  const msgEl = message;
   window.__campViewCleanup = cleanupShelterUI;
   try {
     ensureStockpileBanner(wrapper, playerTribe);
