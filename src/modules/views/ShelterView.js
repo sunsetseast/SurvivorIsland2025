@@ -164,6 +164,8 @@ export default function renderShelter(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+  const messageEl = message;
+  const wrapperEl = wrapper;
   window.__campViewCleanup = cleanupShelterUI;
   ensureStockpileBanner(wrapper, playerTribe);
   updateStockpileValuesUI(playerTribe);
@@ -176,13 +178,11 @@ export default function renderShelter(container) {
   createResourceButtons(wrapper);
 
   setTimeout(() => {
-    const msgEl = getShelterWrapper()?.querySelector('#shelter-message');
-    if (msgEl) msgEl.style.opacity = '0';
+    if (messageEl && messageEl.isConnected && wrapperEl?.isConnected) messageEl.style.opacity = '0';
   }, 3000);
 
   setTimeout(() => {
-    const msgEl = getShelterWrapper()?.querySelector('#shelter-message');
-    if (msgEl) msgEl.remove();
+    if (messageEl && messageEl.isConnected && wrapperEl?.isConnected) messageEl.remove();
   }, 4000);
 
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
@@ -224,6 +224,8 @@ function cleanupShelterUI() {
   palmsAdded = 0;
   overlayOpen = false;
   currentActionMode = null;
+  shelterRoot = null;
+  shelterWrapperEl = null;
 }
 
 function handleCenterButtonClick() {
@@ -436,11 +438,7 @@ function ensureStockpileBanner(root, tribe) {
   const palmCount = stockpile.palms || 0;
 
   if (existing) {
-    const bambooCountEl = existing.querySelector('.stockpile-count-bamboo');
-    const palmCountEl = existing.querySelector('.stockpile-count-palm');
-    if (bambooCountEl) bambooCountEl.textContent = bambooCount;
-    if (palmCountEl) palmCountEl.textContent = palmCount;
-    return;
+    existing.remove();
   }
 
   const banner = createElement('div', {
@@ -535,16 +533,20 @@ function ensureStockpileBanner(root, tribe) {
 
 function startContributionFlow() {
   currentActionMode = 'contribute';
-  const wrapper = getShelterWrapper();
+  let wrapper = getShelterWrapper();
   if (!wrapper) {
     console.warn('[ShelterView] No wrapper found for contribution flow');
     return;
   }
-  const isWrapper = wrapper.classList?.contains('shelter-wrapper');
+  let isWrapper = wrapper.classList?.contains('shelter-wrapper');
   console.info('[ShelterView] Contribution flow wrapper is shelter-wrapper:', isWrapper);
   if (!isWrapper) {
-    console.error('[ShelterView] Contribution flow aborted: wrapper is not shelter-wrapper.');
-    return;
+    wrapper = document.querySelector('#camp-content .shelter-wrapper');
+    isWrapper = wrapper?.classList?.contains('shelter-wrapper');
+    if (!isWrapper) {
+      console.error('[ShelterView] Contribution flow failed: unable to find shelter-wrapper.');
+      return;
+    }
   }
   const tribe = gameManager.getPlayerTribe();
   ensureStockpileBanner(wrapper, tribe);
@@ -553,8 +555,9 @@ function startContributionFlow() {
   addDebugBanner('Contribution flow started', 'teal', 60);
 }
 
-function updateContributionSubmit(wrapper = getShelterWrapper()) {
-  let submit = wrapper?.querySelector('#submit-contribution-button');
+function updateContributionSubmit(wrapper) {
+  const targetWrapper = wrapper || getShelterWrapper();
+  let submit = targetWrapper?.querySelector('#submit-contribution-button');
   const stagedTotal = (bambooAdded || 0) + (palmsAdded || 0);
   if (!submit) {
     submit = createElement('button', {
@@ -579,7 +582,7 @@ function updateContributionSubmit(wrapper = getShelterWrapper()) {
       `
     }, 'Submit Contribution');
     submit.addEventListener('click', submitContribution);
-    wrapper?.appendChild(submit);
+    targetWrapper?.appendChild(submit);
   }
   if (submit) {
     submit.style.display = stagedTotal > 0 ? 'block' : 'none';
@@ -999,8 +1002,9 @@ function createResourceButtons(container) {
   container.appendChild(resourceContainer);
 }
 
-function showResourceButtons(wrapper = getShelterWrapper()) {
-  const resourceButtons = wrapper?.querySelector('#shelter-resource-buttons');
+function showResourceButtons(wrapper) {
+  const targetWrapper = wrapper || getShelterWrapper();
+  const resourceButtons = targetWrapper?.querySelector('#shelter-resource-buttons');
   if (resourceButtons) resourceButtons.style.display = 'flex';
   bambooAdded = 0;
   palmsAdded = 0;
