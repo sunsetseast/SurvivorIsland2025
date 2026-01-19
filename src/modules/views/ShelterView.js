@@ -2,8 +2,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
-import npcLocationSystem, { LocationKeys } from '../systems/NpcLocationSystem.js';
-import { createNpcIcon } from '../ui/NpcIcon.js';
+import { LocationKeys } from '../systems/NpcLocationSystem.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 
@@ -162,7 +161,6 @@ export default function renderShelter(container) {
   wrapper.appendChild(shelterLevelContainer);
   wrapper.appendChild(message);
   container.appendChild(wrapper);
-  const root = getShelterRoot();
   const msgEl = message;
   window.__campViewCleanup = cleanupShelterUI;
   try {
@@ -176,11 +174,6 @@ export default function renderShelter(container) {
     console.warn('[ShelterView] Stockpile values update failed (non-fatal):', err);
   }
 
-  try {
-    renderNPCsAtShelter(container);
-  } catch (err) {
-    console.warn('[ShelterView] NPC render failed (non-fatal):', err);
-  }
   try {
     createResourceButtons(wrapper);
   } catch (err) {
@@ -1269,22 +1262,4 @@ function showResourcePopup(resourceType) {
 
   overlay.appendChild(selector);
   root?.appendChild(overlay);
-}
-
-function renderNPCsAtShelter(container) {
-  const old = container.querySelector('.npc-icon-container');
-  if (old) old.remove();
-
-  const npcContainer = document.createElement('div');
-  npcContainer.classList.add('npc-icon-container');
-
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.SHELTER);
-  survivorsHere.forEach(survivor => {
-    const icon = createNpcIcon(survivor, () => {
-      console.log('Clicked NPC at Shelter:', survivor.name);
-    });
-    npcContainer.appendChild(icon);
-  });
-
-  container.appendChild(npcContainer);
 }
