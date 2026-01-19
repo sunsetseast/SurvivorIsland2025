@@ -3,6 +3,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import screenManager from '../core/ScreenManager.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 const IndividualChallengeView = {
   render(container, challengeConfig = null) {
@@ -185,7 +186,7 @@ const IndividualChallengeView = {
       screenManager.showScreen('camp');
 
       if (window.campScreen && typeof window.campScreen.loadView === 'function') {
-        window.campScreen.loadView('flag');
+        window.campScreen.loadView(LocationKeys.TRIBE_FLAG);
       }
     }
   }

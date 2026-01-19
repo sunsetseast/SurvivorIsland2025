@@ -6,6 +6,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderFishingView(container) {
   console.log('renderFishingView() called');
@@ -263,7 +264,7 @@ export default function renderFishingView(container) {
 
       // ——— SWITCH VIEW ———
       if (window.campScreen && typeof window.campScreen.loadView === 'function') {
-        window.campScreen.loadView('beach');
+        window.campScreen.loadView(LocationKeys.BEACH);
       }
     });
 

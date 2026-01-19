@@ -5,6 +5,7 @@ import challengeManager from '../core/ChallengeManager.js';
 import ChallengeIntroView from '../views/ChallengeIntroView.js';
 import TribeChallengeView from '../views/TribeChallengeView.js';
 import IndividualChallengeView from '../views/IndividualChallengeView.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default class ChallengeScreen {
   constructor() {
@@ -138,7 +139,7 @@ export default class ChallengeScreen {
 
     // Load flag view to show results
     if (window.campScreen && typeof window.campScreen.loadView === 'function') {
-      window.campScreen.loadView('flag');
+      window.campScreen.loadView(LocationKeys.TRIBE_FLAG);
     }
   }
 

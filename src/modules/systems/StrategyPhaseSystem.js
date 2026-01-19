@@ -1,6 +1,7 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import gameManager, { GamePhase, GameState } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /**
  * StrategyPhaseSystem
@@ -165,7 +166,15 @@ class StrategyPhaseSystem {
       return members.filter((m) => m != null);
     };
 
-    const meetingSpots = ['ShelterView', 'CampfireView', 'WaterWellView', 'BeachView', 'Fork1View', 'Fork2View', 'Fork3View'];
+    const meetingSpots = [
+      LocationKeys.SHELTER,
+      LocationKeys.CAMPFIRE,
+      LocationKeys.WATER_WELL,
+      LocationKeys.BEACH,
+      LocationKeys.FORK1,
+      LocationKeys.FORK2,
+      LocationKeys.FORK3
+    ];
 
     this.pendingAllianceMeetings = alliances
       .map((alliance) => {
@@ -781,7 +790,7 @@ class StrategyPhaseSystem {
 
   showSummaryView() {
     if (window.campScreen && typeof window.campScreen.loadView === 'function') {
-      window.campScreen.loadView('strategySummary');
+      window.campScreen.loadView(LocationKeys.STRATEGY_SUMMARY);
     }
   }
 

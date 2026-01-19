@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -18,7 +19,7 @@ export default function renderJungleTrail(container) {
 
   clearChildren(container);
 
-  const fromWaterWell = window.previousCampView === 'waterWell';
+  const fromWaterWell = window.previousCampView === LocationKeys.WATER_WELL;
   const backgroundURL = "url('Assets/Screens/jungle-trail.png')";
 
   container.style.backgroundImage = backgroundURL;
@@ -120,8 +121,8 @@ export default function renderJungleTrail(container) {
     if (fromWaterWell) {
       document.getElementById('camp-content').style.transform = 'scaleX(1)';
     }
-    window.previousCampView = fromWaterWell ? 'waterWell' : 'jungleTrail';
-    window.campScreen.loadView('firewood');
+    window.previousCampView = fromWaterWell ? LocationKeys.WATER_WELL : LocationKeys.JUNGLE_TRAIL;
+    window.campScreen.loadView(LocationKeys.FIREWOOD);
   });
 
   const bambooButton = createElement('button', { 
@@ -132,8 +133,8 @@ export default function renderJungleTrail(container) {
     if (fromWaterWell) {
       document.getElementById('camp-content').style.transform = 'scaleX(1)';
     }
-    window.previousCampView = fromWaterWell ? 'waterWell' : 'jungleTrail';
-    window.campScreen.loadView('bamboo');
+    window.previousCampView = fromWaterWell ? LocationKeys.WATER_WELL : LocationKeys.JUNGLE_TRAIL;
+    window.campScreen.loadView(LocationKeys.BAMBOO);
   });
 
   popupContent.appendChild(popupTitle);
@@ -146,7 +147,7 @@ export default function renderJungleTrail(container) {
 
   huntButton.addEventListener('click', () => {
     resourcePopup.style.display = 'none';
-    openIdolHuntOptions(container, 'JungleTrailView');
+    openIdolHuntOptions(container, LocationKeys.JUNGLE_TRAIL);
   });
 
   popupContent.appendChild(huntButton);
@@ -202,10 +203,10 @@ export default function renderJungleTrail(container) {
       if (fromWaterWell) {
         console.log('Up: go to Fork3');
         document.getElementById('camp-content').style.transform = 'scaleX(1)';
-        window.campScreen.loadView('fork3');
+        window.campScreen.loadView(LocationKeys.FORK3);
       } else {
         console.log('Up: back to Water Well');
-        window.campScreen.loadView('waterWell');
+        window.campScreen.loadView(LocationKeys.WATER_WELL);
       }
     });
 
@@ -218,10 +219,10 @@ export default function renderJungleTrail(container) {
       if (fromWaterWell) {
         console.log('Down: back to Water Well');
         document.getElementById('camp-content').style.transform = 'scaleX(1)';
-        window.campScreen.loadView('waterWell');
+        window.campScreen.loadView(LocationKeys.WATER_WELL);
       } else {
         console.log('Down: go to Fork3');
-        window.campScreen.loadView('fork3');
+        window.campScreen.loadView(LocationKeys.FORK3);
       }
     });
 
@@ -241,7 +242,7 @@ function renderNPCsAtJungleTrail(container) {
   const npcContainer = document.createElement("div");
   npcContainer.classList.add("npc-icon-container");
 
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("JungleTrailView");
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.JUNGLE_TRAIL);
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {

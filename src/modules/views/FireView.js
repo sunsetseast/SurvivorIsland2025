@@ -13,6 +13,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 let coconutsAdded = 0;
 let fish1Added = 0;
@@ -218,7 +219,7 @@ export default function renderFireView(container) {
         if (window.previousCampView) {
           window.campScreen.loadView(window.previousCampView);
         } else {
-          window.campScreen.loadView('campfire');
+          window.campScreen.loadView(LocationKeys.CAMPFIRE);
         }
       },
       ''
@@ -2627,7 +2628,7 @@ export default function renderFireView(container) {
             if (window.previousCampView) {
               window.campScreen.loadView(window.previousCampView);
             } else {
-              window.campScreen.loadView('campfire');
+              window.campScreen.loadView(LocationKeys.CAMPFIRE);
             }
           },
           ''

@@ -6,6 +6,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderShakeView(container) {
   console.log('renderShakeView() called');
@@ -151,7 +152,7 @@ export default function renderShakeView(container) {
         window.campScreen.loadView(window.previousCampView);
       } else {
         console.warn('No previousCampView set. Defaulting to campfire.');
-        window.campScreen.loadView('campfire');
+        window.campScreen.loadView(LocationKeys.CAMPFIRE);
       }
     });
 
@@ -432,7 +433,7 @@ export default function renderShakeView(container) {
             window.campScreen.loadView(window.previousCampView);
           } else {
             console.warn('No previousCampView set. Defaulting to campfire.');
-            window.campScreen.loadView('campfire');
+            window.campScreen.loadView(LocationKeys.CAMPFIRE);
           }
         });
 

@@ -7,6 +7,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -116,14 +117,14 @@ export default function renderCampfire(container) {
   const fireButton = createElement('button', { className: 'rect-button alt' }, 'Tend the Fire');
   fireButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    window.previousCampView = 'campfire';
-    window.campScreen.loadView('fire');
+    window.previousCampView = LocationKeys.CAMPFIRE;
+    window.campScreen.loadView(LocationKeys.FIRE);
   });
 
   const huntButton = createElement('button', { className: 'rect-button alt' }, 'Hunt for an Idol');
   huntButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    openIdolHuntOptions(container, 'CampfireView');
+    openIdolHuntOptions(container, LocationKeys.CAMPFIRE);
   });
 
   popupContent.appendChild(popupTitle);
@@ -199,7 +200,7 @@ export default function renderCampfire(container) {
 
     const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
       console.log('Up button clicked - returning to Tribe Flag');
-      window.campScreen.loadView('flag');
+      window.campScreen.loadView(LocationKeys.TRIBE_FLAG);
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
@@ -208,7 +209,7 @@ export default function renderCampfire(container) {
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       console.log('Down button clicked - loading Shelter');
-      window.campScreen.loadView('shelter');
+      window.campScreen.loadView(LocationKeys.SHELTER);
     });
 
     actionButtons.appendChild(upButton);
@@ -230,7 +231,7 @@ function renderNPCsAtCampfire(container) {
   npcContainer.classList.add("npc-icon-container");
 
   // Get NPCs located at CampfireView
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("CampfireView");
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.CAMPFIRE);
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {

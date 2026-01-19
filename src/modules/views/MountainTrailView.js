@@ -6,6 +6,7 @@
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
@@ -18,7 +19,7 @@ export default function renderMountainTrail(container) {
 
   clearChildren(container);
 
-  const fromTreeMail = window.previousCampView === 'treemail';
+  const fromTreeMail = window.previousCampView === LocationKeys.TREE_MAIL;
   const backgroundURL = "url('Assets/Screens/mountain-trail-view.png')";
 
   container.style.backgroundImage = backgroundURL;
@@ -100,14 +101,14 @@ export default function renderMountainTrail(container) {
   shakeButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
     document.getElementById('camp-content').style.transform = 'scaleX(1)';
-    window.previousCampView = 'mountainTrail';
-    window.campScreen.loadView('shake');
+    window.previousCampView = LocationKeys.MOUNTAIN_TRAIL;
+    window.campScreen.loadView(LocationKeys.SHAKE);
   });
 
   const huntButton = createElement('button', { className: 'rect-button alt' }, 'Hunt for an Idol');
   huntButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    openIdolHuntOptions(container, 'MountainTrailView');
+    openIdolHuntOptions(container, LocationKeys.MOUNTAIN_TRAIL);
   });
 
   popupContent.appendChild(popupTitle);
@@ -177,11 +178,11 @@ export default function renderMountainTrail(container) {
       ? createIconButton('Assets/Buttons/up.png', 'Up', () => {
           console.log('Up: go to Fork2 (from TreeMail)');
           document.getElementById('camp-content').style.transform = 'scaleX(1)';
-          window.campScreen.loadView('fork2');
+          window.campScreen.loadView(LocationKeys.FORK2);
         })
       : createIconButton('Assets/Buttons/up.png', 'Up', () => {
           console.log('Up: back to Tree Mail (from Fork2)');
-          window.campScreen.loadView('treemail');
+          window.campScreen.loadView(LocationKeys.TREE_MAIL);
         });
 
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', () => {
@@ -192,11 +193,11 @@ export default function renderMountainTrail(container) {
       ? createIconButton('Assets/Buttons/down.png', 'Down', () => {
           console.log('Down: back to Tree Mail (from TreeMail)');
           document.getElementById('camp-content').style.transform = 'scaleX(1)';
-          window.campScreen.loadView('treemail');
+          window.campScreen.loadView(LocationKeys.TREE_MAIL);
         })
       : createIconButton('Assets/Buttons/down.png', 'Down', () => {
           console.log('Down: go to Fork2 (from Fork2)');
-          window.campScreen.loadView('fork2');
+          window.campScreen.loadView(LocationKeys.FORK2);
         });
 
     actionButtons.appendChild(upButton);
@@ -215,7 +216,7 @@ function renderNPCsAtMountainTrail(container) {
   const npcContainer = document.createElement("div");
   npcContainer.classList.add("npc-icon-container");
 
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation("MountainTrailView");
+  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.MOUNTAIN_TRAIL);
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {
