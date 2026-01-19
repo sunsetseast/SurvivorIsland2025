@@ -86,11 +86,15 @@ const normalizeCampViewKey = (viewName) => {
   const trimmed = viewName.trim();
   if (campViews[trimmed]) return trimmed;
   const lower = trimmed.toLowerCase();
+  const normalized = lower.replace(/[\s_-]+/g, '');
   if (CAMP_VIEW_KEY_LOOKUP[lower]) return CAMP_VIEW_KEY_LOOKUP[lower];
+  if (CAMP_VIEW_KEY_LOOKUP[normalized]) return CAMP_VIEW_KEY_LOOKUP[normalized];
   if (trimmed.endsWith('View')) {
     const base = trimmed.replace(/View$/, '');
     const baseLower = base.toLowerCase();
+    const baseNormalized = baseLower.replace(/[\s_-]+/g, '');
     if (CAMP_VIEW_KEY_LOOKUP[baseLower]) return CAMP_VIEW_KEY_LOOKUP[baseLower];
+    if (CAMP_VIEW_KEY_LOOKUP[baseNormalized]) return CAMP_VIEW_KEY_LOOKUP[baseNormalized];
     return base.charAt(0).toLowerCase() + base.slice(1);
   }
   return trimmed;
