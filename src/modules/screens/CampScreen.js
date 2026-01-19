@@ -220,17 +220,22 @@ export default class CampScreen {
   loadView(viewName) {
     const viewContainer = getElement('camp-content');
 
+    // Call previous view cleanup (if provided by the view)
+    if (typeof window.__campViewCleanup === 'function') {
+      try {
+        window.__campViewCleanup();
+      } catch (e) {
+        console.warn('[CampScreen] __campViewCleanup failed:', e);
+      } finally {
+        window.__campViewCleanup = null;
+      }
+    }
+
     this.ensureTaskIcon();
     this.closeTaskOverlay();
     this.setTaskIconVisible(true);
 
     // Always clear old view first
-    if (typeof window.__campViewCleanup === 'function') {
-      try {
-        window.__campViewCleanup();
-      } catch (e) {}
-    }
-    window.__campViewCleanup = null;
     clearChildren(viewContainer);
 
     // Track previous view
