@@ -371,7 +371,7 @@ export default function renderWaterWell(container) {
     activityTracker.trackWaterGathering(100, false);
     gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
       player.id,
-      'WaterWellView',
+      LocationKeys.WATER_WELL,
       'getWater'
     );
 
@@ -412,7 +412,7 @@ export default function renderWaterWell(container) {
     activityTracker.trackWaterGathering(100, true);
     gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
       player.id,
-      'WaterWellView',
+      LocationKeys.WATER_WELL,
       'getWater'
     );
 
