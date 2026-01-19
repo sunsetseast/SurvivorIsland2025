@@ -9982,8 +9982,8 @@ class ConversationSystem {
 
   _normalizeLocationKey(value) {
     return typeof value === 'string'
-      ? value.trim().toLowerCase()
-      : (value == null ? '' : String(value).trim().toLowerCase());
+      ? value.trim().toLowerCase().replace(/[\s_-]+/g, '')
+      : (value == null ? '' : String(value).trim().toLowerCase().replace(/[\s_-]+/g, ''));
   }
 
   _injectConversationStyles() {

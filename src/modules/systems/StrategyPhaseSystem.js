@@ -33,7 +33,7 @@ class StrategyPhaseSystem {
     return String(viewName)
       .trim()
       .toLowerCase()
-      .replace(/\s+/g, '')
+      .replace(/[\s_-]+/g, '')
       .replace(/view$/i, '');
   }
 

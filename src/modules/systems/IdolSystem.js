@@ -830,11 +830,15 @@ class IdolSystem {
     if (!locationKey || typeof locationKey !== 'string') return locationKey;
     const trimmed = locationKey.trim();
     const lower = trimmed.toLowerCase();
+    const normalized = lower.replace(/[\s_-]+/g, '');
     if (LOCATION_KEY_LOOKUP[lower]) return LOCATION_KEY_LOOKUP[lower];
+    if (LOCATION_KEY_LOOKUP[normalized]) return LOCATION_KEY_LOOKUP[normalized];
     if (trimmed.endsWith('View')) {
       const base = trimmed.replace(/View$/, '');
       const baseLower = base.toLowerCase();
+      const baseNormalized = baseLower.replace(/[\s_-]+/g, '');
       if (LOCATION_KEY_LOOKUP[baseLower]) return LOCATION_KEY_LOOKUP[baseLower];
+      if (LOCATION_KEY_LOOKUP[baseNormalized]) return LOCATION_KEY_LOOKUP[baseNormalized];
       return base.charAt(0).toLowerCase() + base.slice(1);
     }
     return trimmed;

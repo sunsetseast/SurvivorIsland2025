@@ -207,8 +207,12 @@ class NpcAutoRenderer {
         };
 
         const lower = trimmed.toLowerCase();
+        const normalized = lower.replace(/[\s_-]+/g, "");
         if (normalizedMap[lower]) {
             return normalizedMap[lower];
+        }
+        if (normalizedMap[normalized]) {
+            return normalizedMap[normalized];
         }
 
         if (trimmed.endsWith("View")) {
@@ -219,8 +223,12 @@ class NpcAutoRenderer {
 
             const baseName = trimmed.replace(/View$/, "");
             const baseLower = baseName.toLowerCase();
+            const baseNormalized = baseLower.replace(/[\s_-]+/g, "");
             if (normalizedMap[baseLower]) {
                 return normalizedMap[baseLower];
+            }
+            if (normalizedMap[baseNormalized]) {
+                return normalizedMap[baseNormalized];
             }
 
             return baseName.charAt(0).toLowerCase() + baseName.slice(1);
