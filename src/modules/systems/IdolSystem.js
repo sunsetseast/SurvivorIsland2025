@@ -5,84 +5,101 @@
 
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { generateId, getRandomInt } from '../utils/CommonUtils.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 export const ELIGIBLE_IDOL_LOCATIONS = [
-  'BeachView',
-  'CampfireView',
-  'JungleTrailView',
-  'MountainTrailView',
-  'RockyShoreView',
-  'ShelterView',
-  'TreeMailView',
-  'TribeFlagView',
-  'WaterfallTrailView',
-  'WaterWellView'
+  LocationKeys.BEACH,
+  LocationKeys.CAMPFIRE,
+  LocationKeys.JUNGLE_TRAIL,
+  LocationKeys.MOUNTAIN_TRAIL,
+  LocationKeys.ROCKY_SHORE,
+  LocationKeys.SHELTER,
+  LocationKeys.TREE_MAIL,
+  LocationKeys.TRIBE_FLAG,
+  LocationKeys.WATERFALL_TRAIL,
+  LocationKeys.WATER_WELL
 ];
 
 const LOCATION_NAMES = {
-  BeachView: 'Beach',
-  CampfireView: 'Campfire',
-  JungleTrailView: 'Jungle Trail',
-  MountainTrailView: 'Mountain Trail',
-  RockyShoreView: 'Rocky Shore',
-  ShelterView: 'Shelter',
-  TreeMailView: 'Tree Mail',
-  TribeFlagView: 'Tribe Flag',
-  WaterfallTrailView: 'Waterfall Trail',
-  WaterWellView: 'Water Well'
+  [LocationKeys.BEACH]: 'Beach',
+  [LocationKeys.CAMPFIRE]: 'Campfire',
+  [LocationKeys.JUNGLE_TRAIL]: 'Jungle Trail',
+  [LocationKeys.MOUNTAIN_TRAIL]: 'Mountain Trail',
+  [LocationKeys.ROCKY_SHORE]: 'Rocky Shore',
+  [LocationKeys.SHELTER]: 'Shelter',
+  [LocationKeys.TREE_MAIL]: 'Tree Mail',
+  [LocationKeys.TRIBE_FLAG]: 'Tribe Flag',
+  [LocationKeys.WATERFALL_TRAIL]: 'Waterfall Trail',
+  [LocationKeys.WATER_WELL]: 'Water Well'
 };
 
 const CLUE_TEMPLATES = {
-  BeachView: [
+  [LocationKeys.BEACH]: [
     'Where the waves soften the shoreline, the idol waits near the {location}.',
     'The sand whispers at the {location}—that is where the idol rests.',
     'When the tide hums, the {location} hides the prize you seek.'
   ],
-  CampfireView: [
+  [LocationKeys.CAMPFIRE]: [
     'Follow the smoke and embers to the {location}.',
     'Ash and ember guard the idol at the {location}.',
     'Where warmth gathers, so does power — the {location}.'
   ],
-  JungleTrailView: [
+  [LocationKeys.JUNGLE_TRAIL]: [
     'The jungle thickens where the {location} bends.',
     'Leave the path and listen; the {location} keeps its secret.',
     'Vines and shadows point toward the {location}.'
   ],
-  MountainTrailView: [
+  [LocationKeys.MOUNTAIN_TRAIL]: [
     'Higher ground reveals the {location}.',
     'Stone and wind guide you to the {location}.',
     'The climb ends where the {location} begins.'
   ],
-  RockyShoreView: [
+  [LocationKeys.ROCKY_SHORE]: [
     'Jagged stone and salt spray mark the {location}.',
     'Seek the idol where the rocks break the tide — the {location}.',
     'The shore grows sharp at the {location}.'
   ],
-  ShelterView: [
+  [LocationKeys.SHELTER]: [
     'Home holds secrets; the {location} conceals the idol.',
     'Beneath woven shade, the {location} keeps its secret.',
     'The idol hides close to camp at the {location}.'
   ],
-  TreeMailView: [
+  [LocationKeys.TREE_MAIL]: [
     'News brings power; follow the path to the {location}.',
     'Where messages hang, so does fortune — the {location}.',
     'The idol waits near the {location}, where word travels.'
   ],
-  TribeFlagView: [
+  [LocationKeys.TRIBE_FLAG]: [
     'Pride marks the {location}.',
     'Where your colors fly, the {location} keeps the idol.',
     'Honor and power meet at the {location}.'
   ],
-  WaterfallTrailView: [
+  [LocationKeys.WATERFALL_TRAIL]: [
     'Mist and roar conceal the {location}.',
     'Where water thunders, the {location} hides the idol.',
     'The trail of spray points to the {location}.'
   ],
-  WaterWellView: [
+  [LocationKeys.WATER_WELL]: [
     'Still water mirrors the {location}.',
     'Quench your thirst at the {location}, but keep searching.',
     'The idol rests where canteens are filled — the {location}.'
   ]
+};
+
+const LOCATION_KEY_LOOKUP = {
+  [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
+  [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
+  [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
+  [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
+  [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
+  [LocationKeys.SHELTER.toLowerCase()]: LocationKeys.SHELTER,
+  [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
+  [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
+  [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
+  [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
+  flag: LocationKeys.TRIBE_FLAG,
+  treemail: LocationKeys.TREE_MAIL,
+  rocky: LocationKeys.ROCKY_SHORE
 };
 
 const HUNT_SETTINGS = {
@@ -175,7 +192,8 @@ class IdolSystem {
   }
 
   attemptIntentionalHunt(survivorId, locationKey, mode, opts = {}) {
-    const safeLocationKey = locationKey || 'unknown';
+    const normalizedLocationKey = this.normalizeLocationKey(locationKey) || locationKey;
+    const safeLocationKey = normalizedLocationKey || 'unknown';
     const via = 'intentional';
 
     if (!this.gameManager.gameSettings?.enableIdols) {
@@ -391,7 +409,8 @@ class IdolSystem {
   }
 
   attemptIncidentalFind(survivorId, mappedLocationKey, sourceTag) {
-    const safeLocationKey = mappedLocationKey || 'unknown';
+    const normalizedLocationKey = this.normalizeLocationKey(mappedLocationKey) || mappedLocationKey;
+    const safeLocationKey = normalizedLocationKey || 'unknown';
     const via = 'incidental';
 
     if (!this.gameManager.gameSettings?.enableIdols) {
@@ -436,13 +455,13 @@ class IdolSystem {
       idolState &&
       !idolState.isFound &&
       !idolState.isUsed &&
-      idolState.locationKey === mappedLocationKey;
+      idolState.locationKey === normalizedLocationKey;
 
     const clueHiddenHere =
       clueState &&
       !clueState.isFound &&
       !clueState.expired &&
-      clueState.hiddenAtLocationKey === mappedLocationKey;
+      clueState.hiddenAtLocationKey === normalizedLocationKey;
 
     if (!idolHiddenHere && !clueHiddenHere) {
       return this._buildResult({
@@ -460,7 +479,7 @@ class IdolSystem {
         idolState,
         survivor,
         tribeId,
-        locationKey: mappedLocationKey,
+        locationKey: safeLocationKey,
         via: 'incidental',
         sourceTag
       });
@@ -482,7 +501,7 @@ class IdolSystem {
         clueState,
         survivor,
         tribeId,
-        locationKey: mappedLocationKey,
+        locationKey: safeLocationKey,
         via: 'incidental',
         sourceTag
       });
@@ -514,7 +533,7 @@ class IdolSystem {
         idolState,
         survivor,
         tribeId,
-        locationKey: mappedLocationKey,
+        locationKey: safeLocationKey,
         via: 'incidental',
         sourceTag
       });
@@ -536,7 +555,7 @@ class IdolSystem {
         clueState,
         survivor,
         tribeId,
-        locationKey: mappedLocationKey,
+        locationKey: safeLocationKey,
         via: 'incidental',
         sourceTag
       });
@@ -652,7 +671,8 @@ class IdolSystem {
   }
 
   getCasualSearchCount(survivorId, locationKey) {
-    const key = this._casualCountKey(survivorId, locationKey);
+    const canonicalLocation = this.normalizeLocationKey(locationKey) || locationKey;
+    const key = this._casualCountKey(survivorId, canonicalLocation);
     return this.casualSearchCounts.get(key) || 0;
   }
 
@@ -804,6 +824,20 @@ class IdolSystem {
 
   _casualCountKey(survivorId, locationKey) {
     return `${this.currentCampPhaseId || 'camp'}:${survivorId}:${locationKey}`;
+  }
+
+  normalizeLocationKey(locationKey) {
+    if (!locationKey || typeof locationKey !== 'string') return locationKey;
+    const trimmed = locationKey.trim();
+    const lower = trimmed.toLowerCase();
+    if (LOCATION_KEY_LOOKUP[lower]) return LOCATION_KEY_LOOKUP[lower];
+    if (trimmed.endsWith('View')) {
+      const base = trimmed.replace(/View$/, '');
+      const baseLower = base.toLowerCase();
+      if (LOCATION_KEY_LOOKUP[baseLower]) return LOCATION_KEY_LOOKUP[baseLower];
+      return base.charAt(0).toLowerCase() + base.slice(1);
+    }
+    return trimmed;
   }
 
   _buildCampPhaseId() {

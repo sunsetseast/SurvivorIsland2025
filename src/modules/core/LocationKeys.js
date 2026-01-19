@@ -1,0 +1,22 @@
+export const LocationKeys = {
+  SHELTER: 'shelter',
+  CAMPFIRE: 'campfire',
+  WATER_WELL: 'waterWell',
+  BEACH: 'beach',
+  ROCKY_SHORE: 'rockyShore',
+  WATERFALL_TRAIL: 'waterfallTrail',
+  JUNGLE_TRAIL: 'jungleTrail',
+  MOUNTAIN_TRAIL: 'mountainTrail',
+  TREE_MAIL: 'treeMail',
+  TRIBE_FLAG: 'tribeFlag',
+  FORK1: 'fork1',
+  FORK2: 'fork2',
+  FORK3: 'fork3',
+  FIREWOOD: 'firewood',
+  BAMBOO: 'bamboo',
+  SHAKE: 'shake',
+  FISHING: 'fishing',
+  FIRE: 'fire',
+  SUMMARY: 'summary',
+  STRATEGY_SUMMARY: 'strategySummary'
+};
