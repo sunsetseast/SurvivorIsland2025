@@ -2,7 +2,7 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
-import { LocationKeys } from '../systems/NpcLocationSystem.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 
@@ -71,11 +71,11 @@ export default function renderShelter(container) {
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      window.campScreen.loadView('campfire');
+      window.campScreen.loadView(LocationKeys.CAMPFIRE);
     });
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', handleCenterButtonClick);
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-      window.campScreen.loadView('fork1');
+      window.campScreen.loadView(LocationKeys.FORK1);
     });
 
     actionButtons.appendChild(leftButton);
@@ -190,10 +190,11 @@ export default function renderShelter(container) {
   }, 4000);
   messageTimeouts.push(t2);
 
-  console.log('[ShelterView] render complete', {
-    hasWrapper: !!document.querySelector('#camp-content .shelter-wrapper'),
-    hasBanner: !!document.querySelector('#camp-content .shelter-wrapper #stockpile-banner'),
-    hasResourceButtons: !!document.querySelector('#camp-content .shelter-wrapper #shelter-resource-buttons')
+  console.log('[ShelterView] ASSERT', {
+    viewKey: LocationKeys.SHELTER,
+    hasWrapper: !!wrapper && wrapper.isConnected,
+    hasBanner: !!wrapper?.querySelector('#stockpile-banner'),
+    hasButtons: !!wrapper?.querySelector('#shelter-resource-buttons')
   });
 
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
@@ -470,96 +471,114 @@ function updateStockpileValuesUI(tribe) {
 
 function ensureStockpileBanner(root, tribe) {
   if (!root) return;
-  root.querySelectorAll('#stockpile-banner').forEach(el => el.remove());
+  const existing = Array.from(root.querySelectorAll('#stockpile-banner'));
+  const banner = existing.shift();
+  existing.forEach(el => el.remove());
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
   const bambooCount = stockpile.bamboo || 0;
   const palmCount = stockpile.palms || 0;
 
-  const banner = createElement('div', {
-    id: 'stockpile-banner',
-    style: `
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 120px;
-      background: rgba(0,0,0,0.55);
-      color: #fff8e7;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-family: 'Survivant', serif;
-      font-size: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
-      z-index: 60;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    `
-  });
+  let bannerNode = banner;
+  let bambooNode = bannerNode?.querySelector('.stockpile-count-bamboo');
+  let palmNode = bannerNode?.querySelector('.stockpile-count-palm');
 
-  const title = createElement('div', {
-    style: `
-      text-align: center;
-      width: 100%;
-      color: #f5f5dc;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-      letter-spacing: 0.3px;
-    `
-  }, 'Tribe Stockpile');
+  if (bannerNode && (!bambooNode || !palmNode)) {
+    bannerNode.remove();
+    bannerNode = null;
+    bambooNode = null;
+    palmNode = null;
+  }
 
-  const row = createElement('div', {
-    style: `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      justify-content: center;
-    `
-  });
-
-  const createStockpileItem = (src, alt, count, countClass) => {
-    const item = createElement('div', {
-      className: 'stockpile-item',
+  if (!bannerNode) {
+    bannerNode = createElement('div', {
+      id: 'stockpile-banner',
       style: `
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 120px;
+        background: rgba(0,0,0,0.55);
+        color: #fff8e7;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-family: 'Survivant', serif;
+        font-size: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+        z-index: 60;
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 6px;
       `
     });
 
-    const icon = createElement('img', {
-      src,
-      alt,
+    const title = createElement('div', {
       style: `
-        width: 28px;
-        height: 28px;
-        object-fit: contain;
-        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+        text-align: center;
+        width: 100%;
+        color: #f5f5dc;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        letter-spacing: 0.3px;
+      `
+    }, 'Tribe Stockpile');
+
+    const row = createElement('div', {
+      style: `
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
       `
     });
 
-    const countEl = createElement('span', {
-      className: countClass,
-      style: `
-        color: #f5f5dc;
-        font-family: 'Survivant', serif;
-        font-size: 16px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-        display: inline-block;
-        min-width: 14px;
-        text-align: center;
-      `
-    }, count);
+    const createStockpileItem = (src, alt, count, countClass) => {
+      const item = createElement('div', {
+        className: 'stockpile-item',
+        style: `
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        `
+      });
 
-    item.appendChild(icon);
-    item.appendChild(countEl);
-    return item;
-  };
+      const icon = createElement('img', {
+        src,
+        alt,
+        style: `
+          width: 28px;
+          height: 28px;
+          object-fit: contain;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+        `
+      });
 
-  row.appendChild(createStockpileItem('Assets/Minigame/bambooButton.png', 'Bamboo stockpile', bambooCount, 'stockpile-count-bamboo'));
-  row.appendChild(createStockpileItem('Assets/Minigame/palmsButton.png', 'Palm fronds stockpile', palmCount, 'stockpile-count-palm'));
+      const countEl = createElement('span', {
+        className: countClass,
+        style: `
+          color: #f5f5dc;
+          font-family: 'Survivant', serif;
+          font-size: 16px;
+          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+          display: inline-block;
+          min-width: 14px;
+          text-align: center;
+        `
+      }, count);
 
-  banner.appendChild(title);
-  banner.appendChild(row);
-  root.appendChild(banner);
+      item.appendChild(icon);
+      item.appendChild(countEl);
+      return item;
+    };
+
+    row.appendChild(createStockpileItem('Assets/Minigame/bambooButton.png', 'Bamboo stockpile', bambooCount, 'stockpile-count-bamboo'));
+    row.appendChild(createStockpileItem('Assets/Minigame/palmsButton.png', 'Palm fronds stockpile', palmCount, 'stockpile-count-palm'));
+
+    bannerNode.appendChild(title);
+    bannerNode.appendChild(row);
+    root.appendChild(bannerNode);
+  } else {
+    if (bambooNode) bambooNode.textContent = bambooCount;
+    if (palmNode) palmNode.textContent = palmCount;
+  }
   if (!root.classList || !root.classList.contains('shelter-wrapper')) {
     console.warn('[ShelterView] Stockpile banner anchored to NON-wrapper root:', root);
   }
@@ -569,7 +588,17 @@ function startContributionFlow() {
   currentActionMode = 'contribute';
   const root = getShelterRoot();
   if (!root) {
-    console.error('[ShelterView] startContributionFlow aborted: missing shelter root');
+    const campContent = document.getElementById('camp-content');
+    const childrenDump = campContent
+      ? Array.from(campContent.children).map(child => ({
+        tag: child.tagName,
+        id: child.id,
+        className: child.className
+      }))
+      : [];
+    console.error('[ShelterView] startContributionFlow aborted: missing shelter root', {
+      campChildren: childrenDump
+    });
     return;
   }
   const tribe = gameManager.getPlayerTribe();
@@ -976,7 +1005,13 @@ function logBuildAttempt(outcome, partner, style, extra) {
 }
 
 function createResourceButtons(container) {
-  const resourceContainer = createElement('div', {
+  if (!container) return;
+  const existing = Array.from(container.querySelectorAll('#shelter-resource-buttons'));
+  const resourceContainer = existing.shift();
+  existing.forEach(el => el.remove());
+  if (resourceContainer) return;
+
+  const newContainer = createElement('div', {
     id: 'shelter-resource-buttons',
     style: `
       position: absolute;
@@ -1022,14 +1057,19 @@ function createResourceButtons(container) {
   bambooButton.addEventListener('click', () => showResourcePopup('bamboo'));
   palmButton.addEventListener('click', () => showResourcePopup('palm'));
 
-  resourceContainer.appendChild(bambooButton);
-  resourceContainer.appendChild(palmButton);
-  container.appendChild(resourceContainer);
+  newContainer.appendChild(bambooButton);
+  newContainer.appendChild(palmButton);
+  container.appendChild(newContainer);
 }
 
 function showResourceButtons(wrapper) {
   const targetWrapper = wrapper || getShelterRoot();
-  const resourceButtons = targetWrapper?.querySelector('#shelter-resource-buttons');
+  if (!targetWrapper) return;
+  let resourceButtons = targetWrapper.querySelector('#shelter-resource-buttons');
+  if (!resourceButtons) {
+    createResourceButtons(targetWrapper);
+    resourceButtons = targetWrapper.querySelector('#shelter-resource-buttons');
+  }
   if (resourceButtons) resourceButtons.style.display = 'flex';
   bambooAdded = 0;
   palmsAdded = 0;

@@ -7,23 +7,38 @@
 import gameManager from "../core/GameManager.js";
 import { getRandomInt } from "../utils/CommonUtils.js";
 import eventManager from "../core/EventManager.js";
+import { LocationKeys } from "../core/LocationKeys.js";
 
 // Safe debug helper – uses global debugBanner if it exists
 const dbg = window.debugBanner || function () {};
 
-// ----------------------------------------------
-// ✔ MATCHES CampScreen.js VIEW KEYS
-// ----------------------------------------------
-export const LocationKeys = {
-  BEACH: "beach",
-  SHELTER: "shelter",
-  CAMPFIRE: "campfire",
-  WATER_WELL: "waterWell",
-  ROCKY: "rocky",
-  JUNGLE_TRAIL: "jungleTrail",
-  MOUNTAIN_TRAIL: "mountainTrail",
-  WATERFALL_TRAIL: "waterfallTrail",
-  TREEMAIL: "treemail"
+const LOCATION_KEY_LOOKUP = {
+  [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
+  [LocationKeys.SHELTER.toLowerCase()]: LocationKeys.SHELTER,
+  [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
+  [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
+  [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
+  [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
+  [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
+  [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
+  [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
+  rocky: LocationKeys.ROCKY_SHORE,
+  treemail: LocationKeys.TREE_MAIL,
+  flag: LocationKeys.TRIBE_FLAG
+};
+
+const normalizeLocationKey = (key) => {
+  if (!key || typeof key !== "string") return key;
+  const trimmed = key.trim();
+  const lower = trimmed.toLowerCase();
+  if (LOCATION_KEY_LOOKUP[lower]) return LOCATION_KEY_LOOKUP[lower];
+  if (trimmed.endsWith("View")) {
+    const base = trimmed.replace(/View$/, "");
+    const baseLower = base.toLowerCase();
+    if (LOCATION_KEY_LOOKUP[baseLower]) return LOCATION_KEY_LOOKUP[baseLower];
+    return base.charAt(0).toLowerCase() + base.slice(1);
+  }
+  return trimmed;
 };
 
 export const CAMP_LOCATION_WEIGHTS = {
@@ -32,12 +47,12 @@ export const CAMP_LOCATION_WEIGHTS = {
   [LocationKeys.CAMPFIRE]: 3,
   [LocationKeys.WATER_WELL]: 3,
 
-  [LocationKeys.ROCKY]: 1,
+  [LocationKeys.ROCKY_SHORE]: 1,
   [LocationKeys.JUNGLE_TRAIL]: 1,
   [LocationKeys.MOUNTAIN_TRAIL]: 1,
   [LocationKeys.WATERFALL_TRAIL]: 1,
 
-  [LocationKeys.TREEMAIL]: 1 // Player can walk here
+  [LocationKeys.TREE_MAIL]: 1 // Player can walk here
 };
 
 // Dynamically derived key list
@@ -97,8 +112,10 @@ class NpcLocationSystem {
 
     // Assign locations
     for (let npc of shuffled) {
-      const loc = this._chooseLocationForSurvivor(npc, shuffled);
+      const loc = normalizeLocationKey(this._chooseLocationForSurvivor(npc, shuffled));
       this.locations[npc.id] = loc;
+      npc.location = loc;
+      console.log("[NpcLocationSystem] assigned", npc.name || npc.firstName || npc.id, "->", loc);
       dbg("Assigned NPC location", { npc: npc.firstName, loc });
     }
 
@@ -141,24 +158,24 @@ class NpcLocationSystem {
     const traits = npc.personalityTraits || [];
 
     if (traits.includes("paranoid")) {
-      scores.waterWell += 1;
-      scores.jungleTrail += 1;
+      scores[LocationKeys.WATER_WELL] += 1;
+      scores[LocationKeys.JUNGLE_TRAIL] += 1;
     }
 
     if (traits.includes("idol_hunter")) {
-      scores.jungleTrail += 2;
-      scores.mountainTrail += 2;
-      scores.waterfallTrail += 2;
+      scores[LocationKeys.JUNGLE_TRAIL] += 2;
+      scores[LocationKeys.MOUNTAIN_TRAIL] += 2;
+      scores[LocationKeys.WATERFALL_TRAIL] += 2;
     }
 
     if (traits.includes("social")) {
-      scores.beach += 2;
-      scores.shelter += 2;
+      scores[LocationKeys.BEACH] += 2;
+      scores[LocationKeys.SHELTER] += 2;
     }
 
     if (traits.includes("loner")) {
-      scores.rocky += 2;            // ✅ matches CAMP_LOCATION_WEIGHTS
-      scores.waterfallTrail += 1;
+      scores[LocationKeys.ROCKY_SHORE] += 2;            // ✅ matches CAMP_LOCATION_WEIGHTS
+      scores[LocationKeys.WATERFALL_TRAIL] += 1;
     }
 
     // Weighted pool
@@ -178,7 +195,7 @@ class NpcLocationSystem {
 
     dbg("Location chosen", { npc: npc.firstName, picked });
 
-    return picked;
+    return normalizeLocationKey(picked);
   }
 
   /**
@@ -234,15 +251,17 @@ class NpcLocationSystem {
     const results = [];
     const tribe = gameManager.getPlayerTribe();
     if (!tribe) return results;
+    const canonicalLocation = normalizeLocationKey(locationName);
 
     for (let s of tribe.members) {
-      if (!s.isPlayer && this.locations[s.id] === locationName) {
+      const assignedLocation = normalizeLocationKey(this.locations[s.id]);
+      if (!s.isPlayer && assignedLocation === canonicalLocation) {
         results.push(s);
       }
     }
 
     dbg("getSurvivorsAtLocation", {
-      viewName: locationName,
+      viewName: canonicalLocation,
       results: results.map(r => r.firstName)
     });
 

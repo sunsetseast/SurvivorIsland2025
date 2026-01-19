@@ -8,6 +8,7 @@ import npcLocationSystem from "../systems/NpcLocationSystem.js";
 import { gameManager } from "../core/index.js";
 import eventManager, { GameEvents } from "../core/EventManager.js";
 import { createElement } from "../utils/DOMUtils.js";
+import { LocationKeys } from "../core/LocationKeys.js";
 
 // Use your existing debug banner (CampScreen has it globally)
 const dbg = window.debugBanner || function(){};
@@ -185,26 +186,47 @@ class NpcAutoRenderer {
             return viewName;
         }
 
-        if (viewName.endsWith("View")) {
+        const trimmed = viewName.trim();
+        const normalizedMap = {
+            [LocationKeys.SHELTER.toLowerCase()]: LocationKeys.SHELTER,
+            [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
+            [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
+            [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
+            [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
+            [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
+            [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
+            [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
+            [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
+            [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
+            [LocationKeys.FORK1.toLowerCase()]: LocationKeys.FORK1,
+            [LocationKeys.FORK2.toLowerCase()]: LocationKeys.FORK2,
+            [LocationKeys.FORK3.toLowerCase()]: LocationKeys.FORK3,
+            flag: LocationKeys.TRIBE_FLAG,
+            treemail: LocationKeys.TREE_MAIL,
+            rocky: LocationKeys.ROCKY_SHORE
+        };
+
+        const lower = trimmed.toLowerCase();
+        if (normalizedMap[lower]) {
+            return normalizedMap[lower];
+        }
+
+        if (trimmed.endsWith("View")) {
             const currentView = window?.campScreen?.currentView;
             if (currentView) {
                 return currentView;
             }
 
-            const baseName = viewName.replace(/View$/, "");
-            const explicitMap = {
-                TribeFlag: "flag",
-                RockyShore: "rocky",
-                TreeMail: "treemail"
-            };
-            if (explicitMap[baseName]) {
-                return explicitMap[baseName];
+            const baseName = trimmed.replace(/View$/, "");
+            const baseLower = baseName.toLowerCase();
+            if (normalizedMap[baseLower]) {
+                return normalizedMap[baseLower];
             }
 
             return baseName.charAt(0).toLowerCase() + baseName.slice(1);
         }
 
-        return viewName;
+        return trimmed;
     }
 
     ensureNpcLayer() {

@@ -27,31 +27,73 @@ import { updateCampClockUI } from '../utils/ClockUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
 import { runDay1FirstImpressions, canRunDay1FirstImpressions, runPart2FromCheckpointReport } from '../events/Day1FirstImpressionsEvent.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
 const TASK_ICON_HIDDEN_VIEWS = new Set();
 
 const campViews = {
-  flag: renderTribeFlag,
-  beach: renderBeach,
-  rocky: renderRockyShore,
-  campfire: renderCampfire,
-  shelter: renderShelter,
-  fork1: renderFork1,
-  mountainTrail: renderMountainTrail,
-  treemail: renderTreeMail,
-  waterfallTrail: renderWaterfallTrail,
-  waterWell: renderWaterWell,
-  jungleTrail: renderJungleTrail,
-  fork2: renderFork2,
-  fork3: renderFork3,
-  firewood: renderFirewoodView,
-  bamboo: renderBambooView,
-  shake: renderShakeView,
-  fishing: renderFishingView,
-  fire: renderFireView,
-  summary: renderSummary,
-  strategySummary: renderPostChallengeSummaryView
+  [LocationKeys.TRIBE_FLAG]: renderTribeFlag,
+  [LocationKeys.BEACH]: renderBeach,
+  [LocationKeys.ROCKY_SHORE]: renderRockyShore,
+  [LocationKeys.CAMPFIRE]: renderCampfire,
+  [LocationKeys.SHELTER]: renderShelter,
+  [LocationKeys.FORK1]: renderFork1,
+  [LocationKeys.MOUNTAIN_TRAIL]: renderMountainTrail,
+  [LocationKeys.TREE_MAIL]: renderTreeMail,
+  [LocationKeys.WATERFALL_TRAIL]: renderWaterfallTrail,
+  [LocationKeys.WATER_WELL]: renderWaterWell,
+  [LocationKeys.JUNGLE_TRAIL]: renderJungleTrail,
+  [LocationKeys.FORK2]: renderFork2,
+  [LocationKeys.FORK3]: renderFork3,
+  [LocationKeys.FIREWOOD]: renderFirewoodView,
+  [LocationKeys.BAMBOO]: renderBambooView,
+  [LocationKeys.SHAKE]: renderShakeView,
+  [LocationKeys.FISHING]: renderFishingView,
+  [LocationKeys.FIRE]: renderFireView,
+  [LocationKeys.SUMMARY]: renderSummary,
+  [LocationKeys.STRATEGY_SUMMARY]: renderPostChallengeSummaryView
+};
+
+const CAMP_VIEW_KEY_LOOKUP = {
+  [LocationKeys.SHELTER.toLowerCase()]: LocationKeys.SHELTER,
+  [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
+  [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
+  [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
+  [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
+  [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
+  [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
+  [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
+  [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
+  [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
+  [LocationKeys.FORK1.toLowerCase()]: LocationKeys.FORK1,
+  [LocationKeys.FORK2.toLowerCase()]: LocationKeys.FORK2,
+  [LocationKeys.FORK3.toLowerCase()]: LocationKeys.FORK3,
+  [LocationKeys.FIREWOOD.toLowerCase()]: LocationKeys.FIREWOOD,
+  [LocationKeys.BAMBOO.toLowerCase()]: LocationKeys.BAMBOO,
+  [LocationKeys.SHAKE.toLowerCase()]: LocationKeys.SHAKE,
+  [LocationKeys.FISHING.toLowerCase()]: LocationKeys.FISHING,
+  [LocationKeys.FIRE.toLowerCase()]: LocationKeys.FIRE,
+  [LocationKeys.SUMMARY.toLowerCase()]: LocationKeys.SUMMARY,
+  [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: LocationKeys.STRATEGY_SUMMARY,
+  flag: LocationKeys.TRIBE_FLAG,
+  treemail: LocationKeys.TREE_MAIL,
+  rocky: LocationKeys.ROCKY_SHORE
+};
+
+const normalizeCampViewKey = (viewName) => {
+  if (!viewName || typeof viewName !== 'string') return viewName;
+  const trimmed = viewName.trim();
+  if (campViews[trimmed]) return trimmed;
+  const lower = trimmed.toLowerCase();
+  if (CAMP_VIEW_KEY_LOOKUP[lower]) return CAMP_VIEW_KEY_LOOKUP[lower];
+  if (trimmed.endsWith('View')) {
+    const base = trimmed.replace(/View$/, '');
+    const baseLower = base.toLowerCase();
+    if (CAMP_VIEW_KEY_LOOKUP[baseLower]) return CAMP_VIEW_KEY_LOOKUP[baseLower];
+    return base.charAt(0).toLowerCase() + base.slice(1);
+  }
+  return trimmed;
 };
 
 export default class CampScreen {
@@ -103,7 +145,7 @@ export default class CampScreen {
       gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors);
       gameManager.systems?.socialEngine?.resetForNewPhase?.(phaseKey);
 
-      if (this.currentView === 'shelter' && this.isActive) {
+      if (this.currentView === LocationKeys.SHELTER && this.isActive) {
         const campContent = getElement('camp-content');
         if (campContent) {
           renderShelter(campContent);
@@ -198,7 +240,7 @@ export default class CampScreen {
     container.style.display = 'block';
     this.isActive = true;
     this.ensureTaskIcon();
-    this.loadView('flag');
+    this.loadView(LocationKeys.TRIBE_FLAG);
     this.renderClockUI();
     if (!gameManager.flags?.campEventActive) {
       this.startCampClockTick();
@@ -219,6 +261,7 @@ export default class CampScreen {
 
   loadView(viewName) {
     const viewContainer = getElement('camp-content');
+    const canonicalViewName = normalizeCampViewKey(viewName);
 
     // Call previous view cleanup (if provided by the view)
     if (typeof window.__campViewCleanup === 'function') {
@@ -240,25 +283,27 @@ export default class CampScreen {
 
     // Track previous view
     window.previousCampView = this.currentView || null;
-    this.currentView = viewName;
+    this.currentView = canonicalViewName;
 
     // 🔥 1) Render the actual view
-    const renderFn = campViews[viewName];
+    const renderFn = campViews[canonicalViewName];
     if (renderFn) {
       renderFn(viewContainer);
+    } else {
+      console.warn('[CampScreen] Missing render handler for view', canonicalViewName);
     }
 
     if (!gameManager.flags?.campEventActive) {
       // 🔥 2) Publish event AFTER rendering so subscribers know the DOM exists
       eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
-        viewName
+        viewName: canonicalViewName
       });
-      window.debugBanner('CAMP VIEW LOADED', viewName);
+      window.debugBanner('CAMP VIEW LOADED', canonicalViewName);
 
       // 🔥 3) Force NPC renderer AFTER DOM exists
       // (this is the critical step — without this, you see nothing)
       if (npcAutoRenderer && typeof npcAutoRenderer.renderFor === 'function') {
-        npcAutoRenderer.renderFor(viewName);
+        npcAutoRenderer.renderFor(canonicalViewName);
       }
 
       // 🔥 4) Update menu stats
@@ -268,7 +313,7 @@ export default class CampScreen {
 
       // 🔥 5) Ensure the Day 1 cinematic still triggers when camp first loads
       if (
-        viewName === 'flag' &&
+        canonicalViewName === LocationKeys.TRIBE_FLAG &&
         gameManager.day === 1 &&
         gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
         !gameManager.flags?.day1FirstImpressionsCompleted &&
@@ -341,7 +386,7 @@ export default class CampScreen {
     icon.addEventListener('click', () => {
       console.log('Tree Mail icon clicked - loading TreeMail view');
       overlay.remove();
-      this.loadView('treemail');
+      this.loadView(LocationKeys.TREE_MAIL);
     });
 
     // Add hover effect
