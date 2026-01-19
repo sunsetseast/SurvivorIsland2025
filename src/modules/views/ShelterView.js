@@ -163,7 +163,8 @@ export default function renderShelter(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
-  const messageEl = message;
+  const root = getShelterRoot();
+  const msgEl = root ? root.querySelector('#shelter-message') : null;
   window.__campViewCleanup = cleanupShelterUI;
   try {
     ensureStockpileBanner(wrapper, playerTribe);
@@ -188,24 +189,35 @@ export default function renderShelter(container) {
   }
 
   const t1 = setTimeout(() => {
-    if (messageEl && messageEl.isConnected) messageEl.style.opacity = '0';
+    if (msgEl && msgEl.isConnected) msgEl.style.opacity = '0';
   }, 3000);
   messageTimeouts.push(t1);
 
   const t2 = setTimeout(() => {
-    if (messageEl && messageEl.isConnected) messageEl.remove();
+    if (msgEl && msgEl.isConnected) msgEl.remove();
   }, 4000);
   messageTimeouts.push(t2);
+
+  console.log('[ShelterView] render complete', {
+    hasWrapper: !!document.querySelector('#camp-content .shelter-wrapper'),
+    hasBanner: !!document.querySelector('#camp-content .shelter-wrapper #stockpile-banner'),
+    hasResourceButtons: !!document.querySelector('#camp-content .shelter-wrapper #shelter-resource-buttons')
+  });
 
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
 
 function getShelterRoot() {
-  return document.getElementById('camp-content');
-}
+  const wrapper = document.querySelector('#camp-content .shelter-wrapper');
+  if (wrapper && wrapper.isConnected) return wrapper;
 
-function getShelterWrapper() {
-  return document.querySelector('#camp-content .shelter-wrapper');
+  // As a last resort, try any shelter wrapper (should be rare)
+  const anyWrapper = document.querySelector('.shelter-wrapper');
+  if (anyWrapper && anyWrapper.isConnected) return anyWrapper;
+
+  // If we get here, Shelter DOM is not present
+  console.warn('[ShelterView] getShelterRoot: shelter wrapper not found');
+  return null;
 }
 
 function cleanupShelterUI() {
@@ -213,7 +225,7 @@ function cleanupShelterUI() {
   messageTimeouts.forEach(id => clearTimeout(id));
   messageTimeouts = [];
 
-  const wrapper = getShelterWrapper();
+  const wrapper = getShelterRoot();
   if (wrapper) {
     const removableIds = [
       'shelter-overlay',
@@ -233,7 +245,7 @@ function cleanupShelterUI() {
   }
 
   // Also remove any stray stockpile banners (in case an old one survived)
-  document.querySelectorAll('#stockpile-banner').forEach(el => el.remove());
+  wrapper?.querySelectorAll('#stockpile-banner').forEach(el => el.remove());
 
   bambooAdded = 0;
   palmsAdded = 0;
@@ -251,7 +263,11 @@ function handleCenterButtonClick() {
   overlayOpen = true;
   addDebugBanner('Shelter action overlay opened', 'darkorange', 50);
 
-  const root = getShelterWrapper();
+  const root = getShelterRoot();
+  if (!root) {
+    console.warn('[ShelterView] Unable to open shelter overlay: missing shelter root.');
+    return;
+  }
   const overlay = createElement('div', {
     id: 'shelter-overlay',
     className: 'shelter-temp-overlay',
@@ -344,14 +360,14 @@ function handleCenterButtonClick() {
 }
 
 function closeOverlay() {
-  const root = getShelterWrapper();
+  const root = getShelterRoot();
   root?.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
   overlayOpen = false;
   addDebugBanner('Shelter action overlay closed', 'darkorange', 50);
 }
 
 function showParchmentPopup(message, onClose) {
-  const root = getShelterWrapper();
+  const root = getShelterRoot();
   const popup = createElement('div', {
     id: 'parchment-popup',
     className: 'shelter-temp-overlay',
@@ -410,7 +426,7 @@ function updateStockpileValuesUI(tribe) {
     return;
   }
 
-  const root = getShelterWrapper();
+  const root = getShelterRoot();
   if (root) {
     ensureStockpileBanner(root, activeTribe);
   } else {
@@ -445,14 +461,10 @@ function updateStockpileValuesUI(tribe) {
 
 function ensureStockpileBanner(root, tribe) {
   if (!root) return;
-  const existing = root.querySelector('#stockpile-banner');
+  root.querySelectorAll('#stockpile-banner').forEach(el => el.remove());
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
   const bambooCount = stockpile.bamboo || 0;
   const palmCount = stockpile.palms || 0;
-
-  if (existing) {
-    existing.remove();
-  }
 
   const banner = createElement('div', {
     id: 'stockpile-banner',
@@ -546,30 +558,20 @@ function ensureStockpileBanner(root, tribe) {
 
 function startContributionFlow() {
   currentActionMode = 'contribute';
-  let wrapper = getShelterWrapper();
-  if (!wrapper || !wrapper.isConnected) {
-    console.warn('[ShelterView] startContributionFlow aborted: wrapper missing/disconnected');
+  const root = getShelterRoot();
+  if (!root) {
+    console.error('[ShelterView] startContributionFlow aborted: missing shelter root');
     return;
   }
-  let isWrapper = wrapper.classList?.contains('shelter-wrapper');
-  console.info('[ShelterView] Contribution flow wrapper is shelter-wrapper:', isWrapper);
-  if (!isWrapper) {
-    const alternateWrapper = document.querySelector('#camp-content .shelter-wrapper');
-    if (!alternateWrapper || !alternateWrapper.isConnected || !alternateWrapper.classList?.contains('shelter-wrapper')) {
-      console.error('[ShelterView] Contribution flow failed: unable to find shelter-wrapper.');
-      return;
-    }
-    wrapper = alternateWrapper;
-  }
   const tribe = gameManager.getPlayerTribe();
-  ensureStockpileBanner(wrapper, tribe);
-  showResourceButtons(wrapper);
-  updateContributionSubmit(wrapper);
+  ensureStockpileBanner(root, tribe);
+  showResourceButtons(root);
+  updateContributionSubmit(root);
   addDebugBanner('Contribution flow started', 'teal', 60);
 }
 
 function updateContributionSubmit(wrapper) {
-  const targetWrapper = wrapper || getShelterWrapper();
+  const targetWrapper = wrapper || getShelterRoot();
   if (!targetWrapper || !targetWrapper.isConnected) return;
   let submit = targetWrapper?.querySelector('#submit-contribution-button');
   const stagedTotal = (bambooAdded || 0) + (palmsAdded || 0);
@@ -604,7 +606,7 @@ function updateContributionSubmit(wrapper) {
 }
 
 function hideContributionUI() {
-  const wrapper = getShelterWrapper();
+  const wrapper = getShelterRoot();
   const submit = wrapper?.querySelector('#submit-contribution-button');
   if (submit) submit.remove();
   const resourceButtons = wrapper?.querySelector('#shelter-resource-buttons');
@@ -713,7 +715,7 @@ function showApproachChoices(partner) {
   const player = gameManager.getPlayerSurvivor();
   const tribe = gameManager.getPlayerTribe();
   if (!player || !tribe || !partner) return;
-  const root = getShelterWrapper();
+  const root = getShelterRoot();
 
   const forceLead = isPlayerDay1Leader(player, tribe);
 
@@ -1017,7 +1019,7 @@ function createResourceButtons(container) {
 }
 
 function showResourceButtons(wrapper) {
-  const targetWrapper = wrapper || getShelterWrapper();
+  const targetWrapper = wrapper || getShelterRoot();
   const resourceButtons = targetWrapper?.querySelector('#shelter-resource-buttons');
   if (resourceButtons) resourceButtons.style.display = 'flex';
   bambooAdded = 0;
@@ -1026,7 +1028,7 @@ function showResourceButtons(wrapper) {
 }
 
 function updateResourceButtonStyles() {
-  const resourceButtons = getShelterWrapper()?.querySelector('#shelter-resource-buttons');
+  const resourceButtons = getShelterRoot()?.querySelector('#shelter-resource-buttons');
   if (!resourceButtons) return;
 
   const [bambooButton, palmButton] = resourceButtons.children;
@@ -1072,7 +1074,7 @@ function showResourcePopup(resourceType) {
   }
 
   let selectedAmount = 0;
-  const root = getShelterWrapper();
+  const root = getShelterRoot();
   const overlayId = `${resourceType}-selector-overlay`;
   root?.querySelectorAll(`#${overlayId}`).forEach(el => el.remove());
 
