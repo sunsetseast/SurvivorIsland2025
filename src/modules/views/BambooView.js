@@ -347,7 +347,7 @@ export default function renderBambooView(container) {
 
       gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
         player.id,
-        'JungleTrailView',
+        LocationKeys.JUNGLE_TRAIL,
         'bamboo'
       );
     }

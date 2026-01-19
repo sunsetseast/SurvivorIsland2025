@@ -362,7 +362,7 @@ function endGame() {
 
     gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
       player.id,
-      'JungleTrailView',
+      LocationKeys.JUNGLE_TRAIL,
       'firewood'
     );
   } else {

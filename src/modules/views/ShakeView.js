@@ -333,7 +333,7 @@ export default function renderShakeView(container) {
 
       gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
         player.id,
-        'MountainTrailView',
+        LocationKeys.MOUNTAIN_TRAIL,
         'shakeGather'
       );
     } else {
