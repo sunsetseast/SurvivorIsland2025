@@ -225,12 +225,12 @@ export default class CampScreen {
     this.setTaskIconVisible(true);
 
     // Always clear old view first
-    if (window.__campViewCleanup) {
+    if (typeof window.__campViewCleanup === 'function') {
       try {
         window.__campViewCleanup();
       } catch (e) {}
-      window.__campViewCleanup = null;
     }
+    window.__campViewCleanup = null;
     clearChildren(viewContainer);
 
     // Track previous view

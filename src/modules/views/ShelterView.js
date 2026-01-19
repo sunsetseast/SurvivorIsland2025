@@ -14,6 +14,7 @@ let bambooAdded = 0;
 let palmsAdded = 0;
 let overlayOpen = false;
 let shelterRoot = null;
+let shelterWrapperEl = null;
 let currentActionMode = null; // 'build' | 'contribute'
 
 function isPlayerDay1Leader(player, tribe) {
@@ -28,7 +29,6 @@ function isPlayerDay1Leader(player, tribe) {
 
 export default function renderShelter(container) {
   cleanupShelterUI();
-  window.__campViewCleanup = cleanupShelterUI;
 
   console.log('renderShelter() called');
   addDebugBanner('renderShelter() called', 'darkgreen', 40);
@@ -107,6 +107,7 @@ export default function renderShelter(container) {
     `
   });
   shelterRoot = wrapper;
+  shelterWrapperEl = wrapper;
 
   const shelterLevelContainer = createElement('div', {
     id: 'shelter-level-indicator',
@@ -163,6 +164,7 @@ export default function renderShelter(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+  window.__campViewCleanup = cleanupShelterUI;
   ensureStockpileBanner(wrapper, playerTribe);
   updateStockpileValuesUI(playerTribe);
 
@@ -174,12 +176,12 @@ export default function renderShelter(container) {
   createResourceButtons(wrapper);
 
   setTimeout(() => {
-    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+    const msgEl = getShelterWrapper()?.querySelector('#shelter-message');
     if (msgEl) msgEl.style.opacity = '0';
   }, 3000);
 
   setTimeout(() => {
-    const msgEl = getShelterRoot()?.querySelector('#shelter-message');
+    const msgEl = getShelterWrapper()?.querySelector('#shelter-message');
     if (msgEl) msgEl.remove();
   }, 4000);
 
@@ -190,31 +192,38 @@ function getShelterRoot() {
   return shelterRoot || document.querySelector('.shelter-wrapper') || document.getElementById('camp-content');
 }
 
+function getShelterWrapper() {
+  if (shelterWrapperEl && shelterWrapperEl.isConnected) {
+    return shelterWrapperEl;
+  }
+
+  shelterWrapperEl = document.querySelector('#camp-content .shelter-wrapper') || document.querySelector('.shelter-wrapper');
+  return shelterWrapperEl;
+}
+
 function cleanupShelterUI() {
-  const root = getShelterRoot();
-  document.getElementById('shelter-resource-buttons')?.remove();
-  document.getElementById('submit-contribution-button')?.remove();
-  document.getElementById('shelter-overlay')?.remove();
-  document.getElementById('resource-popup')?.remove();
-  if (!root) return;
+  const wrapper = getShelterWrapper();
+  if (wrapper) {
+    const removableIds = [
+      'shelter-overlay',
+      'parchment-popup',
+      'submit-contribution-button',
+      'start-building-button',
+      'bamboo-selector-overlay',
+      'palm-selector-overlay',
+      'cobuilder-popup',
+      'confirm-popup',
+      'shelter-resource-buttons'
+    ];
 
-  const removableIds = [
-    'shelter-overlay',
-    'parchment-popup',
-    'submit-contribution-button',
-    'start-building-button',
-    'bamboo-selector-overlay',
-    'palm-selector-overlay',
-    'cobuilder-popup',
-    'confirm-popup',
-    'shelter-resource-buttons'
-  ];
-
-  removableIds.forEach(id => root.querySelectorAll(`#${id}`).forEach(el => el.remove()));
-  root.querySelectorAll('.shelter-temp-overlay').forEach(el => el.remove());
+    removableIds.forEach(id => wrapper.querySelectorAll(`#${id}`).forEach(el => el.remove()));
+    wrapper.querySelectorAll('.shelter-temp-overlay').forEach(el => el.remove());
+    wrapper.querySelectorAll('#shelter-message').forEach(el => el.remove());
+  }
   bambooAdded = 0;
   palmsAdded = 0;
   overlayOpen = false;
+  currentActionMode = null;
 }
 
 function handleCenterButtonClick() {
@@ -227,7 +236,7 @@ function handleCenterButtonClick() {
   overlayOpen = true;
   addDebugBanner('Shelter action overlay opened', 'darkorange', 50);
 
-  const root = getShelterRoot();
+  const root = getShelterWrapper();
   const overlay = createElement('div', {
     id: 'shelter-overlay',
     className: 'shelter-temp-overlay',
@@ -320,14 +329,14 @@ function handleCenterButtonClick() {
 }
 
 function closeOverlay() {
-  const root = getShelterRoot();
+  const root = getShelterWrapper();
   root?.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
   overlayOpen = false;
   addDebugBanner('Shelter action overlay closed', 'darkorange', 50);
 }
 
 function showParchmentPopup(message, onClose) {
-  const root = getShelterRoot();
+  const root = getShelterWrapper();
   const popup = createElement('div', {
     id: 'parchment-popup',
     className: 'shelter-temp-overlay',
@@ -386,7 +395,7 @@ function updateStockpileValuesUI(tribe) {
     return;
   }
 
-  const root = document.querySelector('.shelter-wrapper') || getShelterRoot();
+  const root = getShelterWrapper();
   if (root) {
     ensureStockpileBanner(root, activeTribe);
   } else {
@@ -420,6 +429,7 @@ function updateStockpileValuesUI(tribe) {
 }
 
 function ensureStockpileBanner(root, tribe) {
+  if (!root) return;
   const existing = root.querySelector('#stockpile-banner');
   const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
   const bambooCount = stockpile.bamboo || 0;
@@ -525,17 +535,26 @@ function ensureStockpileBanner(root, tribe) {
 
 function startContributionFlow() {
   currentActionMode = 'contribute';
-  const root = getShelterRoot();
+  const wrapper = getShelterWrapper();
+  if (!wrapper) {
+    console.warn('[ShelterView] No wrapper found for contribution flow');
+    return;
+  }
+  const isWrapper = wrapper.classList?.contains('shelter-wrapper');
+  console.info('[ShelterView] Contribution flow wrapper is shelter-wrapper:', isWrapper);
+  if (!isWrapper) {
+    console.error('[ShelterView] Contribution flow aborted: wrapper is not shelter-wrapper.');
+    return;
+  }
   const tribe = gameManager.getPlayerTribe();
-  ensureStockpileBanner(root, tribe);
-  showResourceButtons();
-  updateContributionSubmit();
+  ensureStockpileBanner(wrapper, tribe);
+  showResourceButtons(wrapper);
+  updateContributionSubmit(wrapper);
   addDebugBanner('Contribution flow started', 'teal', 60);
 }
 
-function updateContributionSubmit() {
-  const root = getShelterRoot();
-  let submit = root?.querySelector('#submit-contribution-button');
+function updateContributionSubmit(wrapper = getShelterWrapper()) {
+  let submit = wrapper?.querySelector('#submit-contribution-button');
   const stagedTotal = (bambooAdded || 0) + (palmsAdded || 0);
   if (!submit) {
     submit = createElement('button', {
@@ -560,16 +579,18 @@ function updateContributionSubmit() {
       `
     }, 'Submit Contribution');
     submit.addEventListener('click', submitContribution);
-    root?.appendChild(submit);
+    wrapper?.appendChild(submit);
   }
-  submit.style.display = stagedTotal > 0 ? 'block' : 'none';
+  if (submit) {
+    submit.style.display = stagedTotal > 0 ? 'block' : 'none';
+  }
 }
 
 function hideContributionUI() {
-  const root = getShelterRoot();
-  const submit = root?.querySelector('#submit-contribution-button');
+  const wrapper = getShelterWrapper();
+  const submit = wrapper?.querySelector('#submit-contribution-button');
   if (submit) submit.remove();
-  const resourceButtons = root?.querySelector('#shelter-resource-buttons');
+  const resourceButtons = wrapper?.querySelector('#shelter-resource-buttons');
   if (resourceButtons) resourceButtons.style.display = 'none';
   bambooAdded = 0;
   palmsAdded = 0;
@@ -675,7 +696,7 @@ function showApproachChoices(partner) {
   const player = gameManager.getPlayerSurvivor();
   const tribe = gameManager.getPlayerTribe();
   if (!player || !tribe || !partner) return;
-  const root = getShelterRoot();
+  const root = getShelterWrapper();
 
   const forceLead = isPlayerDay1Leader(player, tribe);
 
@@ -978,8 +999,8 @@ function createResourceButtons(container) {
   container.appendChild(resourceContainer);
 }
 
-function showResourceButtons() {
-  const resourceButtons = getShelterRoot()?.querySelector('#shelter-resource-buttons');
+function showResourceButtons(wrapper = getShelterWrapper()) {
+  const resourceButtons = wrapper?.querySelector('#shelter-resource-buttons');
   if (resourceButtons) resourceButtons.style.display = 'flex';
   bambooAdded = 0;
   palmsAdded = 0;
@@ -987,7 +1008,7 @@ function showResourceButtons() {
 }
 
 function updateResourceButtonStyles() {
-  const resourceButtons = getShelterRoot()?.querySelector('#shelter-resource-buttons');
+  const resourceButtons = getShelterWrapper()?.querySelector('#shelter-resource-buttons');
   if (!resourceButtons) return;
 
   const [bambooButton, palmButton] = resourceButtons.children;
@@ -1033,7 +1054,7 @@ function showResourcePopup(resourceType) {
   }
 
   let selectedAmount = 0;
-  const root = getShelterRoot();
+  const root = getShelterWrapper();
   const overlayId = `${resourceType}-selector-overlay`;
   root?.querySelectorAll(`#${overlayId}`).forEach(el => el.remove());
 
