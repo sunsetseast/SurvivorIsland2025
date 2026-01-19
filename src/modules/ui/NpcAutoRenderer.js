@@ -27,17 +27,14 @@ class NpcAutoRenderer {
         // 🟢 Listen for camp view changes
         eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName }) => {
             dbg("Event: CAMP_VIEW_LOADED received by NpcAutoRenderer", viewName);
-            if (gameManager.flags?.campEventActive) {
-                const container = document.getElementById("camp-content");
-                container?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
-                return;
-            }
             this.renderFor(viewName);
         });
 
         eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, () => {
-            const container = document.getElementById("camp-content");
-            container?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
+            const layer = this.ensureNpcLayer();
+            if (layer) {
+                layer.innerHTML = "";
+            }
         });
 
         eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, () => {
@@ -85,53 +82,49 @@ class NpcAutoRenderer {
      * Called by CampScreen after the view is loaded.
      */
     renderFor(viewName) {
-        dbg("NpcAutoRenderer.renderFor()", viewName);
+        const normalizedViewName = this.normalizeViewName(viewName);
+        dbg("NpcAutoRenderer.renderFor()", normalizedViewName);
 
-        this.lastViewName = viewName;
+        this.lastViewName = normalizedViewName;
 
-        if (gameManager.flags?.campEventActive) {
-            const container = document.getElementById("camp-content");
-            container?.querySelectorAll('.npc-icon-container')?.forEach(el => el.remove());
-            return;
-        }
-
-        const container = document.getElementById("camp-content");
-        if (!container) {
+        const layer = this.ensureNpcLayer();
+        if (!layer) {
             dbg("❌ No #camp-content container found");
             return;
         }
 
-        this.renderNPCs(viewName, container);
+        layer.innerHTML = "";
+
+        if (gameManager.flags?.campEventActive) {
+            return;
+        }
+
+        this.renderNPCs(normalizedViewName, layer);
     }
 
     /**
      * Internal icon renderer.
      */
-    renderNPCs(viewName, container) {
-        if (!container) {
-            dbg("❌ renderNPCs called with NO container");
+    renderNPCs(viewName, layer) {
+        if (!layer) {
+            dbg("❌ renderNPCs called with NO layer");
             return;
         }
 
-        if (gameManager.flags?.campEventActive) {
-            container.querySelectorAll(".npc-icon-container").forEach(el => el.remove());
-            return;
-        }
-
-        // Clear old icons
-        const old = container.querySelectorAll(".npc-icon-container");
-        old.forEach(el => el.remove());
+        layer.innerHTML = "";
 
         // Get NPCs at this location
-        const survivors = npcLocationSystem.getSurvivorsAtLocation(viewName);
+        const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(viewName) || [];
+
+        console.log('[NpcAutoRenderer] renderFor', viewName, 'NPC count:', survivorsHere.length);
 
         dbg("NPCs at location", {
             viewName,
-            survivors,
+            survivors: survivorsHere,
             locationMap: { ...npcLocationSystem.locations }
         });
 
-        if (!survivors || survivors.length === 0) {
+        if (survivorsHere.length === 0) {
             dbg("No survivors found for view", viewName);
             return;
         }
@@ -147,11 +140,11 @@ class NpcAutoRenderer {
                 flex-direction: column;
                 gap: 10px;
                 z-index: 999;
-                pointer-events: auto;
+                pointer-events: none;
             `
         });
 
-        survivors.forEach(survivor => {
+        survivorsHere.forEach(survivor => {
             const icon = createElement("div", {
                 className: "npc-icon",
                 dataset: { npcId: String(survivor.id) },
@@ -166,6 +159,7 @@ class NpcAutoRenderer {
                     background-image: url('${survivor.avatarUrl}');
                     background-size: cover;
                     background-position: center;
+                    pointer-events: auto;
                 `
             });
 
@@ -181,9 +175,57 @@ class NpcAutoRenderer {
             iconContainer.appendChild(icon);
         });
 
-        container.appendChild(iconContainer);
+        layer.appendChild(iconContainer);
 
-        dbg("NPC ICONS RENDERED", { count: survivors.length, viewName });
+        dbg("NPC ICONS RENDERED", { count: survivorsHere.length, viewName });
+    }
+
+    normalizeViewName(viewName) {
+        if (!viewName || typeof viewName !== "string") {
+            return viewName;
+        }
+
+        if (viewName.endsWith("View")) {
+            const currentView = window?.campScreen?.currentView;
+            if (currentView) {
+                return currentView;
+            }
+
+            const baseName = viewName.replace(/View$/, "");
+            const explicitMap = {
+                TribeFlag: "flag",
+                RockyShore: "rocky",
+                TreeMail: "treemail"
+            };
+            if (explicitMap[baseName]) {
+                return explicitMap[baseName];
+            }
+
+            return baseName.charAt(0).toLowerCase() + baseName.slice(1);
+        }
+
+        return viewName;
+    }
+
+    ensureNpcLayer() {
+        const camp = document.getElementById("camp-content");
+        if (!camp) {
+            return null;
+        }
+
+        let layer = camp.querySelector("#npc-layer");
+        if (!layer) {
+            layer = document.createElement("div");
+            layer.id = "npc-layer";
+            layer.style.position = "absolute";
+            layer.style.inset = "0";
+            layer.style.zIndex = "55";
+            layer.style.pointerEvents = "none";
+            camp.style.position = camp.style.position || "relative";
+            camp.appendChild(layer);
+        }
+
+        return layer;
     }
 }
 
