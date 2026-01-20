@@ -321,6 +321,8 @@ export default class CampScreen {
 
     // Track previous view using canonical keys only
     window.previousCampView = this.currentView ? normalizeCampViewKey(this.currentView) : null;
+    window.previousCampViewRaw = this.currentView || null;
+    window.currentCampViewRequested = viewName;
     this.currentView = normalizedViewName;
 
     this.ensureTaskIcon();

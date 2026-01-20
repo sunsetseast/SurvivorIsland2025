@@ -213,10 +213,10 @@ export default function renderJungleTrail(container) {
 
     const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
       if (fromWaterWell) {
-        console.log('Up: go to Fork3');
+        console.log('Up: go to Fork3 (from Water Well)');
         window.campScreen.loadView(LocationKeys.FORK3);
       } else {
-        console.log('Up: back to Water Well');
+        console.log('Up: back to Water Well (from Fork1)');
         window.campScreen.loadView(LocationKeys.WATER_WELL);
       }
     });
@@ -228,10 +228,10 @@ export default function renderJungleTrail(container) {
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       if (fromWaterWell) {
-        console.log('Down: back to Water Well');
+        console.log('Down: back to Water Well (from Water Well)');
         window.campScreen.loadView(LocationKeys.WATER_WELL);
       } else {
-        console.log('Down: go to Fork3');
+        console.log('Down: go to Fork3 (from Fork1)');
         window.campScreen.loadView(LocationKeys.FORK3);
       }
     });
