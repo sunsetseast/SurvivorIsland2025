@@ -201,6 +201,13 @@ class NpcAutoRenderer {
             [LocationKeys.FORK1.toLowerCase()]: LocationKeys.FORK1,
             [LocationKeys.FORK2.toLowerCase()]: LocationKeys.FORK2,
             [LocationKeys.FORK3.toLowerCase()]: LocationKeys.FORK3,
+            [LocationKeys.FIREWOOD.toLowerCase()]: LocationKeys.FIREWOOD,
+            [LocationKeys.BAMBOO.toLowerCase()]: LocationKeys.BAMBOO,
+            [LocationKeys.SHAKE.toLowerCase()]: LocationKeys.SHAKE,
+            [LocationKeys.FISHING.toLowerCase()]: LocationKeys.FISHING,
+            [LocationKeys.FIRE.toLowerCase()]: LocationKeys.FIRE,
+            [LocationKeys.SUMMARY.toLowerCase()]: LocationKeys.SUMMARY,
+            [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: LocationKeys.STRATEGY_SUMMARY,
             flag: LocationKeys.TRIBE_FLAG,
             treemail: LocationKeys.TREE_MAIL,
             rocky: LocationKeys.ROCKY_SHORE
