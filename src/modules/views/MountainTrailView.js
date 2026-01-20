@@ -26,7 +26,7 @@ export default function renderMountainTrail(container) {
   clearChildren(container);
 
   const prev = window.previousCampView;
-  const fromTreeMail = prev === 'treemail' || prev === LocationKeys.TREE_MAIL;
+  const fromTreeMail = prev === LocationKeys.TREE_MAIL;
   const backgroundURL = "url('Assets/Screens/mountain-trail-view.png')";
 
   container.style.position = 'relative';
@@ -170,6 +170,7 @@ export default function renderMountainTrail(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
+    actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
