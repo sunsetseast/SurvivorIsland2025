@@ -63,10 +63,13 @@ const VIEW_ALIASES = {
   [LocationKeys.TRIBE_FLAG]: 'flag',
   [LocationKeys.STRATEGY_SUMMARY]: STRATEGY_SUMMARY_VIEW_KEY,
   rocky: 'rocky',
+  rockyshore: 'rocky',
   treemail: 'treemail',
+  treemailview: 'treemail',
   flag: 'flag',
+  tribeflag: 'flag',
   summary: 'summary',
-  strategySummary: STRATEGY_SUMMARY_VIEW_KEY
+  strategysummary: STRATEGY_SUMMARY_VIEW_KEY
 };
 
 const CAMP_VIEW_KEY_LOOKUP = {
@@ -283,9 +286,14 @@ export default class CampScreen {
 
   loadView(viewName) {
     const viewContainer = getElement('camp-content');
-    const canonicalViewName = normalizeCampViewKey(viewName);
+    const normalizedViewName = normalizeCampViewKey(viewName);
     const actionButtons = document.getElementById('action-buttons');
-    console.log(`[CampScreen] loadView: ${viewName} -> ${canonicalViewName}`);
+    const safeDebug = (msg, color, y) => {
+      if (typeof window.debugBanner === 'function') {
+        window.debugBanner(msg, color, y);
+      }
+    };
+    console.log('[CampScreen] loadView:', viewName, '->', normalizedViewName);
 
     // Call previous view cleanup (if provided by the view)
     if (typeof window.__campViewCleanup === 'function') {
@@ -298,49 +306,67 @@ export default class CampScreen {
       }
     }
 
-    // Track previous view
-    window.previousCampView = this.currentView || null;
-    this.currentView = canonicalViewName;
-
-    this.ensureTaskIcon();
-    this.closeTaskOverlay();
-    this.setTaskIconVisible(true);
-
+    // Always clear the current view and action bar before rendering anything
+    if (viewContainer) {
+      clearChildren(viewContainer);
+    }
     if (actionButtons) {
       clearChildren(actionButtons);
-      actionButtons.style.display = 'flex';
+      actionButtons.style.display = 'none';
       actionButtons.style.transform = 'none';
       actionButtons.style.justifyContent = 'center';
       actionButtons.style.gap = '20px';
       actionButtons.style.padding = '0';
     }
 
-    // Always clear old view first
-    clearChildren(viewContainer);
+    // Track previous view using canonical keys only
+    window.previousCampView = this.currentView ? normalizeCampViewKey(this.currentView) : null;
+    this.currentView = normalizedViewName;
+
+    this.ensureTaskIcon();
+    this.closeTaskOverlay();
+    this.setTaskIconVisible(true);
+
+    if (!viewContainer) {
+      console.warn('[CampScreen] Missing camp-content container for view render', {
+        viewName,
+        normalizedViewName
+      });
+      return;
+    }
 
     // 🔥 1) Render the actual view
-    const renderFn = campViews[canonicalViewName];
+    const renderFn = campViews[normalizedViewName];
     if (renderFn) {
+      if (actionButtons) {
+        actionButtons.style.display = 'flex';
+      }
       renderFn(viewContainer);
     } else {
       console.warn('[CampScreen] Missing render handler for view', {
         viewName,
-        normalizedViewName: canonicalViewName
+        normalizedViewName
       });
+      if (viewContainer) {
+        const warning = document.createElement('div');
+        warning.className = 'camp-view-warning';
+        warning.textContent = `Unknown camp view: ${viewName}`;
+        viewContainer.appendChild(warning);
+      }
       return;
     }
 
     if (!gameManager.flags?.campEventActive) {
       // 🔥 2) Publish event AFTER rendering so subscribers know the DOM exists
       eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
-        viewName: canonicalViewName
+        viewName: normalizedViewName
       });
-      window.debugBanner('CAMP VIEW LOADED', canonicalViewName);
+      safeDebug('CAMP VIEW LOADED', normalizedViewName);
 
       // 🔥 3) Force NPC renderer AFTER DOM exists
       // (this is the critical step — without this, you see nothing)
       if (npcAutoRenderer && typeof npcAutoRenderer.renderFor === 'function') {
-        npcAutoRenderer.renderFor(canonicalViewName);
+        npcAutoRenderer.renderFor(normalizedViewName);
       }
 
       // 🔥 4) Update menu stats
@@ -351,7 +377,7 @@ export default class CampScreen {
       // 🔥 5) Ensure the Day 1 cinematic still triggers when camp first loads
       const normalizedTribeFlagView = normalizeCampViewKey(LocationKeys.TRIBE_FLAG);
       if (
-        canonicalViewName === normalizedTribeFlagView &&
+        normalizedViewName === normalizedTribeFlagView &&
         gameManager.day === 1 &&
         gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
         !gameManager.flags?.day1FirstImpressionsCompleted &&

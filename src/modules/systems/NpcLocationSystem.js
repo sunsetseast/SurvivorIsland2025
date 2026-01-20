@@ -10,7 +10,7 @@ import eventManager from "../core/EventManager.js";
 import { LocationKeys } from "../core/LocationKeys.js";
 
 // Safe debug helper – uses global debugBanner if it exists
-const dbg = window.debugBanner || function () {};
+const dbg = (typeof window.debugBanner === "function") ? window.debugBanner : () => {};
 
 const LOCATION_KEY_LOOKUP = {
   [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
@@ -18,13 +18,24 @@ const LOCATION_KEY_LOOKUP = {
   [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
   [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
   [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
+  [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
   [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
   [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
   [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
   [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
+  [LocationKeys.SUMMARY.toLowerCase()]: LocationKeys.SUMMARY,
+  [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: LocationKeys.STRATEGY_SUMMARY,
   rocky: LocationKeys.ROCKY_SHORE,
+  rockyshore: LocationKeys.ROCKY_SHORE,
   treemail: LocationKeys.TREE_MAIL,
-  flag: LocationKeys.TRIBE_FLAG
+  flag: LocationKeys.TRIBE_FLAG,
+  tribeflag: LocationKeys.TRIBE_FLAG,
+  waterwell: LocationKeys.WATER_WELL,
+  campfire: LocationKeys.CAMPFIRE,
+  shelter: LocationKeys.SHELTER,
+  beach: LocationKeys.BEACH,
+  summary: LocationKeys.SUMMARY,
+  strategysummary: LocationKeys.STRATEGY_SUMMARY
 };
 
 const normalizeLocationKey = (key) => {
@@ -199,7 +210,7 @@ class NpcLocationSystem {
 
     dbg("Location chosen", { npc: npc.firstName, picked });
 
-    return normalizeLocationKey(picked);
+    return picked;
   }
 
   /**
