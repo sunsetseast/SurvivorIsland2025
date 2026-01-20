@@ -22,11 +22,38 @@ export default function renderJungleTrail(container) {
   const fromWaterWell = window.previousCampView === LocationKeys.WATER_WELL;
   const backgroundURL = "url('Assets/Screens/jungle-trail.png')";
 
-  container.style.backgroundImage = backgroundURL;
-  container.style.backgroundSize = 'cover';
-  container.style.backgroundPosition = 'center';
-  container.style.backgroundRepeat = 'no-repeat';
-  container.style.transform = fromWaterWell ? 'scaleX(-1)' : 'scaleX(1)';
+  container.style.position = 'relative';
+  container.style.overflow = 'hidden';
+
+  const oldBgLayer = container.querySelector('.bg-layer');
+  if (oldBgLayer) oldBgLayer.remove();
+
+  const bgLayer = createElement('div', {
+    className: 'bg-layer',
+    style: `
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-image: ${backgroundURL};
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transform: scaleX(${fromWaterWell ? -1 : 1});
+    `
+  });
+
+  const uiLayer = createElement('div', {
+    className: 'ui-layer',
+    style: `
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+    `
+  });
+
+  container.appendChild(bgLayer);
+  container.appendChild(uiLayer);
 
   const wrapper = createElement('div', {
     className: 'jungletrail-wrapper',
@@ -52,17 +79,16 @@ export default function renderJungleTrail(container) {
       text-align: center;
       padding: 20px;
       z-index: 2;
-      transform: scaleX(${fromWaterWell ? -1 : 1});
       opacity: 1;
       transition: opacity 1s ease;
     `
   }, 'The jungle grows thick around you...');
 
   wrapper.appendChild(message);
-  container.appendChild(wrapper);
+  uiLayer.appendChild(wrapper);
 
   /* ⭐ NEW NPC RENDERING -------------------------------------- */
-  renderNPCsAtJungleTrail(container);
+  renderNPCsAtJungleTrail(uiLayer);
   /* ----------------------------------------------------------- */
 
   // Fade out message after a delay
@@ -88,7 +114,6 @@ export default function renderJungleTrail(container) {
       z-index: 1005;
       align-items: center;
       justify-content: center;
-      transform: scaleX(${fromWaterWell ? -1 : 1});
     `
   });
 
@@ -118,9 +143,6 @@ export default function renderJungleTrail(container) {
   }, 'Firewood');
 
   firewoodButton.addEventListener('click', () => {
-    if (fromWaterWell) {
-      document.getElementById('camp-content').style.transform = 'scaleX(1)';
-    }
     window.previousCampView = fromWaterWell ? LocationKeys.WATER_WELL : LocationKeys.JUNGLE_TRAIL;
     window.campScreen.loadView(LocationKeys.FIREWOOD);
   });
@@ -130,9 +152,6 @@ export default function renderJungleTrail(container) {
   }, 'Bamboo');
 
   bambooButton.addEventListener('click', () => {
-    if (fromWaterWell) {
-      document.getElementById('camp-content').style.transform = 'scaleX(1)';
-    }
     window.previousCampView = fromWaterWell ? LocationKeys.WATER_WELL : LocationKeys.JUNGLE_TRAIL;
     window.campScreen.loadView(LocationKeys.BAMBOO);
   });
@@ -152,7 +171,7 @@ export default function renderJungleTrail(container) {
 
   popupContent.appendChild(huntButton);
   resourcePopup.appendChild(popupContent);
-  container.appendChild(resourcePopup);
+  uiLayer.appendChild(resourcePopup);
 
   // Allow closing when clicking the background, but not popup content
   resourcePopup.addEventListener('click', (e) => {
@@ -202,7 +221,6 @@ export default function renderJungleTrail(container) {
     const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
       if (fromWaterWell) {
         console.log('Up: go to Fork3');
-        document.getElementById('camp-content').style.transform = 'scaleX(1)';
         window.campScreen.loadView(LocationKeys.FORK3);
       } else {
         console.log('Up: back to Water Well');
@@ -218,7 +236,6 @@ export default function renderJungleTrail(container) {
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       if (fromWaterWell) {
         console.log('Down: back to Water Well');
-        document.getElementById('camp-content').style.transform = 'scaleX(1)';
         window.campScreen.loadView(LocationKeys.WATER_WELL);
       } else {
         console.log('Down: go to Fork3');
@@ -235,8 +252,8 @@ export default function renderJungleTrail(container) {
 }
 
 /* ⭐⭐ NEW: NPC RENDER FUNCTION ---------------------------------- */
-function renderNPCsAtJungleTrail(container) {
-  const old = container.querySelector(".npc-icon-container");
+function renderNPCsAtJungleTrail(uiLayer) {
+  const old = uiLayer.querySelector(".npc-icon-container");
   if (old) old.remove();
 
   const npcContainer = document.createElement("div");
@@ -252,6 +269,6 @@ function renderNPCsAtJungleTrail(container) {
     npcContainer.appendChild(icon);
   });
 
-  container.appendChild(npcContainer);
+  uiLayer.appendChild(npcContainer);
 }
 /* -------------------------------------------------------------- */

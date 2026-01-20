@@ -22,11 +22,38 @@ export default function renderMountainTrail(container) {
   const fromTreeMail = window.previousCampView === LocationKeys.TREE_MAIL;
   const backgroundURL = "url('Assets/Screens/mountain-trail-view.png')";
 
-  container.style.backgroundImage = backgroundURL;
-  container.style.backgroundSize = 'cover';
-  container.style.backgroundPosition = 'center';
-  container.style.backgroundRepeat = 'no-repeat';
-  container.style.transform = fromTreeMail ? 'scaleX(-1)' : 'scaleX(1)';
+  container.style.position = 'relative';
+  container.style.overflow = 'hidden';
+
+  const oldBgLayer = container.querySelector('.bg-layer');
+  if (oldBgLayer) oldBgLayer.remove();
+
+  const bgLayer = createElement('div', {
+    className: 'bg-layer',
+    style: `
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-image: ${backgroundURL};
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transform: scaleX(${fromTreeMail ? -1 : 1});
+    `
+  });
+
+  const uiLayer = createElement('div', {
+    className: 'ui-layer',
+    style: `
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+    `
+  });
+
+  container.appendChild(bgLayer);
+  container.appendChild(uiLayer);
 
   const wrapper = createElement('div', {
     className: 'mountaintrail-wrapper',
@@ -53,12 +80,11 @@ export default function renderMountainTrail(container) {
       z-index: 2;
       opacity: 1;
       transition: opacity 1s ease;
-      transform: scaleX(${fromTreeMail ? -1 : 1});
     `
   }, 'You begin your ascent up the Mountain Trail...');
 
   wrapper.appendChild(message);
-  container.appendChild(wrapper);
+  uiLayer.appendChild(wrapper);
 
   const actionPopup = createElement('div', {
     id: 'mountain-action-popup',
@@ -100,7 +126,6 @@ export default function renderMountainTrail(container) {
   const shakeButton = createElement('button', { className: 'rect-button alt' }, 'Shake Trees');
   shakeButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    document.getElementById('camp-content').style.transform = 'scaleX(1)';
     window.previousCampView = LocationKeys.MOUNTAIN_TRAIL;
     window.campScreen.loadView(LocationKeys.SHAKE);
   });
@@ -115,7 +140,7 @@ export default function renderMountainTrail(container) {
   popupContent.appendChild(shakeButton);
   popupContent.appendChild(huntButton);
   actionPopup.appendChild(popupContent);
-  container.appendChild(actionPopup);
+  uiLayer.appendChild(actionPopup);
 
   actionPopup.addEventListener('click', (event) => {
     if (event.target === actionPopup) {
@@ -124,7 +149,7 @@ export default function renderMountainTrail(container) {
   });
 
   /* ⭐ NEW NPC RENDERING -------------------------------------------------- */
-  renderNPCsAtMountainTrail(container);
+  renderNPCsAtMountainTrail(uiLayer);
   /* ---------------------------------------------------------------------- */
 
   // Fade out message after a delay
@@ -177,7 +202,6 @@ export default function renderMountainTrail(container) {
     const upButton = fromTreeMail
       ? createIconButton('Assets/Buttons/up.png', 'Up', () => {
           console.log('Up: go to Fork2 (from TreeMail)');
-          document.getElementById('camp-content').style.transform = 'scaleX(1)';
           window.campScreen.loadView(LocationKeys.FORK2);
         })
       : createIconButton('Assets/Buttons/up.png', 'Up', () => {
@@ -192,7 +216,6 @@ export default function renderMountainTrail(container) {
     const downButton = fromTreeMail
       ? createIconButton('Assets/Buttons/down.png', 'Down', () => {
           console.log('Down: back to Tree Mail (from TreeMail)');
-          document.getElementById('camp-content').style.transform = 'scaleX(1)';
           window.campScreen.loadView(LocationKeys.TREE_MAIL);
         })
       : createIconButton('Assets/Buttons/down.png', 'Down', () => {
@@ -209,8 +232,8 @@ export default function renderMountainTrail(container) {
 }
 
 /* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR THIS LOCATION ------------------ */
-function renderNPCsAtMountainTrail(container) {
-  const old = container.querySelector(".npc-icon-container");
+function renderNPCsAtMountainTrail(uiLayer) {
+  const old = uiLayer.querySelector(".npc-icon-container");
   if (old) old.remove();
 
   const npcContainer = document.createElement("div");
@@ -227,6 +250,6 @@ function renderNPCsAtMountainTrail(container) {
     npcContainer.appendChild(icon);
   });
 
-  container.appendChild(npcContainer);
+  uiLayer.appendChild(npcContainer);
 }
 /* ---------------------------------------------------------------------- */
