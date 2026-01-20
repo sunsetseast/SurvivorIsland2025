@@ -14,18 +14,18 @@ import npcLocationSystem from "../systems/NpcLocationSystem.js";
 import { createNpcIcon } from "../ui/NpcIcon.js";
 /* ---------------------------------------------------------------- */
 
+function loadCampView(locationKey) {
+  if (window.campScreen?.loadView) {
+    return window.campScreen.loadView(locationKey);
+  }
+  console.warn('[CampfireView] Unable to load camp view', { locationKey });
+}
+
 export default function renderCampfire(container) {
   console.log('renderCampfire() called');
   addDebugBanner('renderCampfire() called', 'orangered', 40);
 
   clearChildren(container);
-  const loadCampView = (locationKey) => {
-    if (window.campScreen?.loadView) {
-      window.campScreen.loadView(locationKey);
-      return;
-    }
-    console.warn('[CampfireView] Unable to load camp view', { locationKey });
-  };
 
   // Get player's tribe fire value to determine background
   const playerTribe = gameManager.getPlayerTribe();
@@ -124,7 +124,7 @@ export default function renderCampfire(container) {
   const fireButton = createElement('button', { className: 'rect-button alt' }, 'Tend the Fire');
   fireButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    window.campScreen.loadView(LocationKeys.FIRE);
+    loadCampView(LocationKeys.FIRE);
   });
 
   const huntButton = createElement('button', { className: 'rect-button alt' }, 'Hunt for an Idol');
@@ -233,7 +233,13 @@ function renderNPCsAtCampfire(container) {
   npcContainer.classList.add("npc-icon-container");
 
   // Get NPCs located at CampfireView
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.CAMPFIRE);
+  let survivorsHere = [];
+  try {
+    survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.CAMPFIRE) || [];
+  } catch (e) {
+    console.warn('[CampfireView] NPC render failed', e);
+    survivorsHere = [];
+  }
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {
