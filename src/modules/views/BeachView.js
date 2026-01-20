@@ -4,7 +4,6 @@
  */
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
-import { gameManager, screenManager } from '../core/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
@@ -12,6 +11,13 @@ import { LocationKeys } from '../core/LocationKeys.js';
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
 import { createNpcIcon } from "../ui/NpcIcon.js";
 /* ------------------------------------------------------------------- */
+
+function loadCampView(locationKey) {
+  if (window.campScreen?.loadView) {
+    return window.campScreen.loadView(locationKey);
+  }
+  console.warn('[BeachView] Unable to load camp view', { locationKey });
+}
 
 export default function renderBeach(container) {
   console.log('renderBeach() called');
@@ -96,7 +102,7 @@ export default function renderBeach(container) {
 
   fishingButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    window.campScreen.loadView(LocationKeys.FISHING);
+    loadCampView(LocationKeys.FISHING);
   });
 
   const huntButton = createElement('button', {
@@ -132,8 +138,8 @@ export default function renderBeach(container) {
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 240px;
-          height: 135px;
+          width: 260px;
+          height: 150px;
           display: inline-block;
           overflow: hidden;
           cursor: pointer;
@@ -159,7 +165,7 @@ export default function renderBeach(container) {
 
     const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
       console.log('Up button clicked - going to Rocky Shore');
-      window.campScreen.loadView(LocationKeys.ROCKY_SHORE);
+      loadCampView(LocationKeys.ROCKY_SHORE);
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
@@ -168,7 +174,7 @@ export default function renderBeach(container) {
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       console.log('Right button clicked - returning to Tribe Flag');
-      window.campScreen.loadView(LocationKeys.TRIBE_FLAG);
+      loadCampView(LocationKeys.TRIBE_FLAG);
     });
 
     actionButtons.appendChild(upButton);
@@ -189,7 +195,13 @@ function renderNPCsAtBeach(container) {
   npcContainer.classList.add("npc-icon-container");
 
   // Fetch survivors located at BeachView
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.BEACH);
+  let survivorsHere = [];
+  try {
+    survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.BEACH) || [];
+  } catch (e) {
+    console.warn('[BeachView] NPC render failed', e);
+    survivorsHere = [];
+  }
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {
