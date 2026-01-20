@@ -332,17 +332,15 @@ export default class CampScreen {
         viewName,
         normalizedViewName
       });
+      if (actionButtons) {
+        actionButtons.style.display = 'flex';
+      }
       return;
     }
 
     // 🔥 1) Render the actual view
     const renderFn = campViews[normalizedViewName];
-    if (renderFn) {
-      if (actionButtons) {
-        actionButtons.style.display = 'flex';
-      }
-      renderFn(viewContainer);
-    } else {
+    if (!renderFn) {
       console.warn('[CampScreen] Missing render handler for view', {
         viewName,
         normalizedViewName
@@ -353,7 +351,25 @@ export default class CampScreen {
         warning.textContent = `Unknown camp view: ${viewName}`;
         viewContainer.appendChild(warning);
       }
+      if (actionButtons) {
+        actionButtons.style.display = 'flex';
+      }
       return;
+    }
+    try {
+      renderFn(viewContainer);
+    } catch (err) {
+      console.error('[CampScreen] View render crashed', { viewName, normalizedViewName, err });
+      const crashNotice = document.createElement('div');
+      crashNotice.className = 'camp-view-error';
+      crashNotice.textContent = '⚠️ Camp view crashed. Check console for details.';
+      crashNotice.style.cssText = 'margin: 16px; padding: 12px; background: rgba(0,0,0,0.65); color: #fff; border: 1px solid #ff6b6b; font-family: "Survivant", sans-serif; font-size: 0.95rem; text-align: center;';
+      viewContainer.appendChild(crashNotice);
+      return;
+    } finally {
+      if (actionButtons) {
+        actionButtons.style.display = 'flex';
+      }
     }
 
     if (!gameManager.flags?.campEventActive) {

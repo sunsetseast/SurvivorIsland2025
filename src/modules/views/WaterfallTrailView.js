@@ -5,7 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
-import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
+import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
@@ -96,7 +96,7 @@ export default function renderWaterfallTrail(container) {
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
-      openIdolHuntMenu(container, LocationKeys.WATERFALL_TRAIL);
+      openIdolHuntOptions(container, LocationKeys.WATERFALL_TRAIL);
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
