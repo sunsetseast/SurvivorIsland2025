@@ -32,15 +32,17 @@ import { LocationKeys } from '../core/LocationKeys.js';
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
 const TASK_ICON_HIDDEN_VIEWS = new Set();
 
+const STRATEGY_SUMMARY_VIEW_KEY = renderPostChallengeSummaryView ? 'strategySummary' : 'summary';
+
 const campViews = {
-  [LocationKeys.TRIBE_FLAG]: renderTribeFlag,
+  flag: renderTribeFlag,
   [LocationKeys.BEACH]: renderBeach,
-  [LocationKeys.ROCKY_SHORE]: renderRockyShore,
+  rocky: renderRockyShore,
   [LocationKeys.CAMPFIRE]: renderCampfire,
   [LocationKeys.SHELTER]: renderShelter,
   [LocationKeys.FORK1]: renderFork1,
   [LocationKeys.MOUNTAIN_TRAIL]: renderMountainTrail,
-  [LocationKeys.TREE_MAIL]: renderTreeMail,
+  treemail: renderTreeMail,
   [LocationKeys.WATERFALL_TRAIL]: renderWaterfallTrail,
   [LocationKeys.WATER_WELL]: renderWaterWell,
   [LocationKeys.JUNGLE_TRAIL]: renderJungleTrail,
@@ -51,8 +53,20 @@ const campViews = {
   [LocationKeys.SHAKE]: renderShakeView,
   [LocationKeys.FISHING]: renderFishingView,
   [LocationKeys.FIRE]: renderFireView,
-  [LocationKeys.SUMMARY]: renderSummary,
-  [LocationKeys.STRATEGY_SUMMARY]: renderPostChallengeSummaryView
+  summary: renderSummary,
+  [STRATEGY_SUMMARY_VIEW_KEY]: renderPostChallengeSummaryView
+};
+
+const VIEW_ALIASES = {
+  [LocationKeys.ROCKY_SHORE]: 'rocky',
+  [LocationKeys.TREE_MAIL]: 'treemail',
+  [LocationKeys.TRIBE_FLAG]: 'flag',
+  [LocationKeys.STRATEGY_SUMMARY]: STRATEGY_SUMMARY_VIEW_KEY,
+  rocky: 'rocky',
+  treemail: 'treemail',
+  flag: 'flag',
+  summary: 'summary',
+  strategySummary: STRATEGY_SUMMARY_VIEW_KEY
 };
 
 const CAMP_VIEW_KEY_LOOKUP = {
@@ -60,12 +74,12 @@ const CAMP_VIEW_KEY_LOOKUP = {
   [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
   [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
   [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
-  [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
+  [LocationKeys.ROCKY_SHORE.toLowerCase()]: VIEW_ALIASES[LocationKeys.ROCKY_SHORE],
   [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
   [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
   [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
-  [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
-  [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
+  [LocationKeys.TREE_MAIL.toLowerCase()]: VIEW_ALIASES[LocationKeys.TREE_MAIL],
+  [LocationKeys.TRIBE_FLAG.toLowerCase()]: VIEW_ALIASES[LocationKeys.TRIBE_FLAG],
   [LocationKeys.FORK1.toLowerCase()]: LocationKeys.FORK1,
   [LocationKeys.FORK2.toLowerCase()]: LocationKeys.FORK2,
   [LocationKeys.FORK3.toLowerCase()]: LocationKeys.FORK3,
@@ -74,11 +88,11 @@ const CAMP_VIEW_KEY_LOOKUP = {
   [LocationKeys.SHAKE.toLowerCase()]: LocationKeys.SHAKE,
   [LocationKeys.FISHING.toLowerCase()]: LocationKeys.FISHING,
   [LocationKeys.FIRE.toLowerCase()]: LocationKeys.FIRE,
-  [LocationKeys.SUMMARY.toLowerCase()]: LocationKeys.SUMMARY,
-  [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: LocationKeys.STRATEGY_SUMMARY,
-  flag: LocationKeys.TRIBE_FLAG,
-  treemail: LocationKeys.TREE_MAIL,
-  rocky: LocationKeys.ROCKY_SHORE
+  [LocationKeys.SUMMARY.toLowerCase()]: 'summary',
+  [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: STRATEGY_SUMMARY_VIEW_KEY,
+  flag: 'flag',
+  treemail: 'treemail',
+  rocky: 'rocky'
 };
 
 const normalizeCampViewKey = (viewName) => {
@@ -87,12 +101,16 @@ const normalizeCampViewKey = (viewName) => {
   if (campViews[trimmed]) return trimmed;
   const lower = trimmed.toLowerCase();
   const normalized = lower.replace(/[\s_-]+/g, '');
+  const alias = VIEW_ALIASES[trimmed] || VIEW_ALIASES[lower] || VIEW_ALIASES[normalized];
+  if (alias && campViews[alias]) return alias;
   if (CAMP_VIEW_KEY_LOOKUP[lower]) return CAMP_VIEW_KEY_LOOKUP[lower];
   if (CAMP_VIEW_KEY_LOOKUP[normalized]) return CAMP_VIEW_KEY_LOOKUP[normalized];
   if (trimmed.endsWith('View')) {
     const base = trimmed.replace(/View$/, '');
     const baseLower = base.toLowerCase();
     const baseNormalized = baseLower.replace(/[\s_-]+/g, '');
+    const baseAlias = VIEW_ALIASES[base] || VIEW_ALIASES[baseLower] || VIEW_ALIASES[baseNormalized];
+    if (baseAlias && campViews[baseAlias]) return baseAlias;
     if (CAMP_VIEW_KEY_LOOKUP[baseLower]) return CAMP_VIEW_KEY_LOOKUP[baseLower];
     if (CAMP_VIEW_KEY_LOOKUP[baseNormalized]) return CAMP_VIEW_KEY_LOOKUP[baseNormalized];
     return base.charAt(0).toLowerCase() + base.slice(1);
@@ -267,6 +285,7 @@ export default class CampScreen {
     const viewContainer = getElement('camp-content');
     const canonicalViewName = normalizeCampViewKey(viewName);
     const actionButtons = document.getElementById('action-buttons');
+    console.log(`[CampScreen] loadView: ${viewName} -> ${canonicalViewName}`);
 
     // Call previous view cleanup (if provided by the view)
     if (typeof window.__campViewCleanup === 'function') {
@@ -288,6 +307,7 @@ export default class CampScreen {
     this.setTaskIconVisible(true);
 
     if (actionButtons) {
+      clearChildren(actionButtons);
       actionButtons.style.display = 'flex';
       actionButtons.style.transform = 'none';
       actionButtons.style.justifyContent = 'center';
@@ -303,7 +323,11 @@ export default class CampScreen {
     if (renderFn) {
       renderFn(viewContainer);
     } else {
-      console.warn('[CampScreen] Missing render handler for view', canonicalViewName);
+      console.warn('[CampScreen] Missing render handler for view', {
+        viewName,
+        normalizedViewName: canonicalViewName
+      });
+      return;
     }
 
     if (!gameManager.flags?.campEventActive) {
@@ -325,8 +349,9 @@ export default class CampScreen {
       }
 
       // 🔥 5) Ensure the Day 1 cinematic still triggers when camp first loads
+      const normalizedTribeFlagView = normalizeCampViewKey(LocationKeys.TRIBE_FLAG);
       if (
-        canonicalViewName === LocationKeys.TRIBE_FLAG &&
+        canonicalViewName === normalizedTribeFlagView &&
         gameManager.day === 1 &&
         gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
         !gameManager.flags?.day1FirstImpressionsCompleted &&
