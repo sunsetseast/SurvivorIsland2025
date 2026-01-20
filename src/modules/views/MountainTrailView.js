@@ -19,7 +19,8 @@ export default function renderMountainTrail(container) {
 
   clearChildren(container);
 
-  const fromTreeMail = window.previousCampView === LocationKeys.TREE_MAIL;
+  const prev = window.previousCampView;
+  const fromTreeMail = prev === 'treemail' || prev === LocationKeys.TREE_MAIL;
   const backgroundURL = "url('Assets/Screens/mountain-trail-view.png')";
 
   container.style.position = 'relative';
@@ -194,11 +195,11 @@ export default function renderMountainTrail(container) {
 
     const upButton = fromTreeMail
       ? createIconButton('Assets/Buttons/up.png', 'Up', () => {
-          console.log('Up: go to Fork2 (from TreeMail)');
+          console.log('Up: go to Fork2');
           window.campScreen.loadView(LocationKeys.FORK2);
         })
       : createIconButton('Assets/Buttons/up.png', 'Up', () => {
-          console.log('Up: back to Tree Mail (from Fork2)');
+          console.log('Up: back to Tree Mail');
           window.campScreen.loadView(LocationKeys.TREE_MAIL);
         });
 
@@ -208,11 +209,11 @@ export default function renderMountainTrail(container) {
 
     const downButton = fromTreeMail
       ? createIconButton('Assets/Buttons/down.png', 'Down', () => {
-          console.log('Down: back to Tree Mail (from TreeMail)');
+          console.log('Down: back to Tree Mail');
           window.campScreen.loadView(LocationKeys.TREE_MAIL);
         })
       : createIconButton('Assets/Buttons/down.png', 'Down', () => {
-          console.log('Down: go to Fork2 (from Fork2)');
+          console.log('Down: go to Fork2');
           window.campScreen.loadView(LocationKeys.FORK2);
         });
 
