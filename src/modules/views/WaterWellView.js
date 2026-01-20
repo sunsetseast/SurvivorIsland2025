@@ -443,10 +443,6 @@ export default function renderWaterWell(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.display = 'flex';
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.padding = '0';
-    actionButtons.style.gap = '20px';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -484,7 +480,6 @@ export default function renderWaterWell(container) {
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      window.previousCampView = LocationKeys.WATER_WELL;
       window.campScreen.loadView(LocationKeys.JUNGLE_TRAIL);
     });
 

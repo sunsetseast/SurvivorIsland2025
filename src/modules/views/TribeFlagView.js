@@ -220,10 +220,6 @@ export default function renderTribeFlag(container) {
   if (actionButtons) {
     clearChildren(actionButtons);
 
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0';
-
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `

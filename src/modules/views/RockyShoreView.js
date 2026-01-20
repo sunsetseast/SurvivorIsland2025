@@ -62,9 +62,6 @@ export default function renderRockyShore(container) {
   if (actionButtons) {
     clearChildren(actionButtons);
 
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.padding = '0';
-
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `

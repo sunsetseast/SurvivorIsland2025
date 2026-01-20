@@ -266,6 +266,7 @@ export default class CampScreen {
   loadView(viewName) {
     const viewContainer = getElement('camp-content');
     const canonicalViewName = normalizeCampViewKey(viewName);
+    const actionButtons = document.getElementById('action-buttons');
 
     // Call previous view cleanup (if provided by the view)
     if (typeof window.__campViewCleanup === 'function') {
@@ -278,16 +279,24 @@ export default class CampScreen {
       }
     }
 
+    // Track previous view
+    window.previousCampView = this.currentView || null;
+    this.currentView = canonicalViewName;
+
     this.ensureTaskIcon();
     this.closeTaskOverlay();
     this.setTaskIconVisible(true);
 
+    if (actionButtons) {
+      actionButtons.style.display = 'flex';
+      actionButtons.style.transform = 'none';
+      actionButtons.style.justifyContent = 'center';
+      actionButtons.style.gap = '20px';
+      actionButtons.style.padding = '0';
+    }
+
     // Always clear old view first
     clearChildren(viewContainer);
-
-    // Track previous view
-    window.previousCampView = this.currentView || null;
-    this.currentView = canonicalViewName;
 
     // 🔥 1) Render the actual view
     const renderFn = campViews[canonicalViewName];

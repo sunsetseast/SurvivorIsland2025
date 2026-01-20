@@ -550,10 +550,6 @@ export default function renderSummary(container) {
   if (actionButtons) {
     clearChildren(actionButtons);
 
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0';
-
     const createButton = (text, onClick) => {
       const button = createElement('div', {
         style: `

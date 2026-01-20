@@ -184,9 +184,6 @@ export default function renderFireView(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0';
 
     // If fire not built → "Make Fire"; else → "Tend Fire"
     if (!fireBuilt) {
@@ -219,7 +216,7 @@ export default function renderFireView(container) {
         if (window.previousCampView) {
           window.campScreen.loadView(window.previousCampView);
         } else {
-          window.campScreen.loadView(LocationKeys.CAMPFIRE);
+          console.warn('No previousCampView set.');
         }
       },
       ''
@@ -2628,7 +2625,7 @@ export default function renderFireView(container) {
             if (window.previousCampView) {
               window.campScreen.loadView(window.previousCampView);
             } else {
-              window.campScreen.loadView(LocationKeys.CAMPFIRE);
+              console.warn('No previousCampView set.');
             }
           },
           ''
