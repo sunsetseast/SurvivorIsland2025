@@ -314,7 +314,7 @@ export default class CampScreen {
     }
     if (actionButtons) {
       clearChildren(actionButtons);
-      actionButtons.style.display = 'none';
+      actionButtons.style.display = 'flex';
       actionButtons.style.transform = 'none';
       actionButtons.style.justifyContent = 'center';
       actionButtons.style.gap = '20px';

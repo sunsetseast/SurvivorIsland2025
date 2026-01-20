@@ -139,11 +139,9 @@ export default function renderBeach(container) {
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 140px;
-          height: 70px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 260px;
+          height: 150px;
+          display: inline-block;
           overflow: hidden;
           cursor: pointer;
         `
@@ -153,10 +151,8 @@ export default function renderBeach(container) {
         src,
         alt,
         style: `
-          max-width: 100%;
-          max-height: 100%;
-          width: auto;
-          height: auto;
+          width: 100%;
+          height: 100%;
           display: block;
           object-fit: contain;
           pointer-events: none;
