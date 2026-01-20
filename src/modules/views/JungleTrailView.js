@@ -182,6 +182,7 @@ export default function renderJungleTrail(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
+    actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -252,7 +253,13 @@ function renderNPCsAtJungleTrail(uiLayer) {
   const npcContainer = document.createElement("div");
   npcContainer.classList.add("npc-icon-container");
 
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.JUNGLE_TRAIL);
+  let survivorsHere = [];
+  try {
+    survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.JUNGLE_TRAIL) || [];
+  } catch (error) {
+    console.warn('[JungleTrailView] NPC render failed', error);
+    survivorsHere = [];
+  }
 
   survivorsHere.forEach(survivor => {
     const icon = createNpcIcon(survivor, () => {
