@@ -146,7 +146,11 @@ export default function renderCampfire(container) {
   });
 
   /* ⭐ NEW NPC RENDERING CALL ------------------------------------- */
-  renderNPCsAtCampfire(container);
+  try {
+    renderNPCsAtCampfire(container);
+  } catch (error) {
+    console.warn('[CampfireView] NPC render crashed', error);
+  }
   /* -------------------------------------------------------------- */
 
   // Fade out after 3 seconds

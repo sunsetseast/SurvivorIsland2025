@@ -61,7 +61,11 @@ export default function renderWaterWell(container) {
   setTimeout(() => message.remove(), 4000);
 
   /* ⭐ ADD NPC ICONS HERE -------------------------------------- */
-  renderNPCsAtWaterWell(container);
+  try {
+    renderNPCsAtWaterWell(container);
+  } catch (error) {
+    console.warn('[WaterWellView] NPC render crashed', error);
+  }
   /* ------------------------------------------------------------ */
 
   function showWaterInfoPopup() {
@@ -443,6 +447,7 @@ export default function renderWaterWell(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
+    actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
