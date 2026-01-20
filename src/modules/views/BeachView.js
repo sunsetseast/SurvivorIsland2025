@@ -134,6 +134,7 @@ export default function renderBeach(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
+    actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {

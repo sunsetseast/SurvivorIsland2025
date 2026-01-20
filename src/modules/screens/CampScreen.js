@@ -32,17 +32,19 @@ import { LocationKeys } from '../core/LocationKeys.js';
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
 const TASK_ICON_HIDDEN_VIEWS = new Set();
 
-const STRATEGY_SUMMARY_VIEW_KEY = renderPostChallengeSummaryView ? 'strategySummary' : 'summary';
+const STRATEGY_SUMMARY_VIEW_KEY = renderPostChallengeSummaryView
+  ? LocationKeys.STRATEGY_SUMMARY
+  : LocationKeys.SUMMARY;
 
 const campViews = {
-  flag: renderTribeFlag,
+  [LocationKeys.TRIBE_FLAG]: renderTribeFlag,
   [LocationKeys.BEACH]: renderBeach,
-  rocky: renderRockyShore,
+  [LocationKeys.ROCKY_SHORE]: renderRockyShore,
   [LocationKeys.CAMPFIRE]: renderCampfire,
   [LocationKeys.SHELTER]: renderShelter,
   [LocationKeys.FORK1]: renderFork1,
   [LocationKeys.MOUNTAIN_TRAIL]: renderMountainTrail,
-  treemail: renderTreeMail,
+  [LocationKeys.TREE_MAIL]: renderTreeMail,
   [LocationKeys.WATERFALL_TRAIL]: renderWaterfallTrail,
   [LocationKeys.WATER_WELL]: renderWaterWell,
   [LocationKeys.JUNGLE_TRAIL]: renderJungleTrail,
@@ -53,22 +55,22 @@ const campViews = {
   [LocationKeys.SHAKE]: renderShakeView,
   [LocationKeys.FISHING]: renderFishingView,
   [LocationKeys.FIRE]: renderFireView,
-  summary: renderSummary,
+  [LocationKeys.SUMMARY]: renderSummary,
   [STRATEGY_SUMMARY_VIEW_KEY]: renderPostChallengeSummaryView
 };
 
 const VIEW_ALIASES = {
-  [LocationKeys.ROCKY_SHORE]: 'rocky',
-  [LocationKeys.TREE_MAIL]: 'treemail',
-  [LocationKeys.TRIBE_FLAG]: 'flag',
+  [LocationKeys.ROCKY_SHORE]: LocationKeys.ROCKY_SHORE,
+  [LocationKeys.TREE_MAIL]: LocationKeys.TREE_MAIL,
+  [LocationKeys.TRIBE_FLAG]: LocationKeys.TRIBE_FLAG,
   [LocationKeys.STRATEGY_SUMMARY]: STRATEGY_SUMMARY_VIEW_KEY,
-  rocky: 'rocky',
-  rockyshore: 'rocky',
-  treemail: 'treemail',
-  treemailview: 'treemail',
-  flag: 'flag',
-  tribeflag: 'flag',
-  summary: 'summary',
+  rocky: LocationKeys.ROCKY_SHORE,
+  rockyshore: LocationKeys.ROCKY_SHORE,
+  treemail: LocationKeys.TREE_MAIL,
+  treemailview: LocationKeys.TREE_MAIL,
+  flag: LocationKeys.TRIBE_FLAG,
+  tribeflag: LocationKeys.TRIBE_FLAG,
+  summary: LocationKeys.SUMMARY,
   strategysummary: STRATEGY_SUMMARY_VIEW_KEY
 };
 
@@ -77,12 +79,12 @@ const CAMP_VIEW_KEY_LOOKUP = {
   [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
   [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
   [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
-  [LocationKeys.ROCKY_SHORE.toLowerCase()]: VIEW_ALIASES[LocationKeys.ROCKY_SHORE],
+  [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
   [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
   [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
   [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
-  [LocationKeys.TREE_MAIL.toLowerCase()]: VIEW_ALIASES[LocationKeys.TREE_MAIL],
-  [LocationKeys.TRIBE_FLAG.toLowerCase()]: VIEW_ALIASES[LocationKeys.TRIBE_FLAG],
+  [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
+  [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
   [LocationKeys.FORK1.toLowerCase()]: LocationKeys.FORK1,
   [LocationKeys.FORK2.toLowerCase()]: LocationKeys.FORK2,
   [LocationKeys.FORK3.toLowerCase()]: LocationKeys.FORK3,
@@ -91,11 +93,11 @@ const CAMP_VIEW_KEY_LOOKUP = {
   [LocationKeys.SHAKE.toLowerCase()]: LocationKeys.SHAKE,
   [LocationKeys.FISHING.toLowerCase()]: LocationKeys.FISHING,
   [LocationKeys.FIRE.toLowerCase()]: LocationKeys.FIRE,
-  [LocationKeys.SUMMARY.toLowerCase()]: 'summary',
+  [LocationKeys.SUMMARY.toLowerCase()]: LocationKeys.SUMMARY,
   [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: STRATEGY_SUMMARY_VIEW_KEY,
-  flag: 'flag',
-  treemail: 'treemail',
-  rocky: 'rocky'
+  flag: LocationKeys.TRIBE_FLAG,
+  treemail: LocationKeys.TREE_MAIL,
+  rocky: LocationKeys.ROCKY_SHORE
 };
 
 const normalizeCampViewKey = (viewName) => {

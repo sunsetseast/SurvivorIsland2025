@@ -4,6 +4,20 @@
 // ===============================
 
 import gameManager from "../core/GameManager.js";
+import { LocationKeys } from "../core/LocationKeys.js";
+
+const normalizeLocationValue = (value) => String(value || "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+const NORMALIZED_LOCATION_KEYS = {
+    BEACH: normalizeLocationValue(LocationKeys.BEACH),
+    SHELTER: normalizeLocationValue(LocationKeys.SHELTER),
+    CAMPFIRE: normalizeLocationValue(LocationKeys.CAMPFIRE),
+    JUNGLE_TRAIL: normalizeLocationValue(LocationKeys.JUNGLE_TRAIL),
+    WATERFALL_TRAIL: normalizeLocationValue(LocationKeys.WATERFALL_TRAIL),
+    ROCKY_SHORE: normalizeLocationValue(LocationKeys.ROCKY_SHORE)
+};
 import npcLocationSystem from "./NpcLocationSystem.js";
 import socialMemorySystem from "./SocialMemorySystem.js";
 
@@ -613,25 +627,25 @@ class NpcIntentPlanner {
     _getLocationBias(location) {
         const normalized = this._normalizeLocation(location);
         if (!normalized) return null;
-        if (["beach", "shelter"].includes(normalized)) {
+        if ([NORMALIZED_LOCATION_KEYS.BEACH, NORMALIZED_LOCATION_KEYS.SHELTER].includes(normalized)) {
             return {
                 reason: "camp comfort spot favors bonding",
                 weights: { bonding: 0.22, allianceInvite: 0.1 }
             };
         }
-        if (normalized === "campfire") {
+        if (normalized === NORMALIZED_LOCATION_KEYS.CAMPFIRE) {
             return {
                 reason: "campfire chatter leans strategic",
                 weights: { softStrategy: 0.18, warning: 0.12 }
             };
         }
-        if (["jungletrail", "waterfalltrail"].includes(normalized)) {
+        if ([NORMALIZED_LOCATION_KEYS.JUNGLE_TRAIL, NORMALIZED_LOCATION_KEYS.WATERFALL_TRAIL].includes(normalized)) {
             return {
                 reason: "trail meetup feels private",
                 weights: { idolSuspicion: 0.18, softStrategy: 0.12 }
             };
         }
-        if (normalized === "rocky") {
+        if (normalized === NORMALIZED_LOCATION_KEYS.ROCKY_SHORE) {
             return {
                 reason: "rocky stretch invites confrontation",
                 weights: { warning: 0.18, targeting: 0.12 }
@@ -642,7 +656,11 @@ class NpcIntentPlanner {
 
     _isIsolatedLocation(location) {
         const normalized = this._normalizeLocation(location);
-        return ["jungletrail", "waterfalltrail", "rocky"].includes(normalized);
+        return [
+            NORMALIZED_LOCATION_KEYS.JUNGLE_TRAIL,
+            NORMALIZED_LOCATION_KEYS.WATERFALL_TRAIL,
+            NORMALIZED_LOCATION_KEYS.ROCKY_SHORE
+        ].includes(normalized);
     }
 
     _pickChatterTarget(excludeIds = []) {
