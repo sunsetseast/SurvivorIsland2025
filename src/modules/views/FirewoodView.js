@@ -173,9 +173,6 @@ export default function renderFirewoodView(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick, label, width = 110, height = 70, fontSize = '1.2rem', textOffset = -10) => {
       const wrapper = createElement('div', {
@@ -232,8 +229,7 @@ export default function renderFirewoodView(container) {
         console.log(`Returning to previous view: ${window.previousCampView}`);
         window.campScreen.loadView(window.previousCampView);
       } else {
-        console.warn('No previousCampView set. Defaulting to campfire.');
-        window.campScreen.loadView(LocationKeys.CAMPFIRE);
+        console.warn('No previousCampView set.');
       }
     });
 

@@ -49,12 +49,8 @@ export default function renderFork2(container) {
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
-    if (actionButtons) {
-      clearChildren(actionButtons);
-
-      actionButtons.style.justifyContent = 'center';
-      actionButtons.style.gap = '20px';
-      actionButtons.style.padding = '0';
+  if (actionButtons) {
+    clearChildren(actionButtons);
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
@@ -91,8 +87,6 @@ export default function renderFork2(container) {
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
       console.log('Down button clicked - returning to Mountain Trail');
-      // Reset mirror view if it was flipped previously
-      document.getElementById('camp-content').style.transform = 'scaleX(1)';
       window.campScreen.loadView(LocationKeys.MOUNTAIN_TRAIL);
     });
 

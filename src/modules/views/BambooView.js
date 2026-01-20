@@ -113,8 +113,6 @@ export default function renderBambooView(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
 
     const createIconButton = (src, alt, onClick, label, width = 110, height = 65, fontSize = '1.2rem') => {
       const wrapper = createElement('div', {
@@ -162,7 +160,7 @@ export default function renderBambooView(container) {
       if (window.previousCampView) {
         window.campScreen.loadView(window.previousCampView);
       } else {
-        window.campScreen.loadView(LocationKeys.CAMPFIRE);
+        console.warn('No previousCampView set.');
       }
     });
 

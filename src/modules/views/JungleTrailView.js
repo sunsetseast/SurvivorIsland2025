@@ -29,7 +29,7 @@ export default function renderJungleTrail(container) {
   if (oldBgLayer) oldBgLayer.remove();
 
   const bgLayer = createElement('div', {
-    className: 'bg-layer',
+    className: `bg-layer${fromWaterWell ? ' is-flipped' : ''}`,
     style: `
       position: absolute;
       inset: 0;
@@ -38,7 +38,6 @@ export default function renderJungleTrail(container) {
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      transform: scaleX(${fromWaterWell ? -1 : 1});
     `
   });
 
@@ -143,7 +142,6 @@ export default function renderJungleTrail(container) {
   }, 'Firewood');
 
   firewoodButton.addEventListener('click', () => {
-    window.previousCampView = fromWaterWell ? LocationKeys.WATER_WELL : LocationKeys.JUNGLE_TRAIL;
     window.campScreen.loadView(LocationKeys.FIREWOOD);
   });
 
@@ -152,7 +150,6 @@ export default function renderJungleTrail(container) {
   }, 'Bamboo');
 
   bambooButton.addEventListener('click', () => {
-    window.previousCampView = fromWaterWell ? LocationKeys.WATER_WELL : LocationKeys.JUNGLE_TRAIL;
     window.campScreen.loadView(LocationKeys.BAMBOO);
   });
 
@@ -185,10 +182,6 @@ export default function renderJungleTrail(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.display = 'flex';
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.padding = '0';
-    actionButtons.style.gap = '20px';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {

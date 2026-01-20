@@ -124,7 +124,6 @@ export default function renderCampfire(container) {
   const fireButton = createElement('button', { className: 'rect-button alt' }, 'Tend the Fire');
   fireButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    window.previousCampView = LocationKeys.CAMPFIRE;
     window.campScreen.loadView(LocationKeys.FIRE);
   });
 
@@ -170,10 +169,6 @@ export default function renderCampfire(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {

@@ -29,7 +29,7 @@ export default function renderMountainTrail(container) {
   if (oldBgLayer) oldBgLayer.remove();
 
   const bgLayer = createElement('div', {
-    className: 'bg-layer',
+    className: `bg-layer${fromTreeMail ? ' is-flipped' : ''}`,
     style: `
       position: absolute;
       inset: 0;
@@ -38,7 +38,6 @@ export default function renderMountainTrail(container) {
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      transform: scaleX(${fromTreeMail ? -1 : 1});
     `
   });
 
@@ -126,7 +125,6 @@ export default function renderMountainTrail(container) {
   const shakeButton = createElement('button', { className: 'rect-button alt' }, 'Shake Trees');
   shakeButton.addEventListener('click', () => {
     actionPopup.style.display = 'none';
-    window.previousCampView = LocationKeys.MOUNTAIN_TRAIL;
     window.campScreen.loadView(LocationKeys.SHAKE);
   });
 
@@ -165,11 +163,6 @@ export default function renderMountainTrail(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-
-    actionButtons.style.display = 'flex';
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.padding = '0';
-    actionButtons.style.gap = '20px';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {

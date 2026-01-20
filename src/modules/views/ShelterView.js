@@ -45,9 +45,6 @@ export default function renderShelter(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.justifyContent = 'center';
-    actionButtons.style.gap = '20px';
-    actionButtons.style.padding = '0';
 
     const createIconButton = (src, alt, onClick) => {
       const btnWrapper = createElement('div', {
