@@ -53,10 +53,6 @@ export default function renderWaterfallTrail(container) {
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
-  /* ⭐ NEW: NPC Rendering for this view ------------------------- */
-  renderNPCsAtWaterfallTrail(container);
-  /* ------------------------------------------------------------- */
-
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
@@ -108,6 +104,10 @@ export default function renderWaterfallTrail(container) {
     actionButtons.appendChild(blankButton);
     actionButtons.appendChild(rightButton);
   }
+
+  /* ⭐ NEW: NPC Rendering for this view ------------------------- */
+  renderNPCsAtWaterfallTrail(container);
+  /* ------------------------------------------------------------- */
 
   addDebugBanner('Waterfall Trail view rendered!', 'dodgerblue', 170);
 }
