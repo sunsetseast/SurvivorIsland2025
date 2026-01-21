@@ -153,10 +153,6 @@ export default function renderMountainTrail(container) {
     }
   });
 
-  /* ⭐ NEW NPC RENDERING -------------------------------------------------- */
-  renderNPCsAtMountainTrail(uiLayer);
-  /* ---------------------------------------------------------------------- */
-
   // Fade out message after a delay
   setTimeout(() => {
     message.style.opacity = '0';
@@ -229,6 +225,10 @@ export default function renderMountainTrail(container) {
     actionButtons.appendChild(downButton);
   }
 
+  /* ⭐ NEW NPC RENDERING -------------------------------------------------- */
+  renderNPCsAtMountainTrail(uiLayer);
+  /* ---------------------------------------------------------------------- */
+
   addDebugBanner('Mountain Trail view rendered!', 'sienna', 170);
 }
 
@@ -249,6 +249,7 @@ function renderNPCsAtMountainTrail(uiLayer) {
   }
 
   survivorsHere.forEach(survivor => {
+    if (!survivor) return;
     const icon = createNpcIcon(survivor, () => {
       console.log("Clicked NPC:", survivor.name);
       // TODO: conversation UI

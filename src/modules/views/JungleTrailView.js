@@ -86,10 +86,6 @@ export default function renderJungleTrail(container) {
   wrapper.appendChild(message);
   uiLayer.appendChild(wrapper);
 
-  /* ⭐ NEW NPC RENDERING -------------------------------------- */
-  renderNPCsAtJungleTrail(uiLayer);
-  /* ----------------------------------------------------------- */
-
   // Fade out message after a delay
   setTimeout(() => {
     message.style.opacity = '0';
@@ -242,6 +238,10 @@ export default function renderJungleTrail(container) {
     actionButtons.appendChild(downButton);
   }
 
+  /* ⭐ NEW NPC RENDERING -------------------------------------- */
+  renderNPCsAtJungleTrail(uiLayer);
+  /* ----------------------------------------------------------- */
+
   addDebugBanner('Jungle Trail view rendered!', 'green', 170);
 }
 
@@ -262,6 +262,7 @@ function renderNPCsAtJungleTrail(uiLayer) {
   }
 
   survivorsHere.forEach(survivor => {
+    if (!survivor) return;
     const icon = createNpcIcon(survivor, () => {
       console.log(`Clicked NPC: ${survivor.name}`);
       // TODO: trigger conversation UI
