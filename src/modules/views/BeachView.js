@@ -134,14 +134,15 @@ export default function renderBeach(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
-    actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('div', {
         style: `
-          width: 260px;
-          height: 150px;
-          display: inline-block;
+          width: 140px;
+          height: 80px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
           overflow: hidden;
           cursor: pointer;
         `
@@ -151,16 +152,18 @@ export default function renderBeach(container) {
         src,
         alt,
         style: `
-          width: 100%;
-          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          width: auto;
+          height: auto;
           display: block;
-          object-fit: contain;
-          pointer-events: none;
         `
       });
 
       wrapper.appendChild(image);
-      if (onClick) wrapper.addEventListener('click', onClick);
+      if (onClick) {
+        wrapper.addEventListener('click', onClick);
+      }
       return wrapper;
     };
 
