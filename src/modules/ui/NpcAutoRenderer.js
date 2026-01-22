@@ -222,13 +222,13 @@ class NpcAutoRenderer {
             return normalizedMap[normalized];
         }
 
-        if (trimmed.endsWith("View")) {
+        if (/view$/i.test(trimmed)) {
             const currentView = window?.campScreen?.currentView;
             if (currentView) {
                 return currentView;
             }
 
-            const baseName = trimmed.replace(/View$/, "");
+            const baseName = trimmed.replace(/view$/i, "");
             const baseLower = baseName.toLowerCase();
             const baseNormalized = baseLower.replace(/[\s_-]+/g, "");
             if (normalizedMap[baseLower]) {
