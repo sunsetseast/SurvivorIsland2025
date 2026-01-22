@@ -52,12 +52,26 @@ export default function renderBeach(container) {
       font-family: 'Survivant', sans-serif;
       text-align: center;
       padding: 20px;
+      opacity: 1;
+      transition: opacity 1s ease;
       z-index: 2;
     `
   }, 'Welcome to the Beach! Chill, fish, and bond with your tribe.');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+
+  setTimeout(() => {
+    if (message && message.isConnected) {
+      message.style.opacity = '0';
+    }
+  }, 3000);
+
+  setTimeout(() => {
+    if (message && message.isConnected) {
+      message.remove();
+    }
+  }, 4000);
 
   const actionPopup = createElement('div', {
     id: 'beach-action-popup',
@@ -126,10 +140,6 @@ export default function renderBeach(container) {
     }
   });
 
-  /* ⭐ NEW NPC RENDERING LOGIC -------------------------------------- */
-  renderNPCsAtBeach(container);
-  /* ---------------------------------------------------------------- */
-
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
@@ -186,36 +196,39 @@ export default function renderBeach(container) {
     actionButtons.appendChild(rightButton);
   }
 
+  /* ⭐ NEW NPC RENDERING LOGIC -------------------------------------- */
+  renderNPCsAtBeach(container);
+  /* ---------------------------------------------------------------- */
+
   addDebugBanner('Beach view rendered!', 'deepskyblue', 170);
 }
 
 /* ⭐⭐ NEW FUNCTION ADDED: Renders NPC Icons for BeachView ----------- */
 function renderNPCsAtBeach(container) {
-  // Remove old NPC container if it exists
-  const old = container.querySelector(".npc-icon-container");
-  if (old) old.remove();
-
-  const npcContainer = document.createElement("div");
-  npcContainer.classList.add("npc-icon-container");
-
-  // Fetch survivors located at BeachView
-  let survivorsHere = [];
   try {
-    survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.BEACH) || [];
+    // Remove old NPC container if it exists
+    const old = container.querySelector(".npc-icon-container");
+    if (old) old.remove();
+
+    const npcContainer = document.createElement("div");
+    npcContainer.classList.add("npc-icon-container");
+
+    // Fetch survivors located at BeachView
+    const survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.BEACH) || [];
+
+    survivorsHere.forEach(survivor => {
+      if (!survivor) return;
+      const icon = createNpcIcon(survivor, () => {
+        console.log("Clicked NPC:", survivor.name);
+        // TODO: Launch conversation UI
+        // conversationUI.startConversation(survivor);
+      });
+      npcContainer.appendChild(icon);
+    });
+
+    container.appendChild(npcContainer);
   } catch (e) {
     console.warn('[BeachView] NPC render failed', e);
-    survivorsHere = [];
   }
-
-  survivorsHere.forEach(survivor => {
-    const icon = createNpcIcon(survivor, () => {
-      console.log("Clicked NPC:", survivor.name);
-      // TODO: Launch conversation UI
-      // conversationUI.startConversation(survivor);
-    });
-    npcContainer.appendChild(icon);
-  });
-
-  container.appendChild(npcContainer);
 }
 /* ------------------------------------------------------------------- */
