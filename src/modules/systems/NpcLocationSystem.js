@@ -53,8 +53,8 @@ const normalizeLocationKey = (key) => {
   const normalized = lower.replace(/[\s_-]+/g, "");
   if (LOCATION_KEY_LOOKUP[lower]) return LOCATION_KEY_LOOKUP[lower];
   if (LOCATION_KEY_LOOKUP[normalized]) return LOCATION_KEY_LOOKUP[normalized];
-  if (trimmed.endsWith("View")) {
-    const base = trimmed.replace(/View$/, "");
+  if (/view$/i.test(trimmed)) {
+    const base = trimmed.replace(/view$/i, "");
     const baseLower = base.toLowerCase();
     const baseNormalized = baseLower.replace(/[\s_-]+/g, "");
     if (LOCATION_KEY_LOOKUP[baseLower]) return LOCATION_KEY_LOOKUP[baseLower];

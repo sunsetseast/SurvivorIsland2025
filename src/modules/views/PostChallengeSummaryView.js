@@ -1,5 +1,6 @@
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 import gameManager from '../core/GameManager.js';
+import { clearChildren } from '../utils/index.js';
 
 export default function renderPostChallengeSummaryView(container) {
   const wrapper = document.createElement('div');
@@ -49,6 +50,53 @@ export default function renderPostChallengeSummaryView(container) {
 
   wrapper.appendChild(button);
   container.appendChild(wrapper);
+
+  const actionButtons = document.getElementById('action-buttons');
+  if (actionButtons) {
+    clearChildren(actionButtons);
+
+    const buttonWrapper = document.createElement('div');
+    buttonWrapper.style.cssText = `
+      width: 260px;
+      height: 150px;
+      display: inline-block;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+    `;
+
+    const background = document.createElement('img');
+    background.src = 'Assets/Buttons/blank.png';
+    background.alt = 'Continue';
+    background.style.cssText = `
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      pointer-events: none;
+    `;
+
+    const label = document.createElement('div');
+    label.textContent = button.textContent;
+    label.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-family: 'Survivant', sans-serif;
+      font-size: 1.1rem;
+      text-shadow: 1px 1px 2px black;
+      text-align: center;
+      pointer-events: none;
+      width: 90%;
+    `;
+
+    buttonWrapper.appendChild(background);
+    buttonWrapper.appendChild(label);
+    buttonWrapper.addEventListener('click', () => strategyPhaseSystem.proceedAfterSummary());
+    actionButtons.appendChild(buttonWrapper);
+  }
 }
 
 function buildSections(facts = []) {
