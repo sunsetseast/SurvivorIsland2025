@@ -217,13 +217,14 @@ function getShelterRoot({ allowRecover = true } = {}) {
   const anyWrapper = document.querySelector('.shelter-wrapper');
   if (anyWrapper && anyWrapper.isConnected) return anyWrapper;
 
-  if (
-    allowRecover
-    && !shelterRecoveryInProgress
-    && window.campScreen?.currentView === LocationKeys.SHELTER
-  ) {
+  if (allowRecover && !shelterRecoveryInProgress) {
     const campContent = document.getElementById('camp-content');
-    if (campContent) {
+    const currentView = window.campScreen?.currentView;
+    const requestedView = window.currentCampViewRequested;
+    const backgroundHint = campContent?.style?.backgroundImage || '';
+    const looksLikeShelter = backgroundHint.includes('shelter');
+
+    if (campContent && (currentView === LocationKeys.SHELTER || requestedView === LocationKeys.SHELTER || looksLikeShelter)) {
       shelterRecoveryInProgress = true;
       console.warn('[ShelterView] getShelterRoot: shelter wrapper not found, re-rendering.');
       renderShelter(campContent);
