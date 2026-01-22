@@ -226,9 +226,14 @@ function getShelterRoot({ allowRecover = true } = {}) {
 
     if (campContent && (currentView === LocationKeys.SHELTER || requestedView === LocationKeys.SHELTER || looksLikeShelter)) {
       shelterRecoveryInProgress = true;
-      console.warn('[ShelterView] getShelterRoot: shelter wrapper not found, re-rendering.');
-      renderShelter(campContent);
-      shelterRecoveryInProgress = false;
+      try {
+        console.warn('[ShelterView] getShelterRoot: shelter wrapper not found, re-rendering.');
+        renderShelter(campContent);
+      } catch (error) {
+        console.warn('[ShelterView] getShelterRoot: shelter re-render failed.', error);
+      } finally {
+        shelterRecoveryInProgress = false;
+      }
       const recovered = document.querySelector('#camp-content .shelter-wrapper');
       if (recovered && recovered.isConnected) return recovered;
     }
@@ -612,7 +617,15 @@ function ensureStockpileBanner(root, tribe) {
 
 function startContributionFlow() {
   currentActionMode = 'contribute';
-  const root = getShelterRoot();
+  let root = getShelterRoot();
+  if (!root) {
+    const campContent = document.getElementById('camp-content');
+    if (campContent) {
+      console.warn('[ShelterView] startContributionFlow: shelter root missing, forcing re-render.');
+      renderShelter(campContent);
+      root = getShelterRoot({ allowRecover: false });
+    }
+  }
   if (!root) {
     const campContent = document.getElementById('camp-content');
     const childrenDump = campContent
