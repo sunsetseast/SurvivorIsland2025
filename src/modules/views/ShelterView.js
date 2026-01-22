@@ -124,7 +124,7 @@ export default function renderShelter(container) {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      z-index: 10;
+      z-index: 120;
     `
   });
 
@@ -535,7 +535,7 @@ function ensureStockpileBanner(root, tribe) {
         font-family: 'Survivant', serif;
         font-size: 14px;
         box-shadow: 0 2px 12px rgba(0,0,0,0.35);
-        z-index: 60;
+        z-index: 120;
         display: flex;
         flex-direction: column;
         gap: 6px;
@@ -670,7 +670,7 @@ function updateContributionSubmit(wrapper) {
         font-family: 'Survivant', serif;
         font-size: 16px;
         cursor: pointer;
-        z-index: 200;
+        z-index: 140;
         display: none;
       `
     }, 'Submit Contribution');
@@ -1059,7 +1059,7 @@ function createResourceButtons(container) {
       transform: translateX(-50%);
       display: none;
       gap: 20px;
-      z-index: 10;
+      z-index: 120;
     `
   });
 
