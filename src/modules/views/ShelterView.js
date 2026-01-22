@@ -34,6 +34,9 @@ export default function renderShelter(container) {
   addDebugBanner('renderShelter() called', 'darkgreen', 40);
 
   clearChildren(container);
+  if (window.campScreen?.currentView !== LocationKeys.SHELTER) {
+    window.campScreen.currentView = LocationKeys.SHELTER;
+  }
   const loadCampView = (locationKey) => {
     if (window.campScreen?.loadView) {
       window.campScreen.loadView(locationKey);
@@ -204,13 +207,31 @@ export default function renderShelter(container) {
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
 
-function getShelterRoot() {
+let shelterRecoveryInProgress = false;
+
+function getShelterRoot({ allowRecover = true } = {}) {
   const wrapper = document.querySelector('#camp-content .shelter-wrapper');
   if (wrapper && wrapper.isConnected) return wrapper;
 
   // As a last resort, try any shelter wrapper (should be rare)
   const anyWrapper = document.querySelector('.shelter-wrapper');
   if (anyWrapper && anyWrapper.isConnected) return anyWrapper;
+
+  if (
+    allowRecover
+    && !shelterRecoveryInProgress
+    && window.campScreen?.currentView === LocationKeys.SHELTER
+  ) {
+    const campContent = document.getElementById('camp-content');
+    if (campContent) {
+      shelterRecoveryInProgress = true;
+      console.warn('[ShelterView] getShelterRoot: shelter wrapper not found, re-rendering.');
+      renderShelter(campContent);
+      shelterRecoveryInProgress = false;
+      const recovered = document.querySelector('#camp-content .shelter-wrapper');
+      if (recovered && recovered.isConnected) return recovered;
+    }
+  }
 
   // If we get here, Shelter DOM is not present
   console.warn('[ShelterView] getShelterRoot: shelter wrapper not found');
@@ -237,7 +258,7 @@ function cleanupShelterUI() {
     '#stockpile-banner'
   ].forEach(sel => document.querySelectorAll(sel).forEach(el => el.remove()));
 
-  const wrapper = getShelterRoot();
+  const wrapper = getShelterRoot({ allowRecover: false });
   if (wrapper) {
     const removableIds = [
       'shelter-overlay',
