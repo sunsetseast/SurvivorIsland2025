@@ -725,9 +725,8 @@ function submitContribution() {
     type: 'camp_contribute'
   });
   addDebugBanner('Contribution submitted', 'teal', 60);
-  bambooAdded = 0;
-  palmsAdded = 0;
-  updateResourceButtonStyles();
+  hideContributionUI();
+  currentActionMode = null;
   updateStockpileValuesUI(tribe);
   window.refreshMenuCard?.();
   updateContributionSubmit();
