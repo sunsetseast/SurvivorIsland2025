@@ -3,6 +3,8 @@ import { GamePhase } from '../core/GameManager.js';
 
 const SHELTER_REQUIREMENTS = { bamboo: 5, palms: 1 };
 const FIRE_REQUIREMENTS = { firewood: 10 };
+const MAX_SHELTER_LEVEL = 4;
+const MAX_FIRE_LEVEL = 3;
 
 const DEFAULT_DELTAS = {
   bamboo: 0,
@@ -239,6 +241,10 @@ export default class TaskSimulationSystem {
       buildData.attemptedBy = builderId;
 
       const attempt = this.tryConsumeAndBuild(tribe, buildType, requirements, report, builderId);
+      if (attempt.maxed) {
+        console.log(`[TaskSim] ${buildType} already at max level, skipping build`);
+        return;
+      }
       if (attempt.success) {
         buildData.succeeded = true;
         console.log(`[TaskSim] ${buildType} build succeeded`);
@@ -456,6 +462,12 @@ export default class TaskSimulationSystem {
     const gm = this.gameManager;
     if (!tribe || !requirements) return { success: false };
 
+    const currentLevel = buildType === 'shelter' ? tribe.shelter || 0 : tribe.fire || 0;
+    const maxLevel = buildType === 'shelter' ? MAX_SHELTER_LEVEL : MAX_FIRE_LEVEL;
+    if (currentLevel >= maxLevel) {
+      return { success: false, maxed: true };
+    }
+
     const stockpile = gm.ensureStockpileExists?.(tribe) ?? tribe.stockpile ?? {};
     const missing = this.computeMissing(requirements, stockpile);
     const missingTotal = Object.values(missing).reduce((sum, amount) => sum + amount, 0);
@@ -475,7 +487,7 @@ export default class TaskSimulationSystem {
     report.stockpileAfter = this.cloneStockpile(updatedStockpile);
 
     const beforeValue = buildType === 'shelter' ? tribe.shelter || 0 : tribe.fire || 0;
-    const afterValue = beforeValue + 1;
+    const afterValue = Math.min(beforeValue + 1, maxLevel);
 
     if (buildType === 'shelter') tribe.shelter = afterValue;
     if (buildType === 'fire') tribe.fire = afterValue;
