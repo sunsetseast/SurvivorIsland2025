@@ -241,25 +241,30 @@ class NpcIntentPlanner {
         }
 
         if (this._isIsolatedLocation(location)) {
-            weights.softStrategy += 0.08;
-            weights.idolSuspicion += 0.08;
+            weights.informationPlay += 0.08;
+            weights.idolTalk += 0.08;
             reasons.push("isolated location favors private strategy");
         }
 
         if (!alliedWithPlayer && relValue >= 60) {
-            weights.allianceInvite += phase === "post" ? 0.3 : 0.1;
-            reasons.push("relationship ripe for alliance invite");
+            if (phase === "post") {
+                weights.dealMaking += 0.12;
+                reasons.push("relationship ripe for a deal pitch");
+            } else {
+                weights.allianceInvite += 0.1;
+                reasons.push("relationship ripe for alliance invite");
+            }
         }
 
         if (committedAllianceId && phase === "post") {
-            weights.softStrategy += 0.2;
+            weights.dealMaking += 0.12;
             weights.targeting += 0.2;
             weights.warning += 0.1;
         }
 
         if (recentIntelAboutPlayer.length) {
             weights.warning += phase === "post" ? 0.2 : 0.1;
-            weights.idolSuspicion += phase === "post" ? 0.15 : 0.05;
+            weights.idolTalk += phase === "post" ? 0.1 : 0.05;
         }
 
         if (memorySystem?.wasRecentIntent?.(npc.id, "warning", 1, phase)) {
@@ -268,22 +273,23 @@ class NpcIntentPlanner {
         if (memorySystem?.wasRecentIntent?.(npc.id, "targeting", 1, phase)) {
             weights.targeting *= 0.6;
         }
-        if (memorySystem?.wasRecentIntent?.(npc.id, "softStrategy", 1, phase)) {
-            weights.softStrategy *= 0.65;
+        if (memorySystem?.wasRecentIntent?.(npc.id, "challengeDebrief", 1, phase)) {
+            weights.challengeDebrief *= 0.6;
         }
-        if (memorySystem?.wasRecentIntent?.(npc.id, "bonding", 1, phase)) {
-            weights.bonding *= 0.7;
+        if (memorySystem?.wasRecentIntent?.(npc.id, "dealMaking", 1, phase)) {
+            weights.dealMaking *= 0.6;
         }
-        if (memorySystem?.wasRecentIntent?.(npc.id, "allianceInvite", 1, phase)) {
-            weights.allianceInvite *= 0.4;
+        if (memorySystem?.wasRecentIntent?.(npc.id, "informationPlay", 1, phase)) {
+            weights.informationPlay *= 0.65;
         }
-        if (memorySystem?.wasRecentIntent?.(npc.id, "idolSuspicion", 1, phase)) {
-            weights.idolSuspicion *= 0.5;
+        if (memorySystem?.wasRecentIntent?.(npc.id, "idolTalk", 1, phase)) {
+            weights.idolTalk *= 0.5;
         }
 
         if (targetId) {
             weights.targeting += phase === "post" ? 0.25 : 0.08;
             weights.warning += phase === "post" ? 0.12 : 0.05;
+            weights.dealMaking += phase === "post" ? 0.05 : 0;
         }
 
         if (npcTargetsPlayer) {
@@ -329,12 +335,16 @@ class NpcIntentPlanner {
     _buildIntentWeights({ phase, relValue, trust, reliability, alliedWithPlayer }) {
         const isPost = phase === "post";
         const weights = {
-            bonding: isPost ? 0.08 : 0.6,
-            softStrategy: isPost ? 0.18 : 0.32,
-            warning: isPost ? 0.2 : 0.05,
+            bonding: isPost ? 0 : 0.6,
+            softStrategy: isPost ? 0 : 0.32,
+            warning: isPost ? 0.1 : 0.05,
             targeting: isPost ? 0.3 : 0.05,
-            allianceInvite: isPost ? 0.1 : 0.02,
-            idolSuspicion: isPost ? 0.12 : 0.02
+            allianceInvite: isPost ? 0 : 0.02,
+            idolSuspicion: isPost ? 0 : 0.02,
+            challengeDebrief: isPost ? 0.2 : 0,
+            dealMaking: isPost ? 0.2 : 0,
+            informationPlay: isPost ? 0.15 : 0,
+            idolTalk: isPost ? 0.05 : 0
         };
 
         if (relValue < 40) {
@@ -344,15 +354,19 @@ class NpcIntentPlanner {
         if (relValue > 70) {
             weights.bonding += 0.08;
             weights.softStrategy += 0.08;
+            weights.dealMaking += isPost ? 0.05 : 0;
         }
         if (trust > 65) {
             weights.softStrategy += 0.1;
+            weights.informationPlay += isPost ? 0.05 : 0;
         }
         if (reliability < 40) {
             weights.warning += 0.05;
+            weights.idolTalk += isPost ? 0.03 : 0;
         }
         if (alliedWithPlayer) {
             weights.softStrategy += 0.05;
+            weights.dealMaking += isPost ? 0.05 : 0;
         }
 
         return weights;
@@ -374,6 +388,10 @@ class NpcIntentPlanner {
     _computeUrgency({ phase, intent, relValue, trust, reliability, targetId, npcTargetsPlayer, currentView, npcId }) {
         let urgency = phase === "post" ? 0.45 : 0.25;
         if (intent === "targeting" || intent === "warning") urgency += 0.2;
+        if (intent === "challengeDebrief") urgency += 0.12;
+        if (intent === "dealMaking") urgency += 0.15;
+        if (intent === "informationPlay") urgency += 0.08;
+        if (intent === "idolTalk") urgency += 0.05;
         if (intent === "allianceInvite") urgency += 0.12;
         if (intent === "bonding") urgency -= 0.05;
         if (relValue < 35) urgency += 0.05;

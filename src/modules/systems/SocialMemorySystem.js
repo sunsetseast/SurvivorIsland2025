@@ -411,6 +411,191 @@ class SocialMemorySystem {
         });
     }
 
+    recordPlayerBlamedSurvivor(npcId, targetId, day = null) {
+        if (npcId == null || targetId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'playerBlamedSurvivor',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            subjectId: targetId,
+            data: { targetId },
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'playerBlamedSurvivor', { targetId, day: dayValue });
+    }
+
+    recordPlayerDefendedSurvivor(npcId, targetId, day = null) {
+        if (npcId == null || targetId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'playerDefendedSurvivor',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            subjectId: targetId,
+            data: { targetId },
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'playerDefendedSurvivor', { targetId, day: dayValue });
+    }
+
+    recordPlayerPraisedSurvivor(npcId, targetId, day = null) {
+        if (npcId == null || targetId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'playerPraisedSurvivor',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            subjectId: targetId,
+            data: { targetId },
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'playerPraisedSurvivor', { targetId, day: dayValue });
+    }
+
+    recordPlayerCalledThreat(npcId, targetId, day = null) {
+        if (npcId == null || targetId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'playerCalledThreat',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            subjectId: targetId,
+            data: { targetId },
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'playerCalledThreat', { targetId, day: dayValue });
+    }
+
+    recordPlayerStrategizedWithNpc({ npcId, claimedTargetId = null, promisedDeal = false, liedFlag = false, day = null }) {
+        if (npcId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'playerStrategizedWithNpc',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            subjectId: claimedTargetId,
+            data: { claimedTargetId, promisedDeal, liedFlag },
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'playerStrategizedWithNpc', { claimedTargetId, promisedDeal, liedFlag, day: dayValue });
+    }
+
+    getLastClaimedTargetByPlayer() {
+        const playerId = window.gameManager?.getPlayerSurvivor?.()?.id;
+        if (!playerId) return null;
+        const matches = this.structuredEvents
+            .filter(event => event.type === 'playerStrategizedWithNpc' && event.speakerId === playerId)
+            .sort((a, b) => (b.time || 0) - (a.time || 0));
+        return matches[0]?.subjectId || null;
+    }
+
+    npcRemembersPlayerBlaming(targetId, npcId = null) {
+        if (targetId == null) return false;
+        const matchesNpc = (entry) => entry.type === 'playerBlamedSurvivor' && String(entry.subjectId) === String(targetId);
+        if (npcId != null) {
+            this.initNPC(npcId);
+            return (this.memory[npcId].structuredEvents || []).some(matchesNpc);
+        }
+        return this.structuredEvents.some(matchesNpc);
+    }
+
+    getPlayerCredibilityScore(npcId) {
+        const playerId = window.gameManager?.getPlayerSurvivor?.()?.id;
+        if (!playerId) return 50;
+        this.initNPC(playerId);
+        const lieCount = (this.memory[playerId].lies || []).length;
+        const discoveredCount = (this.memory[playerId].lies || []).filter(lie => lie.discovered).length;
+        const trust = npcId != null ? (this.getTrust(npcId) ?? 50) : 50;
+        const base = 70 + (trust - 50) * 0.3;
+        const penalty = lieCount * 6 + discoveredCount * 4;
+        return this.clampValue(base - penalty);
+    }
+
+    recordPlayerClaimedIdolTruth(npcId, day = null) {
+        if (npcId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'player_claimed_idol_truth',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'player_claimed_idol_truth', { day: dayValue });
+    }
+
+    recordPlayerClaimedIdolLie(npcId, day = null) {
+        if (npcId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'player_claimed_idol_lie',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'player_claimed_idol_lie', { day: dayValue });
+    }
+
+    recordPlayerPlantedIdolRumor(npcId, targetId, day = null) {
+        if (npcId == null || targetId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'player_planted_idol_rumor',
+            speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            listenerId: npcId,
+            subjectId: targetId,
+            data: { targetId },
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'player_planted_idol_rumor', { targetId, day: dayValue });
+    }
+
+    recordNpcSharedIdolInfo(npcId, infoType, payload, day = null) {
+        if (npcId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'npc_shared_idol_info',
+            speakerId: npcId,
+            listenerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            data: { infoType, payload },
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'npc_shared_idol_info', { infoType, payload, day: dayValue });
+    }
+
+    recordNpcRefusedIdolInfo(npcId, day = null) {
+        if (npcId == null) return;
+        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        this.recordStructuredEvent({
+            type: 'npc_refused_idol_info',
+            speakerId: npcId,
+            listenerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
+            day: dayValue
+        });
+        this.storeMemory(npcId, 'npc_refused_idol_info', { day: dayValue });
+    }
+
+    getIdolRumorsAboutSurvivor(targetId) {
+        if (targetId == null) return [];
+        return this.structuredEvents.filter(event => event.type === 'player_planted_idol_rumor' && String(event.subjectId) === String(targetId));
+    }
+
+    npcHeardPlayerIdolClaim(npcId) {
+        if (npcId == null) return false;
+        this.initNPC(npcId);
+        return (this.memory[npcId].structuredEvents || []).some(event =>
+            event.type === 'player_claimed_idol_truth' || event.type === 'player_claimed_idol_lie'
+        );
+    }
+
+    npcSharedIdolInfo(npcId) {
+        if (npcId == null) return [];
+        this.initNPC(npcId);
+        return (this.memory[npcId].structuredEvents || []).filter(event =>
+            event.type === 'npc_shared_idol_info' || event.type === 'npc_refused_idol_info'
+        );
+    }
+
     markPromiseBroken(npcId, withWho, type) {
         this.initNPC(npcId);
         const promise = this.memory[npcId].promises.find(
