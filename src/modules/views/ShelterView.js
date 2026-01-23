@@ -1058,42 +1058,45 @@ function createResourceButtons(container) {
       transform: translateX(-50%);
       display: none;
       gap: 20px;
-      z-index: 120;
+      z-index: 130;
+      background: rgba(0,0,0,0.4);
+      padding: 10px 20px;
+      border-radius: 15px;
     `
   });
 
-  const bambooButton = createElement('div', {
-    style: `
-      width: 80px;
-      height: 80px;
-      background-image: url('Assets/Minigame/bambooButton.png');
-      background-size: contain;
-      background-position: center;
-      background-repeat: no-repeat;
-      cursor: pointer;
-      border: 3px solid transparent;
-      border-radius: 10px;
-      transition: border-color 0.3s;
-    `
-  });
+  const createBtn = (id, iconSrc, label, onClick) => {
+    const btn = createElement('div', {
+      id,
+      style: `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.3);
+      `
+    });
+    const img = createElement('img', {
+      src: iconSrc,
+      style: 'width: 40px; height: 40px; object-fit: contain;'
+    });
+    const span = createElement('span', {
+      style: 'color: white; font-size: 12px; font-family: "Survivant", sans-serif;'
+    }, label);
 
-  const palmButton = createElement('div', {
-    style: `
-      width: 80px;
-      height: 80px;
-      background-image: url('Assets/Minigame/palmsButton.png');
-      background-size: contain;
-      background-position: center;
-      background-repeat: no-repeat;
-      cursor: pointer;
-      border: 3px solid transparent;
-      border-radius: 10px;
-      transition: border-color 0.3s;
-    `
-  });
+    btn.appendChild(img);
+    btn.appendChild(span);
+    btn.addEventListener('click', onClick);
+    return btn;
+  };
 
-  bambooButton.addEventListener('click', () => showResourcePopup('bamboo'));
-  palmButton.addEventListener('click', () => showResourcePopup('palm'));
+  const bambooButton = createBtn('btn-contribute-bamboo', 'Assets/Minigame/bambooButton.png', 'Bamboo', () => showResourcePopup('bamboo'));
+  const palmButton = createBtn('btn-contribute-palms', 'Assets/Minigame/palmsButton.png', 'Palms', () => showResourcePopup('palm'));
 
   newContainer.appendChild(bambooButton);
   newContainer.appendChild(palmButton);
@@ -1118,23 +1121,26 @@ function updateResourceButtonStyles() {
   const resourceButtons = getShelterRoot()?.querySelector('#shelter-resource-buttons');
   if (!resourceButtons) return;
 
-  const [bambooButton, palmButton] = resourceButtons.children;
+  const buttons = Array.from(resourceButtons.children);
+  const bambooButton = buttons[0];
+  const palmButton = buttons[1];
+
   if (bambooButton) {
     if (bambooAdded >= 1) {
-      bambooButton.style.border = '2px solid gold';
-      bambooButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
+      bambooButton.style.border = '3px solid #facc15';
+      bambooButton.style.boxShadow = '0 0 15px rgba(250, 204, 21, 0.4)';
     } else {
-      bambooButton.style.border = '2px solid transparent';
+      bambooButton.style.border = '1px solid rgba(255,255,255,0.3)';
       bambooButton.style.boxShadow = 'none';
     }
   }
 
   if (palmButton) {
     if (palmsAdded >= 1) {
-      palmButton.style.border = '2px solid gold';
-      palmButton.style.boxShadow = '0 0 15px 3px rgba(255, 215, 0, 0.6)';
+      palmButton.style.border = '3px solid #facc15';
+      palmButton.style.boxShadow = '0 0 15px rgba(250, 204, 21, 0.4)';
     } else {
-      palmButton.style.border = '2px solid transparent';
+      palmButton.style.border = '1px solid rgba(255,255,255,0.3)';
       palmButton.style.boxShadow = 'none';
     }
   }
