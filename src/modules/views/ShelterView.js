@@ -1118,12 +1118,17 @@ function showResourceButtons(wrapper) {
 }
 
 function updateResourceButtonStyles() {
-  const resourceButtons = getShelterRoot()?.querySelector('#shelter-resource-buttons');
+  const root = getShelterRoot();
+  const resourceButtons = root?.querySelector('#shelter-resource-buttons');
   if (!resourceButtons) return;
 
   const buttons = Array.from(resourceButtons.children);
   const bambooButton = buttons[0];
   const palmButton = buttons[1];
+
+  const player = gameManager.getPlayerSurvivor();
+  const bambooAvail = player ? (player.bamboo || 0) : 0;
+  const palmsAvail = player ? (player.palms || 0) : 0;
 
   if (bambooButton) {
     if (bambooAdded >= 1) {
@@ -1133,6 +1138,7 @@ function updateResourceButtonStyles() {
       bambooButton.style.border = '1px solid rgba(255,255,255,0.3)';
       bambooButton.style.boxShadow = 'none';
     }
+    bambooButton.style.opacity = (bambooAvail > 0) ? '1' : '0.5';
   }
 
   if (palmButton) {
@@ -1143,9 +1149,10 @@ function updateResourceButtonStyles() {
       palmButton.style.border = '1px solid rgba(255,255,255,0.3)';
       palmButton.style.boxShadow = 'none';
     }
+    palmButton.style.opacity = (palmsAvail > 0) ? '1' : '0.5';
   }
 
-  updateContributionSubmit();
+  updateContributionSubmit(root);
 }
 
 function showResourcePopup(resourceType) {
