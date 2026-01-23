@@ -4,7 +4,7 @@ import { GamePhase } from '../core/GameManager.js';
 const SHELTER_REQUIREMENTS = { bamboo: 5, palms: 1 };
 const FIRE_REQUIREMENTS = { firewood: 10 };
 const MAX_SHELTER_LEVEL = 4;
-const MAX_FIRE_LEVEL = 4;
+const MAX_FIRE_LEVEL = 3;
 
 const DEFAULT_DELTAS = {
   bamboo: 0,
