@@ -251,6 +251,98 @@ class ChallengeManager {
     return this.challengeResults.get(day) || null;
   }
 
+  getLatestChallengeResult(day = null) {
+    const dayValue = day || gameManager.getCurrentDay?.() || gameManager.getDay?.() || gameManager.day || 1;
+    if (this.challengeResults.has(dayValue)) {
+      return this.challengeResults.get(dayValue);
+    }
+    for (let checkDay = dayValue - 1; checkDay >= 1; checkDay -= 1) {
+      if (this.challengeResults.has(checkDay)) {
+        return this.challengeResults.get(checkDay);
+      }
+    }
+    return null;
+  }
+
+  getStageStandoutsForTribe(tribeIdOrKey, day = null) {
+    const result = this.getLatestChallengeResult(day);
+    if (!result) return { mvps: [], lvps: [] };
+
+    const standouts = { mvps: [], lvps: [] };
+    const seenMvp = new Set();
+    const seenLvp = new Set();
+
+    const resolveName = (survivorId) => {
+      if (!survivorId) return null;
+      const survivor = gameManager.survivors?.find?.(s => s.id === survivorId);
+      return survivor?.firstName || null;
+    };
+
+    const matchesTribe = (tribeKey) => {
+      if (!tribeIdOrKey) return true;
+      if (!tribeKey) return false;
+      return String(tribeKey) === String(tribeIdOrKey);
+    };
+
+    const stagePerformance = result.stagePerformance || {};
+    Object.entries(stagePerformance).forEach(([stageId, info]) => {
+      const mvp = info?.mvp || null;
+      const lvp = info?.lvp || null;
+      if (mvp?.survivorId && matchesTribe(mvp.tribeKey) && !seenMvp.has(mvp.survivorId)) {
+        standouts.mvps.push({
+          survivorId: mvp.survivorId,
+          name: resolveName(mvp.survivorId) || 'Unknown',
+          stageId,
+          scoreOrValue: mvp.score ?? null
+        });
+        seenMvp.add(mvp.survivorId);
+      }
+      if (lvp?.survivorId && matchesTribe(lvp.tribeKey) && !seenLvp.has(lvp.survivorId)) {
+        standouts.lvps.push({
+          survivorId: lvp.survivorId,
+          name: resolveName(lvp.survivorId) || 'Unknown',
+          stageId,
+          scoreOrValue: lvp.score ?? null
+        });
+        seenLvp.add(lvp.survivorId);
+      }
+    });
+
+    if (!standouts.mvps.length || !standouts.lvps.length) {
+      const ranking = Array.isArray(result.rankings) ? result.rankings : Array.isArray(result.performance) ? result.performance : null;
+      if (Array.isArray(ranking) && ranking.length) {
+        const filtered = ranking.filter(entry => matchesTribe(entry.tribeKey || entry.tribeId || entry.tribeName));
+        const scored = filtered.map(entry => {
+          const score = entry.score ?? entry.value ?? (typeof entry.rank === 'number' ? -entry.rank : 0);
+          return { ...entry, score };
+        });
+        scored.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        const top = scored[0];
+        const bottom = scored[scored.length - 1];
+        if (top?.survivorId && !seenMvp.has(top.survivorId)) {
+          standouts.mvps.push({
+            survivorId: top.survivorId,
+            name: resolveName(top.survivorId) || 'Unknown',
+            stageId: top.stageId || null,
+            scoreOrValue: top.score ?? null
+          });
+          seenMvp.add(top.survivorId);
+        }
+        if (bottom?.survivorId && !seenLvp.has(bottom.survivorId)) {
+          standouts.lvps.push({
+            survivorId: bottom.survivorId,
+            name: resolveName(bottom.survivorId) || 'Unknown',
+            stageId: bottom.stageId || null,
+            scoreOrValue: bottom.score ?? null
+          });
+          seenLvp.add(bottom.survivorId);
+        }
+      }
+    }
+
+    return standouts;
+  }
+
   // Get all challenge results
   getAllChallengeResults() {
     return Array.from(this.challengeResults.entries()).map(([day, result]) => ({
