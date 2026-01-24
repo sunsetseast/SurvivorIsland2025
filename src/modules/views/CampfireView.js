@@ -83,6 +83,9 @@ export default function renderCampfire(container) {
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
+  if (playerTribe) {
+    ensureCampfireStockpileBanner(wrapper, playerTribe);
+  }
 
   const actionPopup = createElement('div', {
     id: 'campfire-action-popup',
@@ -225,6 +228,100 @@ export default function renderCampfire(container) {
   }
 
   addDebugBanner('Campfire view rendered!', 'orangered', 170);
+}
+
+function ensureCampfireStockpileBanner(container, tribe) {
+  if (!container || !tribe) return;
+  const existing = container.querySelector('#campfire-stockpile-banner');
+  const stockpile = gameManager.ensureStockpileExists?.(tribe) || {};
+  const firewoodCount = stockpile.firewood || 0;
+
+  if (existing) {
+    const firewoodEl = existing.querySelector('.stockpile-count-firewood');
+    if (firewoodEl) firewoodEl.textContent = firewoodCount;
+    return;
+  }
+
+  const banner = createElement('div', {
+    id: 'campfire-stockpile-banner',
+    style: `
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 120px;
+      background: rgba(0,0,0,0.55);
+      color: #fff8e7;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-family: 'Survivant', serif;
+      font-size: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+      z-index: 120;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    `
+  });
+
+  const title = createElement('div', {
+    style: `
+      text-align: center;
+      width: 100%;
+      color: #f5f5dc;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      letter-spacing: 0.3px;
+    `
+  }, 'Tribe Stockpile');
+
+  const row = createElement('div', {
+    style: `
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    `
+  });
+
+  const item = createElement('div', {
+    className: 'stockpile-item',
+    style: `
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    `
+  });
+
+  const icon = createElement('img', {
+    src: 'Assets/Minigame/firewoodButton.png',
+    alt: 'Firewood stockpile',
+    style: `
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+    `
+  });
+
+  const countEl = createElement('span', {
+    className: 'stockpile-count-firewood',
+    style: `
+      color: #f5f5dc;
+      font-family: 'Survivant', serif;
+      font-size: 16px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      display: inline-block;
+      min-width: 14px;
+      text-align: center;
+    `
+  }, firewoodCount);
+
+  item.appendChild(icon);
+  item.appendChild(countEl);
+  row.appendChild(item);
+
+  banner.appendChild(title);
+  banner.appendChild(row);
+  container.appendChild(banner);
 }
 
 /* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR CAMPFIRE ---------------- */
