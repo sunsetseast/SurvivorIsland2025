@@ -2,7 +2,7 @@ run = "node server.js"
 modules = ["nodejs-20"]
 
 [workflows]
-runButton = "Project"
+runButton = "Run Server"
 
 [[workflows.workflow]]
 name = "Run Server"
@@ -12,38 +12,9 @@ mode = "sequential"
 task = "shell.exec"
 args = "node server.js"
 
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Frontend Dev Server"
-
-[[workflows.workflow]]
-name = "Frontend Dev Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node server.js"
-waitForPort = 5000
-
 [[ports]]
 localPort = 3000
 externalPort = 80
 
-[[ports]]
-localPort = 5000
-externalPort = 80
-
 [agent]
 expertMode = true
-
-[nix]
-channel = "stable-25_05"
-packages = ["vite"]
