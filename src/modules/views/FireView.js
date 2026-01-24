@@ -57,6 +57,21 @@ export default function renderFireView(container) {
   createFoodResourceButtons(container);
 
   // --- POT IMAGE (always visible and clickable) ---
+  const firewoodImg = createElement('img', {
+    src: 'Assets/Resources/firewood.png',
+    alt: 'Firewood',
+    style: `
+      position: absolute;
+      bottom: 80px;
+      left: 20px;
+      width: 27%;
+      height: auto;
+      z-index: 10;
+      cursor: pointer;
+    `
+  });
+  container.appendChild(firewoodImg);
+
   const potImg = createElement('img', {
     src: 'Assets/Resources/pot.png',
     alt: 'Pot',
@@ -75,6 +90,10 @@ export default function renderFireView(container) {
   // Add click handler for pot
   potImg.addEventListener('click', () => {
     showPotActionOverlay();
+  });
+
+  firewoodImg.addEventListener('click', () => {
+    showFirewoodContributionOverlay();
   });
 
   // --- FIRE LEVEL INDICATOR (3 circles on left side) ---
@@ -225,6 +244,9 @@ export default function renderFireView(container) {
   }
 
   addDebugBanner('Fire view rendered!', 'orange', 170);
+  if (playerTribe) {
+    ensureFoodStockpileBanner(container, playerTribe);
+  }
 
   // --- COOKING SYSTEM STATE (persistent across view changes) ---
   if (!window.globalCookingState) {
@@ -307,6 +329,233 @@ export default function renderFireView(container) {
     buttonWrapper.appendChild(cookBtn);
     overlay.appendChild(buttonWrapper);
     overlay.addEventListener('click', event => {
+      if (event.target === overlay) overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+  }
+
+  function showFirewoodContributionOverlay() {
+    const player = gameManager.getPlayerSurvivor();
+    const tribe = gameManager.getPlayerTribe();
+    if (!player || !tribe) return;
+    const availableFirewood = player.firewood || 0;
+    if (availableFirewood <= 0) {
+      showParchmentPopup("You don't have any firewood to add!");
+      return;
+    }
+
+    const existing = document.getElementById('firewood-contribution-overlay');
+    if (existing) existing.remove();
+
+    let selectedAmount = 0;
+    const overlay = createElement('div', {
+      id: 'firewood-contribution-overlay',
+      style: `
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1900;
+      `
+    });
+
+    const selector = createElement('div', {
+      style: `
+        width: 260px;
+        height: 300px;
+        background-image: url('Assets/card-back.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 15px;
+        box-sizing: border-box;
+        gap: 8px;
+      `
+    });
+
+    const icon = createElement('img', {
+      src: 'Assets/Minigame/firewoodButton.png',
+      alt: 'Firewood',
+      style: `
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+      `
+    });
+
+    const title = createElement('h3', {
+      style: `
+        margin: 0;
+        font-size: 18px;
+        font-weight: bold;
+        color: #fff8e7;
+        text-shadow: 2px 2px 4px black;
+        font-family: 'Survivant', fantasy;
+        text-align: center;
+        line-height: 1.2;
+      `
+    });
+    title.innerHTML = 'How much firewood<br>to contribute?';
+
+    const availableDisplay = createElement('div', {
+      style: `
+        font-size: 14px;
+        color: #fff8e7;
+        text-shadow: 1px 1px 2px black;
+        font-family: 'Survivant', fantasy;
+        text-align: center;
+      `
+    }, `Available: ${availableFirewood}`);
+
+    const controls = createElement('div', {
+      style: `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        margin: 8px 0;
+      `
+    });
+
+    const minusBtn = createElement('img', {
+      src: 'Assets/Buttons/minus.png',
+      alt: 'Decrease',
+      style: `
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      `
+    });
+
+    const amountDisplay = createElement('span', {
+      style: `
+        font-size: 28px;
+        font-weight: bold;
+        color: #fff8e7;
+        text-shadow: 2px 2px 4px black;
+        font-family: 'Survivant', fantasy;
+        min-width: 50px;
+        text-align: center;
+        display: inline-block;
+      `
+    }, '0');
+
+    const plusBtn = createElement('img', {
+      src: 'Assets/Buttons/add.png',
+      alt: 'Increase',
+      style: `
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      `
+    });
+
+    const updateAmount = (delta) => {
+      selectedAmount = Math.max(0, Math.min(availableFirewood, selectedAmount + delta));
+      amountDisplay.textContent = String(selectedAmount);
+    };
+
+    minusBtn.addEventListener('click', () => updateAmount(-1));
+    plusBtn.addEventListener('click', () => updateAmount(1));
+
+    controls.appendChild(minusBtn);
+    controls.appendChild(amountDisplay);
+    controls.appendChild(plusBtn);
+
+    const buttonContainer = createElement('div', {
+      style: `
+        display: flex;
+        gap: 10px;
+        margin-top: 6px;
+        justify-content: center;
+      `
+    });
+
+    const contributeButton = createElement('button', {
+      className: 'rect-button small',
+      style: `
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 120px;
+        height: 35px;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        cursor: pointer;
+      `
+    }, 'Contribute');
+
+    contributeButton.addEventListener('click', () => {
+      if (selectedAmount <= 0) {
+        showParchmentPopup('Add firewood to contribute to the tribe.');
+        return;
+      }
+      gameManager.ensureStockpileExists?.(tribe);
+      gameManager.addToStockpile?.(tribe, 'firewood', selectedAmount);
+      player.firewood = Math.max(0, availableFirewood - selectedAmount);
+
+      activityTracker.trackActivity('camp_contribute', {
+        subtype: 'firewood',
+        firewood: selectedAmount,
+        actorId: player.id
+      });
+
+      const day = gameManager.getCurrentDay?.();
+      gameManager.campLog = gameManager.campLog || [];
+      gameManager.campLog.push({
+        id: 'contribute_firewood',
+        day,
+        actorId: player.id,
+        firewood: selectedAmount,
+        timestamp: Date.now(),
+        type: 'camp_contribute'
+      });
+
+      ensureFoodStockpileBanner(getFireRoot(), tribe);
+      overlay.remove();
+      showParchmentPopup('You add your gathered firewood to the tribe stockpile.');
+    });
+
+    const cancelButton = createElement('button', {
+      className: 'rect-button small',
+      style: `
+        background-image: url('Assets/rect-button.png');
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        width: 70px;
+        height: 35px;
+        border: none;
+        color: #fff8e7;
+        font-family: 'Survivant', fantasy;
+        cursor: pointer;
+      `
+    }, 'Cancel');
+
+    cancelButton.addEventListener('click', () => overlay.remove());
+
+    buttonContainer.appendChild(contributeButton);
+    buttonContainer.appendChild(cancelButton);
+
+    selector.appendChild(icon);
+    selector.appendChild(title);
+    selector.appendChild(availableDisplay);
+    selector.appendChild(controls);
+    selector.appendChild(buttonContainer);
+
+    overlay.appendChild(selector);
+    overlay.addEventListener('click', (event) => {
       if (event.target === overlay) overlay.remove();
     });
 
@@ -887,16 +1136,19 @@ export default function renderFireView(container) {
     const fish1Count = stockpile.fish1 || 0;
     const fish2Count = stockpile.fish2 || 0;
     const fish3Count = stockpile.fish3 || 0;
+    const firewoodCount = stockpile.firewood || 0;
 
     if (existing) {
       const coconutEl = existing.querySelector('.stockpile-count-coconut');
       const fish1El = existing.querySelector('.stockpile-count-fish1');
       const fish2El = existing.querySelector('.stockpile-count-fish2');
       const fish3El = existing.querySelector('.stockpile-count-fish3');
+      const firewoodEl = existing.querySelector('.stockpile-count-firewood');
       if (coconutEl) coconutEl.textContent = coconutCount;
       if (fish1El) fish1El.textContent = fish1Count;
       if (fish2El) fish2El.textContent = fish2Count;
       if (fish3El) fish3El.textContent = fish3Count;
+      if (firewoodEl) firewoodEl.textContent = firewoodCount;
       return;
     }
 
@@ -982,6 +1234,7 @@ export default function renderFireView(container) {
       return item;
     };
 
+    row.appendChild(createStockpileItem('Assets/Minigame/firewoodButton.png', 'Firewood stockpile', firewoodCount, 'stockpile-count-firewood'));
     row.appendChild(createStockpileItem('Assets/Minigame/coconutButton.png', 'Coconut stockpile', coconutCount, 'stockpile-count-coconut'));
     row.appendChild(createStockpileItem('Assets/Minigame/fish1Button.png', 'Fish 1 stockpile', fish1Count, 'stockpile-count-fish1'));
     row.appendChild(createStockpileItem('Assets/Minigame/fish2Button.png', 'Fish 2 stockpile', fish2Count, 'stockpile-count-fish2'));
