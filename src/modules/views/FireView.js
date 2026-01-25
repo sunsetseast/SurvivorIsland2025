@@ -21,6 +21,7 @@ let fish2Added = 0;
 let fish3Added = 0;
 let currentActionMode = null;
 let fireRoot = null;
+let pendingFirewoodCost = 0;
 
 const FIRE_VIEW_TEMP_IDS = [
   'pot-action-overlay',
@@ -57,6 +58,7 @@ function cleanupFireViewUI() {
   fish2Added = 0;
   fish3Added = 0;
   currentActionMode = null;
+  pendingFirewoodCost = 0;
 }
 
 export default function renderFireView(container) {
@@ -2032,15 +2034,24 @@ export default function renderFireView(container) {
     }, 2500);
   }
 
+  function getFirewoodStockpile() {
+    const tribe = gameManager.getPlayerTribe();
+    const stockpile = gameManager.ensureStockpileExists?.(tribe) || tribe?.stockpile || {};
+    return { tribe, stockpile, count: stockpile.firewood || 0 };
+  }
+
   // --- 1) Handle Make Fire tap: check firewood first ---
   function handleMakeFireTap() {
-    const firewoodCount = player.firewood || 0;
-    if (firewoodCount < 10) {
+    const { tribe, count } = getFirewoodStockpile();
+    if (!tribe) return;
+    if (count < 10) {
       showInsufficientFirewoodParchment(10);
     } else {
       // Deduct 10 firewood and show effect
-      player.firewood = firewoodCount - 10;
+      gameManager.consumeFromStockpile?.(tribe, 'firewood', 10);
+      pendingFirewoodCost = 10;
       showFirewoodEffect(10);
+      ensureFoodStockpileBanner(getFireRoot(), tribe);
       // Then show instructions to start minigame
       showFireInstructions(false); // false = normal speed
     }
@@ -2048,7 +2059,8 @@ export default function renderFireView(container) {
 
   // --- 1b) Handle Tend Fire tap: check firewood first ---
   function handleTendFireTap() {
-    const firewoodCount = player.firewood || 0;
+    const { tribe, count } = getFirewoodStockpile();
+    if (!tribe) return;
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
 
     // Determine cost based on current fire level
@@ -2061,12 +2073,14 @@ export default function renderFireView(container) {
       requiredFirewood = 20; // Default fallback
     }
 
-    if (firewoodCount < requiredFirewood) {
+    if (count < requiredFirewood) {
       showInsufficientFirewoodParchment(requiredFirewood);
     } else {
       // Deduct required firewood and show effect
-      player.firewood = firewoodCount - requiredFirewood;
+      gameManager.consumeFromStockpile?.(tribe, 'firewood', requiredFirewood);
+      pendingFirewoodCost = requiredFirewood;
       showFirewoodEffect(requiredFirewood);
+      ensureFoodStockpileBanner(getFireRoot(), tribe);
       // Then show instructions to start minigame at faster speed
       showTendFireInstructions(requiredFirewood);
     }
@@ -2115,7 +2129,7 @@ export default function renderFireView(container) {
           line-height: 1.4;
         `
       },
-      `You need ${requiredAmount} firewood to ${requiredAmount === 10 ? 'make' : 'tend'} a fire.\nHead into the jungle and gather some more.`
+      `You need ${requiredAmount} firewood in the tribe stockpile to ${requiredAmount === 10 ? 'make' : 'tend'} a fire.\nHead into the jungle and gather some more.`
     );
 
     parchment.appendChild(text);
@@ -2822,6 +2836,7 @@ export default function renderFireView(container) {
 
       // Set tribe fire value based on current state and mode
       const playerTribe = gameManager.getPlayerTribe();
+      const fireBefore = playerTribe?.fire || 0;
       let newFireLevel = 1;
       if (playerTribe) {
         if (isFastMode) {
@@ -2837,6 +2852,20 @@ export default function renderFireView(container) {
 
       // Track fire building success
       activityTracker.trackFireBuilding(true, newFireLevel);
+      const day = gameManager.getCurrentDay?.();
+      gameManager.campLog = gameManager.campLog || [];
+      gameManager.campLog.push({
+        type: 'camp_fire_build',
+        phase: 'build',
+        actorId: player?.id,
+        success: true,
+        fireBefore,
+        fireAfter: newFireLevel,
+        stockpileSpent: { firewood: pendingFirewoodCost || 0 },
+        day,
+        timestamp: Date.now()
+      });
+      pendingFirewoodCost = 0;
 
       // Award teamPlayer points to player for each other tribe member
       const tribe = gameManager.getPlayerTribe();
