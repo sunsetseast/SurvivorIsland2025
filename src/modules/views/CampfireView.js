@@ -21,11 +21,63 @@ function loadCampView(locationKey) {
   console.warn('[CampfireView] Unable to load camp view', { locationKey });
 }
 
+const CAMPFIRE_CLEANUP_SELECTORS = [
+  '#campfire-action-popup',
+  '#campfire-message',
+  '.npc-icon-container',
+  '#food-stockpile-banner',
+  '#food-quantity-overlay',
+  '#food-contribution-overlay',
+  '#firewood-contribution-overlay',
+  '#pot-action-overlay',
+  '#parchment-popup',
+  '#weak-fire-overlay',
+  '#pot-overlay',
+  '#cooking-instructions-overlay',
+  '#cooking-buttons-container',
+  '#ingredient-selector-overlay',
+  '#cooking-items-display',
+  '#insufficient-firewood-overlay',
+  '#fire-instructions-overlay',
+  '#tend-fire-instructions-overlay',
+  '#fire-game-ui',
+  '#progress-rings-container',
+  '#fireCanvas',
+  '#fireFailureOverlay',
+  '#fireVictoryOverlay',
+  '#cooking-unattended-overlay',
+  '#submit-food-contribution-button',
+  '#contribute_food',
+  '#contribute_firewood',
+  '#shelter-overlay',
+  '#submit-contribution-button',
+  '#start-building-button',
+  '#bamboo-selector-overlay',
+  '#palm-selector-overlay',
+  '#cobuilder-popup',
+  '#confirm-popup',
+  '#shelter-resource-buttons',
+  '#shelter-message',
+  '#stockpile-banner'
+];
+
+let campfireTimeouts = [];
+
+function cleanupCampfireUI() {
+  campfireTimeouts.forEach(id => clearTimeout(id));
+  campfireTimeouts = [];
+  CAMPFIRE_CLEANUP_SELECTORS.forEach(selector => {
+    document.querySelectorAll(selector).forEach(el => el.remove());
+  });
+}
+
 export default function renderCampfire(container) {
   console.log('renderCampfire() called');
   addDebugBanner('renderCampfire() called', 'orangered', 40);
 
+  cleanupCampfireUI();
   clearChildren(container);
+  window.__campViewCleanup = cleanupCampfireUI;
 
   // Get player's tribe fire value to determine background
   const playerTribe = gameManager.getPlayerTribe();
@@ -157,7 +209,7 @@ export default function renderCampfire(container) {
   /* -------------------------------------------------------------- */
 
   // Fade out after 3 seconds
-  setTimeout(() => {
+  const fadeTimeout = setTimeout(() => {
     const msgEl = document.getElementById('campfire-message');
     if (msgEl) {
       msgEl.style.opacity = '0';
@@ -165,12 +217,13 @@ export default function renderCampfire(container) {
   }, 3000);
 
   // Remove message after fade
-  setTimeout(() => {
+  const removeTimeout = setTimeout(() => {
     const msgEl = document.getElementById('campfire-message');
     if (msgEl) {
       msgEl.remove();
     }
   }, 4000);
+  campfireTimeouts.push(fadeTimeout, removeTimeout);
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
