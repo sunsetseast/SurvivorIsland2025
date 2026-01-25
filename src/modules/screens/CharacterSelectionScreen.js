@@ -9,6 +9,7 @@ import { GameEvents } from '../core/EventManager.js';
 import gameData from '../data/index.js';
 import { setupScrollReveal } from '../utils/ScrollReveal.js';
 import { createSurvivorCard } from '../ui/SurvivorCardFactory.js';
+import { shuffleArray } from '../utils/CommonUtils.js';
 
 export default class CharacterSelectionScreen {
   constructor() {
@@ -116,7 +117,7 @@ export default class CharacterSelectionScreen {
     try {
       const survivors = gameData.getSurvivors();
       this.availableSurvivors = Array.isArray(survivors)
-        ? [...survivors].sort(() => Math.random() - 0.5)
+        ? shuffleArray(survivors)
         : [];
     } catch (e) {
       this.availableSurvivors = [];

@@ -12,6 +12,7 @@ import {
 import { gameManager, eventManager, GameEvents } from '../core/index.js';
 import { GamePhase, GameState } from '../core/GameManager.js';
 import gameData from '../data/index.js';
+import { shuffleArray } from '../utils/CommonUtils.js';
 
 export default class TribeDivisionScreen {
   initialize() {
@@ -239,7 +240,7 @@ export default class TribeDivisionScreen {
 
     let chosenColors;
     while (true) {
-      const shuffledColors = [...colorPool].sort(() => Math.random() - 0.5);
+      const shuffledColors = shuffleArray(colorPool);
       chosenColors = shuffledColors.slice(0, tribeCount);
       if (!(chosenColors.includes('red') && chosenColors.includes('orange'))) break;
     }
@@ -248,7 +249,7 @@ export default class TribeDivisionScreen {
     if (gameMode === 'brains-brawn-beauty') {
       shuffledNames = ['Brains', 'Brawn', 'Beauty'];
     } else {
-      shuffledNames = namePool.sort(() => Math.random() - 0.5).slice(0, tribeCount);
+      shuffledNames = shuffleArray(namePool).slice(0, tribeCount);
     }
 
     let tribes = [];
@@ -281,8 +282,8 @@ export default class TribeDivisionScreen {
         members: group
       }));
     } else {
-      const males = allSurvivors.filter(s => s.gender.toLowerCase() === 'male').sort(() => Math.random() - 0.5);
-      const females = allSurvivors.filter(s => s.gender.toLowerCase() === 'female').sort(() => Math.random() - 0.5);
+      const males = shuffleArray(allSurvivors.filter(s => s.gender.toLowerCase() === 'male'));
+      const females = shuffleArray(allSurvivors.filter(s => s.gender.toLowerCase() === 'female'));
 
       const interleaved = [];
       let mi = 0, fi = 0;

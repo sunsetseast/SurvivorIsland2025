@@ -5,6 +5,7 @@
 
 import gameManager from "../core/GameManager.js";
 import { LocationKeys } from "../core/LocationKeys.js";
+import { shuffleArray } from "../utils/CommonUtils.js";
 
 const normalizeLocationValue = (value) => String(value || "")
     .toLowerCase()
@@ -469,7 +470,7 @@ class NpcIntentPlanner {
             return [first, second];
         };
 
-        const locations = Array.from(byLocation.keys()).sort(() => Math.random() - 0.5);
+        const locations = shuffleArray(Array.from(byLocation.keys()));
         locations.forEach(location => {
             if (pickedPairs.length >= maxPairs) return;
             const pair = pickPairFromList(byLocation.get(location));

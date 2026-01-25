@@ -277,10 +277,15 @@ class IdolSystem {
       this._incrementCasualSearch(survivorId, safeLocationKey);
     }
 
-    if (survivor.isPlayer === true) {
+    if (this.gameManager.consumeCampTime) {
+      this.gameManager.consumeCampTime(settings.timeCost, {
+        source: isNpc ? 'npc_idol_hunt' : 'player_idol_hunt',
+        survivorId,
+        locationKey: safeLocationKey,
+        mode
+      });
+    } else if (survivor.isPlayer === true) {
       this.gameManager.deductTime(settings.timeCost);
-    } else if (isNpc) {
-      // NPC hunts do not consume the global camp timer.
     }
 
     if (mode === 'aggressive') {

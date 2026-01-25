@@ -1,5 +1,6 @@
-import { clamp, getRandomInt } from '../utils/CommonUtils.js';
+import { clamp, getRandomInt, shuffleArray } from '../utils/CommonUtils.js';
 import { GamePhase } from '../core/GameManager.js';
+import NpcIdolHuntAI from './NpcIdolHuntAI.js';
 
 const SHELTER_REQUIREMENTS = { bamboo: 5, palms: 1 };
 const FIRE_REQUIREMENTS = { firewood: 10 };
@@ -13,7 +14,8 @@ const DEFAULT_DELTAS = {
   coconuts: 0,
   fish1: 0,
   fish2: 0,
-  fish3: 0
+  fish3: 0,
+  water: 0
 };
 
 const RESOURCE_DISPLAY_NAMES = {
@@ -23,7 +25,8 @@ const RESOURCE_DISPLAY_NAMES = {
   coconuts: 'coconuts',
   fish1: 'small fish',
   fish2: 'big fish',
-  fish3: 'rare fish'
+  fish3: 'rare fish',
+  water: 'water'
 };
 
 export default class TaskSimulationSystem {
@@ -54,6 +57,8 @@ export default class TaskSimulationSystem {
 
     const report = this.buildCheckpointReportBase(checkpoint, tribe);
     this.simulateGatherPass(checkpoint, tribe, report);
+    this.simulateWaterPlan(checkpoint, tribe, report);
+    this.simulateNpcIdolHunts(checkpoint, tribe, report);
     if (checkpoint === 'end') {
       this.simulateBuildPass(checkpoint, tribe, report);
       this.applyFloatAssistCredits(report, tribe);
@@ -654,7 +659,8 @@ export default class TaskSimulationSystem {
     if (!floatIds.length) return;
 
     Object.entries(report.builds).forEach(([buildType, buildData]) => {
-      const missing = this.computeMissing(buildData.required || {}, buildData.hadBefore || {});
+      const latestStockpile = buildData.hadBefore || report.stockpileAfter || {};
+      const missing = this.computeMissing(buildData.required || {}, latestStockpile);
       const missingEntries = Object.entries(missing || {});
       if (!missingEntries.length) return;
 
@@ -835,5 +841,82 @@ export default class TaskSimulationSystem {
       fish2: stockpile.fish2 || 0,
       fish3: stockpile.fish3 || 0
     };
+  }
+
+  simulateWaterPlan(checkpoint, tribe, report) {
+    const gm = this.gameManager;
+    if (!tribe) return;
+
+    const plan = tribe.waterPlan || gm.initializeWaterPlanForTribe?.(tribe);
+    if (!plan || plan.active === false) return;
+
+    const currentWater = tribe.resources?.water ?? 0;
+    const isLow = currentWater <= 35;
+    if ((!plan.assigneeIds || plan.assigneeIds.length === 0) && isLow) {
+      const candidates = shuffleArray(tribe.members || []);
+      plan.assigneeIds = candidates.slice(0, Math.min(2, candidates.length)).map(member => member.id);
+    }
+
+    const assignees = plan.assigneeIds || [];
+    if (!assignees.length) return;
+
+    const waterRuns = [];
+    assignees.forEach(id => {
+      const survivor = this.getSurvivorById(tribe, id);
+      if (!survivor) return;
+      const effort = this.getWorkMultiplier(survivor);
+      const amount = clamp(this.rollAmount(2, 5, effort), 1, 8);
+      if (amount <= 0) return;
+
+      this.addContribution(id, 'water', 'water', amount, report, tribe);
+      tribe.resources = tribe.resources || {};
+      tribe.resources.water = Math.min((tribe.resources.water || 0) + amount * 2, 100);
+      if (Number.isFinite(survivor.rest)) {
+        survivor.rest = Math.max(0, survivor.rest - 1);
+      }
+      gm.consumeCampTime?.(180, {
+        source: 'water_run',
+        survivorId: id,
+        checkpoint
+      });
+
+      waterRuns.push({ survivorId: id, amount });
+    });
+
+    if (waterRuns.length && gm.systems?.idolSystem?.isDebugMode?.()) {
+      console.debug('[TaskSim] Water plan runs', {
+        checkpoint,
+        tribeId: tribe.id ?? tribe.name ?? tribe.tribeId,
+        waterRuns,
+        waterTotal: tribe.resources?.water
+      });
+    }
+  }
+
+  simulateNpcIdolHunts(checkpoint, tribe, report) {
+    const gm = this.gameManager;
+    const idolSystem = gm.systems?.idolSystem;
+    if (!idolSystem || !tribe?.members?.length) return;
+
+    const phase = gm.getGamePhase?.() || gm.gamePhase || 'preChallenge';
+    const context = {
+      phase,
+      tribeInDanger: phase === GamePhase.POST_CHALLENGE,
+      campTasksUrgent: checkpoint === 'mid'
+    };
+
+    const npcs = shuffleArray(tribe.members.filter(member => member && !member.isPlayer));
+    npcs.forEach(npc => {
+      const result = NpcIdolHuntAI.decideAndMaybeHunt(npc, gm, idolSystem, context);
+      if (result?.ok) {
+        report.contributions.push({
+          survivorId: npc.id,
+          role: 'idol_hunt',
+          resource: 'idol_hunt',
+          amount: 1,
+          source: 'sim'
+        });
+      }
+    });
   }
 }
