@@ -2855,39 +2855,45 @@ export default function renderFireView(container) {
       const gameUIEl = document.getElementById('fire-game-ui');
       if (gameUIEl) gameUIEl.remove();
 
-      // Show and update fire level indicator
-      const fireLevelIndicator = document.getElementById('fire-level-indicator');
-      if (fireLevelIndicator) {
-        fireLevelIndicator.style.display = 'flex';
+      const shouldUpdateUI = window.campScreen?.currentView === LocationKeys.FIRE;
 
-        // Update fire level circles based on new fire level
-        for (let i = 0; i < 3; i++) {
-          const circle = document.getElementById(`fire-level-${i}`);
-          if (circle) {
-            if (newFireLevel > i) {
-              circle.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
-              circle.style.borderColor = '#ffd700';
-              circle.style.boxShadow = '0 0 15px rgba(255, 140, 0, 0.8)';
-            } else {
-              circle.style.background = 'rgba(139, 69, 19, 0.3)';
-              circle.style.borderColor = '#8B4513';
-              circle.style.boxShadow = 'none';
+      // Show and update fire level indicator
+      if (shouldUpdateUI) {
+        const fireLevelIndicator = document.getElementById('fire-level-indicator');
+        if (fireLevelIndicator) {
+          fireLevelIndicator.style.display = 'flex';
+
+          // Update fire level circles based on new fire level
+          for (let i = 0; i < 3; i++) {
+            const circle = document.getElementById(`fire-level-${i}`);
+            if (circle) {
+              if (newFireLevel > i) {
+                circle.style.background = 'linear-gradient(45deg, #ff6b00, #ffd700)';
+                circle.style.borderColor = '#ffd700';
+                circle.style.boxShadow = '0 0 15px rgba(255, 140, 0, 0.8)';
+              } else {
+                circle.style.background = 'rgba(139, 69, 19, 0.3)';
+                circle.style.borderColor = '#8B4513';
+                circle.style.boxShadow = 'none';
+              }
             }
           }
         }
       }
 
       // Switch background based on fire level
-      if (newFireLevel >= 3) {
-        container.style.backgroundImage = "url('Assets/Minigame/fire3.png')";
-      } else if (newFireLevel >= 2) {
-        container.style.backgroundImage = "url('Assets/Minigame/fire2.png')";
-      } else {
-        container.style.backgroundImage = "url('Assets/Minigame/fire1.png')";
+      if (shouldUpdateUI && container?.isConnected) {
+        if (newFireLevel >= 3) {
+          container.style.backgroundImage = "url('Assets/Minigame/fire3.png')";
+        } else if (newFireLevel >= 2) {
+          container.style.backgroundImage = "url('Assets/Minigame/fire2.png')";
+        } else {
+          container.style.backgroundImage = "url('Assets/Minigame/fire1.png')";
+        }
       }
 
       // Rebuild action row: clear and add appropriate button + Down
-      if (actionButtons) {
+      if (shouldUpdateUI && actionButtons) {
         clearChildren(actionButtons);
 
         if (newFireLevel >= 3) {
