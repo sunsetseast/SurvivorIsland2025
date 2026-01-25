@@ -48,6 +48,7 @@ export default function renderShelter(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
+    actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
       const btnWrapper = createElement('div', {
@@ -607,6 +608,7 @@ function ensureStockpileBanner(root, tribe) {
     bannerNode.appendChild(row);
     root.appendChild(bannerNode);
   } else {
+    bannerNode.style.display = 'flex';
     if (bambooNode) bambooNode.textContent = bambooCount;
     if (palmNode) palmNode.textContent = palmCount;
   }
