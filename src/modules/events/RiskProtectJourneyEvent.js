@@ -1,4 +1,6 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
+import eventManager, { GameEvents } from '../core/EventManager.js';
+import { GamePhase } from '../core/GameManager.js';
 import JourneyBeatUI, { getSurvivorAvatarSrc } from '../ui/JourneyBeatUI.js';
 
 function findSurvivor(gameManager, id) {
@@ -530,6 +532,22 @@ const RiskProtectJourneyEvent = {
         title: 'Journey Results',
         html: resultsList
       });
+
+      if (gameManager) {
+        gameManager.gamePhase = GamePhase.POST_CHALLENGE;
+        eventManager.publish(GameEvents.GAME_PHASE_CHANGED, {
+          phase: GamePhase.POST_CHALLENGE,
+          day: gameManager.getDay?.() ?? gameManager.day
+        });
+        const dayValue = gameManager.getDay?.() ?? gameManager.day;
+        window.debugBanner?.(
+          'RETURN-TO-CAMP',
+          `Day ${dayValue} | Phase ${gameManager.gamePhase} | Timer ${gameManager.dayTimer}`
+        );
+        console.log(
+          `RETURN-TO-CAMP: Day ${dayValue} | Phase ${gameManager.gamePhase} | Timer ${gameManager.dayTimer}`
+        );
+      }
 
       return {
         results: journey.results,

@@ -1,5 +1,5 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import gameManager from '../core/GameManager.js';
+import gameManager, { GamePhase } from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import ChallengeIntroView from '../views/ChallengeIntroView.js';
@@ -130,8 +130,10 @@ export default class ChallengeScreen {
       challengeManager.storeChallengeResult(this.currentChallenge.day, results);
     }
 
-    // Advance game phase
-    gameManager.advanceGamePhase();
+    // Advance game phase unless already set for post-challenge return
+    if (gameManager.gamePhase !== GamePhase.POST_CHALLENGE) {
+      gameManager.advanceGamePhase();
+    }
 
     // Return to camp
     gameManager.setGameState('camp');
