@@ -22,13 +22,52 @@ let fish3Added = 0;
 let currentActionMode = null;
 let fireRoot = null;
 
+const FIRE_VIEW_TEMP_IDS = [
+  'pot-action-overlay',
+  'firewood-contribution-overlay',
+  'food-contribution-overlay',
+  'food-quantity-overlay',
+  'parchment-popup',
+  'weak-fire-overlay',
+  'pot-overlay',
+  'cooking-instructions-overlay',
+  'cooking-buttons-container',
+  'ingredient-selector-overlay',
+  'cooking-items-display',
+  'insufficient-firewood-overlay',
+  'fire-instructions-overlay',
+  'tend-fire-instructions-overlay',
+  'fire-game-ui',
+  'progress-rings-container',
+  'fireCanvas',
+  'fireFailureOverlay',
+  'fireVictoryOverlay',
+  'cooking-unattended-overlay',
+  'submit-food-contribution-button',
+  'contribute_food',
+  'contribute_firewood'
+];
+
+function cleanupFireViewUI() {
+  FIRE_VIEW_TEMP_IDS.forEach(id => {
+    document.querySelectorAll(`#${id}`).forEach(el => el.remove());
+  });
+  coconutsAdded = 0;
+  fish1Added = 0;
+  fish2Added = 0;
+  fish3Added = 0;
+  currentActionMode = null;
+}
+
 export default function renderFireView(container) {
+  cleanupFireViewUI();
   // --- Persistent state: has the fire been built already? ---
   const player = gameManager.getPlayerSurvivor();
   const playerTribe = gameManager.getPlayerTribe();
   const fireBuilt = playerTribe && playerTribe.fire >= 1;
 
   fireRoot = container;
+  window.__campViewCleanup = cleanupFireViewUI;
 
   // --- Clear existing content and set FireView background based on fire level ---
   clearChildren(container);
@@ -203,6 +242,7 @@ export default function renderFireView(container) {
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
     clearChildren(actionButtons);
+    actionButtons.style.display = 'flex';
 
     // If fire not built → "Make Fire"; else → "Tend Fire"
     if (!fireBuilt) {
@@ -1139,6 +1179,7 @@ export default function renderFireView(container) {
     const firewoodCount = stockpile.firewood || 0;
 
     if (existing) {
+      existing.style.display = 'flex';
       const coconutEl = existing.querySelector('.stockpile-count-coconut');
       const fish1El = existing.querySelector('.stockpile-count-fish1');
       const fish2El = existing.querySelector('.stockpile-count-fish2');
