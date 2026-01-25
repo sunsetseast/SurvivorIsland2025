@@ -5,69 +5,19 @@
  */
 
 import gameManager from "../core/GameManager.js";
-import { getRandomInt } from "../utils/CommonUtils.js";
+import { getRandomInt, shuffleArray } from "../utils/CommonUtils.js";
 import eventManager from "../core/EventManager.js";
 import { LocationKeys } from "../core/LocationKeys.js";
+import { isCoreCampLocation, normalizeLocationKey } from "../locations/LocationUtils.js";
 
 // Safe debug helper – uses global debugBanner if it exists
 const dbg = (typeof window.debugBanner === "function") ? window.debugBanner : () => {};
-
-const LOCATION_KEY_LOOKUP = {
-  [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
-  [LocationKeys.SHELTER.toLowerCase()]: LocationKeys.SHELTER,
-  [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
-  [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
-  [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
-  [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
-  [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
-  [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
-  [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
-  [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
-  [LocationKeys.FORK1.toLowerCase()]: LocationKeys.FORK1,
-  [LocationKeys.FORK2.toLowerCase()]: LocationKeys.FORK2,
-  [LocationKeys.FORK3.toLowerCase()]: LocationKeys.FORK3,
-  [LocationKeys.FIREWOOD.toLowerCase()]: LocationKeys.FIREWOOD,
-  [LocationKeys.BAMBOO.toLowerCase()]: LocationKeys.BAMBOO,
-  [LocationKeys.SHAKE.toLowerCase()]: LocationKeys.SHAKE,
-  [LocationKeys.FISHING.toLowerCase()]: LocationKeys.FISHING,
-  [LocationKeys.FIRE.toLowerCase()]: LocationKeys.FIRE,
-  [LocationKeys.SUMMARY.toLowerCase()]: LocationKeys.SUMMARY,
-  [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: LocationKeys.STRATEGY_SUMMARY,
-  rocky: LocationKeys.ROCKY_SHORE,
-  rockyshore: LocationKeys.ROCKY_SHORE,
-  treemail: LocationKeys.TREE_MAIL,
-  flag: LocationKeys.TRIBE_FLAG,
-  tribeflag: LocationKeys.TRIBE_FLAG,
-  waterwell: LocationKeys.WATER_WELL,
-  campfire: LocationKeys.CAMPFIRE,
-  shelter: LocationKeys.SHELTER,
-  beach: LocationKeys.BEACH,
-  summary: LocationKeys.SUMMARY,
-  strategysummary: LocationKeys.STRATEGY_SUMMARY
-};
-
-const normalizeLocationKey = (key) => {
-  if (!key || typeof key !== "string") return key;
-  const trimmed = key.trim();
-  const lower = trimmed.toLowerCase();
-  const normalized = lower.replace(/[\s_-]+/g, "");
-  if (LOCATION_KEY_LOOKUP[lower]) return LOCATION_KEY_LOOKUP[lower];
-  if (LOCATION_KEY_LOOKUP[normalized]) return LOCATION_KEY_LOOKUP[normalized];
-  if (/view$/i.test(trimmed)) {
-    const base = trimmed.replace(/view$/i, "");
-    const baseLower = base.toLowerCase();
-    const baseNormalized = baseLower.replace(/[\s_-]+/g, "");
-    if (LOCATION_KEY_LOOKUP[baseLower]) return LOCATION_KEY_LOOKUP[baseLower];
-    if (LOCATION_KEY_LOOKUP[baseNormalized]) return LOCATION_KEY_LOOKUP[baseNormalized];
-    return base.charAt(0).toLowerCase() + base.slice(1);
-  }
-  return trimmed;
-};
 
 export const CAMP_LOCATION_WEIGHTS = {
   [LocationKeys.BEACH]: 4,
   [LocationKeys.SHELTER]: 4,
   [LocationKeys.CAMPFIRE]: 3,
+  [LocationKeys.TRIBE_FLAG]: 2,
   [LocationKeys.WATER_WELL]: 3,
 
   [LocationKeys.ROCKY_SHORE]: 1,
@@ -86,6 +36,7 @@ class NpcLocationSystem {
     this.locations = {};    // survivorId → viewName
     this.phaseAssigned = false;
     this.lastFights = [];   // confrontation events
+    this.lastPhaseUsed = null;
   }
 
   // So main.js can safely call initialize()
@@ -103,8 +54,8 @@ class NpcLocationSystem {
   /**
    * MAIN ENTRY – assign locations for the current camp phase
    */
-  assignLocationsForPhase(survivors) {
-    dbg("assignLocationsForPhase called", { total: survivors?.length });
+  assignLocationsForPhase(survivors, phase = null) {
+    dbg("assignLocationsForPhase called", { total: survivors?.length, phase });
 
     if (gameManager.flags?.campEventActive) {
       dbg("Camp event active — skipping location assignment");
@@ -115,32 +66,38 @@ class NpcLocationSystem {
     this.phaseAssigned = true;
     this.lastFights = [];
 
-    if (!survivors || survivors.length === 0) {
-      dbg("No survivors passed into assignLocationsForPhase");
-      return;
-    }
-
-    // Only NPCs FROM PLAYER'S TRIBE
     const tribe = gameManager.getPlayerTribe();
     if (!tribe) {
       dbg("No player tribe found – cannot assign NPC locations");
       return;
     }
 
-    const npcs = tribe.members.filter(s => !s.isPlayer);
+    const roster = (survivors && survivors.length) ? survivors : tribe.members || [];
+    if (!roster.length) {
+      dbg("No survivors available for assignLocationsForPhase");
+      return;
+    }
+
+    // Only NPCs FROM PLAYER'S TRIBE
+    const npcs = roster.filter(s => !s.isPlayer);
     dbg("NPCs in player tribe", npcs.map(n => n.firstName));
 
     // Safe shuffle
-    const shuffled = [...npcs].sort(() => Math.random() - 0.5);
+    const shuffled = shuffleArray(npcs);
 
     // Assign locations
     for (let npc of shuffled) {
-      const loc = normalizeLocationKey(this._chooseLocationForSurvivor(npc, shuffled));
+      let loc = normalizeLocationKey(this._chooseLocationForSurvivor(npc, shuffled));
+      if (!isCoreCampLocation(loc)) {
+        loc = LocationKeys.SHELTER;
+      }
       this.locations[npc.id] = loc;
       npc.location = loc;
       console.log("[NpcLocationSystem] assigned", npc.name || npc.firstName || npc.id, "->", loc);
       dbg("Assigned NPC location", { npc: npc.firstName, loc });
     }
+
+    this._refineAssignments(shuffled);
 
     // Check for confrontations
     this._evaluatePotentialConfrontations(shuffled);
@@ -150,6 +107,8 @@ class NpcLocationSystem {
       locations: this.locations
     });
 
+    this.lastPhaseUsed = phase || gameManager.getGamePhase?.() || gameManager.gamePhase || null;
+    this._debugAssignmentSummary(this.lastPhaseUsed, npcs.length);
     dbg("Finished assignLocationsForPhase", this.locations);
   }
 
@@ -221,6 +180,87 @@ class NpcLocationSystem {
     return picked;
   }
 
+  _scoreNpcAtLocation(npc, location, allNpcs, assignments) {
+    if (!isCoreCampLocation(location)) return -Infinity;
+    let score = CAMP_LOCATION_WEIGHTS[location] || 0;
+
+    allNpcs.forEach(other => {
+      if (other.id === npc.id) return;
+      const otherLoc = assignments[other.id];
+      if (otherLoc !== location) return;
+      const trust = gameManager.getRelationshipValue(npc.id, other.id);
+      if (trust > 70) score += 1.5;
+      if (trust < 30) score -= 1.5;
+    });
+
+    const traits = npc.personalityTraits || [];
+    if (traits.includes("paranoid")) {
+      if (location === LocationKeys.WATER_WELL) score += 1;
+      if (location === LocationKeys.JUNGLE_TRAIL) score += 1;
+    }
+    if (traits.includes("idol_hunter")) {
+      if ([LocationKeys.JUNGLE_TRAIL, LocationKeys.MOUNTAIN_TRAIL, LocationKeys.WATERFALL_TRAIL].includes(location)) {
+        score += 2;
+      }
+    }
+    if (traits.includes("social")) {
+      if ([LocationKeys.BEACH, LocationKeys.SHELTER, LocationKeys.CAMPFIRE].includes(location)) score += 2;
+    }
+    if (traits.includes("loner")) {
+      if (location === LocationKeys.ROCKY_SHORE) score += 2;
+      if (location === LocationKeys.WATERFALL_TRAIL) score += 1;
+    }
+
+    return score;
+  }
+
+  _refineAssignments(npcs) {
+    if (npcs.length < 2) return;
+    const iterations = Math.min(2, Math.max(1, Math.floor(npcs.length / 3)));
+    for (let pass = 0; pass < iterations; pass++) {
+      const shuffled = shuffleArray(npcs);
+      for (let i = 0; i < shuffled.length - 1; i += 2) {
+        const npcA = shuffled[i];
+        const npcB = shuffled[i + 1];
+        const locA = this.locations[npcA.id];
+        const locB = this.locations[npcB.id];
+        if (!locA || !locB) continue;
+
+        const currentScore =
+          this._scoreNpcAtLocation(npcA, locA, npcs, this.locations) +
+          this._scoreNpcAtLocation(npcB, locB, npcs, this.locations);
+        const swappedScore =
+          this._scoreNpcAtLocation(npcA, locB, npcs, this.locations) +
+          this._scoreNpcAtLocation(npcB, locA, npcs, this.locations);
+
+        if (swappedScore > currentScore) {
+          this.locations[npcA.id] = locB;
+          this.locations[npcB.id] = locA;
+          npcA.location = locB;
+          npcB.location = locA;
+        }
+      }
+    }
+  }
+
+  _debugAssignmentSummary(phase, totalNpcCount) {
+    const idolSystem = gameManager.systems?.idolSystem;
+    const isDebug = idolSystem?.isDebugMode?.() === true;
+    if (!isDebug) return;
+
+    const counts = {};
+    Object.values(this.locations).forEach(loc => {
+      if (!loc) return;
+      counts[loc] = (counts[loc] || 0) + 1;
+    });
+
+    console.debug('[NpcLocationSystem] Assignment summary', {
+      phase,
+      totalNpcCount,
+      counts
+    });
+  }
+
   /**
    * CONFRONTATION LOGIC
    */
@@ -275,6 +315,7 @@ class NpcLocationSystem {
     const tribe = gameManager.getPlayerTribe();
     if (!tribe) return results;
     const canonicalLocation = normalizeLocationKey(locationName);
+    if (!canonicalLocation) return results;
 
     for (let s of tribe.members) {
       const assignedLocation = normalizeLocationKey(this.locations[s.id]);
@@ -289,6 +330,28 @@ class NpcLocationSystem {
     });
 
     return results;
+  }
+
+  updateNpcLocation(npcId, locationKey, { reason = null } = {}) {
+    if (!npcId) return;
+    const normalized = normalizeLocationKey(locationKey);
+    if (!isCoreCampLocation(normalized)) return;
+    this.locations[npcId] = normalized;
+    const tribe = gameManager.getPlayerTribe();
+    const npc = tribe?.members?.find(member => String(member.id) === String(npcId));
+    if (npc) {
+      npc.location = normalized;
+    }
+    eventManager.publish("npc:locationUpdated", { npcId, locationKey: normalized, reason });
+  }
+
+  getLocationCounts() {
+    const counts = {};
+    Object.values(this.locations).forEach(location => {
+      if (!location) return;
+      counts[location] = (counts[location] || 0) + 1;
+    });
+    return counts;
   }
 }
 

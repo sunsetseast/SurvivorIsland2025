@@ -7,9 +7,10 @@ import eventManager, { GameEvents } from './EventManager.js';
 import screenManager from './ScreenManager.js';
 import { GameData } from '../data/index.js';
 import { loadFromLocalStorage, saveToLocalStorage } from '../utils/StorageUtils.js';
-import { deepCopy } from '../utils/CommonUtils.js';
+import { deepCopy, shuffleArray } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
+import { updateCampClockUI } from '../utils/ClockUtils.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
 import AllianceSystem from '../systems/AllianceSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
@@ -156,12 +157,12 @@ class GameManager {
 
       // PRE-CHALLENGE (morning camp)
       if (phase === GamePhase.PRE_CHALLENGE) {
-        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
+        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors, this.gamePhase);
       }
 
       // POST-CHALLENGE (strategy camp)
       if (phase === GamePhase.POST_CHALLENGE) {
-        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
+        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors, this.gamePhase);
       }
     });
   }
@@ -310,7 +311,7 @@ class GameManager {
       });
 
       if (!this.flags?.campEventActive) {
-        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors);
+        this.systems.npcLocationSystem.assignLocationsForPhase(this.survivors, this.gamePhase);
 
         if (this.gamePhase === GamePhase.PRE_CHALLENGE) {
           this.systems.socialEngine.resetForNewPhase("pre");
@@ -357,13 +358,13 @@ class GameManager {
     const colorPool = ['red', 'orange', 'blue', 'purple', 'green'];
 
     // Shuffle tribe names and survivors
-    const shuffledNames = [...allTribeNames].sort(() => Math.random() - 0.5).slice(0, tribeCount);
-    const shuffledSurvivors = survivors.sort(() => Math.random() - 0.5);
+    const shuffledNames = shuffleArray(allTribeNames).slice(0, tribeCount);
+    const shuffledSurvivors = shuffleArray(survivors);
 
     // Ensure red + orange aren’t both selected
     let chosenColors;
     while (true) {
-      const shuffledColors = [...colorPool].sort(() => Math.random() - 0.5);
+      const shuffledColors = shuffleArray(colorPool);
       chosenColors = shuffledColors.slice(0, tribeCount);
       if (!(chosenColors.includes('red') && chosenColors.includes('orange'))) break;
     }
@@ -379,7 +380,7 @@ class GameManager {
       const members = shuffledSurvivors.slice(index, index + size);
       index += size;
 
-      this.tribes.push({
+      const tribe = {
         id: i + 1,
         tribeId: i + 1,
         tribeName: shuffledNames[i].name,
@@ -391,7 +392,9 @@ class GameManager {
         immunityWins: 0,
         rewardWins: 0,
         attributes: this._calculateTribeAttributes(members)
-      });
+      };
+      this.initializeWaterPlanForTribe(tribe);
+      this.tribes.push(tribe);
     }
 
     eventManager.publish(GameEvents.TRIBES_CREATED, { tribes: this.tribes });
@@ -440,6 +443,7 @@ class GameManager {
 
   advanceDay() {
     this.day++;
+    this.resetTaskSimFlags({ reason: 'day' });
     this.updateTribeHealth();
     this.checkForMerge();
     eventManager.publish(GameEvents.DAY_ADVANCED, { day: this.day });
@@ -487,6 +491,7 @@ class GameManager {
     ) {
       this.systems?.idolSystem?.startNewCampPhase?.('phaseChange');
     }
+    this.resetTaskSimFlags({ reason: 'phase' });
     eventManager.publish(GameEvents.GAME_PHASE_CHANGED, { 
       phase: this.gamePhase,
       day: this.day 
@@ -606,6 +611,20 @@ class GameManager {
     this.dayTimer = Math.max(0, this.dayTimer - seconds);
   }
 
+  consumeCampTime(seconds, payload = {}) {
+    const amount = Math.max(0, Number(seconds) || 0);
+    if (!amount) return;
+    this.dayTimer = Math.max(0, this.dayTimer - amount);
+    updateCampClockUI(this.dayTimer, this.getDay());
+    if (this.systems?.idolSystem?.isDebugMode?.()) {
+      console.debug('[GameManager] Camp time consumed', {
+        seconds: amount,
+        remaining: this.dayTimer,
+        ...payload
+      });
+    }
+  }
+
   getCurrentDay() {
     return this.day;
   }
@@ -644,9 +663,61 @@ class GameManager {
     this.flags = data.flags || { day1FirstImpressionsCompleted: false };
     this.campLog = data.campLog || [];
     this.survivors = (this.survivors || []).map(survivor => ({ ...survivor, laziness: survivor.laziness ?? 0 }));
+    (this.tribes || []).forEach(tribe => {
+      this.initializeWaterPlanForTribe(tribe);
+    });
+    this.resetTaskSimFlags({ reason: 'load' });
     this._updateScreenForState(this.gameState);
     eventManager.publish(GameEvents.GAME_LOADED, { timestamp: data.timestamp });
     return true;
+  }
+
+  resetTaskSimFlags({ reason = 'manual' } = {}) {
+    this.flags = this.flags || {};
+    this.flags.taskSimMidCompleted = false;
+    this.flags.taskSimEndCompleted = false;
+    this.flags.taskSimMidReportId = null;
+    this.flags.taskSimEndReportId = null;
+    if (this.systems?.idolSystem?.isDebugMode?.()) {
+      console.debug('[GameManager] Reset task sim flags', { reason });
+    }
+  }
+
+  initializeWaterPlanForTribe(tribe) {
+    if (!tribe) return null;
+    const existing = tribe.waterPlan;
+    if (existing && Array.isArray(existing.assigneeIds)) {
+      return existing;
+    }
+
+    const members = tribe.members || [];
+    const scored = members.map(member => {
+      const teamPlayer = Number.isFinite(member.teamPlayer) ? member.teamPlayer : 50;
+      const leadership = Number.isFinite(member.leadership) ? member.leadership : 50;
+      const workEthic = Number.isFinite(member.workEthic) ? member.workEthic : 50;
+      const style = member.gameplayStyle || member.playStyle || '';
+      const styleBoost = ['Shadow Strategist', 'Power Player', 'Social Genius', 'Lethal Charmer'].includes(style)
+        ? 8
+        : style === 'Wildcard'
+          ? 4
+          : 0;
+      return {
+        id: member.id,
+        score: teamPlayer * 0.5 + leadership * 0.3 + workEthic * 0.2 + styleBoost
+      };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const targetCount = Math.min(3, Math.max(1, Math.round(members.length / 4)));
+    const assigneeIds = scored.slice(0, targetCount).map(entry => entry.id);
+
+    const plan = {
+      assigneeIds,
+      active: true,
+      lastUpdatedDay: this.getCurrentDay?.() ?? this.day ?? 1
+    };
+    tribe.waterPlan = plan;
+    return plan;
   }
 
   hasSavedGame() {

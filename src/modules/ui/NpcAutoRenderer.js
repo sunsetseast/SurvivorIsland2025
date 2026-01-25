@@ -9,6 +9,7 @@ import { gameManager } from "../core/index.js";
 import eventManager, { GameEvents } from "../core/EventManager.js";
 import { createElement } from "../utils/DOMUtils.js";
 import { LocationKeys } from "../core/LocationKeys.js";
+import { normalizeLocationKey } from "../locations/LocationUtils.js";
 
 // Use your existing debug banner (CampScreen has it globally)
 const dbg = window.debugBanner || function(){};
@@ -67,13 +68,19 @@ class NpcAutoRenderer {
             this.lastKnownPhase = phase;
         });
 
+        eventManager.subscribe("npc:locationUpdated", () => {
+            if (this.lastViewName) {
+                this.renderFor(this.lastViewName);
+            }
+        });
+
         // 🟢 Listen for tribe creation → assign NPC locations
         eventManager.subscribe(GameEvents.TRIBES_CREATED, () => {
             const tribe = gameManager.getPlayerTribe();
             dbg("Event: TRIBES_CREATED", { tribe });
 
             if (tribe) {
-                npcLocationSystem.assignLocationsForPhase(tribe.members);
+                npcLocationSystem.assignLocationsForPhase(tribe.members, gameManager?.getGamePhase?.() || gameManager?.gamePhase);
                 dbg("NpcAutoRenderer triggered NPC location assignment", tribe.members);
             }
         });
@@ -130,37 +137,43 @@ class NpcAutoRenderer {
             return;
         }
 
-        // Create the container
+        const isTribeFlagView = viewName === LocationKeys.TRIBE_FLAG;
         const iconContainer = createElement("div", {
             className: "npc-icon-container",
             style: `
                 position: absolute;
-                top: 14px;
-                left: 14px;
-                display: flex;
+                top: ${isTribeFlagView ? "0" : "14px"};
+                left: ${isTribeFlagView ? "0" : "14px"};
+                display: ${isTribeFlagView ? "block" : "flex"};
                 flex-direction: column;
                 gap: 10px;
+                width: ${isTribeFlagView ? "100%" : "auto"};
+                height: ${isTribeFlagView ? "100%" : "auto"};
                 z-index: 999;
                 pointer-events: none;
             `
         });
 
         survivorsHere.forEach(survivor => {
+            const baseStyle = `
+                width: 55px;
+                height: 55px;
+                border-radius: 50%;
+                border: 3px solid white;
+                box-shadow: 0 0 6px rgba(0,0,0,0.65);
+                cursor: pointer;
+                background: rgba(0,0,0,0.25);
+                background-image: url('${survivor.avatarUrl}');
+                background-size: cover;
+                background-position: center;
+                pointer-events: auto;
+            `;
+
             const icon = createElement("div", {
                 className: "npc-icon",
                 dataset: { npcId: String(survivor.id) },
                 style: `
-                    width: 55px;
-                    height: 55px;
-                    border-radius: 50%;
-                    border: 3px solid white;
-                    box-shadow: 0 0 6px rgba(0,0,0,0.65);
-                    cursor: pointer;
-                    background: rgba(0,0,0,0.25);
-                    background-image: url('${survivor.avatarUrl}');
-                    background-size: cover;
-                    background-position: center;
-                    pointer-events: auto;
+                    ${baseStyle}
                 `
             });
 
@@ -173,10 +186,33 @@ class NpcAutoRenderer {
                 });
             });
 
+            if (isTribeFlagView) {
+                const positions = [
+                    { top: "16%", left: "6%" },
+                    { bottom: "20%", left: "6%" },
+                    { top: "16%", right: "6%" },
+                    { bottom: "20%", right: "6%" },
+                    { bottom: "8%", left: "22%" },
+                    { bottom: "8%", right: "22%" }
+                ];
+                const base = positions[iconContainer.childElementCount % positions.length];
+                const stackIndex = Math.floor(iconContainer.childElementCount / positions.length);
+                const offset = stackIndex * 6;
+                Object.assign(icon.style, {
+                    position: "absolute",
+                    top: base.top ?? "auto",
+                    bottom: base.bottom ?? "auto",
+                    left: base.left ?? "auto",
+                    right: base.right ?? "auto",
+                    transform: `translate(${offset}px, ${offset}px)`
+                });
+            }
+
             iconContainer.appendChild(icon);
         });
 
         layer.appendChild(iconContainer);
+        this.renderDebugOverlay(viewName, survivorsHere, layer);
 
         dbg("NPC ICONS RENDERED", { count: survivorsHere.length, viewName });
     }
@@ -186,62 +222,51 @@ class NpcAutoRenderer {
             return viewName;
         }
 
-        const trimmed = viewName.trim();
-        const normalizedMap = {
-            [LocationKeys.SHELTER.toLowerCase()]: LocationKeys.SHELTER,
-            [LocationKeys.CAMPFIRE.toLowerCase()]: LocationKeys.CAMPFIRE,
-            [LocationKeys.WATER_WELL.toLowerCase()]: LocationKeys.WATER_WELL,
-            [LocationKeys.BEACH.toLowerCase()]: LocationKeys.BEACH,
-            [LocationKeys.ROCKY_SHORE.toLowerCase()]: LocationKeys.ROCKY_SHORE,
-            [LocationKeys.WATERFALL_TRAIL.toLowerCase()]: LocationKeys.WATERFALL_TRAIL,
-            [LocationKeys.JUNGLE_TRAIL.toLowerCase()]: LocationKeys.JUNGLE_TRAIL,
-            [LocationKeys.MOUNTAIN_TRAIL.toLowerCase()]: LocationKeys.MOUNTAIN_TRAIL,
-            [LocationKeys.TREE_MAIL.toLowerCase()]: LocationKeys.TREE_MAIL,
-            [LocationKeys.TRIBE_FLAG.toLowerCase()]: LocationKeys.TRIBE_FLAG,
-            [LocationKeys.FORK1.toLowerCase()]: LocationKeys.FORK1,
-            [LocationKeys.FORK2.toLowerCase()]: LocationKeys.FORK2,
-            [LocationKeys.FORK3.toLowerCase()]: LocationKeys.FORK3,
-            [LocationKeys.FIREWOOD.toLowerCase()]: LocationKeys.FIREWOOD,
-            [LocationKeys.BAMBOO.toLowerCase()]: LocationKeys.BAMBOO,
-            [LocationKeys.SHAKE.toLowerCase()]: LocationKeys.SHAKE,
-            [LocationKeys.FISHING.toLowerCase()]: LocationKeys.FISHING,
-            [LocationKeys.FIRE.toLowerCase()]: LocationKeys.FIRE,
-            [LocationKeys.SUMMARY.toLowerCase()]: LocationKeys.SUMMARY,
-            [LocationKeys.STRATEGY_SUMMARY.toLowerCase()]: LocationKeys.STRATEGY_SUMMARY,
-            flag: LocationKeys.TRIBE_FLAG,
-            treemail: LocationKeys.TREE_MAIL,
-            rocky: LocationKeys.ROCKY_SHORE
-        };
-
-        const lower = trimmed.toLowerCase();
-        const normalized = lower.replace(/[\s_-]+/g, "");
-        if (normalizedMap[lower]) {
-            return normalizedMap[lower];
-        }
-        if (normalizedMap[normalized]) {
-            return normalizedMap[normalized];
+        const normalized = normalizeLocationKey(viewName);
+        if (normalized) {
+            return normalized;
         }
 
-        if (/view$/i.test(trimmed)) {
+        if (/view$/i.test(viewName)) {
             const currentView = window?.campScreen?.currentView;
             if (currentView) {
                 return currentView;
             }
-
-            const baseName = trimmed.replace(/view$/i, "");
-            const baseLower = baseName.toLowerCase();
-            const baseNormalized = baseLower.replace(/[\s_-]+/g, "");
-            if (normalizedMap[baseLower]) {
-                return normalizedMap[baseLower];
-            }
-            if (normalizedMap[baseNormalized]) {
-                return normalizedMap[baseNormalized];
-            }
-
-            return baseName.charAt(0).toLowerCase() + baseName.slice(1);
         }
 
-        return trimmed;
+        return viewName;
+    }
+
+    renderDebugOverlay(viewName, survivorsHere, layer) {
+        const idolSystem = gameManager.systems?.idolSystem;
+        const isDebug = idolSystem?.isDebugMode?.() === true;
+        if (!isDebug || !layer) return;
+
+        const overlay = createElement("div", {
+            className: "npc-debug-overlay",
+            style: `
+                position: absolute;
+                bottom: 8px;
+                left: 8px;
+                background: rgba(0, 0, 0, 0.6);
+                color: #fff;
+                font-size: 12px;
+                padding: 6px 8px;
+                border-radius: 6px;
+                z-index: 1000;
+                pointer-events: none;
+                max-width: 240px;
+                line-height: 1.3;
+            `
+        });
+
+        const rendered = survivorsHere.map(survivor => {
+            const loc = normalizeLocationKey(npcLocationSystem.locations?.[survivor.id]) || "unknown";
+            return `${survivor.firstName || survivor.id} (${loc})`;
+        });
+
+        overlay.innerText = `View: ${viewName}\nNPCs: ${rendered.join(", ") || "none"}`;
+        layer.appendChild(overlay);
     }
 
     ensureNpcLayer() {

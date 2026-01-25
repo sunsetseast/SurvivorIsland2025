@@ -169,7 +169,7 @@ export default class CampScreen {
       const phaseKey = gameManager.gamePhase === GamePhase.POST_CHALLENGE ? 'post' : 'pre';
       console.info('[CampScreen] Resuming camp systems after event');
 
-      gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors);
+      gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors, gameManager.gamePhase);
       gameManager.systems?.socialEngine?.resetForNewPhase?.(phaseKey);
 
       if (this.currentView === LocationKeys.SHELTER && this.isActive) {
