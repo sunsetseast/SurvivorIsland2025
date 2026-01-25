@@ -79,16 +79,15 @@ export function createElement(tag, attributes = {}, children = []) {
   if (children) {
     if (Array.isArray(children)) {
       children.forEach(child => {
-        if (child) {
-          if (typeof child === 'string') {
-            element.appendChild(document.createTextNode(child));
-          } else {
-            element.appendChild(child);
-          }
+        if (child === null || child === undefined) return;
+        if (typeof child === 'string' || typeof child === 'number') {
+          element.appendChild(document.createTextNode(String(child)));
+        } else {
+          element.appendChild(child);
         }
       });
-    } else if (typeof children === 'string') {
-      element.textContent = children;
+    } else if (typeof children === 'string' || typeof children === 'number') {
+      element.textContent = String(children);
     } else {
       element.appendChild(children);
     }
