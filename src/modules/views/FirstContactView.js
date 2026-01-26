@@ -196,6 +196,7 @@ const FirstContactView = {
     this._buildBands();
     this._buildLanes();
     this._buildScoreboard();
+    this._buildSkipButton();
     this.jeff = new JeffBubble(root);
     this.jeff.setDock('topBelowScoreboard', this.scoreboardEl);
 
@@ -234,6 +235,10 @@ const FirstContactView = {
       finishSoonCalled: false,
       challengeThreatApplied: false
     };
+    this._completionHandled = false;
+    this._stopTicking = false;
+    this._skipInProgress = false;
+    this._isSkipping = false;
     this.tribes.forEach(t => {
       const k = getKey(t);
       this.state.progressByTribe[k] = 0;
@@ -366,6 +371,73 @@ const FirstContactView = {
     this._speakLine('start', this.lines.start, {}, CFG.stagePauseMs);
     this._setRunningForCurrentStage();
     this._tick();
+  },
+
+  _buildSkipButton() {
+    if (!this._rootEl) return;
+    if (this._skipButton) {
+      this._skipButton.remove();
+    }
+    this._skipButton = createElement('button', {
+      style: `
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        z-index: 5000;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.7);
+        background: rgba(0,0,0,0.55);
+        color: #fff;
+        font-family: 'Survivant', sans-serif;
+        font-size: 0.85rem;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-transform: uppercase;
+      `,
+      onclick: () => this._skipChallenge()
+    }, 'Skip');
+    this._rootEl.appendChild(this._skipButton);
+  },
+
+  _removeSkipButton() {
+    if (this._skipButton) {
+      this._skipButton.remove();
+      this._skipButton = null;
+    }
+  },
+
+  _skipChallenge() {
+    if (this._skipInProgress || this._completionHandled) return;
+    this._skipInProgress = true;
+    this._stopTicking = true;
+    this._isSkipping = true;
+    this.state.pausedUntil = 0;
+    if (this.jeff) this.jeff.hide();
+    if (this._resultsTimeout) {
+      clearTimeout(this._resultsTimeout);
+      this._resultsTimeout = null;
+    }
+    if (this._skipButton) {
+      this._skipButton.disabled = true;
+      this._skipButton.style.cursor = 'default';
+      this._skipButton.style.opacity = '0.6';
+    }
+
+    const stepMs = 1000 / CFG.tickHz;
+    let now = performance.now();
+    let safety = 0;
+    while (!this._completionHandled && safety < 20000) {
+      const dt = stepMs / 1000;
+      now += stepMs;
+      const done = this._advanceSimulation(now, dt, { immediateResults: true });
+      if (done) break;
+      safety += 1;
+    }
+
+    this._isSkipping = false;
+    this._skipInProgress = false;
   },
 
   _handleSurvivorCallouts(now, cooldownPassed) {
@@ -817,6 +889,10 @@ const FirstContactView = {
   },
 
   _announce(text, pauseMs) {
+    if (this._isSkipping) {
+      this.state.pausedUntil = 0;
+      return;
+    }
     this.jeff.show(text);
     const now = performance.now();
     const pause = pauseMs ?? CFG.stagePauseMs;
@@ -876,6 +952,7 @@ const FirstContactView = {
   },
 
   _handleNarration() {
+    if (this._isSkipping) return;
     const entries = Object.entries(this.state.progressByTribe);
     if (!entries.length) return;
 
@@ -952,13 +1029,35 @@ const FirstContactView = {
     this._handleSurvivorCallouts(now, cooldownPassed);
   },
 
-  _tick() {
-    if (this._destroyed) return;
-    const now = performance.now();
-    const dt = Math.min(200, now - this.state.lastTick) / 1000;
-    this.state.lastTick = now;
+  _handleCompletion({ immediate = false } = {}) {
+    if (this._completionHandled) return;
+    this._completionHandled = true;
+    this._applyChallengeThreatAdjustments();
+    this._removeSkipButton();
 
-    if (now < this.state.pausedUntil) { requestAnimationFrame(() => this._tick()); return; }
+    if (immediate) {
+      if (this._resultsTimeout) {
+        clearTimeout(this._resultsTimeout);
+        this._resultsTimeout = null;
+      }
+      this._showFinalResults();
+      return;
+    }
+
+    this._resultsTimeout = setTimeout(() => {
+      this._resultsTimeout = null;
+      this._showFinalResults();
+    }, 800);
+  },
+
+  _advanceSimulation(now, dt, { immediateResults = false } = {}) {
+    if (this._destroyed) return true;
+    if (!this._isSkipping && now < this.state.pausedUntil) {
+      return false;
+    }
+    if (this._isSkipping) {
+      this.state.pausedUntil = 0;
+    }
 
     // per-survivor motion
     this.tribes.forEach(tribe => {
@@ -972,7 +1071,7 @@ const FirstContactView = {
 
         // small error events
         if (!ms._errUntil || now > ms._errUntil) {
-          if (Math.random() < this._errChance(ms.survivor)*dt*CFG.tickHz) {
+          if (Math.random() < this._errChance(ms.survivor) * dt * CFG.tickHz) {
             const pause = lerp(CFG.errPause[0], CFG.errPause[1], Math.random());
             ms._errUntil = now + pause;
             this.state.events.push({ type:'error', seg: seg.id, tribeKey:key, survivor:ms.survivor, ms:pause|0 });
@@ -1038,13 +1137,21 @@ const FirstContactView = {
     // end?
     const allDone = this.tribes.every(t => this.state.progressByTribe[getKey(t)] >= 1);
     if (allDone) {
-      this._applyChallengeThreatAdjustments();
-      this._resultsTimeout = setTimeout(() => {
-        this._resultsTimeout = null;
-        this._showFinalResults();
-      }, 800);
-      return;
+      this._handleCompletion({ immediate: immediateResults });
+      return true;
     }
+
+    return false;
+  },
+
+  _tick() {
+    if (this._destroyed || this._stopTicking) return;
+    const now = performance.now();
+    const dt = Math.min(200, now - this.state.lastTick) / 1000;
+    this.state.lastTick = now;
+
+    const done = this._advanceSimulation(now, dt);
+    if (done) return;
 
     requestAnimationFrame(() => this._tick());
   },
@@ -1419,6 +1526,7 @@ const FirstContactView = {
       clearTimeout(this._resultsTimeout);
       this._resultsTimeout = null;
     }
+    this._removeSkipButton();
     if (this._resultsContinueBtn && this._onResultsContinue) {
       this._resultsContinueBtn.removeEventListener('click', this._onResultsContinue);
     }
