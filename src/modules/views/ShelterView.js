@@ -5,7 +5,7 @@ import activityTracker from '../utils/ActivityTracker.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
-import { openContributionOverlay } from './ContributionOverlay.js';
+import { openContributionOverlay } from '../ui/ContributionOverlay.js';
 
 const BAMBOO_REQUIRED = 5;
 const PALM_REQUIRED = 1;

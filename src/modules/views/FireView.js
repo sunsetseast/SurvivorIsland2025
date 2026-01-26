@@ -14,7 +14,7 @@ import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
 import { LocationKeys } from '../core/LocationKeys.js';
-import { openContributionOverlay } from './ContributionOverlay.js';
+import { openContributionOverlay } from '../ui/ContributionOverlay.js';
 
 let currentActionMode = null;
 let fireRoot = null;
