@@ -249,23 +249,25 @@ const JourneySelectionEvent = {
         ].join('<div style="height:8px;"></div>')
       });
 
-      await showBeatAndWait({
-        background: 'Assets/Journey/boat.png',
-        layout: 'sceneFirst',
-        sceneFirst: true
-      });
+      if (playerWasSelected) {
+        await showBeatAndWait({
+          background: 'Assets/Journey/boat.png',
+          layout: 'sceneFirst',
+          sceneFirst: true
+        });
 
-      await showBeatAndWait({
-        background: 'Assets/Journey/boat.png',
-        layout: 'parchTop',
-        textLines: [
-        'Grab your things. Your journey starts now.'
-        ]
-      });
-      isPreBoat = false;
+        await showBeatAndWait({
+          background: 'Assets/Journey/boat.png',
+          layout: 'parchTop',
+          textLines: [
+          'Grab your things. Your journey starts now.'
+          ]
+        });
+        isPreBoat = false;
+      }
 
       gameManager.journey = {
-        active: true,
+        active: playerWasSelected,
         challengeKey,
         day,
         phase: 'postChallenge',
