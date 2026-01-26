@@ -7,6 +7,7 @@
 export { default as DialogueSystem } from './DialogueSystem.js';
 export { default as EnergySystem } from './EnergySystem.js';
 export { default as IdolSystem } from './IdolSystem.js';
+export { default as InventorySystem } from './InventorySystem.js';
 export { default as RelationshipSystem, RelationshipType } from './RelationshipSystem.js';
 export { default as AllianceSystem } from './AllianceSystem.js';
 export { default as ConversationSystem } from './ConversationSystem.js';
@@ -21,6 +22,7 @@ export { default as NpcAutoRenderer } from '../ui/NpcAutoRenderer.js';
 import DialogueSystem from './DialogueSystem.js';
 import EnergySystem from './EnergySystem.js';
 import IdolSystem from './IdolSystem.js';
+import InventorySystem from './InventorySystem.js';
 import RelationshipSystem, { RelationshipType } from './RelationshipSystem.js';
 import AllianceSystem from './AllianceSystem.js';
 import ConversationSystem from './ConversationSystem.js';
@@ -34,6 +36,7 @@ export default {
   DialogueSystem,
   EnergySystem,
   IdolSystem,
+  InventorySystem,
   RelationshipSystem,
   RelationshipType,
   AllianceSystem,

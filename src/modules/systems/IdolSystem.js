@@ -675,6 +675,11 @@ class IdolSystem {
     }
   }
 
+  removeClueFromInventory(survivorId, clueId) {
+    const inventory = this._ensureSurvivorInventory(survivorId);
+    inventory.clues = inventory.clues.filter(clue => clue.id !== clueId);
+  }
+
   getCasualSearchCount(survivorId, locationKey) {
     const canonicalLocation = this.normalizeLocationKey(locationKey) || locationKey;
     const key = this._casualCountKey(survivorId, canonicalLocation);
@@ -746,6 +751,21 @@ class IdolSystem {
 
     const clueExpired = this._expireClueForTribe(tribeId);
 
+    this._syncInventoryItem({
+      survivor,
+      item: {
+        id: `idol_${idolState.id}`,
+        type: 'IDOL',
+        name: 'Hidden Immunity Idol',
+        iconSrc: 'Assets/Idols/hidden1.png',
+        data: {
+          idolId: idolState.id,
+          tribeId: idolState.tribeId,
+          played: false
+        }
+      }
+    });
+
     eventManager.publish(GameEvents.IDOL_FOUND, {
       survivorId: survivor.id,
       tribeId,
@@ -772,6 +792,23 @@ class IdolSystem {
     if (!inventory.clues.includes(clueState)) {
       inventory.clues.push(clueState);
     }
+
+    this._syncInventoryItem({
+      survivor,
+      item: {
+        id: `clue_${clueState.id}`,
+        type: 'CLUE',
+        name: 'Idol Clue',
+        iconSrc: 'Assets/Idols/clue1.png',
+        data: {
+          clueId: clueState.id,
+          tribeId: clueState.tribeId,
+          pointsToLocationKey: clueState.pointsToLocationKey,
+          text: clueState.text,
+          expired: clueState.expired
+        }
+      }
+    });
 
     eventManager.publish(GameEvents.CLUE_FOUND, {
       survivorId: survivor.id,
@@ -802,12 +839,54 @@ class IdolSystem {
       });
     });
 
+    const inventorySystem = this.gameManager.systems?.inventorySystem;
+    if (inventorySystem) {
+      const state = this.gameManager.state?.inventories;
+      if (state?.player) {
+        state.player.forEach(item => {
+          if (item?.type === 'CLUE' && item?.data?.tribeId === tribeId) {
+            item.data.expired = true;
+          }
+        });
+      }
+      if (state?.npcs) {
+        Object.values(state.npcs).forEach(items => {
+          items.forEach(item => {
+            if (item?.type === 'CLUE' && item?.data?.tribeId === tribeId) {
+              item.data.expired = true;
+            }
+          });
+        });
+      }
+    }
+
     eventManager.publish(GameEvents.CLUE_EXPIRED, {
       tribeId,
       clueId: clueState.id
     });
 
     return true;
+  }
+
+  _syncInventoryItem({ survivor, item }) {
+    const inventorySystem = this.gameManager.systems?.inventorySystem;
+    if (!inventorySystem || !survivor || !item) return;
+
+    const ownerId = survivor.isPlayer ? 'player' : survivor.id;
+    const existing = inventorySystem.findItem?.(ownerId, entry => entry?.id === item.id);
+    if (!existing) {
+      const added = inventorySystem.addItem(ownerId, item);
+      if (!added && ownerId === 'player') {
+        console.warn('[IdolSystem] Player inventory full; could not add item', item);
+      }
+      if (ownerId !== 'player' && added) {
+        console.debug('[IdolSystem] Stored NPC inventory item', { ownerId, item });
+      }
+    }
+
+    if (ownerId === 'player' && typeof window.InventoryUI?.render === 'function') {
+      window.InventoryUI.render();
+    }
   }
 
   _showPlayerNotification(message, type) {

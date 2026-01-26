@@ -2303,6 +2303,73 @@ body {
   text-align: center;
 }
 
+#inventory-items-grid {
+  --slot-size: 72px;
+  --slot-gap: 18px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  grid-template-columns: repeat(3, var(--slot-size));
+  grid-template-rows: repeat(3, var(--slot-size));
+  gap: var(--slot-gap);
+  z-index: 1004;
+  pointer-events: auto;
+}
+
+.inventory-grid-slot {
+  width: var(--slot-size);
+  height: var(--slot-size);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.inventory-grid-slot img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  filter: drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+#inventory-item-modal .inventory-item-panel {
+  width: min(90vw, 420px);
+  background: rgba(15, 15, 15, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  padding: 24px;
+  color: #f8f4e9;
+  font-family: 'Survivant', sans-serif;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#inventory-item-modal .inventory-item-title {
+  font-size: 1.3rem;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+#inventory-item-modal .inventory-item-text {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+#inventory-item-modal .inventory-item-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .resource-icon {
   width: 60px;
   height: 60px;

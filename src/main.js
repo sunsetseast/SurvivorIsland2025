@@ -18,6 +18,7 @@ import { openSocialMenuOverlay, closeSocialMenuOverlay } from './modules/screens
 import { openAlliancesOverlay, closeAlliancesOverlay } from './modules/screens/camp/AlliancesOverlay.js';
 import npcAutoRenderer from './modules/ui/NpcAutoRenderer.js';
 import { initOverlaysController } from './modules/ui/OverlaysController.js';
+import InventoryUI from './modules/ui/InventoryUI.js';
 
 window.mainJsLoaded = true;
 window.openRelationshipsOverlay = openRelationshipsOverlay;
@@ -61,11 +62,13 @@ function init() {
   screenManager.showScreen('welcome');
 
   initOverlaysController();
+  InventoryUI.init();
 
   // Register systems
   // Core systems (all created fresh because they depend on gameManager)
   gameManager.registerSystem("dialogueSystem", new systems.DialogueSystem(gameManager));
   gameManager.registerSystem("energySystem", new systems.EnergySystem(gameManager));
+  gameManager.registerSystem("inventorySystem", new systems.InventorySystem(gameManager));
   gameManager.registerSystem("idolSystem", new systems.IdolSystem(gameManager));
   gameManager.registerSystem("relationshipSystem", new systems.RelationshipSystem(gameManager));
   gameManager.registerSystem("allianceSystem", new systems.AllianceSystem(gameManager));
