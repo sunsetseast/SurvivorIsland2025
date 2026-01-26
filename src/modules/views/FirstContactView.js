@@ -1123,6 +1123,121 @@ const FirstContactView = {
     };
   },
 
+  _applyImmunityResults(result) {
+    if (!result) return;
+    const tribes = gameManager.getTribes?.() || [];
+    const winningKeys = new Set();
+    const normalizedWinningKeys = new Set();
+
+    const addKeyVariants = (value) => {
+      if (value == null) return;
+      const trimmed = typeof value === 'string' ? value.trim() : value;
+      const lower = typeof trimmed === 'string' ? trimmed.toLowerCase() : null;
+
+      winningKeys.add(trimmed);
+      if (typeof trimmed === 'number') {
+        winningKeys.add(String(trimmed));
+        normalizedWinningKeys.add(String(trimmed).trim().toLowerCase());
+      }
+      if (typeof trimmed === 'string') {
+        winningKeys.add(trimmed);
+        normalizedWinningKeys.add(trimmed.toLowerCase());
+      }
+      if (lower != null) {
+        winningKeys.add(lower);
+      }
+    };
+
+    if (Array.isArray(result.winningTribeKeys)) {
+      result.winningTribeKeys.forEach((key) => addKeyVariants(key));
+    }
+    if (result.winningTribeKey) {
+      addKeyVariants(result.winningTribeKey);
+    }
+
+    tribes.forEach((tribe) => {
+      const keys = new Set();
+      const normalizedKeys = new Set();
+      [tribe?.id, tribe?.tribeName, tribe?.name, tribe?.tribeColor, tribe?.color].forEach((value) => {
+        if (value == null) return;
+        const trimmed = typeof value === 'string' ? value.trim() : value;
+        const lower = typeof trimmed === 'string' ? trimmed.toLowerCase() : null;
+        keys.add(trimmed);
+        if (typeof trimmed === 'number') {
+          keys.add(String(trimmed));
+          normalizedKeys.add(String(trimmed).trim().toLowerCase());
+        }
+        if (typeof trimmed === 'string') {
+          keys.add(trimmed);
+          normalizedKeys.add(trimmed.toLowerCase());
+        }
+        if (lower != null) {
+          keys.add(lower);
+        }
+      });
+
+      let isImmune = false;
+      for (const key of keys) {
+        if (winningKeys.has(key)) {
+          isImmune = true;
+          break;
+        }
+        const normalized = typeof key === 'string' ? key.trim().toLowerCase() : String(key).trim().toLowerCase();
+        if (normalizedWinningKeys.has(normalized)) {
+          isImmune = true;
+          break;
+        }
+      }
+      if (!isImmune) {
+        for (const normalizedKey of normalizedKeys) {
+          if (normalizedWinningKeys.has(normalizedKey)) {
+            isImmune = true;
+            break;
+          }
+        }
+      }
+
+      tribe.hasImmunity = isImmune;
+      tribe.isImmune = isImmune;
+      if (isImmune) {
+        tribe.immunityWins = (tribe.immunityWins || 0) + 1;
+      }
+    });
+  },
+
+  async _showNoJourneyOutro(container, result) {
+    const ui = new JourneyBeatUI(container);
+    const winnersKeys = Array.isArray(result?.winningTribeKeys)
+      ? result.winningTribeKeys
+      : result?.winningTribeKey
+        ? [result.winningTribeKey]
+        : [];
+    const winnerKeySet = new Set(winnersKeys.map((key) => String(key)));
+    const losers = (this.tribes || []).filter((tribe) => !winnerKeySet.has(String(getKey(tribe))));
+    const loser = losers[0] || null;
+    const loserLine = loser
+      ? `${tribeSpan(loser)}, I’ll see you tonight at Tribal Council — where someone will be the first Survivor voted out of the game.`
+      : 'I’ll see the losing tribe tonight at Tribal Council — where someone will be the first Survivor voted out of the game.';
+
+    const showBeat = (textLines) => new Promise((resolve) => {
+      ui.setSceneBackground('Assets/jeff-screen.png');
+      ui.renderBeat({
+        textLines,
+        buttons: [{ label: 'Continue', onClick: () => resolve() }]
+      });
+    });
+
+    try {
+      await showBeat([
+        'For everyone not going on the journey, you’ll head back to camp and wait for your tribemates to return before Tribal Council.'
+      ]);
+      await showBeat([loserLine]);
+    } finally {
+      ui.destroy();
+      JourneyBeatUI.forceCleanup(container);
+    }
+  },
+
   _showFinalResults() {
     this.cleanupResultsUI();
     clearChildren(this._rootEl);
@@ -1189,6 +1304,9 @@ const FirstContactView = {
       const tribes = gameManager.getTribes();
       const playerTribe = gameManager.getPlayerTribe();
 
+      const results = this._buildResults();
+      this._applyImmunityResults(results);
+
       const selectionResult = await JourneySelectionEvent.run(activeContainer, {
         gameManager,
         tribes,
@@ -1205,10 +1323,12 @@ const FirstContactView = {
           player,
           relationshipSystem: gameManager.systems.relationshipSystem
         });
+      } else {
+        await this._showNoJourneyOutro(activeContainer, results);
       }
 
       if (window.challengeScreen && typeof window.challengeScreen.completeChallenge === 'function') {
-        window.challengeScreen.completeChallenge(null);
+        window.challengeScreen.completeChallenge(results);
       } else {
         gameManager.advanceGamePhase();
         gameManager.setGameState('camp');
