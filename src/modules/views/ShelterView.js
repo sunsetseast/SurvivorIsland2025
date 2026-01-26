@@ -5,12 +5,11 @@ import activityTracker from '../utils/ActivityTracker.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
+import { openContributionOverlay } from '../ui/ContributionOverlay.js';
 
 const BAMBOO_REQUIRED = 5;
 const PALM_REQUIRED = 1;
 const MAX_SHELTER_LEVEL = 4;
-let bambooAdded = 0;
-let palmsAdded = 0;
 let overlayOpen = false;
 let currentActionMode = null; // 'build' | 'contribute'
 let messageTimeouts = [];
@@ -182,12 +181,6 @@ export default function renderShelter(container) {
     console.warn('[ShelterView] Stockpile values update failed (non-fatal):', err);
   }
 
-  try {
-    createResourceButtons(wrapper);
-  } catch (err) {
-    console.warn('[ShelterView] Resource buttons render failed (non-fatal):', err);
-  }
-
   const t1 = setTimeout(() => {
     if (msgEl && msgEl.isConnected) msgEl.style.opacity = '0';
   }, 3000);
@@ -201,8 +194,7 @@ export default function renderShelter(container) {
   console.log('[ShelterView] ASSERT', {
     viewKey: LocationKeys.SHELTER,
     hasWrapper: !!wrapper && wrapper.isConnected,
-    hasBanner: !!wrapper?.querySelector('#stockpile-banner'),
-    hasButtons: !!wrapper?.querySelector('#shelter-resource-buttons')
+    hasBanner: !!wrapper?.querySelector('#stockpile-banner')
   });
 
   addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
@@ -253,14 +245,11 @@ function cleanupShelterUI() {
   // Remove any orphaned shelter overlays/buttons anywhere in DOM
   [
     '#shelter-overlay',
+    '#shelter-contribution-overlay',
     '#parchment-popup',
-    '#submit-contribution-button',
     '#start-building-button',
-    '#bamboo-selector-overlay',
-    '#palm-selector-overlay',
     '#cobuilder-popup',
     '#confirm-popup',
-    '#shelter-resource-buttons',
     '#shelter-message',
     '#stockpile-banner'
   ].forEach(sel => document.querySelectorAll(sel).forEach(el => el.remove()));
@@ -269,14 +258,11 @@ function cleanupShelterUI() {
   if (wrapper) {
     const removableIds = [
       'shelter-overlay',
+      'shelter-contribution-overlay',
       'parchment-popup',
-      'submit-contribution-button',
       'start-building-button',
-      'bamboo-selector-overlay',
-      'palm-selector-overlay',
       'cobuilder-popup',
       'confirm-popup',
-      'shelter-resource-buttons',
       'shelter-message'
     ];
 
@@ -287,14 +273,12 @@ function cleanupShelterUI() {
   // Also remove any stray stockpile banners (in case an old one survived)
   wrapper?.querySelectorAll('#stockpile-banner').forEach(el => el.remove());
 
-  bambooAdded = 0;
-  palmsAdded = 0;
   overlayOpen = false;
   currentActionMode = null;
 }
 
 function handleCenterButtonClick() {
-  hideContributionUI();
+  closeContributionOverlay();
   currentActionMode = null;
   if (overlayOpen) {
     closeOverlay();
@@ -394,7 +378,7 @@ function handleCenterButtonClick() {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
       closeOverlay();
-      hideContributionUI();
+      closeContributionOverlay();
     }
   });
 
@@ -406,6 +390,10 @@ function closeOverlay() {
   overlayOpen = false;
   addDebugBanner('Shelter action overlay closed', 'darkorange', 50);
   console.log('[ShelterView] overlay count:', document.querySelectorAll('#shelter-overlay').length);
+}
+
+function closeContributionOverlay() {
+  document.querySelectorAll('#shelter-contribution-overlay').forEach(el => el.remove());
 }
 
 function showParchmentPopup(message, onClose) {
@@ -642,97 +630,89 @@ function startContributionFlow() {
     });
     return;
   }
-  const tribe = gameManager.getPlayerTribe();
-  ensureStockpileBanner(root, tribe);
-  showResourceButtons(root);
-  updateContributionSubmit(root);
-  addDebugBanner('Contribution flow started', 'teal', 60);
-}
-
-function updateContributionSubmit(wrapper) {
-  const targetWrapper = wrapper || getShelterRoot();
-  if (!targetWrapper || !targetWrapper.isConnected) return;
-  let submit = targetWrapper?.querySelector('#submit-contribution-button');
-  const stagedTotal = (bambooAdded || 0) + (palmsAdded || 0);
-  if (!submit) {
-    submit = createElement('button', {
-      id: 'submit-contribution-button',
-      className: 'rect-button alt',
-      style: `
-        position: absolute;
-        bottom: 260px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-image: url('Assets/rect-button-1.png');
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        border: none;
-        padding: 10px 14px;
-        color: white;
-        font-family: 'Survivant', serif;
-        font-size: 16px;
-        cursor: pointer;
-        z-index: 140;
-        display: none;
-      `
-    }, 'Submit Contribution');
-    submit.addEventListener('click', submitContribution);
-    targetWrapper?.appendChild(submit);
-  }
-  if (submit) {
-    submit.style.display = stagedTotal > 0 ? 'block' : 'none';
-  }
-}
-
-function hideContributionUI() {
-  const wrapper = getShelterRoot();
-  const submit = wrapper?.querySelector('#submit-contribution-button');
-  if (submit) submit.remove();
-  const resourceButtons = wrapper?.querySelector('#shelter-resource-buttons');
-  if (resourceButtons) resourceButtons.style.display = 'none';
-  bambooAdded = 0;
-  palmsAdded = 0;
-  updateResourceButtonStyles();
-}
-
-function submitContribution() {
-  const tribe = gameManager.getPlayerTribe();
   const player = gameManager.getPlayerSurvivor();
-  if (!tribe || !player) return;
-  const bamboo = bambooAdded || 0;
-  const palms = palmsAdded || 0;
-  if (bamboo <= 0 && palms <= 0) {
-    showParchmentPopup('Add bamboo or palm fronds to contribute to the tribe.');
+  const tribe = gameManager.getPlayerTribe();
+  if (!player || !tribe) return;
+  ensureStockpileBanner(root, tribe);
+  const resources = [
+    {
+      key: 'bamboo',
+      iconSrc: 'Assets/Minigame/bambooButton.png',
+      label: 'Bamboo',
+      titleHTML: 'How much bamboo<br>to contribute?'
+    },
+    {
+      key: 'palms',
+      iconSrc: 'Assets/Minigame/palmsButton.png',
+      label: 'Palm fronds',
+      titleHTML: 'How many palm fronds<br>to contribute?'
+    }
+  ];
+
+  const hasAnyResource = resources.some(resource => (player[resource.key] || 0) > 0);
+  if (!hasAnyResource) {
+    showParchmentPopup("You don't have any bamboo or palm fronds to add!");
     return;
   }
-  gameManager.addToStockpile?.(tribe, 'bamboo', bamboo);
-  gameManager.addToStockpile?.(tribe, 'palms', palms);
-  player.bamboo = Math.max(0, (player.bamboo || 0) - bamboo);
-  player.palms = Math.max(0, (player.palms || 0) - palms);
-  activityTracker.trackActivity('camp_contribute', {
-    subtype: 'shelter_materials',
-    bamboo,
-    palms,
-    actorId: player.id
+
+  const initialResource = resources.find(resource => (player[resource.key] || 0) > 0) || resources[0];
+
+  openContributionOverlay({
+    overlayId: 'shelter-contribution-overlay',
+    resources,
+    initialResourceKey: initialResource.key,
+    getResourceData: (resourceKey) => {
+      const resource = resources.find(item => item.key === resourceKey);
+      return {
+        iconSrc: resource?.iconSrc,
+        titleHTML: resource?.titleHTML,
+        available: player[resourceKey] || 0
+      };
+    },
+    onInvalid: (resourceKey) => {
+      const label = resourceKey === 'bamboo' ? 'bamboo' : 'palm fronds';
+      showParchmentPopup(`Add ${label} to contribute to the tribe.`);
+    },
+    onConfirm: ({ resourceKey, amount }) => {
+      const available = player[resourceKey] || 0;
+      if (available <= 0) {
+        showParchmentPopup("You don't have any bamboo or palm fronds to add!");
+        return;
+      }
+
+      gameManager.ensureStockpileExists?.(tribe);
+      gameManager.addToStockpile?.(tribe, resourceKey, amount);
+
+      player[resourceKey] = Math.max(0, available - amount);
+
+      activityTracker.trackActivity('camp_contribute', {
+        subtype: 'shelter_materials',
+        bamboo: resourceKey === 'bamboo' ? amount : 0,
+        palms: resourceKey === 'palms' ? amount : 0,
+        actorId: player.id
+      });
+      const day = gameManager.getCurrentDay?.();
+      gameManager.campLog = gameManager.campLog || [];
+      gameManager.campLog.push({
+        id: 'contribute_shelter_materials',
+        day,
+        actorId: player.id,
+        bamboo: resourceKey === 'bamboo' ? amount : 0,
+        palms: resourceKey === 'palms' ? amount : 0,
+        timestamp: Date.now(),
+        type: 'camp_contribute'
+      });
+      addDebugBanner('Contribution submitted', 'teal', 60);
+      currentActionMode = null;
+      updateStockpileValuesUI(tribe);
+      window.refreshMenuCard?.();
+      showParchmentPopup('You add your gathered materials to the tribe stockpile.');
+    },
+    onCancel: () => {
+      currentActionMode = null;
+    }
   });
-  const day = gameManager.getCurrentDay();
-  gameManager.campLog = gameManager.campLog || [];
-  gameManager.campLog.push({
-    id: 'contribute_shelter_materials',
-    day,
-    actorId: player.id,
-    bamboo,
-    palms,
-    timestamp: Date.now(),
-    type: 'camp_contribute'
-  });
-  addDebugBanner('Contribution submitted', 'teal', 60);
-  hideContributionUI();
-  currentActionMode = null;
-  updateStockpileValuesUI(tribe);
-  window.refreshMenuCard?.();
-  updateContributionSubmit();
-  showParchmentPopup('You add your gathered materials to the tribe stockpile.');
+  addDebugBanner('Contribution flow started', 'teal', 60);
 }
 
 function startBuildFlow() {
@@ -980,7 +960,7 @@ function resolveBuildOutcome(style, partner) {
     secondsSpent,
     success
   );
-  hideContributionUI();
+  closeContributionOverlay();
 }
 
 function updateShelterVisuals(level) {
@@ -1042,317 +1022,4 @@ function logBuildAttempt(outcome, partner, style, extra) {
   activityTracker.trackActivity(entry.type, entry);
   gameManager.campLog = gameManager.campLog || [];
   gameManager.campLog.push({ ...entry, timestamp: Date.now() });
-}
-
-function createResourceButtons(container) {
-  if (!container) return;
-  const existing = Array.from(container.querySelectorAll('#shelter-resource-buttons'));
-  const resourceContainer = existing.shift();
-  existing.forEach(el => el.remove());
-  if (resourceContainer) return;
-
-  const newContainer = createElement('div', {
-    id: 'shelter-resource-buttons',
-    style: `
-      position: absolute;
-      bottom: 180px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: none;
-      gap: 20px;
-      z-index: 130;
-      background: rgba(0,0,0,0.4);
-      padding: 10px 20px;
-      border-radius: 15px;
-    `
-  });
-
-  const createBtn = (id, iconSrc, label, onClick) => {
-    const btn = createElement('div', {
-      id,
-      style: `
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.3);
-      `
-    });
-    const img = createElement('img', {
-      src: iconSrc,
-      style: 'width: 40px; height: 40px; object-fit: contain;'
-    });
-    const span = createElement('span', {
-      style: 'color: white; font-size: 12px; font-family: "Survivant", sans-serif;'
-    }, label);
-
-    btn.appendChild(img);
-    btn.appendChild(span);
-    btn.addEventListener('click', onClick);
-    return btn;
-  };
-
-  const bambooButton = createBtn('btn-contribute-bamboo', 'Assets/Minigame/bambooButton.png', 'Bamboo', () => showResourcePopup('bamboo'));
-  const palmButton = createBtn('btn-contribute-palms', 'Assets/Minigame/palmsButton.png', 'Palms', () => showResourcePopup('palm'));
-
-  newContainer.appendChild(bambooButton);
-  newContainer.appendChild(palmButton);
-  container.appendChild(newContainer);
-}
-
-function showResourceButtons(wrapper) {
-  const targetWrapper = wrapper || getShelterRoot();
-  if (!targetWrapper) return;
-  let resourceButtons = targetWrapper.querySelector('#shelter-resource-buttons');
-  if (!resourceButtons) {
-    createResourceButtons(targetWrapper);
-    resourceButtons = targetWrapper.querySelector('#shelter-resource-buttons');
-  }
-  if (resourceButtons) resourceButtons.style.display = 'flex';
-  bambooAdded = 0;
-  palmsAdded = 0;
-  updateResourceButtonStyles();
-}
-
-function updateResourceButtonStyles() {
-  const root = getShelterRoot();
-  const resourceButtons = root?.querySelector('#shelter-resource-buttons');
-  if (!resourceButtons) return;
-
-  const buttons = Array.from(resourceButtons.children);
-  const bambooButton = buttons[0];
-  const palmButton = buttons[1];
-
-  const player = gameManager.getPlayerSurvivor();
-  const bambooAvail = player ? (player.bamboo || 0) : 0;
-  const palmsAvail = player ? (player.palms || 0) : 0;
-
-  if (bambooButton) {
-    if (bambooAdded >= 1) {
-      bambooButton.style.border = '3px solid #facc15';
-      bambooButton.style.boxShadow = '0 0 15px rgba(250, 204, 21, 0.4)';
-    } else {
-      bambooButton.style.border = '1px solid rgba(255,255,255,0.3)';
-      bambooButton.style.boxShadow = 'none';
-    }
-    bambooButton.style.opacity = (bambooAvail > 0) ? '1' : '0.5';
-  }
-
-  if (palmButton) {
-    if (palmsAdded >= 1) {
-      palmButton.style.border = '3px solid #facc15';
-      palmButton.style.boxShadow = '0 0 15px rgba(250, 204, 21, 0.4)';
-    } else {
-      palmButton.style.border = '1px solid rgba(255,255,255,0.3)';
-      palmButton.style.boxShadow = 'none';
-    }
-    palmButton.style.opacity = (palmsAvail > 0) ? '1' : '0.5';
-  }
-
-  updateContributionSubmit(root);
-}
-
-function showResourcePopup(resourceType) {
-  const player = gameManager.getPlayerSurvivor();
-  if (!player) return;
-
-  const resourceProperty = resourceType === 'bamboo' ? 'bamboo' : 'palms';
-  const resourceCount = player[resourceProperty] || 0;
-  const alreadyAdded = resourceType === 'bamboo' ? bambooAdded : palmsAdded;
-  const maxSelectable = Math.max(0, resourceCount - alreadyAdded);
-
-  if (resourceCount <= 0) {
-    showParchmentPopup(`You don't have any ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'} to add!`);
-    return;
-  }
-  if (maxSelectable <= 0) {
-    showParchmentPopup(`You've already staged all your available ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}.`);
-    return;
-  }
-
-  let selectedAmount = 0;
-  const root = getShelterRoot();
-  const overlayId = `${resourceType}-selector-overlay`;
-  root?.querySelectorAll(`#${overlayId}`).forEach(el => el.remove());
-
-  const overlay = createElement('div', {
-    id: overlayId,
-    className: 'shelter-temp-overlay',
-    style: `
-      position: absolute;
-      inset: 0;
-      background-color: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    `
-  });
-
-  const selector = createElement('div', {
-    style: `
-      width: 260px;
-      height: 280px;
-      background-image: url('Assets/card-back.png');
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      background-position: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px 15px;
-      box-sizing: border-box;
-    `
-  });
-
-  const title = createElement('h3', {
-    style: `
-      margin: 0 0 15px 0;
-      font-size: 18px;
-      font-weight: bold;
-      color: #fff8e7;
-      text-shadow: 2px 2px 4px black;
-      font-family: 'Survivant', fantasy;
-      text-align: center;
-      line-height: 1.2;
-    `
-  });
-  title.innerHTML = `How many ${resourceType === 'bamboo' ? 'bamboo' : 'palm fronds'}<br>to contribute?`;
-
-  const availableDisplay = createElement('div', {
-    style: `
-      margin-bottom: 12px;
-      font-size: 14px;
-      color: #fff8e7;
-      text-shadow: 1px 1px 2px black;
-      font-family: 'Survivant', fantasy;
-      text-align: center;
-    `
-  }, `Available: ${resourceCount}`);
-
-  const controls = createElement('div', {
-    style: `
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 15px;
-      margin: 12px 0;
-    `
-  });
-
-  const minusBtn = createElement('img', {
-    src: 'Assets/Buttons/minus.png',
-    alt: 'Decrease',
-    style: `
-      width: 40px;
-      height: 40px;
-      cursor: pointer;
-      transition: transform 0.2s;
-    `
-  });
-  const amountDisplay = createElement('span', {
-    style: `
-      font-size: 28px;
-      font-weight: bold;
-      color: #fff8e7;
-      text-shadow: 2px 2px 4px black;
-      font-family: 'Survivant', fantasy;
-      min-width: 50px;
-      text-align: center;
-      display: inline-block;
-    `
-  }, '0');
-  const plusBtn = createElement('img', {
-    src: 'Assets/Buttons/add.png',
-    alt: 'Increase',
-    style: `
-      width: 40px;
-      height: 40px;
-      cursor: pointer;
-      transition: transform 0.2s;
-    `
-  });
-
-  const updateAmount = (delta) => {
-    selectedAmount = Math.max(0, Math.min(maxSelectable, selectedAmount + delta));
-    amountDisplay.textContent = String(selectedAmount);
-  };
-
-  minusBtn.addEventListener('click', () => updateAmount(-1));
-  plusBtn.addEventListener('click', () => updateAmount(1));
-
-  controls.appendChild(minusBtn);
-  controls.appendChild(amountDisplay);
-  controls.appendChild(plusBtn);
-
-  const buttonContainer = createElement('div', {
-    style: `
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-      justify-content: center;
-    `
-  });
-
-  const addButton = createElement('button', {
-    className: 'rect-button small',
-    style: `
-      background-image: url('Assets/rect-button.png');
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      background-position: center;
-      width: 70px;
-      height: 35px;
-      border: none;
-      color: #fff8e7;
-      font-family: 'Survivant', fantasy;
-      cursor: pointer;
-    `
-  }, 'Add');
-
-  addButton.addEventListener('click', () => {
-    if (selectedAmount <= 0) return;
-    if (resourceType === 'bamboo') {
-      bambooAdded = Math.min(resourceCount, bambooAdded + selectedAmount);
-    } else {
-      palmsAdded = Math.min(resourceCount, palmsAdded + selectedAmount);
-    }
-    updateResourceButtonStyles();
-    overlay.remove();
-  });
-
-  const cancelButton = createElement('button', {
-    className: 'rect-button small',
-    style: `
-      background-image: url('Assets/rect-button.png');
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      background-position: center;
-      width: 70px;
-      height: 35px;
-      border: none;
-      color: #fff8e7;
-      font-family: 'Survivant', fantasy;
-      cursor: pointer;
-    `
-  }, 'Cancel');
-
-  cancelButton.addEventListener('click', () => overlay.remove());
-
-  buttonContainer.appendChild(addButton);
-  buttonContainer.appendChild(cancelButton);
-
-  selector.appendChild(title);
-  selector.appendChild(availableDisplay);
-  selector.appendChild(controls);
-  selector.appendChild(buttonContainer);
-
-  overlay.appendChild(selector);
-  root?.appendChild(overlay);
 }
