@@ -71,6 +71,7 @@ class GameManager {
     this.isMerged = false;
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
+    this.state = {};
     // Tracks whether the player stepped into an early leadership role (e.g., Day 1 First Impressions)
     // Set to true when those events mark the player as the top leader.
     this.flags.playerIsLeader = false;
@@ -229,6 +230,7 @@ class GameManager {
     this.isMerged = false;
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
+    this.state = {};
     this.gamePhase = GamePhase.PRE_GAME;
     this.dayTimer = 7200;
     this.timeSpeed = 8;
@@ -648,6 +650,7 @@ class GameManager {
       isMerged: this.isMerged,
       flags: this.flags,
       campLog: this.campLog,
+      state: this.state,
       gameSettings: this.gameSettings,
       timestamp: Date.now()
     };
@@ -662,6 +665,7 @@ class GameManager {
     Object.assign(this, data);
     this.flags = data.flags || { day1FirstImpressionsCompleted: false };
     this.campLog = data.campLog || [];
+    this.state = data.state || {};
     this.survivors = (this.survivors || []).map(survivor => ({ ...survivor, laziness: survivor.laziness ?? 0 }));
     (this.tribes || []).forEach(tribe => {
       this.initializeWaterPlanForTribe(tribe);

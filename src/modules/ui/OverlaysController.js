@@ -1,4 +1,4 @@
-import { renderClueInventory } from './ClueOverlay.js';
+import InventoryUI from './InventoryUI.js';
 
 let initialized = false;
 let currentInventoryPage = 1;
@@ -21,7 +21,7 @@ function handleBagClick() {
   hideMenuAndOverlay();
   const inventoryOverlay = document.getElementById('inventory-overlay');
   if (inventoryOverlay) inventoryOverlay.style.display = 'block';
-  renderClueInventory();
+  InventoryUI.render();
 }
 
 function handleHandshakeClick() {
@@ -37,6 +37,7 @@ function handleHandshakeClick() {
 function toggleInventoryPage() {
   const inventoryImage = document.getElementById('inventory-image');
   const inventoryValues = document.getElementById('inventory-values');
+  const inventoryItemsGrid = document.getElementById('inventory-items-grid');
 
   if (!inventoryImage || !inventoryValues) {
     currentInventoryPage = 1;
@@ -46,24 +47,26 @@ function toggleInventoryPage() {
   if (currentInventoryPage === 1) {
     inventoryImage.src = 'Assets/inventory2.png';
     inventoryValues.style.display = 'none';
+    if (inventoryItemsGrid) inventoryItemsGrid.style.display = 'grid';
     currentInventoryPage = 2;
+    InventoryUI.render();
   } else {
     inventoryImage.src = 'Assets/inventory1.png';
     inventoryValues.style.display = 'block';
+    if (inventoryItemsGrid) inventoryItemsGrid.style.display = 'none';
     currentInventoryPage = 1;
   }
-
-  renderClueInventory();
 }
 
 function resetInventoryPage() {
   const inventoryImage = document.getElementById('inventory-image');
   const inventoryValues = document.getElementById('inventory-values');
+  const inventoryItemsGrid = document.getElementById('inventory-items-grid');
 
   if (inventoryImage) inventoryImage.src = 'Assets/inventory1.png';
   if (inventoryValues) inventoryValues.style.display = 'block';
+  if (inventoryItemsGrid) inventoryItemsGrid.style.display = 'none';
   currentInventoryPage = 1;
-  renderClueInventory();
 }
 
 function closeInventoryOverlay() {
