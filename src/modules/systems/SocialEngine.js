@@ -36,6 +36,72 @@ class NpcIntentPlanner {
         this.chatterKeys = new Set();
     }
 
+    showDialogue(npc, group = [], type = "bonding") {
+        const dialogueSystem = gameManager.systems?.dialogueSystem;
+        if (!dialogueSystem?.startConversation) {
+            console.warn("DialogueSystem unavailable or missing startConversation.");
+            return;
+        }
+        if (!npc) return;
+
+        const openerLine = this._getOpenerLine(type, npc);
+        const choices = this._getPlayerChoices(type);
+
+        dialogueSystem.startConversation({
+            speaker: npc,
+            group,
+            topic: type,
+            opener: openerLine,
+            choices,
+            onChoice: (choiceText, index) => {
+                this.handlePlayerChoice({
+                    npc,
+                    group,
+                    type,
+                    choiceText,
+                    choiceIndex: index
+                });
+            }
+        });
+    }
+
+    handlePlayerChoice({ npc, group = [], type = "bonding", choiceText = "", choiceIndex = 0 } = {}) {
+        const dialogueSystem = gameManager.systems?.dialogueSystem;
+        if (!dialogueSystem?.showDialogue || !npc) return;
+
+        const player = gameManager.getPlayerSurvivor?.();
+        const playerId = player?.id ?? null;
+        const relationshipSystem = gameManager.systems?.relationshipSystem;
+        const socialMemory = gameManager.systems?.socialMemorySystem || socialMemorySystem;
+        const relationshipValue = relationshipSystem?.getRelationship?.(playerId, npc.id)?.value ?? 50;
+        const relationshipDelta = this._resolveRelationshipDelta(type, relationshipValue);
+        const npcResponse = this._buildNpcResponse({
+            npc,
+            type,
+            relationshipValue,
+            gameplayStyle: npc.gameplayStyle || npc.personality
+        });
+        const outcomeSummary = this._buildOutcomeSummary(npc, relationshipDelta);
+
+        this._applyConversationEffects({
+            npc,
+            playerId,
+            type,
+            relationshipDelta,
+            socialMemory,
+            choiceText,
+            group
+        });
+
+        console.log(`[CONVO] type=${type} npc=${npc.id} choice="${choiceText}"`);
+
+        dialogueSystem.showDialogue(`You: ${choiceText}`, ["Next"], () => {
+            dialogueSystem.showDialogue(`${npc.firstName}: ${npcResponse}`, ["OK"], () => {
+                dialogueSystem.showDialogue(outcomeSummary, ["Close"]);
+            }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+        }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+    }
+
     // RESET at start of camp phase
     resetForNewPhase(phaseType = "pre") {
         if (gameManager.flags?.campEventActive) return;
@@ -331,6 +397,257 @@ class NpcIntentPlanner {
             location: location || view || null,
             reasons
         };
+    }
+
+    _getOpenerLine(type, npc) {
+        const openers = {
+            bonding: [
+                "How's camp treating you?",
+                "You holding up okay out here?",
+                "Feels like a long day. You good?"
+            ],
+            softStrategy: [
+                "So... if we lose, what's the vibe?",
+                "Everyone's a little on edge. What are you feeling?",
+                "You hearing anything about where the numbers are?"
+            ],
+            targeting: [
+                "Names are floating. What are you hearing?",
+                "If things get messy, who benefits?",
+                "Who's catching heat around camp?"
+            ],
+            warning: [
+                "I've got a weird feeling. Anything I should know?",
+                "Is my name out there?",
+                "Who's pushing what right now?"
+            ],
+            groupStrategy: [
+                "We need a clean plan if we lose.",
+                "If things go sideways, what's the backup?",
+                "How do we keep this vote simple?"
+            ],
+            idolSuspicion: [
+                "Any idol talk going around?",
+                "You think someone found something?",
+                "Anything weird happening on the trail?"
+            ]
+        };
+
+        const options = openers[type] || ["What's the read right now?"];
+        return this._pickRandom(options);
+    }
+
+    _getPlayerChoices(type) {
+        const choicesByType = {
+            bonding: [
+                "How are you holding up today?",
+                "You been sleeping at all?",
+                "You’ve been solid around camp — respect."
+            ],
+            softStrategy: [
+                "What’s the vibe if we lose?",
+                "Anyone acting sketchy?",
+                "Who do you feel closest to right now?"
+            ],
+            targeting: [
+                "Whose name is floating around?",
+                "If it’s chaos, who benefits?",
+                "Who do you NOT trust?"
+            ],
+            warning: [
+                "Anything I should know?",
+                "Who’s pushing what?",
+                "Is my name out there?"
+            ],
+            idolSuspicion: [
+                "Heard any idol talk?",
+                "Do you think someone found something?",
+                "Anything weird happening around camp?"
+            ],
+            groupStrategy: [
+                "If we lose, what’s the clean plan?",
+                "What’s the backup?",
+                "How do we keep this calm?"
+            ]
+        };
+
+        return choicesByType[type] || ["What's the read?", "Who do you trust?", "What's next?"];
+    }
+
+    _buildNpcResponse({ npc, type, relationshipValue, gameplayStyle }) {
+        const styleKey = String(gameplayStyle || "").toLowerCase();
+        const warmth = relationshipValue >= 65 ? "warm" : relationshipValue <= 40 ? "cool" : "neutral";
+        const responses = {
+            bonding: {
+                warm: [
+                    "I'm tired, but it's good to have someone to talk to.",
+                    "Honestly, having you around helps.",
+                    "It’s rough, but I feel solid today."
+                ],
+                neutral: [
+                    "It's the usual grind. Keeping my head down.",
+                    "I'm hanging in there. Just gotta make it through.",
+                    "Trying to stay positive out here."
+                ],
+                cool: [
+                    "I'm fine. Just focused on the game.",
+                    "It’s Survivor — you know how it is.",
+                    "Just trying to keep things simple."
+                ]
+            },
+            softStrategy: {
+                warm: [
+                    "I think the vibe is loose, but we should stay tight.",
+                    "If we lose, we can keep it clean if we stick together.",
+                    "People are nervous. We can use that."
+                ],
+                neutral: [
+                    "Hard to tell. Feels like everyone is waiting.",
+                    "There are whispers, but nothing locked.",
+                    "It’s fluid. We need to read the room."
+                ],
+                cool: [
+                    "I'm not sure. Everyone's got their own plan.",
+                    "Feels like it's up in the air.",
+                    "I'm just watching who talks to who."
+                ]
+            },
+            targeting: {
+                warm: [
+                    "I've heard a couple names, but nothing solid.",
+                    "People are tossing ideas. Let's stay sharp.",
+                    "If things get messy, we can steer it."
+                ],
+                neutral: [
+                    "Names are floating, but I don't know where it lands.",
+                    "It's murky. Everyone's keeping cards close.",
+                    "I wouldn't trust the chatter yet."
+                ],
+                cool: [
+                    "I'm not putting names out there.",
+                    "It's too early to say.",
+                    "I don't want to be the one to start that."
+                ]
+            },
+            warning: {
+                warm: [
+                    "I haven't heard your name, but stay alert.",
+                    "You're good for now, but keep your eyes open.",
+                    "If anything shifts, I'll let you know."
+                ],
+                neutral: [
+                    "I haven't heard much, but things change fast.",
+                    "Nothing obvious, but I can't promise.",
+                    "Just keep an ear out."
+                ],
+                cool: [
+                    "No idea. Everyone's whispering.",
+                    "Couldn't tell you.",
+                    "I'm not tracking that."
+                ]
+            },
+            idolSuspicion: {
+                warm: [
+                    "People are snooping. Someone might have something.",
+                    "I've seen folks slip off to the trees.",
+                    "I'd bet someone found a clue."
+                ],
+                neutral: [
+                    "There's talk, but I haven't seen proof.",
+                    "Hard to say. Everyone's watching.",
+                    "Maybe. The vibe is weird."
+                ],
+                cool: [
+                    "I haven't seen anything.",
+                    "No clue from me.",
+                    "If someone has it, they're quiet."
+                ]
+            },
+            groupStrategy: {
+                warm: [
+                    "If we lose, we keep it simple and stay united.",
+                    "Let's lock a clean plan and stick to it.",
+                    "We can keep this calm if we hold the line."
+                ],
+                neutral: [
+                    "We need a plan, but nothing's settled yet.",
+                    "It's messy. We should get on the same page.",
+                    "Let's see who wants to move together."
+                ],
+                cool: [
+                    "Not sure there's a group plan.",
+                    "Everyone's playing their own game.",
+                    "We’ll see where the numbers land."
+                ]
+            }
+        };
+
+        const list = responses?.[type]?.[warmth];
+        let response = list ? this._pickRandom(list) : null;
+
+        if (styleKey.includes("aggressive")) {
+            response = response ? `${response} We can't hesitate.` : null;
+        } else if (styleKey.includes("strategic")) {
+            response = response ? `${response} We need the numbers.` : null;
+        } else if (styleKey.includes("loyal")) {
+            response = response ? `${response} I value trust out here.` : null;
+        }
+
+        return response || "Yeah… I hear you. We’ll see what happens.";
+    }
+
+    _resolveRelationshipDelta(type, relationshipValue) {
+        if (type === "targeting" || type === "warning") {
+            return relationshipValue < 45 ? -1 : 1;
+        }
+        if (type === "idolSuspicion") {
+            return relationshipValue < 50 ? -1 : 1;
+        }
+        return 1;
+    }
+
+    _applyConversationEffects({ npc, playerId, type, relationshipDelta, socialMemory, choiceText, group }) {
+        const relationshipSystem = gameManager.systems?.relationshipSystem;
+        if (playerId != null) {
+            if (typeof relationshipSystem?.adjustRelationship === "function") {
+                relationshipSystem.adjustRelationship(playerId, npc.id, relationshipDelta);
+            } else if (typeof relationshipSystem?.changeRelationship === "function") {
+                console.warn("TODO: relationshipSystem.adjustRelationship missing. Using changeRelationship fallback.");
+                relationshipSystem.changeRelationship(playerId, npc.id, relationshipDelta);
+            } else {
+                console.warn("TODO: relationshipSystem.adjustRelationship missing.");
+            }
+        }
+
+        if (type === "targeting" && typeof socialMemory?.recordTargetRequest === "function") {
+            socialMemory.recordTargetRequest(playerId, npc.id, group?.targetId || null, "normal", relationshipDelta >= 0 ? "agree" : "resist");
+            return;
+        }
+
+        if (typeof socialMemory?.recordConversationEvent === "function") {
+            socialMemory.recordConversationEvent({
+                type: `conversation_${type}`,
+                speakerId: playerId,
+                listenerId: npc.id,
+                data: {
+                    topic: type,
+                    choice: choiceText
+                }
+            });
+            return;
+        }
+
+        console.warn("TODO: socialMemorySystem recordConversationEvent/recordTargetRequest missing.");
+    }
+
+    _buildOutcomeSummary(npc, relationshipDelta) {
+        const mood = relationshipDelta >= 0 ? "a bit more open" : "more guarded";
+        return `Outcome: ${npc.firstName} seems ${mood} after the chat.`;
+    }
+
+    _pickRandom(list = []) {
+        if (!Array.isArray(list) || list.length === 0) return "";
+        return list[Math.floor(Math.random() * list.length)];
     }
 
     _buildIntentWeights({ phase, relValue, trust, reliability, alliedWithPlayer }) {

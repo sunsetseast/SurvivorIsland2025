@@ -187,15 +187,23 @@ class DialogueSystem {
           transition: 'background-color 0.2s'
         },
         onclick: () => {
+          const storedCallback = this.callbacks.get(dialogueId) || this.defaultCloseCallback;
+          const shouldDefer = storedCallback?.afterHide;
+          const runCallback = () => {
+            storedCallback(option, index);
+            this.callbacks.delete(dialogueId);
+          };
+
+          if (shouldDefer) {
+            this.hideDialogue(runCallback);
+            return;
+          }
+
           // Close dialog
           this.hideDialogue();
-          
+
           // Execute callback with selected option
-          const storedCallback = this.callbacks.get(dialogueId) || this.defaultCloseCallback;
-          storedCallback(option, index);
-          
-          // Remove callback
-          this.callbacks.delete(dialogueId);
+          runCallback();
         }
       }, option);
       
@@ -229,6 +237,41 @@ class DialogueSystem {
     });
     
     return dialogueId;
+  }
+
+  /**
+   * Start a conversation dialogue with choices.
+   * @param {Object} config - Conversation configuration
+   * @param {Object} config.speaker - NPC speaker
+   * @param {Array} config.group - Optional group context
+   * @param {string} config.topic - Conversation topic
+   * @param {Array} config.choices - Player choice strings
+   * @param {Function} config.onChoice - Callback when a choice is selected
+   * @param {string} config.opener - NPC opener line
+   * @returns {string|null} Dialogue ID
+   */
+  startConversation({ speaker, group = [], topic = "", choices = [], onChoice = null, opener = "" } = {}) {
+    if (!speaker) {
+      console.warn('DialogueSystem.startConversation called without a speaker.');
+      return null;
+    }
+
+    const resolvedOpener = opener || (topic ? `So about ${topic}...` : "What's on your mind?");
+    const message = `${speaker.firstName || "NPC"}: ${resolvedOpener}`;
+    const callback = typeof onChoice === 'function'
+      ? (option, index) => onChoice(option, index)
+      : null;
+
+    if (callback) {
+      callback.afterHide = true;
+    }
+
+    return this.showDialogue(
+      message,
+      Array.isArray(choices) && choices.length > 0 ? choices : ["OK"],
+      callback,
+      { backgroundColor: 'rgba(40, 40, 40, 0.95)' }
+    );
   }
   
   /**
