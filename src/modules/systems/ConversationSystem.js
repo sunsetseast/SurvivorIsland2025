@@ -210,6 +210,20 @@ const PRE_PHASE_INTENTS = {
   confront_rumor: 'confront_rumor'
 };
 
+const FOLLOWUP_ACTIONS = {
+  PRESS: { key: 'PRESS', label: 'Press for specifics' },
+  REASSURE: { key: 'REASSURE', label: 'Back off, keep it casual' },
+  PIVOT: { key: 'PIVOT', label: 'Change the angle' },
+  DROP: { key: 'DROP', label: 'Drop it' }
+};
+
+const INTEL_QUALITY = {
+  NONE: 'NONE',
+  VAGUE: 'VAGUE',
+  PARTIAL: 'PARTIAL',
+  CONCRETE: 'CONCRETE'
+};
+
 const PRE_CHALLENGE_TREE = {
   categories: [
     {
@@ -1584,6 +1598,7 @@ class ConversationSystem {
     this._nodeIdCounter = 0;
     this._memoryLog = [];
     this.npcMemory = {};
+    this.activeExchange = null;
   }
 
   initialize() {
@@ -2239,6 +2254,17 @@ class ConversationSystem {
     if (!player) return;
     this._clearOverlay();
 
+    if (this._isExchangeChoiceEligible(choice?.id)) {
+      this.runConversationExchange({
+        playerId: player.id,
+        npcId: survivor.id,
+        choiceId: choice.id,
+        targetId: target?.id || null,
+        location
+      });
+      return;
+    }
+
     const trustScore = this._getTrustScore(survivor, player);
     const npcStyle = this._getNpcStyleKey(survivor?.gameplayStyle || survivor?.personality);
     const riskLevel = Number.isFinite(choice.riskLevel) ? choice.riskLevel : 0.4;
@@ -2310,6 +2336,701 @@ class ConversationSystem {
       outcomeSummary,
       location
     });
+  }
+
+  runConversationExchange({ playerId, npcId, choiceId, targetId = null, location = null }) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const npc = this._getSurvivorById(npcId);
+    const { choice, category } = this._getPreChallengeChoiceById(choiceId);
+    if (!player || !npc || !choice) return;
+
+    const target = targetId ? this._getSurvivorById(targetId) : null;
+    const exchange = this._initializeExchangeState({
+      npc,
+      player,
+      choiceId,
+      categoryId: category?.id || choiceId,
+      targetId,
+      location
+    });
+    this.activeExchange = exchange;
+
+    this._runExchangeStep({
+      exchange,
+      action: 'INITIAL',
+      choice,
+      category,
+      npc,
+      player,
+      target,
+      location
+    });
+  }
+
+  _runExchangeStep({ exchange, action, choice, category, npc, player, target, location }) {
+    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
+    if (!dialogueSystem?.showDialogue) {
+      console.warn('DialogueSystem unavailable for exchange conversation.');
+      return;
+    }
+
+    const stepIndex = exchange.stepIndex;
+    const npcStyle = this._getNpcStyleKey(npc?.gameplayStyle || npc?.personality);
+    const followupAction = action !== 'INITIAL' ? action : null;
+    const playerLine = action === 'INITIAL'
+      ? this._resolvePlayerLine(choice, target)
+      : this._buildFollowupPlayerLine(action, choice, target);
+
+    const actionPayload = this._applyFollowupActionEffects({ action, exchange, npc });
+    const responseResolution = this._resolveExchangeResponse({
+      exchange,
+      action,
+      choice,
+      category,
+      npc,
+      player,
+      target,
+      npcStyle
+    });
+
+    const intelPayload = this._resolveExchangeIntel({
+      exchange,
+      choice,
+      category,
+      npc,
+      target,
+      responseMode: responseResolution.responseMode,
+      cave: responseResolution.cave,
+      action
+    });
+
+    const npcLine = this._buildNpcResponseLine({
+      npc,
+      responseMode: responseResolution.responseMode,
+      choice,
+      choiceId: choice.id,
+      intelText: intelPayload.intelLine,
+      targetName: target?.firstName || null,
+      npcStyle,
+      stepIndex,
+      followupAction
+    });
+
+    let resolvedEffects = null;
+    const stepDeltas = action === 'INITIAL'
+      ? (resolvedEffects = this._resolvePreChallengeEffects({
+        choiceId: choice.id,
+        trustScore: exchange.trustScore,
+        responseMode: responseResolution.responseMode,
+        target,
+        npc
+      })).deltas
+      : this._resolveFollowupDeltas({
+        action,
+        responseMode: responseResolution.responseMode,
+        exchange,
+        npc,
+        backfire: responseResolution.backfire
+      });
+
+    const combinedDeltas = this._mergeExchangeDeltas(actionPayload.deltas, stepDeltas);
+    this._applyExchangeStepEffects({
+      player,
+      npc,
+      target,
+      choiceId: choice.id,
+      responseMode: responseResolution.responseMode,
+      deltas: combinedDeltas,
+      exchange,
+      intelPayload,
+      action
+    });
+
+    exchange.intelQuality = intelPayload.intelQuality;
+    exchange.intelSummary = intelPayload.intelSummary;
+    exchange.lastResponseMode = responseResolution.responseMode;
+    exchange.riskSummary = responseResolution.backfire
+      ? 'Backfired — they got defensive.'
+      : (resolvedEffects?.riskLine || exchange.riskSummary || 'Low');
+    exchange.trustScore = this._getTrustScore(npc, player);
+    exchange.suspicionScore = npc?.suspicion || 0;
+    exchange.opennessScore = this._clampMetric(exchange.trustScore - exchange.suspicionScore * 0.3);
+
+    this._logExchangeDebug({ exchange, responseMode: responseResolution.responseMode });
+
+    dialogueSystem.showDialogue(playerLine, ['Next'], () => {
+      dialogueSystem.showDialogue(npcLine, ['Next'], () => {
+        const followupEligible = this._shouldOfferFollowup({
+          exchange,
+          choice,
+          responseMode: responseResolution.responseMode
+        });
+
+        if (followupEligible) {
+          this._showFollowupOptions({
+            exchange,
+            choice,
+            category,
+            npc,
+            player,
+            target,
+            location
+          });
+          return;
+        }
+
+        this._showExchangeOutcome({
+          exchange,
+          npc,
+          location
+        });
+      }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+    }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+  }
+
+  _showFollowupOptions({ exchange, choice, category, npc, player, target, location }) {
+    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
+    if (!dialogueSystem?.showDialogue) return;
+    const options = [
+      FOLLOWUP_ACTIONS.PRESS.label,
+      FOLLOWUP_ACTIONS.REASSURE.label,
+      FOLLOWUP_ACTIONS.PIVOT.label,
+      FOLLOWUP_ACTIONS.DROP.label
+    ];
+
+    dialogueSystem.showDialogue('How do you respond?', options, (option) => {
+      const action = Object.values(FOLLOWUP_ACTIONS).find(entry => entry.label === option)?.key;
+      if (!action) {
+        this._showExchangeOutcome({ exchange, npc, location });
+        return;
+      }
+
+      if (action === 'DROP') {
+        this._runExchangeStep({
+          exchange,
+          action,
+          choice,
+          category,
+          npc,
+          player,
+          target,
+          location
+        });
+        return;
+      }
+
+      exchange.stepIndex += 1;
+      this._runExchangeStep({
+        exchange,
+        action,
+        choice,
+        category,
+        npc,
+        player,
+        target,
+        location
+      });
+    }, { backgroundColor: 'rgba(30, 30, 30, 0.95)' });
+  }
+
+  _showExchangeOutcome({ exchange, npc, location }) {
+    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
+    if (!dialogueSystem?.showDialogue) return;
+    const outcomeSummary = this._formatExchangeOutcome(exchange);
+
+    dialogueSystem.showDialogue(outcomeSummary, ['Ask Another', 'Close'], (option) => {
+      this.activeExchange = null;
+      if (option === 'Ask Another') {
+        this._showTopicSelection(npc, location);
+      } else {
+        this.closeConversation('player_end');
+      }
+    }, { backgroundColor: 'rgba(30, 30, 30, 0.95)' });
+  }
+
+  _initializeExchangeState({ npc, player, choiceId, categoryId, targetId, location }) {
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    if (socialMemorySystem?.initNPC) {
+      socialMemorySystem.initNPC(npc.id);
+    }
+    const memory = socialMemorySystem?.memory?.[npc.id];
+    const now = Date.now();
+    let timesPressedRecently = memory?.timesPressedRecently || 0;
+    if (memory?.lastPressAt && now - memory.lastPressAt > 120000) {
+      timesPressedRecently = 0;
+    }
+    if (memory) {
+      memory.timesPressedRecently = timesPressedRecently;
+      memory.lastTopicKey = categoryId;
+    }
+
+    const trustScore = this._getTrustScore(npc, player);
+    const suspicionScore = npc?.suspicion || 0;
+    return {
+      exchangeId: `ex-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+      phase: 'pre',
+      topicKey: categoryId,
+      targetId,
+      stepIndex: 0,
+      opennessScore: this._clampMetric(trustScore - suspicionScore * 0.3),
+      pressureScore: 0,
+      suspicionScore,
+      trustScore,
+      intelQuality: INTEL_QUALITY.NONE,
+      intelSummary: 'No clear intel.',
+      deltas: {
+        relationshipDelta: 0,
+        trustDelta: 0,
+        suspicionDelta: 0
+      },
+      riskSummary: 'Low',
+      pivotCount: 0,
+      timesPressedRecently,
+      lastChoiceId: choiceId,
+      location
+    };
+  }
+
+  _getPreChallengeChoiceById(choiceId) {
+    for (const category of PRE_CHALLENGE_TREE.categories) {
+      const choice = category.choices.find(entry => entry.id === choiceId);
+      if (choice) return { choice, category };
+    }
+    return { choice: null, category: null };
+  }
+
+  _isExchangeChoiceEligible(choiceId) {
+    const eligibleChoices = new Set([
+      'RR2', 'RR3', 'RR4', 'RR5', 'RR6', 'RR7',
+      'TS1', 'TS2', 'TS3', 'TS4', 'TS5', 'TS6', 'TS7', 'TS8', 'TS9',
+      'IR1', 'IR2', 'IR3', 'IR4', 'IR5',
+      'ST1', 'ST2', 'ST3', 'ST4', 'ST5', 'ST6'
+    ]);
+    return eligibleChoices.has(choiceId);
+  }
+
+  _buildFollowupPlayerLine(action, choice, target) {
+    switch (action) {
+      case 'PRESS':
+        return 'You press for specifics.';
+      case 'REASSURE':
+        return 'You ease up and keep it casual.';
+      case 'PIVOT':
+        return 'You shift the angle without leaving the topic.';
+      case 'DROP':
+        return 'You drop the line of questioning.';
+      default:
+        return this._resolvePlayerLine(choice, target);
+    }
+  }
+
+  _applyFollowupActionEffects({ action, exchange, npc }) {
+    const deltas = {
+      relationshipDelta: 0,
+      trustDelta: 0,
+      reliabilityDelta: 0,
+      speakerSuspicionDelta: 0,
+      npcParanoiaDelta: 0,
+      playerParanoiaDelta: 0,
+      repStrategicDelta: 0,
+      repParanoidDelta: 0
+    };
+
+    if (action === 'PRESS') {
+      exchange.pressureScore = this._clampMetric(exchange.pressureScore + 25);
+      deltas.repStrategicDelta += 1;
+      deltas.speakerSuspicionDelta += 1;
+      this._registerPress(npc.id, exchange);
+    } else if (action === 'REASSURE') {
+      exchange.pressureScore = this._clampMetric(exchange.pressureScore - 15);
+      deltas.trustDelta += 1;
+      deltas.speakerSuspicionDelta -= 1;
+    } else if (action === 'PIVOT') {
+      exchange.pivotCount += 1;
+      if (exchange.pivotCount > 1) {
+        deltas.speakerSuspicionDelta += 1;
+      }
+    } else if (action === 'DROP') {
+      exchange.pressureScore = 0;
+      const style = (npc?.gameplayStyle || '').toLowerCase();
+      if (style.includes('social') || style.includes('charmer')) {
+        deltas.trustDelta += 1;
+      }
+    }
+
+    return { deltas };
+  }
+
+  _resolveExchangeResponse({ exchange, action, choice, category, npc, player, target, npcStyle }) {
+    if (action === 'DROP') {
+      return { responseMode: 'reassure', cave: false, backfire: false };
+    }
+
+    const trustScore = this._getTrustScore(npc, player);
+    const backfire = action === 'PRESS' && this._shouldBackfirePress({ exchange, npc, trustScore });
+    if (backfire) {
+      const options = ['counterQ', 'deflect', 'escalate'];
+      const responseMode = options[getRandomInt(0, options.length - 1)];
+      return { responseMode, cave: false, backfire: true };
+    }
+
+    const cave = action === 'PRESS' && this._shouldCave({ exchange, npc, player, choice, category });
+    if (cave) {
+      return { responseMode: 'truth', cave: true, backfire: false };
+    }
+
+    const responseMode = this._resolveNpcResponseMode({
+      npcStyle,
+      trustScore,
+      npcParanoia: npc?.paranoia || 0,
+      npcSuspicion: npc?.suspicion || 0,
+      npcThreat: npc?.threat || 0,
+      playerSuspicion: player?.suspicion || 0,
+      playerThreat: player?.threat || 0,
+      topicRisk: Number.isFinite(choice.riskLevel) ? choice.riskLevel : 0.4,
+      allowedModes: choice.responseModes || []
+    });
+
+    return { responseMode, cave: false, backfire: false };
+  }
+
+  _resolveExchangeIntel({ exchange, choice, category, npc, target, responseMode, cave, action }) {
+    if (action === 'DROP') {
+      return {
+        intelLine: 'Let’s keep it calm.',
+        intelSummary: exchange.intelSummary || 'No clear intel.',
+        intelQuality: exchange.intelQuality || INTEL_QUALITY.NONE
+      };
+    }
+
+    const intelPacket = action === 'PIVOT'
+      ? this._getPivotIntelPacket(category?.id, target)
+      : this._getPreChallengeIntel(choice.id, target, responseMode);
+
+    const style = (npc?.gameplayStyle || '').toLowerCase();
+    let intelLine = intelPacket?.text || 'a guarded read';
+    let intelSummary = intelLine;
+    let intelQuality = this._resolveIntelQuality({ responseMode, cave, exchange });
+
+    if (responseMode === 'truth' && cave) {
+      const concrete = this._buildConcreteIntel({ npc, target, categoryId: category?.id, choiceId: choice.id });
+      intelLine = concrete.line;
+      intelSummary = concrete.summary;
+      intelQuality = INTEL_QUALITY.CONCRETE;
+      if (style.includes('power')) {
+        intelLine = `${intelLine} "Here’s what we should do with that."`;
+      }
+    } else if (responseMode === 'deflect' || responseMode === 'counterQ' || responseMode === 'escalate') {
+      intelLine = '';
+      intelSummary = 'No clear intel.';
+      intelQuality = exchange.intelQuality === INTEL_QUALITY.NONE ? INTEL_QUALITY.NONE : exchange.intelQuality;
+    } else if (responseMode === 'misdirect') {
+      intelSummary = intelPacket?.text || 'A slippery read that might be off.';
+      intelQuality = this._resolveIntelQuality({ responseMode, cave, exchange });
+    } else if (responseMode === 'reassure' && action !== 'INITIAL') {
+      intelLine = intelPacket?.text || 'Let’s keep it calm.';
+      intelSummary = exchange.intelSummary || intelSummary;
+      intelQuality = exchange.intelQuality || intelQuality;
+    }
+
+    if (exchange.intelQuality && exchange.intelQuality !== INTEL_QUALITY.NONE) {
+      intelQuality = this._upgradeIntelQuality(exchange.intelQuality, intelQuality);
+    }
+
+    return { intelLine, intelSummary, intelQuality };
+  }
+
+  _resolveIntelQuality({ responseMode, cave, exchange }) {
+    if (responseMode === 'truth') {
+      return cave ? INTEL_QUALITY.CONCRETE : INTEL_QUALITY.PARTIAL;
+    }
+    if (responseMode === 'softTruth' || responseMode === 'misdirect') {
+      return INTEL_QUALITY.VAGUE;
+    }
+    if (responseMode === 'reassure') {
+      return exchange.intelQuality || INTEL_QUALITY.NONE;
+    }
+    return INTEL_QUALITY.NONE;
+  }
+
+  _upgradeIntelQuality(current, incoming) {
+    const order = [INTEL_QUALITY.NONE, INTEL_QUALITY.VAGUE, INTEL_QUALITY.PARTIAL, INTEL_QUALITY.CONCRETE];
+    const currentIndex = order.indexOf(current);
+    const incomingIndex = order.indexOf(incoming);
+    return order[Math.max(currentIndex, incomingIndex)] || incoming;
+  }
+
+  _buildConcreteIntel({ npc, target, categoryId, choiceId }) {
+    const availableNames = this._getAvailableTargetNames(npc);
+    const pickName = () => availableNames[getRandomInt(0, Math.max(0, availableNames.length - 1))];
+    const firstName = target?.firstName || pickName() || 'someone';
+    const secondName = availableNames.length > 1
+      ? availableNames.find(name => name !== firstName) || pickName()
+      : null;
+    const style = (npc?.gameplayStyle || '').toLowerCase();
+    const names = style.includes('shadow strategist')
+      ? [firstName]
+      : (secondName ? [firstName, secondName] : [firstName]);
+
+    const summary = names.length > 1
+      ? `Named ${names.join(' and ')}.`
+      : `Named ${names[0]}.`;
+
+    if (choiceId === 'RR4') {
+      return {
+        line: style.includes('shadow strategist')
+          ? `Alright. If we lose, maybe ${names[0]} is the one people would write.`
+          : `Alright. If we lose, I think ${names[0]} is the one people would write.`,
+        summary: `Named ${names[0]} as the likely vote.`
+      };
+    }
+
+    if (categoryId === 'talk_specific' && target?.firstName) {
+      return {
+        line: style.includes('shadow strategist')
+          ? `Alright. ${target.firstName} is the name people keep circling, maybe.`,
+          : `Alright. ${target.firstName} is the name people keep circling.`,
+        summary: `Called out ${target.firstName} by name.`
+      };
+    }
+
+    return {
+      line: `Alright. If it turns, I’d say ${names.join(' or ')}.`,
+      summary
+    };
+  }
+
+  _getPivotIntelPacket(categoryId, target) {
+    const targetName = target?.firstName || 'them';
+    const pick = (key) => this._pickFromArray(PRE_CHALLENGE_INTEL_LIBRARY[key] || []);
+    switch (categoryId) {
+      case 'read_room':
+        return { key: 'campVibe', text: pick('campVibe') };
+      case 'talk_specific':
+        return { key: 'targetRead', text: `${targetName} comes off as ${pick('targetRead')}` };
+      case 'idols_rumors':
+        return { key: 'idolChatter', text: pick('idolChatter') };
+      case 'strategy':
+        return { key: 'alignment', text: pick('alignment') };
+      default:
+        return { key: 'vibe', text: 'a cautious read' };
+    }
+  }
+
+  _resolveFollowupDeltas({ action, responseMode, exchange, npc, backfire }) {
+    const deltas = {
+      relationshipDelta: 0,
+      trustDelta: 0,
+      reliabilityDelta: 0,
+      speakerSuspicionDelta: 0,
+      npcParanoiaDelta: 0,
+      playerParanoiaDelta: 0,
+      repStrategicDelta: 0,
+      repParanoidDelta: 0
+    };
+
+    if (responseMode === 'truth') {
+      deltas.trustDelta += 1;
+    } else if (responseMode === 'misdirect') {
+      deltas.trustDelta -= 1;
+    } else if (responseMode === 'deflect' || responseMode === 'counterQ') {
+      deltas.speakerSuspicionDelta += 1;
+    } else if (responseMode === 'escalate') {
+      deltas.relationshipDelta -= 1;
+      deltas.trustDelta -= 2;
+      deltas.speakerSuspicionDelta += 2;
+      deltas.repParanoidDelta += 1;
+    }
+
+    if (action === 'PRESS' && responseMode !== 'truth') {
+      deltas.speakerSuspicionDelta += 1;
+    }
+
+    if (backfire) {
+      deltas.trustDelta -= 2;
+      deltas.speakerSuspicionDelta += 2;
+      deltas.repParanoidDelta += 1;
+    }
+
+    if (action === 'REASSURE' && responseMode === 'reassure') {
+      deltas.relationshipDelta += 1;
+    }
+
+    if (action === 'DROP') {
+      deltas.relationshipDelta += 0;
+    }
+
+    return deltas;
+  }
+
+  _mergeExchangeDeltas(primary = {}, secondary = {}) {
+    const merged = { ...primary };
+    Object.entries(secondary).forEach(([key, value]) => {
+      merged[key] = (merged[key] || 0) + (value || 0);
+    });
+    return merged;
+  }
+
+  _applyExchangeStepEffects({ player, npc, target, choiceId, responseMode, deltas, exchange, intelPayload, action }) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    const playerId = player?.id;
+
+    if (relationshipSystem?.changeRelationship && deltas.relationshipDelta) {
+      relationshipSystem.changeRelationship(playerId, npc.id, deltas.relationshipDelta);
+    }
+    if (socialMemorySystem?.adjustTrust && deltas.trustDelta) {
+      socialMemorySystem.adjustTrust(npc.id, deltas.trustDelta);
+    }
+    if (socialMemorySystem?.adjustReliability && deltas.reliabilityDelta) {
+      socialMemorySystem.adjustReliability(npc.id, deltas.reliabilityDelta);
+    }
+
+    if (deltas.speakerSuspicionDelta) {
+      npc.suspicion = this._clampMetric((npc.suspicion || 0) + deltas.speakerSuspicionDelta);
+    }
+    if (deltas.npcParanoiaDelta) {
+      npc.paranoia = this._clampMetric((npc.paranoia || 0) + deltas.npcParanoiaDelta);
+    }
+    if (deltas.playerParanoiaDelta) {
+      player.paranoia = this._clampMetric((player.paranoia || 0) + deltas.playerParanoiaDelta);
+      this._updatePlayerReputation({ paranoid: deltas.playerParanoiaDelta });
+    }
+
+    if (target) {
+      if (deltas.targetThreatDelta) {
+        target.threat = this._clampMetric((target.threat || 0) + deltas.targetThreatDelta);
+      }
+      if (deltas.targetSuspicionDelta) {
+        target.suspicion = this._clampMetric((target.suspicion || 0) + deltas.targetSuspicionDelta);
+      }
+    }
+
+    if (deltas.repStrategicDelta || deltas.repHelpfulDelta || deltas.repFakeDelta || deltas.repParanoidDelta) {
+      this._updatePlayerReputation({
+        strategic: deltas.repStrategicDelta,
+        helpful: deltas.repHelpfulDelta,
+        fake: deltas.repFakeDelta,
+        paranoid: deltas.repParanoidDelta
+      });
+    }
+
+    exchange.deltas.relationshipDelta += deltas.relationshipDelta || 0;
+    exchange.deltas.trustDelta += deltas.trustDelta || 0;
+    exchange.deltas.suspicionDelta += deltas.speakerSuspicionDelta || 0;
+
+    if (socialMemorySystem?.recordConversationEvent) {
+      socialMemorySystem.recordConversationEvent({
+        type: 'PRE_CONVO_EXCHANGE',
+        speakerId: playerId,
+        listenerId: npc.id,
+        topicPersonId: target?.id || null,
+        data: {
+          choiceId,
+          action,
+          resolvedMode: responseMode,
+          intelQuality: intelPayload?.intelQuality,
+          intelSummary: intelPayload?.intelSummary,
+          deltas,
+          exchangeId: exchange.exchangeId
+        },
+        phase: 'pre'
+      });
+    }
+
+    if (action === 'INITIAL') {
+      this._updateLastTopics(npc.id, choiceId);
+    }
+  }
+
+  _formatExchangeOutcome(exchange) {
+    const formatDelta = (value) => `${value >= 0 ? '+' : ''}${value || 0}`;
+    const relDelta = formatDelta(exchange.deltas.relationshipDelta);
+    const trustDelta = formatDelta(exchange.deltas.trustDelta);
+    const suspDelta = formatDelta(exchange.deltas.suspicionDelta);
+    const intelQuality = exchange.intelQuality || INTEL_QUALITY.NONE;
+    const intelSummary = exchange.intelSummary || 'No clear intel.';
+    const riskSummary = exchange.riskSummary || 'Low';
+
+    return `Outcome: ${relDelta} Relationship. ${trustDelta} Trust. ${suspDelta} Suspicion.\nIntel (${intelQuality}): ${intelSummary}.\nRisk: ${riskSummary}`;
+  }
+
+  _shouldOfferFollowup({ exchange, choice, responseMode }) {
+    const followupModes = new Set(['softTruth', 'deflect', 'counterQ', 'misdirect']);
+    if (!followupModes.has(responseMode)) return false;
+    if (exchange.stepIndex >= 2) return false;
+    return this._isExchangeChoiceEligible(choice.id);
+  }
+
+  _shouldBackfirePress({ exchange, npc, trustScore }) {
+    const paranoia = npc?.paranoia || 0;
+    const threat = npc?.threat || 0;
+    const lowTrust = trustScore < 45;
+    const pressSpam = exchange.timesPressedRecently >= 2;
+    const extremePressure = exchange.pressureScore >= 70;
+    return lowTrust || paranoia >= 70 || threat >= 75 || pressSpam || extremePressure;
+  }
+
+  _shouldCave({ exchange, npc, player, choice, category }) {
+    const relationshipScore = this._relationshipBetween(player?.id, npc?.id) || 50;
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    const reliability = socialMemorySystem?.getReliability?.(npc.id) ?? 50;
+    const trustScore = this._getTrustScore(npc, player);
+    const paranoia = npc?.paranoia || 0;
+    const suspicion = npc?.suspicion || 0;
+    const pressureScore = exchange.pressureScore;
+
+    let trustGate = trustScore >= 70 || (relationshipScore >= 65 && reliability >= 60);
+    const moderatePressure = pressureScore >= 25 && pressureScore <= 55;
+    if (!moderatePressure) return false;
+    if (paranoia >= 65 || suspicion >= 70) return false;
+
+    const style = (npc?.gameplayStyle || '').toLowerCase();
+    if (style.includes('social genius')) {
+      trustGate = trustScore >= 60 || (relationshipScore >= 55 && reliability >= 55);
+    }
+    if (style.includes('shadow strategist')) {
+      trustGate = trustScore >= 80 && reliability >= 70;
+    }
+    if (style.includes('competitive')) {
+      const challengeTopics = new Set(['ST2', 'CL5']);
+      if (!challengeTopics.has(choice.id)) return false;
+    }
+    if (style.includes('lethal charmer')) {
+      trustGate = trustScore >= 72 || exchange.pressureScore <= 35;
+    }
+    if (style.includes('wildcard') && trustScore >= 55 && Math.random() < 0.3) {
+      return true;
+    }
+
+    if (trustScore >= 80 && paranoia < 45 && Math.random() < 0.25) {
+      return true;
+    }
+
+    return Boolean(trustGate);
+  }
+
+  _registerPress(npcId, exchange) {
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    if (!socialMemorySystem?.initNPC) return;
+    socialMemorySystem.initNPC(npcId);
+    const memory = socialMemorySystem.memory[npcId];
+    const now = Date.now();
+    if (memory.lastPressAt && now - memory.lastPressAt > 120000) {
+      memory.timesPressedRecently = 0;
+    }
+    memory.timesPressedRecently = (memory.timesPressedRecently || 0) + 1;
+    memory.lastPressAt = now;
+    exchange.timesPressedRecently = memory.timesPressedRecently;
+  }
+
+  _logExchangeDebug({ exchange, responseMode }) {
+    if (!this._isConversationDebugEnabled()) return;
+    const line = `EXCHANGE ${exchange.exchangeId} step=${exchange.stepIndex} topic=${exchange.topicKey} mode=${responseMode} pressure=${exchange.pressureScore} trustScore=${exchange.trustScore} susp=${exchange.suspicionScore} intel=${exchange.intelQuality}`;
+    if (typeof window !== 'undefined' && typeof window.debugBanner === 'function') {
+      window.debugBanner('EXCHANGE', line);
+    }
+    console.debug(line);
   }
 
   _showPreChallengeSequence({ npc, playerLine, npcLine, outcomeSummary, location }) {
@@ -2796,11 +3517,12 @@ class ConversationSystem {
     return normalized[0]?.mode || 'softTruth';
   }
 
-  _buildNpcResponseLine({ npc, responseMode, choice, choiceId, intelText, targetName, npcStyle }) {
+  _buildNpcResponseLine({ npc, responseMode, choice, choiceId, intelText, targetName, npcStyle, stepIndex = 0, followupAction = null }) {
     const styleTag = npcStyle;
     const verb = this._pickNpcVerb(responseMode);
     const name = npc?.firstName || 'They';
     const targetTag = targetName ? `${targetName}` : 'someone';
+    const isPressed = stepIndex > 0 && followupAction === 'PRESS';
 
     const styleAdditions = {
       competitive: ['"I’m just focused on the challenge right now."'],
@@ -2849,7 +3571,44 @@ class ConversationSystem {
       ]
     };
 
-    const line = this._pickFromArray(modeLines[responseMode] || modeLines.softTruth);
+    const pressedLines = {
+      truth: [
+        `"Alright. ${intelText || 'Here’s what I actually think.'}"`,
+        `"Okay. ${intelText || 'I’ll give you something real.'}"`,
+        `"Look. ${intelText || 'That’s the straight answer.'}"`
+      ],
+      softTruth: [
+        '"Look… I don’t know for sure. It’s just a vibe."',
+        '"I’m not locked. It’s just a feel right now."',
+        '"That’s all I’ve got. It’s still fuzzy."'
+      ],
+      deflect: [
+        '"I already said what I can."',
+        '"I’m not putting more on that."',
+        '"That’s as far as I’m going."'
+      ],
+      counterQ: [
+        '"Why are you pushing this so hard? That’s weird."',
+        '"What’s with the pressure all of a sudden?"',
+        '"Why do you need names right now?"'
+      ],
+      misdirect: [
+        '"If you’re digging, look somewhere else."',
+        '"I’m hearing it’s someone other than who you’re thinking."',
+        '"That heat isn’t even real from what I saw."'
+      ],
+      reassure: [
+        '"It’s fine. No need to turn it into a thing."',
+        '"Relax. I’m not trying to make it messy."'
+      ],
+      escalate: [
+        '"Back off. You’re pushing too hard."',
+        '"That’s not cool. Ease up."'
+      ]
+    };
+
+    const pool = isPressed && pressedLines[responseMode] ? pressedLines[responseMode] : (modeLines[responseMode] || modeLines.softTruth);
+    const line = this._pickFromArray(pool);
     const styleLine = this._pickFromArray(styleAdditions[styleTag] || []);
     const combined = styleLine ? `${line} ${styleLine}` : line;
     return this._npcDoes(npc, verb.singular, verb.plural, combined);

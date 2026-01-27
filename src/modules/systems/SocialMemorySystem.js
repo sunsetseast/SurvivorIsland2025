@@ -58,7 +58,10 @@ class SocialMemorySystem {
                 misc: [],
                 lastTopics: [],
                 lastLines: [],
-                committedAllianceId: null
+                committedAllianceId: null,
+                lastTopicKey: null,
+                timesPressedRecently: 0,
+                lastPressAt: 0
             };
         }
     }
