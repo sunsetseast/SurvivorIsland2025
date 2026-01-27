@@ -6350,12 +6350,12 @@ class ConversationSystem {
     const npcId = activeSession?.npcId || this.state?.npcId || null;
     try {
       if (activeSession?.pendingEndConversation) {
+        const callback = activeSession.pendingEndConversation;
+        activeSession.pendingEndConversation = null; // Clear BEFORE invoking to prevent recursive calls
         try {
-          activeSession.pendingEndConversation();
+          callback();
         } catch (error) {
           console.error('ConversationSystem: pendingEndConversation failed during closeConversation.', error);
-        } finally {
-          activeSession.pendingEndConversation = null;
         }
       }
     } finally {
