@@ -2,7 +2,7 @@ run = "node server.js"
 modules = ["nodejs-20"]
 
 [workflows]
-runButton = "Run Server"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Run Server"
@@ -12,8 +12,33 @@ mode = "sequential"
 task = "shell.exec"
 args = "node server.js"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Survivor Island"
+
+[[workflows.workflow]]
+name = "Survivor Island"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server.js"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[ports]]
 localPort = 3000
+externalPort = 80
+
+[[ports]]
+localPort = 5000
 externalPort = 80
 
 [agent]

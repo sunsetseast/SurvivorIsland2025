@@ -2788,7 +2788,7 @@ class ConversationSystem {
     if (categoryId === 'talk_specific' && target?.firstName) {
       return {
         line: style.includes('shadow strategist')
-          ? `Alright. ${target.firstName} is the name people keep circling, maybe.`,
+          ? `Alright. ${target.firstName} is the name people keep circling, maybe.`
           : `Alright. ${target.firstName} is the name people keep circling.`,
         summary: `Called out ${target.firstName} by name.`
       };
