@@ -1971,7 +1971,7 @@ class ConversationSystem {
   }
 
   _showCategoryMenu(survivor, location, category) {
-    this._clearOverlay();
+    this._clearOverlay({ preserveSession: true });
     const overlay = this._buildOverlayShell(survivor, { reuse: true });
     const content = this._getConversationContent(overlay);
     this._clearConversationContent(content);
@@ -2135,7 +2135,7 @@ class ConversationSystem {
   }
 
   _showPreChallengeCategoryMenu(survivor, location, categoryId) {
-    this._clearOverlay();
+    this._clearOverlay({ preserveSession: true });
     const overlay = this._buildOverlayShell(survivor, { reuse: true });
     const content = this._getConversationContent(overlay);
     this._clearConversationContent(content);
@@ -2210,7 +2210,7 @@ class ConversationSystem {
   }
 
   _showPreChallengeSpecificMenu(survivor, location, target, category) {
-    this._clearOverlay();
+    this._clearOverlay({ preserveSession: true });
     const overlay = this._buildOverlayShell(survivor, { reuse: true });
     const content = this._getConversationContent(overlay);
     this._clearConversationContent(content);
@@ -2252,7 +2252,7 @@ class ConversationSystem {
   _handlePreChallengeChoice(survivor, location, choice, target = null) {
     const player = this.gameManager.getPlayerSurvivor?.();
     if (!player) return;
-    this._clearOverlay();
+    this._clearOverlay({ preserveSession: true });
 
     if (this._isExchangeChoiceEligible(choice?.id)) {
       this.runConversationExchange({
@@ -13237,16 +13237,19 @@ class ConversationSystem {
     return members.find(member => this._survivorHasIdol(member?.id)) || null;
   }
 
-  _clearOverlay() {
+  _clearOverlay(options = {}) {
+    const { preserveSession = false } = options;
     this._clearApproachTimer();
     if (this.activeOverlay) {
       this.activeOverlay.remove();
       this.activeOverlay = null;
     }
     this._activeOverlayNpcId = null;
-    this.activeConversationContext = null;
-    this.conversationSession = null;
-    this.nodeSession = null;
+    if (!preserveSession) {
+      this.activeConversationContext = null;
+      this.conversationSession = null;
+      this.nodeSession = null;
+    }
   }
 
   _clearApproachTimer() {
