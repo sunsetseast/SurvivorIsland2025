@@ -6183,6 +6183,17 @@ class ConversationSystem {
     const npc = this._getSurvivorById(session.npcId);
     if (!npc) return;
     try {
+      console.debug('CONVO: choice selected', {
+        nodeId,
+        choiceId: choice.id,
+        label: choice.label,
+        hasNpcReply: !!choice.npcReply,
+        hasResponseOption: !!choice.responseOption,
+        action: choice.action,
+        nextNode: !!choice.nextNode,
+        nextMenu: !!choice.nextMenu,
+        nextNodeId: !!choice.nextNodeId
+      });
       const isEndLabel = typeof choice.label === 'string' && /end conversation/i.test(choice.label);
       if (choice.end || (isEndLabel && !choice.action && !choice.responseOption && !choice.nextNode && !choice.nextMenu && !choice.nextNodeId && !choice.onSelect)) {
         this._logEndConversationClick('player_end', session);
@@ -6214,6 +6225,7 @@ class ConversationSystem {
         const resolved = this._formatConversationLine(replyText || '', npc, session.context || {}, this.gameManager.getPlayerSurvivor?.());
         const nextPayload = typeof choice.next === 'function' ? choice.next(session, this, choice) : choice.next;
         if (typeof nextPayload === 'string') {
+          console.debug('CONVO: npcReply branch -> next node id', { nextNodeId: nextPayload });
           this._transitionToNode(session, nextPayload);
           return;
         }
@@ -6225,36 +6237,60 @@ class ConversationSystem {
             choices: this._buildDefaultFollowupChoices(session.intent, session.context)
           };
         const nextNodeId = this._registerNode(session, nextNode);
+        console.debug('CONVO: npcReply branch -> registered node', { nextNodeId });
         this._transitionToNode(session, nextNodeId);
         return;
       }
 
       if (choice.action) {
         const handled = this._handleNodeAction(session, nodeId, choice);
-        if (handled) return;
+        if (handled) {
+          console.debug('CONVO: action branch handled', { action: choice.action });
+          return;
+        }
       }
 
       if (choice.responseOption) {
         if (choice.responseOption.requiresAllyPicker) {
+          console.debug('CONVO: responseOption branch -> requires ally picker', { choiceId: choice.id });
           this._promptTrustedAlly(session, npc, nodeId, choice.responseOption, formattedNarration);
           return;
         }
         if (choice.responseOption.requiresTargetPicker) {
+          console.debug('CONVO: responseOption branch -> requires target picker', { choiceId: choice.id });
           this._promptPlayerNamedTarget(session, npc, nodeId, choice.responseOption, formattedNarration);
           return;
         }
-        const { menu, endConversation, action } = this._handleResponse(npc, session.intent, choice.responseOption, session.meeting, session);
-        session.pendingEndConversation = endConversation || null;
+        let response = null;
+        try {
+          response = this._handleResponse(npc, session.intent, choice.responseOption, session.meeting, session);
+        } catch (error) {
+          console.error('ConversationSystem: responseOption handling failed', error);
+          const errorMessage = error?.message || String(error);
+          this._renderRecoveryNode(session, npc, `${npc.firstName} blinks. "Uh… something broke. (DEBUG: ${errorMessage})"`);
+          return;
+        }
+        const { menu, endConversation, action } = response || {};
+        const menuButtons = Array.isArray(menu?.buttons) ? menu.buttons : [];
+        const hasSingleEndButton = menuButtons.length === 1
+          && typeof menuButtons[0]?.label === 'string'
+          && /end conversation/i.test(menuButtons[0].label);
+        const shouldEndAfterMenu = !!menu
+          && (menu?.meta?.isEnd === true || choice.responseOption?.end === true || hasSingleEndButton || action === 'endConversationNow');
+        session.pendingEndConversation = shouldEndAfterMenu ? endConversation || null : null;
         if (action === 'offerDealMenu') {
+          console.debug('CONVO: responseOption branch -> offerDealMenu');
           this._showDealMenu(npc, session.context.location);
           return;
         }
         if (action === 'counterTarget') {
+          console.debug('CONVO: responseOption branch -> counterTarget');
           return;
         }
         if (!menu) {
           console.warn('ConversationSystem: Missing menu response for choice.', choice);
           this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`);
+          console.debug('CONVO: responseOption branch -> no menu recovery');
           return;
         }
         menu.playerNarration = menu.playerNarration || formattedNarration;
@@ -6262,6 +6298,7 @@ class ConversationSystem {
           menu.npcResponse = menu.text;
         }
         const menuNodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
+        console.debug('CONVO: responseOption branch -> registered menu node', { menuNodeId });
         this._transitionToNode(session, menuNodeId);
         return;
       }
@@ -6316,7 +6353,8 @@ class ConversationSystem {
       this._renderRecoveryNode(session, npc, `${npc.firstName} says, "We can talk about something else."`);
     } catch (error) {
       console.error('ConversationSystem: handleNodeChoice failed', error);
-      this.closeConversation('error_exit', session);
+      const errorMessage = error?.message || String(error);
+      this._renderRecoveryNode(session, npc, `${npc.firstName} blinks. "Uh… something broke. (DEBUG: ${errorMessage})"`);
     }
   }
 
