@@ -210,6 +210,489 @@ const PRE_PHASE_INTENTS = {
   confront_rumor: 'confront_rumor'
 };
 
+const PRE_CHALLENGE_TREE = {
+  categories: [
+    {
+      id: 'build_connection',
+      label: 'Build Connection',
+      choices: [
+        {
+          id: 'BC1',
+          tones: ['warm'],
+          riskLevel: 0.2,
+          responseModes: ['reassure', 'softTruth', 'deflect'],
+          lines: [
+            'How are you holding up today?',
+            'You doing alright out here?',
+            'Quick check-in—how’s your head?'
+          ],
+          outcomeTemplate: 'Outcome: {relDelta} Relationship. {trustDelta} Trust. You read: {intelVibe}.'
+        },
+        {
+          id: 'BC2',
+          tones: ['warm', 'personal'],
+          riskLevel: 0.3,
+          responseModes: ['reassure', 'counterQ', 'softTruth', 'deflect'],
+          lines: [
+            'This is gonna sound random, but back home I… {share}.',
+            'Honestly, this reminds me of home in a weird way.'
+          ],
+          outcomeTemplate: 'Outcome: {relDelta} Relationship. {trustDelta} Trust. Risk: {riskLine}.'
+        },
+        {
+          id: 'BC3',
+          tones: ['warm'],
+          riskLevel: 0.2,
+          responseModes: ['reassure', 'softTruth', 'deflect'],
+          lines: [
+            'I noticed you’ve been grinding around camp. Respect.',
+            'You’ve been pulling your weight—people see that.',
+            'You’ve been solid today.'
+          ],
+          outcomeTemplate: 'Outcome: {relDelta} Relationship. {trustDelta} Trust. Reputation: helpful {repDeltaHelpful}.'
+        },
+        {
+          id: 'BC4',
+          tones: ['playful'],
+          riskLevel: 0.15,
+          responseModes: ['reassure', 'softTruth', 'deflect'],
+          lines: [
+            'If we survive this rain, we deserve pizza.',
+            'This is the glamorous part of Survivor, right?'
+          ],
+          outcomeTemplate: 'Outcome: {relDelta} Relationship. You eased tension slightly.'
+        },
+        {
+          id: 'BC5',
+          tones: ['warm', 'helpful'],
+          riskLevel: 0.25,
+          responseModes: ['truth', 'deflect', 'counterQ', 'reassure'],
+          lines: [
+            'Want to do a task together right now?',
+            'Let’s knock out some work together—two birds.'
+          ],
+          outcomeTemplate: 'Outcome: {relDelta} Relationship. Teamwork noticed: helpful {repDeltaHelpful}. {intelIfDeclined}.'
+        }
+      ]
+    },
+    {
+      id: 'read_room',
+      label: 'Read the Room',
+      choices: [
+        {
+          id: 'RR1',
+          tones: ['neutral'],
+          riskLevel: 0.35,
+          responseModes: ['softTruth', 'truth', 'deflect'],
+          lines: [
+            'What’s the camp vibe today?',
+            'How’s everyone feeling?',
+            'Are we vibing or spiraling?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {campVibeIntel}. Risk: {riskLineOptional}.'
+        },
+        {
+          id: 'RR2',
+          tones: ['neutral', 'direct'],
+          riskLevel: 0.45,
+          responseModes: ['softTruth', 'truth', 'counterQ', 'deflect', 'misdirect'],
+          lines: [
+            'Anyone seem off lately?',
+            'You notice anyone acting different?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {behaviorIntel}. Suspicion {suspDelta}.'
+        },
+        {
+          id: 'RR3',
+          tones: ['warm'],
+          riskLevel: 0.4,
+          responseModes: ['softTruth', 'deflect', 'counterQ', 'truth'],
+          lines: [
+            'You feeling okay… game-wise?',
+            'You feel alright about where you stand?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {comfortIntel}. Risk: {riskLine}.'
+        },
+        {
+          id: 'RR4',
+          tones: ['direct'],
+          riskLevel: 0.55,
+          responseModes: ['deflect', 'counterQ', 'truth', 'misdirect'],
+          lines: [
+            'If we lose, are you safe?',
+            'If we go to Tribal, are you good?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {safetyIntel}. Risk: probing raised suspicion.'
+        },
+        {
+          id: 'RR5',
+          tones: ['neutral'],
+          riskLevel: 0.45,
+          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
+          lines: [
+            'Who are you feeling closest to right now?',
+            'Who have you been clicking with?'
+          ],
+          outcomeTemplate: 'Outcome: You mapped: {allyIntel}. Risk: {riskLineOptional}.'
+        },
+        {
+          id: 'RR6',
+          tones: ['warm'],
+          riskLevel: 0.35,
+          responseModes: ['reassure', 'softTruth', 'deflect', 'misdirect'],
+          lines: [
+            'Quick vibe check—are we still good?',
+            'We good?'
+          ],
+          outcomeTemplate: 'Outcome: {trustDelta} Trust. Read: {toneRead}.'
+        },
+        {
+          id: 'RR7',
+          tones: ['direct'],
+          riskLevel: 0.5,
+          responseModes: ['truth', 'softTruth', 'deflect', 'counterQ', 'misdirect'],
+          lines: [
+            'Where do I stand with you?',
+            'Be straight—am I good with you?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {standingIntel}. Risk: {riskLine}.'
+        }
+      ]
+    },
+    {
+      id: 'talk_specific',
+      label: 'Talk About Someone',
+      targetPrompt: 'Who do you want to talk about?',
+      choices: [
+        {
+          id: 'TS1',
+          tones: ['direct'],
+          riskLevel: 0.45,
+          responseModes: ['truth', 'softTruth', 'deflect', 'misdirect'],
+          lines: [
+            'Do you trust {TARGET}?'
+          ],
+          outcomeTemplate: 'Outcome: You gained a read on {TARGET}: {readIntel}. Risk: {riskLineOptional}.'
+        },
+        {
+          id: 'TS2',
+          tones: ['neutral'],
+          riskLevel: 0.4,
+          responseModes: ['softTruth', 'truth', 'deflect'],
+          lines: [
+            'What’s your real read on {TARGET}?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {targetReadIntel}.'
+        },
+        {
+          id: 'TS3',
+          tones: ['strategic'],
+          riskLevel: 0.55,
+          responseModes: ['softTruth', 'truth', 'deflect', 'counterQ'],
+          lines: [
+            '{TARGET} feels dangerous down the line.'
+          ],
+          outcomeTemplate: 'Outcome: You planted a long-term threat idea about {TARGET}. Strategic rep {repDeltaStrategic}.'
+        },
+        {
+          id: 'TS4',
+          tones: ['direct'],
+          riskLevel: 0.7,
+          responseModes: ['deflect', 'softTruth', 'truth', 'misdirect'],
+          lines: [
+            'Think {TARGET} found something?'
+          ],
+          outcomeTemplate: 'Outcome: Idol suspicion around {TARGET} increased. Risk: you looked paranoid.'
+        },
+        {
+          id: 'TS5',
+          tones: ['neutral'],
+          riskLevel: 0.5,
+          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
+          lines: [
+            '{TARGET}’s name keeps coming up—why?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {rumorIntel}. Narrative pressure on {TARGET} increased.'
+        },
+        {
+          id: 'TS6',
+          tones: ['direct'],
+          riskLevel: 0.8,
+          responseModes: ['escalate', 'counterQ', 'truth', 'misdirect'],
+          lines: [
+            'I heard {TARGET} mentioned YOUR name.'
+          ],
+          outcomeTemplate: 'Outcome: Paranoia spiked. Risk: if this is false and spreads, you take the heat.'
+        },
+        {
+          id: 'TS7',
+          tones: ['direct'],
+          riskLevel: 0.55,
+          responseModes: ['truth', 'softTruth', 'deflect', 'misdirect'],
+          lines: [
+            'I heard {TARGET} mentioned MY name.'
+          ],
+          outcomeTemplate: 'Outcome: You tested loyalty. You learned: {loyaltyIntel}.'
+        },
+        {
+          id: 'TS8',
+          tones: ['strategic'],
+          riskLevel: 0.55,
+          responseModes: ['counterQ', 'reassure', 'deflect', 'misdirect'],
+          lines: [
+            'I might work with {TARGET} more.'
+          ],
+          outcomeTemplate: 'Outcome: You tested jealousy/loyalty. Reaction: {reactionIntel}.'
+        },
+        {
+          id: 'TS9',
+          tones: ['strategic'],
+          riskLevel: 0.6,
+          responseModes: ['softTruth', 'truth', 'deflect'],
+          lines: [
+            '{TARGET} could be a shield for us.'
+          ],
+          outcomeTemplate: 'Outcome: You proposed a shield concept. Strategic rep {repDeltaStrategic}.'
+        }
+      ]
+    },
+    {
+      id: 'camp_life',
+      label: 'Camp Life & Morale',
+      choices: [
+        {
+          id: 'CL1',
+          tones: ['warm'],
+          riskLevel: 0.25,
+          responseModes: ['truth', 'softTruth', 'deflect'],
+          lines: [
+            'How’s food/sleep/shelter treating you?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {stateIntel}. Relationship {relDelta}.'
+        },
+        {
+          id: 'CL2',
+          tones: ['warm'],
+          riskLevel: 0.3,
+          responseModes: ['truth', 'softTruth', 'deflect'],
+          lines: [
+            'What’s your morale like today?'
+          ],
+          outcomeTemplate: 'Outcome: Morale read: {moraleIntel}.'
+        },
+        {
+          id: 'CL3',
+          tones: ['direct'],
+          riskLevel: 0.4,
+          responseModes: ['softTruth', 'truth', 'deflect', 'counterQ'],
+          lines: [
+            'What’s annoying you most right now?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {grievanceIntel}. Risk: {riskLineOptional}.'
+        },
+        {
+          id: 'CL4',
+          tones: ['warm'],
+          riskLevel: 0.2,
+          responseModes: ['reassure', 'softTruth', 'truth'],
+          lines: [
+            'If we win reward, what would you want?'
+          ],
+          outcomeTemplate: 'Outcome: You learned what drives them: {motiveIntel}.'
+        },
+        {
+          id: 'CL5',
+          tones: ['strategic'],
+          riskLevel: 0.55,
+          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
+          lines: [
+            'Who’s pulling their weight around camp?'
+          ],
+          outcomeTemplate: 'Outcome: You got a work-ethic map. Risk: you looked like you’re building a case.'
+        }
+      ]
+    },
+    {
+      id: 'idols_rumors',
+      label: 'Idols & Rumors',
+      choices: [
+        {
+          id: 'IR1',
+          tones: ['neutral'],
+          riskLevel: 0.35,
+          responseModes: ['softTruth', 'truth', 'deflect'],
+          lines: [
+            'Anything weird happening around camp?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {weirdIntel}.'
+        },
+        {
+          id: 'IR2',
+          tones: ['direct'],
+          riskLevel: 0.65,
+          responseModes: ['deflect', 'softTruth', 'truth', 'misdirect'],
+          lines: [
+            'Heard any idol talk?'
+          ],
+          outcomeTemplate: 'Outcome: Idol chatter: {idolIntel}. Risk: asking raised suspicion.'
+        },
+        {
+          id: 'IR3',
+          tones: ['direct'],
+          riskLevel: 0.7,
+          responseModes: ['deflect', 'counterQ', 'softTruth', 'misdirect', 'truth'],
+          lines: [
+            'Do you think someone has something?'
+          ],
+          outcomeTemplate: 'Outcome: You tested idol climate. Risk: you looked like you’re fishing.'
+        },
+        {
+          id: 'IR4',
+          tones: ['direct'],
+          riskLevel: 0.9,
+          responseModes: ['escalate', 'counterQ', 'misdirect'],
+          lines: [
+            'I think YOU found something.'
+          ],
+          outcomeTemplate: 'Outcome: You applied pressure. Relationship suffered. Risk: you may become the target.'
+        },
+        {
+          id: 'IR5',
+          tones: ['neutral'],
+          riskLevel: 0.45,
+          responseModes: ['reassure', 'softTruth', 'deflect', 'counterQ'],
+          lines: [
+            'People assume I have something… it’s annoying.'
+          ],
+          outcomeTemplate: 'Outcome: You floated a perception play. You learned: {perceptionIntel}.'
+        }
+      ]
+    },
+    {
+      id: 'strategy',
+      label: 'Strategy',
+      choices: [
+        {
+          id: 'ST1',
+          tones: ['strategic'],
+          riskLevel: 0.55,
+          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
+          lines: [
+            'If we lose, what kind of vote do you think it is?'
+          ],
+          outcomeTemplate: 'Outcome: You learned: {voteTypeIntel}. Strategic rep {repDeltaStrategic}.'
+        },
+        {
+          id: 'ST2',
+          tones: ['strategic'],
+          riskLevel: 0.5,
+          responseModes: ['truth', 'softTruth', 'deflect'],
+          lines: [
+            'Who do you not want next to you in challenges?'
+          ],
+          outcomeTemplate: 'Outcome: You learned who worries them physically: {challengeIntel}.'
+        },
+        {
+          id: 'ST3',
+          tones: ['strategic'],
+          riskLevel: 0.7,
+          responseModes: ['softTruth', 'truth', 'deflect', 'counterQ', 'misdirect'],
+          lines: [
+            'Who’s the biggest threat right now?'
+          ],
+          outcomeTemplate: 'Outcome: Threat map updated. Risk: you looked strategic.'
+        },
+        {
+          id: 'ST4',
+          tones: ['direct'],
+          riskLevel: 0.85,
+          responseModes: ['deflect', 'counterQ', 'misdirect', 'truth'],
+          lines: [
+            'If we lose, who’s your vote?'
+          ],
+          outcomeTemplate: 'Outcome: You pushed for a name. Result: {resultIntel}. Risk: big.'
+        },
+        {
+          id: 'ST5',
+          tones: ['strategic'],
+          riskLevel: 0.6,
+          responseModes: ['truth', 'softTruth', 'deflect', 'counterQ'],
+          lines: [
+            'Do we have anything solid?'
+          ],
+          outcomeTemplate: 'Outcome: You checked alignment. You learned: {numbersIntel}.'
+        },
+        {
+          id: 'ST6',
+          tones: ['strategic'],
+          riskLevel: 0.7,
+          responseModes: ['truth', 'softTruth', 'deflect', 'counterQ', 'misdirect'],
+          lines: [
+            'If the plan blows up, what’s backup?'
+          ],
+          outcomeTemplate: 'Outcome: You explored contingencies. Strategic rep {repDeltaStrategic}. Risk: {riskLine}.'
+        }
+      ]
+    },
+    {
+      id: 'confront_repair',
+      label: 'Confront / Repair',
+      choices: [
+        {
+          id: 'CR1',
+          tones: ['direct'],
+          riskLevel: 0.55,
+          responseModes: ['reassure', 'deflect', 'counterQ', 'escalate', 'softTruth'],
+          lines: [
+            'Something feels off between us.'
+          ],
+          outcomeTemplate: 'Outcome: You surfaced tension. Read: {tensionIntel}.'
+        },
+        {
+          id: 'CR2',
+          tones: ['direct'],
+          riskLevel: 0.8,
+          responseModes: ['escalate', 'deflect', 'counterQ', 'truth', 'misdirect'],
+          lines: [
+            'I heard you said something about me.'
+          ],
+          outcomeTemplate: 'Outcome: Confrontation triggered. Risk: high.'
+        },
+        {
+          id: 'CR3',
+          tones: ['warm'],
+          riskLevel: 0.4,
+          responseModes: ['reassure', 'softTruth', 'deflect'],
+          lines: [
+            'I want to clear the air.'
+          ],
+          outcomeTemplate: 'Outcome: Repair attempt: {repairResult}.'
+        },
+        {
+          id: 'CR4',
+          tones: ['warm'],
+          riskLevel: 0.35,
+          responseModes: ['reassure', 'softTruth', 'deflect'],
+          lines: [
+            'I’m sorry about earlier.'
+          ],
+          outcomeTemplate: 'Outcome: Apology registered. Reliability {reliaDelta}.'
+        },
+        {
+          id: 'CR5',
+          tones: ['direct'],
+          riskLevel: 0.9,
+          responseModes: ['deflect', 'counterQ', 'misdirect', 'truth'],
+          lines: [
+            'Be straight—are you against me?'
+          ],
+          outcomeTemplate: 'Outcome: High-pressure question. Result: {resultIntel}. Risk: major.'
+        }
+      ]
+    }
+  ]
+};
+
 const POST_PHASE_INTENTS = {
   ask_intel: 'ask_intel',
   talk_specific_person: 'talk_specific_person',
@@ -234,6 +717,149 @@ const POST_PHASE_INTENTS = {
   idol_claim_have_lie: 'idol_claim_have_lie',
   idol_claim_other_has_lie: 'idol_claim_other_has_lie',
   idol_pressure_for_info: 'idol_pressure_for_info'
+};
+
+const PRE_CHALLENGE_PERSONAL_SHARES = [
+  'ran a youth camp',
+  'worked night shifts at a diner',
+  'coach a team',
+  'take care of my family',
+  'restore old bikes',
+  'volunteer at a community kitchen'
+];
+
+const PRE_CHALLENGE_INTEL_LIBRARY = {
+  campVibe: [
+    'camp energy feels tight around the water runs',
+    'people are quiet and watching each other',
+    'the mood is steady, but people are cautious',
+    'everyone is smiling, but it feels guarded'
+  ],
+  behaviorShifts: [
+    'someone is pulling away from group chats',
+    'a couple people are suddenly very chatty',
+    'people are keeping side conversations short'
+  ],
+  npcComfort: [
+    'they feel okay but not locked',
+    'they feel decent and don’t want to overplay',
+    'they feel shaky and are keeping options open'
+  ],
+  safety: [
+    'they think they’re fine if they keep the day calm',
+    'they don’t feel locked and want to stay low',
+    'they think it depends on the challenge outcome'
+  ],
+  closestAllies: [
+    'they’re most aligned with a tight duo',
+    'they’re clicking with a small core',
+    'they feel closest to one person and a floater'
+  ],
+  playerStanding: [
+    'you’re in their orbit but not locked',
+    'they see you as a steady number',
+    'they’re undecided and watching how you move'
+  ],
+  campState: [
+    'sleep has been rough but manageable',
+    'food’s low and tempers are shorter',
+    'shelter is holding up, but morale is thin'
+  ],
+  morale: [
+    'morale is steady, just tired',
+    'people are on edge but not spiraling',
+    'spirits are up but fake smiles linger'
+  ],
+  grievances: [
+    'firewood runs are uneven',
+    'someone keeps skipping chores',
+    'shelter noise is getting under skin'
+  ],
+  motives: [
+    'food and comfort',
+    'a win for tribe pride',
+    'a break from the social grind'
+  ],
+  workEthic: [
+    'a couple people are coasting on others’ effort',
+    'most are pulling weight, but one person stands out',
+    'the workload is uneven and people notice'
+  ],
+  weirdStuff: [
+    'there was a strange scramble near the tree line',
+    'someone was up late poking around',
+    'there’s a weird hush when idols come up'
+  ],
+  idolChatter: [
+    'people keep circling the well about idols',
+    'idol talk is low, but whispers are there',
+    'names pop up, but nobody claims proof'
+  ],
+  perception: [
+    'some think you’re playing hard but not obvious',
+    'people think you’re social, not sneaky',
+    'the tribe is split on whether you’re dangerous'
+  ],
+  voteType: [
+    'an easy vote if things stay calm',
+    'a threat-based swing if nerves rise',
+    'a messy outsider vote if paranoia spikes'
+  ],
+  challengeTargets: [
+    'a strong physical competitor makes them nervous',
+    'they worry about someone who dominates puzzles',
+    'they’re watching the stamina threats'
+  ],
+  threatRead: [
+    'a big social connector feels dangerous',
+    'a challenge beast is looming',
+    'a quiet strategist is the real concern'
+  ],
+  alignment: [
+    'numbers feel soft, but there’s a loose core',
+    'there’s a shaky group of four',
+    'nothing feels locked yet'
+  ],
+  contingency: [
+    'split the vote if idols are in play',
+    'pivot to the backup name quietly',
+    'pull in a floater to stabilize'
+  ],
+  tension: [
+    'there’s tension, but it’s repairable',
+    'it feels stiff, like trust slipped',
+    'there’s a chill they don’t want to name'
+  ],
+  repair: [
+    'they accepted the reset',
+    'they listened but stayed guarded',
+    'they didn’t fully buy it'
+  ],
+  read: [
+    'trusted',
+    'uncertain',
+    'slippery'
+  ],
+  targetRead: [
+    'careful and quiet',
+    'social but not controlling',
+    'anxious and reactive'
+  ],
+  rumor: [
+    'it sounds like small talk, not locked',
+    'the story keeps coming from different mouths',
+    'it feels like a slow build, not a push yet'
+  ],
+  loyalty: [
+    'they don’t think your name is real',
+    'they heard it once but it felt soft',
+    'they think your name is in the mix'
+  ],
+  jealousy: [
+    'they looked uneasy but tried to play it cool',
+    'they brushed it off, but the pause said enough',
+    'they said fine, but the vibe shifted'
+  ]
 };
 
 const STRATEGY_APPROACHES = {
@@ -1297,14 +1923,10 @@ class ConversationSystem {
           { key: 'splitVote', label: 'Propose Split Vote' },
           { key: 'idolTalk', label: 'Idol Talk' }
         ]
-      : [
-          { key: 'bonding', label: 'Personal / Bonding' },
-          { key: 'trust', label: 'Trust Check' },
-          { key: 'light', label: 'Light Strategy' },
-          { key: 'rumors', label: 'General Rumors' },
-          { key: 'camp', label: 'Camp Life / Morale' },
-          { key: 'confront', label: 'Confront' }
-        ];
+      : PRE_CHALLENGE_TREE.categories.map(category => ({
+          key: category.id,
+          label: category.label
+        }));
 
     categories.forEach(cat => {
       const btn = this._createChoiceButton({
@@ -1340,6 +1962,10 @@ class ConversationSystem {
     this._clearConversationContent(content);
     const parchment = this._buildParchment(`Dig deeper with ${survivor.firstName}`);
     const phase = this._getConversationPhase();
+    if (phase === 'pre' && PRE_CHALLENGE_TREE.categories.some(cat => cat.id === category)) {
+      this._showPreChallengeCategoryMenu(survivor, location, category);
+      return;
+    }
 
     const optionColumn = createElement('div', {
       style: {
@@ -1362,48 +1988,7 @@ class ConversationSystem {
       optionColumn.appendChild(btn);
     };
 
-    if (category === 'bonding') {
-      addOption('Short bonding line', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.bond_smalltalk, location, context: { phase } }));
-      addOption('Share something personal', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.bond_personal, location, context: { phase } }));
-      addOption('Thank them for help', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.bond_personal, location, context: { phase, gratitude: true } }));
-      addOption('Want to chat later?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.bond_smalltalk, location, context: { phase, followUpLater: true } }));
-    } else if (category === 'trust') {
-      addOption('Who do you feel good with?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.TRUST_WHO_DO_YOU_TRUST, location, context: { phase } }));
-      addOption('How do you feel about me?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.SOCIAL_HOW_DO_YOU_FEEL_ABOUT_ME, location, context: { phase, trustCheck: true } }));
-      addOption('Vibe check', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location, context: { phase } }));
-    } else if (category === 'light') {
-      addOption('Anyone rubbing people wrong?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.light_strategy, location, context: { phase, lightIntelTag: 'rubbing_wrong' } }));
-      addOption('Are you feeling safe today?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.SAFETY_ARE_YOU_SAFE, location, context: { phase, safetyCheck: true } }));
-      addOption('Quick strategy pulse', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.STRATEGY_WHERE_IS_YOUR_HEAD_AT, location, context: { phase, pulseCheck: true } }));
-    } else if (category === 'rumors') {
-      addOption('What have you heard?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.INTEL_HEARING_NAMES, location, context: { phase, initiator: 'player' } }));
-      addOption('Any idol rumors?', () => this._startConversation(survivor, {
-        intentOverride: POST_PHASE_INTENTS.idol_suspicion,
-        location,
-        context: { phase, initiator: 'player', subTopic: 'idol' }
-      }));
-      addOption('Who’s close?', () => this._startConversation(survivor, { intentOverride: DETERMINISTIC_INTENTS.INTEL_WHO_SEEMS_CLOSE, location, context: { phase, initiator: 'player', closenessCheck: true } }));
-      addOption('Talk about someone specific', () => this.promptSurvivorPicker({
-        title: 'Talk about who?',
-        tribeOnly: true,
-        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id]
-      }).then(selectedId => {
-        if (!selectedId) {
-          this._showCategoryMenu(survivor, location, category);
-          return;
-        }
-        const pick = this._getSurvivorById(selectedId);
-        if (!pick) {
-          this._showCategoryMenu(survivor, location, category);
-          return;
-        }
-        this._showSpecificTopicMenu(survivor, location, pick, { phase, returnCategory: category });
-      }));
-    } else if (category === 'camp') {
-      addOption('Talk camp life', () => this._startConversation(survivor, { intentOverride: 'campTalk', location, context: { phase } }));
-      addOption('Check morale', () => this._startConversation(survivor, { intentOverride: 'moodCheck', location, context: { phase } }));
-      addOption('Keep it light', () => this._startConversation(survivor, { intentOverride: 'fun', location, context: { phase } }));
-    } else if (category === 'challengeDebrief') {
+    if (category === 'challengeDebrief') {
       addOption('Lead a debrief', () => this._showChallengeDebriefMenu(survivor, location, { phase }));
     } else if (category === 'tradeInfo') {
       addOption('Ask what they’re hearing', () => this._startConversation(survivor, {
@@ -1488,13 +2073,6 @@ class ConversationSystem {
       }));
     } else if (category === 'splitVote') {
       addOption('Pitch a split vote', () => this._showSplitVoteMenu(survivor, location, { phase }));
-    } else if (category === 'confront') {
-      const canApologize = this._playerHasRecentNegativeAction();
-      if (canApologize) {
-        addOption('Apologize', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.repair_relationship, location, context: { phase } }));
-      }
-      addOption('I heard you mentioned my name', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.confront_rumor, location, context: { phase } }));
-      addOption('Why did you say that about me?', () => this._startConversation(survivor, { intentOverride: PRE_PHASE_INTENTS.confront_rumor, location, context: { phase, pressure: true } }));
     } else if (category === 'pitch') {
       addOption('Pitch a target', () => this.promptSurvivorPicker({
         title: 'Who do you want to pitch?',
@@ -1539,6 +2117,889 @@ class ConversationSystem {
       npcId: survivor.id,
       topic: category
     };
+  }
+
+  _showPreChallengeCategoryMenu(survivor, location, categoryId) {
+    this._clearOverlay();
+    const overlay = this._buildOverlayShell(survivor, { reuse: true });
+    const content = this._getConversationContent(overlay);
+    this._clearConversationContent(content);
+    const category = PRE_CHALLENGE_TREE.categories.find(cat => cat.id === categoryId);
+    if (!category) {
+      this._showTopicSelection(survivor, location);
+      return;
+    }
+
+    if (category.id === 'talk_specific') {
+      this.promptSurvivorPicker({
+        title: category.targetPrompt || 'Who do you want to talk about?',
+        tribeOnly: true,
+        excludeIds: [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id]
+      }).then(selectedId => {
+        if (!selectedId) {
+          this._showTopicSelection(survivor, location);
+          return;
+        }
+        const pick = this._getSurvivorById(selectedId);
+        if (!pick) {
+          this._showTopicSelection(survivor, location);
+          return;
+        }
+        this._showPreChallengeSpecificMenu(survivor, location, pick, category);
+      });
+      return;
+    }
+
+    const parchment = this._buildParchment(`${category.label} with ${survivor.firstName}`);
+    const optionColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginTop: '8px',
+        maxHeight: '46vh',
+        overflowY: 'auto',
+        width: '100%'
+      }
+    });
+
+    const addOption = (label, handler) => {
+      const btn = this._createChoiceButton({
+        label,
+        onClick: handler,
+        fallback: { npc: survivor }
+      });
+      optionColumn.appendChild(btn);
+    };
+
+    category.choices.forEach(choice => {
+      const label = this._resolvePlayerLine(choice, null) || choice.lines?.[0] || choice.label || choice.id;
+      addOption(label, () => this._handlePreChallengeChoice(survivor, location, choice));
+    });
+
+    this._appendNavButtonsToColumn(optionColumn, {
+      canBack: true,
+      canChangeTopic: true,
+      onBack: () => this._showTopicSelection(survivor, location),
+      onChangeTopic: () => this._showTopicSelection(survivor, location),
+      session: this.nodeSession || this.conversationSession
+    });
+    parchment.appendChild(optionColumn);
+    content.appendChild(parchment);
+
+    this.state = {
+      ...(this.state || {}),
+      npcId: survivor.id,
+      topic: categoryId
+    };
+  }
+
+  _showPreChallengeSpecificMenu(survivor, location, target, category) {
+    this._clearOverlay();
+    const overlay = this._buildOverlayShell(survivor, { reuse: true });
+    const content = this._getConversationContent(overlay);
+    this._clearConversationContent(content);
+    const parchment = this._buildParchment(`What do you want to say about ${target.firstName}?`);
+
+    const optionColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginTop: '8px',
+        maxHeight: '46vh',
+        overflowY: 'auto',
+        width: '100%'
+      }
+    });
+
+    category.choices.forEach(choice => {
+      const label = this._resolvePlayerLine(choice, target) || (choice.lines?.[0] || choice.label || choice.id).replace('{TARGET}', target.firstName);
+      const btn = this._createChoiceButton({
+        label,
+        onClick: () => this._handlePreChallengeChoice(survivor, location, choice, target),
+        fallback: { npc: survivor }
+      });
+      optionColumn.appendChild(btn);
+    });
+
+    this._appendNavButtonsToColumn(optionColumn, {
+      canBack: true,
+      canChangeTopic: true,
+      onBack: () => this._showPreChallengeCategoryMenu(survivor, location, category.id),
+      onChangeTopic: () => this._showTopicSelection(survivor, location),
+      session: this.nodeSession || this.conversationSession
+    });
+    parchment.appendChild(optionColumn);
+    content.appendChild(parchment);
+  }
+
+  _handlePreChallengeChoice(survivor, location, choice, target = null) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    if (!player) return;
+    this._clearOverlay();
+
+    const trustScore = this._getTrustScore(survivor, player);
+    const npcStyle = this._getNpcStyleKey(survivor?.gameplayStyle || survivor?.personality);
+    const riskLevel = Number.isFinite(choice.riskLevel) ? choice.riskLevel : 0.4;
+    let allowedModes = choice.responseModes || [];
+    if (['IR3', 'ST4', 'CR5'].includes(choice.id) && trustScore < 75) {
+      allowedModes = allowedModes.filter(mode => mode !== 'truth');
+    }
+    const responseMode = this._resolveNpcResponseMode({
+      npcStyle,
+      trustScore,
+      npcParanoia: survivor?.paranoia || 0,
+      npcSuspicion: survivor?.suspicion || 0,
+      npcThreat: survivor?.threat || 0,
+      playerSuspicion: player?.suspicion || 0,
+      playerThreat: player?.threat || 0,
+      topicRisk: riskLevel,
+      allowedModes
+    });
+
+    const intelPacket = this._getPreChallengeIntel(choice.id, target, responseMode);
+    const playerLine = this._resolvePlayerLine(choice, target);
+    const npcLine = this._buildNpcResponseLine({
+      npc: survivor,
+      responseMode,
+      choiceId: choice.id,
+      choice,
+      intelText: intelPacket?.text || null,
+      targetName: target?.firstName || null,
+      npcStyle
+    });
+
+    const resolved = this._resolvePreChallengeEffects({
+      choiceId: choice.id,
+      trustScore,
+      responseMode,
+      target,
+      npc: survivor
+    });
+
+    this._applyConversationEffects({
+      player,
+      npc: survivor,
+      choiceId: choice.id,
+      target,
+      intelPacket,
+      deltas: resolved.deltas,
+      responseMode
+    });
+
+    const outcomeSummary = this._formatPreChallengeOutcome(choice.outcomeTemplate, {
+      npc: survivor,
+      target,
+      intel: intelPacket?.text || 'a subtle read',
+      deltas: resolved.deltas,
+      riskLine: resolved.riskLine,
+      trustScore,
+      responseMode
+    });
+
+    if (this._isConversationDebugEnabled() && typeof window !== 'undefined' && typeof window.debugBanner === 'function') {
+      const bannerText = `mode=${responseMode} relΔ=${resolved.deltas.relationshipDelta || 0} trustΔ=${resolved.deltas.trustDelta || 0} suspΔ=${resolved.deltas.speakerSuspicionDelta || 0} intel=${intelPacket?.key || 'none'}`;
+      window.debugBanner(`PRE-CONVO: ${choice.id}`, bannerText);
+    }
+
+    this._showPreChallengeSequence({
+      npc: survivor,
+      playerLine,
+      npcLine,
+      outcomeSummary,
+      location
+    });
+  }
+
+  _showPreChallengeSequence({ npc, playerLine, npcLine, outcomeSummary, location }) {
+    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
+    if (!dialogueSystem?.showDialogue) {
+      console.warn('DialogueSystem unavailable for pre-challenge conversation.');
+      return;
+    }
+
+    dialogueSystem.showDialogue(playerLine, ['Next'], () => {
+      dialogueSystem.showDialogue(npcLine, ['Next'], () => {
+        dialogueSystem.showDialogue(outcomeSummary, ['Ask Another', 'Close'], (option) => {
+          if (option === 'Ask Another') {
+            this._showTopicSelection(npc, location);
+          } else {
+            this.closeConversation('player_end');
+          }
+        }, { backgroundColor: 'rgba(30, 30, 30, 0.95)' });
+      }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+    }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+  }
+
+  _resolvePlayerLine(choice, target) {
+    const line = this._pickFromArray(choice.lines || []);
+    if (!line) return '...';
+    const share = this._pickFromArray(PRE_CHALLENGE_PERSONAL_SHARES);
+    const targetName = target?.firstName || 'them';
+    return line.replace('{share}', share).replace('{TARGET}', targetName);
+  }
+
+  _getPreChallengeIntel(choiceId, target, responseMode) {
+    const targetName = target?.firstName || 'them';
+    const pick = (key) => this._pickFromArray(PRE_CHALLENGE_INTEL_LIBRARY[key] || []);
+    switch (choiceId) {
+      case 'BC1':
+        return { key: 'campVibe', text: pick('campVibe') };
+      case 'BC5':
+        return { key: 'teamwork', text: responseMode === 'deflect' ? 'they dodged the task invite' : 'they were open to team up' };
+      case 'RR1':
+        return { key: 'campVibe', text: pick('campVibe') };
+      case 'RR2':
+        return { key: 'behaviorShifts', text: pick('behaviorShifts') };
+      case 'RR3':
+        return { key: 'npcComfort', text: pick('npcComfort') };
+      case 'RR4':
+        return { key: 'safety', text: pick('safety') };
+      case 'RR5':
+        return { key: 'closestAllies', text: pick('closestAllies') };
+      case 'RR7':
+        return { key: 'playerStanding', text: pick('playerStanding') };
+      case 'TS1':
+        return { key: 'targetTrust', text: `${targetName} feels ${pick('read')}` };
+      case 'TS2':
+        return { key: 'targetRead', text: `${targetName} comes off as ${pick('targetRead')}` };
+      case 'TS5':
+        return { key: 'rumor', text: pick('rumor') };
+      case 'TS7':
+        return { key: 'loyaltyRead', text: pick('loyalty') };
+      case 'TS8':
+        return { key: 'jealousy', text: pick('jealousy') };
+      case 'CL1':
+        return { key: 'physicalState', text: pick('campState') };
+      case 'CL2':
+        return { key: 'morale', text: pick('morale') };
+      case 'CL3':
+        return { key: 'grievances', text: pick('grievances') };
+      case 'CL4':
+        return { key: 'motive', text: pick('motives') };
+      case 'CL5':
+        return { key: 'workEthic', text: pick('workEthic') };
+      case 'IR1':
+        return { key: 'weirdStuff', text: pick('weirdStuff') };
+      case 'IR2':
+        return { key: 'idolChatter', text: pick('idolChatter') };
+      case 'IR3':
+        return { key: 'idolClimate', text: pick('idolChatter') };
+      case 'IR5':
+        return { key: 'perception', text: pick('perception') };
+      case 'ST1':
+        return { key: 'voteType', text: pick('voteType') };
+      case 'ST2':
+        return { key: 'challengeTargets', text: pick('challengeTargets') };
+      case 'ST3':
+        return { key: 'threatRead', text: pick('threatRead') };
+      case 'ST4':
+        return { key: 'voteName', text: responseMode === 'truth' ? 'they hinted at a specific name' : 'they kept it vague' };
+      case 'ST5':
+        return { key: 'numbers', text: pick('alignment') };
+      case 'ST6':
+        return { key: 'contingency', text: pick('contingency') };
+      case 'CR1':
+        return { key: 'tension', text: pick('tension') };
+      case 'CR3':
+        return { key: 'repair', text: pick('repair') };
+      case 'CR5':
+        return { key: 'pressure', text: responseMode === 'truth' ? 'they finally gave a straight answer' : 'they dodged the question' };
+      default:
+        return { key: 'vibe', text: 'a guarded read' };
+    }
+  }
+
+  _resolvePreChallengeEffects({ choiceId, trustScore, responseMode, target, npc }) {
+    const deltas = {
+      relationshipDelta: 0,
+      trustDelta: 0,
+      reliabilityDelta: 0,
+      speakerSuspicionDelta: 0,
+      npcParanoiaDelta: 0,
+      targetThreatDelta: 0,
+      targetSuspicionDelta: 0,
+      playerParanoiaDelta: 0,
+      repStrategicDelta: 0,
+      repHelpfulDelta: 0,
+      repFakeDelta: 0,
+      repParanoidDelta: 0
+    };
+
+    const isLowTrust = trustScore < 40;
+    const isHighTrust = trustScore >= 70;
+    const isVeryHighTrust = trustScore >= 75;
+    const spammy = this._isChoiceSpammy(npc?.id, choiceId);
+
+    switch (choiceId) {
+      case 'BC1':
+        deltas.relationshipDelta = 1;
+        if (isLowTrust) {
+          deltas.speakerSuspicionDelta = 1;
+        } else {
+          deltas.trustDelta = 1;
+        }
+        break;
+      case 'BC2':
+        deltas.relationshipDelta = 2;
+        if (trustScore >= 60) deltas.trustDelta = 2;
+        if (isLowTrust) deltas.speakerSuspicionDelta = 2;
+        break;
+      case 'BC3':
+        deltas.relationshipDelta = 1;
+        deltas.npcParanoiaDelta = -1;
+        deltas.repHelpfulDelta = 1;
+        if (this._isCategoryRepeated(npc?.id, 'build_connection')) {
+          deltas.trustDelta = -1;
+          deltas.speakerSuspicionDelta = 1;
+        }
+        break;
+      case 'BC4':
+        deltas.relationshipDelta = 1;
+        if ((npc?.paranoia || 0) < 70) deltas.npcParanoiaDelta = -1;
+        break;
+      case 'BC5': {
+        deltas.relationshipDelta = 1;
+        deltas.trustDelta = 1;
+        deltas.repHelpfulDelta = 2;
+        const declined = responseMode === 'deflect' || responseMode === 'counterQ';
+        if (declined) {
+          deltas.relationshipDelta = -1;
+          deltas.playerParanoiaDelta = 1;
+        }
+        break;
+      }
+      case 'RR1':
+        if (spammy) deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'RR2':
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'RR3':
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'RR4':
+        deltas.speakerSuspicionDelta = 2;
+        deltas.npcParanoiaDelta = 1;
+        if (trustScore >= 70) deltas.trustDelta = 1;
+        break;
+      case 'RR5':
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'RR6':
+        if (trustScore >= 50) deltas.trustDelta = 1;
+        if (trustScore < 35) deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'RR7':
+        deltas.speakerSuspicionDelta = 1;
+        if (trustScore >= 75) deltas.trustDelta = 1;
+        if (isLowTrust) {
+          deltas.trustDelta = -1;
+          deltas.speakerSuspicionDelta = 2;
+        }
+        break;
+      case 'TS1':
+        deltas.targetSuspicionDelta = 1;
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'TS2':
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'TS3':
+        deltas.targetThreatDelta = 1;
+        deltas.repStrategicDelta = 1;
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'TS4':
+        deltas.targetSuspicionDelta = 2;
+        deltas.playerParanoiaDelta = 1;
+        deltas.speakerSuspicionDelta = 2;
+        break;
+      case 'TS5':
+        deltas.targetSuspicionDelta = 1;
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'TS6':
+        deltas.npcParanoiaDelta = 2;
+        deltas.targetSuspicionDelta = 2;
+        deltas.speakerSuspicionDelta = 2;
+        break;
+      case 'TS7':
+        deltas.playerParanoiaDelta = 1;
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'TS8':
+        deltas.npcParanoiaDelta = 1;
+        deltas.speakerSuspicionDelta = 1;
+        if (npc?.gameplayStyle === 'Social Genius' || npc?.gameplayStyle === 'Lethal Charmer') {
+          deltas.trustDelta = 1;
+        }
+        if (npc?.gameplayStyle === 'Power Player' || npc?.gameplayStyle === 'Shadow Strategist') {
+          deltas.trustDelta = -1;
+        }
+        break;
+      case 'TS9':
+        deltas.repStrategicDelta = 2;
+        if (npc?.gameplayStyle === 'Power Player' || npc?.gameplayStyle === 'Shadow Strategist') {
+          deltas.trustDelta = 1;
+        }
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'CL1':
+        deltas.relationshipDelta = 1;
+        break;
+      case 'CL2':
+        deltas.relationshipDelta = 1;
+        deltas.npcParanoiaDelta = responseMode === 'reassure' ? -1 : responseMode === 'deflect' ? 1 : 0;
+        break;
+      case 'CL3':
+        if (isLowTrust) deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'CL4':
+        deltas.relationshipDelta = 1;
+        break;
+      case 'CL5':
+        deltas.repStrategicDelta = 1;
+        deltas.speakerSuspicionDelta = 1;
+        deltas.targetSuspicionDelta = 1;
+        break;
+      case 'IR1':
+        if (spammy) deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'IR2':
+        deltas.speakerSuspicionDelta = 2;
+        break;
+      case 'IR3':
+        deltas.speakerSuspicionDelta = 2;
+        deltas.npcParanoiaDelta = 1;
+        break;
+      case 'IR4':
+        deltas.relationshipDelta = -2;
+        deltas.trustDelta = -2;
+        deltas.speakerSuspicionDelta = 3;
+        deltas.npcParanoiaDelta = 2;
+        deltas.repParanoidDelta = 2;
+        break;
+      case 'IR5':
+        if (isLowTrust) {
+          deltas.speakerSuspicionDelta = 1;
+        } else {
+          deltas.repFakeDelta = -1;
+        }
+        break;
+      case 'ST1':
+        deltas.repStrategicDelta = 1;
+        deltas.speakerSuspicionDelta = 1;
+        break;
+      case 'ST2':
+        deltas.targetThreatDelta = 1;
+        break;
+      case 'ST3':
+        deltas.targetThreatDelta = 2;
+        deltas.repStrategicDelta = 2;
+        deltas.speakerSuspicionDelta = 2;
+        break;
+      case 'ST4':
+        deltas.speakerSuspicionDelta = 3;
+        break;
+      case 'ST5':
+        if (this.gameManager.systems?.allianceSystem?.areAllied?.(this.gameManager.getPlayerSurvivor?.()?.id, npc?.id)) {
+          deltas.trustDelta = 1;
+          deltas.reliabilityDelta = 1;
+        } else {
+          deltas.speakerSuspicionDelta = 2;
+        }
+        break;
+      case 'ST6':
+        deltas.repStrategicDelta = 2;
+        if (npc?.gameplayStyle === 'Shadow Strategist' || npc?.gameplayStyle === 'Power Player') {
+          deltas.trustDelta = 1;
+        }
+        if (isLowTrust) deltas.speakerSuspicionDelta = 2;
+        break;
+      case 'CR1':
+        if (responseMode === 'reassure' || responseMode === 'softTruth') {
+          deltas.trustDelta = 1;
+        } else if (isLowTrust) {
+          deltas.speakerSuspicionDelta = 2;
+        }
+        break;
+      case 'CR2':
+        deltas.speakerSuspicionDelta = 2;
+        if (responseMode === 'truth') deltas.trustDelta = 1;
+        if (responseMode === 'misdirect') {
+          deltas.trustDelta = -2;
+          deltas.repFakeDelta = 2;
+        }
+        break;
+      case 'CR3':
+        if (responseMode === 'reassure') {
+          deltas.relationshipDelta = 1;
+          deltas.trustDelta = 1;
+        } else if (responseMode === 'deflect') {
+          deltas.relationshipDelta = -1;
+        }
+        break;
+      case 'CR4':
+        deltas.trustDelta = responseMode === 'deflect' ? 0 : 1;
+        deltas.reliabilityDelta = responseMode === 'deflect' ? 0 : 1;
+        break;
+      case 'CR5':
+        deltas.speakerSuspicionDelta = 3;
+        deltas.npcParanoiaDelta = 2;
+        if (responseMode === 'truth') deltas.trustDelta = 1;
+        break;
+      default:
+        break;
+    }
+
+    const riskLine = this._buildRiskLine(choiceId, { trustScore, responseMode, deltas });
+    return { deltas, riskLine };
+  }
+
+  _applyConversationEffects({ player, npc, choiceId, target, intelPacket, deltas, responseMode }) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    const playerId = player?.id;
+
+    if (relationshipSystem?.changeRelationship && deltas.relationshipDelta) {
+      relationshipSystem.changeRelationship(playerId, npc.id, deltas.relationshipDelta);
+    }
+    if (socialMemorySystem?.adjustTrust && deltas.trustDelta) {
+      socialMemorySystem.adjustTrust(npc.id, deltas.trustDelta);
+    }
+    if (socialMemorySystem?.adjustReliability && deltas.reliabilityDelta) {
+      socialMemorySystem.adjustReliability(npc.id, deltas.reliabilityDelta);
+    }
+
+    if (deltas.speakerSuspicionDelta) {
+      npc.suspicion = this._clampMetric((npc.suspicion || 0) + deltas.speakerSuspicionDelta);
+    }
+    if (deltas.npcParanoiaDelta) {
+      npc.paranoia = this._clampMetric((npc.paranoia || 0) + deltas.npcParanoiaDelta);
+    }
+    if (deltas.playerParanoiaDelta) {
+      player.paranoia = this._clampMetric((player.paranoia || 0) + deltas.playerParanoiaDelta);
+      this._updatePlayerReputation({ paranoid: deltas.playerParanoiaDelta });
+    }
+
+    if (target) {
+      if (deltas.targetThreatDelta) {
+        target.threat = this._clampMetric((target.threat || 0) + deltas.targetThreatDelta);
+      }
+      if (deltas.targetSuspicionDelta) {
+        target.suspicion = this._clampMetric((target.suspicion || 0) + deltas.targetSuspicionDelta);
+      }
+    }
+
+    if (deltas.repStrategicDelta || deltas.repHelpfulDelta || deltas.repFakeDelta || deltas.repParanoidDelta) {
+      this._updatePlayerReputation({
+        strategic: deltas.repStrategicDelta,
+        helpful: deltas.repHelpfulDelta,
+        fake: deltas.repFakeDelta,
+        paranoid: deltas.repParanoidDelta
+      });
+    }
+
+    if (socialMemorySystem?.recordConversationEvent) {
+      socialMemorySystem.recordConversationEvent({
+        type: 'PRE_CONVO',
+        speakerId: playerId,
+        listenerId: npc.id,
+        topicPersonId: target?.id || null,
+        data: {
+          choiceId,
+          resolvedMode: responseMode,
+          intelPacket,
+          deltas
+        },
+        phase: 'pre'
+      });
+    }
+
+    this._updateLastTopics(npc.id, choiceId);
+  }
+
+  _resolveNpcResponseMode({ npcStyle, trustScore, npcParanoia, npcSuspicion, npcThreat, playerSuspicion, playerThreat, topicRisk, allowedModes }) {
+    const baseWeights = {
+      truth: 1,
+      softTruth: 1.15,
+      deflect: 1,
+      counterQ: 0.9,
+      misdirect: 0.85,
+      reassure: 1,
+      escalate: 0.6
+    };
+
+    const weights = {};
+    const modes = allowedModes.length ? allowedModes : Object.keys(baseWeights);
+    modes.forEach(mode => {
+      weights[mode] = baseWeights[mode] || 0.8;
+    });
+
+    const pressure = (npcParanoia + npcSuspicion + npcThreat + playerSuspicion + playerThreat) / 5;
+    if (trustScore >= 75) {
+      weights.truth = (weights.truth || 0) + 0.8;
+      weights.softTruth = (weights.softTruth || 0) + 0.5;
+      weights.reassure = (weights.reassure || 0) + 0.4;
+    }
+    if (trustScore < 40 || pressure >= 60 || topicRisk >= 0.6) {
+      weights.deflect = (weights.deflect || 0) + 0.6;
+      weights.misdirect = (weights.misdirect || 0) + 0.5;
+      weights.counterQ = (weights.counterQ || 0) + 0.4;
+    }
+    if (pressure >= 70) {
+      weights.escalate = (weights.escalate || 0) + 0.4;
+    }
+
+    switch (npcStyle) {
+      case 'competitive':
+        weights.deflect += 0.5;
+        weights.truth -= 0.2;
+        break;
+      case 'power':
+        weights.counterQ += 0.5;
+        weights.truth += 0.2;
+        break;
+      case 'social':
+        weights.reassure += 0.6;
+        weights.softTruth += 0.4;
+        break;
+      case 'shadow':
+        weights.misdirect += 0.6;
+        weights.counterQ += 0.4;
+        break;
+      case 'charmer':
+        weights.reassure += 0.5;
+        weights.counterQ += 0.2;
+        break;
+      case 'wildcard':
+        weights.truth += Math.random() * 0.4;
+        weights.escalate += Math.random() * 0.4;
+        weights.misdirect += Math.random() * 0.4;
+        break;
+      default:
+        break;
+    }
+
+    const normalized = Object.entries(weights)
+      .filter(([mode]) => modes.includes(mode))
+      .map(([mode, weight]) => ({ mode, weight: Math.max(0.05, weight) }));
+
+    const total = normalized.reduce((sum, entry) => sum + entry.weight, 0);
+    let roll = Math.random() * total;
+    for (const entry of normalized) {
+      roll -= entry.weight;
+      if (roll <= 0) return entry.mode;
+    }
+    return normalized[0]?.mode || 'softTruth';
+  }
+
+  _buildNpcResponseLine({ npc, responseMode, choice, choiceId, intelText, targetName, npcStyle }) {
+    const styleTag = npcStyle;
+    const verb = this._pickNpcVerb(responseMode);
+    const name = npc?.firstName || 'They';
+    const targetTag = targetName ? `${targetName}` : 'someone';
+
+    const styleAdditions = {
+      competitive: ['"I’m just focused on the challenge right now."'],
+      power: ['"If we’re doing this, we need a clean path."'],
+      social: ['"No drama, just keeping it calm."'],
+      shadow: ['"I’m keeping it quiet for a reason."'],
+      charmer: ['"I’m good with you—just keep it real."'],
+      wildcard: ['"It changes fast, so I’m staying loose."']
+    };
+
+    const modeLines = {
+      truth: [
+        `"Here’s the real read: ${intelText || 'it’s clearer than people admit'}."`,
+        `"Straight up—${intelText || 'things are more connected than they look'}."`,
+        targetName ? `"About ${targetTag}? ${intelText || 'I’ll say it plainly.'}"` : `"I’ll be straight: ${intelText || 'it’s not locked yet'}."`
+      ],
+      softTruth: [
+        `"The vibe is ${intelText || 'a little guarded'}."`,
+        `"I’d say ${intelText || 'it’s moving, but not locked'}."`,
+        targetName ? `"On ${targetTag}, ${intelText || 'I’m still reading it'}."` : `"I’m feeling ${intelText || 'some tension'}."`
+      ],
+      deflect: [
+        '"Too early to lock that. I’m just playing the day."',
+        '"I’m not putting names on that right now."',
+        '"Let’s see how today shakes out."'
+      ],
+      counterQ: [
+        '"Why are you asking me that?"',
+        '"What’s your angle on this?"',
+        '"You first—what are you hearing?"'
+      ],
+      misdirect: [
+        `"I’ve mostly heard ${targetName ? `${targetTag} is fine` : 'nothing solid'}."`,
+        '"I haven’t seen anything real, honestly."',
+        `"If anything, it’s ${targetName ? `${targetTag}` : 'someone else'} catching heat."`
+      ],
+      reassure: [
+        '"We’re good. I’m not trying to make this messy."',
+        '"We’re fine—just keep it clean."',
+        `"I’m good with you. ${intelText || 'Let’s stay steady.'}"`
+      ],
+      escalate: [
+        '"What’s with the interrogation?"',
+        '"That’s a bold thing to ask."',
+        '"You’re digging a little hard right now."'
+      ]
+    };
+
+    const line = this._pickFromArray(modeLines[responseMode] || modeLines.softTruth);
+    const styleLine = this._pickFromArray(styleAdditions[styleTag] || []);
+    const combined = styleLine ? `${line} ${styleLine}` : line;
+    return this._npcDoes(npc, verb.singular, verb.plural, combined);
+  }
+
+  _formatPreChallengeOutcome(template, { target, intel, deltas, riskLine, responseMode }) {
+    const formatDelta = (value) => `${value >= 0 ? '+' : ''}${value || 0}`;
+    const safeIntel = intel || 'a cautious read';
+    const trustDelta = formatDelta(deltas.trustDelta || 0);
+    const relDelta = formatDelta(deltas.relationshipDelta || 0);
+    const reliaDelta = formatDelta(deltas.reliabilityDelta || 0);
+    const repDeltaStrategic = formatDelta(deltas.repStrategicDelta || 0);
+    const repDeltaHelpful = formatDelta(deltas.repHelpfulDelta || 0);
+    const suspDelta = formatDelta(deltas.speakerSuspicionDelta || 0);
+    const toneRead = responseMode === 'reassure' ? 'they signaled calm' : responseMode === 'deflect' ? 'they shut it down' : 'they gave a measured read';
+    const baseRisk = riskLine || 'steady';
+    const targetName = target?.firstName || 'them';
+
+    return template
+      .replace('{relDelta}', relDelta)
+      .replace('{trustDelta}', trustDelta)
+      .replace('{reliaDelta}', reliaDelta)
+      .replace('{repDeltaStrategic}', repDeltaStrategic)
+      .replace('{repDeltaHelpful}', repDeltaHelpful)
+      .replace('{campVibeIntel}', safeIntel)
+      .replace('{behaviorIntel}', safeIntel)
+      .replace('{comfortIntel}', safeIntel)
+      .replace('{safetyIntel}', safeIntel)
+      .replace('{allyIntel}', safeIntel)
+      .replace('{standingIntel}', safeIntel)
+      .replace('{readIntel}', safeIntel)
+      .replace('{targetReadIntel}', safeIntel)
+      .replace('{rumorIntel}', safeIntel)
+      .replace('{loyaltyIntel}', safeIntel)
+      .replace('{reactionIntel}', safeIntel)
+      .replace('{stateIntel}', safeIntel)
+      .replace('{moraleIntel}', safeIntel)
+      .replace('{grievanceIntel}', safeIntel)
+      .replace('{motiveIntel}', safeIntel)
+      .replace('{weirdIntel}', safeIntel)
+      .replace('{idolIntel}', safeIntel)
+      .replace('{perceptionIntel}', safeIntel)
+      .replace('{voteTypeIntel}', safeIntel)
+      .replace('{challengeIntel}', safeIntel)
+      .replace('{numbersIntel}', safeIntel)
+      .replace('{resultIntel}', safeIntel)
+      .replace('{tensionIntel}', safeIntel)
+      .replace('{repairResult}', safeIntel)
+      .replace('{toneRead}', toneRead)
+      .replace('{riskLineOptional}', baseRisk)
+      .replace('{riskLine}', baseRisk)
+      .replace('{suspDelta}', suspDelta)
+      .replace('{intelVibe}', safeIntel)
+      .replace('{intelIfDeclined}', responseMode === 'deflect' || responseMode === 'counterQ' ? 'They brushed off the task invite' : 'They stayed open to teaming up')
+      .replace('{TARGET}', targetName);
+  }
+
+  _buildRiskLine(choiceId, { deltas }) {
+    if (deltas.speakerSuspicionDelta >= 3) return 'major suspicion spike';
+    if (deltas.speakerSuspicionDelta >= 2) return 'probing raised suspicion';
+    if (deltas.speakerSuspicionDelta >= 1) return 'you looked a little curious';
+    if (choiceId.startsWith('IR') || choiceId.startsWith('ST')) return 'low-level risk';
+    return 'steady';
+  }
+
+  _getTrustScore(npc, player) {
+    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    const relValue = relationshipSystem?.getRelationship?.(player.id, npc.id)?.value ?? 50;
+    const memoryTrust = socialMemorySystem?.getTrust?.(npc.id) ?? 50;
+    return Math.round((relValue + memoryTrust) / 2);
+  }
+
+  _getNpcStyleKey(style) {
+    const normalized = (style || '').toLowerCase();
+    if (normalized.includes('competitive')) return 'competitive';
+    if (normalized.includes('power')) return 'power';
+    if (normalized.includes('social')) return 'social';
+    if (normalized.includes('shadow')) return 'shadow';
+    if (normalized.includes('charmer')) return 'charmer';
+    if (normalized.includes('wild')) return 'wildcard';
+    return 'neutral';
+  }
+
+  _pickNpcVerb(mode) {
+    const verbMap = {
+      truth: ['nods', 'nod'],
+      softTruth: ['shrugs', 'shrug'],
+      deflect: ['shakes', 'shake'],
+      counterQ: ['tilts', 'tilt'],
+      misdirect: ['lowers', 'lower'],
+      reassure: ['softens', 'soften'],
+      escalate: ['narrows', 'narrow']
+    };
+    const [singular, plural] = verbMap[mode] || ['shrugs', 'shrug'];
+    return { singular, plural };
+  }
+
+  _pickFromArray(list) {
+    if (!Array.isArray(list) || list.length === 0) return '';
+    return list[getRandomInt(0, list.length - 1)];
+  }
+
+  _clampMetric(value) {
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(100, value));
+  }
+
+  _updatePlayerReputation(deltas = {}) {
+    if (!this.gameManager.playerReputation) {
+      this.gameManager.playerReputation = { strategic: 0, paranoid: 0, fake: 0, helpful: 0 };
+    }
+    const rep = this.gameManager.playerReputation;
+    rep.strategic = this._clampMetric(rep.strategic + (deltas.strategic || 0));
+    rep.paranoid = this._clampMetric(rep.paranoid + (deltas.paranoid || 0));
+    rep.fake = this._clampMetric(rep.fake + (deltas.fake || 0));
+    rep.helpful = this._clampMetric(rep.helpful + (deltas.helpful || 0));
+  }
+
+  _isChoiceSpammy(npcId, choiceId) {
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    const memory = socialMemorySystem?.memory?.[npcId];
+    if (!memory?.lastTopics) return false;
+    const recent = memory.lastTopics.slice(-3);
+    return recent.filter(entry => entry?.choiceId === choiceId).length >= 1;
+  }
+
+  _isCategoryRepeated(npcId, categoryId) {
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    const memory = socialMemorySystem?.memory?.[npcId];
+    if (!memory?.lastTopics) return false;
+    const recent = memory.lastTopics.slice(-2);
+    return recent.some(entry => entry?.categoryId === categoryId);
+  }
+
+  _updateLastTopics(npcId, choiceId) {
+    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
+    if (!socialMemorySystem?.initNPC) return;
+    socialMemorySystem.initNPC(npcId);
+    const memory = socialMemorySystem.memory[npcId];
+    const category = PRE_CHALLENGE_TREE.categories.find(cat => cat.choices.some(choice => choice.id === choiceId));
+    memory.lastTopics = memory.lastTopics || [];
+    memory.lastTopics.push({
+      choiceId,
+      categoryId: category?.id || null,
+      at: Date.now()
+    });
+    if (memory.lastTopics.length > 8) {
+      memory.lastTopics.splice(0, memory.lastTopics.length - 8);
+    }
   }
 
   _showApproachMenu(survivor, location, { title = 'How do you want to approach this?', onSelect, onBack } = {}) {
