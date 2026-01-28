@@ -3,7 +3,7 @@
 // NPC intent planning (decision-only)
 // ===============================
 
-import gameManager from "../core/GameManager.js";
+import gameManager, { GamePhase } from "../core/GameManager.js";
 import { LocationKeys } from "../core/LocationKeys.js";
 import { shuffleArray } from "../utils/CommonUtils.js";
 
@@ -37,42 +37,30 @@ class NpcIntentPlanner {
     }
 
     showDialogue(npc, group = [], type = "bonding") {
-        const conversationSystem = gameManager.systems?.conversationSystem;
         if (!npc) return;
-        if (conversationSystem?.startNpcConversation) {
-            conversationSystem.startNpcConversation(npc, type, {
-                context: {
-                    initiatedByNpc: true,
-                    phase: this.phaseType
-                },
-                location: typeof window !== "undefined" ? window?.campScreen?.currentView : null
-            });
-            return;
-        }
-        const dialogueSystem = gameManager.systems?.dialogueSystem;
-        if (!dialogueSystem?.startConversation) {
-            console.warn("DialogueSystem unavailable or missing startConversation.");
+        const conversationSystem = gameManager.systems?.conversationSystem
+            || (typeof window !== "undefined" ? window?.conversationSystem : null);
+        if (!conversationSystem?.startNpcConversation) {
+            console.error("SocialEngine: ConversationSystem unavailable; cannot start NPC conversation.");
             return;
         }
 
-        const openerLine = this._getOpenerLine(type, npc);
-        const choices = this._getPlayerChoices(type);
+        const normalizedPhase = this._normalizePhase(this.phaseType);
+        const phase = normalizedPhase === "post" ? GamePhase.POST_CHALLENGE : GamePhase.PRE_CHALLENGE;
+        const location = typeof window !== "undefined" ? window?.campScreen?.currentView : null;
 
-        dialogueSystem.startConversation({
-            speaker: npc,
-            group,
-            topic: type,
-            opener: openerLine,
-            choices,
-            onChoice: (choiceText, index) => {
-                this.handlePlayerChoice({
-                    npc,
-                    group,
-                    type,
-                    choiceText,
-                    choiceIndex: index
-                });
-            }
+        if (typeof window !== "undefined" && window.DEBUG_SOCIAL_SIM) {
+            console.log(
+                `SocialEngine → ConversationSystem.startNpcConversation npc=${npc?.id} type=${type} phase=${phase}`
+            );
+        }
+
+        conversationSystem.startNpcConversation(npc, type, {
+            initiatedByNpc: true,
+            context: {
+                phase
+            },
+            location
         });
     }
 
