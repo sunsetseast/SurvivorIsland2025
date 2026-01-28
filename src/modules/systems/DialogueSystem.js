@@ -93,6 +93,14 @@ class DialogueSystem {
    * @returns {string} Dialogue ID
    */
   showDialogue(message, options = ["OK"], callback = null, styles = {}) {
+    console.log('[DIALOGUE-DEBUG] showDialogue called', { 
+      message: message?.substring?.(0, 40), 
+      options,
+      isDialogueShowing: this.isDialogueShowing,
+      dialogueAnimationInProgress: this.dialogueAnimationInProgress,
+      queueLength: this.dialogueQueue.length,
+      hasContainer: !!this.dialogueContainer
+    });
     if (!this.dialogueContainer) {
       console.error('Dialogue container not found');
       return null;
@@ -102,6 +110,7 @@ class DialogueSystem {
     
     // If a dialogue is already showing, queue this one
     if (this.isDialogueShowing || this.dialogueAnimationInProgress) {
+      console.log('[DIALOGUE-DEBUG] Queueing dialogue (already showing/animating)');
       this.dialogueQueue.push({
         id: dialogueId,
         message,
