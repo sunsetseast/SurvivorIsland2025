@@ -6431,12 +6431,14 @@ class ConversationSystem {
           return;
         }
         let response = null;
+        console.log('[CONVO-DEBUG] Choice selected with responseOption', { intent: session.intent, choiceId: choice.id });
         try {
           this._debugLog('CONVO: handleResponse start', {
             intent: session.intent,
             responseOptionKeys: Object.keys(choice.responseOption || {})
           });
           response = this._handleResponse(npc, session.intent, choice.responseOption, session.meeting, session);
+          console.log('[CONVO-DEBUG] _handleResponse returned', { hasResponse: !!response, responseKeys: response ? Object.keys(response) : [] });
         } catch (error) {
           console.error('ConversationSystem: responseOption handling failed', error);
           const errorMessage = error?.message || String(error);
@@ -6450,6 +6452,7 @@ class ConversationSystem {
         }
         let { menu, endConversation, action } = response || {};
         const hasOnEnd = typeof endConversation === 'function';
+        console.log('[CONVO-DEBUG] Response parsed', { hasMenu: !!menu, menuText: menu?.text?.substring?.(0, 50), menuButtons: menu?.buttons?.length, action, hasOnEnd });
         this._debugLog('CONVO: handleResponse result', {
           hasMenu: !!menu,
           menuKeys: menu ? Object.keys(menu) : [],
@@ -6459,19 +6462,23 @@ class ConversationSystem {
         this._debugLog(`CONVO NODE: choice=${choice.id || 'unknown'} intent=${session.intent} hasMenu=${!!menu} hasOnEnd=${hasOnEnd}`);
         session.pendingEndConversation = hasOnEnd ? endConversation : null;
         if (action === 'endConversationNow') {
+          console.log('[CONVO-DEBUG] Action: endConversationNow - closing');
           this.endConversation(session);
           return;
         }
         if (action === 'offerDealMenu') {
+          console.log('[CONVO-DEBUG] Action: offerDealMenu');
           this._debugLog('CONVO: responseOption branch -> offerDealMenu');
           this._showDealMenu(npc, session.context.location);
           return;
         }
         if (action === 'counterTarget') {
+          console.log('[CONVO-DEBUG] Action: counterTarget');
           this._debugLog('CONVO: responseOption branch -> counterTarget');
           return;
         }
         if (!menu) {
+          console.warn('[CONVO-DEBUG] No menu - using fallback');
           console.warn('ConversationSystem: Missing menu response for choice.', choice);
           menu = this._buildFallbackResponseMenu({
             npc,
@@ -6487,7 +6494,11 @@ class ConversationSystem {
         if (!menu.npcResponse && menu.text) {
           menu.npcResponse = menu.text;
         }
-        const menuNodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
+        console.log('[CONVO-DEBUG] Building menu node', { npcResponse: menu.npcResponse?.substring?.(0, 50), buttons: menu.buttons?.length });
+        const builtNode = this._buildNodeFromMenu(menu, session.intent, session.context);
+        console.log('[CONVO-DEBUG] Built node', { hasChoices: !!builtNode.choices, choicesCount: builtNode.choices?.length });
+        const menuNodeId = this._registerNode(session, builtNode);
+        console.log('[CONVO-DEBUG] Transitioning to node', { menuNodeId });
         this._debugLog('CONVO: responseOption branch -> registered menu node', { menuNodeId });
         this._transitionToNode(session, menuNodeId);
         return;
