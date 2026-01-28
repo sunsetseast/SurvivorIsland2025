@@ -6343,10 +6343,12 @@ class ConversationSystem {
   }
 
   _handleNodeChoice(session, nodeId, choice) {
+    console.log('[CONVO-DEBUG] _handleNodeChoice ENTRY', { nodeId, choiceId: choice?.id, choiceLabel: choice?.label, hasResponseOption: !!choice?.responseOption });
     if (!session || !choice) return;
     const npc = this._getSurvivorById(session.npcId);
     if (!npc) return;
     try {
+      console.log('[CONVO-DEBUG] Processing choice', { intent: session.intent, hasNpcReply: !!choice.npcReply, hasAction: !!choice.action, hasNextNode: !!choice.nextNode, hasNextMenu: !!choice.nextMenu });
       this._debugLog('CONVO: choice selected', {
         nodeId,
         choiceId: choice.id,
