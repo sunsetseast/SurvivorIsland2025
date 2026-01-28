@@ -6448,7 +6448,7 @@ class ConversationSystem {
           );
           return;
         }
-        const { menu, endConversation, action } = response || {};
+        let { menu, endConversation, action } = response || {};
         const hasOnEnd = typeof endConversation === 'function';
         this._debugLog('CONVO: handleResponse result', {
           hasMenu: !!menu,
@@ -6473,9 +6473,15 @@ class ConversationSystem {
         }
         if (!menu) {
           console.warn('ConversationSystem: Missing menu response for choice.', choice);
-          this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`, 'missing_menu_response');
-          this._debugLog('CONVO: responseOption branch -> no menu recovery');
-          return;
+          menu = this._buildFallbackResponseMenu({
+            npc,
+            intent: session.intent,
+            context: session.context,
+            responseOption: choice.responseOption,
+            session,
+            reason: 'missing_menu_response'
+          });
+          this._debugLog('CONVO: responseOption branch -> fallback menu used');
         }
         menu.playerNarration = menu.playerNarration || formattedNarration;
         if (!menu.npcResponse && menu.text) {
@@ -6999,7 +7005,7 @@ class ConversationSystem {
         intent: session.intent,
         responseOptionKeys: Object.keys(responseOption || {})
       });
-      const { menu, endConversation } = this._handleResponse(npc, session.intent, responseOption, session.meeting, session);
+      let { menu, endConversation } = this._handleResponse(npc, session.intent, responseOption, session.meeting, session);
       this._debugLog('CONVO: handleResponse result', {
         hasMenu: !!menu,
         menuKeys: menu ? Object.keys(menu) : [],
@@ -7007,7 +7013,14 @@ class ConversationSystem {
       });
       session.pendingEndConversation = typeof endConversation === 'function' ? endConversation : null;
       if (!menu) {
-        return;
+        menu = this._buildFallbackResponseMenu({
+          npc,
+          intent: session.intent,
+          context: session.context,
+          responseOption,
+          session,
+          reason: 'missing_menu_response'
+        });
       }
       menu.playerNarration = menu.playerNarration || playerNarration || this._fallbackPlayerNarration(session.intent);
       if (!menu.npcResponse && menu.text) {
@@ -7472,14 +7485,76 @@ class ConversationSystem {
     return 'lie';
   }
 
+  _getFallbackNpcResponseLine(intent, context = {}) {
+    const suspiciousIntents = new Set([
+      POST_PHASE_INTENTS.ask_intel,
+      POST_PHASE_INTENTS.idol_suspicion,
+      POST_PHASE_INTENTS.pitch_target,
+      POST_PHASE_INTENTS.deflect_target,
+      POST_PHASE_INTENTS.verify_story,
+      POST_PHASE_INTENTS.plant_seed,
+      POST_PHASE_INTENTS.talk_specific_person,
+      PRE_PHASE_INTENTS.light_strategy,
+      PRE_PHASE_INTENTS.confront_rumor,
+      'gossip',
+      'warning',
+      'confrontation',
+      'hardStrategy',
+      'deal'
+    ]);
+    if (suspiciousIntents.has(intent) || context.subTopic === 'idol' || context.socialType === 'idolSuspicion') {
+      return 'Why are you digging for that right now?';
+    }
+    const fallbackLines = [
+      'I’m trying to stay focused right now. Hit me with something simple.',
+      'Not sure I have a read on that yet. What else?'
+    ];
+    return fallbackLines[getRandomInt(0, fallbackLines.length - 1)];
+  }
+
+  _logResponseFallback({ intent, responseOption, responseMode, reason, error } = {}) {
+    const payload = {
+      intent: intent || null,
+      responseOptionKeys: Object.keys(responseOption || {}),
+      responseMode: responseMode || null,
+      reason,
+      error: error?.message || null
+    };
+    if (this._isConversationDebugEnabled()) {
+      this._debugLog('CONVO: fallback response used', payload);
+      this._debugBanner('CONVO fallback', reason || 'unknown');
+    } else {
+      console.warn('ConversationSystem: fallback response used.', payload);
+    }
+  }
+
+  _buildFallbackResponseMenu({ npc, intent, context = {}, responseOption = {}, session = null, reason = 'unknown', responseMode = null, error = null } = {}) {
+    const npcResponse = this._getFallbackNpcResponseLine(intent, context);
+    if (session) {
+      this._applyNodeEffects(session, { suspicionDelta: 1, context: 'fallback_response' });
+    }
+    this._logResponseFallback({ intent, responseOption, responseMode, reason, error });
+    return {
+      text: npcResponse,
+      npcResponse,
+      additionalText: 'Outcome: No strong read gained.',
+      buttons: [
+        { label: 'Ask something else', playerLine: 'You pivot to another topic.', action: 'changeTopic' },
+        { label: 'End chat', playerLine: 'You decide to wrap it up.', action: 'endConversation' }
+      ]
+    };
+  }
+
   _handleResponse(survivor, intent, option, meeting, session) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     const socialLog = ensureCampSocialChanges();
     const context = this._normalizeConversationContext({ ...(this.activeConversationContext || {}) });
     const subjectId = context.targetId || context.topicPersonId || context.topicId || this._getSurvivorByName(context.topicPersonName || context.topicPerson)?.id || null;
+    const responseOption = option || {};
+    const responseMode = responseOption.responseMode || responseOption.mode || responseOption.responseModes?.[0] || null;
 
-    if (option?.action === 'offerDealMenu') {
+    if (responseOption?.action === 'offerDealMenu') {
       return { action: 'offerDealMenu' };
     }
 
@@ -7491,13 +7566,26 @@ class ConversationSystem {
     let finalDealOutcome = null;
 
     const endConversation = () => {
-      this._logConversationOutcome(survivor, intent, option, meeting, this.activeConversationContext || context, finalDealOutcome);
+      this._logConversationOutcome(survivor, intent, responseOption, meeting, this.activeConversationContext || context, finalDealOutcome);
     };
+
+    if (!responseOption || Object.keys(responseOption).length === 0) {
+      const menu = this._buildFallbackResponseMenu({
+        npc: survivor,
+        intent,
+        context,
+        responseOption,
+        session,
+        reason: 'missing_response_option',
+        responseMode
+      });
+      return { menu, endConversation };
+    }
 
     if (intent === 'allianceInvite') {
       const menu = this._handleAllianceInviteResponse({
         survivor,
-        option,
+        option: responseOption,
         meeting,
         context,
         socialLog,
@@ -7562,7 +7650,7 @@ class ConversationSystem {
     }
 
     const baseDelta = this._getIntentRelationshipDelta(intent, npcStance);
-    let appliedDelta = typeof option.delta === 'number' ? option.delta : baseDelta;
+    let appliedDelta = typeof responseOption.delta === 'number' ? responseOption.delta : baseDelta;
     if ([PRE_PHASE_INTENTS.bond_smalltalk, PRE_PHASE_INTENTS.bond_personal].includes(intent) || context.socialType === 'bonding') {
       appliedDelta = typeof appliedDelta === 'number'
         ? Math.min(6, Math.max(2, appliedDelta))
@@ -7573,8 +7661,8 @@ class ConversationSystem {
       relationshipSystem.changeRelationship(player.id, survivor.id, appliedDelta || 0);
     }
 
-    const relationshipDelta = typeof option.relationshipDelta === 'number'
-      ? option.relationshipDelta
+    const relationshipDelta = typeof responseOption.relationshipDelta === 'number'
+      ? responseOption.relationshipDelta
       : (typeof appliedDelta === 'number' ? appliedDelta : (typeof baseDelta === 'number' ? baseDelta : null));
 
     if (relationshipDelta !== null) {
@@ -7586,8 +7674,8 @@ class ConversationSystem {
       });
     }
 
-    const trustDelta = typeof option.trustDelta === 'number'
-      ? option.trustDelta
+    const trustDelta = typeof responseOption.trustDelta === 'number'
+      ? responseOption.trustDelta
       : (intent === 'trust' && typeof appliedDelta === 'number' ? appliedDelta : null);
 
     if (trustDelta !== null) {
@@ -7599,8 +7687,8 @@ class ConversationSystem {
       });
     }
 
-    const suspicionDelta = typeof option.suspicionDelta === 'number'
-      ? option.suspicionDelta
+    const suspicionDelta = typeof responseOption.suspicionDelta === 'number'
+      ? responseOption.suspicionDelta
       : ((intent === 'gossip' || intent === 'warning' || intent === 'confrontation') && typeof appliedDelta === 'number'
         ? appliedDelta
         : null);
@@ -7614,8 +7702,8 @@ class ConversationSystem {
       });
     }
 
-    this._shiftMood(survivor.id, option.mood);
-    this._rememberConversation(survivor, intent, option, meeting);
+    this._shiftMood(survivor.id, responseOption.mood);
+    this._rememberConversation(survivor, intent, responseOption, meeting);
 
     if ((intent === POST_PHASE_INTENTS.idol_suspicion || context.socialType === 'idolSuspicion') && player && relationshipSystem?.changeRelationship) {
       const penalty = -getRandomInt(1, 3);
@@ -7628,245 +7716,275 @@ class ConversationSystem {
       });
     }
 
-    let followupText = option.followup || this._pickNpcResponse(intent, npcStance, {
-      subjectName: targetName,
-      npcName: survivor.firstName
-    }, survivor);
-    followupText = followupText
-      .replace('{npc}', survivor.firstName)
-      .replace('{target}', targetName || 'someone')
-      .replace('{ally}', allyName || 'someone')
-      .replace('{dealTopic}', dealTopic)
-      .replace('{subjectName}', targetName || 'someone');
-    followupText = this._ensureNpcReplyLine(followupText, survivor, npcStance, {
-      subjectName: targetName,
-      npcName: survivor.firstName
-    }, intent);
-
-    const honestyRoll = this._npcHonestyCheck(survivor);
-
-    const dealOutcome = this._isDealIntent(intent)
-      ? this._evaluateDealResponse(survivor, context, option)
-      : null;
-
-    finalDealOutcome = dealOutcome;
-
-    if (!honestyRoll && this._isDealIntent(intent) && player?.id) {
-      this.gameManager.systems?.socialMemorySystem?.recordLie(survivor.id, player.id, 'fake_agreement', followupText);
-      this._logSocialEvent({
-        type: 'LIE_TOLD',
-        speakerId: survivor.id,
-        listenerId: player.id,
-        subjectId,
-        data: { context: 'fake_agreement' }
-      });
-    }
-
-    if (dealOutcome) {
-      followupText = `${dealOutcome.summary}`;
-      if (dealOutcome.delta) {
-        relationshipSystem?.changeRelationship?.(player?.id, survivor.id, dealOutcome.delta);
+    try {
+      let followupText = responseOption.followup || this._pickNpcResponse(intent, npcStance, {
+        subjectName: targetName,
+        npcName: survivor.firstName
+      }, survivor);
+      if (!followupText) {
+        const menu = this._buildFallbackResponseMenu({
+          npc: survivor,
+          intent,
+          context,
+          responseOption,
+          session,
+          reason: 'template_bank_empty',
+          responseMode
+        });
+        return { menu, endConversation };
       }
-    }
+      followupText = followupText
+        .replace('{npc}', survivor.firstName)
+        .replace('{target}', targetName || 'someone')
+        .replace('{ally}', allyName || 'someone')
+        .replace('{dealTopic}', dealTopic)
+        .replace('{subjectName}', targetName || 'someone');
+      followupText = this._ensureNpcReplyLine(followupText, survivor, npcStance, {
+        subjectName: targetName,
+        npcName: survivor.firstName
+      }, intent);
 
-    if (dealOutcome || option.dealResult) {
-      const dealStatus = dealOutcome?.status || option.dealResult;
-      const outcomeMap = {
-        accepted: 'agreed',
-        agree: 'agreed',
-        tentative: 'played_along',
-        playAlong: 'played_along',
-        declined_politely: 'rejected',
-        declined_suspicious: 'rejected',
-        counter: 'noncommittal'
+      const honestyRoll = this._npcHonestyCheck(survivor);
+
+      const dealOutcome = this._isDealIntent(intent)
+        ? this._evaluateDealResponse(survivor, context, responseOption)
+        : null;
+
+      finalDealOutcome = dealOutcome;
+
+      if (!honestyRoll && this._isDealIntent(intent) && player?.id) {
+        this.gameManager.systems?.socialMemorySystem?.recordLie(survivor.id, player.id, 'fake_agreement', followupText);
+        this._logSocialEvent({
+          type: 'LIE_TOLD',
+          speakerId: survivor.id,
+          listenerId: player.id,
+          subjectId,
+          data: { context: 'fake_agreement' }
+        });
+      }
+
+      if (dealOutcome) {
+        followupText = `${dealOutcome.summary}`;
+        if (dealOutcome.delta) {
+          relationshipSystem?.changeRelationship?.(player?.id, survivor.id, dealOutcome.delta);
+        }
+      }
+
+      if (dealOutcome || responseOption.dealResult) {
+        const dealStatus = dealOutcome?.status || responseOption.dealResult;
+        const outcomeMap = {
+          accepted: 'agreed',
+          agree: 'agreed',
+          tentative: 'played_along',
+          playAlong: 'played_along',
+          declined_politely: 'rejected',
+          declined_suspicious: 'rejected',
+          counter: 'noncommittal'
+        };
+        const outcome = outcomeMap[dealStatus] || 'noncommittal';
+        const targetName = context?.topicPerson || null;
+        socialLog.deals.push({
+          with: survivor.firstName,
+          dealType: normalizeDealType(context?.dealType || context?.intent || 'voteTogether'),
+          target: targetName || null,
+          outcome
+        });
+      }
+
+      if (context?.topicPerson && responseOption.gossipEffect) {
+        socialLog.gossip.push({
+          id: survivor.id,
+          with: survivor.firstName,
+          about: context.topicPerson,
+          effect: responseOption.gossipEffect
+        });
+      }
+
+      if (responseOption.memoryTags && responseOption.memoryTags.length > 0) {
+        socialLog.memory.push({
+          id: survivor.id,
+          with: survivor.firstName,
+          tags: responseOption.memoryTags.slice()
+        });
+        const socialMemory = this.gameManager.systems?.socialMemory || this.gameManager.systems?.socialMemorySystem;
+        responseOption.memoryTags.forEach(t => {
+          socialMemory?.storeMemory?.(
+            survivor.id,
+            t,
+            { fromPlayer: true }
+          );
+        });
+      }
+
+      if (responseOption.voteShift) {
+        socialLog.voteShifts.push({
+          id: survivor.id,
+          with: survivor.firstName,
+          target: responseOption.voteShift.target,
+          weight: responseOption.voteShift.weight
+        });
+      }
+
+      let menu = {
+        text: responseOption.nextMenu?.text || followupText,
+        npcResponse: responseOption.nextMenu?.npcResponse || responseOption.nextMenu?.text || followupText,
+        buttons: responseOption.nextMenu?.buttons || this._buildDefaultFollowupChoices(intent, context)
       };
-      const outcome = outcomeMap[dealStatus] || 'noncommittal';
-      const targetName = context?.topicPerson || null;
-      socialLog.deals.push({
-        with: survivor.firstName,
-        dealType: normalizeDealType(context?.dealType || context?.intent || 'voteTogether'),
-        target: targetName || null,
-        outcome
-      });
-    }
 
-    if (context?.topicPerson && option.gossipEffect) {
-      socialLog.gossip.push({
-        id: survivor.id,
-        with: survivor.firstName,
-        about: context.topicPerson,
-        effect: option.gossipEffect
-      });
-    }
+      const wantsDetail = typeof responseOption.label === 'string'
+        && /more detail|press for detail|ask for detail/i.test(responseOption.label);
+      if (wantsDetail && session) {
+        const detailNode = this._buildDetailNode(session);
+        menu = { text: detailNode.text, buttons: detailNode.choices || this._buildDefaultFollowupChoices(intent, context) };
+      }
 
-    if (option.memoryTags && option.memoryTags.length > 0) {
-      socialLog.memory.push({
-        id: survivor.id,
-        with: survivor.firstName,
-        tags: option.memoryTags.slice()
-      });
-      const socialMemory = this.gameManager.systems?.socialMemory || this.gameManager.systems?.socialMemorySystem;
-      option.memoryTags.forEach(t => {
-        socialMemory?.storeMemory?.(
-          survivor.id,
-          t,
-          { fromPlayer: true }
-        );
-      });
-    }
+      if (responseOption.nextContextPatch) {
+        applyContextPatch(responseOption.nextContextPatch);
+      }
 
-    if (option.voteShift) {
-      socialLog.voteShifts.push({
-        id: survivor.id,
-        with: survivor.firstName,
-        target: option.voteShift.target,
-        weight: option.voteShift.weight
-      });
-    }
+      if (responseOption.disclosureKind) {
+        const npcMemory = this._getNpcMemoryEntry(survivor, session);
+        const pool = (this.gameManager.getPlayerTribe?.()?.members || this.gameManager.survivors || [])
+          .filter(s => s.firstName !== survivor.firstName && !s.isPlayer)
+          .map(s => s.firstName);
+        const lastDisclosure = npcMemory?.lastDisclosureByKind?.[responseOption.disclosureKind] || null;
+        const now = Date.now();
+        const lastAskedAt = npcMemory?.lastIntentAsked?.[responseOption.disclosureKind] || 0;
+        const trustScore = this._getTrustScore(survivor, player);
+        const isRepeat = !!(lastDisclosure && now - lastAskedAt < 1000 * 60 * 10);
+        let disclosure = null;
+        let claimTarget = null;
+        let outcome = null;
 
-    let menu = {
-      text: option.nextMenu?.text || followupText,
-      npcResponse: option.nextMenu?.npcResponse || option.nextMenu?.text || followupText,
-      buttons: option.nextMenu?.buttons || this._buildDefaultFollowupChoices(intent, context)
-    };
+        if (isRepeat && lastDisclosure) {
+          claimTarget = lastDisclosure.claimedTarget || null;
+          outcome = lastDisclosure.outcome;
+          if (outcome === 'evade') outcome = 'dodge';
+          if (outcome === 'dodge' && trustScore > 70 && !lastDisclosure.upgraded) {
+            disclosure = this._resolveDisclosure({
+              npc: survivor,
+              player,
+              targetId: this._getSurvivorByName(targetName)?.id || null,
+              topic: responseOption.disclosureKind,
+              context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
+            });
+            claimTarget = disclosure.claimedTarget || null;
+            outcome = disclosure.mode;
+            lastDisclosure.upgraded = true;
+            menu.text = `${survivor.firstName} hesitates, then relents. "Alright… if I had to say, ${claimTarget || 'someone'}."`;
+          } else if (outcome === 'dodge') {
+            menu.text = `${survivor.firstName} shakes their head. "Same answer. I’m not naming names."`;
+          } else if (outcome === 'lie') {
+            menu.text = `${survivor.firstName} keeps it flat. "I already told you — ${claimTarget || 'someone'}."`;
+          } else {
+            menu.text = `${survivor.firstName} gives you a look. "I already told you — ${claimTarget || 'someone'}."`;
+          }
+        }
 
-    const wantsDetail = typeof option.label === 'string'
-      && /more detail|press for detail|ask for detail/i.test(option.label);
-    if (wantsDetail && session) {
-      const detailNode = this._buildDetailNode(session);
-      menu = { text: detailNode.text, buttons: detailNode.choices || this._buildDefaultFollowupChoices(intent, context) };
-    }
-
-    if (option.nextContextPatch) {
-      applyContextPatch(option.nextContextPatch);
-    }
-
-    if (option.disclosureKind) {
-      const npcMemory = this._getNpcMemoryEntry(survivor, session);
-      const pool = (this.gameManager.getPlayerTribe?.()?.members || this.gameManager.survivors || [])
-        .filter(s => s.firstName !== survivor.firstName && !s.isPlayer)
-        .map(s => s.firstName);
-      const lastDisclosure = npcMemory?.lastDisclosureByKind?.[option.disclosureKind] || null;
-      const now = Date.now();
-      const lastAskedAt = npcMemory?.lastIntentAsked?.[option.disclosureKind] || 0;
-      const trustScore = this._getTrustScore(survivor, player);
-      const isRepeat = !!(lastDisclosure && now - lastAskedAt < 1000 * 60 * 10);
-      let disclosure = null;
-      let claimTarget = null;
-      let outcome = null;
-
-      if (isRepeat && lastDisclosure) {
-        claimTarget = lastDisclosure.claimedTarget || null;
-        outcome = lastDisclosure.outcome;
-        if (outcome === 'evade') outcome = 'dodge';
-        if (outcome === 'dodge' && trustScore > 70 && !lastDisclosure.upgraded) {
-          disclosure = this._resolveDisclosure({
+        if (!menu.text) {
+          disclosure = disclosure || this._resolveDisclosure({
             npc: survivor,
             player,
             targetId: this._getSurvivorByName(targetName)?.id || null,
-            topic: option.disclosureKind,
+            topic: responseOption.disclosureKind,
             context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
           });
           claimTarget = disclosure.claimedTarget || null;
           outcome = disclosure.mode;
-          lastDisclosure.upgraded = true;
-          menu.text = `${survivor.firstName} hesitates, then relents. "Alright… if I had to say, ${claimTarget || 'someone'}."`;
-        } else if (outcome === 'dodge') {
-          menu.text = `${survivor.firstName} shakes their head. "Same answer. I’m not naming names."`;
-        } else if (outcome === 'lie') {
-          menu.text = `${survivor.firstName} keeps it flat. "I already told you — ${claimTarget || 'someone'}."`;
-        } else {
-          menu.text = `${survivor.firstName} gives you a look. "I already told you — ${claimTarget || 'someone'}."`;
+
+          if (outcome === 'truth') {
+            menu.text = `${survivor.firstName} lowers their voice. "If it's me, it's ${claimTarget || 'someone'}."`;
+          } else if (outcome === 'lie') {
+            menu.text = `${survivor.firstName} glances around. "Honestly? ${claimTarget || 'someone'}."`;
+          } else {
+            menu.text = `${survivor.firstName} shakes their head. "I'm not putting names out yet."`;
+          }
         }
-      }
 
-      if (!menu.text) {
-        disclosure = disclosure || this._resolveDisclosure({
-          npc: survivor,
-          player,
-          targetId: this._getSurvivorByName(targetName)?.id || null,
-          topic: option.disclosureKind,
-          context: { ...context, trueTarget: targetName, availableTargets: pool, relationshipSystem }
-        });
-        claimTarget = disclosure.claimedTarget || null;
-        outcome = disclosure.mode;
+        menu.npcResponse = menu.text;
 
-        if (outcome === 'truth') {
-          menu.text = `${survivor.firstName} lowers their voice. "If it's me, it's ${claimTarget || 'someone'}."`;
-        } else if (outcome === 'lie') {
-          menu.text = `${survivor.firstName} glances around. "Honestly? ${claimTarget || 'someone'}."`;
-        } else {
-          menu.text = `${survivor.firstName} shakes their head. "I'm not putting names out yet."`;
-        }
-      }
-
-      menu.npcResponse = menu.text;
-
-      if (claimTarget) {
-        applyContextPatch({ topicPerson: claimTarget });
-      }
-
-      if (disclosure) {
-        this.gameManager.systems?.socialMemorySystem?.recordIntel?.({
-          from: survivor.firstName,
-          kind: 'targetClaim',
-          claimedTarget: disclosure.claimedTarget,
-          outcome: disclosure.mode,
-          day: this.gameManager.getCurrentDay?.(),
-          verified: false
-        });
-      }
-
-      if (npcMemory) {
-        npcMemory.lastDisclosureByKind = { ...(npcMemory.lastDisclosureByKind || {}), [option.disclosureKind]: {
-          outcome: outcome || disclosure?.mode || 'dodge',
-          claimedTarget: claimTarget || null,
-          timestamp: now,
-          upgraded: lastDisclosure?.upgraded || false
-        } };
-        npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), [option.disclosureKind]: now };
         if (claimTarget) {
-          npcMemory.eyeTargetName = claimTarget;
+          applyContextPatch({ topicPerson: claimTarget });
         }
+
+        if (disclosure) {
+          this.gameManager.systems?.socialMemorySystem?.recordIntel?.({
+            from: survivor.firstName,
+            kind: 'targetClaim',
+            claimedTarget: disclosure.claimedTarget,
+            outcome: disclosure.mode,
+            day: this.gameManager.getCurrentDay?.(),
+            verified: false
+          });
+        }
+
+        if (npcMemory) {
+          npcMemory.lastDisclosureByKind = { ...(npcMemory.lastDisclosureByKind || {}), [responseOption.disclosureKind]: {
+            outcome: outcome || disclosure?.mode || 'dodge',
+            claimedTarget: claimTarget || null,
+            timestamp: now,
+            upgraded: lastDisclosure?.upgraded || false
+          } };
+          npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), [responseOption.disclosureKind]: now };
+          if (claimTarget) {
+            npcMemory.eyeTargetName = claimTarget;
+          }
+        }
+
+        const followButtons = (outcome || disclosure?.mode) === 'dodge'
+          ? [
+              { label: 'Reassure them', end: true },
+              { label: 'Back off', end: true },
+              { label: 'Try a different angle', end: true },
+              { label: 'End conversation', alt: true, end: true }
+            ]
+          : [
+              { label: 'Encourage the idea (no commitment)', end: true },
+              { label: 'Commit to the plan', end: true },
+              { label: 'Question it / ask why', end: true },
+              { label: 'Counter with another target', onSelect: () => this._handleCounterTarget(survivor, meeting, context, session), end: false, awaitsPicker: true },
+              { label: 'End conversation', alt: true, end: true }
+            ];
+
+        menu = { text: menu.text, npcResponse: menu.text, buttons: followButtons };
       }
 
-      const followButtons = (outcome || disclosure?.mode) === 'dodge'
-        ? [
-            { label: 'Reassure them', end: true },
-            { label: 'Back off', end: true },
-            { label: 'Try a different angle', end: true },
-            { label: 'End conversation', alt: true, end: true }
-          ]
-        : [
-            { label: 'Encourage the idea (no commitment)', end: true },
-            { label: 'Commit to the plan', end: true },
-            { label: 'Question it / ask why', end: true },
-            { label: 'Counter with another target', onSelect: () => this._handleCounterTarget(survivor, meeting, context, session), end: false, awaitsPicker: true },
-            { label: 'End conversation', alt: true, end: true }
-          ];
+      if (responseOption.requiresCounterTarget) {
+        this._handleCounterTarget(survivor, meeting, context, session);
+        return { action: 'counterTarget' };
+      }
 
-      menu = { text: menu.text, npcResponse: menu.text, buttons: followButtons };
+      if (dealOutcome && dealOutcome.counter) {
+        menu.additionalText = dealOutcome.counter;
+      }
+
+      if (!menu || (!menu.text && !menu.npcResponse)) {
+        menu = this._buildFallbackResponseMenu({
+          npc: survivor,
+          intent,
+          context,
+          responseOption,
+          session,
+          reason: 'missing_menu_content',
+          responseMode
+        });
+      }
+
+      return { menu, endConversation };
+    } catch (error) {
+      console.error('ConversationSystem: NPC response build failed', error);
+      const menu = this._buildFallbackResponseMenu({
+        npc: survivor,
+        intent,
+        context,
+        responseOption,
+        session,
+        reason: 'exception',
+        responseMode,
+        error
+      });
+      return { menu, endConversation };
     }
-
-    if (option.requiresCounterTarget) {
-      this._handleCounterTarget(survivor, meeting, context, session);
-      return { action: 'counterTarget' };
-    }
-
-    if (dealOutcome && dealOutcome.counter) {
-      menu.additionalText = dealOutcome.counter;
-    }
-
-    if (!menu || (!menu.text && !menu.npcResponse)) {
-      const fallbackLine = this._getNpcFallbackDialogue(intent);
-      menu = {
-        text: fallbackLine,
-        npcResponse: fallbackLine,
-        buttons: this._buildDefaultFollowupChoices(intent, context)
-      };
-    }
-
-    return { menu, endConversation };
   }
 
   _evaluateCounterPitch(npc, context = {}) {
