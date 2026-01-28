@@ -2427,12 +2427,6 @@ class ConversationSystem {
   }
 
   _runExchangeStep({ exchange, action, choice, category, npc, player, target, location }) {
-    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
-    if (!dialogueSystem?.showDialogue) {
-      console.warn('DialogueSystem unavailable for exchange conversation.');
-      return;
-    }
-
     const stepIndex = exchange.stepIndex;
     const npcStyle = this._getNpcStyleKey(npc?.gameplayStyle || npc?.personality);
     const followupAction = action !== 'INITIAL' ? action : null;
@@ -2518,44 +2512,52 @@ class ConversationSystem {
     this._logExchangeDebug({ exchange, responseMode: responseResolution.responseMode });
 
     console.log('[CONVO-DEBUG] _runExchangeStep showing playerLine:', playerLine?.substring?.(0, 50));
-    dialogueSystem.showDialogue(playerLine, ['Next'], () => {
-      console.log('[CONVO-DEBUG] Player line Next clicked, showing NPC line:', npcLine?.substring?.(0, 50));
-      dialogueSystem.showDialogue(npcLine, ['Next'], () => {
-        console.log('[CONVO-DEBUG] NPC line Next clicked, checking followup eligibility');
-        const followupEligible = this._shouldOfferFollowup({
-          exchange,
-          choice,
-          responseMode: responseResolution.responseMode
-        });
-        console.log('[CONVO-DEBUG] followupEligible:', followupEligible);
+    this._renderConversationOverlay(npc, playerLine, [
+      {
+        label: 'Next',
+        onClick: () => {
+          console.log('[CONVO-DEBUG] Player line Next clicked, showing NPC line:', npcLine?.substring?.(0, 50));
+          this._renderConversationOverlay(npc, npcLine, [
+            {
+              label: 'Next',
+              onClick: () => {
+                console.log('[CONVO-DEBUG] NPC line Next clicked, checking followup eligibility');
+                const followupEligible = this._shouldOfferFollowup({
+                  exchange,
+                  choice,
+                  responseMode: responseResolution.responseMode
+                });
+                console.log('[CONVO-DEBUG] followupEligible:', followupEligible);
 
-        if (followupEligible) {
-          console.log('[CONVO-DEBUG] Showing followup options');
-          this._showFollowupOptions({
-            exchange,
-            choice,
-            category,
-            npc,
-            player,
-            target,
-            location
-          });
-          return;
+                if (followupEligible) {
+                  console.log('[CONVO-DEBUG] Showing followup options');
+                  this._showFollowupOptions({
+                    exchange,
+                    choice,
+                    category,
+                    npc,
+                    player,
+                    target,
+                    location
+                  });
+                  return;
+                }
+
+                console.log('[CONVO-DEBUG] Showing exchange outcome (no followup)');
+                this._showExchangeOutcome({
+                  exchange,
+                  npc,
+                  location
+                });
+              }
+            }
+          ]);
         }
-
-        console.log('[CONVO-DEBUG] Showing exchange outcome (no followup)');
-        this._showExchangeOutcome({
-          exchange,
-          npc,
-          location
-        });
-      }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
-    }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+      }
+    ]);
   }
 
   _showFollowupOptions({ exchange, choice, category, npc, player, target, location }) {
-    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
-    if (!dialogueSystem?.showDialogue) return;
     const options = [
       FOLLOWUP_ACTIONS.PRESS.label,
       FOLLOWUP_ACTIONS.REASSURE.label,
@@ -2563,54 +2565,67 @@ class ConversationSystem {
       FOLLOWUP_ACTIONS.DROP.label
     ];
 
-    dialogueSystem.showDialogue('How do you respond?', options, (option) => {
-      const action = Object.values(FOLLOWUP_ACTIONS).find(entry => entry.label === option)?.key;
-      if (!action) {
-        this._showExchangeOutcome({ exchange, npc, location });
-        return;
-      }
+    this._renderConversationOverlay(
+      npc,
+      'How do you respond?',
+      options.map(option => ({
+        label: option,
+        onClick: () => {
+          const action = Object.values(FOLLOWUP_ACTIONS).find(entry => entry.label === option)?.key;
+          if (!action) {
+            this._showExchangeOutcome({ exchange, npc, location });
+            return;
+          }
 
-      if (action === 'DROP') {
-        this._runExchangeStep({
-          exchange,
-          action,
-          choice,
-          category,
-          npc,
-          player,
-          target,
-          location
-        });
-        return;
-      }
+          if (action === 'DROP') {
+            this._runExchangeStep({
+              exchange,
+              action,
+              choice,
+              category,
+              npc,
+              player,
+              target,
+              location
+            });
+            return;
+          }
 
-      exchange.stepIndex += 1;
-      this._runExchangeStep({
-        exchange,
-        action,
-        choice,
-        category,
-        npc,
-        player,
-        target,
-        location
-      });
-    }, { backgroundColor: 'rgba(30, 30, 30, 0.95)' });
+          exchange.stepIndex += 1;
+          this._runExchangeStep({
+            exchange,
+            action,
+            choice,
+            category,
+            npc,
+            player,
+            target,
+            location
+          });
+        }
+      }))
+    );
   }
 
   _showExchangeOutcome({ exchange, npc, location }) {
-    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
-    if (!dialogueSystem?.showDialogue) return;
     const outcomeSummary = this._formatExchangeOutcome(exchange);
-
-    dialogueSystem.showDialogue(outcomeSummary, ['Ask Another', 'Close'], (option) => {
-      this.activeExchange = null;
-      if (option === 'Ask Another') {
-        this._showTopicSelection(npc, location);
-      } else {
-        this.closeConversation('player_end');
+    this._renderConversationOverlay(npc, outcomeSummary, [
+      {
+        label: 'Ask Another',
+        onClick: () => {
+          this.activeExchange = null;
+          this._showTopicSelection(npc, location);
+        }
+      },
+      {
+        label: 'Close',
+        alt: true,
+        onClick: () => {
+          this.activeExchange = null;
+          this.closeConversation('player_end');
+        }
       }
-    }, { backgroundColor: 'rgba(30, 30, 30, 0.95)' });
+    ]);
   }
 
   _initializeExchangeState({ npc, player, choiceId, categoryId, targetId, location }) {
@@ -3100,25 +3115,32 @@ class ConversationSystem {
 
   _showPreChallengeSequence({ npc, playerLine, npcLine, outcomeSummary, location }) {
     console.log('[CONVO-DEBUG] _showPreChallengeSequence ENTRY', { npc: npc?.firstName, playerLine: playerLine?.substring?.(0, 40) });
-    const dialogueSystem = this.gameManager.systems?.dialogueSystem;
-    console.log('[CONVO-DEBUG] dialogueSystem available:', !!dialogueSystem, 'showDialogue:', typeof dialogueSystem?.showDialogue);
-    if (!dialogueSystem?.showDialogue) {
-      console.warn('DialogueSystem unavailable for pre-challenge conversation.');
-      return;
-    }
-
     console.log('[CONVO-DEBUG] Calling showDialogue for playerLine');
-    dialogueSystem.showDialogue(playerLine, ['Next'], () => {
-      dialogueSystem.showDialogue(npcLine, ['Next'], () => {
-        dialogueSystem.showDialogue(outcomeSummary, ['Ask Another', 'Close'], (option) => {
-          if (option === 'Ask Another') {
-            this._showTopicSelection(npc, location);
-          } else {
-            this.closeConversation('player_end');
-          }
-        }, { backgroundColor: 'rgba(30, 30, 30, 0.95)' });
-      }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
-    }, { backgroundColor: 'rgba(35, 35, 35, 0.95)' });
+    this._renderConversationOverlay(npc, playerLine, [
+      {
+        label: 'Next',
+        onClick: () => {
+          this._renderConversationOverlay(npc, npcLine, [
+            {
+              label: 'Next',
+              onClick: () => {
+                this._renderConversationOverlay(npc, outcomeSummary, [
+                  {
+                    label: 'Ask Another',
+                    onClick: () => this._showTopicSelection(npc, location)
+                  },
+                  {
+                    label: 'Close',
+                    alt: true,
+                    onClick: () => this.closeConversation('player_end')
+                  }
+                ]);
+              }
+            }
+          ]);
+        }
+      }
+    ]);
   }
 
   _resolvePlayerLine(choice, target) {
@@ -6208,6 +6230,39 @@ class ConversationSystem {
     }, label);
     button.dataset.safeClick = 'true';
     return button;
+  }
+
+  _renderConversationOverlay(npc, text, buttons = []) {
+    const overlay = this._buildOverlayShell(npc, { reuse: true });
+    const content = this._getConversationContent(overlay);
+    this._clearConversationContent(content);
+    const parchment = this._buildParchment(text || '');
+
+    if (buttons.length > 0) {
+      const buttonColumn = createElement('div', {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          marginTop: '12px',
+          width: '100%'
+        }
+      });
+
+      buttons.forEach(({ label, alt = false, onClick }) => {
+        const btn = this._createChoiceButton({
+          label,
+          alt,
+          onClick,
+          fallback: { npc }
+        });
+        buttonColumn.appendChild(btn);
+      });
+
+      parchment.appendChild(buttonColumn);
+    }
+
+    content.appendChild(parchment);
   }
 
   _renderNode(session, nodeId) {
