@@ -187,23 +187,16 @@ class DialogueSystem {
           transition: 'background-color 0.2s'
         },
         onclick: () => {
-          const storedCallback = this.callbacks.get(dialogueId) || this.defaultCloseCallback;
-          const shouldDefer = storedCallback?.afterHide;
-          const runCallback = () => {
-            storedCallback(option, index);
-            this.callbacks.delete(dialogueId);
-          };
-
-          if (shouldDefer) {
-            this.hideDialogue(runCallback);
-            return;
-          }
-
-          // Close dialog
-          this.hideDialogue();
-
-          // Execute callback with selected option
-          runCallback();
+          console.debug(`Dialogue option clicked: ${option}`);
+          this.hideDialogue(() => {
+            const storedCallback = this.callbacks.get(dialogueId) || this.defaultCloseCallback;
+            console.debug(`Dialogue callback fired after hide: ${option}`);
+            try {
+              storedCallback(option, index);
+            } finally {
+              this.callbacks.delete(dialogueId);
+            }
+          });
         }
       }, option);
       
