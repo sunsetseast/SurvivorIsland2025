@@ -2306,6 +2306,7 @@ class ConversationSystem {
   }
 
   _handlePreChallengeChoice(survivor, location, choice, target = null) {
+    console.log('[CONVO-DEBUG] _handlePreChallengeChoice ENTRY', { survivorName: survivor?.firstName, choiceId: choice?.id, choiceLabel: choice?.label });
     const player = this.gameManager.getPlayerSurvivor?.();
     if (!player) return;
     this._clearOverlay({ preserveSession: true });
@@ -2395,9 +2396,11 @@ class ConversationSystem {
   }
 
   runConversationExchange({ playerId, npcId, choiceId, targetId = null, location = null }) {
+    console.log('[CONVO-DEBUG] runConversationExchange ENTRY', { npcId, choiceId, targetId });
     const player = this.gameManager.getPlayerSurvivor?.();
     const npc = this._getSurvivorById(npcId);
     const { choice, category } = this._getPreChallengeChoiceById(choiceId);
+    console.log('[CONVO-DEBUG] runConversationExchange data', { hasPlayer: !!player, hasNpc: !!npc, hasChoice: !!choice });
     if (!player || !npc || !choice) return;
 
     const target = targetId ? this._getSurvivorById(targetId) : null;
