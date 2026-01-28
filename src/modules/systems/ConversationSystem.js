@@ -6449,19 +6449,19 @@ class ConversationSystem {
           return;
         }
         const { menu, endConversation, action } = response || {};
+        const hasOnEnd = typeof endConversation === 'function';
         this._debugLog('CONVO: handleResponse result', {
           hasMenu: !!menu,
           menuKeys: menu ? Object.keys(menu) : [],
           action,
-          hasEndConversation: !!endConversation
+          hasEndConversation: hasOnEnd
         });
-        const menuButtons = Array.isArray(menu?.buttons) ? menu.buttons : [];
-        const hasSingleEndButton = menuButtons.length === 1
-          && typeof menuButtons[0]?.label === 'string'
-          && /end conversation/i.test(menuButtons[0].label);
-        const shouldEndAfterMenu = !!menu
-          && (menu?.meta?.isEnd === true || choice.responseOption?.end === true || hasSingleEndButton || action === 'endConversationNow');
-        session.pendingEndConversation = shouldEndAfterMenu ? endConversation || null : null;
+        this._debugLog(`CONVO NODE: choice=${choice.id || 'unknown'} intent=${session.intent} hasMenu=${!!menu} hasOnEnd=${hasOnEnd}`);
+        session.pendingEndConversation = hasOnEnd ? endConversation : null;
+        if (action === 'endConversationNow') {
+          this.endConversation(session);
+          return;
+        }
         if (action === 'offerDealMenu') {
           this._debugLog('CONVO: responseOption branch -> offerDealMenu');
           this._showDealMenu(npc, session.context.location);
@@ -6610,17 +6610,20 @@ class ConversationSystem {
       });
       this._debugBanner('CONVO close', reason);
     }
+    let onEndCalled = false;
     try {
       if (activeSession?.pendingEndConversation) {
         const callback = activeSession.pendingEndConversation;
         activeSession.pendingEndConversation = null; // Clear BEFORE invoking to prevent recursive calls
         try {
           callback();
+          onEndCalled = true;
         } catch (error) {
           console.error('ConversationSystem: pendingEndConversation failed during closeConversation.', error);
         }
       }
     } finally {
+      this._debugLog(`CONVO END: reason=${reason} onEndCalled=${onEndCalled}`);
       try {
         this._clearOverlay({ reason });
       } catch (error) {
@@ -7002,7 +7005,7 @@ class ConversationSystem {
         menuKeys: menu ? Object.keys(menu) : [],
         hasEndConversation: !!endConversation
       });
-      session.pendingEndConversation = endConversation || null;
+      session.pendingEndConversation = typeof endConversation === 'function' ? endConversation : null;
       if (!menu) {
         return;
       }
@@ -7052,7 +7055,7 @@ class ConversationSystem {
         menuKeys: menu ? Object.keys(menu) : [],
         hasEndConversation: !!endConversation
       });
-      session.pendingEndConversation = endConversation || null;
+      session.pendingEndConversation = typeof endConversation === 'function' ? endConversation : null;
       if (!menu) {
         this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`);
         return;
@@ -7489,7 +7492,6 @@ class ConversationSystem {
 
     const endConversation = () => {
       this._logConversationOutcome(survivor, intent, option, meeting, this.activeConversationContext || context, finalDealOutcome);
-      this.endConversation(session);
     };
 
     if (intent === 'allianceInvite') {
@@ -8031,10 +8033,6 @@ class ConversationSystem {
 
         const endConversation = () => {
           this._logConversationOutcome(survivor, 'counter_followup', { label: `counter_${reaction.outcome}` }, meeting, this.activeConversationContext, null);
-          this._clearOverlay();
-          if (meeting) {
-            this.pendingMeetings = this.pendingMeetings.filter(m => m !== meeting);
-          }
         };
 
         if (session) {
@@ -8065,6 +8063,12 @@ class ConversationSystem {
           return;
         }
 
+        const activeSession = session || this.nodeSession || this.conversationSession;
+        if (activeSession) {
+          activeSession.pendingEndConversation = endConversation;
+          this.endConversation(activeSession);
+          return;
+        }
         endConversation();
       });
   }
