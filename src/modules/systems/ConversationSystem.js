@@ -1648,6 +1648,10 @@ class ConversationSystem {
     const normalizedPhase = this._normalizePhase(phase);
     const location = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
     const initiator = context.initiatedByNpc ? 'npc' : (context.initiator || 'player');
+    if (initiator === 'player' && !context.initiatedByNpc) {
+      this.startPlayerConversation({ npcId, phase: normalizedPhase, socialType, context: { ...context, initiator } });
+      return;
+    }
     const intent = socialType ? this._mapSocialTypeToIntent(socialType, normalizedPhase) : null;
     const seededContext = { ...context };
     if (intent === POST_PHASE_INTENTS.idol_suspicion && !seededContext.subTopic) {
@@ -1684,6 +1688,58 @@ class ConversationSystem {
     } else {
       beginConversation();
     }
+  }
+
+  /**
+   * Entry point for player-initiated conversations.
+   */
+  startPlayerConversation({ npcId, phase, socialType = null, context = {} }) {
+    if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
+    const survivor = this._getSurvivorById(npcId);
+    if (!survivor) return;
+
+    const normalizedPhase = this._normalizePhase(phase);
+    const location = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
+    const intent = socialType ? this._mapSocialTypeToIntent(socialType, normalizedPhase) : null;
+    const seededContext = {
+      ...context,
+      initiator: 'player',
+      initiatedByNpc: false,
+      phase: normalizedPhase,
+      location,
+      forceNodeFlow: true
+    };
+
+    if (intent === POST_PHASE_INTENTS.idol_suspicion && !seededContext.subTopic) {
+      seededContext.subTopic = 'idol';
+    }
+
+    this.state = {
+      npcId: survivor.id,
+      phase: normalizedPhase,
+      topic: null,
+      lastIntent: null,
+      lastSubjectId: null,
+      lastNpcStance: null,
+      history: [],
+      context: { ...seededContext }
+    };
+
+    const beginConversation = () => {
+      if (intent) {
+        this._startConversation(survivor, {
+          intentOverride: intent,
+          isPurpose: true,
+          meeting: null,
+          location,
+          context: { ...(seededContext || {}), initiator: 'player', phase: normalizedPhase }
+        });
+      } else {
+        this._showTopicSelection(survivor, location);
+      }
+    };
+
+    beginConversation();
   }
 
   reset() {
@@ -3861,6 +3917,11 @@ class ConversationSystem {
         confirmBtn.disabled = !selectedId;
       };
 
+      const pickerFallback = {
+        session: this.nodeSession || this.conversationSession || null,
+        npc: this.state?.npcId ? this._getSurvivorById(this.state.npcId) : null
+      };
+
       filtered.forEach(target => {
         const card = createElement('button', {
           className: 'rect-button full',
@@ -3875,7 +3936,7 @@ class ConversationSystem {
         });
         card.dataset.pickerCard = 'true';
         card.dataset.survivorId = String(target.id);
-        card.onclick = this._safeClick(() => setSelected(card, target.id));
+        card.onclick = this._safeClick(() => setSelected(card, target.id), pickerFallback);
 
         const avatar = createElement('img', {
           src: target.avatarUrl,
@@ -4799,8 +4860,13 @@ class ConversationSystem {
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
+    const forceNodeFlow = Boolean(context.forceNodeFlow || initiator === 'player');
 
     if (this._isDeterministicIntent(intent)) {
+      if (forceNodeFlow) {
+        this._startDeterministicNodeConversation(survivor, intent, conversationContext);
+        return;
+      }
       this._startDeterministicConversation(survivor, intent, conversationContext);
       return;
     }
@@ -4963,6 +5029,54 @@ class ConversationSystem {
 
     this._applyDeterministicIntent(intent, { nextNodeId: rootNodeId, initiator: context.initiator });
     this._renderActiveConversation();
+  }
+
+  _startDeterministicNodeConversation(survivor, intent, context = {}) {
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const session = this._initNodeSession({
+      npcId: survivor.id,
+      playerId: player?.id || null,
+      intent,
+      meeting: context.meeting || null,
+      context: { ...context }
+    });
+
+    this.activeConversationContext = this._normalizeConversationContext({ ...context });
+    this.nodeSession = session;
+
+    const response = this._generateDeterministicResponse(intent, session.context, {
+      npc: survivor,
+      player,
+      history: session.history
+    });
+    const exchange = this.formatExchange({
+      narration: response.narration,
+      npcDoes: response.npcDoes,
+      npcSays: response.npcSays,
+      npc: survivor,
+      intent
+    });
+
+    session.history.push({
+      nodeId: 'root',
+      intent,
+      resultSummary: response.summary || null
+    });
+
+    const rootNodeId = this._registerNode(session, {
+      id: 'root',
+      playerNarration: exchange.playerNarration,
+      npcResponse: exchange.npcResponse,
+      choices: this._buildDefaultFollowupChoices(intent, session.context),
+      meta: { speaker: 'npc' }
+    });
+    session.rootNodeId = rootNodeId;
+    this._renderNode(session, rootNodeId);
+    if (context.meeting) {
+      this._highlightNpcIcon(context.meeting.npcId, false);
+    } else {
+      this._highlightNpcIcon(survivor.id, false);
+    }
   }
 
   _buildDeterministicNodes(survivor, context = {}) {
@@ -5620,6 +5734,12 @@ class ConversationSystem {
   _registerNode(session, node) {
     if (!session || !node) return null;
     const id = node.id || this._createNodeId();
+    this._debugLog('CONVO: register node', {
+      nodeId: id,
+      intent: session.intent,
+      hasChoices: Array.isArray(node.choices) && node.choices.length > 0
+    });
+    this._debugBanner('CONVO register', id);
     // Enforce standardized step model: store narration + NPC response separately (legacy text is normalized below).
     const legacy = this._normalizeLegacyNodeText(node.text || '');
     const playerNarration = node.playerNarration || legacy.playerNarration || null;
@@ -5681,6 +5801,8 @@ class ConversationSystem {
     normalized.suspectedIdolName = context.suspectedIdolName || context.idolSuspectName || null;
     normalized.lastQuestionTag = context.lastQuestionTag || null;
     normalized.lastAnswerTag = context.lastAnswerTag || null;
+    normalized.phase = context.phase || this._getConversationPhase();
+    normalized.location = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
     return normalized;
   }
 
@@ -5991,13 +6113,27 @@ class ConversationSystem {
     }
     console.error('ConversationSystem: click handler failed', error);
     const activeSession = session || this.nodeSession || this.conversationSession;
-    const safeNpc = npc || (activeSession ? this._getSurvivorById(activeSession.npcId) : null);
+    const safeNpc = npc || (activeSession ? this._getSurvivorById(activeSession.npcId) : null) || (this.state?.npcId ? this._getSurvivorById(this.state.npcId) : null);
     const line = fallbackLine || `${safeNpc?.firstName || 'They'} nods. "Alright. Let’s see how it lands."`;
     if (activeSession && safeNpc) {
       this._renderRecoveryNode(activeSession, safeNpc, line);
       return;
     }
-    this._clearOverlay();
+    if (safeNpc) {
+      const player = this.gameManager.getPlayerSurvivor?.();
+      const recoverySession = this._initNodeSession({
+        npcId: safeNpc.id,
+        playerId: player?.id || null,
+        intent: this.state?.lastIntent || this.state?.intent || null,
+        meeting: null,
+        context: this.activeConversationContext || this.state?.context || {}
+      });
+      this.nodeSession = recoverySession;
+      this.activeConversationContext = recoverySession.context;
+      const recovered = this._renderRecoveryNode(recoverySession, safeNpc, line, 'error_recovery_session');
+      if (recovered) return;
+    }
+    this._clearOverlay({ reason: 'handleConversationError' });
   }
 
   _renderRecoveryNode(session, npc, line, reason = null) {
@@ -6046,9 +6182,17 @@ class ConversationSystem {
   }
 
   _createChoiceButton({ label, alt = false, onClick, fallback = {} }) {
+    const resolvedFallback = { ...fallback };
+    if (!resolvedFallback.session) {
+      resolvedFallback.session = this.nodeSession || this.conversationSession || null;
+    }
+    if (!resolvedFallback.npc) {
+      const fallbackNpcId = resolvedFallback.session?.npcId || this.state?.npcId || this._activeOverlayNpcId || null;
+      resolvedFallback.npc = fallbackNpcId ? this._getSurvivorById(fallbackNpcId) : null;
+    }
     const button = createElement('button', {
       className: `rect-button full${alt ? ' alt' : ''}`,
-      onclick: this._safeClick(onClick, fallback)
+      onclick: this._safeClick(onClick, resolvedFallback)
     }, label);
     button.dataset.safeClick = 'true';
     return button;
@@ -6207,6 +6351,7 @@ class ConversationSystem {
         nodeId,
         choiceId: choice.id,
         label: choice.label,
+        playerLine: choice.playerLine || choice.label || null,
         hasNpcReply: !!choice.npcReply,
         hasResponseOption: !!choice.responseOption,
         action: choice.action,
@@ -6214,6 +6359,7 @@ class ConversationSystem {
         nextMenu: !!choice.nextMenu,
         nextNodeId: !!choice.nextNodeId
       });
+      this._debugBanner('CONVO choice', `${choice.id || 'choice'}: ${choice.label || ''}`);
       const isEndLabel = typeof choice.label === 'string' && /end conversation/i.test(choice.label);
       if (choice.end || (isEndLabel && !choice.action && !choice.responseOption && !choice.nextNode && !choice.nextMenu && !choice.nextNodeId && !choice.onSelect)) {
         this._debugLog('CONVO: choice branch', { branch: 'end', nodeId, choiceId: choice.id });
@@ -6286,6 +6432,10 @@ class ConversationSystem {
         }
         let response = null;
         try {
+          this._debugLog('CONVO: handleResponse start', {
+            intent: session.intent,
+            responseOptionKeys: Object.keys(choice.responseOption || {})
+          });
           response = this._handleResponse(npc, session.intent, choice.responseOption, session.meeting, session);
         } catch (error) {
           console.error('ConversationSystem: responseOption handling failed', error);
@@ -6299,6 +6449,12 @@ class ConversationSystem {
           return;
         }
         const { menu, endConversation, action } = response || {};
+        this._debugLog('CONVO: handleResponse result', {
+          hasMenu: !!menu,
+          menuKeys: menu ? Object.keys(menu) : [],
+          action,
+          hasEndConversation: !!endConversation
+        });
         const menuButtons = Array.isArray(menu?.buttons) ? menu.buttons : [];
         const hasSingleEndButton = menuButtons.length === 1
           && typeof menuButtons[0]?.label === 'string'
@@ -6411,6 +6567,11 @@ class ConversationSystem {
       }
       return;
     }
+    this._debugLog('CONVO: transition requested', {
+      nextNodeId,
+      currentNodeId: session.currentNodeId || null
+    });
+    this._debugBanner('CONVO transition', nextNodeId);
     if (!session.nodes[nextNodeId]) {
       console.warn(`ConversationSystem: Invalid node transition to "${nextNodeId}".`);
       this._renderRecoveryNode(
@@ -6440,6 +6601,15 @@ class ConversationSystem {
   closeConversation(reason = 'player_end', session = null) {
     const activeSession = session || this.nodeSession || this.conversationSession;
     const npcId = activeSession?.npcId || this.state?.npcId || null;
+    if (this._isConversationDebugEnabled()) {
+      const stack = new Error().stack;
+      this._debugLog('CONVO: closeConversation called', {
+        reason,
+        npcId,
+        stack
+      });
+      this._debugBanner('CONVO close', reason);
+    }
     try {
       if (activeSession?.pendingEndConversation) {
         const callback = activeSession.pendingEndConversation;
@@ -6452,7 +6622,7 @@ class ConversationSystem {
       }
     } finally {
       try {
-        this._clearOverlay();
+        this._clearOverlay({ reason });
       } catch (error) {
         console.error('ConversationSystem: _clearOverlay failed during closeConversation.', error);
       }
@@ -6822,7 +6992,16 @@ class ConversationSystem {
         confidence: 70,
         phase: session.context.phase || this._getConversationPhase()
       });
+      this._debugLog('CONVO: handleResponse start', {
+        intent: session.intent,
+        responseOptionKeys: Object.keys(responseOption || {})
+      });
       const { menu, endConversation } = this._handleResponse(npc, session.intent, responseOption, session.meeting, session);
+      this._debugLog('CONVO: handleResponse result', {
+        hasMenu: !!menu,
+        menuKeys: menu ? Object.keys(menu) : [],
+        hasEndConversation: !!endConversation
+      });
       session.pendingEndConversation = endConversation || null;
       if (!menu) {
         return;
@@ -6863,7 +7042,16 @@ class ConversationSystem {
       this.activeConversationContext = { ...(this.activeConversationContext || {}), ...patch };
       session.context = this._normalizeConversationContext({ ...(session.context || {}), ...patch });
 
+      this._debugLog('CONVO: handleResponse start', {
+        intent: session.intent,
+        responseOptionKeys: Object.keys(responseOption || {})
+      });
       const { menu, endConversation } = this._handleResponse(npc, session.intent, responseOption, session.meeting, session);
+      this._debugLog('CONVO: handleResponse result', {
+        hasMenu: !!menu,
+        menuKeys: menu ? Object.keys(menu) : [],
+        hasEndConversation: !!endConversation
+      });
       session.pendingEndConversation = endConversation || null;
       if (!menu) {
         this._renderRecoveryNode(session, npc, `${npc.firstName} says, "Let’s reset that."`);
@@ -7665,6 +7853,15 @@ class ConversationSystem {
 
     if (dealOutcome && dealOutcome.counter) {
       menu.additionalText = dealOutcome.counter;
+    }
+
+    if (!menu || (!menu.text && !menu.npcResponse)) {
+      const fallbackLine = this._getNpcFallbackDialogue(intent);
+      menu = {
+        text: fallbackLine,
+        npcResponse: fallbackLine,
+        buttons: this._buildDefaultFollowupChoices(intent, context)
+      };
     }
 
     return { menu, endConversation };
@@ -8498,6 +8695,13 @@ class ConversationSystem {
       return;
     }
     console.debug(message);
+  }
+
+  _debugBanner(message, detail = '') {
+    if (!this._isConversationDebugEnabled()) return;
+    if (typeof window === 'undefined') return;
+    if (typeof window.debugBanner !== 'function') return;
+    window.debugBanner(message, detail);
   }
 
   _getConversationPhase() {
@@ -13341,7 +13545,17 @@ class ConversationSystem {
   }
 
   _clearOverlay(options = {}) {
-    const { preserveSession = false } = options;
+    const { preserveSession = false, reason = null } = options;
+    if (this._isConversationDebugEnabled()) {
+      const stack = new Error().stack;
+      this._debugLog('CONVO: clear overlay', {
+        reason,
+        preserveSession,
+        npcId: this._activeOverlayNpcId || this.state?.npcId || null,
+        stack
+      });
+      this._debugBanner('CONVO clear', reason || 'unknown');
+    }
     this._clearApproachTimer();
     if (this.activeOverlay) {
       this.activeOverlay.remove();
