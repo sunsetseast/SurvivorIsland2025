@@ -9201,19 +9201,28 @@ class ConversationSystem {
     const overlay = this._buildOverlayShell(npc, { reuse: true });
     const player = this.gameManager.getPlayerSurvivor?.();
     const context = session.context || {};
+    const errorMeta = {
+      flowKey: session.flowKey,
+      stepKey,
+      choiceKey: fromChoice?.key || fromChoice?.id || null,
+      npcId: npc?.id || null,
+      npcName: npc?.firstName || null
+    };
+    const formatContext = { ...context, _conversationMeta: errorMeta };
 
-    let npcLine = '';
     let playerNarration = null;
+    const npcLine = this._safeBuildNpcLine({
+      step,
+      session,
+      npc,
+      player,
+      context,
+      fromChoice
+    });
     if (step.nav) {
-      npcLine = `What do you want to do next with ${npc?.firstName || 'them'}?`;
       playerNarration = 'You gather your thoughts and keep the door open.';
-    } else if (typeof step.npcLine === 'function') {
-      npcLine = step.npcLine(session, this, fromChoice);
-    } else if (typeof step.npcLine === 'string') {
-      npcLine = step.npcLine;
     }
-
-    const formattedNpcLine = this._formatConversationLine(npcLine, npc, context, player);
+    const formattedNpcLine = this._safeFormatConversationLine(npcLine, npc, formatContext, player);
     if (!playerNarration && fromChoice?.playerNarration) {
       playerNarration = fromChoice.playerNarration;
     }
@@ -9221,19 +9230,46 @@ class ConversationSystem {
       playerNarration = session.context.entryNarration;
     }
 
-    const exchange = this.formatExchange({
-      narration: this._formatConversationLine(playerNarration || '', npc, context, player),
-      npcLine: formattedNpcLine || this._buildDefaultNpcResponse({
-        npc,
-        player,
-        intent: session.intent || session.flowKey,
-        context
-      }),
+    const fallbackNpcLine = formattedNpcLine || this._buildDefaultNpcResponse({
       npc,
-      intent: session.intent || session.flowKey
+      player,
+      intent: session.intent || session.flowKey,
+      context
     });
+    const formattedNarration = this._safeFormatConversationLine(playerNarration || '', npc, formatContext, player);
+    let exchange = null;
+    try {
+      exchange = this.formatExchange({
+        narration: formattedNarration,
+        npcLine: fallbackNpcLine,
+        npc,
+        intent: session.intent || session.flowKey
+      });
+    } catch (error) {
+      console.error('[ConversationSystem] formatExchange error', {
+        ...errorMeta,
+        error
+      });
+      this._debugBanner('NPC response fallback used', 'error in exchange formatting. See console.');
+      const safeNarration = this._formatPlayerNarration(this.formatNarration(formattedNarration || ''), session.intent || session.flowKey);
+      let safeNpcResponse = fallbackNpcLine;
+      try {
+        safeNpcResponse = this._formatNpcResponse(fallbackNpcLine, session.intent || session.flowKey);
+      } catch (npcError) {
+        console.error('[ConversationSystem] npcResponse format error', {
+          ...errorMeta,
+          error: npcError
+        });
+      }
+      exchange = { playerNarration: safeNarration, npcResponse: safeNpcResponse };
+    }
     const formattedPlayerNarration = exchange.playerNarration;
-    const resolvedNpcResponse = exchange.npcResponse;
+    const resolvedNpcResponse = exchange.npcResponse || this._buildDefaultNpcResponse({
+      npc,
+      player,
+      intent: session.intent || session.flowKey,
+      context
+    });
 
     const combinedText = this._composeMenuText({
       playerNarration: formattedPlayerNarration,
@@ -9623,6 +9659,53 @@ class ConversationSystem {
 
     if (!entry.text) return;
     session.history.push(entry);
+  }
+
+  _safeBuildNpcLine({ step, session, npc, player, context, fromChoice }) {
+    try {
+      if (step?.nav) {
+        return `What do you want to do next with ${npc?.firstName || 'them'}?`;
+      }
+      if (typeof step?.npcLine === 'function') {
+        return step.npcLine(session, this, fromChoice);
+      }
+      if (typeof step?.npcLine === 'string') {
+        return step.npcLine;
+      }
+      return '';
+    } catch (error) {
+      console.error('[ConversationSystem] npcLine error', {
+        flowKey: session?.flowKey || null,
+        stepKey: session?.currentStepKey || null,
+        choiceKey: fromChoice?.key || fromChoice?.id || null,
+        npcId: npc?.id || null,
+        npcName: npc?.firstName || null,
+        error
+      });
+      this._debugBanner('NPC response fallback used', 'error in npcLine. See console.');
+      return this._buildDefaultNpcResponse({
+        npc,
+        player,
+        intent: session?.intent || session?.flowKey,
+        context
+      });
+    }
+  }
+
+  _safeFormatConversationLine(line, npc, context = {}, player = null) {
+    try {
+      return this._formatConversationLine(line, npc, context, player);
+    } catch (error) {
+      const meta = context?._conversationMeta || {};
+      console.error('[ConversationSystem] conversation line format error', {
+        ...meta,
+        npcId: npc?.id || null,
+        npcName: npc?.firstName || null,
+        error
+      });
+      this._debugBanner('NPC response fallback used', 'error formatting npcLine. See console.');
+      return '';
+    }
   }
 
   _formatConversationLine(line, npc, context = {}, player = null) {
