@@ -2517,15 +2517,20 @@ class ConversationSystem {
 
     this._logExchangeDebug({ exchange, responseMode: responseResolution.responseMode });
 
+    console.log('[CONVO-DEBUG] _runExchangeStep showing playerLine:', playerLine?.substring?.(0, 50));
     dialogueSystem.showDialogue(playerLine, ['Next'], () => {
+      console.log('[CONVO-DEBUG] Player line Next clicked, showing NPC line:', npcLine?.substring?.(0, 50));
       dialogueSystem.showDialogue(npcLine, ['Next'], () => {
+        console.log('[CONVO-DEBUG] NPC line Next clicked, checking followup eligibility');
         const followupEligible = this._shouldOfferFollowup({
           exchange,
           choice,
           responseMode: responseResolution.responseMode
         });
+        console.log('[CONVO-DEBUG] followupEligible:', followupEligible);
 
         if (followupEligible) {
+          console.log('[CONVO-DEBUG] Showing followup options');
           this._showFollowupOptions({
             exchange,
             choice,
@@ -2538,6 +2543,7 @@ class ConversationSystem {
           return;
         }
 
+        console.log('[CONVO-DEBUG] Showing exchange outcome (no followup)');
         this._showExchangeOutcome({
           exchange,
           npc,
