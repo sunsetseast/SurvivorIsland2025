@@ -37,12 +37,23 @@ class NpcIntentPlanner {
     }
 
     showDialogue(npc, group = [], type = "bonding") {
+        const conversationSystem = gameManager.systems?.conversationSystem;
+        if (!npc) return;
+        if (conversationSystem?.startNpcConversation) {
+            conversationSystem.startNpcConversation(npc, type, {
+                context: {
+                    initiatedByNpc: true,
+                    phase: this.phaseType
+                },
+                location: typeof window !== "undefined" ? window?.campScreen?.currentView : null
+            });
+            return;
+        }
         const dialogueSystem = gameManager.systems?.dialogueSystem;
         if (!dialogueSystem?.startConversation) {
             console.warn("DialogueSystem unavailable or missing startConversation.");
             return;
         }
-        if (!npc) return;
 
         const openerLine = this._getOpenerLine(type, npc);
         const choices = this._getPlayerChoices(type);
