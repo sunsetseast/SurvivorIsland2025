@@ -125,6 +125,7 @@ class DialogueSystem {
     // Set flags
     this.isDialogueShowing = true;
     this.dialogueAnimationInProgress = true;
+    console.log('[DIALOGUE-DEBUG] Flags set, creating dialogue box');
     
     // Store callback if provided
     if (callback) {
@@ -133,6 +134,7 @@ class DialogueSystem {
     
     // Clear container
     clearChildren(this.dialogueContainer);
+    console.log('[DIALOGUE-DEBUG] Container cleared');
     
     // Create dialogue box
     const dialogueBox = createElement('div', {
@@ -216,18 +218,22 @@ class DialogueSystem {
     
     // Add to container
     this.dialogueContainer.appendChild(dialogueBox);
+    console.log('[DIALOGUE-DEBUG] DialogueBox appended to container');
     
     // Show container
     this.dialogueContainer.style.display = 'flex';
+    console.log('[DIALOGUE-DEBUG] Container display set to flex, triggering animation');
     
     // Trigger animation
     setTimeout(() => {
+      console.log('[DIALOGUE-DEBUG] Animation timeout fired');
       this.dialogueContainer.style.opacity = '1';
       dialogueBox.style.transform = 'translateY(0)';
       dialogueBox.style.opacity = '1';
       
       // Mark animation as complete
       setTimeout(() => {
+        console.log('[DIALOGUE-DEBUG] Animation complete');
         this.dialogueAnimationInProgress = false;
       }, 300);
     }, 10);
