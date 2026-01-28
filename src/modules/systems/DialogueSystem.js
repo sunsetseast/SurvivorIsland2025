@@ -220,7 +220,8 @@ class DialogueSystem {
     this.dialogueContainer.appendChild(dialogueBox);
     console.log('[DIALOGUE-DEBUG] DialogueBox appended to container');
     
-    // Show container
+    // Show container (remove hidden class if present - CSS !important would override inline styles)
+    this.dialogueContainer.classList.remove('hidden');
     this.dialogueContainer.style.display = 'flex';
     console.log('[DIALOGUE-DEBUG] Container display set to flex, triggering animation');
     
@@ -297,6 +298,7 @@ class DialogueSystem {
     
     if (!dialogueBox) {
       this.isDialogueShowing = false;
+      this.dialogueContainer.classList.add('hidden');
       this.dialogueContainer.style.display = 'none';
       if (callback) callback();
       return;
@@ -313,6 +315,7 @@ class DialogueSystem {
     // Wait for animation to complete
     setTimeout(() => {
       // Hide container
+      this.dialogueContainer.classList.add('hidden');
       this.dialogueContainer.style.display = 'none';
       clearChildren(this.dialogueContainer);
       
