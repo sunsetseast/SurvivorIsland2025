@@ -3099,12 +3099,15 @@ class ConversationSystem {
   }
 
   _showPreChallengeSequence({ npc, playerLine, npcLine, outcomeSummary, location }) {
+    console.log('[CONVO-DEBUG] _showPreChallengeSequence ENTRY', { npc: npc?.firstName, playerLine: playerLine?.substring?.(0, 40) });
     const dialogueSystem = this.gameManager.systems?.dialogueSystem;
+    console.log('[CONVO-DEBUG] dialogueSystem available:', !!dialogueSystem, 'showDialogue:', typeof dialogueSystem?.showDialogue);
     if (!dialogueSystem?.showDialogue) {
       console.warn('DialogueSystem unavailable for pre-challenge conversation.');
       return;
     }
 
+    console.log('[CONVO-DEBUG] Calling showDialogue for playerLine');
     dialogueSystem.showDialogue(playerLine, ['Next'], () => {
       dialogueSystem.showDialogue(npcLine, ['Next'], () => {
         dialogueSystem.showDialogue(outcomeSummary, ['Ask Another', 'Close'], (option) => {
