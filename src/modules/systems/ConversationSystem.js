@@ -7482,14 +7482,14 @@ class ConversationSystem {
     let menu = {
       text: option.nextMenu?.text || followupText,
       npcResponse: option.nextMenu?.npcResponse || option.nextMenu?.text || followupText,
-      buttons: option.nextMenu?.buttons || null
+      buttons: option.nextMenu?.buttons || this._buildDefaultFollowupChoices(intent, context)
     };
 
     const wantsDetail = typeof option.label === 'string'
       && /more detail|press for detail|ask for detail/i.test(option.label);
     if (wantsDetail && session) {
       const detailNode = this._buildDetailNode(session);
-      menu = { text: detailNode.text, buttons: detailNode.choices || null };
+      menu = { text: detailNode.text, buttons: detailNode.choices || this._buildDefaultFollowupChoices(intent, context) };
     }
 
     if (option.nextContextPatch) {
