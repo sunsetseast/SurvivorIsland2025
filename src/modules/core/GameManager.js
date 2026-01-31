@@ -661,7 +661,9 @@ class GameManager {
       campLog: this.campLog,
       state: this.state,
       gameSettings: this.gameSettings,
-      dealSystemData: this.systems.dealSystem ? this.systems.dealSystem.serialize() : null,
+      systemsState: {
+        dealSystem: this.systems.dealSystem?.serialize?.() ?? null
+      },
       timestamp: Date.now()
     };
     const success = saveToLocalStorage(SAVE_GAME_KEY, data);
@@ -687,7 +689,8 @@ class GameManager {
       }
     }
     if (typeof this.systems.dealSystem.deserialize === 'function') {
-      this.systems.dealSystem.deserialize(data.dealSystemData);
+      const dealPayload = data.systemsState?.dealSystem ?? data.dealSystemData ?? null;
+      this.systems.dealSystem.deserialize(dealPayload);
     }
     this.resetTaskSimFlags({ reason: 'load' });
     this._updateScreenForState(this.gameState);

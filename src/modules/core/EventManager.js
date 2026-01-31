@@ -68,6 +68,9 @@ export const GameEvents = {
   // Deal events
   DEAL_CREATED: 'deal:created',
   DEAL_UPDATED: 'deal:updated',
+  DEAL_ACCEPTED: 'deal:accepted',
+  DEAL_REFUSED: 'deal:refused',
+  DEAL_COMPLETED: 'deal:completed',
   DEAL_EXPIRED: 'deal:expired',
   DEAL_BROKEN: 'deal:broken',
 
