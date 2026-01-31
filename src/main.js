@@ -78,11 +78,6 @@ function init() {
   // ⭐ NPC LOCATION SYSTEM — USE THE SINGLETON, NOT A NEW INSTANCE
   gameManager.registerSystem("npcLocationSystem", systems.npcLocationSystem);
 
-  // ⭐ Initialize NPC system if it has its own init logic
-  if (gameManager.systems.npcLocationSystem.initialize) {
-      gameManager.systems.npcLocationSystem.initialize();
-  }
-
   // Subscribe to events
   eventManager.subscribe(GameEvents.GAME_INITIALIZED, handleGameInitialized);
   eventManager.subscribe(GameEvents.GAME_STARTED, handleGameStarted);

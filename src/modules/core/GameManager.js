@@ -11,9 +11,6 @@ import { deepCopy, shuffleArray } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
-import RelationshipSystem from '../systems/RelationshipSystem.js';
-import AllianceSystem from '../systems/AllianceSystem.js';
-import DealSystem from '../systems/DealSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
@@ -21,11 +18,8 @@ import TaskSystem from '../systems/TaskSystem.js';
 import TaskSimulationSystem from '../systems/TaskSimulationSystem.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
-import { npcLocationSystem, ConversationSystem } from '../systems/index.js';
+import { ConversationSystem } from '../systems/index.js';
 import { canRunDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
-
-// UI module — this one is fine
-import npcAutoRenderer from "../ui/NpcAutoRenderer.js";
 
 // Game states
 export const GameState = {
@@ -92,50 +86,12 @@ class GameManager {
   initialize() {
     if (this.isInitialized) return;
 
+    // Systems are registered/initialized in main.js; GameManager.initialize should not re-initialize them.
     eventManager.clear();
     eventManager.setDebug(false);
     screenManager.initialize();
-    
-    console.log('🔍 About to call npcAutoRenderer.initialize()');
-    console.log('🔍 npcAutoRenderer object:', npcAutoRenderer);
-    console.log('🔍 npcAutoRenderer.initialize type:', typeof npcAutoRenderer?.initialize);
-    
-    try {
-      if (npcAutoRenderer && typeof npcAutoRenderer.initialize === 'function') {
-        npcAutoRenderer.initialize();
-        console.log('✅ Called npcAutoRenderer.initialize()');
-      } else {
-        console.error('❌ npcAutoRenderer or initialize() is not available:', npcAutoRenderer);
-      }
-    } catch (error) {
-      console.error('❌ Error calling npcAutoRenderer.initialize():', error);
-    }
-    
+
     timerManager.clearAll();
-
-    // Initialize relationship system
-    if (!this.systems.relationshipSystem) {
-      this.systems.relationshipSystem = new RelationshipSystem(this);
-    }
-    if (typeof this.systems.relationshipSystem.initialize === 'function') {
-      this.systems.relationshipSystem.initialize();
-    }
-
-    // Initialize alliance system
-    if (!this.systems.allianceSystem) {
-      this.systems.allianceSystem = new AllianceSystem(this);
-    }
-    if (typeof this.systems.allianceSystem.initialize === 'function') {
-      this.systems.allianceSystem.initialize();
-    }
-
-    // Initialize deal system
-    if (!this.systems.dealSystem) {
-      this.systems.dealSystem = new DealSystem(this);
-    }
-    if (typeof this.systems.dealSystem.initialize === 'function') {
-      this.systems.dealSystem.initialize();
-    }
 
     // Initialize social systems
     this.systems.socialMemorySystem = socialMemorySystem;
@@ -147,9 +103,6 @@ class GameManager {
     if (typeof this.systems.strategyPhaseSystem.initialize === 'function') {
       this.systems.strategyPhaseSystem.initialize();
     }
-    // Initialize NPC location system
-    this.systems.npcLocationSystem = npcLocationSystem;
-    this.systems.npcLocationSystem.initialize();   // ✅ ADD THIS
 
     this.gameState = GameState.WELCOME;
     this.isInitialized = true;

@@ -23,9 +23,12 @@ class DealSystem {
     this.gameManager = gameManager;
     this.dealsById = {};
     this.debug = false;
+    this._initialized = false;
   }
 
   initialize() {
+    if (this._initialized) return;
+    this._initialized = true;
     console.log('Initializing DealSystem');
     this.dealsById = {};
 
