@@ -30,7 +30,6 @@ class DealSystem {
     if (this._initialized) return;
     this._initialized = true;
     console.log('Initializing DealSystem');
-    this.dealsById = {};
 
     eventManager.subscribe(GameEvents.SURVIVOR_ELIMINATED, this._handleSurvivorEliminated.bind(this));
     eventManager.subscribe(GameEvents.TRIBES_MERGED, this._handleTribesMerged.bind(this));

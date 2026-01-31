@@ -635,12 +635,6 @@ class GameManager {
     (this.tribes || []).forEach(tribe => {
       this.initializeWaterPlanForTribe(tribe);
     });
-    if (!this.systems.dealSystem) {
-      this.systems.dealSystem = new DealSystem(this);
-      if (typeof this.systems.dealSystem.initialize === 'function') {
-        this.systems.dealSystem.initialize();
-      }
-    }
     if (typeof this.systems.dealSystem.deserialize === 'function') {
       const dealPayload = data.systemsState?.dealSystem ?? data.dealSystemData ?? null;
       this.systems.dealSystem.deserialize(dealPayload);
