@@ -13,6 +13,7 @@ import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import RelationshipSystem from '../systems/RelationshipSystem.js';
 import AllianceSystem from '../systems/AllianceSystem.js';
+import DealSystem from '../systems/DealSystem.js';
 import socialEngine from '../systems/SocialEngine.js';
 import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
@@ -126,6 +127,14 @@ class GameManager {
     }
     if (typeof this.systems.allianceSystem.initialize === 'function') {
       this.systems.allianceSystem.initialize();
+    }
+
+    // Initialize deal system
+    if (!this.systems.dealSystem) {
+      this.systems.dealSystem = new DealSystem(this);
+    }
+    if (typeof this.systems.dealSystem.initialize === 'function') {
+      this.systems.dealSystem.initialize();
     }
 
     // Initialize social systems
@@ -652,6 +661,7 @@ class GameManager {
       campLog: this.campLog,
       state: this.state,
       gameSettings: this.gameSettings,
+      dealSystemData: this.systems.dealSystem ? this.systems.dealSystem.serialize() : null,
       timestamp: Date.now()
     };
     const success = saveToLocalStorage(SAVE_GAME_KEY, data);
@@ -670,6 +680,15 @@ class GameManager {
     (this.tribes || []).forEach(tribe => {
       this.initializeWaterPlanForTribe(tribe);
     });
+    if (!this.systems.dealSystem) {
+      this.systems.dealSystem = new DealSystem(this);
+      if (typeof this.systems.dealSystem.initialize === 'function') {
+        this.systems.dealSystem.initialize();
+      }
+    }
+    if (typeof this.systems.dealSystem.deserialize === 'function') {
+      this.systems.dealSystem.deserialize(data.dealSystemData);
+    }
     this.resetTaskSimFlags({ reason: 'load' });
     this._updateScreenForState(this.gameState);
     eventManager.publish(GameEvents.GAME_LOADED, { timestamp: data.timestamp });
