@@ -10,9 +10,12 @@ class DealConsequencesSystem {
   constructor(gameManager) {
     this.gameManager = gameManager;
     this.debug = false;
+    this._initialized = false;
   }
 
   initialize() {
+    if (this._initialized) return;
+    this._initialized = true;
     eventManager.subscribe(GameEvents.DEAL_ACCEPTED, this._handleDealAccepted.bind(this));
     eventManager.subscribe(GameEvents.DEAL_REFUSED, this._handleDealRefused.bind(this));
     eventManager.subscribe(GameEvents.DEAL_BROKEN, this._handleDealBroken.bind(this));
