@@ -65,6 +65,12 @@ export const GameEvents = {
   ALLIANCE_UPDATED: 'alliance:updated',
   ALLIANCE_DEAL_MADE: 'alliance:dealMade',
 
+  // Deal events
+  DEAL_CREATED: 'deal:created',
+  DEAL_UPDATED: 'deal:updated',
+  DEAL_EXPIRED: 'deal:expired',
+  DEAL_BROKEN: 'deal:broken',
+
   // Idol events
   IDOL_FOUND: 'idol:found',
   IDOL_PLAYED: 'idol:played',
