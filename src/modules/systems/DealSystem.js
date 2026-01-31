@@ -32,6 +32,8 @@ class DealSystem {
     eventManager.subscribe(GameEvents.SURVIVOR_ELIMINATED, this._handleSurvivorEliminated.bind(this));
     eventManager.subscribe(GameEvents.TRIBES_MERGED, this._handleTribesMerged.bind(this));
     eventManager.subscribe(GameEvents.GAME_LOADED, this._handleGameLoaded.bind(this));
+    eventManager.subscribe(GameEvents.GAME_STARTED, this._handleGameStarted.bind(this));
+    eventManager.subscribe(GameEvents.TRIBES_CREATED, this._handleTribesCreated.bind(this));
 
     this._ensureDealFieldsForAllSurvivors();
   }
@@ -41,9 +43,9 @@ class DealSystem {
   }
 
   serialize() {
-    return {
+    return JSON.parse(JSON.stringify({
       dealsById: this.dealsById
-    };
+    }));
   }
 
   deserialize(payload) {
@@ -52,15 +54,23 @@ class DealSystem {
       return;
     }
 
-    this.dealsById = payload.dealsById && typeof payload.dealsById === 'object'
+    const rawDeals = payload.dealsById && typeof payload.dealsById === 'object'
       ? payload.dealsById
       : {};
+
+    this.dealsById = {};
+    Object.values(rawDeals).forEach(rawDeal => {
+      const normalized = this._normalizeDeal(rawDeal);
+      if (normalized) {
+        this.dealsById[normalized.id] = normalized;
+      }
+    });
 
     this._ensureDealFieldsForAllSurvivors();
     this.cleanupInvalidReferences();
   }
 
-  createDeal({ type, parties, terms = {}, expires = null, note = '' }) {
+  createDeal({ type, parties, terms = {}, expires = null, note = '', stakes = 'standard' }) {
     if (!Array.isArray(parties) || parties.length !== 2) {
       this._log('[DealSystem] Invalid parties for deal creation', parties);
       return null;
@@ -81,6 +91,12 @@ class DealSystem {
 
     this._ensureDealIdsArray(survivorA);
     this._ensureDealIdsArray(survivorB);
+
+    const existing = this._findDuplicateActiveDeal({ type, parties: [partyAId, partyBId] });
+    if (existing) {
+      this._log('[DealSystem] Duplicate active deal found, returning existing deal', existing);
+      return existing;
+    }
 
     const dealId = `deal_${generateId()}`;
     const now = Date.now();
@@ -110,17 +126,19 @@ class DealSystem {
           note: note || undefined
         }
       ],
-      visibility: 'private_pair'
+      visibility: 'private_pair',
+      stakes: this._normalizeStakes(stakes)
     };
 
-    this.dealsById[dealId] = deal;
+    const normalizedDeal = this._normalizeDeal(deal);
+    this.dealsById[dealId] = normalizedDeal;
     this._attachDealToSurvivor(survivorA, dealId);
     this._attachDealToSurvivor(survivorB, dealId);
 
-    eventManager.publish(GameEvents.DEAL_CREATED, { deal });
-    this._log('[DealSystem] Deal created', deal);
+    eventManager.publish(GameEvents.DEAL_CREATED, { deal: normalizedDeal });
+    this._logDeal('CREATED', normalizedDeal);
 
-    return dealId;
+    return normalizedDeal;
   }
 
   setDealStatus(dealId, status, bySurvivorId = null, note = '') {
@@ -135,14 +153,38 @@ class DealSystem {
       note
     });
 
-    eventManager.publish(GameEvents.DEAL_UPDATED, { deal });
+    const payload = {
+      deal,
+      byId: bySurvivorId,
+      otherId: this._getOtherPartyId(deal, bySurvivorId),
+      note
+    };
+
+    eventManager.publish(GameEvents.DEAL_UPDATED, payload);
 
     if (status === DealStatus.EXPIRED) {
-      eventManager.publish(GameEvents.DEAL_EXPIRED, { deal });
+      eventManager.publish(GameEvents.DEAL_EXPIRED, payload);
+      this._logDeal('EXPIRED', deal);
     }
 
     if (status === DealStatus.BROKEN) {
-      eventManager.publish(GameEvents.DEAL_BROKEN, { deal });
+      eventManager.publish(GameEvents.DEAL_BROKEN, payload);
+      this._logDeal('BROKEN', deal, bySurvivorId);
+    }
+
+    if (status === DealStatus.ACCEPTED) {
+      eventManager.publish(GameEvents.DEAL_ACCEPTED, payload);
+      this._logDeal('ACCEPTED', deal, bySurvivorId);
+    }
+
+    if (status === DealStatus.REFUSED) {
+      eventManager.publish(GameEvents.DEAL_REFUSED, payload);
+      this._logDeal('REFUSED', deal, bySurvivorId);
+    }
+
+    if (status === DealStatus.COMPLETED) {
+      eventManager.publish(GameEvents.DEAL_COMPLETED, payload);
+      this._logDeal('COMPLETED', deal, bySurvivorId);
     }
 
     return true;
@@ -164,19 +206,29 @@ class DealSystem {
     return this.setDealStatus(dealId, DealStatus.EXPIRED, null, note);
   }
 
-  completeDeal(dealId, note = '') {
-    return this.setDealStatus(dealId, DealStatus.COMPLETED, null, note);
+  completeDeal(dealId, bySurvivorId = null, note = '') {
+    return this.setDealStatus(dealId, DealStatus.COMPLETED, bySurvivorId, note);
   }
 
-  getDeal(dealId) {
+  getDealById(dealId) {
     return this.dealsById[dealId] || null;
   }
 
-  getDealsForSurvivor(survivorId, { statusList = null, types = null } = {}) {
+  getDeal(dealId) {
+    return this.getDealById(dealId);
+  }
+
+  getDealsForSurvivor(survivorId, { statuses = null, statusList = null, types = null } = {}) {
     const survivor = this._getSurvivorById(survivorId);
     if (!survivor) return [];
 
     this._ensureDealIdsArray(survivor);
+
+    const filterStatuses = Array.isArray(statuses) && statuses.length > 0
+      ? statuses
+      : Array.isArray(statusList) && statusList.length > 0
+        ? statusList
+        : null;
 
     const validDealIds = [];
     const deals = survivor.dealIds
@@ -187,7 +239,7 @@ class DealSystem {
       })
       .filter(Boolean)
       .filter(deal => {
-        if (Array.isArray(statusList) && statusList.length > 0 && !statusList.includes(deal.status)) {
+        if (filterStatuses && !filterStatuses.includes(deal.status)) {
           return false;
         }
         if (Array.isArray(types) && types.length > 0 && !types.includes(deal.type)) {
@@ -215,6 +267,30 @@ class DealSystem {
       if (Array.isArray(types) && types.length > 0 && !types.includes(deal.type)) return false;
       return true;
     });
+  }
+
+  hasActiveDealBetween(idA, idB, type = null) {
+    const matches = this.getActiveDealsBetween(idA, idB, { types: type ? [type] : null });
+    return matches.length > 0;
+  }
+
+  getDealSummary(dealId) {
+    const deal = this.dealsById[dealId];
+    if (!deal) return null;
+    const [aId, bId] = deal.parties || [];
+    const aName = this._getSurvivorDisplayName(aId);
+    const bName = this._getSurvivorDisplayName(bId);
+    return {
+      id: deal.id,
+      type: deal.type,
+      status: deal.status,
+      parties: [aName, bName].filter(Boolean),
+      created: {
+        day: deal.created?.day ?? null,
+        phase: deal.created?.phase ?? null
+      },
+      stakes: deal.stakes ?? 'standard'
+    };
   }
 
   removeDealReferences(dealId) {
@@ -281,6 +357,14 @@ class DealSystem {
     this.cleanupInvalidReferences();
   }
 
+  _handleGameStarted() {
+    this._ensureDealFieldsForAllSurvivors();
+  }
+
+  _handleTribesCreated() {
+    this._ensureDealFieldsForAllSurvivors();
+  }
+
   _ensureDealFieldsForAllSurvivors() {
     const survivors = this._getAllSurvivors();
     survivors.forEach(survivor => this._ensureDealIdsArray(survivor));
@@ -345,6 +429,101 @@ class DealSystem {
       phase: this.gameManager?.gamePhase ?? 'unknown',
       round: null
     };
+  }
+
+  _findDuplicateActiveDeal({ type, parties }) {
+    if (!type || !Array.isArray(parties)) return null;
+    const [partyAId, partyBId] = parties;
+    const activeStatuses = [DealStatus.PROPOSED, DealStatus.ACCEPTED];
+    const partySet = new Set([partyAId?.toString?.(), partyBId?.toString?.()]);
+
+    return Object.values(this.dealsById).find(deal => {
+      if (!deal || deal.type !== type) return false;
+      if (!activeStatuses.includes(deal.status)) return false;
+      const dealParties = new Set((deal.parties || []).map(id => id?.toString?.()));
+      if (dealParties.size !== 2 || partySet.size !== 2) return false;
+      return partySet.size === dealParties.size && [...partySet].every(id => dealParties.has(id));
+    }) || null;
+  }
+
+  _normalizeDeal(rawDeal) {
+    if (!rawDeal || typeof rawDeal !== 'object') return null;
+    const parties = Array.isArray(rawDeal.parties) ? rawDeal.parties.slice(0, 2) : [];
+    if (parties.length !== 2) return null;
+    const [partyAId, partyBId] = parties;
+    if (!partyAId || !partyBId || partyAId === partyBId) return null;
+    if (!this._getSurvivorById(partyAId) || !this._getSurvivorById(partyBId)) {
+      return null;
+    }
+
+    const now = Date.now();
+    const created = rawDeal.created || this._getGameContext();
+    const updated = rawDeal.updated || { timestamp: now };
+    const history = Array.isArray(rawDeal.history) ? rawDeal.history : [];
+
+    return {
+      id: rawDeal.id || `deal_${generateId()}`,
+      type: rawDeal.type || DealTypes.ALLIANCE_REFERENCE,
+      parties: [partyAId, partyBId],
+      status: rawDeal.status || DealStatus.PROPOSED,
+      created: {
+        day: created.day ?? this.gameManager?.day ?? 1,
+        phase: created.phase ?? this.gameManager?.gamePhase ?? 'unknown',
+        round: created.round ?? null,
+        timestamp: created.timestamp ?? rawDeal.created?.timestamp ?? now
+      },
+      updated: {
+        timestamp: updated.timestamp ?? now
+      },
+      expires: this._normalizeExpires(rawDeal.expires),
+      terms: rawDeal.terms && typeof rawDeal.terms === 'object' ? rawDeal.terms : {},
+      history,
+      visibility: rawDeal.visibility || 'private_pair',
+      stakes: this._normalizeStakes(rawDeal.stakes)
+    };
+  }
+
+  _normalizeExpires(expires) {
+    if (!expires || typeof expires !== 'object') return null;
+    const allowed = ['endOfDay', 'endOfPhase', 'endOfRound', 'untilMerge', 'custom'];
+    if (!allowed.includes(expires.kind)) return null;
+    return {
+      kind: expires.kind,
+      day: expires.day ?? undefined,
+      phase: expires.phase ?? undefined,
+      round: expires.round ?? undefined,
+      timestamp: expires.timestamp ?? undefined
+    };
+  }
+
+  _normalizeStakes(stakes) {
+    const allowed = ['minor', 'standard', 'major'];
+    return allowed.includes(stakes) ? stakes : 'standard';
+  }
+
+  _getOtherPartyId(deal, bySurvivorId) {
+    if (!deal || !bySurvivorId || !Array.isArray(deal.parties)) return null;
+    return deal.parties.find(id => id?.toString?.() !== bySurvivorId?.toString?.()) || null;
+  }
+
+  _getSurvivorDisplayName(id) {
+    const survivor = this._getSurvivorById(id);
+    if (!survivor) return null;
+    return survivor.name || survivor.firstName || survivor.nickname || survivor.id?.toString?.() || 'Unknown';
+  }
+
+  _logDeal(action, deal, byId = null) {
+    if (!this.debug) return;
+    const [aId, bId] = deal.parties || [];
+    const aName = this._getSurvivorDisplayName(aId) || 'Unknown';
+    const bName = this._getSurvivorDisplayName(bId) || 'Unknown';
+    const byName = byId ? this._getSurvivorDisplayName(byId) : null;
+    const byText = byName ? ` by ${byName}` : '';
+    console.log(`[Deal] ${action} ${deal.type} (${aName} ↔ ${bName}) stakes=${deal.stakes}${byText}`);
+  }
+
+  setDebug(enabled) {
+    this.debug = Boolean(enabled);
   }
 
   _log(...args) {

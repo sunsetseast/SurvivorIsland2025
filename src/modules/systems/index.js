@@ -10,6 +10,8 @@ export { default as IdolSystem } from './IdolSystem.js';
 export { default as InventorySystem } from './InventorySystem.js';
 export { default as RelationshipSystem, RelationshipType } from './RelationshipSystem.js';
 export { default as AllianceSystem } from './AllianceSystem.js';
+export { default as DealSystem } from './DealSystem.js';
+export { default as DealConsequencesSystem } from './DealConsequencesSystem.js';
 export { default as ConversationSystem } from './ConversationSystem.js';
 export { default as StrategyPhaseSystem } from './StrategyPhaseSystem.js';
 export { default as NpcIdolHuntAI } from './NpcIdolHuntAI.js';
@@ -25,6 +27,8 @@ import IdolSystem from './IdolSystem.js';
 import InventorySystem from './InventorySystem.js';
 import RelationshipSystem, { RelationshipType } from './RelationshipSystem.js';
 import AllianceSystem from './AllianceSystem.js';
+import DealSystem from './DealSystem.js';
+import DealConsequencesSystem from './DealConsequencesSystem.js';
 import ConversationSystem from './ConversationSystem.js';
 import StrategyPhaseSystem from './StrategyPhaseSystem.js';
 import NpcIdolHuntAI from './NpcIdolHuntAI.js';
@@ -40,6 +44,8 @@ export default {
   RelationshipSystem,
   RelationshipType,
   AllianceSystem,
+  DealSystem,
+  DealConsequencesSystem,
   ConversationSystem,
   StrategyPhaseSystem,
   NpcIdolHuntAI,

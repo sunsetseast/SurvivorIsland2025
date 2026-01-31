@@ -72,6 +72,8 @@ function init() {
   gameManager.registerSystem("idolSystem", new systems.IdolSystem(gameManager));
   gameManager.registerSystem("relationshipSystem", new systems.RelationshipSystem(gameManager));
   gameManager.registerSystem("allianceSystem", new systems.AllianceSystem(gameManager));
+  gameManager.registerSystem("dealSystem", new systems.DealSystem(gameManager));
+  gameManager.registerSystem("dealConsequencesSystem", new systems.DealConsequencesSystem(gameManager));
 
   // ⭐ NPC LOCATION SYSTEM — USE THE SINGLETON, NOT A NEW INSTANCE
   gameManager.registerSystem("npcLocationSystem", systems.npcLocationSystem);
