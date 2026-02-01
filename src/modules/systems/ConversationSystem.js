@@ -6,6 +6,7 @@ import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import socialEngine from './SocialEngine.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import { DealTypes } from './DealSystem.js';
 
 // DEV NOTE (ConversationSystem)
 // - Intents: player-facing actions (pre + post) are enumerated below and drive intent -> NPC response templates.
@@ -1639,6 +1640,7 @@ class ConversationSystem {
     this._memoryLog = [];
     this.npcMemory = {};
     this.activeExchange = null;
+    this.debugStructuredConvo = false;
   }
 
   initialize() {
@@ -1654,6 +1656,284 @@ class ConversationSystem {
       window.ConversationSystem.validateMenus = () => this.validateMenus();
       window.ConversationSystem.runSelfTest = () => this.runSelfTest();
     }
+  }
+
+  adjustTrust(idA, idB, delta, reason = 'legacy_adjustTrust') {
+    if (!idA || !idB || !Number.isFinite(delta) || delta === 0) return;
+    this.gameManager?.changeTrust?.(idA, idB, delta, reason);
+  }
+
+  _getConversationSystems() {
+    return {
+      trustSystem: this.gameManager?.systems?.trustSystem || null,
+      relationshipSystem: this.gameManager?.systems?.relationshipSystem || null,
+      allianceSystem: this.gameManager?.systems?.allianceSystem || null,
+      dealSystem: this.gameManager?.systems?.dealSystem || null,
+      dealConsequencesSystem: this.gameManager?.systems?.dealConsequencesSystem || null
+    };
+  }
+
+  _getPairTrust(playerId, npcId) {
+    if (!playerId || !npcId) return 50;
+    return this.gameManager?.getTrust?.(playerId, npcId) ?? 50;
+  }
+
+  _getRelationshipValue(playerId, npcId) {
+    const relationshipSystem = this.gameManager?.systems?.relationshipSystem;
+    const rel = relationshipSystem?.getRelationship?.(playerId, npcId);
+    return typeof rel?.value === 'number' ? rel.value : 50;
+  }
+
+  _clampStat(value, min = 0, max = 100) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return min;
+    return Math.max(min, Math.min(max, numeric));
+  }
+
+  _applyTrustDelta(playerId, npcId, delta, contextTag = 'conversation') {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    this.gameManager?.changeTrust?.(playerId, npcId, delta, contextTag);
+  }
+
+  _applyRelationshipDelta(playerId, npcId, delta, contextTag = 'conversation') {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    const relationshipSystem = this.gameManager?.systems?.relationshipSystem;
+    relationshipSystem?.changeRelationship?.(playerId, npcId, delta);
+    const log = ensureCampSocialChanges();
+    log.relationship.push({ id: npcId, with: this._getSurvivorById(npcId)?.firstName || 'NPC', amount: delta, context: contextTag });
+  }
+
+  _applySuspicionDelta(survivor, delta, contextTag = 'conversation') {
+    if (!survivor || !Number.isFinite(delta) || delta === 0) return;
+    survivor.suspicion = this._clampStat((survivor.suspicion ?? 0) + delta);
+    const log = ensureCampSocialChanges();
+    log.suspicion.push({ id: survivor.id, with: survivor.firstName || 'NPC', amount: delta, context: contextTag });
+  }
+
+  _applyThreatDelta(survivor, delta) {
+    if (!survivor || !Number.isFinite(delta) || delta === 0) return;
+    survivor.threat = this._clampStat((survivor.threat ?? 0) + delta);
+  }
+
+  _applyParanoiaDelta(survivor, delta) {
+    if (!survivor || !Number.isFinite(delta) || delta === 0) return;
+    survivor.paranoia = this._clampStat((survivor.paranoia ?? 0) + delta);
+  }
+
+  _getNpcMemory(npcId) {
+    if (!npcId) return null;
+    if (!this.npcMemory[npcId]) {
+      this.npcMemory[npcId] = {
+        intel: [],
+        flags: {},
+        gossipCount: 0,
+        lastTargets: []
+      };
+    }
+    return this.npcMemory[npcId];
+  }
+
+  _recordIntel(npcId, intel) {
+    const memory = this._getNpcMemory(npcId);
+    if (!memory) return;
+    memory.intel.push({ ...intel, timestamp: Date.now() });
+    if (this._isConversationDebugEnabled()) {
+      this._debugLog('[CONVO-DEBUG] Intel recorded', intel);
+    }
+  }
+
+  _setIntelFlag(survivor, flagKey, value = true) {
+    if (!survivor) return;
+    survivor._intelFlags = survivor._intelFlags || {};
+    survivor._intelFlags[flagKey] = value;
+  }
+
+  decideNpcResponseMode({ player, npc, topic, riskLevel = 0.3, isAllianceContext = false, isDealRequest = false, askedForNames = false, pressuring = false }) {
+    const trustScore = this._getPairTrust(player?.id, npc?.id);
+    const relationshipScore = this._getRelationshipValue(player?.id, npc?.id);
+    const paranoia = npc?.paranoia ?? 0;
+    const suspicion = npc?.suspicion ?? 0;
+    const style = (npc?.gameplayStyle || npc?.personality || '').toLowerCase();
+
+    let openness = (trustScore * 0.5 + relationshipScore * 0.4) / 100;
+    openness -= (paranoia + suspicion) / 220;
+    openness -= riskLevel * 0.25;
+    if (style.includes('social')) openness += 0.08;
+    if (style.includes('shadow') || style.includes('power')) openness -= 0.08;
+    if (isAllianceContext) openness += 0.06;
+    if (isDealRequest) openness -= 0.04;
+    if (pressuring) openness -= 0.08;
+    openness = this._clampStat(openness, 0, 1);
+
+    let mode = 'guarded';
+    if (openness >= 0.72) mode = 'truth';
+    else if (openness >= 0.58) mode = 'softTruth';
+    else if (openness >= 0.45) mode = askedForNames ? 'deflect' : 'guarded';
+    else if (pressuring || askedForNames) mode = 'counterQ';
+    else mode = style.includes('shadow') || style.includes('power') ? 'lie' : 'deflect';
+
+    if (pressuring && openness < 0.4) mode = 'escalate';
+    if (topic === 'build_connection' && openness > 0.6) mode = 'reassure';
+
+    if (this._isConversationDebugEnabled()) {
+      this._debugLog('[CONVO-DEBUG] Response mode', { mode, openness, topic, npc: npc?.firstName, trustScore, relationshipScore });
+    }
+
+    return { mode, openness };
+  }
+
+  _debugLog(...args) {
+    if (!this._isConversationDebugEnabled()) return;
+    console.log(...args);
+  }
+
+  _hasRecentEvent(context = {}) {
+    return Boolean(context?.journeyEvent || context?.day1Event || context?.recentEvent || context?.eventJustHappened || context?.journeyResult);
+  }
+
+  _getTribeMembers({ includeNpc = true, includePlayer = false, npcId = null } = {}) {
+    const tribe = this.gameManager?.getPlayerTribe?.();
+    if (!tribe?.members) return [];
+    return tribe.members.filter(member => {
+      if (!includePlayer && member.id === this.gameManager?.player?.id) return false;
+      if (!includeNpc && npcId && member.id === npcId) return false;
+      return true;
+    });
+  }
+
+  _pickWorstStat(npc) {
+    if (!npc) return { key: 'steady', line: 'I’m alright. Just trying to stay steady and not overthink everything.' };
+    const stats = [
+      { key: 'health', value: npc.health ?? 100, badLow: true, line: 'Honestly I’m beat up. I’m trying to push through but my body’s hurting.' },
+      { key: 'hunger', value: npc.hunger ?? 100, badLow: true, line: 'I’m starving. It’s hard to think straight when you’re running empty.' },
+      { key: 'water', value: npc.water ?? 100, badLow: true, line: 'My mouth’s like sandpaper. I need water bad.' },
+      { key: 'rest', value: npc.rest ?? 100, badLow: true, line: 'I’m running on fumes. I barely slept.' }
+    ];
+    const paranoia = npc.paranoia ?? 0;
+    if (paranoia >= 70) {
+      return { key: 'paranoia', line: 'I’m hanging in… but I’m not sleeping easy. Out here, you never know.' };
+    }
+    const sorted = stats.sort((a, b) => a.value - b.value);
+    const worst = sorted[0];
+    if (worst.value < 45) return worst;
+    return { key: 'steady', line: 'I’m alright. Just trying to stay steady and not overthink everything.' };
+  }
+
+  _renderMenu(npc, text, options, { onBack = null, showEnd = true } = {}) {
+    const overlay = this._buildOverlayShell(npc, { reuse: true });
+    const content = this._getConversationContent(overlay);
+    this._clearConversationContent(content);
+    const parchment = this._buildParchment(text || '');
+
+    const buttonColumn = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        marginTop: '12px',
+        width: '100%'
+      }
+    });
+
+    const buttons = [...options];
+    if (onBack) buttons.push({ label: 'Back', alt: true, onClick: onBack });
+    if (showEnd) buttons.push({ label: 'End chat', alt: true, onClick: () => this.closeConversation('player_end') });
+
+    buttons.forEach(({ label, alt = false, onClick, disabled = false, tooltip = '' }) => {
+      const btn = this._createChoiceButton({ label, alt, onClick, fallback: { npc } });
+      if (disabled) {
+        btn.disabled = true;
+        btn.style.opacity = '0.55';
+        btn.style.cursor = 'not-allowed';
+      }
+      if (tooltip) {
+        btn.title = tooltip;
+      }
+      buttonColumn.appendChild(btn);
+    });
+
+    parchment.appendChild(buttonColumn);
+    content.appendChild(parchment);
+  }
+
+  _renderPickList({ npc, title, candidates, onPick, onBack }) {
+    const listLines = candidates.map((member, index) => `${index + 1}) ${member.firstName}`).join('<br>');
+    const body = `${title}<br><br>${listLines}`;
+    const buttons = candidates.map((member, index) => ({
+      label: `Pick ${index + 1}`,
+      onClick: () => onPick(member)
+    }));
+    this._renderMenu(npc, body, buttons, { onBack });
+  }
+
+  _applyExchangeEffects({ player, npc, deltas = {}, contextTag = 'conversation' }) {
+    const trustDelta = deltas.trust ?? 0;
+    const relationshipDelta = deltas.relationship ?? 0;
+    const suspicionDelta = deltas.suspicion ?? 0;
+    const threatDelta = deltas.threat ?? 0;
+    const paranoiaDelta = deltas.paranoia ?? 0;
+
+    if (relationshipDelta) this._applyRelationshipDelta(player.id, npc.id, relationshipDelta, contextTag);
+    if (trustDelta) {
+      this._applyTrustDelta(player.id, npc.id, trustDelta, contextTag);
+      const log = ensureCampSocialChanges();
+      log.trust.push({ id: npc.id, with: npc.firstName || 'NPC', amount: trustDelta, context: contextTag });
+    }
+    if (suspicionDelta) this._applySuspicionDelta(player, suspicionDelta, contextTag);
+    if (threatDelta) this._applyThreatDelta(player, threatDelta);
+    if (paranoiaDelta) this._applyParanoiaDelta(npc, paranoiaDelta);
+
+    if (this._isConversationDebugEnabled()) {
+      this._debugLog('[CONVO-DEBUG] Effects applied', { trustDelta, relationshipDelta, suspicionDelta, threatDelta, paranoiaDelta });
+    }
+  }
+
+  _runConversationNode({ npc, player, node, context, returnTo }) {
+    if (!node) return;
+    const responseMode = this.decideNpcResponseMode({
+      player,
+      npc,
+      topic: context.mainTopicId,
+      riskLevel: node.riskLevel ?? 0.3,
+      isAllianceContext: context.mainTopicId === 'strategy' && context.subTopicId === 'alliances',
+      isDealRequest: context.subTopicId === 'offer_deal',
+      askedForNames: Boolean(node.askedForNames),
+      pressuring: Boolean(node.pressuring)
+    });
+
+    const playerLine = typeof node.playerLine === 'function'
+      ? node.playerLine({ player, npc, context })
+      : node.playerLine;
+    const npcReply = node.npcResponseGenerator({ player, npc, context, responseMode });
+
+    const followupNodes = typeof node.nextNodes === 'function'
+      ? node.nextNodes({ player, npc, context, responseMode })
+      : (node.nextNodes || []);
+
+    const afterReply = () => {
+      if (typeof node.effects === 'function') {
+        node.effects({ player, npc, context, responseMode });
+      }
+      if (typeof node.afterReply === 'function') {
+        node.afterReply({ player, npc, context, responseMode });
+        return;
+      }
+      const followupButtons = followupNodes.map(nextNode => ({
+        label: nextNode.buttonText,
+        onClick: () => this._runConversationNode({
+          npc,
+          player,
+          node: nextNode,
+          context,
+          returnTo
+        })
+      }));
+      this._renderMenu(npc, npcReply, followupButtons, { onBack: returnTo, showEnd: true });
+    };
+
+    this._renderConversationOverlay(npc, playerLine, [
+      { label: 'Continue', onClick: afterReply }
+    ]);
   }
 
   /**
@@ -1999,71 +2279,1532 @@ class ConversationSystem {
   }
 
   _showTopicSelection(survivor, location) {
-    const overlay = this._buildOverlayShell(survivor, { reuse: true });
-    const content = this._getConversationContent(overlay);
-    this._clearConversationContent(content);
-    const parchment = this._buildParchment(`Choose a direction with ${survivor.firstName}`);
-
-    const buttonColumn = createElement('div', {
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        marginTop: '8px',
-        maxHeight: '46vh',
-        overflowY: 'auto',
-        width: '100%'
-      }
-    });
-
-    const isPostChallenge = this._getConversationPhase() === 'post';
     const player = this.gameManager.getPlayerSurvivor?.();
-    const allianceSystem = this.gameManager.systems?.allianceSystem;
-    const hasAlliance = !!(player?.id && allianceSystem?.areAllied?.(player.id, survivor.id));
-    const categories = isPostChallenge
-      ? [
-          { key: 'challengeDebrief', label: 'Challenge Debrief' },
-          { key: 'pitch', label: 'Target Pitch' },
-          { key: 'deflect', label: 'Counter-Pitch / Deflect' },
-          { key: 'deal', label: 'Make a Deal' },
-          { key: 'tradeInfo', label: 'Trade Info' },
-          { key: 'verify', label: 'Verify / Fact Check' },
-          { key: 'seed', label: 'Plant a Seed' },
-          { key: 'pressure', label: 'Apply Pressure' },
-          { key: 'alliance', label: 'Talk Alliance Commitment' },
-          { key: 'splitVote', label: 'Propose Split Vote' },
-          { key: 'idolTalk', label: 'Idol Talk' }
-        ]
-      : PRE_CHALLENGE_TREE.categories.map(category => ({
-          key: category.id,
-          label: category.label
-        }));
-
-    categories.forEach(cat => {
-      const btn = this._createChoiceButton({
-        label: cat.label,
-        onClick: () => this._showCategoryMenu(survivor, location, cat.key),
-        fallback: { npc: survivor }
-      });
-      buttonColumn.appendChild(btn);
+    if (!player || !survivor) return;
+    const context = this._normalizeConversationContext({
+      ...(this.activeConversationContext || {}),
+      location,
+      phase: this._getConversationPhase()
     });
 
-    const closeBtn = this._createChoiceButton({
-      label: 'End Conversation',
-      alt: true,
-      onClick: () => this.closeConversation('player_end'),
-      fallback: { npc: survivor }
-    });
-
-    buttonColumn.appendChild(closeBtn);
-    parchment.appendChild(buttonColumn);
-    content.appendChild(parchment);
-
-    this.state = {
-      ...(this.state || {}),
+    this.nodeSession = {
       npcId: survivor.id,
-      topic: null
+      context,
+      menuStack: []
     };
+
+    const mainTopics = this._buildMainTopics({ player, npc: survivor, context });
+    this._renderMainMenu({ player, npc: survivor, context, mainTopics });
+  }
+
+  _renderMainMenu({ player, npc, context, mainTopics }) {
+    const menuText = `Pick a main topic with ${npc.firstName}.`;
+    const buttons = mainTopics.map(topic => ({
+      label: topic.label,
+      onClick: () => {
+        if (typeof topic.onSelect === 'function') {
+          topic.onSelect();
+          return;
+        }
+        this._renderSubMenu({ player, npc, context, topic });
+      }
+    }));
+    this._renderMenu(npc, menuText, buttons, { onBack: null, showEnd: true });
+  }
+
+  _renderSubMenu({ player, npc, context, topic }) {
+    const menuText = `What do you want to talk about?`;
+    const buttons = (topic.nodes || []).map(node => ({
+      label: node.buttonText,
+      disabled: Boolean(node.disabled),
+      tooltip: node.tooltip || '',
+      onClick: node.disabled
+        ? null
+        : () => this._runConversationNode({
+          npc,
+          player,
+          node,
+          context: { ...context, mainTopicId: topic.id, subTopicId: node.id },
+          returnTo: () => this._renderSubMenu({ player, npc, context, topic })
+        })
+    }));
+    this._renderMenu(npc, menuText, buttons, {
+      onBack: () => this._renderMainMenu({ player, npc, context, mainTopics: this._buildMainTopics({ player, npc, context }) }),
+      showEnd: true
+    });
+  }
+
+  _buildMainTopics({ player, npc, context }) {
+    const topics = [
+      {
+        id: 'build_connection',
+        label: 'Build Connection',
+        nodes: this._buildBuildConnectionNodes({ player, npc, context })
+      },
+      {
+        id: 'vibe_check',
+        label: 'Vibe Check',
+        nodes: this._buildVibeCheckNodes({ player, npc, context })
+      },
+      {
+        id: 'gossip',
+        label: 'Gossip',
+        nodes: this._buildGossipNodes({ player, npc, context })
+      },
+      {
+        id: 'idol_talk',
+        label: 'Idol Talk',
+        nodes: this._buildIdolTalkNodes({ player, npc, context })
+      },
+      {
+        id: 'strategy',
+        label: 'Strategy',
+        nodes: this._buildStrategyNodes({ player, npc, context })
+      },
+      {
+        id: 'confront',
+        label: 'Confront',
+        nodes: this._buildConfrontNodes({ player, npc, context })
+      },
+      {
+        id: 'talk_about_someone',
+        label: 'Talk about Someone',
+        nodes: [
+          {
+            id: 'talk_someone',
+            buttonText: 'Pick a person',
+            playerLine: 'Can we talk about someone specific?',
+            npcResponseGenerator: () => 'Sure. Who do you want to focus on?',
+            afterReply: () => {
+              this._showTalkAboutSomeoneSelect({ player, npc, context });
+            }
+          }
+        ]
+      }
+    ];
+
+    if (this._hasRecentEvent(context)) {
+      topics.splice(1, 0, {
+        id: 'event',
+        label: 'Talk about the event',
+        nodes: [
+          {
+            id: 'event_talk',
+            buttonText: 'Talk about the event',
+            playerLine: 'That event earlier… what’s your read on it?',
+            npcResponseGenerator: () => 'It shifted the energy. People are recalibrating fast.',
+            effects: ({ player, npc }) => {
+              this._applyExchangeEffects({
+                player,
+                npc,
+                deltas: { relationship: getRandomInt(1, 3), trust: getRandomInt(1, 2) },
+                contextTag: 'event_chat'
+              });
+            }
+          }
+        ]
+      });
+    }
+
+    return topics;
+  }
+
+  _buildBuildConnectionNodes({ player, npc, context }) {
+    return [
+      {
+        id: 'check_in',
+        buttonText: 'Check in',
+        playerLine: 'How you holding up? Just checking in — you good?',
+        npcResponseGenerator: () => {
+          const worst = this._pickWorstStat(npc);
+          if (worst.key === 'paranoia') return worst.line;
+          if (worst.key !== 'steady') return worst.line;
+          return 'I’m alright. Just trying to stay steady and not overthink everything.';
+        },
+        effects: ({ player, npc }) => {
+          const paranoia = npc.paranoia ?? 0;
+          const relationshipDelta = getRandomInt(2, 5);
+          const trustDelta = paranoia >= 70 ? getRandomInt(0, 1) : getRandomInt(1, 3);
+          this._applyExchangeEffects({
+            player,
+            npc,
+            deltas: { relationship: relationshipDelta, trust: trustDelta },
+            contextTag: 'build_check_in'
+          });
+        },
+        nextNodes: () => {
+          if ((npc.paranoia ?? 0) < 70) return [];
+          return [
+            {
+              id: 'check_in_push',
+              buttonText: 'Push further',
+              playerLine: 'You’re sure? It feels heavier than that.',
+              npcResponseGenerator: () => 'I said I’m fine. Just let me breathe.',
+              effects: ({ player, npc }) => {
+                this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1, trust: 0 }, contextTag: 'build_check_in_push' });
+              }
+            }
+          ];
+        }
+      },
+      {
+        id: 'share_laugh',
+        buttonText: 'Share a laugh',
+        playerLine: 'We’ve gotta laugh out here or we’ll go crazy. What’s the funniest thing you’ve seen today?',
+        npcResponseGenerator: ({ responseMode }) => {
+          const lowMood = (npc.rest ?? 100) < 40 && (npc.paranoia ?? 0) > 60;
+          const style = (npc.gameplayStyle || '').toLowerCase();
+          if (lowMood) return 'I’m not really in a laughing mood… but yeah, I get it.';
+          if (style.includes('charmer')) return 'Honestly? The side-eyes. Everybody’s pretending they’re calm and it’s kind of adorable.';
+          if (responseMode.mode === 'guarded') return 'People trying not to lose it. That’s the comedy out here.';
+          return 'Honestly? Watching everyone pretend they’re not losing it. It’s kind of hilarious.';
+        },
+        effects: ({ player, npc }) => {
+          const lowMood = (npc.rest ?? 100) < 40 && (npc.paranoia ?? 0) > 60;
+          const relationshipDelta = lowMood ? getRandomInt(-2, -1) : getRandomInt(3, 6);
+          this._applyExchangeEffects({
+            player,
+            npc,
+            deltas: { relationship: relationshipDelta },
+            contextTag: 'build_laugh'
+          });
+        }
+      },
+      {
+        id: 'compliment',
+        buttonText: 'Compliment',
+        playerLine: 'Real talk — you’ve been solid out here. I respect how you’re playing this.',
+        npcResponseGenerator: ({ responseMode }) => {
+          if (responseMode.mode === 'counterQ' || responseMode.mode === 'guarded') {
+            return 'Why are you laying it on thick right now?';
+          }
+          if (responseMode.mode === 'deflect') {
+            return 'We’ll see. It’s early. Anybody can look good on day one.';
+          }
+          return 'I appreciate that. It means something coming from you.';
+        },
+        effects: ({ player, npc, responseMode }) => {
+          const relationshipDelta = getRandomInt(2, 5);
+          const trustDelta = responseMode.mode === 'counterQ' || responseMode.mode === 'guarded' ? 0 : getRandomInt(1, 3);
+          this._applyExchangeEffects({
+            player,
+            npc,
+            deltas: { relationship: relationshipDelta, trust: trustDelta },
+            contextTag: 'build_compliment'
+          });
+        },
+        nextNodes: ({ responseMode }) => {
+          if (responseMode.mode !== 'counterQ' && responseMode.mode !== 'guarded') return [];
+          return [
+            {
+              id: 'compliment_real',
+              buttonText: 'Just being real',
+              playerLine: 'Just being real. I’m not trying to play you.',
+              npcResponseGenerator: () => 'Alright. I can respect straight talk.',
+              effects: ({ player, npc }) => {
+                this._applyExchangeEffects({
+                  player,
+                  npc,
+                  deltas: { trust: getRandomInt(1, 2), relationship: getRandomInt(1, 3), suspicion: -1 },
+                  contextTag: 'build_compliment_real'
+                });
+              }
+            },
+            {
+              id: 'compliment_build',
+              buttonText: 'Building something',
+              playerLine: 'I’m building something. I don’t want to pretend.',
+              npcResponseGenerator: () => 'Okay. Just know I’m watching how you move.',
+              effects: ({ player, npc }) => {
+                this._applyExchangeEffects({
+                  player,
+                  npc,
+                  deltas: { trust: getRandomInt(0, 2), relationship: getRandomInt(1, 3), suspicion: 1 },
+                  contextTag: 'build_compliment_build'
+                });
+              }
+            }
+          ];
+        }
+      },
+      {
+        id: 'bond_one_on_one',
+        buttonText: 'Bond one-on-one',
+        playerLine: 'I want us on the same wavelength out here. Not big strategy — just… good energy.',
+        npcResponseGenerator: ({ responseMode }) => {
+          if (responseMode.mode === 'guarded' || responseMode.mode === 'deflect') {
+            return 'I hear you. I’m just keeping my head down for now.';
+          }
+          return 'Yeah. I can do that. I’d rather have real people around me than chaos.';
+        },
+        effects: ({ player, npc, responseMode }) => {
+          const relationshipDelta = getRandomInt(3, 7);
+          const trustDelta = responseMode.mode === 'guarded' ? getRandomInt(0, 1) : getRandomInt(1, 3);
+          this._applyExchangeEffects({
+            player,
+            npc,
+            deltas: { relationship: relationshipDelta, trust: trustDelta },
+            contextTag: 'build_bond'
+          });
+        }
+      }
+    ];
+  }
+
+  _buildVibeCheckNodes({ player, npc, context }) {
+    const tribe = this.gameManager.getPlayerTribe?.();
+    const day1Mood = tribe?.day1Mood || tribe?.closingMood || 'tentative';
+    return [
+      {
+        id: 'camp_vibe',
+        buttonText: 'Camp vibe',
+        playerLine: 'What’s the vibe like right now? This tribe feels… something.',
+        npcResponseGenerator: () => {
+          if (day1Mood === 'chaotic') return 'It’s chaotic. People are smiling, but it feels like everyone’s taking notes.';
+          if (day1Mood === 'confident') return 'It’s confident. Like people think we’ve got this… which makes me nervous.';
+          return 'It’s tentative. Nobody wants to be the first person to show their cards.';
+        },
+        nextNodes: () => [
+          {
+            id: 'camp_calm',
+            buttonText: 'Calm it down',
+            playerLine: 'Let’s calm it down. We can keep this tribe steady.',
+            npcResponseGenerator: () => 'That would help. Less noise, more trust.',
+            effects: ({ player, npc }) => {
+              player.teamPlayer = this._clampStat((player.teamPlayer ?? 50) + getRandomInt(1, 3));
+              this._applyExchangeEffects({
+                player,
+                npc,
+                deltas: { trust: 1, suspicion: -1 },
+                contextTag: 'vibe_calm'
+              });
+            }
+          },
+          {
+            id: 'camp_chaos',
+            buttonText: 'Use the chaos',
+            playerLine: 'Chaos is opportunity. We can use it.',
+            npcResponseGenerator: ({ responseMode }) => {
+              const style = (npc.gameplayStyle || '').toLowerCase();
+              const likes = style.includes('shadow') || style.includes('power');
+              return likes && responseMode.openness > 0.5
+                ? 'Maybe. If we steer it, it could work.'
+                : 'That’s risky. Chaos burns people who touch it.';
+            },
+            effects: ({ player, npc }) => {
+              const style = (npc.gameplayStyle || '').toLowerCase();
+              const likes = style.includes('shadow') || style.includes('power');
+              const deltas = likes ? { trust: getRandomInt(1, 2) } : { suspicion: getRandomInt(1, 2) };
+              this._applyExchangeEffects({ player, npc, deltas, contextTag: 'vibe_chaos' });
+            }
+          }
+        ]
+      },
+      {
+        id: 'holding_up',
+        buttonText: 'How are you holding up?',
+        playerLine: 'Be honest — how are you holding up physically and mentally?',
+        npcResponseGenerator: () => {
+          if ((npc.paranoia ?? 0) >= 70) return 'Mentally I’m on edge. I keep replaying conversations in my head.';
+          const worst = this._pickWorstStat(npc);
+          if (worst.key === 'hunger') return 'My hunger is wrecking me. I’m running on empty.';
+          if (worst.key === 'water') return 'I’m dehydrated. That’s the main thing.';
+          if (worst.key === 'rest') return 'I’m exhausted. I can’t recover.';
+          if (worst.key === 'health') return 'I’m banged up. It’s harder than I expected.';
+          return 'I’m managing. Some parts are rough, but I’m holding it together.';
+        },
+        effects: ({ player, npc, responseMode }) => {
+          const relationshipDelta = getRandomInt(1, 3);
+          const trustDelta = responseMode.mode === 'truth' || responseMode.mode === 'softTruth' ? getRandomInt(1, 2) : 0;
+          this._applyExchangeEffects({ player, npc, deltas: { relationship: relationshipDelta, trust: trustDelta }, contextTag: 'vibe_holding' });
+        }
+      },
+      {
+        id: 'whats_bugging',
+        buttonText: 'What’s bugging you?',
+        playerLine: 'What’s been bugging you out here? Like… what’s the thing you can’t ignore?',
+        npcResponseGenerator: ({ responseMode }) => {
+          const mood = day1Mood;
+          const lowResources = (npc.hunger ?? 100) < 45 || (npc.water ?? 100) < 45;
+          const lowRel = this._getRelationshipValue(player.id, npc.id) < 45;
+          const trust = this._getPairTrust(player.id, npc.id);
+          const paranoia = npc.paranoia ?? 0;
+          const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+          const named = trust > 65 && paranoia < 55 && candidates.length
+            ? candidates[getRandomInt(0, Math.max(0, candidates.length - 1))]
+            : null;
+          if (responseMode.mode === 'guarded' || responseMode.mode === 'deflect') {
+            return 'I’m keeping my head down for now. It’s early to gripe.';
+          }
+          const tag = named ? ` ${named.firstName} stands out to me.` : '';
+          if (named) {
+            this._recordIntel(npc.id, { type: 'bugging', targetId: named.id, targetName: named.firstName });
+          }
+          if (mood === 'chaotic') return `Everyone’s “fine” … but nobody’s honest. It’s getting weird.${tag}`;
+          if (lowResources) return `I’m watching who actually works… and who magically disappears.${tag}`;
+          if (lowRel) return `It’s like there’s already a circle… and I’m not sure I’m in it.${tag}`;
+          return `I feel like one mistake and people decide you’re dead weight.${tag}`;
+        },
+        nextNodes: ({ responseMode }) => [
+          {
+            id: 'bugging_align',
+            buttonText: 'I see it too',
+            playerLine: 'I see it too. It’s not just you.',
+            npcResponseGenerator: () => 'Good. I needed to hear that.',
+            effects: ({ player, npc }) => {
+              this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2), relationship: getRandomInt(1, 2) }, contextTag: 'vibe_bugging_align' });
+            }
+          },
+          {
+            id: 'bugging_disagree',
+            buttonText: 'Not my read',
+            playerLine: 'That’s not my read, but I’m listening.',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'guarded'
+              ? 'Alright. Just be careful who you trust.'
+              : 'Fair. We might be seeing different corners.',
+            effects: ({ player, npc }) => {
+              this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1 }, contextTag: 'vibe_bugging_disagree' });
+            }
+          },
+          {
+            id: 'bugging_names',
+            buttonText: 'Who do you mean?',
+            playerLine: 'Who do you mean?',
+            npcResponseGenerator: () => 'Let’s talk about someone specific.',
+            afterReply: () => {
+              this._showTalkAboutSomeoneSelect({ player, npc, context });
+            }
+          }
+        ]
+      },
+      {
+        id: 'feel_safe',
+        buttonText: 'Do you feel safe?',
+        playerLine: 'Do you feel safe right now?',
+        npcResponseGenerator: ({ responseMode }) => {
+          const paranoia = npc.paranoia ?? 0;
+          const threat = npc.threat ?? 0;
+          if (responseMode.mode === 'deflect') return 'Nobody’s safe. That’s the whole game.';
+          if (paranoia >= 60 || threat >= 65) return 'No. I don’t. I feel my name floating.';
+          return 'For now… yeah. But I’m not relaxing.';
+        },
+        nextNodes: () => [
+          {
+            id: 'safe_protect',
+            buttonText: 'I’ve got you',
+            playerLine: 'I’ve got you. I don’t want you in danger.',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'guarded'
+              ? 'I appreciate it, but I hear promises all day.'
+              : 'Alright. That helps.',
+            effects: ({ player, npc }) => {
+              const manipulative = (npc.paranoia ?? 0) > 65;
+              this._applyExchangeEffects({
+                player,
+                npc,
+                deltas: { trust: manipulative ? 1 : 2, paranoia: manipulative ? 1 : 0 },
+                contextTag: 'vibe_safe_protect'
+              });
+            },
+            nextNodes: () => [
+              {
+                id: 'safe_protect_deal',
+                buttonText: 'Make it a deal',
+                playerLine: 'Let’s make it a protection deal.',
+                npcResponseGenerator: () => 'Alright. If we lock it in, we lock it in.',
+                afterReply: () => this._resolveDealOutcome({ player, npc, context, dealType: 'protect', target: null })
+              }
+            ]
+          },
+          {
+            id: 'safe_names',
+            buttonText: 'Who’s pushing it?',
+            playerLine: 'Who’s pushing it?',
+            npcResponseGenerator: () => 'Let’s talk about someone specific.',
+            afterReply: () => {
+              this._showTalkAboutSomeoneSelect({ player, npc, context });
+            }
+          }
+        ]
+      },
+      {
+        id: 'strategy_style',
+        buttonText: 'What’s your strategy?',
+        playerLine: 'What’s your strategy out here — like, your real approach?',
+        npcResponseGenerator: () => {
+          switch (npc.gameplayStyle) {
+            case 'Competitive':
+              return 'Win when I can, stay useful, and make it hard to write my name down.';
+            case 'Power Player':
+              return 'I want influence. I don’t need chaos — I need control.';
+            case 'Social Genius':
+              return 'Relationships first. The vote comes from the vibe.';
+            case 'Shadow Strategist':
+              return 'Information. Quiet positioning. Let other people take heat.';
+            case 'Wildcard':
+              return 'I’m adapting. If the tribe moves, I move with it.';
+            case 'Lethal Charmer':
+              return 'People underestimate what a conversation can do. That’s where I live.';
+            default:
+              return 'I’m keeping my options open and trying to stay useful.';
+          }
+        },
+        nextNodes: () => [
+          {
+            id: 'strategy_respect',
+            buttonText: 'Respect',
+            playerLine: 'Respect. That’s a smart read.',
+            npcResponseGenerator: () => 'Appreciate it.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'vibe_strategy_respect' })
+          },
+          {
+            id: 'strategy_help_us',
+            buttonText: 'Help us',
+            playerLine: 'How does that help us out here?',
+            npcResponseGenerator: () => 'If we align our approach, we stay ahead of the vote.',
+            afterReply: () => {
+              this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } });
+            }
+          },
+          {
+            id: 'strategy_risky',
+            buttonText: 'Sounds risky',
+            playerLine: 'Sounds dangerous if it goes sideways.',
+            npcResponseGenerator: () => 'Everything out here is dangerous. That’s why we pick our spots.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1 }, contextTag: 'vibe_strategy_risky' })
+          }
+        ]
+      },
+      {
+        id: 'are_we_good',
+        buttonText: 'Are we good?',
+        playerLine: 'You and me — are we good?',
+        npcResponseGenerator: () => {
+          const trust = this._getPairTrust(player.id, npc.id);
+          const relationship = this._getRelationshipValue(player.id, npc.id);
+          const memory = this._getNpcMemory(npc.id);
+          const hasNegative = memory?.flags?.nameDrop || memory?.flags?.pressured;
+          if (trust > 65 && relationship > 60 && !hasNegative) return 'Yeah, we’re good. Don’t overthink it.';
+          if (trust > 45) return 'We’re okay… but I’m watching how you move.';
+          return 'Honestly? I’ve got questions.';
+        },
+        nextNodes: () => [
+          {
+            id: 'good_hear',
+            buttonText: 'What did you hear?',
+            playerLine: 'What did you hear?',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+              ? 'I heard my name linked to you. I’m checking if it’s real.'
+              : 'Nothing specific. Just the vibe.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: responseMode.mode === 'truth' ? 0 : 1 }, contextTag: 'vibe_good_hear' })
+          },
+          {
+            id: 'good_fix',
+            buttonText: 'Fix it',
+            playerLine: 'I want to fix it. Tell me what you need.',
+            npcResponseGenerator: () => 'Own your moves and don’t blindside me.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(2, 6), relationship: getRandomInt(1, 4) }, contextTag: 'vibe_good_fix' })
+          },
+          {
+            id: 'good_defensive',
+            buttonText: 'Say it',
+            playerLine: 'If you’re against me, say it.',
+            npcResponseGenerator: () => 'That’s a little aggressive. I’m not doing that.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: -3, suspicion: 2 }, contextTag: 'vibe_good_defensive' })
+          }
+        ]
+      }
+    ];
+  }
+
+  _buildGossipNodes({ player, npc, context }) {
+    const memory = this._getNpcMemory(npc.id);
+    const applyGossipRisk = () => {
+      memory.gossipCount = (memory.gossipCount || 0) + 1;
+      if (memory.gossipCount > 2) {
+        this._applySuspicionDelta(player, getRandomInt(0, 1), 'gossip_repeat');
+      }
+    };
+    const buildNameReply = ({ mode, truthLine, lieLine, deflectLine }) => {
+      if (mode === 'truth' || mode === 'softTruth') return truthLine;
+      if (mode === 'lie') return lieLine || truthLine;
+      if (mode === 'counterQ') return 'Why — did you hear my name?';
+      return deflectLine || 'It’s early. I’m not putting names on anything.';
+    };
+    const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+    const topThreat = [...candidates].sort((a, b) => (b.threat ?? 0) - (a.threat ?? 0))[0];
+    const altThreat = [...candidates].sort((a, b) => (b.threat ?? 0) - (a.threat ?? 0))[1];
+    const topSuspicious = [...candidates].sort((a, b) => (b.suspicion ?? 0) - (a.suspicion ?? 0))[0];
+    const topAsset = [...candidates].sort((a, b) => (b.teamPlayer ?? 50) - (a.teamPlayer ?? 50))[0];
+    const lowAsset = [...candidates].sort((a, b) => (a.teamPlayer ?? 50) - (b.teamPlayer ?? 50))[0];
+    const relationships = candidates.map(member => ({
+      member,
+      value: this._getRelationshipValue(npc.id, member.id)
+    })).sort((a, b) => b.value - a.value);
+    const closeWith = relationships[0]?.member;
+
+    return [
+      {
+        id: 'close_with',
+        buttonText: 'Who are you close with?',
+        playerLine: 'Who do you actually feel good with around here?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          const line = buildNameReply({
+            mode: responseMode.mode,
+            truthLine: closeWith ? `I vibe most with ${closeWith.firstName}. We just click.` : 'A couple people. I’m keeping it quiet.',
+            deflectLine: 'It’s early. I’m not putting labels on anything.'
+          });
+          if (responseMode.mode === 'truth' && closeWith) {
+            this._recordIntel(npc.id, { type: 'close_with', targetId: closeWith.id, targetName: closeWith.firstName });
+            this._applyExchangeEffects({ player, npc, deltas: { trust: 1 }, contextTag: 'gossip_close' });
+          }
+          if (responseMode.mode === 'lie') {
+            this._recordIntel(npc.id, { type: 'possible_lie', topic: 'close_with' });
+          }
+          return line;
+        }
+      },
+      {
+        id: 'threat',
+        buttonText: 'Who’s a threat?',
+        playerLine: 'Who do you see as a real threat right now?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          const line = buildNameReply({
+            mode: responseMode.mode,
+            truthLine: topThreat ? `If we’re talking threat? ${topThreat.firstName}.` : 'Everybody’s a threat in different ways.',
+            lieLine: altThreat ? `People think it’s ${topThreat?.firstName || 'someone'}, but I’m watching ${altThreat.firstName}.` : 'Everybody’s a threat in different ways.',
+            deflectLine: 'Everybody’s a threat in different ways.'
+          });
+          if ((responseMode.mode === 'truth' || responseMode.mode === 'softTruth') && topThreat) {
+            this._recordIntel(npc.id, { type: 'threat_callout', targetId: topThreat.id, targetName: topThreat.firstName });
+          }
+          return line;
+        },
+        effects: ({ player }) => {
+          this._applySuspicionDelta(player, getRandomInt(0, 1), 'gossip_threat');
+        }
+      },
+      {
+        id: 'asset',
+        buttonText: 'Who’s an asset?',
+        playerLine: 'Who’s actually an asset to the tribe?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          const line = buildNameReply({
+            mode: responseMode.mode,
+            truthLine: topAsset ? `${topAsset.firstName} is pulling weight.` : 'A few people are keeping us afloat.',
+            deflectLine: 'Hard to say without watching another day.'
+          });
+          if (responseMode.mode === 'truth' && topAsset) {
+            this._recordIntel(npc.id, { type: 'asset', targetId: topAsset.id, targetName: topAsset.firstName });
+          }
+          return line;
+        },
+        nextNodes: () => [
+          {
+            id: 'asset_support',
+            buttonText: 'They’re valuable',
+            playerLine: 'Yeah, they’re valuable.',
+            npcResponseGenerator: () => 'Agreed. We need people like that.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: 1 }, contextTag: 'gossip_asset_support' })
+          },
+          {
+            id: 'asset_danger',
+            buttonText: 'They’re dangerous',
+            playerLine: 'Or they’re dangerous long-term.',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+              ? 'That’s a fair point. Big assets become big targets.'
+              : 'Maybe. I’m not there yet.',
+            effects: ({ player, npc }) => {
+              const agrees = responseMode.mode === 'truth' || responseMode.mode === 'softTruth';
+              this._applyExchangeEffects({
+                player,
+                npc,
+                deltas: { suspicion: agrees ? 0 : 1 },
+                contextTag: 'gossip_asset_danger'
+              });
+              if (agrees && topAsset) {
+                this._recordIntel(npc.id, { type: 'threat_seeded', targetId: topAsset.id, targetName: topAsset.firstName });
+              }
+            }
+          },
+          {
+            id: 'asset_neutral',
+            buttonText: 'Neutral',
+            playerLine: 'Noted.',
+            npcResponseGenerator: () => 'We’ll see how it plays.',
+            effects: () => {}
+          }
+        ]
+      },
+      {
+        id: 'dead_weight',
+        buttonText: 'Who’s dead weight?',
+        playerLine: 'Who feels like dead weight right now?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          const line = buildNameReply({
+            mode: responseMode.mode,
+            truthLine: lowAsset ? `I hate saying it, but ${lowAsset.firstName} hasn’t contributed.` : 'I’m not calling anyone dead weight.',
+            deflectLine: 'I’m not throwing anyone under the bus.'
+          });
+          if (responseMode.mode === 'truth' && lowAsset) {
+            this._recordIntel(npc.id, { type: 'dead_weight', targetId: lowAsset.id, targetName: lowAsset.firstName });
+          }
+          return line;
+        }
+      },
+      {
+        id: 'suspicious',
+        buttonText: 'Who’s suspicious?',
+        playerLine: 'Who’s giving you sketchy energy?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          const line = buildNameReply({
+            mode: responseMode.mode,
+            truthLine: topSuspicious ? `${topSuspicious.firstName}… I can’t read them. It doesn’t feel clean.` : 'I’m not saying names.',
+            deflectLine: 'I’m not saying names.'
+          });
+          if (responseMode.mode === 'truth' && topSuspicious) {
+            this._recordIntel(npc.id, { type: 'suspicious', targetId: topSuspicious.id, targetName: topSuspicious.firstName });
+          }
+          return line;
+        }
+      },
+      {
+        id: 'name_coming_up',
+        buttonText: 'Whose name is coming up?',
+        playerLine: 'Whose name is coming up when people whisper?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          const target = topSuspicious || topThreat || closeWith;
+          const line = buildNameReply({
+            mode: responseMode.mode,
+            truthLine: target ? `I’ve heard ${target.firstName} once or twice.` : 'I haven’t heard anything concrete.',
+            lieLine: 'Nobody’s saying anything.'
+          });
+          if (responseMode.mode === 'truth' && target) {
+            this._recordIntel(npc.id, { type: 'name_coming_up', targetId: target.id, targetName: target.firstName });
+          }
+          return line;
+        }
+      },
+      {
+        id: 'working_together',
+        buttonText: 'Who’s working together?',
+        playerLine: 'Who do you think is working together?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          const duo = this._pickLikelyDuo(npc);
+          const line = buildNameReply({
+            mode: responseMode.mode,
+            truthLine: duo ? `If I had to guess? ${duo[0].firstName} and ${duo[1].firstName} keep ending up together.` : 'It’s just a vibe… but watch who pairs up.',
+            deflectLine: 'It’s just a vibe… but watch who pairs up.'
+          });
+          if (responseMode.mode === 'truth' && duo) {
+            this._recordIntel(npc.id, { type: 'duo_watch', targetIds: [duo[0].id, duo[1].id], targetNames: [duo[0].firstName, duo[1].firstName] });
+          }
+          return line;
+        }
+      },
+      {
+        id: 'quick_read',
+        buttonText: 'Quick read',
+        playerLine: 'Give me your quick read. One sentence.',
+        npcResponseGenerator: ({ responseMode }) => {
+          applyGossipRisk();
+          if (responseMode.mode === 'truth') return 'It’s calm on the surface, but every smile feels strategic.';
+          if (responseMode.mode === 'deflect') return 'I’m still absorbing. It’s early.';
+          return 'People are friendly, but I’m not sleeping easy.';
+        }
+      }
+    ];
+  }
+
+  _buildIdolTalkNodes({ player, npc, context }) {
+    return [
+      {
+        id: 'idol_looked',
+        buttonText: 'Have you looked?',
+        playerLine: 'Be honest — have you looked for an idol?',
+        askedForNames: false,
+        npcResponseGenerator: ({ responseMode }) => {
+          this._setIntelFlag(npc, 'idolTalk', true);
+          this._setIntelFlag(player, 'idolTalk', true);
+          const paranoia = npc.paranoia ?? 0;
+          const style = (npc.gameplayStyle || '').toLowerCase();
+          if (responseMode.mode === 'lie' || style.includes('shadow') || paranoia > 70) {
+            return 'No. Not yet.';
+          }
+          return Math.random() < 0.5 ? 'Yeah. I’ve looked a little.' : 'No. Not yet.';
+        },
+        effects: ({ player, npc }) => {
+          this._applyExchangeEffects({ player, npc, deltas: { paranoia: 1 }, contextTag: 'idol_looked' });
+        },
+        nextNodes: ({ responseMode }) => {
+          const saidYes = responseMode.mode === 'truth' && Math.random() < 0.5;
+          if (saidYes) {
+            return [
+              {
+                id: 'idol_found',
+                buttonText: 'Found anything?',
+                playerLine: 'Did you find anything? Even a clue?',
+                npcResponseGenerator: ({ responseMode: followMode }) => {
+                  if (npc.hasIdol || npc.hasIdolClue) {
+                    return followMode.mode === 'truth'
+                      ? 'Yeah. I found something. I’m keeping it quiet.'
+                      : 'No. Nothing.';
+                  }
+                  return 'No. Nothing.';
+                }
+              }
+            ];
+          }
+          return [
+            {
+              id: 'idol_player_looked',
+              buttonText: 'I have',
+              playerLine: 'I have. I’m not hiding it.',
+              npcResponseGenerator: () => 'Okay. That’s good to know.',
+              effects: ({ player, npc }) => {
+                this._applyExchangeEffects({ player, npc, deltas: { paranoia: getRandomInt(1, 2), suspicion: getRandomInt(0, 1) }, contextTag: 'idol_player_looked' });
+              }
+            },
+            {
+              id: 'idol_player_not',
+              buttonText: 'I haven’t',
+              playerLine: 'I haven’t. Not yet.',
+              npcResponseGenerator: () => 'Alright. Just keep me posted.',
+              effects: ({ player, npc }) => {
+                this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'idol_player_not' });
+              }
+            }
+          ];
+        }
+      },
+      {
+        id: 'idol_found_direct',
+        buttonText: 'Have you found anything?',
+        playerLine: 'Did you find anything? Even a clue?',
+        npcResponseGenerator: ({ responseMode }) => {
+          this._setIntelFlag(npc, 'idolTalk', true);
+          if (npc.hasIdol || npc.hasIdolClue) {
+            return responseMode.mode === 'truth'
+              ? 'Yeah. I found something. I’m keeping it tight.'
+              : 'No. Nothing.';
+          }
+          return 'No. Nothing.';
+        },
+        effects: ({ player, npc }) => {
+          this._applyExchangeEffects({ player, npc, deltas: { paranoia: 1 }, contextTag: 'idol_found_direct' });
+        }
+      },
+      {
+        id: 'idol_chatter',
+        buttonText: 'People talking idols?',
+        playerLine: 'Are people talking idols? Anyone acting like they found something?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          this._setIntelFlag(npc, 'idolTalk', true);
+          const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+          const chatter = candidates.find(member => member._intelFlags?.idolTalk);
+          const idolSus = candidates.sort((a, b) => (b.idolSuspicion ?? b.suspicion ?? 0) - (a.idolSuspicion ?? a.suspicion ?? 0))[0];
+          const named = chatter || idolSus;
+          if (responseMode.mode === 'truth' && idolSus && this._getPairTrust(player.id, npc.id) > 60) {
+            this._recordIntel(npc.id, { type: 'idol_chatter', targetId: named?.id, targetName: named?.firstName });
+            return named
+              ? `People are definitely acting weird about it. ${named.firstName} feels jumpy.`
+              : 'People are definitely acting weird about it.';
+          }
+          if (responseMode.mode === 'deflect') return 'I haven’t heard anything solid.';
+          return 'I haven’t heard anything.';
+        },
+        effects: ({ player, npc }) => {
+          this._applyExchangeEffects({ player, npc, deltas: { paranoia: 1 }, contextTag: 'idol_chatter' });
+        }
+      }
+    ];
+  }
+
+  _buildStrategyNodes({ player, npc, context }) {
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const sharedAlliances = allianceSystem?.getAlliancesForSurvivor?.(player.id) || [];
+    const shared = sharedAlliances.filter(alliance => alliance.memberIds?.includes?.(npc.id));
+    return [
+      {
+        id: 'vote_read',
+        buttonText: 'Vote read',
+        playerLine: 'What do you think the majority wants next?',
+        askedForNames: true,
+        npcResponseGenerator: ({ responseMode }) => {
+          const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+          const target = candidates.sort((a, b) => (b.threat ?? 0) - (a.threat ?? 0))[0];
+          if (responseMode.mode === 'truth' && target) {
+            this._recordIntel(npc.id, { type: 'vote_read', targetId: target.id, targetName: target.firstName });
+            return `If I’m guessing… ${target.firstName}.`;
+          }
+          return 'It’s still forming. I’m watching where it tilts.';
+        },
+        nextNodes: () => [
+          {
+            id: 'vote_read_agree',
+            buttonText: 'Do you agree?',
+            playerLine: 'Do you agree with that?',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+              ? 'Yeah. It tracks.'
+              : 'I’m not locking in yet.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'strategy_vote_agree' })
+          },
+          {
+            id: 'vote_read_help',
+            buttonText: 'Need help',
+            playerLine: 'If it’s me, I need help.',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+              ? 'Then we should talk about a counter.'
+              : 'Let’s see what shakes out.',
+            afterReply: () => this._showDealTypeMenu({ player, npc, context })
+          }
+        ]
+      },
+      {
+        id: 'pitch_target',
+        buttonText: 'Pitch a target',
+        playerLine: 'I want to pitch a target to you.',
+        npcResponseGenerator: () => 'Okay. Who are you thinking?',
+        afterReply: () => this._showTargetPitchMenu({ player, npc, context })
+      },
+      {
+        id: 'deflect_target',
+        buttonText: 'Deflect a target',
+        playerLine: 'If my name comes up, I need a deflect plan.',
+        npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+          ? 'Then we line up a safer name.'
+          : 'That’s tricky. We’ll have to see.',
+        afterReply: () => this._showTargetPitchMenu({ player, npc, context, mode: 'deflect' })
+      },
+      {
+        id: 'backup_plan',
+        buttonText: 'Backup plan',
+        playerLine: 'If an idol gets played, what’s the backup plan?',
+        npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+          ? 'We need a secondary target in our pocket. Quiet, but real.'
+          : 'That’s a lot… but yeah, we need a backup.',
+        effects: ({ player, npc }) => {
+          const trustDelta = responseMode.mode === 'truth' ? 1 : 0;
+          const suspicionDelta = responseMode.mode === 'guarded' ? 1 : 0;
+          this._applyExchangeEffects({ player, npc, deltas: { trust: trustDelta, suspicion: suspicionDelta }, contextTag: 'strategy_backup' });
+        }
+      },
+      {
+        id: 'offer_deal',
+        buttonText: 'Offer a deal',
+        playerLine: 'Can we lock something in?',
+        npcResponseGenerator: () => 'What kind of deal are you thinking?',
+        afterReply: () => this._showDealTypeMenu({ player, npc, context })
+      },
+      {
+        id: 'alliances',
+        buttonText: 'Alliances',
+        disabled: shared.length === 0,
+        tooltip: shared.length === 0 ? 'No shared alliance' : '',
+        playerLine: 'Let’s talk alliance.',
+        npcResponseGenerator: () => shared.length ? 'Which piece do you want to tighten up?' : 'We don’t share an alliance yet.',
+        afterReply: () => {
+          if (!shared.length) {
+            this._renderMenu(npc, 'No shared alliance yet.', [], { onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }), showEnd: true });
+            return;
+          }
+          this._showAllianceMenu({ player, npc, context, sharedAlliances: shared });
+        }
+      }
+    ];
+  }
+
+  _buildConfrontNodes({ player, npc, context }) {
+    return [
+      {
+        id: 'call_out_tension',
+        buttonText: 'Call out tension',
+        playerLine: 'Something feels off between us. What’s going on?',
+        npcResponseGenerator: ({ responseMode }) => {
+          const trust = this._getPairTrust(player.id, npc.id);
+          const relationship = this._getRelationshipValue(player.id, npc.id);
+          if (trust > 60 && relationship > 55) return 'We’re good. It’s just stress out here.';
+          if (responseMode.mode === 'truth') return 'I felt like you were circling me in conversations.';
+          return 'I heard my name connected to you.';
+        },
+        nextNodes: () => [
+          {
+            id: 'tension_deny',
+            buttonText: 'That wasn’t me',
+            playerLine: 'That wasn’t me.',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+              ? 'Alright. I’ll watch how it plays out.'
+              : 'I’m still not sure.',
+            effects: ({ player, npc, responseMode }) => {
+              const trustDelta = responseMode.mode === 'truth' ? 0 : -4;
+              const suspicionDelta = responseMode.mode === 'truth' ? 0 : 2;
+              this._applyExchangeEffects({ player, npc, deltas: { trust: trustDelta, suspicion: suspicionDelta }, contextTag: 'confront_deny' });
+            }
+          },
+          {
+            id: 'tension_own',
+            buttonText: 'You’re right',
+            playerLine: 'You’re right. I got sloppy.',
+            npcResponseGenerator: () => 'I respect the honesty. Just tighten it up.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: 3 }, contextTag: 'confront_own' })
+          },
+          {
+            id: 'tension_source',
+            buttonText: 'Who said that?',
+            playerLine: 'Who said that?',
+            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
+              ? 'I heard it from someone near the shelter. I’m not naming names.'
+              : 'It’s just a vibe. No source.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: responseMode.mode === 'truth' ? 0 : 1 }, contextTag: 'confront_source' })
+          }
+        ]
+      },
+      {
+        id: 'confront_rumor',
+        buttonText: 'Confront rumor',
+        playerLine: 'I heard you said my name.',
+        npcResponseGenerator: ({ responseMode }) => {
+          if (responseMode.mode === 'truth') return 'I did — and here’s why. I was covering myself.';
+          if (responseMode.mode === 'deflect') return 'Who told you that?';
+          return 'No, I never said that.';
+        },
+        nextNodes: () => [
+          {
+            id: 'rumor_no_name',
+            buttonText: 'Not naming',
+            playerLine: 'I’m not naming names.',
+            npcResponseGenerator: () => 'Then we leave it there.',
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1 }, contextTag: 'confront_rumor_noname' })
+          },
+          {
+            id: 'rumor_name',
+            buttonText: 'Name source',
+            playerLine: 'It was someone else.',
+            npcResponseGenerator: () => 'Interesting. I’ll keep my eyes open.',
+            effects: ({ player, npc }) => {
+              this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'confront_rumor_name' });
+              this._recordIntel(npc.id, { type: 'source_named', note: 'player_named_source' });
+            }
+          }
+        ]
+      },
+      {
+        id: 'apologize',
+        buttonText: 'Apologize',
+        playerLine: 'I want to clear the air.',
+        npcResponseGenerator: () => 'Alright. What are you owning?',
+        afterReply: () => this._showApologyMenu({ player, npc, context })
+      }
+    ];
+  }
+
+  _showTalkAboutSomeoneSelect({ player, npc, context }) {
+    const candidates = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id });
+    this._renderPickList({
+      npc,
+      title: 'Pick someone to talk about:',
+      candidates,
+      onPick: target => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
+      onBack: () => this._renderMainMenu({ player, npc, context, mainTopics: this._buildMainTopics({ player, npc, context }) })
+    });
+  }
+
+  _showTalkAboutSomeoneAngles({ player, npc, context, target }) {
+    const angles = [
+      { id: 'trust_them', label: 'Do you trust them?' },
+      { id: 'how_you_see', label: 'How do you see them?' },
+      { id: 'dangerous', label: 'They’re dangerous long-term' },
+      { id: 'idol', label: 'They might have an idol' },
+      { id: 'said_your_name', label: 'They said your name' },
+      { id: 'said_name', label: 'They said a name…' },
+      { id: 'aligned_with', label: 'They’re aligned with…' },
+      { id: 'loved', label: 'They’re loved by everyone' }
+    ];
+    const buttons = angles.map(angle => ({
+      label: angle.label,
+      onClick: () => this._runConversationNode({
+        npc,
+        player,
+        node: this._buildTalkAboutSomeoneNode({ player, npc, context, target, angle: angle.id }),
+        context: { ...context, mainTopicId: 'talk_about_someone', subTopicId: angle.id, targetId: target.id },
+        returnTo: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target })
+      })
+    }));
+    this._renderMenu(npc, `Talking about ${target.firstName}. Pick an angle.`, buttons, {
+      onBack: () => this._showTalkAboutSomeoneSelect({ player, npc, context }),
+      showEnd: true
+    });
+  }
+
+  _buildTalkAboutSomeoneNode({ player, npc, context, target, angle }) {
+    const buildReply = ({ responseMode, truth, lie, deflect }) => {
+      if (responseMode.mode === 'truth' || responseMode.mode === 'softTruth') return truth;
+      if (responseMode.mode === 'lie') return lie || deflect;
+      if (responseMode.mode === 'counterQ') return 'Why are you asking me that?';
+      return deflect;
+    };
+    const rel = this._getRelationshipValue(npc.id, target.id);
+    const trust = this._getPairTrust(npc.id, target.id);
+    const paranoia = target.paranoia ?? 0;
+    const suspicion = target.suspicion ?? 0;
+    const idolSuspicion = target.idolSuspicion ?? Math.round((suspicion + (target.threat ?? 0)) / 2);
+
+    const baseNode = {
+      id: `talk_${angle}_${target.id}`,
+      buttonText: 'Continue',
+      playerLine: '',
+      npcResponseGenerator: () => '',
+      effects: () => {}
+    };
+
+    switch (angle) {
+      case 'trust_them':
+        return {
+          ...baseNode,
+          buttonText: 'Do you trust them?',
+          playerLine: 'Do you trust them?',
+          npcResponseGenerator: ({ responseMode }) => buildReply({
+            responseMode,
+            truth: rel > 60 ? `Yeah, I trust ${target.firstName} more than most.` : `${target.firstName}… I’m not fully there.`,
+            lie: `${target.firstName} feels solid. No issues.`,
+            deflect: 'I’m not putting trust on anyone out loud.'
+          })
+        };
+      case 'how_you_see':
+        return {
+          ...baseNode,
+          buttonText: 'How do you see them?',
+          playerLine: 'How do you see them?',
+          npcResponseGenerator: ({ responseMode }) => buildReply({
+            responseMode,
+            truth: rel > 60 ? 'They’re a connector. People like them.' : 'They’re a wildcard to me.',
+            lie: 'They’re not on my radar.',
+            deflect: 'It’s early. I’m still reading.'
+          })
+        };
+      case 'dangerous':
+        return {
+          ...baseNode,
+          buttonText: 'They’re dangerous long-term',
+          playerLine: 'They’re dangerous long-term.',
+          npcResponseGenerator: ({ responseMode }) => buildReply({
+            responseMode,
+            truth: (target.threat ?? 0) > 60 ? 'I can see that. They’re built for late game.' : 'Maybe. I’m not convinced.',
+            lie: 'Nah, not really.',
+            deflect: 'Could be, but I’m not calling it yet.'
+          })
+        };
+      case 'idol':
+        return {
+          ...baseNode,
+          buttonText: 'They might have an idol',
+          playerLine: 'They might have an idol.',
+          npcResponseGenerator: ({ responseMode }) => buildReply({
+            responseMode,
+            truth: idolSuspicion > 55 ? 'I’ve had that thought too.' : 'I haven’t seen anything that screams idol.',
+            lie: 'Yeah, I think so.',
+            deflect: 'I’m not speculating on idols.'
+          }),
+          effects: ({ player, npc }) => {
+            this._applyExchangeEffects({ player, npc, deltas: { suspicion: getRandomInt(0, 1) }, contextTag: 'talk_idol' });
+          }
+        };
+      case 'said_your_name':
+        return {
+          ...baseNode,
+          buttonText: 'They said your name',
+          playerLine: 'They said your name.',
+          npcResponseGenerator: ({ responseMode }) => buildReply({
+            responseMode,
+            truth: 'If that’s true, I’m glad you told me.',
+            lie: 'That doesn’t sound right.',
+            deflect: 'Who told you that?'
+          })
+        };
+      case 'said_name':
+        return {
+          ...baseNode,
+          buttonText: 'They said a name…',
+          playerLine: 'They said a name…',
+          npcResponseGenerator: () => 'Whose name did they say?',
+          afterReply: () => {
+            const candidates = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id });
+            this._renderPickList({
+              npc,
+              title: 'Pick the name they said:',
+              candidates,
+              onPick: picked => {
+                this._recordIntel(npc.id, { type: 'name_drop', targetId: picked.id, targetName: picked.firstName, sourceId: target.id });
+                this._renderMenu(npc, 'Got it. I’ll keep that in mind.', [], {
+                  onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
+                  showEnd: true
+                });
+              },
+              onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target })
+            });
+          }
+        };
+      case 'aligned_with':
+        return {
+          ...baseNode,
+          buttonText: 'They’re aligned with…',
+          playerLine: 'They’re aligned with someone.',
+          npcResponseGenerator: () => 'Who do you think they’re aligned with?',
+          afterReply: () => {
+            const candidates = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id }).filter(member => member.id !== target.id);
+            this._renderPickList({
+              npc,
+              title: 'Pick the ally:',
+              candidates,
+              onPick: picked => {
+                this._recordIntel(npc.id, { type: 'alignment_callout', targetId: target.id, targetName: target.firstName, allyId: picked.id, allyName: picked.firstName });
+                this._renderMenu(npc, 'Interesting. I’ll watch that.', [], {
+                  onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
+                  showEnd: true
+                });
+              },
+              onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target })
+            });
+          }
+        };
+      case 'loved':
+        return {
+          ...baseNode,
+          buttonText: 'They’re loved by everyone',
+          playerLine: 'They’re loved by everyone.',
+          npcResponseGenerator: ({ responseMode }) => buildReply({
+            responseMode,
+            truth: 'That’s the danger. People rally around them.',
+            lie: 'I don’t see that.',
+            deflect: 'Popular today, target tomorrow.'
+          })
+        };
+      default:
+        return {
+          ...baseNode,
+          buttonText: 'Neutral',
+          playerLine: 'Just talking it out.',
+          npcResponseGenerator: () => 'Alright.'
+        };
+    }
+  }
+
+  _pickLikelyDuo(npc) {
+    const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+    if (candidates.length < 2) return null;
+    let bestPair = null;
+    let bestScore = -Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      for (let j = i + 1; j < candidates.length; j++) {
+        const rel = this._getRelationshipValue(candidates[i].id, candidates[j].id);
+        if (rel > bestScore) {
+          bestScore = rel;
+          bestPair = [candidates[i], candidates[j]];
+        }
+      }
+    }
+    return bestPair;
+  }
+
+  _showTargetPitchMenu({ player, npc, context, mode = 'pitch' }) {
+    const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+    this._renderPickList({
+      npc,
+      title: 'Pick a target to discuss:',
+      candidates,
+      onPick: target => {
+        const responseMode = this.decideNpcResponseMode({ player, npc, topic: 'strategy', riskLevel: 0.5, askedForNames: true, pressuring: mode === 'deflect' });
+        const reply = responseMode.mode === 'truth'
+          ? `That could work. ${target.firstName} is a viable name.`
+          : responseMode.mode === 'deflect'
+            ? 'That’s a lot to commit to right now.'
+            : 'I’m not sure that’s the right move.';
+        this._recordIntel(npc.id, { type: mode === 'deflect' ? 'deflect_target' : 'pitch_target', targetId: target.id, targetName: target.firstName });
+        this._renderMenu(npc, reply, [], {
+          onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+          showEnd: true
+        });
+      },
+      onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } })
+    });
+  }
+
+  _showDealTypeMenu({ player, npc, context }) {
+    const dealTypes = [
+      { id: 'vote_together', label: 'Vote together' },
+      { id: 'protect', label: 'Protect each other' },
+      { id: 'final2', label: 'Final two' },
+      { id: 'share_info', label: 'Share info' },
+      { id: 'idol_protect', label: 'Idol protection' }
+    ];
+    const buttons = dealTypes.map(dealType => ({
+      label: dealType.label,
+      onClick: () => {
+        if (dealType.id === 'vote_together' || dealType.id === 'idol_protect') {
+          const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+          this._renderPickList({
+            npc,
+            title: 'Pick a target for the deal:',
+            candidates,
+            onPick: target => this._resolveDealOutcome({ player, npc, context, dealType: dealType.id, target }),
+            onBack: () => this._showDealTypeMenu({ player, npc, context })
+          });
+          return;
+        }
+        this._resolveDealOutcome({ player, npc, context, dealType: dealType.id, target: null });
+      }
+    }));
+    this._renderMenu(npc, 'What kind of deal do you want to offer?', buttons, {
+      onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+      showEnd: true
+    });
+  }
+
+  _resolveDealOutcome({ player, npc, context, dealType, target }) {
+    const trust = this._getPairTrust(player.id, npc.id);
+    const relationship = this._getRelationshipValue(player.id, npc.id);
+    const paranoia = npc.paranoia ?? 0;
+    const style = (npc.gameplayStyle || '').toLowerCase();
+    let acceptScore = (trust * 0.5 + relationship * 0.4) / 100;
+    acceptScore -= paranoia / 200;
+    if (style.includes('shadow')) acceptScore -= 0.05;
+    if (style.includes('social')) acceptScore += 0.05;
+
+    const roll = Math.random();
+    let outcome = 'stall';
+    if (roll < acceptScore - 0.1) outcome = 'accept';
+    else if (roll < acceptScore + 0.1) outcome = 'counter';
+    else outcome = 'decline';
+
+    if (this._isConversationDebugEnabled()) {
+      this._debugLog('[CONVO-DEBUG] Deal outcome', { outcome, dealType, npc: npc.firstName });
+    }
+
+    if (outcome === 'counter') {
+      this._renderMenu(npc, 'I’m not sure. How about we just share info first?', [
+        {
+          label: 'Accept counter',
+          onClick: () => this._createDeal({ player, npc, dealType: 'share_info', target, status: 'accepted' })
+        },
+        {
+          label: 'Walk away',
+          onClick: () => {
+            this._applyExchangeEffects({ player, npc, deltas: { trust: -1 }, contextTag: 'deal_counter_walk' });
+            this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } });
+          }
+        }
+      ], {
+        onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+        showEnd: true
+      });
+      return;
+    }
+
+    if (outcome === 'accept') {
+      this._createDeal({ player, npc, dealType, target, status: 'accepted' });
+      return;
+    }
+
+    this._createDeal({ player, npc, dealType, target, status: 'refused' });
+  }
+
+  _createDeal({ player, npc, dealType, target, status }) {
+    const dealSystem = this.gameManager?.systems?.dealSystem;
+    if (!dealSystem) {
+      this._renderMenu(npc, 'No one is taking deals right now.', [], {
+        onBack: () => this._renderMainMenu({ player, npc, context: this.activeConversationContext || {}, mainTopics: this._buildMainTopics({ player, npc, context: this.activeConversationContext || {} }) }),
+        showEnd: true
+      });
+      return;
+    }
+    const typeMap = {
+      vote_together: DealTypes.VOTE_TOGETHER,
+      protect: DealTypes.MUTUAL_PROTECTION,
+      final2: DealTypes.FINAL_TWO,
+      share_info: DealTypes.SHARE_INFO,
+      idol_protect: DealTypes.IDOL_PROTECTION
+    };
+    const deal = dealSystem.createDeal({
+      type: typeMap[dealType] || 'VOTE_TOGETHER',
+      parties: [player.id, npc.id],
+      terms: {
+        targetId: target?.id ?? null,
+        duration: 'next_tribal'
+      },
+      note: 'conversation_deal'
+    });
+
+    if (deal) {
+      if (status === 'accepted') {
+        dealSystem.acceptDeal(deal.id, npc.id, 'accepted_in_conversation');
+        this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(3, 10), relationship: getRandomInt(1, 5) }, contextTag: 'deal_accept' });
+      } else if (status === 'refused') {
+        dealSystem.refuseDeal(deal.id, npc.id, 'refused_in_conversation');
+        this._applyExchangeEffects({ player, npc, deltas: { trust: -getRandomInt(1, 5), suspicion: getRandomInt(0, 2) }, contextTag: 'deal_refuse' });
+      }
+      if (this._isConversationDebugEnabled()) {
+        this._debugLog('[CONVO-DEBUG] Deal created', { id: deal.id, type: deal.type, status });
+      }
+    }
+    const responseText = status === 'accepted'
+      ? 'Alright. We have a deal.'
+      : 'I’m not going for that.';
+    this._renderMenu(npc, responseText, [], {
+      onBack: () => this._renderSubMenu({ player, npc, context: this.activeConversationContext || {}, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context: this.activeConversationContext || {} }) } }),
+      showEnd: true
+    });
+  }
+
+  _showAllianceMenu({ player, npc, context, sharedAlliances }) {
+    const hasMultiple = sharedAlliances.length > 1;
+    const buttons = [
+      {
+        label: 'Recommit',
+        onClick: () => {
+          this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(2, 6) }, contextTag: 'alliance_recommit' });
+          this._renderMenu(npc, 'We’re good. Let’s keep it tight.', [], {
+            onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+            showEnd: true
+          });
+        }
+      },
+      ...(hasMultiple ? [{
+        label: 'Prioritize alliance',
+        onClick: () => {
+          const best = sharedAlliances.sort((a, b) => (b.cohesion ?? 50) - (a.cohesion ?? 50))[0];
+          this._renderMenu(npc, `If I had to pick, I’d prioritize ${best.name}.`, [], {
+            onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+            showEnd: true
+          });
+        }
+      }] : []),
+      {
+        label: 'Address doubt',
+        onClick: () => this._showAllianceDoubtMenu({ player, npc, context, sharedAlliances })
+      },
+      {
+        label: 'Endgame',
+        onClick: () => {
+          const alliance = sharedAlliances[0];
+          const size = alliance.memberIds?.length || 2;
+          const line = size > 2
+            ? 'We should keep each other ahead of the group when it counts.'
+            : 'It’s us before anyone else. That’s the deal.';
+          this._renderMenu(npc, line, [], {
+            onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+            showEnd: true
+          });
+        }
+      }
+    ];
+    this._renderMenu(npc, 'Alliance talk:', buttons, {
+      onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+      showEnd: true
+    });
+  }
+
+  _showAllianceDoubtMenu({ player, npc, context, sharedAlliances }) {
+    const alliance = sharedAlliances[0];
+    const members = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id })
+      .filter(member => alliance.memberIds?.includes?.(member.id) && member.id !== player.id);
+    this._renderMenu(npc, 'What doubt are you addressing?', [
+      { label: 'About us', onClick: () => this._resolveAllianceDoubt({ player, npc, context, target: null }) },
+      {
+        label: 'About a member',
+        onClick: () => {
+          if (!members.length) {
+            this._renderMenu(npc, 'It’s just the two of us right now.', [], {
+              onBack: () => this._showAllianceMenu({ player, npc, context, sharedAlliances }),
+              showEnd: true
+            });
+            return;
+          }
+          this._renderPickList({
+            npc,
+            title: 'Pick the member you’re concerned about:',
+            candidates: members,
+            onPick: picked => this._resolveAllianceDoubt({ player, npc, context, target: picked }),
+            onBack: () => this._showAllianceMenu({ player, npc, context, sharedAlliances })
+          });
+        }
+      }
+    ], {
+      onBack: () => this._showAllianceMenu({ player, npc, context, sharedAlliances }),
+      showEnd: true
+    });
+  }
+
+  _resolveAllianceDoubt({ player, npc, context, target }) {
+    const trust = this._getPairTrust(player.id, npc.id);
+    if (trust < 45) {
+      this._applyExchangeEffects({ player, npc, deltas: { trust: -2, suspicion: 1 }, contextTag: 'alliance_doubt_low' });
+      this._renderMenu(npc, 'That’s not easing my doubts right now.', [], {
+        onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+        showEnd: true
+      });
+      return;
+    }
+    const line = target
+      ? `If ${target.firstName} wobbles, we handle it.`
+      : 'We’re solid. Let’s keep it clean.';
+    this._applyExchangeEffects({ player, npc, deltas: { trust: 2 }, contextTag: 'alliance_doubt_reassure' });
+    this._renderMenu(npc, line, [], {
+      onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
+      showEnd: true
+    });
+  }
+
+  _showApologyMenu({ player, npc, context }) {
+    const buttons = [
+      {
+        label: 'Said your name',
+        onClick: () => this._resolveApology({ player, npc, context, type: 'name' })
+      },
+      {
+        label: 'Voted against you',
+        onClick: () => this._resolveApology({ player, npc, context, type: 'vote' })
+      },
+      {
+        label: 'Lied to you',
+        onClick: () => this._resolveApology({ player, npc, context, type: 'lie' })
+      }
+    ];
+    this._renderMenu(npc, 'What are you apologizing for?', buttons, {
+      onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'confront', nodes: this._buildConfrontNodes({ player, npc, context }) } }),
+      showEnd: true
+    });
+  }
+
+  _resolveApology({ player, npc, context, type }) {
+    const trust = this._getPairTrust(player.id, npc.id);
+    const open = trust > 55;
+    const line = open
+      ? 'I hear you. Thanks for owning it.'
+      : 'I’m listening, but it’s going to take time.';
+    this._applyExchangeEffects({
+      player,
+      npc,
+      deltas: { trust: open ? 3 : 1, relationship: open ? 2 : 0 },
+      contextTag: `apology_${type}`
+    });
+    this._renderMenu(npc, line, [], {
+      onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'confront', nodes: this._buildConfrontNodes({ player, npc, context }) } }),
+      showEnd: true
+    });
   }
 
   _showCategoryMenu(survivor, location, category) {
@@ -5043,6 +6784,12 @@ class ConversationSystem {
     const phase = context.phase || this._getConversationPhase();
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
     const forceNodeFlow = Boolean(context.forceNodeFlow || initiator === 'player');
+
+    if (this._isInCamp() && !conversationContext.forceLegacyConversation) {
+      this.activeConversationContext = conversationContext;
+      this._showTopicSelection(survivor, location);
+      return;
+    }
 
     if (this._isDeterministicIntent(intent)) {
       if (forceNodeFlow) {
@@ -8997,9 +10744,15 @@ class ConversationSystem {
       style: {
         textAlign: 'center',
         marginBottom: '8px',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        whiteSpace: 'pre-line'
       }
-    }, text);
+    });
+    if (typeof text === 'string' && text.includes('<br>')) {
+      textEl.innerHTML = text;
+    } else {
+      textEl.textContent = text;
+    }
 
     parchment.appendChild(textEl);
     return parchment;
@@ -11100,85 +12853,44 @@ class ConversationSystem {
   }
 
   runSelfTest(iterations = 8) {
-    if (!this._isConversationDebugEnabled()) {
-      console.warn('ConversationSystem.runSelfTest: Debug flag not enabled. Set window.DEBUG_CONVERSATION = true to run.');
-      return;
-    }
-
     const npc = (this.gameManager.survivors || []).find(s => !s.isPlayer) || this.gameManager.survivors?.[0];
     if (!npc) {
       console.warn('ConversationSystem.runSelfTest: No NPC available for self-test.');
       return;
     }
     const player = this.gameManager.getPlayerSurvivor?.();
-    const intents = Object.values(DETERMINISTIC_INTENTS);
-    const failures = [];
-    const actionVerbPattern = new RegExp(`"[^"]*\\b(${NPC_ACTION_VERBS.join('|')})\\b[^"]*"`, 'i');
+    if (!player) {
+      console.warn('ConversationSystem.runSelfTest: No player available for self-test.');
+      return;
+    }
 
-    for (let i = 0; i < iterations; i += 1) {
-      const intent = intents[getRandomInt(0, intents.length - 1)];
-      const context = { phase: this._getConversationPhase() };
-      const response = this._generateDeterministicResponse(intent, context, { npc, player, history: [] });
-      const exchange = this.formatExchange({
-        narration: response.narration,
-        npcDoes: response.npcDoes,
-        npcSays: response.npcSays,
+    const context = { phase: this._getConversationPhase() };
+    const topics = this._buildMainTopics({ player, npc, context });
+    const results = [];
+
+    topics.forEach(topic => {
+      const node = topic.nodes?.[0];
+      if (!node) return;
+      const responseMode = this.decideNpcResponseMode({
+        player,
         npc,
-        intent
+        topic: topic.id,
+        riskLevel: node.riskLevel ?? 0.3,
+        askedForNames: Boolean(node.askedForNames),
+        pressuring: Boolean(node.pressuring)
       });
-      const combined = `${exchange.playerNarration}\n${exchange.npcResponse}`;
-
-      if (/They say,\s+[A-Z{]/.test(exchange.npcResponse)) {
-        failures.push({ intent, issue: 'They say grammar', output: exchange.npcResponse });
-      }
-      if (actionVerbPattern.test(exchange.npcResponse)) {
-        failures.push({ intent, issue: 'Action verb inside quotes', output: exchange.npcResponse });
-      }
-      if (/{[^}]+}/.test(combined)) {
-        failures.push({ intent, issue: 'Unresolved placeholder token', output: combined });
-      }
-    }
-
-    const pickerContext = { rumorTargetName: 'TestName', rumorTargetId: 'test-id' };
-    const pickerResponse = this._generateDeterministicResponse(
-      DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL,
-      pickerContext,
-      { npc, player, history: [] }
-    );
-    const pickerExchange = this.formatExchange({
-      narration: pickerResponse.narration,
-      npcDoes: pickerResponse.npcDoes,
-      npcSays: pickerResponse.npcSays,
-      npc,
-      intent: DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL
+      const playerLine = typeof node.playerLine === 'function'
+        ? node.playerLine({ player, npc, context })
+        : node.playerLine;
+      const npcLine = node.npcResponseGenerator({ player, npc, context, responseMode });
+      results.push({
+        topic: topic.label,
+        playerLine,
+        npcLine
+      });
     });
-    if (!pickerExchange.npcResponse.includes('TestName') && !pickerExchange.playerNarration.includes('TestName')) {
-      failures.push({
-        intent: DETERMINISTIC_INTENTS.RUMOR_SHARE_SMALL,
-        issue: 'Picker name missing',
-        output: pickerExchange.npcResponse
-      });
-    }
 
-    const savedConversation = this.activeConversation;
-    this.activeConversation = {
-      npcId: npc.id,
-      nodeId: 'root',
-      context: {},
-      history: [],
-      nodes: this._buildDeterministicNodes(npc)
-    };
-    this.advanceConversation({ label: 'END CONVERSATION', end: true, intent: 'end_conversation' });
-    if (this.activeConversation !== null) {
-      failures.push({ intent: 'end_conversation', issue: 'End conversation did not close' });
-    }
-    this.activeConversation = savedConversation;
-
-    if (failures.length) {
-      console.warn('ConversationSystem.runSelfTest: failures detected', failures);
-    } else {
-      console.info('ConversationSystem.runSelfTest: all checks passed');
-    }
+    console.info('ConversationSystem.runSelfTest: structured conversation sample', results);
   }
 
   _runConversationQA() {

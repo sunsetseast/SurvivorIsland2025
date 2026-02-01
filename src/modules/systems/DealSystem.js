@@ -6,6 +6,7 @@ export const DealTypes = {
   MUTUAL_PROTECTION: 'MUTUAL_PROTECTION',
   IDOL_PROTECTION: 'IDOL_PROTECTION',
   FINAL_TWO: 'FINAL_TWO',
+  SHARE_INFO: 'SHARE_INFO',
   ALLIANCE_REFERENCE: 'ALLIANCE_REFERENCE'
 };
 
@@ -105,6 +106,7 @@ class DealSystem {
     const context = this._getGameContext();
     const deal = {
       id: dealId,
+      dealId,
       type,
       parties: [partyAId, partyBId],
       status: DealStatus.PROPOSED,
@@ -463,8 +465,10 @@ class DealSystem {
     const updated = rawDeal.updated || { timestamp: now };
     const history = Array.isArray(rawDeal.history) ? rawDeal.history : [];
 
+    const resolvedId = rawDeal.id || `deal_${generateId()}`;
     return {
-      id: rawDeal.id || `deal_${generateId()}`,
+      id: resolvedId,
+      dealId: rawDeal.dealId || resolvedId,
       type: rawDeal.type || DealTypes.ALLIANCE_REFERENCE,
       parties: [partyAId, partyBId],
       status: rawDeal.status || DealStatus.PROPOSED,
