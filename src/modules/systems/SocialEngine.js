@@ -246,7 +246,7 @@ class NpcIntentPlanner {
         const location = locationSystem?.getLocation?.(npc.id) || null;
 
         const relValue = relationshipSystem?.getRelationship?.(player.id, npc.id)?.value ?? 50;
-        const trust = memorySystem?.getTrust?.(npc.id) ?? 50;
+        const trust = gameManager.getTrust?.(player.id, npc.id) ?? 50;
         const reliability = memorySystem?.getReliability?.(npc.id) ?? 50;
         const committedAllianceId = memorySystem?.getCommittedAllianceId?.(npc.id) || null;
 

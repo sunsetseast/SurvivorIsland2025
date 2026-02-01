@@ -327,6 +327,7 @@ class AllianceSystem {
     const rel = this.relationshipSystem?.getRelationship?.(offererId, receiverId);
     const relationshipScore = typeof rel?.value === 'number' ? rel.value / 100 : 0.5;
 
+    // Baseline trustfulness/reliability (single-survivor memory, not pairwise trust).
     const trust = this.socialMemorySystem?.getTrust?.(receiverId) ?? 50;
     const reliability = this.socialMemorySystem?.getReliability?.(offererId) ?? 50;
     const trustScore = ((trust + reliability) / 2) / 100;

@@ -71,6 +71,7 @@ function init() {
   gameManager.registerSystem("inventorySystem", new systems.InventorySystem(gameManager));
   gameManager.registerSystem("idolSystem", new systems.IdolSystem(gameManager));
   gameManager.registerSystem("relationshipSystem", new systems.RelationshipSystem(gameManager));
+  gameManager.registerSystem("trustSystem", new systems.TrustSystem(gameManager));
   gameManager.registerSystem("allianceSystem", new systems.AllianceSystem(gameManager));
   gameManager.registerSystem("dealSystem", new systems.DealSystem(gameManager));
   gameManager.registerSystem("dealConsequencesSystem", new systems.DealConsequencesSystem(gameManager));

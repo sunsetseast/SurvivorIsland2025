@@ -1,9 +1,11 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
 
 const STAKES_MULTIPLIERS = {
-  minor: 0.5,
+  low: 0.75,
   standard: 1.0,
-  major: 1.6
+  high: 1.25,
+  minor: 0.75,
+  major: 1.25
 };
 
 class DealConsequencesSystem {
@@ -35,8 +37,7 @@ class DealConsequencesSystem {
     const [aId, bId] = deal.parties || [];
     if (!aId || !bId) return;
     const delta = this._scaleDelta(5, deal.stakes);
-    this._applyTrustDelta(aId, bId, delta);
-    this._applyTrustDelta(bId, aId, delta);
+    this._applyTrustDelta(aId, bId, delta, 'deal accepted');
   }
 
   _handleDealRefused({ deal, byId }) {
@@ -46,7 +47,7 @@ class DealConsequencesSystem {
     const otherId = byId || this._getOtherPartyId(deal, proposerId);
     if (!otherId) return;
     const delta = this._scaleDelta(-3, deal.stakes);
-    this._applyTrustDelta(proposerId, otherId, delta);
+    this._applyTrustDelta(proposerId, otherId, delta, 'deal refused');
   }
 
   _handleDealBroken({ deal, byId, otherId }) {
@@ -55,10 +56,8 @@ class DealConsequencesSystem {
     const victimId = otherId || this._getOtherPartyId(deal, breakerId);
     if (!victimId) return;
 
-    const victimDelta = this._scaleDelta(-15, deal.stakes);
-    const breakerDelta = this._scaleDelta(-5, deal.stakes);
-    this._applyTrustDelta(victimId, breakerId, victimDelta);
-    this._applyTrustDelta(breakerId, victimId, breakerDelta);
+    const trustDelta = this._scaleDelta(-15, deal.stakes);
+    this._applyTrustDelta(victimId, breakerId, trustDelta, 'deal broken');
     this._applySuspicionDelta(breakerId, this._scaleDelta(8, deal.stakes), 'broken deal');
   }
 
@@ -67,17 +66,19 @@ class DealConsequencesSystem {
     const [aId, bId] = deal.parties || [];
     if (!aId || !bId) return;
     const delta = this._scaleDelta(8, deal.stakes);
-    this._applyTrustDelta(aId, bId, delta);
-    this._applyTrustDelta(bId, aId, delta);
+    this._applyTrustDelta(aId, bId, delta, 'deal completed');
     this._applySuspicionDelta(aId, this._scaleDelta(-1, deal.stakes), 'completed deal');
     this._applySuspicionDelta(bId, this._scaleDelta(-1, deal.stakes), 'completed deal');
   }
 
-  _applyTrustDelta(fromId, toId, delta) {
+  _applyTrustDelta(fromId, toId, delta, reason = null) {
     if (!fromId || !toId || !delta) return;
-    const relationshipSystem = this.gameManager?.systems?.relationshipSystem;
-    if (!relationshipSystem || typeof relationshipSystem.changeRelationship !== 'function') return;
-    relationshipSystem.changeRelationship(fromId, toId, delta);
+    const trustSystem = this.gameManager?.systems?.trustSystem;
+    if (!trustSystem || typeof trustSystem.changeTrust !== 'function') {
+      console.warn('[DealConsequencesSystem] TrustSystem unavailable; trust change skipped.');
+      return;
+    }
+    trustSystem.changeTrust(fromId, toId, delta, reason);
     const fromName = this._getSurvivorDisplayName(fromId);
     const toName = this._getSurvivorDisplayName(toId);
     this._log(`[DealConseq] ${fromName} trust ${delta >= 0 ? '+' : ''}${delta} toward ${toName}`);

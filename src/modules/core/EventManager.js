@@ -55,6 +55,7 @@ export const GameEvents = {
 
   // Relationship events
   RELATIONSHIP_CHANGED: 'relationship:changed',
+  TRUST_CHANGED: 'trust:changed',
 
   // Alliance events
   ALLIANCE_FORMED: 'alliance:formed',
