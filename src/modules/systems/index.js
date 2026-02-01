@@ -9,6 +9,7 @@ export { default as EnergySystem } from './EnergySystem.js';
 export { default as IdolSystem } from './IdolSystem.js';
 export { default as InventorySystem } from './InventorySystem.js';
 export { default as RelationshipSystem, RelationshipType } from './RelationshipSystem.js';
+export { default as TrustSystem } from './TrustSystem.js';
 export { default as AllianceSystem } from './AllianceSystem.js';
 export { default as DealSystem } from './DealSystem.js';
 export { default as DealConsequencesSystem } from './DealConsequencesSystem.js';
@@ -26,6 +27,7 @@ import EnergySystem from './EnergySystem.js';
 import IdolSystem from './IdolSystem.js';
 import InventorySystem from './InventorySystem.js';
 import RelationshipSystem, { RelationshipType } from './RelationshipSystem.js';
+import TrustSystem from './TrustSystem.js';
 import AllianceSystem from './AllianceSystem.js';
 import DealSystem from './DealSystem.js';
 import DealConsequencesSystem from './DealConsequencesSystem.js';
@@ -43,6 +45,7 @@ export default {
   InventorySystem,
   RelationshipSystem,
   RelationshipType,
+  TrustSystem,
   AllianceSystem,
   DealSystem,
   DealConsequencesSystem,

@@ -122,7 +122,7 @@ class NpcLocationSystem {
       scores[loc] = CAMP_LOCATION_WEIGHTS[loc];
     }
 
-    // RELATIONSHIP-based adjustments
+    // TRUST-based adjustments
     for (let other of allNpcs) {
       if (other.id === npc.id) continue;
 
@@ -130,7 +130,7 @@ class NpcLocationSystem {
       if (!otherLoc) continue;
       if (scores[otherLoc] === undefined) continue; // safety
 
-      const trust = gameManager.getRelationshipValue(npc.id, other.id);
+      const trust = gameManager.getTrust(npc.id, other.id);
 
       if (trust > 70) scores[otherLoc] += 1.5;
       if (trust < 30) scores[otherLoc] -= 1.5;
@@ -188,7 +188,7 @@ class NpcLocationSystem {
       if (other.id === npc.id) return;
       const otherLoc = assignments[other.id];
       if (otherLoc !== location) return;
-      const trust = gameManager.getRelationshipValue(npc.id, other.id);
+      const trust = gameManager.getTrust(npc.id, other.id);
       if (trust > 70) score += 1.5;
       if (trust < 30) score -= 1.5;
     });
@@ -278,8 +278,8 @@ class NpcLocationSystem {
         const locB = this.locations[B.id];
         if (!locA || locA !== locB) continue;
 
-        const trustAB = gameManager.getRelationshipValue(A.id, B.id);
-        const trustBA = gameManager.getRelationshipValue(B.id, A.id);
+        const trustAB = gameManager.getTrust(A.id, B.id);
+        const trustBA = gameManager.getTrust(B.id, A.id);
 
         if (trustAB < 25 && trustBA < 25 && Math.random() < 0.15) {
           fights.push({

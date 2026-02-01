@@ -41,14 +41,11 @@ function getSurvivorTribeColor(gameManager, survivorId) {
   return resolveTribeColor(tribe);
 }
 
-function getRelationshipValue(relationshipSystem, playerId, npcId) {
+function getTrustValue(trustSystem, playerId, npcId) {
   if (!playerId || !npcId) return 50;
-  if (typeof relationshipSystem?.getRelationshipValue === 'function') {
-    return relationshipSystem.getRelationshipValue(playerId, npcId) ?? 50;
+  if (typeof trustSystem?.getTrust === 'function') {
+    return trustSystem.getTrust(playerId, npcId) ?? 50;
   }
-  const rel = relationshipSystem?.getRelationship?.(playerId, npcId);
-  if (rel && typeof rel.value === 'number') return rel.value;
-  if (rel && typeof rel.score === 'number') return rel.score;
   return 50;
 }
 
@@ -143,7 +140,7 @@ function generateNpcReactionLine(npc, approach) {
   return 'Fair enough. I’ll make my own call when the time comes.';
 }
 
-function buildSocialContext({ playerApproach, npcSurvivors, relationshipSystem, playerId, journey }) {
+function buildSocialContext({ playerApproach, npcSurvivors, trustSystem, playerId, journey }) {
   const trustDeltaByNpcId = {};
   const tagsByNpcId = {};
 
@@ -179,7 +176,7 @@ function buildSocialContext({ playerApproach, npcSurvivors, relationshipSystem, 
 
   const baseExpectation = playerApproach === 'mergeSoft' ? 0.55 : playerApproach === 'danger' ? 0.25 : 0.35;
   const avgTrust = npcSurvivors.length
-    ? npcSurvivors.reduce((sum, npc) => sum + getRelationshipValue(relationshipSystem, playerId, npc.id), 0) / npcSurvivors.length
+    ? npcSurvivors.reduce((sum, npc) => sum + getTrustValue(trustSystem, playerId, npc.id), 0) / npcSurvivors.length
     : 50;
   const avgDelta = npcSurvivors.length
     ? npcSurvivors.reduce((sum, npc) => sum + (trustDeltaByNpcId[npc.id] || 0), 0) / npcSurvivors.length
@@ -206,9 +203,9 @@ function buildSocialContext({ playerApproach, npcSurvivors, relationshipSystem, 
   };
 }
 
-function computeNpcChoice(npcSurvivor, socialContext, relationshipSystem, playerId) {
+function computeNpcChoice(npcSurvivor, socialContext, trustSystem, playerId) {
   const profile = getNpcProfile(npcSurvivor);
-  const trustValue = getRelationshipValue(relationshipSystem, playerId, npcSurvivor?.id);
+  const trustValue = getTrustValue(trustSystem, playerId, npcSurvivor?.id);
   const trustBias = (trustValue - 50) / 50;
   const trustDelta = socialContext?.trustDeltaByNpcId?.[npcSurvivor?.id] ?? 0;
   const tags = socialContext?.tagsByNpcId?.[npcSurvivor?.id] || [];
@@ -270,7 +267,7 @@ function awardExtraVote(survivor, journey) {
 
 const RiskProtectJourneyEvent = {
   async run(container, options = {}) {
-    const { gameManager, journey, player, relationshipSystem } = options;
+    const { gameManager, journey, player } = options;
     if (container) {
       clearChildren(container);
       container.style.position = 'relative';
@@ -389,7 +386,7 @@ const RiskProtectJourneyEvent = {
       const socialContext = buildSocialContext({
         playerApproach,
         npcSurvivors,
-        relationshipSystem,
+        trustSystem: gameManager.systems?.trustSystem,
         playerId: player?.id,
         journey
       });
@@ -453,7 +450,7 @@ const RiskProtectJourneyEvent = {
           return { survivorId: id, choice: playerChoice };
         }
         const npc = findSurvivor(gameManager, id);
-        const npcChoice = npc ? computeNpcChoice(npc, socialContext, relationshipSystem, player?.id) : 'protect';
+        const npcChoice = npc ? computeNpcChoice(npc, socialContext, gameManager.systems?.trustSystem, player?.id) : 'protect';
         return { survivorId: id, choice: npcChoice };
       });
 

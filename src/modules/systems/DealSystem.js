@@ -499,7 +499,7 @@ class DealSystem {
   }
 
   _normalizeStakes(stakes) {
-    const allowed = ['minor', 'standard', 'major'];
+    const allowed = ['minor', 'standard', 'major', 'low', 'high'];
     return allowed.includes(stakes) ? stakes : 'standard';
   }
 

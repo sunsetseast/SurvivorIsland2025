@@ -14,12 +14,10 @@ import { LocationKeys } from '../core/LocationKeys.js';
 // - Memory logging: _logSocialEvent funnels structured records into SocialMemorySystem for later querying.
 
 function resolveNpcDisclosure({ npc, player, kind, context = {} }) {
-  const relationshipSystem = context.relationshipSystem || player?.gameManager?.systems?.relationshipSystem || npc?.gameManager?.systems?.relationshipSystem;
-  const baseRelationship = typeof relationshipSystem?.getRelationship === 'function'
-    ? (relationshipSystem.getRelationship(player?.id, npc?.id)?.value ?? 50)
-    : (typeof npc?.trust === 'number' ? npc.trust : 50);
-
-  const trustScore = Math.max(0, Math.min(100, baseRelationship));
+  const trustSystem = context.trustSystem || player?.gameManager?.systems?.trustSystem || npc?.gameManager?.systems?.trustSystem;
+  const trustScore = Math.max(0, Math.min(100, typeof trustSystem?.getTrust === 'function'
+    ? (trustSystem.getTrust(player?.id, npc?.id) ?? 50)
+    : 50));
   const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
 
   let evadeChance = trustScore < 40 ? 0.45 : 0.2;
@@ -3001,8 +2999,8 @@ class ConversationSystem {
     if (relationshipSystem?.changeRelationship && deltas.relationshipDelta) {
       relationshipSystem.changeRelationship(playerId, npc.id, deltas.relationshipDelta);
     }
-    if (socialMemorySystem?.adjustTrust && deltas.trustDelta) {
-      socialMemorySystem.adjustTrust(npc.id, deltas.trustDelta);
+    if (deltas.trustDelta) {
+      this.gameManager.changeTrust?.(playerId, npc.id, deltas.trustDelta, `exchange:${choiceId || 'conversation'}`);
     }
     if (socialMemorySystem?.adjustReliability && deltas.reliabilityDelta) {
       socialMemorySystem.adjustReliability(npc.id, deltas.reliabilityDelta);
@@ -3604,8 +3602,8 @@ class ConversationSystem {
     if (relationshipSystem?.changeRelationship && deltas.relationshipDelta) {
       relationshipSystem.changeRelationship(playerId, npc.id, deltas.relationshipDelta);
     }
-    if (socialMemorySystem?.adjustTrust && deltas.trustDelta) {
-      socialMemorySystem.adjustTrust(npc.id, deltas.trustDelta);
+    if (deltas.trustDelta) {
+      this.gameManager.changeTrust?.(playerId, npc.id, deltas.trustDelta, `conversation:${choiceId || 'response'}`);
     }
     if (socialMemorySystem?.adjustReliability && deltas.reliabilityDelta) {
       socialMemorySystem.adjustReliability(npc.id, deltas.reliabilityDelta);
@@ -3919,11 +3917,7 @@ class ConversationSystem {
   }
 
   _getTrustScore(npc, player) {
-    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
-    const socialMemorySystem = this.gameManager.systems?.socialMemorySystem;
-    const relValue = relationshipSystem?.getRelationship?.(player.id, npc.id)?.value ?? 50;
-    const memoryTrust = socialMemorySystem?.getTrust?.(npc.id) ?? 50;
-    return Math.round((relValue + memoryTrust) / 2);
+    return Math.round(this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50);
   }
 
   _getNpcStyleKey(style) {
@@ -5819,7 +5813,7 @@ class ConversationSystem {
   }
 
   getDisclosureMode(npc, player, topic, context = {}) {
-    const trustScore = this._getTrustScore(npc, player) ?? this._getRelationshipScore(npc) ?? 50;
+    const trustScore = this._getTrustScore(npc, player) ?? 50;
     const style = this._classifyStyle(npc);
     const paranoia = npc?.paranoia || 0;
     const repeatCount = this._countRepeatedIntent(topic, context.history || []);
@@ -6940,7 +6934,6 @@ class ConversationSystem {
     const npc = this._getSurvivorById(session.npcId);
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
-    const memory = this.gameManager.systems?.socialMemorySystem;
     const socialLog = ensureCampSocialChanges();
 
     if (effects.relationshipDelta && relationshipSystem && player && npc) {
@@ -6948,8 +6941,8 @@ class ConversationSystem {
       socialLog.relationship.push({ id: npc.id, with: npc.firstName, amount: effects.relationshipDelta, context: effects.context || 'node' });
     }
 
-    if (effects.trustDelta && memory && npc) {
-      memory.adjustTrust?.(npc.id, effects.trustDelta);
+    if (effects.trustDelta && player && npc) {
+      this.gameManager.changeTrust?.(player.id, npc.id, effects.trustDelta, `node:${effects.context || 'conversation'}`);
       socialLog.trust.push({ id: npc.id, with: npc.firstName, amount: effects.trustDelta, context: effects.context || 'node' });
     }
 
@@ -7441,9 +7434,7 @@ class ConversationSystem {
   }
 
   _getTrustScore(npc, player) {
-    const relationship = this._relationshipBetween(player?.id, npc?.id) || 50;
-    const memoryTrust = this.gameManager.systems?.socialMemorySystem?.getTrust?.(npc?.id) ?? 50;
-    return Math.round((relationship + memoryTrust) / 2);
+    return Math.round(this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50);
   }
 
   _resolveDisclosure({ npc, player, targetId = null, topic = 'general', pressureLevel = 0, context = {} }) {
@@ -8228,7 +8219,7 @@ class ConversationSystem {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationship = this._relationshipBetween(player?.id, npc?.id) || 50;
     const memory = this.gameManager.systems?.socialMemorySystem;
-    const trustScore = memory?.getTrust?.(npc?.id) ?? 50;
+    const trustScore = this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50;
     const reliabilityScore = memory?.getReliability?.(npc?.id) ?? 50;
     const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
     const deceptive = personality.includes('deceptive') || personality.includes('strategic');
@@ -8362,8 +8353,8 @@ class ConversationSystem {
           socialLog.relationship.push({ id: survivor.id, with: survivor.firstName, amount: reaction.relationshipDelta, context: 'counter_pitch' });
         }
 
-        if (typeof reaction.trustDelta === 'number') {
-          socialMemory?.adjustTrust?.(survivor.id, reaction.trustDelta);
+        if (typeof reaction.trustDelta === 'number' && player) {
+          this.gameManager.changeTrust?.(player.id, survivor.id, reaction.trustDelta, 'counter_pitch');
           socialLog.trust.push({ id: survivor.id, with: survivor.firstName, amount: reaction.trustDelta, context: 'counter_pitch' });
         }
 
@@ -8458,7 +8449,9 @@ class ConversationSystem {
         relationshipSystem.changeRelationship?.(player.id, npc.id, 2);
         socialLog.relationship.push({ id: npc.id, with: npc.firstName, amount: 2, context: 'counter_lock' });
       }
-      socialMemory?.adjustTrust?.(npc.id, 3);
+      if (player) {
+        this.gameManager.changeTrust?.(player.id, npc.id, 3, 'counter_lock');
+      }
       socialMemory?.adjustReliability?.(npc.id, 2);
       socialLog.trust.push({ id: npc.id, with: npc.firstName, amount: 3, context: 'counter_lock' });
       socialLog.reliability.push({ id: npc.id, with: npc.firstName, amount: 2, context: 'counter_lock' });
@@ -8504,8 +8497,8 @@ class ConversationSystem {
         relationshipSystem.changeRelationship?.(player.id, npc.id, trustDelta > 0 ? 1 : -1);
         socialLog.relationship.push({ id: npc.id, with: npc.firstName, amount: trustDelta > 0 ? 1 : -1, context: 'counter_tentative' });
       }
-      if (typeof trustDelta === 'number') {
-        socialMemory?.adjustTrust?.(npc.id, trustDelta);
+      if (typeof trustDelta === 'number' && player) {
+        this.gameManager.changeTrust?.(player.id, npc.id, trustDelta, 'counter_tentative');
         socialLog.trust.push({ id: npc.id, with: npc.firstName, amount: trustDelta, context: 'counter_tentative' });
       }
       if (typeof reliabilityDelta === 'number') {
@@ -9757,7 +9750,7 @@ class ConversationSystem {
         });
         session.context.lastSourceEventId = event?.id || null;
       } else if (choice.key === 'refuseSource') {
-        socialMemory?.adjustTrust?.(npc.id, -6);
+        this.gameManager.changeTrust?.(player.id, npc.id, -6, 'source_refused');
         socialLog.trust.push({ id: npc.id, with: npc.firstName, amount: -6, context: 'source_refused' });
         socialLog.suspicion.push({ id: npc.id, with: npc.firstName, amount: 3, context: 'source_refused' });
         this._recordStructuredSocialEvent({
@@ -9833,7 +9826,7 @@ class ConversationSystem {
       }
 
       if (choice.key === 'refuseSource') {
-        socialMemory?.adjustTrust?.(npc.id, -5);
+        this.gameManager.changeTrust?.(player.id, npc.id, -5, 'name_drop_no_source');
         socialLog.trust.push({ id: npc.id, with: npc.firstName, amount: -5, context: 'name_drop_no_source' });
         socialLog.suspicion.push({ id: npc.id, with: npc.firstName, amount: 2, context: 'name_drop_no_source' });
         this._recordStructuredSocialEvent({
@@ -10314,7 +10307,7 @@ class ConversationSystem {
       this.gameManager.systems?.socialMemorySystem?.adjustReliability?.(npc?.id, -6);
     }
     if (isAlly) {
-      this.gameManager.systems?.socialMemorySystem?.adjustTrust?.(npc?.id, -3);
+      this.gameManager.changeTrust?.(player?.id, npc?.id, -3, 'confrontation_ally');
     }
 
     return {
@@ -11595,8 +11588,7 @@ class ConversationSystem {
       targetName = picked.targetName;
     }
     const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
-    const memoryTrust = memory?.getTrust?.(survivor.id) ?? 50;
-    const trustScore = Math.round((relationshipValue + memoryTrust) / 2);
+    const trustScore = Math.round(this.gameManager.getTrust?.(player?.id, survivor?.id) ?? 50);
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
     const disclosure = this._resolveDisclosure({
@@ -11729,8 +11721,7 @@ class ConversationSystem {
     const targetId = targetName ? (context.topicPersonId || context.topicId || this._getSurvivorByName(targetName)?.id || null) : null;
 
     const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
-    const memoryTrust = memory?.getTrust?.(survivor.id) ?? 50;
-    const trustScore = Math.round((relationshipValue + memoryTrust) / 2);
+    const trustScore = Math.round(this.gameManager.getTrust?.(player?.id, survivor?.id) ?? 50);
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
     const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId) : false;
@@ -12925,7 +12916,7 @@ class ConversationSystem {
     const socialMemory = this.gameManager.systems?.socialMemorySystem;
     const allianceSystem = this.gameManager.systems?.allianceSystem;
     const relationship = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value ?? 50;
-    const trust = socialMemory?.getTrust?.(npc?.id) ?? 50;
+    const trust = this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50;
     const reliability = socialMemory?.getReliability?.(player?.id) ?? 50;
     const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
     const loyal = personality.includes('loyal') || personality.includes('honest');
@@ -13026,7 +13017,7 @@ class ConversationSystem {
     const socialMemory = this.gameManager.systems?.socialMemorySystem;
     const allianceSystem = this.gameManager.systems?.allianceSystem;
     const relationship = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value ?? 50;
-    const memoryTrust = socialMemory?.getTrust?.(npc?.id) ?? 50;
+    const memoryTrust = this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50;
     const reliability = socialMemory?.getReliability?.(npc?.id) ?? 50;
     const allied = allianceSystem?.areAllied?.(player?.id, npc?.id) || false;
     const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
@@ -13367,7 +13358,7 @@ class ConversationSystem {
     }
 
     if (trustDelta) {
-      memory.adjustTrust?.(survivor.id, trustDelta);
+      this.gameManager.changeTrust?.(player?.id, survivor.id, trustDelta, `approach_${context.approach}`);
     }
     if (reliabilityDelta && player?.id) {
       memory.adjustReliability?.(player.id, reliabilityDelta);

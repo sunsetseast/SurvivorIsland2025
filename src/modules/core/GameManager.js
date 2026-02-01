@@ -81,6 +81,7 @@ class GameManager {
     this.timeSpeed = 8;       // countdown rate per tick
     this.taskSystem = new TaskSystem(this);
     this.systems.taskSimulationSystem = new TaskSimulationSystem(this);
+    this._missingTrustSystemWarned = false;
   }
 
   initialize() {
@@ -615,7 +616,8 @@ class GameManager {
       state: this.state,
       gameSettings: this.gameSettings,
       systemsState: {
-        dealSystem: this.systems.dealSystem?.serialize?.() ?? null
+        dealSystem: this.systems.dealSystem?.serialize?.() ?? null,
+        trustSystem: this.systems.trustSystem?.serialize?.() ?? null
       },
       timestamp: Date.now()
     };
@@ -638,6 +640,12 @@ class GameManager {
     if (typeof this.systems.dealSystem.deserialize === 'function') {
       const dealPayload = data.systemsState?.dealSystem ?? data.dealSystemData ?? null;
       this.systems.dealSystem.deserialize(dealPayload);
+    }
+    if (this.systems.trustSystem?.deserialize) {
+      const trustPayload = data.systemsState?.trustSystem ?? null;
+      this.systems.trustSystem.deserialize(trustPayload);
+    } else {
+      console.warn('[GameManager] TrustSystem unavailable during load; trust will default to 50.');
     }
     this.resetTaskSimFlags({ reason: 'load' });
     this._updateScreenForState(this.gameState);
@@ -736,6 +744,28 @@ class GameManager {
     if (!this.systems.relationshipSystem) return 50; // Default neutral value
     const relationship = this.systems.relationshipSystem.getRelationship(id1, id2);
     return relationship ? relationship.value : 50;
+  }
+
+  getTrust(id1, id2) {
+    if (this.systems.trustSystem?.getTrust) {
+      return this.systems.trustSystem.getTrust(id1, id2);
+    }
+    if (!this._missingTrustSystemWarned) {
+      console.warn('[GameManager] TrustSystem unavailable; defaulting trust to 50.');
+      this._missingTrustSystemWarned = true;
+    }
+    return 50;
+  }
+
+  changeTrust(id1, id2, delta, reason = null) {
+    if (this.systems.trustSystem?.changeTrust) {
+      this.systems.trustSystem.changeTrust(id1, id2, delta, reason);
+      return;
+    }
+    if (!this._missingTrustSystemWarned) {
+      console.warn('[GameManager] TrustSystem unavailable; trust change skipped.');
+      this._missingTrustSystemWarned = true;
+    }
   }
 
   // Update health for all survivors based on their stats
