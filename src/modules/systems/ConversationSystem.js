@@ -1641,6 +1641,7 @@ class ConversationSystem {
     this.npcMemory = {};
     this.activeExchange = null;
     this.debugStructuredConvo = false;
+    this.debugConvo = false;
   }
 
   initialize() {
@@ -1986,21 +1987,17 @@ class ConversationSystem {
       lastSubjectId: null,
       lastNpcStance: null,
       history: [],
-      context: { ...seededContext }
+      initiator,
+      context: { ...seededContext, initiator }
     };
 
     const beginConversation = () => {
-      if (intent) {
-        this._startConversation(survivor, {
-          intentOverride: intent,
-          isPurpose: true,
-          meeting: null,
-          location,
-          context: { ...(seededContext || {}), initiator, phase: normalizedPhase }
-        });
-      } else {
-        this._showTopicSelection(survivor, location);
-      }
+      this._logConversationStart({ initiator, phase: normalizedPhase });
+      this._startNpcInitiatedConversation({
+        player: this.gameManager.getPlayerSurvivor?.(),
+        npc: survivor,
+        context: { ...(seededContext || {}), initiator, phase: normalizedPhase, location }
+      });
     };
 
     if (seededContext.initiatedByNpc) {
@@ -2042,7 +2039,8 @@ class ConversationSystem {
       lastSubjectId: null,
       lastNpcStance: null,
       history: [],
-      context: { ...seededContext }
+      initiator: 'player',
+      context: { ...seededContext, initiator: 'player' }
     };
 
     const beginConversation = () => {
@@ -2055,6 +2053,7 @@ class ConversationSystem {
           context: { ...(seededContext || {}), initiator: 'player', phase: normalizedPhase }
         });
       } else {
+        this._logConversationStart({ initiator: 'player', phase: normalizedPhase });
         this._showTopicSelection(survivor, location);
       }
     };
@@ -2284,7 +2283,8 @@ class ConversationSystem {
     const context = this._normalizeConversationContext({
       ...(this.activeConversationContext || {}),
       location,
-      phase: this._getConversationPhase()
+      phase: this._getConversationPhase(),
+      initiator: this.state?.initiator || 'player'
     });
 
     this.nodeSession = {
@@ -2297,7 +2297,28 @@ class ConversationSystem {
     this._renderMainMenu({ player, npc: survivor, context, mainTopics });
   }
 
+  getMainTopics({ phase, context } = {}) {
+    const topics = [
+      { id: 'build_connection', label: 'Build Connection' },
+      { id: 'vibe_check', label: 'Vibe Check' },
+      { id: 'gossip', label: 'Gossip' },
+      { id: 'idol_talk', label: 'Idol Talk' },
+      { id: 'strategy', label: 'Strategy' },
+      { id: 'confront', label: 'Confront' },
+      { id: 'talk_about_someone', label: 'Talk about Someone' }
+    ];
+
+    if (this._hasRecentEvent(context)) {
+      topics.splice(1, 0, { id: 'event', label: 'Talk about the event' });
+    }
+
+    return topics;
+  }
+
   _renderMainMenu({ player, npc, context, mainTopics }) {
+    if (this.debugConvo) {
+      console.log('[CONVO-DEBUG] Main topics', mainTopics.map(topic => topic.label));
+    }
     const menuText = `Pick a main topic with ${npc.firstName}.`;
     const buttons = mainTopics.map(topic => ({
       label: topic.label,
@@ -2335,78 +2356,245 @@ class ConversationSystem {
   }
 
   _buildMainTopics({ player, npc, context }) {
-    const topics = [
-      {
-        id: 'build_connection',
-        label: 'Build Connection',
-        nodes: this._buildBuildConnectionNodes({ player, npc, context })
-      },
-      {
-        id: 'vibe_check',
-        label: 'Vibe Check',
-        nodes: this._buildVibeCheckNodes({ player, npc, context })
-      },
-      {
-        id: 'gossip',
-        label: 'Gossip',
-        nodes: this._buildGossipNodes({ player, npc, context })
-      },
-      {
-        id: 'idol_talk',
-        label: 'Idol Talk',
-        nodes: this._buildIdolTalkNodes({ player, npc, context })
-      },
-      {
-        id: 'strategy',
-        label: 'Strategy',
-        nodes: this._buildStrategyNodes({ player, npc, context })
-      },
-      {
-        id: 'confront',
-        label: 'Confront',
-        nodes: this._buildConfrontNodes({ player, npc, context })
-      },
-      {
-        id: 'talk_about_someone',
-        label: 'Talk about Someone',
-        nodes: [
-          {
-            id: 'talk_someone',
-            buttonText: 'Pick a person',
-            playerLine: 'Can we talk about someone specific?',
-            npcResponseGenerator: () => 'Sure. Who do you want to focus on?',
-            afterReply: () => {
-              this._showTalkAboutSomeoneSelect({ player, npc, context });
-            }
-          }
-        ]
+    return this.getMainTopics({ phase: context?.phase, context }).map(topic => {
+      if (topic.id === 'build_connection') {
+        return { ...topic, nodes: this._buildBuildConnectionNodes({ player, npc, context }) };
       }
-    ];
-
-    if (this._hasRecentEvent(context)) {
-      topics.splice(1, 0, {
-        id: 'event',
-        label: 'Talk about the event',
-        nodes: [
-          {
-            id: 'event_talk',
-            buttonText: 'Talk about the event',
-            playerLine: 'That event earlier… what’s your read on it?',
-            npcResponseGenerator: () => 'It shifted the energy. People are recalibrating fast.',
-            effects: ({ player, npc }) => {
-              this._applyExchangeEffects({
-                player,
-                npc,
-                deltas: { relationship: getRandomInt(1, 3), trust: getRandomInt(1, 2) },
-                contextTag: 'event_chat'
-              });
+      if (topic.id === 'vibe_check') {
+        return { ...topic, nodes: this._buildVibeCheckNodes({ player, npc, context }) };
+      }
+      if (topic.id === 'gossip') {
+        return { ...topic, nodes: this._buildGossipNodes({ player, npc, context }) };
+      }
+      if (topic.id === 'idol_talk') {
+        return { ...topic, nodes: this._buildIdolTalkNodes({ player, npc, context }) };
+      }
+      if (topic.id === 'strategy') {
+        return { ...topic, nodes: this._buildStrategyNodes({ player, npc, context }) };
+      }
+      if (topic.id === 'confront') {
+        return { ...topic, nodes: this._buildConfrontNodes({ player, npc, context }) };
+      }
+      if (topic.id === 'talk_about_someone') {
+        return {
+          ...topic,
+          nodes: [
+            {
+              id: 'talk_someone',
+              buttonText: 'Pick a person',
+              playerLine: 'Can we talk about someone specific?',
+              npcResponseGenerator: () => 'Sure. Who do you want to focus on?',
+              afterReply: () => {
+                this._showTalkAboutSomeoneSelect({ player, npc, context });
+              }
             }
-          }
-        ]
-      });
+          ]
+        };
+      }
+      if (topic.id === 'event') {
+        return {
+          ...topic,
+          nodes: [
+            {
+              id: 'event_talk',
+              buttonText: 'Talk about the event',
+              playerLine: 'That event earlier… what’s your read on it?',
+              npcResponseGenerator: () => 'It shifted the energy. People are recalibrating fast.',
+              effects: ({ player, npc }) => {
+                this._applyExchangeEffects({
+                  player,
+                  npc,
+                  deltas: { relationship: getRandomInt(1, 3), trust: getRandomInt(1, 2) },
+                  contextTag: 'event_chat'
+                });
+              }
+            }
+          ]
+        };
+      }
+      return { ...topic, nodes: [] };
+    });
+  }
+
+  _startNpcInitiatedConversation({ player, npc, context }) {
+    if (!player || !npc) return;
+    const normalizedContext = this._normalizeConversationContext({ ...context, initiator: 'npc' });
+    this.activeConversationContext = normalizedContext;
+    this.nodeSession = {
+      npcId: npc.id,
+      context: normalizedContext,
+      menuStack: []
+    };
+
+    const mainTopics = this._buildMainTopics({ player, npc, context: normalizedContext });
+    const selection = this.chooseNpcOpeningNode({
+      playerId: player.id,
+      npcId: npc.id,
+      phase: normalizedContext.phase,
+      context: normalizedContext,
+      mainTopics
+    });
+
+    const selectedTopic = selection?.payload?.topic || mainTopics.find(topic => topic.id === selection?.topicId);
+    const selectedNode = selection?.payload?.node || selectedTopic?.nodes?.find(node => node.id === selection?.nodeId);
+
+    if (!selectedTopic || !selectedNode) {
+      this._renderMainMenu({ player, npc, context: normalizedContext, mainTopics });
+      return;
     }
 
-    return topics;
+    const responseMode = this.decideNpcResponseMode({
+      player,
+      npc,
+      topic: selectedTopic.id,
+      riskLevel: selectedNode.riskLevel ?? 0.3,
+      isAllianceContext: selectedTopic.id === 'strategy' && selectedNode.id === 'alliances',
+      isDealRequest: selectedNode.id === 'offer_deal',
+      askedForNames: Boolean(selectedNode.askedForNames),
+      pressuring: Boolean(selectedNode.pressuring)
+    });
+
+    const openingLine = this._resolveNpcOpeningLine({ node: selectedNode, player, npc, context: normalizedContext, responseMode });
+    const followupNodes = typeof selectedNode.nextNodes === 'function'
+      ? selectedNode.nextNodes({ player, npc, context: normalizedContext, responseMode })
+      : (selectedNode.nextNodes || []);
+
+    const responseNodes = followupNodes.length
+      ? followupNodes
+      : [this._buildNpcOpeningFallbackNode(selectedNode)];
+
+    const returnToMain = () => this._renderMainMenu({ player, npc, context: normalizedContext, mainTopics: this._buildMainTopics({ player, npc, context: normalizedContext }) });
+    const buttons = responseNodes.map(responseNode => ({
+      label: responseNode.buttonText,
+      onClick: () => this._runConversationNode({
+        npc,
+        player,
+        node: responseNode,
+        context: { ...normalizedContext, mainTopicId: selectedTopic.id, subTopicId: responseNode.id },
+        returnTo: returnToMain
+      })
+    }));
+
+    this._renderMenu(npc, openingLine, buttons, { onBack: null, showEnd: true });
+  }
+
+  _resolveNpcOpeningLine({ node, player, npc, context, responseMode }) {
+    if (typeof node.npcOpeningLine === 'function') {
+      return node.npcOpeningLine({ player, npc, context, responseMode });
+    }
+    if (node.npcOpeningLine) return node.npcOpeningLine;
+    const playerLine = typeof node.playerLine === 'function'
+      ? node.playerLine({ player, npc, context })
+      : node.playerLine;
+    return playerLine || node.buttonText || 'Can we talk?';
+  }
+
+  _buildNpcOpeningFallbackNode(node) {
+    return {
+      id: `${node.id}_npc_response`,
+      buttonText: 'Respond',
+      playerLine: 'Tell me more.',
+      npcResponseGenerator: node.npcResponseGenerator || (() => 'Yeah.'),
+      effects: node.effects,
+      afterReply: node.afterReply,
+      nextNodes: node.nextNodes,
+      riskLevel: node.riskLevel,
+      askedForNames: node.askedForNames,
+      pressuring: node.pressuring
+    };
+  }
+
+  _hasNegativeIntelAboutPlayer(npcId, playerId) {
+    const memory = this._getNpcMemory(npcId);
+    if (!memory?.intel?.length) return false;
+    const negativeTypes = new Set([
+      'bugging',
+      'suspicious',
+      'name_coming_up',
+      'threat_callout',
+      'dead_weight',
+      'threat_seeded',
+      'deflect_target',
+      'pitch_target',
+      'alignment_callout',
+      'name_drop',
+      'source_named'
+    ]);
+    return memory.intel.some(entry => {
+      if (entry.targetId === playerId && negativeTypes.has(entry.type)) return true;
+      if (Array.isArray(entry.targetIds) && entry.targetIds.includes(playerId) && negativeTypes.has(entry.type)) return true;
+      return false;
+    });
+  }
+
+  chooseNpcOpeningNode({ playerId, npcId, phase, context, mainTopics = null }) {
+    const player = this._getSurvivorById(playerId) || this.gameManager.getPlayerSurvivor?.();
+    const npc = this._getSurvivorById(npcId);
+    if (!player || !npc) return null;
+
+    const topics = mainTopics || this._buildMainTopics({ player, npc, context });
+    const weights = new Map();
+    topics.forEach(topic => {
+      weights.set(topic.id, 1);
+    });
+
+    const paranoiaHigh = (npc.paranoia ?? 0) >= 70;
+    const worstStat = this._pickWorstStat(npc);
+    const survivalLow = worstStat.key !== 'steady' && worstStat.key !== 'paranoia';
+    if (paranoiaHigh || survivalLow) {
+      weights.set('vibe_check', (weights.get('vibe_check') || 1) + 2);
+    }
+
+    if (phase === 'post') {
+      weights.set('strategy', (weights.get('strategy') || 1) + 1.5);
+    }
+
+    const trustLow = this._getPairTrust(playerId, npcId) < 45;
+    const negativeIntel = this._hasNegativeIntelAboutPlayer(npcId, playerId);
+    if (trustLow || negativeIntel) {
+      weights.set('confront', (weights.get('confront') || 1) + 1.5);
+    }
+
+    if ((npc.idolHunt ?? 0) >= 60 || (npc.idolSuspicion ?? 0) >= 60) {
+      weights.set('idol_talk', (weights.get('idol_talk') || 1) + 1.5);
+    }
+
+    const style = (npc.gameplayStyle || npc.personality || '').toLowerCase();
+    if (style.includes('social genius') || style.includes('lethal charmer')) {
+      weights.set('build_connection', (weights.get('build_connection') || 1) + 1.5);
+    }
+
+    if (!paranoiaHigh && !survivalLow && !trustLow && !negativeIntel) {
+      weights.set('gossip', (weights.get('gossip') || 1) + 0.8);
+      weights.set('talk_about_someone', (weights.get('talk_about_someone') || 1) + 0.8);
+      weights.set('strategy', (weights.get('strategy') || 1) + 0.6);
+    }
+
+    const eligibleTopics = topics.filter(topic => (topic.nodes || []).some(node => !node.disabled));
+    const totalWeight = eligibleTopics.reduce((sum, topic) => sum + (weights.get(topic.id) || 1), 0);
+    let roll = Math.random() * totalWeight;
+    let pickedTopic = eligibleTopics[0];
+    for (const topic of eligibleTopics) {
+      roll -= (weights.get(topic.id) || 1);
+      if (roll <= 0) {
+        pickedTopic = topic;
+        break;
+      }
+    }
+
+    const availableNodes = (pickedTopic.nodes || []).filter(node => !node.disabled);
+    const pickedNode = availableNodes[getRandomInt(0, Math.max(0, availableNodes.length - 1))];
+    if (!pickedNode) return null;
+    return { topicId: pickedTopic.id, nodeId: pickedNode.id, payload: { topic: pickedTopic, node: pickedNode } };
+  }
+
+  _logConversationStart({ initiator, phase }) {
+    if (!this.debugConvo) return;
+    console.log('[CONVO-DEBUG] NEW TREE ACTIVE', { initiator, phase });
+  }
+
+  _reportLegacyMenuUsage() {
+    console.error('LEGACY TREE PATH DETECTED — MUST NOT HAPPEN');
   }
 
   _buildBuildConnectionNodes({ player, npc, context }) {
@@ -3808,6 +3996,9 @@ class ConversationSystem {
   }
 
   _showCategoryMenu(survivor, location, category) {
+    this._reportLegacyMenuUsage();
+    this._showTopicSelection(survivor, location);
+    return;
     this._clearOverlay({ preserveSession: true });
     const overlay = this._buildOverlayShell(survivor, { reuse: true });
     const content = this._getConversationContent(overlay);
@@ -3972,6 +4163,9 @@ class ConversationSystem {
   }
 
   _showPreChallengeCategoryMenu(survivor, location, categoryId) {
+    this._reportLegacyMenuUsage();
+    this._showTopicSelection(survivor, location);
+    return;
     this._clearOverlay({ preserveSession: true });
     const overlay = this._buildOverlayShell(survivor, { reuse: true });
     const content = this._getConversationContent(overlay);
@@ -4047,6 +4241,9 @@ class ConversationSystem {
   }
 
   _showPreChallengeSpecificMenu(survivor, location, target, category) {
+    this._reportLegacyMenuUsage();
+    this._showTopicSelection(survivor, location);
+    return;
     this._clearOverlay({ preserveSession: true });
     const overlay = this._buildOverlayShell(survivor, { reuse: true });
     const content = this._getConversationContent(overlay);
@@ -4087,6 +4284,8 @@ class ConversationSystem {
   }
 
   _handlePreChallengeChoice(survivor, location, choice, target = null) {
+    this._reportLegacyMenuUsage();
+    return;
     console.log('[CONVO-DEBUG] _handlePreChallengeChoice ENTRY', { survivorName: survivor?.firstName, choiceId: choice?.id, choiceLabel: choice?.label });
     const player = this.gameManager.getPlayerSurvivor?.();
     if (!player) return;
@@ -6787,7 +6986,17 @@ class ConversationSystem {
 
     if (this._isInCamp() && !conversationContext.forceLegacyConversation) {
       this.activeConversationContext = conversationContext;
-      this._showTopicSelection(survivor, location);
+      if (initiator === 'npc') {
+        this._logConversationStart({ initiator, phase });
+        this._startNpcInitiatedConversation({
+          player: this.gameManager.getPlayerSurvivor?.(),
+          npc: survivor,
+          context: conversationContext
+        });
+      } else {
+        this._logConversationStart({ initiator, phase });
+        this._showTopicSelection(survivor, location);
+      }
       return;
     }
 
