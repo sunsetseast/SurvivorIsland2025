@@ -407,11 +407,52 @@ class ConversationSystem {
     return { key: 'steady', line: 'I’m alright. Just trying to stay steady and not overthink everything.' };
   }
 
-  _renderMenu(npc, text, options, { onBack = null, showEnd = true } = {}) {
+  _ensureConversationStyles() {
+    if (this._stylesInjected || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.dataset.conversationStyles = 'true';
+    style.textContent = `
+      .convo-line { margin-bottom: 10px; }
+      .convo-speaker { font-weight: 700; letter-spacing: 0.5px; opacity: 0.9; }
+      .convo-npc .convo-speaker { color: #ffd28a; }
+      .convo-player .convo-speaker { color: #9fe3ff; }
+      .convo-text { line-height: 1.45; }
+      .convo-narration { opacity: 0.85; color: #e9e9e9; }
+    `;
+    document.head.appendChild(style);
+    this._stylesInjected = true;
+  }
+
+  _fmtNpcLine(npc, text) {
+    if (!text) return '';
+    const name = npc?.firstName || 'NPC';
+    return `<div class="convo-line convo-npc"><div class="convo-speaker">${name}</div><div class="convo-text">"${text}"</div></div>`;
+  }
+
+  _fmtPlayerLine(player, text) {
+    if (!text) return '';
+    return `<div class="convo-line convo-player"><div class="convo-speaker">You</div><div class="convo-text">"${text}"</div></div>`;
+  }
+
+  _fmtNarration(text) {
+    if (!text) return '';
+    return `<div class="convo-line convo-narration"><em>${text}</em></div>`;
+  }
+
+  _formatMenuBody(text) {
+    if (!text) return '';
+    const raw = String(text);
+    if (raw.includes('convo-line')) return raw;
+    return this._fmtNarration(raw);
+  }
+
+  _renderMenu(npc, text, options, { onBack = null, showEnd = true, scrollButtons = false } = {}) {
+    this._ensureConversationStyles();
     const overlay = this._buildOverlayShell(npc, { reuse: true });
     const content = this._getConversationContent(overlay);
     this._clearConversationContent(content);
-    const parchment = this._buildParchment(text || '');
+    const body = this._formatMenuBody(text || '');
+    const parchment = this._buildParchment(body || '');
 
     const buttonColumn = createElement('div', {
       style: {
@@ -423,11 +464,12 @@ class ConversationSystem {
       }
     });
 
-    const buttons = [...options];
-    if (onBack) buttons.push({ label: 'Back', alt: true, onClick: onBack });
-    if (showEnd) buttons.push({ label: 'End chat', alt: true, onClick: () => this.closeConversation('player_end') });
+    const mainButtons = [...options];
+    const navButtons = [];
+    if (onBack) navButtons.push({ label: 'Back', alt: true, onClick: onBack });
+    if (showEnd) navButtons.push({ label: 'End chat', alt: true, onClick: () => this.closeConversation('player_end') });
 
-    buttons.forEach(({ label, alt = false, onClick, disabled = false, tooltip = '' }) => {
+    const buildButton = ({ label, alt = false, onClick, disabled = false, tooltip = '' }) => {
       const btn = this._createChoiceButton({ label, alt, onClick, fallback: { npc } });
       if (disabled) {
         btn.disabled = true;
@@ -437,21 +479,39 @@ class ConversationSystem {
       if (tooltip) {
         btn.title = tooltip;
       }
-      buttonColumn.appendChild(btn);
-    });
+      return btn;
+    };
+
+    if (scrollButtons) {
+      const scrollRegion = createElement('div', {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          maxHeight: '240px',
+          overflowY: 'auto',
+          paddingRight: '4px'
+        }
+      });
+      mainButtons.forEach(entry => scrollRegion.appendChild(buildButton(entry)));
+      buttonColumn.appendChild(scrollRegion);
+      navButtons.forEach(entry => buttonColumn.appendChild(buildButton(entry)));
+    } else {
+      [...mainButtons, ...navButtons].forEach(entry => buttonColumn.appendChild(buildButton(entry)));
+    }
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
   }
 
   _renderPickList({ npc, title, candidates, onPick, onBack }) {
-    const listLines = candidates.map((member, index) => `${index + 1}) ${member.firstName}`).join('<br>');
-    const body = `${title}<br><br>${listLines}`;
+    const body = `${this._fmtNarration(title)}${this._fmtNarration('Choose a name:')}`;
     const buttons = candidates.map((member, index) => ({
-      label: `Pick ${index + 1}`,
+      label: member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName,
+      tooltip: member.seasonName || member.gameplayStyle || '',
       onClick: () => onPick(member)
     }));
-    this._renderMenu(npc, body, buttons, { onBack });
+    this._renderMenu(npc, body, buttons, { onBack, scrollButtons: true });
   }
 
   _applyExchangeEffects({ player, npc, deltas = {}, contextTag = 'conversation' }) {
@@ -547,10 +607,10 @@ class ConversationSystem {
           returnTo
         })
       }));
-      this._renderMenu(npc, npcReply, followupButtons, { onBack: returnTo, showEnd: true });
+      this._renderMenu(npc, this._fmtNpcLine(npc, npcReply), followupButtons, { onBack: returnTo, showEnd: true });
     };
 
-    this._renderConversationOverlay(npc, playerLine, [
+    this._renderConversationOverlay(npc, this._fmtPlayerLine(player, playerLine), [
       { label: 'Continue', onClick: afterReply }
     ]);
   }
@@ -912,7 +972,7 @@ class ConversationSystem {
         this._renderSubMenu({ player, npc, context, topic });
       }
     }));
-    this._renderMenu(npc, menuText, buttons, { onBack: null, showEnd: true });
+    this._renderMenu(npc, this._fmtNarration(menuText), buttons, { onBack: null, showEnd: true });
   }
 
   _renderSubMenu({ player, npc, context, topic }) {
@@ -931,7 +991,7 @@ class ConversationSystem {
           returnTo: () => this._renderSubMenu({ player, npc, context, topic })
         })
     }));
-    this._renderMenu(npc, menuText, buttons, {
+    this._renderMenu(npc, this._fmtNarration(menuText), buttons, {
       onBack: () => this._renderMainMenu({ player, npc, context, mainTopics: this._buildMainTopics({ player, npc, context }) }),
       showEnd: true
     });
@@ -1066,7 +1126,7 @@ class ConversationSystem {
       });
     }
 
-    this._renderMenu(npc, openingLine, buttons, { onBack: null, showEnd: true });
+    this._renderMenu(npc, this._fmtNpcLine(npc, openingLine), buttons, { onBack: null, showEnd: true });
   }
 
   _resolveNpcOpeningLine({ node, player, npc, context, stance }) {
@@ -2144,7 +2204,7 @@ class ConversationSystem {
         },
         afterReply: () => {
           if (!shared.length) {
-            this._renderMenu(npc, 'No shared alliance yet.', [], { onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }), showEnd: true });
+            this._renderMenu(npc, this._fmtNarration('No shared alliance yet.'), [], { onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }), showEnd: true });
             return;
           }
           this._showAllianceMenu({ player, npc, context, sharedAlliances: shared });
@@ -2288,7 +2348,7 @@ class ConversationSystem {
         returnTo: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target })
       })
     }));
-    this._renderMenu(npc, `Talking about ${target.firstName}. Pick an angle.`, buttons, {
+    this._renderMenu(npc, this._fmtNarration(`Talking about ${target.firstName}. Pick an angle.`), buttons, {
       onBack: () => this._showTalkAboutSomeoneSelect({ player, npc, context }),
       showEnd: true
     });
@@ -2410,7 +2470,7 @@ class ConversationSystem {
                   targetId: picked.id,
                   truth: 'unknown'
                 });
-                this._renderMenu(npc, 'Got it. I’ll keep that in mind.', [], {
+                this._renderMenu(npc, this._fmtNpcLine(npc, 'Got it. I’ll keep that in mind.'), [], {
                   onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
                   showEnd: true
                 });
@@ -2439,7 +2499,7 @@ class ConversationSystem {
                   targetId: picked.id,
                   truth: 'unknown'
                 });
-                this._renderMenu(npc, 'Interesting. I’ll watch that.', [], {
+                this._renderMenu(npc, this._fmtNpcLine(npc, 'Interesting. I’ll watch that.'), [], {
                   onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
                   showEnd: true
                 });
@@ -2517,7 +2577,7 @@ class ConversationSystem {
           targetId: target.id,
           truth: stance === NPC_STANCES.LIE ? false : 'unknown'
         });
-        this._renderMenu(npc, reply, [], {
+        this._renderMenu(npc, this._fmtNpcLine(npc, reply), [], {
           onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
           showEnd: true
         });
@@ -2551,7 +2611,7 @@ class ConversationSystem {
         this._resolveDealOutcome({ player, npc, context, dealType: dealType.id, target: null });
       }
     }));
-    this._renderMenu(npc, 'What kind of deal do you want to offer?', buttons, {
+    this._renderMenu(npc, this._fmtNarration('What kind of deal do you want to offer?'), buttons, {
       onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
       showEnd: true
     });
@@ -2578,7 +2638,7 @@ class ConversationSystem {
     }
 
     if (outcome === 'counter') {
-      this._renderMenu(npc, 'I’m not sure. How about we just share info first?', [
+      this._renderMenu(npc, this._fmtNpcLine(npc, 'I’m not sure. How about we just share info first?'), [
         {
           label: 'Accept counter',
           onClick: () => this._createDeal({ player, npc, dealType: 'share_info', target, status: 'accepted' })
@@ -2608,7 +2668,7 @@ class ConversationSystem {
   _createDeal({ player, npc, dealType, target, status }) {
     const dealSystem = this.gameManager?.systems?.dealSystem;
     if (!dealSystem) {
-      this._renderMenu(npc, 'No one is taking deals right now.', [], {
+      this._renderMenu(npc, this._fmtNpcLine(npc, 'No one is taking deals right now.'), [], {
         onBack: () => this._renderMainMenu({ player, npc, context: this.activeConversationContext || {}, mainTopics: this._buildMainTopics({ player, npc, context: this.activeConversationContext || {} }) }),
         showEnd: true
       });
@@ -2646,7 +2706,7 @@ class ConversationSystem {
     const responseText = status === 'accepted'
       ? 'Alright. We have a deal.'
       : 'I’m not going for that.';
-    this._renderMenu(npc, responseText, [], {
+    this._renderMenu(npc, this._fmtNpcLine(npc, responseText), [], {
       onBack: () => this._renderSubMenu({ player, npc, context: this.activeConversationContext || {}, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context: this.activeConversationContext || {} }) } }),
       showEnd: true
     });
@@ -2659,7 +2719,7 @@ class ConversationSystem {
         label: 'Recommit',
         onClick: () => {
           this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(2, 6) }, contextTag: 'alliance_recommit' });
-          this._renderMenu(npc, 'We’re good. Let’s keep it tight.', [], {
+          this._renderMenu(npc, this._fmtNpcLine(npc, 'We’re good. Let’s keep it tight.'), [], {
             onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
             showEnd: true
           });
@@ -2669,7 +2729,7 @@ class ConversationSystem {
         label: 'Prioritize alliance',
         onClick: () => {
           const best = sharedAlliances.sort((a, b) => (b.cohesion ?? 50) - (a.cohesion ?? 50))[0];
-          this._renderMenu(npc, `If I had to pick, I’d prioritize ${best.name}.`, [], {
+          this._renderMenu(npc, this._fmtNpcLine(npc, `If I had to pick, I’d prioritize ${best.name}.`), [], {
             onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
             showEnd: true
           });
@@ -2687,14 +2747,14 @@ class ConversationSystem {
           const line = size > 2
             ? 'We should keep each other ahead of the group when it counts.'
             : 'It’s us before anyone else. That’s the deal.';
-          this._renderMenu(npc, line, [], {
+          this._renderMenu(npc, this._fmtNpcLine(npc, line), [], {
             onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
             showEnd: true
           });
         }
       }
     ];
-    this._renderMenu(npc, 'Alliance talk:', buttons, {
+    this._renderMenu(npc, this._fmtNarration('Alliance talk:'), buttons, {
       onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
       showEnd: true
     });
@@ -2704,13 +2764,13 @@ class ConversationSystem {
     const alliance = sharedAlliances[0];
     const members = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id })
       .filter(member => alliance.memberIds?.includes?.(member.id) && member.id !== player.id);
-    this._renderMenu(npc, 'What doubt are you addressing?', [
+    this._renderMenu(npc, this._fmtNarration('What doubt are you addressing?'), [
       { label: 'About us', onClick: () => this._resolveAllianceDoubt({ player, npc, context, target: null }) },
       {
         label: 'About a member',
         onClick: () => {
           if (!members.length) {
-            this._renderMenu(npc, 'It’s just the two of us right now.', [], {
+            this._renderMenu(npc, this._fmtNpcLine(npc, 'It’s just the two of us right now.'), [], {
               onBack: () => this._showAllianceMenu({ player, npc, context, sharedAlliances }),
               showEnd: true
             });
@@ -2735,7 +2795,7 @@ class ConversationSystem {
     const trust = this._getPairTrust(player.id, npc.id);
     if (trust < 45) {
       this._applyExchangeEffects({ player, npc, deltas: { trust: -2, suspicion: 1 }, contextTag: 'alliance_doubt_low' });
-      this._renderMenu(npc, 'That’s not easing my doubts right now.', [], {
+      this._renderMenu(npc, this._fmtNpcLine(npc, 'That’s not easing my doubts right now.'), [], {
         onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
         showEnd: true
       });
@@ -2745,7 +2805,7 @@ class ConversationSystem {
       ? `If ${target.firstName} wobbles, we handle it.`
       : 'We’re solid. Let’s keep it clean.';
     this._applyExchangeEffects({ player, npc, deltas: { trust: 2 }, contextTag: 'alliance_doubt_reassure' });
-    this._renderMenu(npc, line, [], {
+    this._renderMenu(npc, this._fmtNpcLine(npc, line), [], {
       onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
       showEnd: true
     });
@@ -2766,7 +2826,7 @@ class ConversationSystem {
         onClick: () => this._resolveApology({ player, npc, context, type: 'lie' })
       }
     ];
-    this._renderMenu(npc, 'What are you apologizing for?', buttons, {
+    this._renderMenu(npc, this._fmtNarration('What are you apologizing for?'), buttons, {
       onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'confront', nodes: this._buildConfrontNodes({ player, npc, context }) } }),
       showEnd: true
     });
@@ -2784,7 +2844,7 @@ class ConversationSystem {
       deltas: { trust: open ? 3 : 1, relationship: open ? 2 : 0 },
       contextTag: `apology_${type}`
     });
-    this._renderMenu(npc, line, [], {
+    this._renderMenu(npc, this._fmtNpcLine(npc, line), [], {
       onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'confront', nodes: this._buildConfrontNodes({ player, npc, context }) } }),
       showEnd: true
     });
@@ -3287,12 +3347,12 @@ class ConversationSystem {
     this._logExchangeDebug({ exchange, responseMode: responseResolution.responseMode });
 
     console.log('[CONVO-DEBUG] _runExchangeStep showing playerLine:', playerLine?.substring?.(0, 50));
-    this._renderConversationOverlay(npc, playerLine, [
+    this._renderConversationOverlay(npc, this._fmtPlayerLine(player, playerLine), [
       {
         label: 'Next',
         onClick: () => {
           console.log('[CONVO-DEBUG] Player line Next clicked, showing NPC line:', npcLine?.substring?.(0, 50));
-          this._renderConversationOverlay(npc, npcLine, [
+          this._renderConversationOverlay(npc, this._fmtNpcLine(npc, npcLine), [
             {
               label: 'Next',
               onClick: () => {
@@ -3342,7 +3402,7 @@ class ConversationSystem {
 
     this._renderConversationOverlay(
       npc,
-      'How do you respond?',
+      this._fmtNarration('How do you respond?'),
       options.map(option => ({
         label: option,
         onClick: () => {
@@ -3384,7 +3444,7 @@ class ConversationSystem {
 
   _showExchangeOutcome({ exchange, npc, location }) {
     const outcomeSummary = this._formatExchangeOutcome(exchange);
-    this._renderConversationOverlay(npc, outcomeSummary, [
+    this._renderConversationOverlay(npc, this._fmtNarration(outcomeSummary), [
       {
         label: 'Ask Another',
         onClick: () => {
@@ -3891,15 +3951,15 @@ class ConversationSystem {
   _showPreChallengeSequence({ npc, playerLine, npcLine, outcomeSummary, location }) {
     console.log('[CONVO-DEBUG] _showPreChallengeSequence ENTRY', { npc: npc?.firstName, playerLine: playerLine?.substring?.(0, 40) });
     console.log('[CONVO-DEBUG] Calling showDialogue for playerLine');
-    this._renderConversationOverlay(npc, playerLine, [
+    this._renderConversationOverlay(npc, this._fmtPlayerLine(this.gameManager.getPlayerSurvivor?.(), playerLine), [
       {
         label: 'Next',
         onClick: () => {
-          this._renderConversationOverlay(npc, npcLine, [
+          this._renderConversationOverlay(npc, this._fmtNpcLine(npc, npcLine), [
             {
               label: 'Next',
               onClick: () => {
-                this._renderConversationOverlay(npc, outcomeSummary, [
+                this._renderConversationOverlay(npc, this._fmtNarration(outcomeSummary), [
                   {
                     label: 'Ask Another',
                     onClick: () => this._showTopicSelection(npc, location)
@@ -6039,7 +6099,9 @@ class ConversationSystem {
     const nodeText = this._composeMenuText({
       playerNarration: node.playerNarration || '',
       npcResponse: node.npcResponse || '',
-      text: node.promptText || ''
+      text: node.promptText || '',
+      npc,
+      player: this.gameManager.getPlayerSurvivor?.()
     });
 
     const parchment = this._buildParchment(nodeText || '');
@@ -6161,7 +6223,7 @@ class ConversationSystem {
     const nodeId = nextNodeId || session.nodeId;
     if (session.nodes[nodeId]) {
       session.nodeId = nodeId;
-      session.nodes[nodeId].promptText = this._composeMenuText(exchange);
+      session.nodes[nodeId].promptText = this._composeMenuText({ ...exchange, npc, player });
       session.nodes[nodeId].playerNarration = exchange.playerNarration;
       session.nodes[nodeId].npcResponse = exchange.npcResponse;
     }
@@ -6931,13 +6993,21 @@ class ConversationSystem {
     return 'says';
   }
 
-  _composeMenuText({ playerNarration, npcResponse, playerLine, npcLine, text } = {}) {
+  _composeMenuText({ playerNarration, npcResponse, playerLine, npcLine, text, npc, player, asHtml = true } = {}) {
     const resolvedPlayer = String(playerNarration || playerLine || '').trim();
     const resolvedNpc = String(npcResponse || npcLine || '').trim();
-    if (resolvedPlayer && resolvedNpc) return `${resolvedPlayer}\n\n${resolvedNpc}`;
-    if (resolvedNpc) return resolvedNpc;
-    if (resolvedPlayer) return resolvedPlayer;
-    return text || '';
+    if (!asHtml) {
+      if (resolvedPlayer && resolvedNpc) return `${resolvedPlayer}\n\n${resolvedNpc}`;
+      if (resolvedNpc) return resolvedNpc;
+      if (resolvedPlayer) return resolvedPlayer;
+      return text || '';
+    }
+    if (resolvedPlayer && resolvedNpc) {
+      return `${this._fmtNpcLine(npc, resolvedNpc)}${this._fmtPlayerLine(player, resolvedPlayer)}`;
+    }
+    if (resolvedNpc) return this._fmtNpcLine(npc, resolvedNpc);
+    if (resolvedPlayer) return this._fmtPlayerLine(player, resolvedPlayer);
+    return text ? this._fmtNarration(text) : '';
   }
 
   _formatPlayerNarration(line, intent = null) {
@@ -7084,10 +7154,12 @@ class ConversationSystem {
   }
 
   _renderConversationOverlay(npc, text, buttons = []) {
+    this._ensureConversationStyles();
     const overlay = this._buildOverlayShell(npc, { reuse: true });
     const content = this._getConversationContent(overlay);
     this._clearConversationContent(content);
-    const parchment = this._buildParchment(text || '');
+    const body = this._formatMenuBody(text || '');
+    const parchment = this._buildParchment(body || '');
 
     if (buttons.length > 0) {
       const buttonColumn = createElement('div', {
@@ -7153,7 +7225,9 @@ class ConversationSystem {
     const formattedNpcResponse = exchange.npcResponse;
     let nodeText = this._composeMenuText({
       playerNarration: formattedPlayerNarration,
-      npcResponse: formattedNpcResponse
+      npcResponse: formattedNpcResponse,
+      npc,
+      player
     });
 
     this._debugValidateRenderedNode({
@@ -9670,6 +9744,7 @@ class ConversationSystem {
   }
 
   _buildParchment(text) {
+    this._ensureConversationStyles();
     const parchment = createElement('div', {
       className: 'conversation-parchment',
       style: {
@@ -9701,8 +9776,14 @@ class ConversationSystem {
         whiteSpace: 'pre-line'
       }
     });
-    if (typeof text === 'string' && text.includes('<br>')) {
+    const hasHtml = typeof text === 'string' && /<\/?[a-z][\s\S]*>/i.test(text);
+    if (hasHtml) {
       textEl.innerHTML = text;
+      if (text.includes('convo-line')) {
+        textEl.style.textAlign = 'left';
+        textEl.style.fontWeight = 'normal';
+      }
+      textEl.style.whiteSpace = 'normal';
     } else {
       textEl.textContent = text;
     }
@@ -9941,7 +10022,13 @@ class ConversationSystem {
       npc: survivor,
       intent: resolvedIntent
     });
-    const combined = this._composeMenuText({ playerNarration, npcResponse });
+    const combined = this._composeMenuText({
+      playerNarration,
+      npcResponse,
+      npc: survivor,
+      player: this.gameManager.getPlayerSurvivor?.(),
+      asHtml: false
+    });
     memory?.rememberBeat?.(survivor.id, resolvedIntent, combined);
     return { playerNarration, npcResponse, playerLine, npcLine, text: null, responses, context };
   }
@@ -10109,7 +10196,9 @@ class ConversationSystem {
 
     const combinedText = this._composeMenuText({
       playerNarration: formattedPlayerNarration,
-      npcResponse: resolvedNpcResponse
+      npcResponse: resolvedNpcResponse,
+      npc,
+      player
     });
 
     if (!step.nav && resolvedNpcResponse) {
