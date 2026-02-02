@@ -10,120 +10,8 @@ import { DealTypes } from './DealSystem.js';
 
 // DEV NOTE (ConversationSystem)
 // - NPC stances: computed per exchange from relationship, paranoia, gameplay style, and risk.
-// - Phase gating: pre allows personal/light strategy; post only allows strategic intents + vote planning.
+// - Phase gating: pre allows personal/light strategy; post emphasizes strategic topics + vote planning.
 // - Memory logging: _logSocialEvent funnels structured records into SocialMemorySystem for later querying.
-
-/* LEGACY INTENT SYSTEM — NO LONGER USED */
-function resolveNpcDisclosure({ npc, player, kind, context = {} }) {
-  const trustSystem = context.trustSystem || player?.gameManager?.systems?.trustSystem || npc?.gameManager?.systems?.trustSystem;
-  const trustScore = Math.max(0, Math.min(100, typeof trustSystem?.getTrust === 'function'
-    ? (trustSystem.getTrust(player?.id, npc?.id) ?? 50)
-    : 50));
-  const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
-
-  let evadeChance = trustScore < 40 ? 0.45 : 0.2;
-  let truthChance = trustScore > 70 ? 0.55 : 0.35;
-  let lieChance = 1 - (evadeChance + truthChance);
-
-  if (personality.includes('deceptive') || personality.includes('strategic')) {
-    lieChance += 0.12;
-    evadeChance -= 0.05;
-  }
-
-  if (personality.includes('loyal') || personality.includes('honest')) {
-    lieChance -= 0.1;
-    evadeChance += 0.08;
-  }
-
-  if (trustScore > 80) {
-    truthChance += 0.1;
-    lieChance -= 0.05;
-  } else if (trustScore < 30) {
-    lieChance += 0.1;
-    truthChance -= 0.05;
-  }
-
-  const normalize = (v) => Math.max(0, v);
-  evadeChance = normalize(evadeChance);
-  lieChance = normalize(lieChance);
-  truthChance = normalize(truthChance);
-  const total = evadeChance + lieChance + truthChance;
-  evadeChance /= total;
-  lieChance /= total;
-  truthChance /= total;
-
-  const roll = Math.random();
-  let outcome = 'evade';
-  if (roll < evadeChance) {
-    outcome = 'evade';
-  } else if (roll < evadeChance + truthChance) {
-    outcome = 'truth';
-  } else {
-    outcome = 'lie';
-  }
-
-  const availableTargets = context.availableTargets || [];
-  const trueTarget = context.trueTarget || context.topicPerson || context.targetName || null;
-  let claimedTarget = trueTarget;
-  let redirectName = null;
-
-  if (outcome === 'lie') {
-    const filtered = availableTargets.filter(t => t && t !== trueTarget);
-    claimedTarget = filtered.length > 0 ? filtered[getRandomInt(0, filtered.length - 1)] : trueTarget || null;
-  }
-
-  if (outcome === 'evade') {
-    claimedTarget = null;
-  }
-
-  let reasonTag = 'neutral_disclosure';
-  if (trustScore < 30) {
-    reasonTag = 'low_trust';
-  } else if (trustScore > 75) {
-    reasonTag = 'high_trust';
-  }
-  if (outcome === 'lie' && personality.includes('deceptive')) {
-    reasonTag = 'deceptive_tendency';
-  } else if (outcome === 'evade' && personality.includes('loyal')) {
-    reasonTag = 'cautious_loyalty';
-  }
-
-  const locations = [
-    'water well',
-    'shelter',
-    'firewood pile',
-    'beach',
-    'tree mail',
-    'jungle path'
-  ];
-  const reasons = [
-    'challenge threat',
-    'social threat',
-    'idol fear',
-    'revenge',
-    'outsider'
-  ];
-
-  const motive = context.reason || reasons[getRandomInt(0, reasons.length - 1)];
-  const location = context.location || locations[getRandomInt(0, locations.length - 1)];
-  const timeHint = ['early this morning', 'right after the challenge', 'last night', 'during water runs'][getRandomInt(0, 3)];
-
-  if (outcome === 'lie' && claimedTarget && trueTarget && claimedTarget !== trueTarget) {
-    redirectName = trueTarget;
-  }
-
-  const detail = {
-    motive,
-    location,
-    timeHint,
-    pusherName: outcome === 'evade' ? null : (context.pusherName || claimedTarget),
-    redirectName,
-    demand: trustScore < 45 ? 'trade' : null
-  };
-
-  return { outcome, claimedTarget, trueTarget, reasonTag, detail };
-}
-/* LEGACY INTENT SYSTEM — NO LONGER USED */
 
 const NPC_STANCES = Object.freeze({
   TRUTH: 'TRUTH',
@@ -133,6 +21,42 @@ const NPC_STANCES = Object.freeze({
   REASSURE: 'REASSURE',
   PRESSURE: 'PRESSURE'
 });
+
+const CAMP_LOCATIONS = [
+  LocationKeys.BEACH,
+  LocationKeys.SHELTER,
+  LocationKeys.CAMPFIRE,
+  LocationKeys.WATER_WELL,
+  LocationKeys.ROCKY_SHORE,
+  LocationKeys.FORK1,
+  LocationKeys.FORK2,
+  LocationKeys.FORK3
+];
+
+/* LEGACY INTENT SYSTEM — NO LONGER USED */
+const LEGACY_INTENT_SYSTEM_DISABLED = true;
+const PRE_CHALLENGE_TREE = { categories: [] };
+const PRE_PHASE_INTENTS = Object.freeze({});
+const POST_PHASE_INTENTS = Object.freeze({});
+const DETERMINISTIC_INTENTS = Object.freeze({});
+const STRATEGY_APPROACHES = Object.freeze({});
+const INTENT_TEMPLATES = Object.freeze({});
+const RESPONSE_LIBRARY = Object.freeze({});
+const NPC_RESPONSE_TEMPLATES = Object.freeze({});
+const FOLLOWUP_ACTIONS = Object.freeze({
+  PRESS: { key: 'PRESS', label: 'Press for specifics' },
+  REASSURE: { key: 'REASSURE', label: 'Back off, keep it casual' },
+  PIVOT: { key: 'PIVOT', label: 'Change the angle' },
+  DROP: { key: 'DROP', label: 'Drop it' }
+});
+const INTEL_QUALITY = Object.freeze({
+  NONE: 'NONE',
+  VAGUE: 'VAGUE',
+  PARTIAL: 'PARTIAL',
+  CONCRETE: 'CONCRETE'
+});
+const PRE_CHALLENGE_PERSONAL_SHARES = [];
+const PRE_CHALLENGE_INTEL_LIBRARY = {};
 
 function ensureCampSocialChanges() {
   if (!window.campSocialChanges) {
@@ -182,1456 +106,6 @@ function normalizeDealType(dealType) {
       return 'voteTogether';
   }
 }
-
-/* LEGACY INTENT SYSTEM — NO LONGER USED */
-const TOPIC_TO_INTENT = {
-  bonding: 'bonding',
-  personal: 'personal',
-  lightStrategy: 'lightStrategy',
-  hardStrategy: 'hardStrategy',
-  trust: 'trust',
-  talkTarget: 'gossip',
-  deal: 'deal',
-  confront: 'confrontation',
-  apologize: 'apology',
-  mood: 'moodCheck',
-  camp: 'campTalk',
-  humor: 'fun'
-};
-
-const CAMP_LOCATIONS = [
-  LocationKeys.BEACH,
-  LocationKeys.SHELTER,
-  LocationKeys.CAMPFIRE,
-  LocationKeys.WATER_WELL,
-  LocationKeys.ROCKY_SHORE,
-  LocationKeys.FORK1,
-  LocationKeys.FORK2,
-  LocationKeys.FORK3
-];
-
-/* LEGACY INTENT SYSTEM — NO LONGER USED */
-const PRE_PHASE_INTENTS = {
-  bond_smalltalk: 'bond_smalltalk',
-  bond_personal: 'bond_personal',
-  check_trust: 'check_trust',
-  light_strategy: 'light_strategy',
-  ask_general_info: 'ask_general_info',
-  repair_relationship: 'repair_relationship',
-  confront_rumor: 'confront_rumor'
-};
-
-/* LEGACY INTENT SYSTEM — NO LONGER USED */
-const FOLLOWUP_ACTIONS = {
-  PRESS: { key: 'PRESS', label: 'Press for specifics' },
-  REASSURE: { key: 'REASSURE', label: 'Back off, keep it casual' },
-  PIVOT: { key: 'PIVOT', label: 'Change the angle' },
-  DROP: { key: 'DROP', label: 'Drop it' }
-};
-
-/* LEGACY INTENT SYSTEM — NO LONGER USED */
-const INTEL_QUALITY = {
-  NONE: 'NONE',
-  VAGUE: 'VAGUE',
-  PARTIAL: 'PARTIAL',
-  CONCRETE: 'CONCRETE'
-};
-
-const PRE_CHALLENGE_TREE = {
-  categories: [
-    {
-      id: 'build_connection',
-      label: 'Build Connection',
-      choices: [
-        {
-          id: 'BC1',
-          buttonLabel: "Check in",
-          tones: ['warm'],
-          riskLevel: 0.2,
-          responseModes: ['reassure', 'softTruth', 'deflect'],
-          lines: [
-            'How are you holding up today?',
-            'You doing alright out here?',
-            'Quick check-in—how’s your head?'
-          ],
-          outcomeTemplate: 'Result: {relDelta} Relationship. {trustDelta} Trust. You read: {intelVibe}.'
-        },
-        {
-          id: 'BC2',
-          buttonLabel: "Open up",
-          tones: ['warm', 'personal'],
-          riskLevel: 0.3,
-          responseModes: ['reassure', 'counterQ', 'softTruth', 'deflect'],
-          lines: [
-            'This is gonna sound random, but back home I… {share}.',
-            'Honestly, this reminds me of home in a weird way.'
-          ],
-          outcomeTemplate: 'Result: {relDelta} Relationship. {trustDelta} Trust. Risk: {riskLine}.'
-        },
-        {
-          id: 'BC3',
-          buttonLabel: "Praise effort",
-          tones: ['warm'],
-          riskLevel: 0.2,
-          responseModes: ['reassure', 'softTruth', 'deflect'],
-          lines: [
-            'I noticed you’ve been grinding around camp. Respect.',
-            'You’ve been pulling your weight—people see that.',
-            'You’ve been solid today.'
-          ],
-          outcomeTemplate: 'Result: {relDelta} Relationship. {trustDelta} Trust. Reputation: helpful {repDeltaHelpful}.'
-        },
-        {
-          id: 'BC4',
-          buttonLabel: "Crack a joke",
-          tones: ['playful'],
-          riskLevel: 0.15,
-          responseModes: ['reassure', 'softTruth', 'deflect'],
-          lines: [
-            'If we survive this rain, we deserve pizza.',
-            'This is the glamorous part of Survivor, right?'
-          ],
-          outcomeTemplate: 'Result: {relDelta} Relationship. You eased tension slightly.'
-        },
-        {
-          id: 'BC5',
-          buttonLabel: "Do a task together",
-          tones: ['warm', 'helpful'],
-          riskLevel: 0.25,
-          responseModes: ['truth', 'deflect', 'counterQ', 'reassure'],
-          lines: [
-            'Want to do a task together right now?',
-            'Let’s knock out some work together—two birds.'
-          ],
-          outcomeTemplate: 'Result: {relDelta} Relationship. Teamwork noticed: helpful {repDeltaHelpful}. {intelIfDeclined}.'
-        }
-      ]
-    },
-    {
-      id: 'read_room',
-      label: 'Read the Room',
-      choices: [
-        {
-          id: 'RR1',
-          buttonLabel: "Camp vibe?",
-          tones: ['neutral'],
-          riskLevel: 0.35,
-          responseModes: ['softTruth', 'truth', 'deflect'],
-          lines: [
-            'What’s the camp vibe today?',
-            'How’s everyone feeling?',
-            'Are we vibing or spiraling?'
-          ],
-          outcomeTemplate: 'Result: You learned: {campVibeIntel}. Risk: {riskLineOptional}.'
-        },
-        {
-          id: 'RR2',
-          buttonLabel: "Who seems off?",
-          tones: ['neutral', 'direct'],
-          riskLevel: 0.45,
-          responseModes: ['softTruth', 'truth', 'counterQ', 'deflect', 'misdirect'],
-          lines: [
-            'Anyone seem off lately?',
-            'You notice anyone acting different?'
-          ],
-          outcomeTemplate: 'Result: You learned: {behaviorIntel}. Suspicion {suspDelta}.'
-        },
-        {
-          id: 'RR3',
-          buttonLabel: "Where you at?",
-          tones: ['warm'],
-          riskLevel: 0.4,
-          responseModes: ['softTruth', 'deflect', 'counterQ', 'truth'],
-          lines: [
-            'You feeling okay… game-wise?',
-            'You feel alright about where you stand?'
-          ],
-          outcomeTemplate: 'Result: You learned: {comfortIntel}. Risk: {riskLine}.'
-        },
-        {
-          id: 'RR4',
-          buttonLabel: "Are you safe?",
-          tones: ['direct'],
-          riskLevel: 0.55,
-          responseModes: ['deflect', 'counterQ', 'truth', 'misdirect'],
-          lines: [
-            'If we lose, are you safe?',
-            'If we go to Tribal, are you good?'
-          ],
-          outcomeTemplate: 'Result: You learned: {safetyIntel}. Risk: probing raised suspicion.'
-        },
-        {
-          id: 'RR5',
-          buttonLabel: "Closest allies",
-          tones: ['neutral'],
-          riskLevel: 0.45,
-          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
-          lines: [
-            'Who are you feeling closest to right now?',
-            'Who have you been clicking with?'
-          ],
-          outcomeTemplate: 'Result: You mapped: {allyIntel}. Risk: {riskLineOptional}.'
-        },
-        {
-          id: 'RR6',
-          buttonLabel: "Are we good?",
-          tones: ['warm'],
-          riskLevel: 0.35,
-          responseModes: ['reassure', 'softTruth', 'deflect', 'misdirect'],
-          lines: [
-            'Quick vibe check—are we still good?',
-            'We good?'
-          ],
-          outcomeTemplate: 'Result: {trustDelta} Trust. Read: {toneRead}.'
-        },
-        {
-          id: 'RR7',
-          buttonLabel: "Where I stand",
-          tones: ['direct'],
-          riskLevel: 0.5,
-          responseModes: ['truth', 'softTruth', 'deflect', 'counterQ', 'misdirect'],
-          lines: [
-            'Where do I stand with you?',
-            'Be straight—am I good with you?'
-          ],
-          outcomeTemplate: 'Result: You learned: {standingIntel}. Risk: {riskLine}.'
-        }
-      ]
-    },
-    {
-      id: 'talk_specific',
-      label: 'Talk About Someone',
-      targetPrompt: 'Who do you want to talk about?',
-      choices: [
-        {
-          id: 'TS1',
-          buttonLabel: "Trust {TARGET}?",
-          tones: ['direct'],
-          riskLevel: 0.45,
-          responseModes: ['truth', 'softTruth', 'deflect', 'misdirect'],
-          lines: [
-            'Do you trust {TARGET}?'
-          ],
-          outcomeTemplate: 'Result: You gained a read on {TARGET}: {readIntel}. Risk: {riskLineOptional}.'
-        },
-        {
-          id: 'TS2',
-          buttonLabel: "Read on {TARGET}",
-          tones: ['neutral'],
-          riskLevel: 0.4,
-          responseModes: ['softTruth', 'truth', 'deflect'],
-          lines: [
-            'What’s your real read on {TARGET}?'
-          ],
-          outcomeTemplate: 'Result: You learned: {targetReadIntel}.'
-        },
-        {
-          id: 'TS3',
-          buttonLabel: "Flag long-term",
-          tones: ['strategic'],
-          riskLevel: 0.55,
-          responseModes: ['softTruth', 'truth', 'deflect', 'counterQ'],
-          lines: [
-            '{TARGET} feels dangerous down the line.'
-          ],
-          outcomeTemplate: 'Result: You planted a long-term threat idea about {TARGET}. Strategic impression {repDeltaStrategic}.'
-        },
-        {
-          id: 'TS4',
-          buttonLabel: "Idol suspicion",
-          tones: ['direct'],
-          riskLevel: 0.7,
-          responseModes: ['deflect', 'softTruth', 'truth', 'misdirect'],
-          lines: [
-            'Think {TARGET} found something?'
-          ],
-          outcomeTemplate: 'Result: Idol suspicion around {TARGET} increased. Risk: you looked paranoid.'
-        },
-        {
-          id: 'TS5',
-          buttonLabel: "Why {TARGET}'s name?",
-          tones: ['neutral'],
-          riskLevel: 0.5,
-          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
-          lines: [
-            '{TARGET}’s name keeps coming up—why?'
-          ],
-          outcomeTemplate: 'Result: You learned: {rumorIntel}. Pressure on {TARGET} increased.'
-        },
-        {
-          id: 'TS6',
-          buttonLabel: "Your name came up",
-          tones: ['direct'],
-          riskLevel: 0.8,
-          responseModes: ['escalate', 'counterQ', 'truth', 'misdirect'],
-          lines: [
-            'I heard {TARGET} mentioned YOUR name.'
-          ],
-          outcomeTemplate: 'Result: Paranoia spiked. Risk: if this is false and spreads, you take the heat.'
-        },
-        {
-          id: 'TS7',
-          buttonLabel: "My name came up",
-          tones: ['direct'],
-          riskLevel: 0.55,
-          responseModes: ['truth', 'softTruth', 'deflect', 'misdirect'],
-          lines: [
-            'I heard {TARGET} mentioned MY name.'
-          ],
-          outcomeTemplate: 'Result: You tested loyalty. You learned: {loyaltyIntel}.'
-        },
-        {
-          id: 'TS8',
-          buttonLabel: "Test loyalty",
-          tones: ['strategic'],
-          riskLevel: 0.55,
-          responseModes: ['counterQ', 'reassure', 'deflect', 'misdirect'],
-          lines: [
-            'I might work with {TARGET} more.'
-          ],
-          outcomeTemplate: 'Result: You tested jealousy/loyalty. Reaction: {reactionIntel}.'
-        },
-        {
-          id: 'TS9',
-          buttonLabel: "Use as shield",
-          tones: ['strategic'],
-          riskLevel: 0.6,
-          responseModes: ['softTruth', 'truth', 'deflect'],
-          lines: [
-            '{TARGET} could be a shield for us.'
-          ],
-          outcomeTemplate: 'Result: You proposed a shield concept. Strategic impression {repDeltaStrategic}.'
-        }
-      ]
-    },
-    {
-      id: 'camp_life',
-      label: 'Camp Life & Morale',
-      choices: [
-        {
-          id: 'CL1',
-          buttonLabel: "How's camp?",
-          tones: ['warm'],
-          riskLevel: 0.25,
-          responseModes: ['truth', 'softTruth', 'deflect'],
-          lines: [
-            'How’s food/sleep/shelter treating you?'
-          ],
-          outcomeTemplate: 'Result: You learned: {stateIntel}. Relationship {relDelta}.'
-        },
-        {
-          id: 'CL2',
-          buttonLabel: "Morale check",
-          tones: ['warm'],
-          riskLevel: 0.3,
-          responseModes: ['truth', 'softTruth', 'deflect'],
-          lines: [
-            'What’s your morale like today?'
-          ],
-          outcomeTemplate: 'Result: Morale read: {moraleIntel}.'
-        },
-        {
-          id: 'CL3',
-          buttonLabel: "What's bugging you?",
-          tones: ['direct'],
-          riskLevel: 0.4,
-          responseModes: ['softTruth', 'truth', 'deflect', 'counterQ'],
-          lines: [
-            'What’s annoying you most right now?'
-          ],
-          outcomeTemplate: 'Result: You learned: {grievanceIntel}. Risk: {riskLineOptional}.'
-        },
-        {
-          id: 'CL4',
-          buttonLabel: "Reward talk",
-          tones: ['warm'],
-          riskLevel: 0.2,
-          responseModes: ['reassure', 'softTruth', 'truth'],
-          lines: [
-            'If we win reward, what would you want?'
-          ],
-          outcomeTemplate: 'Result: You learned what drives them: {motiveIntel}.'
-        },
-        {
-          id: 'CL5',
-          buttonLabel: "Who’s working?",
-          tones: ['strategic'],
-          riskLevel: 0.55,
-          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
-          lines: [
-            'Who’s pulling their weight around camp?'
-          ],
-          outcomeTemplate: 'Result: You got a work-ethic map. Risk: you looked like you’re building a case.'
-        }
-      ]
-    },
-    {
-      id: 'idols_rumors',
-      label: 'Idols & Rumors',
-      choices: [
-        {
-          id: 'IR1',
-          buttonLabel: "Anything weird?",
-          tones: ['neutral'],
-          riskLevel: 0.35,
-          responseModes: ['softTruth', 'truth', 'deflect'],
-          lines: [
-            'Anything weird happening around camp?'
-          ],
-          outcomeTemplate: 'Result: You learned: {weirdIntel}.'
-        },
-        {
-          id: 'IR2',
-          buttonLabel: "Idol chatter",
-          tones: ['direct'],
-          riskLevel: 0.65,
-          responseModes: ['deflect', 'softTruth', 'truth', 'misdirect'],
-          lines: [
-            'Heard any idol talk?'
-          ],
-          outcomeTemplate: 'Result: Idol chatter: {idolIntel}. Risk: asking raised suspicion.'
-        },
-        {
-          id: 'IR3',
-          buttonLabel: "Idol vibe",
-          tones: ['direct'],
-          riskLevel: 0.7,
-          responseModes: ['deflect', 'counterQ', 'softTruth', 'misdirect', 'truth'],
-          lines: [
-            'Do you think someone has something?'
-          ],
-          outcomeTemplate: 'Result: You tested idol climate. Risk: you looked like you’re fishing.'
-        },
-        {
-          id: 'IR4',
-          buttonLabel: "Accuse idol",
-          tones: ['direct'],
-          riskLevel: 0.9,
-          responseModes: ['escalate', 'counterQ', 'misdirect'],
-          lines: [
-            'I think YOU found something.'
-          ],
-          outcomeTemplate: 'Result: You applied pressure. Relationship suffered. Risk: you may become the target.'
-        },
-        {
-          id: 'IR5',
-          buttonLabel: "Clear my name",
-          tones: ['neutral'],
-          riskLevel: 0.45,
-          responseModes: ['reassure', 'softTruth', 'deflect', 'counterQ'],
-          lines: [
-            'People assume I have something… it’s annoying.'
-          ],
-          outcomeTemplate: 'Result: You floated a perception play. You learned: {perceptionIntel}.'
-        }
-      ]
-    },
-    {
-      id: 'strategy',
-      label: 'Strategy',
-      choices: [
-        {
-          id: 'ST1',
-          buttonLabel: "Vote vibe",
-          tones: ['strategic'],
-          riskLevel: 0.55,
-          responseModes: ['softTruth', 'truth', 'deflect', 'misdirect'],
-          lines: [
-            'If we lose, what kind of vote do you think it is?'
-          ],
-          outcomeTemplate: 'Result: You learned: {voteTypeIntel}. Strategic impression {repDeltaStrategic}.'
-        },
-        {
-          id: 'ST2',
-          buttonLabel: "Challenge worries",
-          tones: ['strategic'],
-          riskLevel: 0.5,
-          responseModes: ['truth', 'softTruth', 'deflect'],
-          lines: [
-            'Who do you not want next to you in challenges?'
-          ],
-          outcomeTemplate: 'Result: You learned who worries them physically: {challengeIntel}.'
-        },
-        {
-          id: 'ST3',
-          buttonLabel: "Biggest threat",
-          tones: ['strategic'],
-          riskLevel: 0.7,
-          responseModes: ['softTruth', 'truth', 'deflect', 'counterQ', 'misdirect'],
-          lines: [
-            'Who’s the biggest threat right now?'
-          ],
-          outcomeTemplate: 'Result: Threat map updated. Risk: you looked strategic.'
-        },
-        {
-          id: 'ST4',
-          buttonLabel: "Your vote?",
-          tones: ['direct'],
-          riskLevel: 0.85,
-          responseModes: ['deflect', 'counterQ', 'misdirect', 'truth'],
-          lines: [
-            'If we lose, who’s your vote?'
-          ],
-          outcomeTemplate: 'Result: You pushed for a name. Result: {resultIntel}. Risk: high.'
-        },
-        {
-          id: 'ST5',
-          buttonLabel: "Do we have numbers?",
-          tones: ['strategic'],
-          riskLevel: 0.6,
-          responseModes: ['truth', 'softTruth', 'deflect', 'counterQ'],
-          lines: [
-            'Do we have anything solid?'
-          ],
-          outcomeTemplate: 'Result: You checked alignment. You learned: {numbersIntel}.'
-        },
-        {
-          id: 'ST6',
-          buttonLabel: "Backup plan",
-          tones: ['strategic'],
-          riskLevel: 0.7,
-          responseModes: ['truth', 'softTruth', 'deflect', 'counterQ', 'misdirect'],
-          lines: [
-            'If the plan blows up, what’s backup?'
-          ],
-          outcomeTemplate: 'Result: You explored contingencies. Strategic impression {repDeltaStrategic}. Risk: {riskLine}.'
-        }
-      ]
-    },
-    {
-      id: 'confront_repair',
-      label: 'Confront / Repair',
-      choices: [
-        {
-          id: 'CR1',
-          buttonLabel: "Call out tension",
-          tones: ['direct'],
-          riskLevel: 0.55,
-          responseModes: ['reassure', 'deflect', 'counterQ', 'escalate', 'softTruth'],
-          lines: [
-            'Something feels off between us.'
-          ],
-          outcomeTemplate: 'Result: You surfaced tension. Read: {tensionIntel}.'
-        },
-        {
-          id: 'CR2',
-          buttonLabel: "Confront rumor",
-          tones: ['direct'],
-          riskLevel: 0.8,
-          responseModes: ['escalate', 'deflect', 'counterQ', 'truth', 'misdirect'],
-          lines: [
-            'I heard you said something about me.'
-          ],
-          outcomeTemplate: 'Result: Confrontation triggered. Risk: high.'
-        },
-        {
-          id: 'CR3',
-          buttonLabel: "Clear the air",
-          tones: ['warm'],
-          riskLevel: 0.4,
-          responseModes: ['reassure', 'softTruth', 'deflect'],
-          lines: [
-            'I want to clear the air.'
-          ],
-          outcomeTemplate: 'Result: Repair attempt: {repairResult}.'
-        },
-        {
-          id: 'CR4',
-          buttonLabel: "Apologize",
-          tones: ['warm'],
-          riskLevel: 0.35,
-          responseModes: ['reassure', 'softTruth', 'deflect'],
-          lines: [
-            'I’m sorry about earlier.'
-          ],
-          outcomeTemplate: 'Result: Apology registered. Reliability {reliaDelta}.'
-        },
-        {
-          id: 'CR5',
-          buttonLabel: "Are you against me?",
-          tones: ['direct'],
-          riskLevel: 0.9,
-          responseModes: ['deflect', 'counterQ', 'misdirect', 'truth'],
-          lines: [
-            'Be straight—are you against me?'
-          ],
-          outcomeTemplate: 'Result: High-pressure question. Result: {resultIntel}. Risk: very high.'
-        }
-      ]
-    }
-  ]
-};
-
-const POST_PHASE_INTENTS = {
-  ask_intel: 'ask_intel',
-  talk_specific_person: 'talk_specific_person',
-  idol_suspicion: 'idol_suspicion',
-  challenge_performance: 'challenge_performance',
-  pitch_target: 'pitch_target',
-  deflect_target: 'deflect_target',
-  offer_deal_vote_together: 'offer_deal_vote_together',
-  offer_deal_share_info: 'offer_deal_share_info',
-  offer_deal_protect: 'offer_deal_protect',
-  offer_deal_final2: 'offer_deal_final2',
-  offer_split_vote: 'offer_split_vote',
-  plant_seed: 'plant_seed',
-  verify_story: 'verify_story',
-  threaten_pressure: 'threaten_pressure',
-  alliance_commitment: 'alliance_commitment',
-  challenge_debrief: 'challenge_debrief',
-  idol_ask_found: 'idol_ask_found',
-  idol_ask_who_has: 'idol_ask_who_has',
-  idol_ask_looked_where: 'idol_ask_looked_where',
-  idol_claim_have_truth: 'idol_claim_have_truth',
-  idol_claim_have_lie: 'idol_claim_have_lie',
-  idol_claim_other_has_lie: 'idol_claim_other_has_lie',
-  idol_pressure_for_info: 'idol_pressure_for_info'
-};
-
-const PRE_CHALLENGE_PERSONAL_SHARES = [
-  'ran a youth camp',
-  'worked night shifts at a diner',
-  'coach a team',
-  'take care of my family',
-  'restore old bikes',
-  'volunteer at a community kitchen'
-];
-
-const PRE_CHALLENGE_INTEL_LIBRARY = {
-  campVibe: [
-    'camp energy feels tight around the water runs',
-    'people are quiet and watching each other',
-    'the mood is steady, but people are cautious',
-    'everyone is smiling, but it feels guarded'
-  ],
-  behaviorShifts: [
-    'someone is pulling away from group chats',
-    'a couple people are suddenly very chatty',
-    'people are keeping side conversations short'
-  ],
-  npcComfort: [
-    'they feel okay but not locked',
-    'they feel decent and don’t want to overplay',
-    'they feel shaky and are keeping options open'
-  ],
-  safety: [
-    'they think they’re fine if they keep the day calm',
-    'they don’t feel locked and want to stay low',
-    'they think it depends on the challenge outcome'
-  ],
-  closestAllies: [
-    'they’re most aligned with a tight duo',
-    'they’re clicking with a small core',
-    'they feel closest to one person and a floater'
-  ],
-  playerStanding: [
-    'you’re in their orbit but not locked',
-    'they see you as a steady number',
-    'they’re undecided and watching how you move'
-  ],
-  campState: [
-    'sleep has been rough but manageable',
-    'food’s low and tempers are shorter',
-    'shelter is holding up, but morale is thin'
-  ],
-  morale: [
-    'morale is steady, just tired',
-    'people are on edge but not spiraling',
-    'spirits are up but fake smiles linger'
-  ],
-  grievances: [
-    'firewood runs are uneven',
-    'someone keeps skipping chores',
-    'shelter noise is getting under skin'
-  ],
-  motives: [
-    'food and comfort',
-    'a win for tribe pride',
-    'a break from the social grind'
-  ],
-  workEthic: [
-    'a couple people are coasting on others’ effort',
-    'most are pulling weight, but one person stands out',
-    'the workload is uneven and people notice'
-  ],
-  weirdStuff: [
-    'there was a strange scramble near the tree line',
-    'someone was up late poking around',
-    'there’s a weird hush when idols come up'
-  ],
-  idolChatter: [
-    'people keep circling the well about idols',
-    'idol talk is low, but whispers are there',
-    'names pop up, but nobody claims proof'
-  ],
-  perception: [
-    'some think you’re playing hard but not obvious',
-    'people think you’re social, not sneaky',
-    'the tribe is split on whether you’re dangerous'
-  ],
-  voteType: [
-    'an easy vote if things stay calm',
-    'a threat-based swing if nerves rise',
-    'a messy outsider vote if paranoia spikes'
-  ],
-  challengeTargets: [
-    'a strong physical competitor makes them nervous',
-    'they worry about someone who dominates puzzles',
-    'they’re watching the stamina threats'
-  ],
-  threatRead: [
-    'a big social connector feels dangerous',
-    'a challenge beast is looming',
-    'a quiet strategist is the real concern'
-  ],
-  alignment: [
-    'numbers feel soft, but there’s a loose core',
-    'there’s a shaky group of four',
-    'nothing feels locked yet'
-  ],
-  contingency: [
-    'split the vote if idols are in play',
-    'pivot to the backup name quietly',
-    'pull in a floater to stabilize'
-  ],
-  tension: [
-    'there’s tension, but it’s repairable',
-    'it feels stiff, like trust slipped',
-    'there’s a chill they don’t want to name'
-  ],
-  repair: [
-    'they accepted the reset',
-    'they listened but stayed guarded',
-    'they didn’t fully buy it'
-  ],
-  read: [
-    'trusted',
-    'uncertain',
-    'slippery'
-  ],
-  targetRead: [
-    'careful and quiet',
-    'social but not controlling',
-    'anxious and reactive'
-  ],
-  rumor: [
-    'it sounds like small talk, not locked',
-    'the story keeps coming from different mouths',
-    'it feels like a slow build, not a push yet'
-  ],
-  loyalty: [
-    'they don’t think your name is real',
-    'they heard it once but it felt soft',
-    'they think your name is in the mix'
-  ],
-  jealousy: [
-    'they looked uneasy but tried to play it cool',
-    'they brushed it off, but the pause said enough',
-    'they said fine, but the vibe shifted'
-  ]
-};
-
-const STRATEGY_APPROACHES = {
-  TRUTHFUL: 'truthful',
-  PERSUASIVE: 'persuasive',
-  NEGOTIATE: 'negotiate',
-  DEAL_MAKING: 'deal_making',
-  MANIPULATE: 'manipulate',
-  LIE: 'lie',
-  PRESSURE: 'pressure'
-};
-
-const DETERMINISTIC_INTENTS = {
-  INTEL_HEARING_NAMES: 'intel_hearing_names',
-  INTEL_WHO_SEEMS_CLOSE: 'intel_who_seems_close',
-  SOCIAL_HOW_DO_YOU_FEEL_ABOUT_ME: 'social_how_do_you_feel_about_me',
-  SAFETY_ARE_YOU_SAFE: 'safety_are_you_safe',
-  TRUST_WHO_DO_YOU_TRUST: 'trust_who_do_you_trust',
-  STRATEGY_WHERE_IS_YOUR_HEAD_AT: 'strategy_where_is_your_head_at',
-  RUMOR_SHARE_SMALL: 'rumor_share_small',
-  DEAL_PROPOSE: 'deal_propose',
-  DEAL_COUNTER: 'deal_counter',
-  DEAL_ACCEPT_REJECT: 'deal_accept_reject'
-};
-
-const NPC_ACTION_VERBS = [
-  'smiles',
-  'nods',
-  'shrugs',
-  'laughs',
-  'grins',
-  'frowns',
-  'leans',
-  'exhales',
-  'sighs',
-  'stiffens',
-  'softens',
-  'glances',
-  'studies',
-  'tilts',
-  'hesitates',
-  'shakes',
-  'winces',
-  'smirks',
-  'blinks',
-  'raises',
-  'lowers'
-];
-
-const NPC_STANCES = [
-  'supportive',
-  'neutral',
-  'evasive',
-  'suspicious',
-  'defensive',
-  'hostile',
-  'intrigued',
-  'committal'
-];
-
-const NPC_RESPONSE_TEMPLATES = {
-  bond_smalltalk: {
-    supportive: [
-      '{npc} smiles. "Yeah, we can catch a breath. How are you holding up?"',
-      '{npc} leans back. "Nice to talk about something that isn’t chaos."'
-    ],
-    neutral: [
-      '{npc} nods. "It’s been a day. I’m just keeping my head down."',
-      '{npc} shrugs. "We’re all just trying to get through today."'
-    ],
-    evasive: [
-      '{npc} gives a quick smile. "I’m fine. Just need to keep moving."'
-    ]
-  },
-  bond_personal: {
-    supportive: [
-      '{npc} softens. "I respect you saying that. It helps."',
-      '{npc} exhales. "Thanks for being real with me."'
-    ],
-    neutral: [
-      '{npc} listens, then nods. "I hear you."'
-    ],
-    suspicious: [
-      '{npc} studies you. "That’s a lot to share out here."'
-    ]
-  },
-  check_trust: {
-    supportive: [
-      '{npc} nods. "I feel good with you. I’m not looking to make waves."'
-    ],
-    neutral: [
-      '{npc} thinks. "I trust a couple people, but I’m still reading the room."'
-    ],
-    evasive: [
-      '{npc} shakes their head. "I don’t put names on trust out loud."'
-    ]
-  },
-  light_strategy: {
-    supportive: [
-      '{npc} leans in. "I want to keep it calm today, but I’m watching a few names."'
-    ],
-    neutral: [
-      '{npc} shrugs. "Nothing wild yet. I’m keeping my options open."'
-    ],
-    evasive: [
-      '{npc} waves it off. "Too early to lock anything in."'
-    ]
-  },
-  ask_general_info: {
-    supportive: [
-      '{npc} lowers their voice. "People are talking, but it’s still fluid."'
-    ],
-    neutral: [
-      '{npc} nods. "I’ve heard a few names, nothing locked."'
-    ],
-    evasive: [
-      '{npc} shrugs. "Not much to share yet."'
-    ]
-  },
-  confront_rumor: {
-    supportive: [
-      '{npc} holds up a hand. "I wasn’t pushing your name. I’m not doing that."'
-    ],
-    defensive: [
-      '{npc} stiffens. "I didn’t start that. Don’t put it on me."'
-    ],
-    hostile: [
-      '{npc} glares. "Watch how you come at me."'
-    ]
-  },
-  ask_intel: {
-    supportive: [
-      '{npc} whispers. "A couple names are floating. I’ll tell you what I know."'
-    ],
-    neutral: [
-      '{npc} nods. "I’ve heard some chatter, but it’s messy."'
-    ],
-    evasive: [
-      '{npc} keeps it vague. "Nothing solid yet."'
-    ]
-  },
-  talk_specific_person: {
-    supportive: [
-      '{npc} nods. "{subjectName} has been on my radar too."'
-    ],
-    neutral: [
-      '{npc} shrugs. "{subjectName} is hard to read right now."'
-    ],
-    evasive: [
-      '{npc} deflects. "I’m not ready to label {subjectName} yet."'
-    ]
-  },
-  idol_suspicion: {
-    supportive: [
-      '{npc} whispers. "I could see {subjectName} holding something. Keep it quiet."'
-    ],
-    neutral: [
-      '{npc} tilts their head. "Maybe. I don’t have proof."'
-    ],
-    evasive: [
-      '{npc} shrugs. "Idol talk is everywhere. I don’t know."'
-    ]
-  },
-  challenge_performance: {
-    supportive: [
-      '{npc} nods. "Yeah, {subjectName} really stood out in that challenge."'
-    ],
-    neutral: [
-      '{npc} answers. "{subjectName} had a mixed showing."'
-    ],
-    defensive: [
-      '{npc} tightens up. "People are too quick to judge challenges."'
-    ]
-  },
-  pitch_target: {
-    supportive: [
-      '{npc} nods slowly. "I can see it. We keep it quiet and clean."'
-    ],
-    intrigued: [
-      '{npc} studies you. "Interesting. Let me think on that."'
-    ],
-    evasive: [
-      '{npc} hesitates. "I’m not locking in yet."'
-    ],
-    hostile: [
-      '{npc} frowns. "That’s not my plan."'
-    ]
-  },
-  deflect_target: {
-    supportive: [
-      '{npc} nods. "I can try to redirect heat off {subjectName}."'
-    ],
-    neutral: [
-      '{npc} shrugs. "I can try, but people have their own agendas."'
-    ],
-    evasive: [
-      '{npc} leans back. "That’s a risk to take."'
-    ]
-  },
-  offer_deal_vote_together: {
-    supportive: [
-      '{npc} nods. "I’m in. If it’s you, it’s {subjectName}."'
-    ],
-    committal: [
-      '{npc} leans in. "Alright. If we do it… {subjectName}."'
-    ],
-    evasive: [
-      '{npc} hesitates. "I can’t promise that yet."'
-    ]
-  },
-  offer_deal_share_info: {
-    supportive: [
-      '{npc} nods. "Info for info. I can do that."'
-    ],
-    neutral: [
-      '{npc} shrugs. "Maybe, but I’m not spilling everything."'
-    ]
-  },
-  offer_deal_protect: {
-    supportive: [
-      '{npc} nods. "We can watch each other’s backs."'
-    ],
-    neutral: [
-      '{npc} hesitates. "I’ll try, but I’m not promising."'
-    ]
-  },
-  offer_deal_final2: {
-    supportive: [
-      '{npc} leans in. "Final two? That’s big, but I’m listening."'
-    ],
-    neutral: [
-      '{npc} looks wary. "That’s early, but I’ll keep it in mind."'
-    ],
-    evasive: [
-      '{npc} shakes their head. "Too soon for that."'
-    ]
-  },
-  plant_seed: {
-    supportive: [
-      '{npc} nods. "I can float that quietly."'
-    ],
-    intrigued: [
-      '{npc} tilts their head. "That might land if we’re subtle."'
-    ],
-    evasive: [
-      '{npc} shrugs. "I’m not sure that sticks yet."'
-    ]
-  },
-  verify_story: {
-    supportive: [
-      '{npc} answers carefully. "I said it, but I’m not trying to torch anyone."'
-    ],
-    neutral: [
-      '{npc} hesitates. "I’ve heard it, but I didn’t start it."'
-    ],
-    defensive: [
-      '{npc} bristles. "Don’t put words in my mouth."'
-    ]
-  },
-  alliance_commitment: {
-    supportive: [
-      '{npc} nods. "We’re aligned. Let’s sync on the plan."'
-    ],
-    committal: [
-      '{npc} leans in. "We ride this out together."'
-    ],
-    evasive: [
-      '{npc} keeps it vague. "We’ll see where the numbers land."'
-    ]
-  }
-};
-
-const INTENT_TEMPLATES = {
-  bonding: {
-    playerLead: [
-      'You open up about home. {npc} listens, surprised by the honesty.',
-      'You share something real, seeing if {npc} meets you halfway.'
-    ],
-    npcLead: [
-      '{npc} opens up about their family back home. It feels genuine.',
-      '{npc} smiles and asks about your story, trying to bridge the gap.'
-    ]
-  },
-  personal: {
-    playerLead: [
-      'You get personal with {npc}, inviting a real moment.',
-      'You tell {npc} something vulnerable. The air softens.'
-    ],
-    npcLead: [
-      '{npc} shares a vulnerable moment, eyes on the fire as they talk.',
-      'You and {npc} trade personal stories. It feels like a real connection.'
-    ]
-  },
-  lightStrategy: {
-    playerLead: [
-      'You keep it light. "Where\'s your head at for the next vote?"',
-      'You test the waters about alliances in a hushed tone.'
-    ],
-    npcLead: [
-      '{npc} leans in quietly. "What are you thinking for the next vote?"',
-      'In a hushed tone, {npc} tests the waters about alliances.'
-    ]
-  },
-  hardStrategy: {
-    playerLead: [
-      'You get direct. "We might need to make a move."',
-      'You float a name and watch {npc}\'s reaction.'
-    ],
-    npcLead: [
-      '{npc} is direct: "Let\'s make a move. I want {target} out."',
-      '{npc} leans in and pushes a plan on {target}, watching your reaction.'
-    ]
-  },
-  trust: {
-    playerLead: [
-      'You ask carefully, "Who do you trust most right now?"',
-      'You check in on where {npc} feels solid.'
-    ],
-    npcLead: [
-      '{npc} thinks for a moment. "Honestly… I probably trust {npcTrusted} the most right now."',
-      '"If I\'m being straight with you, {npcTrusted} feels the most solid to me," {npc} admits.'
-    ]
-  },
-  gossip: {
-    playerLead: [
-      'You lower your voice: "Did you hear what {target} said?"',
-      'You murmur, "Between us, {target} is acting shady, right?"'
-    ],
-    npcLead: [
-      '{npc} lowers their voice: "Did you hear what {target} said?"',
-      '{npc} snickers. "Between us, {target} is acting shady."'
-    ]
-  },
-  confrontation: {
-    playerLead: [
-      'You square up. "Are you throwing my name around?"',
-      'You press {npc} about the rumors making the rounds.'
-    ],
-    npcLead: [
-      '{npc} crosses their arms. "You throwing my name around?"',
-      'The air gets tense as {npc} stares you down about the rumors.'
-    ]
-  },
-  playerConfront: {
-    playerLead: [
-      'You pull {npc} aside. "I heard my name came up. Talk to me."',
-      'You step toward {npc}. "If you\'re pushing me, own it."'
-    ],
-    npcLead: [
-      '{npc} pulls you aside. "I heard my name came up. Talk to me."',
-      '{npc} steps in close. "If you\'re pushing me, own it."'
-    ]
-  },
-  playerAccuse: {
-    playerLead: [
-      'You hold eye contact with {npc}. "Feels like you lied to me earlier."',
-      'Your voice is low. "{npc}, that story didn\'t add up."'
-    ],
-    npcLead: [
-      '{npc} narrows their eyes. "Feels like you lied to me earlier."',
-      '{npc}\'s voice is low. "That story you gave me didn\'t add up."'
-    ]
-  },
-  apology: {
-    playerLead: [
-      'You bring up old tension. {npc} watches to see if you mean it.',
-      'You own your part in the past. {npc} listens closely.'
-    ],
-    npcLead: [
-      '{npc} waits for you to address the past before moving on.',
-      'You bring up old tension. {npc} watches to see if you mean it.'
-    ]
-  },
-  moodCheck: {
-    playerLead: [
-      'You check in on {npc}. Their guard shifts as they consider opening up.',
-      'You ask {npc} how they\'re really holding up.'
-    ],
-    npcLead: [
-      '{npc} sighs. "It\'s been a lot. You really want to know?"',
-      '{npc} looks worn. "You want the real answer?"'
-    ]
-  },
-  campTalk: {
-    playerLead: [
-      'You talk camp life and the next challenge with {npc}.',
-      'You and {npc} evaluate shelter, fire, and the day ahead.'
-    ],
-    npcLead: [
-      '{npc} chats about camp life and the next challenge. "We just have to stay steady."',
-      'Together you evaluate shelter, fire, and challenge odds. {npc} nods. "We just need to keep the fire going."'
-    ]
-  },
-  fun: {
-    playerLead: [
-      'You crack a joke about camp and {npc} laughs.',
-      'You keep it light and the mood lifts.'
-    ],
-    npcLead: [
-      '{npc} jokes about coconut crabs and you both laugh. "At least they’re not voting."',
-      'The mood lightens as {npc} tells a ridiculous story. "You had to be there."'
-    ]
-  },
-  warning: {
-    playerLead: [
-      'You warn {npc} quietly: "Be careful around {target}."',
-      'You glance around, then warn {npc} about a brewing plot.'
-    ],
-    npcLead: [
-      '{npc} whispers: "Be careful around {target}."',
-      'Eyes darting, {npc} warns you about a brewing plot.'
-    ]
-  },
-  manipulation: {
-    playerLead: [
-      'You flatter {npc}, steering toward your agenda.',
-      'You soften the tone to guide {npc} where you want.'
-    ],
-    npcLead: [
-      '{npc} flatters you, guiding the talk toward their agenda.',
-      '{npc} smiles like they’re already a step ahead. "Just hear me out."'
-    ]
-  },
-  protection: {
-    playerLead: [
-      'You quietly promise to watch {npc}\'s back.',
-      'You offer cover if things get messy tonight.'
-    ],
-    npcLead: [
-      'Quietly, {npc} promises to watch your back at the next vote. "I’ve got you."',
-      '{npc} offers cover if things get messy tonight. "I’ll take the heat."'
-    ]
-  },
-  wildcard: {
-    playerLead: [
-      'You ramble about idols, storms, and goats. It\'s chaos.',
-      'You bounce between topics; {npc} tries to keep up.'
-    ],
-    npcLead: [
-      'Out of nowhere, {npc} rambles about idols, storms, and goats. "Weird things happen out here."',
-      '{npc} pivots between topics; the chaos is real. "Just roll with it."'
-    ]
-  },
-  allianceInvite: {
-    playerLead: [
-      'You pull {npc} aside. "I think we should lock something in. You game?"'
-    ],
-    npcLead: [
-      '{npc} glances around, voice low. "Look… I think you and I could work together. Want to lock something in?"'
-    ]
-  },
-  deal: {
-    playerLead: [
-      'You bring up a deal and watch {npc}\'s face.',
-      'You pitch a quiet agreement to {npc}.'
-    ],
-    npcLead: [
-      '{npc} narrows their eyes. "So you want to make a deal?"',
-      '{npc} folds their arms, weighing your offer carefully.'
-    ]
-  },
-  askIntel: {
-    playerLead: [
-      'You lean in. "What are you hearing?"',
-      'You keep your voice low. "What have you heard?"'
-    ],
-    npcLead: [
-      '{npc} leans in. "Let me tell you what I\'m hearing."',
-      '{npc} pulls you aside. "There\'s some chatter you should know."'
-    ]
-  },
-  talkSpecific: {
-    playerLead: [
-      'You bring up {target}. "{playerPrompt}"',
-      'You ask about {target} in a low voice. "{playerPrompt}"'
-    ],
-    npcLead: [
-      '{npc} brings up {target}. "{npcPrompt}"',
-      '{npc} steers the talk to {target}. "{npcPrompt}"'
-    ]
-  },
-  targeting: {
-    playerLead: [
-      'You ask straight up, "Who are you voting for tonight?"',
-      'You go direct. "What name are you putting down?"'
-    ],
-    npcLead: [
-      '{npc} asks low, "Who are you voting for tonight?"',
-      '{npc} sizes you up. "What name are you putting down?"'
-    ]
-  }
-};
-
-const RESPONSE_LIBRARY = {
-  bonding: [
-    { label: 'Lean in and share something too', playerLine: 'You lean in and share something personal to match the moment.', delta: 5, mood: 'happy', followup: '{npc} smiles. "That means a lot. I’m glad we can talk like this."' },
-    { label: 'Nod but stay guarded', playerLine: 'You nod but keep your guard up.', delta: -1, mood: 'neutral', followup: '{npc} studies you. "Alright. I’ll keep it in mind."' },
-    { label: 'Deflect with humor', playerLine: 'You deflect with a light joke to keep it easy.', delta: 1, mood: 'fun', followup: '{npc} chuckles. "Okay, fair enough."' }
-  ],
-  bonding_playerLead: [
-    { label: 'Ask them to open up back', playerLine: 'You ask them to open up a bit in return.', delta: 4, mood: 'calm', followup: '{npc} nods. "Alright. I’ll give you something real too."' },
-    { label: 'Let the moment breathe', playerLine: 'You let the moment breathe without pushing.', delta: 1, mood: 'neutral', followup: '{npc} gives a small nod. "I hear you."' },
-    { label: 'Lighten it with a joke', playerLine: 'You lighten it with a quick joke.', delta: 2, mood: 'fun', followup: '{npc} laughs. "Okay, I needed that."' }
-  ],
-  personal: [
-    { label: 'Thank them for sharing', playerLine: 'You thank them and keep your voice steady.', delta: 4, mood: 'calm', followup: '{npc} exhales. "Thanks for saying that."' },
-    { label: 'Share your own vulnerability', playerLine: 'You share your own vulnerability in return.', delta: 6, mood: 'happy', followup: '{npc} softens. "I didn’t expect that—thanks for trusting me."' },
-    { label: 'Change the subject', playerLine: 'You steer the conversation to something safer.', delta: -4, mood: 'irritated', followup: '{npc} pulls back. "Alright, we can move on."' }
-  ],
-  personal_playerLead: [
-    { label: 'Ask how they relate', playerLine: 'You ask how they relate to what you just shared.', delta: 4, mood: 'calm', followup: '{npc} nods. "I get that. Here’s where I’m at..."' },
-    { label: 'Hold the eye contact', playerLine: 'You hold the eye contact and let it land.', delta: 2, mood: 'neutral', followup: '{npc} nods quietly. "I hear you."' },
-    { label: 'Change the subject gently', playerLine: 'You gently pivot the topic.', delta: -2, mood: 'neutral', followup: '{npc} accepts it. "Okay, fair."' }
-  ],
-  lightStrategy: [
-    { label: 'Offer a soft take', playerLine: 'You float a soft, noncommittal read.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, that’s roughly where my head is too."' },
-    { label: 'Ask who they are eyeing', playerLine: 'You ask who they are eyeing without pressing too hard.', delta: 1, mood: 'neutral', disclosureKind: 'whoAreYouEyeing', followup: '{npc} glances around, then admits, "I’m watching {target}."' },
-    { label: 'Stay vague', playerLine: 'You stay vague and avoid names.', delta: -2, mood: 'suspicious', followup: '{npc} frowns. "Hard to know where you’re at if we don’t talk names."' }
-  ],
-  hardStrategy: [
-    { label: 'Agree to push the plan', playerLine: 'You agree to push the plan for now.', delta: 3, mood: 'focused', followup: '{npc} nods. "Alright. Let’s move it."' },
-    {
-      label: 'Counter with another target',
-      playerLine: 'You counter with another name instead.',
-      delta: 1,
-      mood: 'neutral',
-      followup: '{npc} tilts their head. "Okay, tell me why that makes more sense."',
-      requiresCounterTarget: true
-    },
-    { label: 'Refuse to commit', playerLine: 'You refuse to commit and keep it noncommittal.', delta: -5, mood: 'irritated', followup: '{npc} narrows their eyes. "So are you with me or not?"' }
-  ],
-  trust: [
-    { label: 'Name a trusted ally', playerLine: 'You name someone you trust and watch their reaction.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, I feel pretty good about {playerAlly} too."', requiresAllyPicker: true, awaitsPicker: true },
-    { label: 'Claim they are your #1', playerLine: 'You tell them they are your number one.', delta: 4, mood: 'happy', followup: '{npc} smiles. "I like hearing that."' },
-    { label: 'Dodge the question', playerLine: 'You dodge and keep it vague.', delta: -3, mood: 'suspicious', followup: '{npc} raises a brow. "That’s… not an answer."' }
-  ],
-  gossip: [
-    { label: 'Lean into the tea', playerLine: 'You lean in and trade a bit of gossip about {target}.', delta: 2, mood: 'fun', followup: '{npc} grins. "Yeah, I’ve heard some of that too."' },
-    { label: 'Defend the target', playerLine: 'You push back and defend {target}.', delta: -3, mood: 'irritated', followup: '{npc} frowns. "Alright, we see it differently."' },
-    { label: 'Steer away', playerLine: 'You steer away from the gossip.', delta: -1, mood: 'neutral', followup: '{npc} nods. "Fair. Let’s move on."' }
-  ],
-  confrontation: [
-    { label: 'Stand your ground', playerLine: 'You stand your ground and don’t blink.', delta: -4, mood: 'angry', followup: '{npc} stiffens. "Alright, then we’re clear."' },
-    { label: 'Apologize and explain', playerLine: 'You apologize and give your side calmly.', delta: 3, mood: 'calm', followup: '{npc} exhales. "Okay. I can work with that."' },
-    { label: 'Flip it back on them', playerLine: 'You flip it back on them and demand answers.', delta: -2, mood: 'suspicious', followup: '{npc} narrows their eyes. "Easy. I’m not your enemy."' }
-  ],
-  playerConfront: [
-    { label: 'Say you heard it directly', playerLine: 'You say you heard it directly and wait for their response.', delta: -1, mood: 'focused', followup: '{npc} swallows. "From who?" they ask.' },
-    { label: 'Say it came through someone', playerLine: 'You say it came through someone else.', delta: 0, mood: 'neutral', followup: '{npc} glances around, trying to read you.' },
-    { label: 'Name a source', playerLine: 'You name the source and stand by it.', delta: -2, mood: 'angry', followup: '{npc} bristles but listens. "Alright."', memoryTags: ['confront_source'] },
-    { label: 'Back off / laugh it off', playerLine: 'You back off and let it go for now.', delta: 1, mood: 'calm', followup: '{npc} exhales. "Okay, cool."' }
-  ],
-  playerAccuse: [
-    { label: 'Call out the lie directly', playerLine: 'You call out the lie directly.', delta: -3, mood: 'angry', followup: '{npc} denies it, but their eyes dart. "That’s not what I said."', memoryTags: ['accuse_lie'] },
-    { label: 'Ask why they twisted things', playerLine: 'You ask why they twisted it.', delta: -1, mood: 'focused', followup: '{npc} fumbles. "It got blown up, that’s all."' },
-    { label: 'Give them a chance to come clean', playerLine: 'You give them a chance to come clean.', delta: 2, mood: 'calm', followup: '{npc} hesitates. "Alright, here’s the truth..."' }
-  ],
-  apology: [
-    { label: 'Offer a sincere apology', playerLine: 'You offer a sincere apology.', delta: 4, mood: 'calm', followup: '{npc} softens. "I appreciate that."' },
-    { label: 'Clarify your side', playerLine: 'You clarify your side without getting heated.', delta: 0, mood: 'neutral', followup: '{npc} nods slowly. "Okay, I hear you."' },
-    { label: 'Downplay the issue', playerLine: 'You downplay it and try to shrug it off.', delta: -3, mood: 'irritated', followup: '{npc} frowns. "Alright… if you say so."' }
-  ],
-  moodCheck: [
-    { label: 'Show real concern', playerLine: 'You show real concern and ask how they are holding up.', delta: 3, mood: 'happy', followup: '{npc} softens. "Thanks for checking in."' },
-    { label: 'Encourage them to push through', playerLine: 'You encourage them to push through it.', delta: 1, mood: 'neutral', followup: '{npc} nods. "Yeah, I’ll be alright."' },
-    { label: 'Brush it off', playerLine: 'You brush it off and keep it light.', delta: -4, mood: 'irritated', followup: '{npc} tightens. "Okay."'}
-  ],
-  campTalk: [
-    { label: 'Problem-solve together', playerLine: 'You problem-solve together about camp needs.', delta: 2, mood: 'calm', followup: '{npc} nods. "Yeah, let’s knock that out."' },
-    { label: 'Praise their effort', playerLine: 'You praise their effort around camp.', delta: 3, mood: 'happy', followup: '{npc} smiles. "Thanks, I’m trying."' },
-    { label: 'Complain about others', playerLine: 'You vent about camp frustrations.', delta: -2, mood: 'suspicious', followup: '{npc} shrugs. "Just be careful who hears that."' }
-  ],
-  fun: [
-    { label: 'Add your own joke', playerLine: 'You add your own joke.', delta: 2, mood: 'happy', followup: '{npc} laughs. "Okay, that was good."' },
-    { label: 'Play along', playerLine: 'You play along and keep it light.', delta: 1, mood: 'fun', followup: '{npc} grins. "Alright, we needed that."' },
-    { label: 'Say it\'s not the time', playerLine: 'You say it’s not the time for jokes.', delta: -3, mood: 'irritated', followup: '{npc} frowns. "Yeah, fair."' }
-  ],
-  warning: [
-    { label: 'Thank them and agree', playerLine: 'You thank them and agree to be cautious.', delta: 3, mood: 'calm', followup: '{npc} nods. "Good. Just keep it tight."' },
-    { label: 'Ask for proof', playerLine: 'You ask for proof before buying it.', delta: 0, mood: 'suspicious', followup: '{npc} hesitates. "I don’t have hard proof, but it’s out there."' },
-    { label: 'Dismiss the warning', playerLine: 'You dismiss the warning outright.', delta: -4, mood: 'angry', followup: '{npc} stiffens. "Alright, do you."' }
-  ],
-  manipulation: [
-    { label: 'Play along to learn more', playerLine: 'You play along to learn more.', delta: 1, mood: 'neutral', followup: '{npc} nods, thinking they have you. "That’s what I like to hear."' },
-    { label: 'Call out the spin', playerLine: 'You call out the spin directly.', delta: -3, mood: 'angry', followup: '{npc} bristles. "I’m just being straight with you."' },
-    { label: 'Counter-offer a deal', playerLine: 'You counter-offer a deal instead.', delta: 2, mood: 'focused', followup: '{npc} tilts their head. "Alright, let’s hear it."' }
-  ],
-  protection: [
-    { label: 'Accept the cover', playerLine: 'You accept the cover and nod.', delta: 3, mood: 'happy', followup: '{npc} smiles. "We’ve got each other."' },
-    { label: 'Offer protection back', playerLine: 'You offer protection back.', delta: 4, mood: 'calm', followup: '{npc} nods. "Alright, mutual then."' },
-    { label: 'Question their motive', playerLine: 'You question their motive carefully.', delta: -2, mood: 'suspicious', followup: '{npc} frowns. "I’m trying to help you, but fine."' }
-  ],
-  wildcard: [
-    { label: 'Just roll with it', playerLine: 'You roll with it and keep the vibe light.', delta: 1, mood: 'fun', followup: '{npc} laughs. "Alright, let’s ride it out."' },
-    { label: 'Try to focus them', playerLine: 'You try to focus them back on the point.', delta: -1, mood: 'neutral', followup: '{npc} nods. "Okay, okay—what’s the move?"' },
-    { label: 'Back away slowly', playerLine: 'You back away and let the conversation fade.', delta: -2, mood: 'irritated', followup: '{npc} notices. "Alright, then."' }
-  ],
-  deal: [
-    { label: 'Pitch it confidently', playerLine: 'You pitch the deal confidently.', delta: 3, mood: 'focused', followup: '{npc} listens. "Okay, walk me through {dealTopic}."' },
-    { label: 'Offer flexibility', playerLine: 'You offer flexibility on the terms.', delta: 2, mood: 'calm', followup: '{npc} nods. "I can work with that."' },
-    { label: 'Feel them out first', playerLine: 'You feel them out before locking anything in.', delta: 1, mood: 'neutral', followup: '{npc} says, "Alright, what are you thinking?"' }
-  ],
-  askIntel: [
-    { label: 'Thanks for the heads-up', playerLine: 'You thank them and keep it close to the chest.', delta: 2, mood: 'calm', followup: '{npc} nods. "Just keep it tight."' },
-    { label: 'Ask for more detail', playerLine: 'You ask for more detail without pushing too hard.', delta: 1, mood: 'focused', followup: '{npc} says, "Here’s what I heard..."' },
-    { label: 'Offer to trade info', playerLine: 'You offer to trade a small piece of info.', delta: 2, mood: 'happy', followup: '{npc} considers it. "Alright, what do you have?"' }
-  ],
-  talkSpecific: [
-    { label: 'Take it in and move on', playerLine: 'You take it in and move on.', delta: 1, mood: 'neutral', followup: '{npc} nods. "Yeah, that’s where I’m at."' },
-    { label: 'Ask a quick follow-up', playerLine: 'You ask a quick follow-up.', delta: 1, mood: 'focused', followup: '{npc} answers. "Here’s the detail..."' },
-    { label: 'Back off for now', playerLine: 'You back off for now and let it sit.', delta: 0, mood: 'calm', followup: '{npc} says, "Alright, we can leave it there."' }
-  ],
-  targeting: [
-    { label: 'Share your own name', playerLine: 'You share a name and watch for the reaction.', delta: 2, mood: 'focused', followup: '{npc} nods. "Okay, I hear you."', requiresTargetPicker: true },
-    { label: 'Stay vague', playerLine: 'You stay vague and avoid naming anyone.', delta: -1, mood: 'suspicious', followup: '{npc} frowns. "That doesn’t tell me much."' },
-    { label: 'Counter with another target', playerLine: 'You counter with another target.', delta: 1, mood: 'neutral', followup: '{npc} considers it. "Maybe. Tell me why."', requiresCounterTarget: true }
-  ],
-  allianceInvite: [
-    { key: 'acceptFaithful', label: 'I’m in. Let’s work together.' },
-    { key: 'acceptFake', label: 'Sure… I’m in.' },
-    { key: 'conditional', label: 'Only if we pull in one more person.' },
-    { key: 'softDecline', label: 'Not right now.' },
-    { key: 'hardDecline', label: 'No chance.' }
-  ],
-  confrontSourceResponse: [
-    { key: 'protectSource', label: 'I’m not burning my source — just tell me if it’s true.', nextStep: 'confrontResolve' },
-    { key: 'nameSource', label: '(Name a source)', action: 'pickSource', awaitsPicker: true, nextStep: 'confrontResolve' },
-    { key: 'deescalate', label: 'You know what, forget it.', nextStep: 'confrontResolve' },
-    { key: 'escalate', label: 'If you’re coming for me, just say it.', nextStep: 'confrontResolve' }
-  ],
-  nameDropSource: [
-    { key: 'heardSelf', label: 'I heard it myself.', nextStep: 'nameDropAskDetails' },
-    { key: 'someoneTold', label: 'Someone told me.', action: 'pickSource', awaitsPicker: true, nextStep: 'nameDropSourceResolve' },
-    { key: 'refuseSource', label: 'I don’t want to name names.', nextStep: 'nameDropRefuse' },
-    { key: 'vagueWarn', label: 'It might be nothing, just be careful.', nextStep: 'nameDropCaution' },
-    { key: 'backYou', label: 'I’m telling you because I’ve got your back.', nextStep: 'nameDropSupport' }
-  ],
-  nameDropDetails: [
-    { key: 'dangerous', label: 'They said you’re dangerous.', nextStep: 'nameDropDetailResolve' },
-    { key: 'running', label: 'They said you’re running things.', nextStep: 'nameDropDetailResolve' },
-    { key: 'tonight', label: 'They said your name for tonight.', nextStep: 'nameDropDetailResolve' },
-    { key: 'vague', label: 'It was vague.', nextStep: 'nameDropDetailResolve' }
-  ],
-  answerQuestion: [
-    { key: 'answer', label: 'Answer honestly.', nextStep: 'nav' },
-    { key: 'deflect', label: 'Deflect the question.', nextStep: 'nav' },
-    { key: 'change', label: 'Change the subject.', nextStep: 'nav' }
-  ]
-};
-
-const CONVERSATION_FLOWS = {
-  confront_rumor: {
-    start: 'confrontQuestion',
-    steps: {
-      confrontQuestion: {
-        npcLine: (session, system) => system._buildConfrontQuestionLine(session),
-        choiceSetKey: 'confrontSourceResponse',
-        nextFromChoice: true
-      },
-      confrontResolve: {
-        npcLine: (session, system, choice) => system._buildConfrontResolutionLine(session, choice),
-        next: 'nav'
-      },
-      nav: { nav: true }
-    }
-  },
-  name_drop: {
-    start: 'nameDropReact',
-    steps: {
-      nameDropReact: {
-        npcLine: (session, system) => system._buildNameDropReaction(session),
-        choiceSetKey: 'nameDropSource',
-        nextFromChoice: true
-      },
-      nameDropAskDetails: {
-        npcLine: (session, system) => system._buildNameDropDetailQuestion(session),
-        choiceSetKey: 'nameDropDetails',
-        nextFromChoice: true
-      },
-      nameDropSourceResolve: {
-        npcLine: (session, system, choice) => system._buildNameDropSourceResolution(session, choice),
-        next: 'nav'
-      },
-      nameDropRefuse: {
-        npcLine: (session, system) => system._buildNameDropRefusalResolution(session),
-        next: 'nav'
-      },
-      nameDropCaution: {
-        npcLine: (session, system) => system._buildNameDropCautionResolution(session),
-        next: 'nav'
-      },
-      nameDropSupport: {
-        npcLine: (session, system) => system._buildNameDropSupportResolution(session),
-        next: 'nav'
-      },
-      nameDropDetailResolve: {
-        npcLine: (session, system, choice) => system._buildNameDropDetailResolution(session, choice),
-        next: 'nav'
-      },
-      nav: { nav: true }
-    }
-  }
-};
 
 const DEFAULT_ALLIANCE_INVITE_THRESHOLD = 60;
 const DEFAULT_ALLIANCE_ACCEPT_SCORE_TARGET = 65;
@@ -1899,11 +373,6 @@ class ConversationSystem {
     if (Object.keys(deltas).length) {
       this._applyExchangeEffects({ player, npc, deltas, contextTag });
     }
-  }
-
-  _debugLog(...args) {
-    if (!this._isConversationDebugEnabled()) return;
-    console.log(...args);
   }
 
   _hasRecentEvent(context = {}) {
@@ -2209,22 +678,14 @@ class ConversationSystem {
     );
     if (pending) {
       pending.hasTriggered = true;
-      const intentOverride = pending.intent?.intent
-        ? this._mapSocialTypeToIntent(pending.intent.intent, this._normalizePhase(pending.phase))
-        : null;
       this._startConversation(survivor, {
         isPurpose: true,
         meeting: pending,
         location,
-        intentOverride,
         context: {
           initiator: 'npc',
           initiatedByNpc: true,
-          location: pending.intent?.location || location || null,
-          reasons: pending.intent?.reasons || [],
-          targetId: pending.intent?.targetId || null,
-          targetName: pending.intent?.targetName || null,
-          socialType: pending.intent?.intent || null,
+          location: pending.location || location || null,
           phase: this._normalizePhase(pending.phase),
           lastChallengeSummary: this.gameManager.lastChallengeSummary || null
         }
@@ -2265,22 +726,14 @@ class ConversationSystem {
       meeting.hasTriggered = true;
       const survivor = this._getSurvivorById(meeting.npcId);
       if (survivor) {
-        const intentOverride = meeting.intent?.intent
-          ? this._mapSocialTypeToIntent(meeting.intent.intent, this._normalizePhase(meeting.phase))
-          : null;
         this._startConversation(survivor, {
           isPurpose: true,
           meeting,
           location: viewName,
-          intentOverride,
           context: {
             initiator: 'npc',
             initiatedByNpc: true,
-            location: meeting.intent?.location || viewName || null,
-            reasons: meeting.intent?.reasons || [],
-            targetId: meeting.intent?.targetId || null,
-            targetName: meeting.intent?.targetName || null,
-            socialType: meeting.intent?.intent || null,
+            location: meeting.location || viewName || null,
             phase: this._normalizePhase(meeting.phase),
             lastChallengeSummary: this.gameManager.lastChallengeSummary || null
           }
@@ -2347,8 +800,7 @@ class ConversationSystem {
       normalizedLocation,
       hasTriggered: false,
       type,
-      socialType: plannedIntent?.intent || null,
-      intent: plannedIntent || null
+      socialType: plannedIntent?.intent || null
     };
 
     this.pendingMeetings.push(meeting);
@@ -7319,12 +5771,11 @@ class ConversationSystem {
 
   _startConversation(
     survivor,
-    { intentOverride = null, isPurpose = false, meeting = null, location = null, context = {} } = {}
+    { isPurpose = false, meeting = null, location = null, context = {} } = {}
   ) {
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
-    /* LEGACY INTENT SYSTEM — NO LONGER USED */
     this.activeConversationContext = conversationContext;
     if (initiator === 'npc') {
       this._logConversationStart({ initiator, phase });
@@ -7340,6 +5791,10 @@ class ConversationSystem {
   }
 
   _startNodeConversation(survivor, { intent, dialogue, meeting = null, context = {} }) {
+    if (LEGACY_INTENT_SYSTEM_DISABLED) {
+      this._showTopicSelection(survivor, context.location || null);
+      return;
+    }
     const player = this.gameManager.getPlayerSurvivor?.();
     const session = this._initNodeSession({
       npcId: survivor.id,
@@ -7379,6 +5834,10 @@ class ConversationSystem {
   }
 
   _startNodeFlowConversation(survivor, flowKey, context = {}, intent = null) {
+    if (LEGACY_INTENT_SYSTEM_DISABLED) {
+      this._showTopicSelection(survivor, context.location || null);
+      return;
+    }
     const player = this.gameManager.getPlayerSurvivor?.();
     const session = this._initNodeSession({
       npcId: survivor.id,
@@ -7431,6 +5890,10 @@ class ConversationSystem {
   }
 
   _startDeterministicConversation(survivor, intent, context = {}) {
+    if (LEGACY_INTENT_SYSTEM_DISABLED) {
+      this._showTopicSelection(survivor, context.location || null);
+      return;
+    }
     const nodes = this._buildDeterministicNodes(survivor, context);
     const rootNodeId = nodes.root?.id || 'root';
     this.activeConversation = {
@@ -7447,6 +5910,10 @@ class ConversationSystem {
   }
 
   _startDeterministicNodeConversation(survivor, intent, context = {}) {
+    if (LEGACY_INTENT_SYSTEM_DISABLED) {
+      this._showTopicSelection(survivor, context.location || null);
+      return;
+    }
     const player = this.gameManager.getPlayerSurvivor?.();
     const session = this._initNodeSession({
       npcId: survivor.id,
@@ -11244,36 +9711,8 @@ class ConversationSystem {
     return parchment;
   }
 
-  _chooseIntent(survivor, isPurpose) {
-    const relationship = this._getRelationshipScore(survivor);
-    const mood = this._getMood(survivor.id);
-    const gameplayStyle = survivor.gameplayStyle || 'Competitive';
-    const phase = this._getConversationPhase();
-
-    if (relationship !== null && relationship < 20 && ['angry', 'irritated', 'suspicious'].includes(mood)) {
-      return 'confrontation';
-    }
-    if (phase === 'post') {
-      const postPool = isPurpose
-        ? ['hardStrategy', 'warning', 'manipulation', 'trust', 'targeting', 'askIntel']
-        : ['askIntel', 'targeting', 'hardStrategy', 'warning', 'trust', 'manipulation'];
-      if (relationship !== null && relationship > 80 && !isPurpose) {
-        postPool.push('bonding');
-        if (relationship > 88) postPool.push('personal');
-      }
-      return this._weightedIntent(postPool, mood, gameplayStyle);
-    }
-    if (relationship !== null && relationship > 65) {
-      return isPurpose ? 'protection' : 'bonding';
-    }
-    if (isPurpose) {
-      return this._weightedIntent(['hardStrategy', 'warning', 'manipulation', 'trust'], mood, gameplayStyle);
-    }
-
-    return this._weightedIntent(['bonding', 'fun', 'personal', 'lightStrategy', 'gossip', 'campTalk', 'moodCheck', 'wildcard'], mood, gameplayStyle);
-  }
-
   _isConversationDebugEnabled() {
+    if (this.debugConvo) return true;
     if (typeof window === 'undefined') return false;
     return Boolean(window.DEBUG_CONVERSATION || window.DEBUG_CONVO || window.gameManager?.debugConversation);
   }
@@ -11312,86 +9751,10 @@ class ConversationSystem {
     return 'pre';
   }
 
-  _mapSocialTypeToIntent(type, phase = 'pre') {
-    switch (type) {
-      case 'softStrategy':
-      case 'lightStrategy':
-        return PRE_PHASE_INTENTS.light_strategy;
-      case 'bonding':
-        return PRE_PHASE_INTENTS.bond_smalltalk;
-      case 'personal':
-        return PRE_PHASE_INTENTS.bond_personal;
-      case 'targeting':
-        return POST_PHASE_INTENTS.pitch_target;
-      case 'groupStrategy':
-        return POST_PHASE_INTENTS.pitch_target;
-      case 'warning':
-        return POST_PHASE_INTENTS.plant_seed;
-      case 'challengeDebrief':
-        return POST_PHASE_INTENTS.challenge_debrief;
-      case 'dealMaking':
-        return POST_PHASE_INTENTS.offer_deal_vote_together;
-      case 'informationPlay':
-        return POST_PHASE_INTENTS.ask_intel;
-      case 'idolTalk':
-      case 'idolSuspicion':
-        return POST_PHASE_INTENTS.idol_suspicion;
-      case 'allianceInvite':
-        return 'allianceInvite';
-      case 'askIntel':
-        return POST_PHASE_INTENTS.ask_intel;
-      default:
-        return phase === 'post' ? POST_PHASE_INTENTS.ask_intel : PRE_PHASE_INTENTS.bond_smalltalk;
-    }
-  }
-
-  _weightedIntent(base, mood, gameplayStyle) {
-    const weights = base.reduce((acc, key) => {
-      acc[key] = 1;
-      return acc;
-    }, {});
-
-    if (['Happy', 'happy', 'calm'].includes(mood)) {
-      weights.bonding = (weights.bonding || 0) + 2;
-      weights.fun = (weights.fun || 0) + 1;
-    }
-    if (['Paranoid', 'Worried', 'paranoid', 'worried', 'suspicious'].includes(mood)) {
-      weights.warning = (weights.warning || 0) + 2;
-      weights.gossip = (weights.gossip || 0) + 1;
-      weights.hardStrategy = (weights.hardStrategy || 0) + 1;
-      weights.askIntel = (weights.askIntel || 0) + 1;
-      weights.targeting = (weights.targeting || 0) + 1;
-    }
-    if (['Angry', 'angry', 'irritated'].includes(mood)) {
-      weights.confrontation = (weights.confrontation || 0) + 3;
-    }
-
-    if (gameplayStyle === 'Social Genius') {
-      weights.bonding = (weights.bonding || 0) + 2;
-      weights.personal = (weights.personal || 0) + 1;
-    }
-    if (gameplayStyle === 'Shadow Strategist') {
-      weights.lightStrategy = (weights.lightStrategy || 0) + 2;
-      weights.warning = (weights.warning || 0) + 1;
-      weights.manipulation = (weights.manipulation || 0) + 1;
-    }
-    if (gameplayStyle === 'Competitive' || gameplayStyle === 'Power Player') {
-      weights.hardStrategy = (weights.hardStrategy || 0) + 2;
-      weights.campTalk = (weights.campTalk || 0) + 1;
-    }
-    if (gameplayStyle === 'Wildcard') {
-      weights.wildcard = (weights.wildcard || 0) + 2;
-    }
-    if (gameplayStyle === 'Lethal Charmer') {
-      weights.manipulation = (weights.manipulation || 0) + 2;
-      weights.protection = (weights.protection || 0) + 1;
-    }
-
-    const weighted = Object.entries(weights).flatMap(([key, weight]) => Array(Math.max(1, weight)).fill(key));
-    return weighted.length ? weighted[getRandomInt(0, weighted.length - 1)] : base[0];
-  }
-
   _buildDialogue(intent, survivor, context = {}) {
+    if (LEGACY_INTENT_SYSTEM_DISABLED) {
+      return { playerNarration: '', npcResponse: '', responses: [], context };
+    }
     if (intent === POST_PHASE_INTENTS.challenge_debrief) {
       return this._buildChallengeDebriefDialogue(survivor, context);
     }
@@ -11598,6 +9961,10 @@ class ConversationSystem {
   }
 
   _startConversationFlow(survivor, flowKey, context = {}) {
+    if (LEGACY_INTENT_SYSTEM_DISABLED) {
+      this._showTopicSelection(survivor, context.location || null);
+      return;
+    }
     const player = this.gameManager.getPlayerSurvivor?.();
     const session = {
       sessionId: `session-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
