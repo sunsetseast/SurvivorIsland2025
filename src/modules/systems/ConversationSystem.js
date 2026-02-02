@@ -9,11 +9,11 @@ import { LocationKeys } from '../core/LocationKeys.js';
 import { DealTypes } from './DealSystem.js';
 
 // DEV NOTE (ConversationSystem)
-// - Intents: player-facing actions (pre + post) are enumerated below and drive intent -> NPC response templates.
-// - NPC stances: computed after each player intent from relationship, alliance, personality, and memory.
+// - NPC stances: computed per exchange from relationship, paranoia, gameplay style, and risk.
 // - Phase gating: pre allows personal/light strategy; post only allows strategic intents + vote planning.
 // - Memory logging: _logSocialEvent funnels structured records into SocialMemorySystem for later querying.
 
+/* LEGACY INTENT SYSTEM — NO LONGER USED */
 function resolveNpcDisclosure({ npc, player, kind, context = {} }) {
   const trustSystem = context.trustSystem || player?.gameManager?.systems?.trustSystem || npc?.gameManager?.systems?.trustSystem;
   const trustScore = Math.max(0, Math.min(100, typeof trustSystem?.getTrust === 'function'
@@ -123,6 +123,16 @@ function resolveNpcDisclosure({ npc, player, kind, context = {} }) {
 
   return { outcome, claimedTarget, trueTarget, reasonTag, detail };
 }
+/* LEGACY INTENT SYSTEM — NO LONGER USED */
+
+const NPC_STANCES = Object.freeze({
+  TRUTH: 'TRUTH',
+  LIE: 'LIE',
+  DEFLECT: 'DEFLECT',
+  COUNTER: 'COUNTER',
+  REASSURE: 'REASSURE',
+  PRESSURE: 'PRESSURE'
+});
 
 function ensureCampSocialChanges() {
   if (!window.campSocialChanges) {
@@ -173,6 +183,7 @@ function normalizeDealType(dealType) {
   }
 }
 
+/* LEGACY INTENT SYSTEM — NO LONGER USED */
 const TOPIC_TO_INTENT = {
   bonding: 'bonding',
   personal: 'personal',
@@ -199,6 +210,7 @@ const CAMP_LOCATIONS = [
   LocationKeys.FORK3
 ];
 
+/* LEGACY INTENT SYSTEM — NO LONGER USED */
 const PRE_PHASE_INTENTS = {
   bond_smalltalk: 'bond_smalltalk',
   bond_personal: 'bond_personal',
@@ -209,6 +221,7 @@ const PRE_PHASE_INTENTS = {
   confront_rumor: 'confront_rumor'
 };
 
+/* LEGACY INTENT SYSTEM — NO LONGER USED */
 const FOLLOWUP_ACTIONS = {
   PRESS: { key: 'PRESS', label: 'Press for specifics' },
   REASSURE: { key: 'REASSURE', label: 'Back off, keep it casual' },
@@ -216,6 +229,7 @@ const FOLLOWUP_ACTIONS = {
   DROP: { key: 'DROP', label: 'Drop it' }
 };
 
+/* LEGACY INTENT SYSTEM — NO LONGER USED */
 const INTEL_QUALITY = {
   NONE: 'NONE',
   VAGUE: 'VAGUE',
@@ -1736,10 +1750,22 @@ class ConversationSystem {
 
   _recordIntel(npcId, intel) {
     const memory = this._getNpcMemory(npcId);
-    if (!memory) return;
-    memory.intel.push({ ...intel, timestamp: Date.now() });
+    if (!memory || !intel) return;
+    const phase = this._getConversationPhase();
+    const day = this.gameManager?.day ?? this.gameManager?.currentDay ?? null;
+    const payload = Array.isArray(intel) ? intel : [intel];
+    payload.forEach(entry => {
+      if (!entry?.type) return;
+      memory.intel.push({
+        ...entry,
+        timestamp: {
+          day,
+          phase
+        }
+      });
+    });
     if (this._isConversationDebugEnabled()) {
-      this._debugLog('[CONVO-DEBUG] Intel recorded', intel);
+      this._debugLog('[CONVO-DEBUG] Intel recorded', payload);
     }
   }
 
@@ -1749,38 +1775,130 @@ class ConversationSystem {
     survivor._intelFlags[flagKey] = value;
   }
 
-  decideNpcResponseMode({ player, npc, topic, riskLevel = 0.3, isAllianceContext = false, isDealRequest = false, askedForNames = false, pressuring = false }) {
+  decideNpcStance({
+    topicId,
+    nodeId,
+    player,
+    npc,
+    context = {},
+    askedForNames = false,
+    riskLevel = 0.3
+  }) {
     const trustScore = this._getPairTrust(player?.id, npc?.id);
     const relationshipScore = this._getRelationshipValue(player?.id, npc?.id);
     const paranoia = npc?.paranoia ?? 0;
     const suspicion = npc?.suspicion ?? 0;
+    const threat = npc?.threat ?? 0;
     const style = (npc?.gameplayStyle || npc?.personality || '').toLowerCase();
+    const pressuring = Boolean(context.pressuring);
+    const weights = {
+      [NPC_STANCES.TRUTH]: 1,
+      [NPC_STANCES.LIE]: 1,
+      [NPC_STANCES.DEFLECT]: 1,
+      [NPC_STANCES.COUNTER]: 1,
+      [NPC_STANCES.REASSURE]: 1,
+      [NPC_STANCES.PRESSURE]: 1
+    };
 
-    let openness = (trustScore * 0.5 + relationshipScore * 0.4) / 100;
-    openness -= (paranoia + suspicion) / 220;
-    openness -= riskLevel * 0.25;
-    if (style.includes('social')) openness += 0.08;
-    if (style.includes('shadow') || style.includes('power')) openness -= 0.08;
-    if (isAllianceContext) openness += 0.06;
-    if (isDealRequest) openness -= 0.04;
-    if (pressuring) openness -= 0.08;
-    openness = this._clampStat(openness, 0, 1);
-
-    let mode = 'guarded';
-    if (openness >= 0.72) mode = 'truth';
-    else if (openness >= 0.58) mode = 'softTruth';
-    else if (openness >= 0.45) mode = askedForNames ? 'deflect' : 'guarded';
-    else if (pressuring || askedForNames) mode = 'counterQ';
-    else mode = style.includes('shadow') || style.includes('power') ? 'lie' : 'deflect';
-
-    if (pressuring && openness < 0.4) mode = 'escalate';
-    if (topic === 'build_connection' && openness > 0.6) mode = 'reassure';
-
-    if (this._isConversationDebugEnabled()) {
-      this._debugLog('[CONVO-DEBUG] Response mode', { mode, openness, topic, npc: npc?.firstName, trustScore, relationshipScore });
+    if (trustScore >= 70 || relationshipScore >= 70) {
+      weights[NPC_STANCES.TRUTH] += 2;
+      weights[NPC_STANCES.REASSURE] += 1;
+    }
+    if (trustScore >= 85) {
+      weights[NPC_STANCES.TRUTH] += 2;
+      weights[NPC_STANCES.REASSURE] += 1;
+    }
+    if (trustScore <= 40 || relationshipScore <= 40) {
+      weights[NPC_STANCES.DEFLECT] += 2;
+      weights[NPC_STANCES.LIE] += 1;
+    }
+    if (trustScore <= 25) {
+      weights[NPC_STANCES.DEFLECT] += 2;
+      weights[NPC_STANCES.LIE] += 2;
+    }
+    if (paranoia >= 60 || suspicion >= 60) {
+      weights[NPC_STANCES.DEFLECT] += 2;
+      weights[NPC_STANCES.COUNTER] += 1;
+    }
+    if (riskLevel >= 0.6 || askedForNames) {
+      weights[NPC_STANCES.DEFLECT] += 2;
+      weights[NPC_STANCES.LIE] += 1;
+    }
+    if (pressuring || threat >= 70) {
+      weights[NPC_STANCES.COUNTER] += 2;
+      weights[NPC_STANCES.DEFLECT] += 1;
     }
 
-    return { mode, openness };
+    if (style.includes('competitive')) {
+      weights[NPC_STANCES.TRUTH] += 1;
+      weights[NPC_STANCES.DEFLECT] += 1;
+    } else if (style.includes('power')) {
+      weights[NPC_STANCES.PRESSURE] += 2;
+      weights[NPC_STANCES.COUNTER] += 1;
+    } else if (style.includes('social')) {
+      weights[NPC_STANCES.REASSURE] += 2;
+      weights[NPC_STANCES.TRUTH] += 1;
+    } else if (style.includes('shadow')) {
+      weights[NPC_STANCES.LIE] += 2;
+      weights[NPC_STANCES.DEFLECT] += 1;
+    } else if (style.includes('wildcard')) {
+      weights[NPC_STANCES.COUNTER] += 2;
+      weights[NPC_STANCES.DEFLECT] += 1;
+    } else if (style.includes('lethal') || style.includes('charmer')) {
+      weights[NPC_STANCES.REASSURE] += 2;
+      weights[NPC_STANCES.LIE] += 1;
+    }
+
+    const total = Object.values(weights).reduce((sum, value) => sum + Math.max(0, value), 0);
+    let roll = Math.random() * total;
+    let selected = NPC_STANCES.DEFLECT;
+    Object.entries(weights).some(([stance, weight]) => {
+      roll -= Math.max(0, weight);
+      if (roll <= 0) {
+        selected = stance;
+        return true;
+      }
+      return false;
+    });
+
+    if (this._isConversationDebugEnabled()) {
+      this._debugLog('[CONVO-DEBUG] Stance decision', {
+        stance: selected,
+        topicId,
+        nodeId,
+        trustScore,
+        relationshipScore,
+        paranoia,
+        suspicion,
+        riskLevel
+      });
+    }
+
+    return selected;
+  }
+
+  _selectNpcReply({ npcReplyByStance, stance, player, npc, context }) {
+    if (!npcReplyByStance) return '';
+    const pool = npcReplyByStance[stance] || npcReplyByStance.DEFAULT || [];
+    const normalizedPool = Array.isArray(pool) ? pool : [pool];
+    if (!normalizedPool.length) return '';
+    const choice = normalizedPool[getRandomInt(0, Math.max(0, normalizedPool.length - 1))];
+    return typeof choice === 'function' ? choice({ player, npc, context, stance }) : choice;
+  }
+
+  _applyStanceEffects({ player, npc, stance, effectsByStance, contextTag }) {
+    if (!effectsByStance) return;
+    const effects = effectsByStance[stance] || effectsByStance.DEFAULT;
+    if (!effects) return;
+    const deltas = {};
+    if (Number.isFinite(effects.trust)) deltas.trust = effects.trust;
+    if (Number.isFinite(effects.relationship)) deltas.relationship = effects.relationship;
+    if (Number.isFinite(effects.suspicionPlayer)) deltas.suspicion = effects.suspicionPlayer;
+    if (Number.isFinite(effects.threatPlayer)) deltas.threat = effects.threatPlayer;
+    if (Number.isFinite(effects.paranoia)) deltas.paranoia = effects.paranoia;
+    if (Object.keys(deltas).length) {
+      this._applyExchangeEffects({ player, npc, deltas, contextTag });
+    }
   }
 
   _debugLog(...args) {
@@ -1891,32 +2009,63 @@ class ConversationSystem {
 
   _runConversationNode({ npc, player, node, context, returnTo }) {
     if (!node) return;
-    const responseMode = this.decideNpcResponseMode({
+    const stance = this.decideNpcStance({
+      topicId: context.mainTopicId,
+      nodeId: node.id,
       player,
       npc,
-      topic: context.mainTopicId,
-      riskLevel: node.riskLevel ?? 0.3,
-      isAllianceContext: context.mainTopicId === 'strategy' && context.subTopicId === 'alliances',
-      isDealRequest: context.subTopicId === 'offer_deal',
+      context,
       askedForNames: Boolean(node.askedForNames),
-      pressuring: Boolean(node.pressuring)
+      riskLevel: node.riskLevel ?? 0.3
     });
 
     const playerLine = typeof node.playerLine === 'function'
       ? node.playerLine({ player, npc, context })
       : node.playerLine;
-    const npcReply = node.npcResponseGenerator({ player, npc, context, responseMode });
+    const npcReply = this._selectNpcReply({
+      npcReplyByStance: node.npcReplyByStance,
+      stance,
+      player,
+      npc,
+      context
+    });
+
+    if (this.debugConvo) {
+      this._debugLog('[CONVO-DEBUG] Node response', {
+        initiator: context.initiator || 'player',
+        topicId: context.mainTopicId,
+        nodeId: node.id,
+        stance,
+        reply: npcReply
+      });
+    }
 
     const followupNodes = typeof node.nextNodes === 'function'
-      ? node.nextNodes({ player, npc, context, responseMode })
+      ? node.nextNodes({ player, npc, context, stance })
       : (node.nextNodes || []);
 
     const afterReply = () => {
       if (typeof node.effects === 'function') {
-        node.effects({ player, npc, context, responseMode });
+        node.effects({ player, npc, context, stance });
+      }
+      this._applyStanceEffects({
+        player,
+        npc,
+        stance,
+        effectsByStance: node.effectsByStance,
+        contextTag: node.id
+      });
+      const intelEntries = node.intelByStance?.[stance] || node.intelByStance?.DEFAULT;
+      if (intelEntries) {
+        const payload = typeof intelEntries === 'function'
+          ? intelEntries({ player, npc, context, stance })
+          : intelEntries;
+        if (payload) {
+          this._recordIntel(npc.id, payload);
+        }
       }
       if (typeof node.afterReply === 'function') {
-        node.afterReply({ player, npc, context, responseMode });
+        node.afterReply({ player, npc, context, stance });
         return;
       }
       const followupButtons = followupNodes.map(nextNode => ({
@@ -1973,11 +2122,7 @@ class ConversationSystem {
       this.startPlayerConversation({ npcId, phase: normalizedPhase, socialType, context: { ...context, initiator } });
       return;
     }
-    const intent = socialType ? this._mapSocialTypeToIntent(socialType, normalizedPhase) : null;
     const seededContext = { ...context };
-    if (intent === POST_PHASE_INTENTS.idol_suspicion && !seededContext.subTopic) {
-      seededContext.subTopic = 'idol';
-    }
 
     this.state = {
       npcId: survivor.id,
@@ -2017,7 +2162,6 @@ class ConversationSystem {
 
     const normalizedPhase = this._normalizePhase(phase);
     const location = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
-    const intent = socialType ? this._mapSocialTypeToIntent(socialType, normalizedPhase) : null;
     const seededContext = {
       ...context,
       initiator: 'player',
@@ -2026,10 +2170,6 @@ class ConversationSystem {
       location,
       forceNodeFlow: true
     };
-
-    if (intent === POST_PHASE_INTENTS.idol_suspicion && !seededContext.subTopic) {
-      seededContext.subTopic = 'idol';
-    }
 
     this.state = {
       npcId: survivor.id,
@@ -2043,22 +2183,12 @@ class ConversationSystem {
       context: { ...seededContext, initiator: 'player' }
     };
 
-    const beginConversation = () => {
-      if (intent) {
-        this._startConversation(survivor, {
-          intentOverride: intent,
-          isPurpose: true,
-          meeting: null,
-          location,
-          context: { ...(seededContext || {}), initiator: 'player', phase: normalizedPhase }
-        });
-      } else {
-        this._logConversationStart({ initiator: 'player', phase: normalizedPhase });
-        this._showTopicSelection(survivor, location);
-      }
-    };
-
-    beginConversation();
+    this._startConversation(survivor, {
+      isPurpose: true,
+      meeting: null,
+      location,
+      context: { ...(seededContext || {}), initiator: 'player', phase: normalizedPhase }
+    });
   }
 
   reset() {
@@ -2383,7 +2513,7 @@ class ConversationSystem {
               id: 'talk_someone',
               buttonText: 'Pick a person',
               playerLine: 'Can we talk about someone specific?',
-              npcResponseGenerator: () => 'Sure. Who do you want to focus on?',
+              npcReplyByStance: { DEFAULT: ['Sure. Who do you want to focus on?'] },
               afterReply: () => {
                 this._showTalkAboutSomeoneSelect({ player, npc, context });
               }
@@ -2399,7 +2529,7 @@ class ConversationSystem {
               id: 'event_talk',
               buttonText: 'Talk about the event',
               playerLine: 'That event earlier… what’s your read on it?',
-              npcResponseGenerator: () => 'It shifted the energy. People are recalibrating fast.',
+              npcReplyByStance: { DEFAULT: ['It shifted the energy. People are recalibrating fast.'] },
               effects: ({ player, npc }) => {
                 this._applyExchangeEffects({
                   player,
@@ -2443,20 +2573,19 @@ class ConversationSystem {
       return;
     }
 
-    const responseMode = this.decideNpcResponseMode({
+    const stance = this.decideNpcStance({
+      topicId: selectedTopic.id,
+      nodeId: selectedNode.id,
       player,
       npc,
-      topic: selectedTopic.id,
-      riskLevel: selectedNode.riskLevel ?? 0.3,
-      isAllianceContext: selectedTopic.id === 'strategy' && selectedNode.id === 'alliances',
-      isDealRequest: selectedNode.id === 'offer_deal',
+      context: normalizedContext,
       askedForNames: Boolean(selectedNode.askedForNames),
-      pressuring: Boolean(selectedNode.pressuring)
+      riskLevel: selectedNode.riskLevel ?? 0.3
     });
 
-    const openingLine = this._resolveNpcOpeningLine({ node: selectedNode, player, npc, context: normalizedContext, responseMode });
+    const openingLine = this._resolveNpcOpeningLine({ node: selectedNode, player, npc, context: normalizedContext, stance });
     const followupNodes = typeof selectedNode.nextNodes === 'function'
-      ? selectedNode.nextNodes({ player, npc, context: normalizedContext, responseMode })
+      ? selectedNode.nextNodes({ player, npc, context: normalizedContext, stance })
       : (selectedNode.nextNodes || []);
 
     const responseNodes = followupNodes.length
@@ -2475,18 +2604,31 @@ class ConversationSystem {
       })
     }));
 
+    if (this.debugConvo) {
+      this._debugLog('[CONVO-DEBUG] NPC initiated', {
+        initiator: 'npc',
+        topicId: selectedTopic.id,
+        nodeId: selectedNode.id,
+        stance,
+        reply: openingLine
+      });
+    }
+
     this._renderMenu(npc, openingLine, buttons, { onBack: null, showEnd: true });
   }
 
-  _resolveNpcOpeningLine({ node, player, npc, context, responseMode }) {
+  _resolveNpcOpeningLine({ node, player, npc, context, stance }) {
     if (typeof node.npcOpeningLine === 'function') {
-      return node.npcOpeningLine({ player, npc, context, responseMode });
+      return node.npcOpeningLine({ player, npc, context, stance });
     }
     if (node.npcOpeningLine) return node.npcOpeningLine;
-    const playerLine = typeof node.playerLine === 'function'
-      ? node.playerLine({ player, npc, context })
-      : node.playerLine;
-    return playerLine || node.buttonText || 'Can we talk?';
+    return this._selectNpcReply({
+      npcReplyByStance: node.npcReplyByStance,
+      stance,
+      player,
+      npc,
+      context
+    }) || node.buttonText || 'Can we talk?';
   }
 
   _buildNpcOpeningFallbackNode(node) {
@@ -2494,8 +2636,10 @@ class ConversationSystem {
       id: `${node.id}_npc_response`,
       buttonText: 'Respond',
       playerLine: 'Tell me more.',
-      npcResponseGenerator: node.npcResponseGenerator || (() => 'Yeah.'),
+      npcReplyByStance: node.npcReplyByStance || { DEFAULT: ['Yeah.'] },
       effects: node.effects,
+      effectsByStance: node.effectsByStance,
+      intelByStance: node.intelByStance,
       afterReply: node.afterReply,
       nextNodes: node.nextNodes,
       riskLevel: node.riskLevel,
@@ -2508,17 +2652,12 @@ class ConversationSystem {
     const memory = this._getNpcMemory(npcId);
     if (!memory?.intel?.length) return false;
     const negativeTypes = new Set([
-      'bugging',
-      'suspicious',
-      'name_coming_up',
       'threat_callout',
-      'dead_weight',
-      'threat_seeded',
-      'deflect_target',
-      'pitch_target',
-      'alignment_callout',
-      'name_drop',
-      'source_named'
+      'name_thrown_out',
+      'alliance_suspect',
+      'idol_rumor',
+      'work_duo',
+      'vote_read'
     ]);
     return memory.intel.some(entry => {
       if (entry.targetId === playerId && negativeTypes.has(entry.type)) return true;
@@ -2603,11 +2742,13 @@ class ConversationSystem {
         id: 'check_in',
         buttonText: 'Check in',
         playerLine: 'How you holding up? Just checking in — you good?',
-        npcResponseGenerator: () => {
-          const worst = this._pickWorstStat(npc);
-          if (worst.key === 'paranoia') return worst.line;
-          if (worst.key !== 'steady') return worst.line;
-          return 'I’m alright. Just trying to stay steady and not overthink everything.';
+        npcReplyByStance: {
+          DEFAULT: [() => {
+            const worst = this._pickWorstStat(npc);
+            if (worst.key === 'paranoia') return worst.line;
+            if (worst.key !== 'steady') return worst.line;
+            return 'I’m alright. Just trying to stay steady and not overthink everything.';
+          }]
         },
         effects: ({ player, npc }) => {
           const paranoia = npc.paranoia ?? 0;
@@ -2627,7 +2768,7 @@ class ConversationSystem {
               id: 'check_in_push',
               buttonText: 'Push further',
               playerLine: 'You’re sure? It feels heavier than that.',
-              npcResponseGenerator: () => 'I said I’m fine. Just let me breathe.',
+              npcReplyByStance: { DEFAULT: ['I said I’m fine. Just let me breathe.'] },
               effects: ({ player, npc }) => {
                 this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1, trust: 0 }, contextTag: 'build_check_in_push' });
               }
@@ -2639,13 +2780,20 @@ class ConversationSystem {
         id: 'share_laugh',
         buttonText: 'Share a laugh',
         playerLine: 'We’ve gotta laugh out here or we’ll go crazy. What’s the funniest thing you’ve seen today?',
-        npcResponseGenerator: ({ responseMode }) => {
-          const lowMood = (npc.rest ?? 100) < 40 && (npc.paranoia ?? 0) > 60;
-          const style = (npc.gameplayStyle || '').toLowerCase();
-          if (lowMood) return 'I’m not really in a laughing mood… but yeah, I get it.';
-          if (style.includes('charmer')) return 'Honestly? The side-eyes. Everybody’s pretending they’re calm and it’s kind of adorable.';
-          if (responseMode.mode === 'guarded') return 'People trying not to lose it. That’s the comedy out here.';
-          return 'Honestly? Watching everyone pretend they’re not losing it. It’s kind of hilarious.';
+        npcReplyByStance: {
+          DEFAULT: [() => {
+            const lowMood = (npc.rest ?? 100) < 40 && (npc.paranoia ?? 0) > 60;
+            const style = (npc.gameplayStyle || '').toLowerCase();
+            if (lowMood) return 'I’m not really in a laughing mood… but yeah, I get it.';
+            if (style.includes('charmer')) return 'Honestly? The side-eyes. Everybody’s pretending they’re calm and it’s kind of adorable.';
+            return 'Honestly? Watching everyone pretend they’re not losing it. It’s kind of hilarious.';
+          }],
+          DEFLECT: [() => {
+            const lowMood = (npc.rest ?? 100) < 40 && (npc.paranoia ?? 0) > 60;
+            if (lowMood) return 'I’m not really in a laughing mood… but yeah, I get it.';
+            return 'People trying not to lose it. That’s the comedy out here.';
+          }],
+          COUNTER: ['People trying not to lose it. That’s the comedy out here.']
         },
         effects: ({ player, npc }) => {
           const lowMood = (npc.rest ?? 100) < 40 && (npc.paranoia ?? 0) > 60;
@@ -2662,18 +2810,14 @@ class ConversationSystem {
         id: 'compliment',
         buttonText: 'Compliment',
         playerLine: 'Real talk — you’ve been solid out here. I respect how you’re playing this.',
-        npcResponseGenerator: ({ responseMode }) => {
-          if (responseMode.mode === 'counterQ' || responseMode.mode === 'guarded') {
-            return 'Why are you laying it on thick right now?';
-          }
-          if (responseMode.mode === 'deflect') {
-            return 'We’ll see. It’s early. Anybody can look good on day one.';
-          }
-          return 'I appreciate that. It means something coming from you.';
+        npcReplyByStance: {
+          DEFAULT: ['I appreciate that. It means something coming from you.'],
+          COUNTER: ['Why are you laying it on thick right now?'],
+          DEFLECT: ['We’ll see. It’s early. Anybody can look good on day one.']
         },
-        effects: ({ player, npc, responseMode }) => {
+        effects: ({ player, npc, stance }) => {
           const relationshipDelta = getRandomInt(2, 5);
-          const trustDelta = responseMode.mode === 'counterQ' || responseMode.mode === 'guarded' ? 0 : getRandomInt(1, 3);
+          const trustDelta = stance === NPC_STANCES.COUNTER || stance === NPC_STANCES.DEFLECT ? 0 : getRandomInt(1, 3);
           this._applyExchangeEffects({
             player,
             npc,
@@ -2681,14 +2825,14 @@ class ConversationSystem {
             contextTag: 'build_compliment'
           });
         },
-        nextNodes: ({ responseMode }) => {
-          if (responseMode.mode !== 'counterQ' && responseMode.mode !== 'guarded') return [];
+        nextNodes: ({ stance }) => {
+          if (stance !== NPC_STANCES.COUNTER && stance !== NPC_STANCES.DEFLECT) return [];
           return [
             {
               id: 'compliment_real',
               buttonText: 'Just being real',
               playerLine: 'Just being real. I’m not trying to play you.',
-              npcResponseGenerator: () => 'Alright. I can respect straight talk.',
+              npcReplyByStance: { DEFAULT: ['Alright. I can respect straight talk.'] },
               effects: ({ player, npc }) => {
                 this._applyExchangeEffects({
                   player,
@@ -2702,7 +2846,7 @@ class ConversationSystem {
               id: 'compliment_build',
               buttonText: 'Building something',
               playerLine: 'I’m building something. I don’t want to pretend.',
-              npcResponseGenerator: () => 'Okay. Just know I’m watching how you move.',
+              npcReplyByStance: { DEFAULT: ['Okay. Just know I’m watching how you move.'] },
               effects: ({ player, npc }) => {
                 this._applyExchangeEffects({
                   player,
@@ -2719,15 +2863,14 @@ class ConversationSystem {
         id: 'bond_one_on_one',
         buttonText: 'Bond one-on-one',
         playerLine: 'I want us on the same wavelength out here. Not big strategy — just… good energy.',
-        npcResponseGenerator: ({ responseMode }) => {
-          if (responseMode.mode === 'guarded' || responseMode.mode === 'deflect') {
-            return 'I hear you. I’m just keeping my head down for now.';
-          }
-          return 'Yeah. I can do that. I’d rather have real people around me than chaos.';
+        npcReplyByStance: {
+          DEFAULT: ['Yeah. I can do that. I’d rather have real people around me than chaos.'],
+          DEFLECT: ['I hear you. I’m just keeping my head down for now.'],
+          COUNTER: ['I hear you. I’m just keeping my head down for now.']
         },
-        effects: ({ player, npc, responseMode }) => {
+        effects: ({ player, npc, stance }) => {
           const relationshipDelta = getRandomInt(3, 7);
-          const trustDelta = responseMode.mode === 'guarded' ? getRandomInt(0, 1) : getRandomInt(1, 3);
+          const trustDelta = stance === NPC_STANCES.DEFLECT ? getRandomInt(0, 1) : getRandomInt(1, 3);
           this._applyExchangeEffects({
             player,
             npc,
@@ -2747,17 +2890,19 @@ class ConversationSystem {
         id: 'camp_vibe',
         buttonText: 'Camp vibe',
         playerLine: 'What’s the vibe like right now? This tribe feels… something.',
-        npcResponseGenerator: () => {
-          if (day1Mood === 'chaotic') return 'It’s chaotic. People are smiling, but it feels like everyone’s taking notes.';
-          if (day1Mood === 'confident') return 'It’s confident. Like people think we’ve got this… which makes me nervous.';
-          return 'It’s tentative. Nobody wants to be the first person to show their cards.';
+        npcReplyByStance: {
+          DEFAULT: [() => {
+            if (day1Mood === 'chaotic') return 'It’s chaotic. People are smiling, but it feels like everyone’s taking notes.';
+            if (day1Mood === 'confident') return 'It’s confident. Like people think we’ve got this… which makes me nervous.';
+            return 'It’s tentative. Nobody wants to be the first person to show their cards.';
+          }]
         },
         nextNodes: () => [
           {
             id: 'camp_calm',
             buttonText: 'Calm it down',
             playerLine: 'Let’s calm it down. We can keep this tribe steady.',
-            npcResponseGenerator: () => 'That would help. Less noise, more trust.',
+            npcReplyByStance: { DEFAULT: ['That would help. Less noise, more trust.'] },
             effects: ({ player, npc }) => {
               player.teamPlayer = this._clampStat((player.teamPlayer ?? 50) + getRandomInt(1, 3));
               this._applyExchangeEffects({
@@ -2772,12 +2917,16 @@ class ConversationSystem {
             id: 'camp_chaos',
             buttonText: 'Use the chaos',
             playerLine: 'Chaos is opportunity. We can use it.',
-            npcResponseGenerator: ({ responseMode }) => {
-              const style = (npc.gameplayStyle || '').toLowerCase();
-              const likes = style.includes('shadow') || style.includes('power');
-              return likes && responseMode.openness > 0.5
-                ? 'Maybe. If we steer it, it could work.'
-                : 'That’s risky. Chaos burns people who touch it.';
+            npcReplyByStance: {
+              DEFAULT: [() => {
+                const style = (npc.gameplayStyle || '').toLowerCase();
+                const likes = style.includes('shadow') || style.includes('power');
+                return likes
+                  ? 'Maybe. If we steer it, it could work.'
+                  : 'That’s risky. Chaos burns people who touch it.';
+              }],
+              DEFLECT: ['That’s risky. Chaos burns people who touch it.'],
+              COUNTER: ['That’s risky. Chaos burns people who touch it.']
             },
             effects: ({ player, npc }) => {
               const style = (npc.gameplayStyle || '').toLowerCase();
@@ -2792,18 +2941,20 @@ class ConversationSystem {
         id: 'holding_up',
         buttonText: 'How are you holding up?',
         playerLine: 'Be honest — how are you holding up physically and mentally?',
-        npcResponseGenerator: () => {
-          if ((npc.paranoia ?? 0) >= 70) return 'Mentally I’m on edge. I keep replaying conversations in my head.';
-          const worst = this._pickWorstStat(npc);
-          if (worst.key === 'hunger') return 'My hunger is wrecking me. I’m running on empty.';
-          if (worst.key === 'water') return 'I’m dehydrated. That’s the main thing.';
-          if (worst.key === 'rest') return 'I’m exhausted. I can’t recover.';
-          if (worst.key === 'health') return 'I’m banged up. It’s harder than I expected.';
-          return 'I’m managing. Some parts are rough, but I’m holding it together.';
+        npcReplyByStance: {
+          DEFAULT: [() => {
+            if ((npc.paranoia ?? 0) >= 70) return 'Mentally I’m on edge. I keep replaying conversations in my head.';
+            const worst = this._pickWorstStat(npc);
+            if (worst.key === 'hunger') return 'My hunger is wrecking me. I’m running on empty.';
+            if (worst.key === 'water') return 'I’m dehydrated. That’s the main thing.';
+            if (worst.key === 'rest') return 'I’m exhausted. I can’t recover.';
+            if (worst.key === 'health') return 'I’m banged up. It’s harder than I expected.';
+            return 'I’m managing. Some parts are rough, but I’m holding it together.';
+          }]
         },
-        effects: ({ player, npc, responseMode }) => {
+        effects: ({ player, npc, stance }) => {
           const relationshipDelta = getRandomInt(1, 3);
-          const trustDelta = responseMode.mode === 'truth' || responseMode.mode === 'softTruth' ? getRandomInt(1, 2) : 0;
+          const trustDelta = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? getRandomInt(1, 2) : 0;
           this._applyExchangeEffects({ player, npc, deltas: { relationship: relationshipDelta, trust: trustDelta }, contextTag: 'vibe_holding' });
         }
       },
@@ -2811,7 +2962,8 @@ class ConversationSystem {
         id: 'whats_bugging',
         buttonText: 'What’s bugging you?',
         playerLine: 'What’s been bugging you out here? Like… what’s the thing you can’t ignore?',
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           const mood = day1Mood;
           const lowResources = (npc.hunger ?? 100) < 45 || (npc.water ?? 100) < 45;
           const lowRel = this._getRelationshipValue(player.id, npc.id) < 45;
@@ -2821,24 +2973,33 @@ class ConversationSystem {
           const named = trust > 65 && paranoia < 55 && candidates.length
             ? candidates[getRandomInt(0, Math.max(0, candidates.length - 1))]
             : null;
-          if (responseMode.mode === 'guarded' || responseMode.mode === 'deflect') {
+          if (stance === NPC_STANCES.DEFLECT || stance === NPC_STANCES.COUNTER) {
             return 'I’m keeping my head down for now. It’s early to gripe.';
           }
           const tag = named ? ` ${named.firstName} stands out to me.` : '';
           if (named) {
-            this._recordIntel(npc.id, { type: 'bugging', targetId: named.id, targetName: named.firstName });
+            this._recordIntel(npc.id, {
+              type: 'name_thrown_out',
+              subjectId: named.id,
+              sourceId: npc.id,
+              targetId: named.id,
+              truth: stance === NPC_STANCES.LIE ? false : 'unknown'
+            });
           }
           if (mood === 'chaotic') return `Everyone’s “fine” … but nobody’s honest. It’s getting weird.${tag}`;
           if (lowResources) return `I’m watching who actually works… and who magically disappears.${tag}`;
           if (lowRel) return `It’s like there’s already a circle… and I’m not sure I’m in it.${tag}`;
           return `I feel like one mistake and people decide you’re dead weight.${tag}`;
+        }],
+          DEFLECT: ['I’m keeping my head down for now. It’s early to gripe.'],
+          COUNTER: ['I’m keeping my head down for now. It’s early to gripe.']
         },
-        nextNodes: ({ responseMode }) => [
+        nextNodes: () => [
           {
             id: 'bugging_align',
             buttonText: 'I see it too',
             playerLine: 'I see it too. It’s not just you.',
-            npcResponseGenerator: () => 'Good. I needed to hear that.',
+            npcReplyByStance: { DEFAULT: ['Good. I needed to hear that.'] },
             effects: ({ player, npc }) => {
               this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2), relationship: getRandomInt(1, 2) }, contextTag: 'vibe_bugging_align' });
             }
@@ -2847,9 +3008,11 @@ class ConversationSystem {
             id: 'bugging_disagree',
             buttonText: 'Not my read',
             playerLine: 'That’s not my read, but I’m listening.',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'guarded'
-              ? 'Alright. Just be careful who you trust.'
-              : 'Fair. We might be seeing different corners.',
+            npcReplyByStance: {
+              DEFAULT: ['Fair. We might be seeing different corners.'],
+              DEFLECT: ['Alright. Just be careful who you trust.'],
+              COUNTER: ['Alright. Just be careful who you trust.']
+            },
             effects: ({ player, npc }) => {
               this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1 }, contextTag: 'vibe_bugging_disagree' });
             }
@@ -2858,7 +3021,7 @@ class ConversationSystem {
             id: 'bugging_names',
             buttonText: 'Who do you mean?',
             playerLine: 'Who do you mean?',
-            npcResponseGenerator: () => 'Let’s talk about someone specific.',
+            npcReplyByStance: { DEFAULT: ['Let’s talk about someone specific.'] },
             afterReply: () => {
               this._showTalkAboutSomeoneSelect({ player, npc, context });
             }
@@ -2869,21 +3032,27 @@ class ConversationSystem {
         id: 'feel_safe',
         buttonText: 'Do you feel safe?',
         playerLine: 'Do you feel safe right now?',
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           const paranoia = npc.paranoia ?? 0;
           const threat = npc.threat ?? 0;
-          if (responseMode.mode === 'deflect') return 'Nobody’s safe. That’s the whole game.';
+          if (stance === NPC_STANCES.DEFLECT || stance === NPC_STANCES.COUNTER) return 'Nobody’s safe. That’s the whole game.';
           if (paranoia >= 60 || threat >= 65) return 'No. I don’t. I feel my name floating.';
           return 'For now… yeah. But I’m not relaxing.';
+        }],
+          DEFLECT: ['Nobody’s safe. That’s the whole game.'],
+          COUNTER: ['Nobody’s safe. That’s the whole game.']
         },
         nextNodes: () => [
           {
             id: 'safe_protect',
             buttonText: 'I’ve got you',
             playerLine: 'I’ve got you. I don’t want you in danger.',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'guarded'
-              ? 'I appreciate it, but I hear promises all day.'
-              : 'Alright. That helps.',
+            npcReplyByStance: {
+              DEFAULT: ['Alright. That helps.'],
+              DEFLECT: ['I appreciate it, but I hear promises all day.'],
+              COUNTER: ['I appreciate it, but I hear promises all day.']
+            },
             effects: ({ player, npc }) => {
               const manipulative = (npc.paranoia ?? 0) > 65;
               this._applyExchangeEffects({
@@ -2898,7 +3067,7 @@ class ConversationSystem {
                 id: 'safe_protect_deal',
                 buttonText: 'Make it a deal',
                 playerLine: 'Let’s make it a protection deal.',
-                npcResponseGenerator: () => 'Alright. If we lock it in, we lock it in.',
+                npcReplyByStance: { DEFAULT: ['Alright. If we lock it in, we lock it in.'] },
                 afterReply: () => this._resolveDealOutcome({ player, npc, context, dealType: 'protect', target: null })
               }
             ]
@@ -2907,7 +3076,7 @@ class ConversationSystem {
             id: 'safe_names',
             buttonText: 'Who’s pushing it?',
             playerLine: 'Who’s pushing it?',
-            npcResponseGenerator: () => 'Let’s talk about someone specific.',
+            npcReplyByStance: { DEFAULT: ['Let’s talk about someone specific.'] },
             afterReply: () => {
               this._showTalkAboutSomeoneSelect({ player, npc, context });
             }
@@ -2918,37 +3087,39 @@ class ConversationSystem {
         id: 'strategy_style',
         buttonText: 'What’s your strategy?',
         playerLine: 'What’s your strategy out here — like, your real approach?',
-        npcResponseGenerator: () => {
-          switch (npc.gameplayStyle) {
-            case 'Competitive':
-              return 'Win when I can, stay useful, and make it hard to write my name down.';
-            case 'Power Player':
-              return 'I want influence. I don’t need chaos — I need control.';
-            case 'Social Genius':
-              return 'Relationships first. The vote comes from the vibe.';
-            case 'Shadow Strategist':
-              return 'Information. Quiet positioning. Let other people take heat.';
-            case 'Wildcard':
-              return 'I’m adapting. If the tribe moves, I move with it.';
-            case 'Lethal Charmer':
-              return 'People underestimate what a conversation can do. That’s where I live.';
-            default:
-              return 'I’m keeping my options open and trying to stay useful.';
-          }
+        npcReplyByStance: {
+          DEFAULT: [() => {
+            switch (npc.gameplayStyle) {
+              case 'Competitive':
+                return 'Win when I can, stay useful, and make it hard to write my name down.';
+              case 'Power Player':
+                return 'I want influence. I don’t need chaos — I need control.';
+              case 'Social Genius':
+                return 'Relationships first. The vote comes from the vibe.';
+              case 'Shadow Strategist':
+                return 'Information. Quiet positioning. Let other people take heat.';
+              case 'Wildcard':
+                return 'I’m adapting. If the tribe moves, I move with it.';
+              case 'Lethal Charmer':
+                return 'People underestimate what a conversation can do. That’s where I live.';
+              default:
+                return 'I’m keeping my options open and trying to stay useful.';
+            }
+          }]
         },
         nextNodes: () => [
           {
             id: 'strategy_respect',
             buttonText: 'Respect',
             playerLine: 'Respect. That’s a smart read.',
-            npcResponseGenerator: () => 'Appreciate it.',
+            npcReplyByStance: { DEFAULT: ['Appreciate it.'] },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'vibe_strategy_respect' })
           },
           {
             id: 'strategy_help_us',
             buttonText: 'Help us',
             playerLine: 'How does that help us out here?',
-            npcResponseGenerator: () => 'If we align our approach, we stay ahead of the vote.',
+            npcReplyByStance: { DEFAULT: ['If we align our approach, we stay ahead of the vote.'] },
             afterReply: () => {
               this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } });
             }
@@ -2957,7 +3128,7 @@ class ConversationSystem {
             id: 'strategy_risky',
             buttonText: 'Sounds risky',
             playerLine: 'Sounds dangerous if it goes sideways.',
-            npcResponseGenerator: () => 'Everything out here is dangerous. That’s why we pick our spots.',
+            npcReplyByStance: { DEFAULT: ['Everything out here is dangerous. That’s why we pick our spots.'] },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1 }, contextTag: 'vibe_strategy_risky' })
           }
         ]
@@ -2966,37 +3137,46 @@ class ConversationSystem {
         id: 'are_we_good',
         buttonText: 'Are we good?',
         playerLine: 'You and me — are we good?',
-        npcResponseGenerator: () => {
-          const trust = this._getPairTrust(player.id, npc.id);
-          const relationship = this._getRelationshipValue(player.id, npc.id);
-          const memory = this._getNpcMemory(npc.id);
-          const hasNegative = memory?.flags?.nameDrop || memory?.flags?.pressured;
-          if (trust > 65 && relationship > 60 && !hasNegative) return 'Yeah, we’re good. Don’t overthink it.';
-          if (trust > 45) return 'We’re okay… but I’m watching how you move.';
-          return 'Honestly? I’ve got questions.';
+        npcReplyByStance: {
+          DEFAULT: [() => {
+            const trust = this._getPairTrust(player.id, npc.id);
+            const relationship = this._getRelationshipValue(player.id, npc.id);
+            const memory = this._getNpcMemory(npc.id);
+            const hasNegative = memory?.flags?.nameDrop || memory?.flags?.pressured;
+            if (trust > 65 && relationship > 60 && !hasNegative) return 'Yeah, we’re good. Don’t overthink it.';
+            if (trust > 45) return 'We’re okay… but I’m watching how you move.';
+            return 'Honestly? I’ve got questions.';
+          }]
         },
         nextNodes: () => [
           {
             id: 'good_hear',
             buttonText: 'What did you hear?',
             playerLine: 'What did you hear?',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-              ? 'I heard my name linked to you. I’m checking if it’s real.'
-              : 'Nothing specific. Just the vibe.',
-            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: responseMode.mode === 'truth' ? 0 : 1 }, contextTag: 'vibe_good_hear' })
+            npcReplyByStance: {
+              DEFAULT: ['Nothing specific. Just the vibe.'],
+              TRUTH: ['I heard my name linked to you. I’m checking if it’s real.'],
+              REASSURE: ['I heard my name linked to you. I’m checking if it’s real.']
+            },
+            effects: ({ player, npc, stance }) => this._applyExchangeEffects({
+              player,
+              npc,
+              deltas: { suspicion: stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? 0 : 1 },
+              contextTag: 'vibe_good_hear'
+            })
           },
           {
             id: 'good_fix',
             buttonText: 'Fix it',
             playerLine: 'I want to fix it. Tell me what you need.',
-            npcResponseGenerator: () => 'Own your moves and don’t blindside me.',
+            npcReplyByStance: { DEFAULT: ['Own your moves and don’t blindside me.'] },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(2, 6), relationship: getRandomInt(1, 4) }, contextTag: 'vibe_good_fix' })
           },
           {
             id: 'good_defensive',
             buttonText: 'Say it',
             playerLine: 'If you’re against me, say it.',
-            npcResponseGenerator: () => 'That’s a little aggressive. I’m not doing that.',
+            npcReplyByStance: { DEFAULT: ['That’s a little aggressive. I’m not doing that.'] },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: -3, suspicion: 2 }, contextTag: 'vibe_good_defensive' })
           }
         ]
@@ -3012,10 +3192,11 @@ class ConversationSystem {
         this._applySuspicionDelta(player, getRandomInt(0, 1), 'gossip_repeat');
       }
     };
-    const buildNameReply = ({ mode, truthLine, lieLine, deflectLine }) => {
-      if (mode === 'truth' || mode === 'softTruth') return truthLine;
-      if (mode === 'lie') return lieLine || truthLine;
-      if (mode === 'counterQ') return 'Why — did you hear my name?';
+    const buildNameReply = ({ stance, truthLine, lieLine, deflectLine, counterLine }) => {
+      if (stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) return truthLine;
+      if (stance === NPC_STANCES.LIE) return lieLine || deflectLine || truthLine;
+      if (stance === NPC_STANCES.COUNTER) return counterLine || 'Why — did you hear my name?';
+      if (stance === NPC_STANCES.PRESSURE) return deflectLine || truthLine;
       return deflectLine || 'It’s early. I’m not putting names on anything.';
     };
     const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
@@ -3036,21 +3217,35 @@ class ConversationSystem {
         buttonText: 'Who are you close with?',
         playerLine: 'Who do you actually feel good with around here?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
           const line = buildNameReply({
-            mode: responseMode.mode,
+            stance,
             truthLine: closeWith ? `I vibe most with ${closeWith.firstName}. We just click.` : 'A couple people. I’m keeping it quiet.',
             deflectLine: 'It’s early. I’m not putting labels on anything.'
           });
-          if (responseMode.mode === 'truth' && closeWith) {
-            this._recordIntel(npc.id, { type: 'close_with', targetId: closeWith.id, targetName: closeWith.firstName });
+          if ((stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) && closeWith) {
+            this._recordIntel(npc.id, {
+              type: 'alliance_suspect',
+              subjectId: closeWith.id,
+              sourceId: npc.id,
+              targetId: closeWith.id,
+              truth: true
+            });
             this._applyExchangeEffects({ player, npc, deltas: { trust: 1 }, contextTag: 'gossip_close' });
           }
-          if (responseMode.mode === 'lie') {
-            this._recordIntel(npc.id, { type: 'possible_lie', topic: 'close_with' });
+          if (stance === NPC_STANCES.LIE) {
+            this._recordIntel(npc.id, {
+              type: 'alliance_suspect',
+              subjectId: closeWith?.id,
+              sourceId: npc.id,
+              targetId: closeWith?.id,
+              truth: false
+            });
           }
           return line;
+        }]
         }
       },
       {
@@ -3058,18 +3253,26 @@ class ConversationSystem {
         buttonText: 'Who’s a threat?',
         playerLine: 'Who do you see as a real threat right now?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
           const line = buildNameReply({
-            mode: responseMode.mode,
+            stance,
             truthLine: topThreat ? `If we’re talking threat? ${topThreat.firstName}.` : 'Everybody’s a threat in different ways.',
             lieLine: altThreat ? `People think it’s ${topThreat?.firstName || 'someone'}, but I’m watching ${altThreat.firstName}.` : 'Everybody’s a threat in different ways.',
             deflectLine: 'Everybody’s a threat in different ways.'
           });
-          if ((responseMode.mode === 'truth' || responseMode.mode === 'softTruth') && topThreat) {
-            this._recordIntel(npc.id, { type: 'threat_callout', targetId: topThreat.id, targetName: topThreat.firstName });
+          if ((stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) && topThreat) {
+            this._recordIntel(npc.id, {
+              type: 'threat_callout',
+              subjectId: topThreat.id,
+              sourceId: npc.id,
+              targetId: topThreat.id,
+              truth: true
+            });
           }
           return line;
+        }]
         },
         effects: ({ player }) => {
           this._applySuspicionDelta(player, getRandomInt(0, 1), 'gossip_threat');
@@ -3080,35 +3283,45 @@ class ConversationSystem {
         buttonText: 'Who’s an asset?',
         playerLine: 'Who’s actually an asset to the tribe?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
           const line = buildNameReply({
-            mode: responseMode.mode,
+            stance,
             truthLine: topAsset ? `${topAsset.firstName} is pulling weight.` : 'A few people are keeping us afloat.',
             deflectLine: 'Hard to say without watching another day.'
           });
-          if (responseMode.mode === 'truth' && topAsset) {
-            this._recordIntel(npc.id, { type: 'asset', targetId: topAsset.id, targetName: topAsset.firstName });
+          if ((stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) && topAsset) {
+            this._recordIntel(npc.id, {
+              type: 'name_thrown_out',
+              subjectId: topAsset.id,
+              sourceId: npc.id,
+              targetId: topAsset.id,
+              truth: true
+            });
           }
           return line;
+        }]
         },
         nextNodes: () => [
           {
             id: 'asset_support',
             buttonText: 'They’re valuable',
             playerLine: 'Yeah, they’re valuable.',
-            npcResponseGenerator: () => 'Agreed. We need people like that.',
+            npcReplyByStance: { DEFAULT: ['Agreed. We need people like that.'] },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: 1 }, contextTag: 'gossip_asset_support' })
           },
           {
             id: 'asset_danger',
             buttonText: 'They’re dangerous',
             playerLine: 'Or they’re dangerous long-term.',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-              ? 'That’s a fair point. Big assets become big targets.'
-              : 'Maybe. I’m not there yet.',
-            effects: ({ player, npc }) => {
-              const agrees = responseMode.mode === 'truth' || responseMode.mode === 'softTruth';
+            npcReplyByStance: {
+              DEFAULT: ['Maybe. I’m not there yet.'],
+              TRUTH: ['That’s a fair point. Big assets become big targets.'],
+              REASSURE: ['That’s a fair point. Big assets become big targets.']
+            },
+            effects: ({ player, npc, stance }) => {
+              const agrees = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE;
               this._applyExchangeEffects({
                 player,
                 npc,
@@ -3116,7 +3329,13 @@ class ConversationSystem {
                 contextTag: 'gossip_asset_danger'
               });
               if (agrees && topAsset) {
-                this._recordIntel(npc.id, { type: 'threat_seeded', targetId: topAsset.id, targetName: topAsset.firstName });
+                this._recordIntel(npc.id, {
+                  type: 'threat_callout',
+                  subjectId: topAsset.id,
+                  sourceId: npc.id,
+                  targetId: topAsset.id,
+                  truth: 'unknown'
+                });
               }
             }
           },
@@ -3124,7 +3343,7 @@ class ConversationSystem {
             id: 'asset_neutral',
             buttonText: 'Neutral',
             playerLine: 'Noted.',
-            npcResponseGenerator: () => 'We’ll see how it plays.',
+            npcReplyByStance: { DEFAULT: ['We’ll see how it plays.'] },
             effects: () => {}
           }
         ]
@@ -3134,17 +3353,25 @@ class ConversationSystem {
         buttonText: 'Who’s dead weight?',
         playerLine: 'Who feels like dead weight right now?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
           const line = buildNameReply({
-            mode: responseMode.mode,
+            stance,
             truthLine: lowAsset ? `I hate saying it, but ${lowAsset.firstName} hasn’t contributed.` : 'I’m not calling anyone dead weight.',
             deflectLine: 'I’m not throwing anyone under the bus.'
           });
-          if (responseMode.mode === 'truth' && lowAsset) {
-            this._recordIntel(npc.id, { type: 'dead_weight', targetId: lowAsset.id, targetName: lowAsset.firstName });
+          if ((stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) && lowAsset) {
+            this._recordIntel(npc.id, {
+              type: 'name_thrown_out',
+              subjectId: lowAsset.id,
+              sourceId: npc.id,
+              targetId: lowAsset.id,
+              truth: true
+            });
           }
           return line;
+        }]
         }
       },
       {
@@ -3152,17 +3379,25 @@ class ConversationSystem {
         buttonText: 'Who’s suspicious?',
         playerLine: 'Who’s giving you sketchy energy?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
           const line = buildNameReply({
-            mode: responseMode.mode,
+            stance,
             truthLine: topSuspicious ? `${topSuspicious.firstName}… I can’t read them. It doesn’t feel clean.` : 'I’m not saying names.',
             deflectLine: 'I’m not saying names.'
           });
-          if (responseMode.mode === 'truth' && topSuspicious) {
-            this._recordIntel(npc.id, { type: 'suspicious', targetId: topSuspicious.id, targetName: topSuspicious.firstName });
+          if ((stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) && topSuspicious) {
+            this._recordIntel(npc.id, {
+              type: 'name_thrown_out',
+              subjectId: topSuspicious.id,
+              sourceId: npc.id,
+              targetId: topSuspicious.id,
+              truth: true
+            });
           }
           return line;
+        }]
         }
       },
       {
@@ -3170,18 +3405,26 @@ class ConversationSystem {
         buttonText: 'Whose name is coming up?',
         playerLine: 'Whose name is coming up when people whisper?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
           const target = topSuspicious || topThreat || closeWith;
           const line = buildNameReply({
-            mode: responseMode.mode,
+            stance,
             truthLine: target ? `I’ve heard ${target.firstName} once or twice.` : 'I haven’t heard anything concrete.',
             lieLine: 'Nobody’s saying anything.'
           });
-          if (responseMode.mode === 'truth' && target) {
-            this._recordIntel(npc.id, { type: 'name_coming_up', targetId: target.id, targetName: target.firstName });
+          if ((stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) && target) {
+            this._recordIntel(npc.id, {
+              type: 'name_thrown_out',
+              subjectId: target.id,
+              sourceId: npc.id,
+              targetId: target.id,
+              truth: true
+            });
           }
           return line;
+        }]
         }
       },
       {
@@ -3189,29 +3432,39 @@ class ConversationSystem {
         buttonText: 'Who’s working together?',
         playerLine: 'Who do you think is working together?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
           const duo = this._pickLikelyDuo(npc);
           const line = buildNameReply({
-            mode: responseMode.mode,
+            stance,
             truthLine: duo ? `If I had to guess? ${duo[0].firstName} and ${duo[1].firstName} keep ending up together.` : 'It’s just a vibe… but watch who pairs up.',
             deflectLine: 'It’s just a vibe… but watch who pairs up.'
           });
-          if (responseMode.mode === 'truth' && duo) {
-            this._recordIntel(npc.id, { type: 'duo_watch', targetIds: [duo[0].id, duo[1].id], targetNames: [duo[0].firstName, duo[1].firstName] });
+          if ((stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) && duo) {
+            this._recordIntel(npc.id, {
+              type: 'work_duo',
+              subjectId: duo[0].id,
+              sourceId: npc.id,
+              targetId: duo[1].id,
+              truth: true
+            });
           }
           return line;
+        }]
         }
       },
       {
         id: 'quick_read',
         buttonText: 'Quick read',
         playerLine: 'Give me your quick read. One sentence.',
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           applyGossipRisk();
-          if (responseMode.mode === 'truth') return 'It’s calm on the surface, but every smile feels strategic.';
-          if (responseMode.mode === 'deflect') return 'I’m still absorbing. It’s early.';
+          if (stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) return 'It’s calm on the surface, but every smile feels strategic.';
+          if (stance === NPC_STANCES.DEFLECT || stance === NPC_STANCES.COUNTER) return 'I’m still absorbing. It’s early.';
           return 'People are friendly, but I’m not sleeping easy.';
+        }]
         }
       }
     ];
@@ -3224,34 +3477,38 @@ class ConversationSystem {
         buttonText: 'Have you looked?',
         playerLine: 'Be honest — have you looked for an idol?',
         askedForNames: false,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           this._setIntelFlag(npc, 'idolTalk', true);
           this._setIntelFlag(player, 'idolTalk', true);
           const paranoia = npc.paranoia ?? 0;
           const style = (npc.gameplayStyle || '').toLowerCase();
-          if (responseMode.mode === 'lie' || style.includes('shadow') || paranoia > 70) {
+          if (stance === NPC_STANCES.LIE || style.includes('shadow') || paranoia > 70) {
             return 'No. Not yet.';
           }
           return Math.random() < 0.5 ? 'Yeah. I’ve looked a little.' : 'No. Not yet.';
+        }]
         },
         effects: ({ player, npc }) => {
           this._applyExchangeEffects({ player, npc, deltas: { paranoia: 1 }, contextTag: 'idol_looked' });
         },
-        nextNodes: ({ responseMode }) => {
-          const saidYes = responseMode.mode === 'truth' && Math.random() < 0.5;
+        nextNodes: ({ stance }) => {
+          const saidYes = stance === NPC_STANCES.TRUTH && Math.random() < 0.5;
           if (saidYes) {
             return [
               {
                 id: 'idol_found',
                 buttonText: 'Found anything?',
                 playerLine: 'Did you find anything? Even a clue?',
-                npcResponseGenerator: ({ responseMode: followMode }) => {
+                npcReplyByStance: {
+                  DEFAULT: [({ stance: followStance }) => {
                   if (npc.hasIdol || npc.hasIdolClue) {
-                    return followMode.mode === 'truth'
+                    return followStance === NPC_STANCES.TRUTH || followStance === NPC_STANCES.REASSURE
                       ? 'Yeah. I found something. I’m keeping it quiet.'
                       : 'No. Nothing.';
                   }
                   return 'No. Nothing.';
+                }]
                 }
               }
             ];
@@ -3261,7 +3518,7 @@ class ConversationSystem {
               id: 'idol_player_looked',
               buttonText: 'I have',
               playerLine: 'I have. I’m not hiding it.',
-              npcResponseGenerator: () => 'Okay. That’s good to know.',
+              npcReplyByStance: { DEFAULT: ['Okay. That’s good to know.'] },
               effects: ({ player, npc }) => {
                 this._applyExchangeEffects({ player, npc, deltas: { paranoia: getRandomInt(1, 2), suspicion: getRandomInt(0, 1) }, contextTag: 'idol_player_looked' });
               }
@@ -3270,7 +3527,7 @@ class ConversationSystem {
               id: 'idol_player_not',
               buttonText: 'I haven’t',
               playerLine: 'I haven’t. Not yet.',
-              npcResponseGenerator: () => 'Alright. Just keep me posted.',
+              npcReplyByStance: { DEFAULT: ['Alright. Just keep me posted.'] },
               effects: ({ player, npc }) => {
                 this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'idol_player_not' });
               }
@@ -3282,14 +3539,16 @@ class ConversationSystem {
         id: 'idol_found_direct',
         buttonText: 'Have you found anything?',
         playerLine: 'Did you find anything? Even a clue?',
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           this._setIntelFlag(npc, 'idolTalk', true);
           if (npc.hasIdol || npc.hasIdolClue) {
-            return responseMode.mode === 'truth'
+            return stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE
               ? 'Yeah. I found something. I’m keeping it tight.'
               : 'No. Nothing.';
           }
           return 'No. Nothing.';
+        }]
         },
         effects: ({ player, npc }) => {
           this._applyExchangeEffects({ player, npc, deltas: { paranoia: 1 }, contextTag: 'idol_found_direct' });
@@ -3300,20 +3559,28 @@ class ConversationSystem {
         buttonText: 'People talking idols?',
         playerLine: 'Are people talking idols? Anyone acting like they found something?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
           this._setIntelFlag(npc, 'idolTalk', true);
           const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
           const chatter = candidates.find(member => member._intelFlags?.idolTalk);
           const idolSus = candidates.sort((a, b) => (b.idolSuspicion ?? b.suspicion ?? 0) - (a.idolSuspicion ?? a.suspicion ?? 0))[0];
           const named = chatter || idolSus;
-          if (responseMode.mode === 'truth' && idolSus && this._getPairTrust(player.id, npc.id) > 60) {
-            this._recordIntel(npc.id, { type: 'idol_chatter', targetId: named?.id, targetName: named?.firstName });
+          if (stance === NPC_STANCES.TRUTH && idolSus && this._getPairTrust(player.id, npc.id) > 60) {
+            this._recordIntel(npc.id, {
+              type: 'idol_rumor',
+              subjectId: named?.id,
+              sourceId: npc.id,
+              targetId: named?.id,
+              truth: true
+            });
             return named
               ? `People are definitely acting weird about it. ${named.firstName} feels jumpy.`
               : 'People are definitely acting weird about it.';
           }
-          if (responseMode.mode === 'deflect') return 'I haven’t heard anything solid.';
+          if (stance === NPC_STANCES.DEFLECT || stance === NPC_STANCES.COUNTER) return 'I haven’t heard anything solid.';
           return 'I haven’t heard anything.';
+        }]
         },
         effects: ({ player, npc }) => {
           this._applyExchangeEffects({ player, npc, deltas: { paranoia: 1 }, contextTag: 'idol_chatter' });
@@ -3332,32 +3599,44 @@ class ConversationSystem {
         buttonText: 'Vote read',
         playerLine: 'What do you think the majority wants next?',
         askedForNames: true,
-        npcResponseGenerator: ({ responseMode }) => {
-          const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
-          const target = candidates.sort((a, b) => (b.threat ?? 0) - (a.threat ?? 0))[0];
-          if (responseMode.mode === 'truth' && target) {
-            this._recordIntel(npc.id, { type: 'vote_read', targetId: target.id, targetName: target.firstName });
-            return `If I’m guessing… ${target.firstName}.`;
-          }
-          return 'It’s still forming. I’m watching where it tilts.';
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
+            const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
+            const target = candidates.sort((a, b) => (b.threat ?? 0) - (a.threat ?? 0))[0];
+            if (stance === NPC_STANCES.TRUTH && target) {
+              this._recordIntel(npc.id, {
+                type: 'vote_read',
+                subjectId: target.id,
+                sourceId: npc.id,
+                targetId: target.id,
+                truth: true
+              });
+              return `If I’m guessing… ${target.firstName}.`;
+            }
+            return 'It’s still forming. I’m watching where it tilts.';
+          }]
         },
         nextNodes: () => [
           {
             id: 'vote_read_agree',
             buttonText: 'Do you agree?',
             playerLine: 'Do you agree with that?',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-              ? 'Yeah. It tracks.'
-              : 'I’m not locking in yet.',
+            npcReplyByStance: {
+              DEFAULT: ['I’m not locking in yet.'],
+              TRUTH: ['Yeah. It tracks.'],
+              REASSURE: ['Yeah. It tracks.']
+            },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'strategy_vote_agree' })
           },
           {
             id: 'vote_read_help',
             buttonText: 'Need help',
             playerLine: 'If it’s me, I need help.',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-              ? 'Then we should talk about a counter.'
-              : 'Let’s see what shakes out.',
+            npcReplyByStance: {
+              DEFAULT: ['Let’s see what shakes out.'],
+              TRUTH: ['Then we should talk about a counter.'],
+              REASSURE: ['Then we should talk about a counter.']
+            },
             afterReply: () => this._showDealTypeMenu({ player, npc, context })
           }
         ]
@@ -3366,28 +3645,32 @@ class ConversationSystem {
         id: 'pitch_target',
         buttonText: 'Pitch a target',
         playerLine: 'I want to pitch a target to you.',
-        npcResponseGenerator: () => 'Okay. Who are you thinking?',
+        npcReplyByStance: { DEFAULT: ['Okay. Who are you thinking?'] },
         afterReply: () => this._showTargetPitchMenu({ player, npc, context })
       },
       {
         id: 'deflect_target',
         buttonText: 'Deflect a target',
         playerLine: 'If my name comes up, I need a deflect plan.',
-        npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-          ? 'Then we line up a safer name.'
-          : 'That’s tricky. We’ll have to see.',
+        npcReplyByStance: {
+          DEFAULT: ['That’s tricky. We’ll have to see.'],
+          TRUTH: ['Then we line up a safer name.'],
+          REASSURE: ['Then we line up a safer name.']
+        },
         afterReply: () => this._showTargetPitchMenu({ player, npc, context, mode: 'deflect' })
       },
       {
         id: 'backup_plan',
         buttonText: 'Backup plan',
         playerLine: 'If an idol gets played, what’s the backup plan?',
-        npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-          ? 'We need a secondary target in our pocket. Quiet, but real.'
-          : 'That’s a lot… but yeah, we need a backup.',
-        effects: ({ player, npc }) => {
-          const trustDelta = responseMode.mode === 'truth' ? 1 : 0;
-          const suspicionDelta = responseMode.mode === 'guarded' ? 1 : 0;
+        npcReplyByStance: {
+          DEFAULT: ['That’s a lot… but yeah, we need a backup.'],
+          TRUTH: ['We need a secondary target in our pocket. Quiet, but real.'],
+          REASSURE: ['We need a secondary target in our pocket. Quiet, but real.']
+        },
+        effects: ({ player, npc, stance }) => {
+          const trustDelta = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? 1 : 0;
+          const suspicionDelta = stance === NPC_STANCES.DEFLECT ? 1 : 0;
           this._applyExchangeEffects({ player, npc, deltas: { trust: trustDelta, suspicion: suspicionDelta }, contextTag: 'strategy_backup' });
         }
       },
@@ -3395,7 +3678,7 @@ class ConversationSystem {
         id: 'offer_deal',
         buttonText: 'Offer a deal',
         playerLine: 'Can we lock something in?',
-        npcResponseGenerator: () => 'What kind of deal are you thinking?',
+        npcReplyByStance: { DEFAULT: ['What kind of deal are you thinking?'] },
         afterReply: () => this._showDealTypeMenu({ player, npc, context })
       },
       {
@@ -3404,7 +3687,9 @@ class ConversationSystem {
         disabled: shared.length === 0,
         tooltip: shared.length === 0 ? 'No shared alliance' : '',
         playerLine: 'Let’s talk alliance.',
-        npcResponseGenerator: () => shared.length ? 'Which piece do you want to tighten up?' : 'We don’t share an alliance yet.',
+        npcReplyByStance: {
+          DEFAULT: [() => shared.length ? 'Which piece do you want to tighten up?' : 'We don’t share an alliance yet.']
+        },
         afterReply: () => {
           if (!shared.length) {
             this._renderMenu(npc, 'No shared alliance yet.', [], { onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }), showEnd: true });
@@ -3422,24 +3707,28 @@ class ConversationSystem {
         id: 'call_out_tension',
         buttonText: 'Call out tension',
         playerLine: 'Something feels off between us. What’s going on?',
-        npcResponseGenerator: ({ responseMode }) => {
-          const trust = this._getPairTrust(player.id, npc.id);
-          const relationship = this._getRelationshipValue(player.id, npc.id);
-          if (trust > 60 && relationship > 55) return 'We’re good. It’s just stress out here.';
-          if (responseMode.mode === 'truth') return 'I felt like you were circling me in conversations.';
-          return 'I heard my name connected to you.';
+        npcReplyByStance: {
+          DEFAULT: [({ stance }) => {
+            const trust = this._getPairTrust(player.id, npc.id);
+            const relationship = this._getRelationshipValue(player.id, npc.id);
+            if (trust > 60 && relationship > 55) return 'We’re good. It’s just stress out here.';
+            if (stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) return 'I felt like you were circling me in conversations.';
+            return 'I heard my name connected to you.';
+          }]
         },
         nextNodes: () => [
           {
             id: 'tension_deny',
             buttonText: 'That wasn’t me',
             playerLine: 'That wasn’t me.',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-              ? 'Alright. I’ll watch how it plays out.'
-              : 'I’m still not sure.',
-            effects: ({ player, npc, responseMode }) => {
-              const trustDelta = responseMode.mode === 'truth' ? 0 : -4;
-              const suspicionDelta = responseMode.mode === 'truth' ? 0 : 2;
+            npcReplyByStance: {
+              DEFAULT: ['I’m still not sure.'],
+              TRUTH: ['Alright. I’ll watch how it plays out.'],
+              REASSURE: ['Alright. I’ll watch how it plays out.']
+            },
+            effects: ({ player, npc, stance }) => {
+              const trustDelta = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? 0 : -4;
+              const suspicionDelta = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? 0 : 2;
               this._applyExchangeEffects({ player, npc, deltas: { trust: trustDelta, suspicion: suspicionDelta }, contextTag: 'confront_deny' });
             }
           },
@@ -3447,17 +3736,24 @@ class ConversationSystem {
             id: 'tension_own',
             buttonText: 'You’re right',
             playerLine: 'You’re right. I got sloppy.',
-            npcResponseGenerator: () => 'I respect the honesty. Just tighten it up.',
+            npcReplyByStance: { DEFAULT: ['I respect the honesty. Just tighten it up.'] },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: 3 }, contextTag: 'confront_own' })
           },
           {
             id: 'tension_source',
             buttonText: 'Who said that?',
             playerLine: 'Who said that?',
-            npcResponseGenerator: ({ responseMode }) => responseMode.mode === 'truth'
-              ? 'I heard it from someone near the shelter. I’m not naming names.'
-              : 'It’s just a vibe. No source.',
-            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: responseMode.mode === 'truth' ? 0 : 1 }, contextTag: 'confront_source' })
+            npcReplyByStance: {
+              DEFAULT: ['It’s just a vibe. No source.'],
+              TRUTH: ['I heard it from someone near the shelter. I’m not naming names.'],
+              REASSURE: ['I heard it from someone near the shelter. I’m not naming names.']
+            },
+            effects: ({ player, npc, stance }) => this._applyExchangeEffects({
+              player,
+              npc,
+              deltas: { suspicion: stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? 0 : 1 },
+              contextTag: 'confront_source'
+            })
           }
         ]
       },
@@ -3465,27 +3761,35 @@ class ConversationSystem {
         id: 'confront_rumor',
         buttonText: 'Confront rumor',
         playerLine: 'I heard you said my name.',
-        npcResponseGenerator: ({ responseMode }) => {
-          if (responseMode.mode === 'truth') return 'I did — and here’s why. I was covering myself.';
-          if (responseMode.mode === 'deflect') return 'Who told you that?';
-          return 'No, I never said that.';
+        npcReplyByStance: {
+          DEFAULT: ['No, I never said that.'],
+          TRUTH: ['I did — and here’s why. I was covering myself.'],
+          REASSURE: ['I did — and here’s why. I was covering myself.'],
+          DEFLECT: ['Who told you that?'],
+          COUNTER: ['Who told you that?']
         },
         nextNodes: () => [
           {
             id: 'rumor_no_name',
             buttonText: 'Not naming',
             playerLine: 'I’m not naming names.',
-            npcResponseGenerator: () => 'Then we leave it there.',
+            npcReplyByStance: { DEFAULT: ['Then we leave it there.'] },
             effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { suspicion: 1 }, contextTag: 'confront_rumor_noname' })
           },
           {
             id: 'rumor_name',
             buttonText: 'Name source',
             playerLine: 'It was someone else.',
-            npcResponseGenerator: () => 'Interesting. I’ll keep my eyes open.',
+            npcReplyByStance: { DEFAULT: ['Interesting. I’ll keep my eyes open.'] },
             effects: ({ player, npc }) => {
               this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'confront_rumor_name' });
-              this._recordIntel(npc.id, { type: 'source_named', note: 'player_named_source' });
+              this._recordIntel(npc.id, {
+                type: 'name_thrown_out',
+                subjectId: player.id,
+                sourceId: npc.id,
+                targetId: player.id,
+                truth: 'unknown'
+              });
             }
           }
         ]
@@ -3494,7 +3798,7 @@ class ConversationSystem {
         id: 'apologize',
         buttonText: 'Apologize',
         playerLine: 'I want to clear the air.',
-        npcResponseGenerator: () => 'Alright. What are you owning?',
+        npcReplyByStance: { DEFAULT: ['Alright. What are you owning?'] },
         afterReply: () => this._showApologyMenu({ player, npc, context })
       }
     ];
@@ -3539,10 +3843,11 @@ class ConversationSystem {
   }
 
   _buildTalkAboutSomeoneNode({ player, npc, context, target, angle }) {
-    const buildReply = ({ responseMode, truth, lie, deflect }) => {
-      if (responseMode.mode === 'truth' || responseMode.mode === 'softTruth') return truth;
-      if (responseMode.mode === 'lie') return lie || deflect;
-      if (responseMode.mode === 'counterQ') return 'Why are you asking me that?';
+    const buildReply = ({ stance, truth, lie, deflect }) => {
+      if (stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) return truth;
+      if (stance === NPC_STANCES.LIE) return lie || deflect;
+      if (stance === NPC_STANCES.COUNTER) return 'Why are you asking me that?';
+      if (stance === NPC_STANCES.PRESSURE) return deflect || lie;
       return deflect;
     };
     const rel = this._getRelationshipValue(npc.id, target.id);
@@ -3555,7 +3860,7 @@ class ConversationSystem {
       id: `talk_${angle}_${target.id}`,
       buttonText: 'Continue',
       playerLine: '',
-      npcResponseGenerator: () => '',
+      npcReplyByStance: { DEFAULT: [''] },
       effects: () => {}
     };
 
@@ -3565,48 +3870,56 @@ class ConversationSystem {
           ...baseNode,
           buttonText: 'Do you trust them?',
           playerLine: 'Do you trust them?',
-          npcResponseGenerator: ({ responseMode }) => buildReply({
-            responseMode,
-            truth: rel > 60 ? `Yeah, I trust ${target.firstName} more than most.` : `${target.firstName}… I’m not fully there.`,
-            lie: `${target.firstName} feels solid. No issues.`,
-            deflect: 'I’m not putting trust on anyone out loud.'
-          })
+          npcReplyByStance: {
+            DEFAULT: [({ stance }) => buildReply({
+              stance,
+              truth: rel > 60 ? `Yeah, I trust ${target.firstName} more than most.` : `${target.firstName}… I’m not fully there.`,
+              lie: `${target.firstName} feels solid. No issues.`,
+              deflect: 'I’m not putting trust on anyone out loud.'
+            })]
+          }
         };
       case 'how_you_see':
         return {
           ...baseNode,
           buttonText: 'How do you see them?',
           playerLine: 'How do you see them?',
-          npcResponseGenerator: ({ responseMode }) => buildReply({
-            responseMode,
-            truth: rel > 60 ? 'They’re a connector. People like them.' : 'They’re a wildcard to me.',
-            lie: 'They’re not on my radar.',
-            deflect: 'It’s early. I’m still reading.'
-          })
+          npcReplyByStance: {
+            DEFAULT: [({ stance }) => buildReply({
+              stance,
+              truth: rel > 60 ? 'They’re a connector. People like them.' : 'They’re a wildcard to me.',
+              lie: 'They’re not on my radar.',
+              deflect: 'It’s early. I’m still reading.'
+            })]
+          }
         };
       case 'dangerous':
         return {
           ...baseNode,
           buttonText: 'They’re dangerous long-term',
           playerLine: 'They’re dangerous long-term.',
-          npcResponseGenerator: ({ responseMode }) => buildReply({
-            responseMode,
-            truth: (target.threat ?? 0) > 60 ? 'I can see that. They’re built for late game.' : 'Maybe. I’m not convinced.',
-            lie: 'Nah, not really.',
-            deflect: 'Could be, but I’m not calling it yet.'
-          })
+          npcReplyByStance: {
+            DEFAULT: [({ stance }) => buildReply({
+              stance,
+              truth: (target.threat ?? 0) > 60 ? 'I can see that. They’re built for late game.' : 'Maybe. I’m not convinced.',
+              lie: 'Nah, not really.',
+              deflect: 'Could be, but I’m not calling it yet.'
+            })]
+          }
         };
       case 'idol':
         return {
           ...baseNode,
           buttonText: 'They might have an idol',
           playerLine: 'They might have an idol.',
-          npcResponseGenerator: ({ responseMode }) => buildReply({
-            responseMode,
-            truth: idolSuspicion > 55 ? 'I’ve had that thought too.' : 'I haven’t seen anything that screams idol.',
-            lie: 'Yeah, I think so.',
-            deflect: 'I’m not speculating on idols.'
-          }),
+          npcReplyByStance: {
+            DEFAULT: [({ stance }) => buildReply({
+              stance,
+              truth: idolSuspicion > 55 ? 'I’ve had that thought too.' : 'I haven’t seen anything that screams idol.',
+              lie: 'Yeah, I think so.',
+              deflect: 'I’m not speculating on idols.'
+            })]
+          },
           effects: ({ player, npc }) => {
             this._applyExchangeEffects({ player, npc, deltas: { suspicion: getRandomInt(0, 1) }, contextTag: 'talk_idol' });
           }
@@ -3616,19 +3929,21 @@ class ConversationSystem {
           ...baseNode,
           buttonText: 'They said your name',
           playerLine: 'They said your name.',
-          npcResponseGenerator: ({ responseMode }) => buildReply({
-            responseMode,
-            truth: 'If that’s true, I’m glad you told me.',
-            lie: 'That doesn’t sound right.',
-            deflect: 'Who told you that?'
-          })
+          npcReplyByStance: {
+            DEFAULT: [({ stance }) => buildReply({
+              stance,
+              truth: 'If that’s true, I’m glad you told me.',
+              lie: 'That doesn’t sound right.',
+              deflect: 'Who told you that?'
+            })]
+          }
         };
       case 'said_name':
         return {
           ...baseNode,
           buttonText: 'They said a name…',
           playerLine: 'They said a name…',
-          npcResponseGenerator: () => 'Whose name did they say?',
+          npcReplyByStance: { DEFAULT: ['Whose name did they say?'] },
           afterReply: () => {
             const candidates = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id });
             this._renderPickList({
@@ -3636,7 +3951,13 @@ class ConversationSystem {
               title: 'Pick the name they said:',
               candidates,
               onPick: picked => {
-                this._recordIntel(npc.id, { type: 'name_drop', targetId: picked.id, targetName: picked.firstName, sourceId: target.id });
+                this._recordIntel(npc.id, {
+                  type: 'name_thrown_out',
+                  subjectId: picked.id,
+                  sourceId: npc.id,
+                  targetId: picked.id,
+                  truth: 'unknown'
+                });
                 this._renderMenu(npc, 'Got it. I’ll keep that in mind.', [], {
                   onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
                   showEnd: true
@@ -3651,7 +3972,7 @@ class ConversationSystem {
           ...baseNode,
           buttonText: 'They’re aligned with…',
           playerLine: 'They’re aligned with someone.',
-          npcResponseGenerator: () => 'Who do you think they’re aligned with?',
+          npcReplyByStance: { DEFAULT: ['Who do you think they’re aligned with?'] },
           afterReply: () => {
             const candidates = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id }).filter(member => member.id !== target.id);
             this._renderPickList({
@@ -3659,7 +3980,13 @@ class ConversationSystem {
               title: 'Pick the ally:',
               candidates,
               onPick: picked => {
-                this._recordIntel(npc.id, { type: 'alignment_callout', targetId: target.id, targetName: target.firstName, allyId: picked.id, allyName: picked.firstName });
+                this._recordIntel(npc.id, {
+                  type: 'work_duo',
+                  subjectId: target.id,
+                  sourceId: npc.id,
+                  targetId: picked.id,
+                  truth: 'unknown'
+                });
                 this._renderMenu(npc, 'Interesting. I’ll watch that.', [], {
                   onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
                   showEnd: true
@@ -3674,19 +4001,21 @@ class ConversationSystem {
           ...baseNode,
           buttonText: 'They’re loved by everyone',
           playerLine: 'They’re loved by everyone.',
-          npcResponseGenerator: ({ responseMode }) => buildReply({
-            responseMode,
-            truth: 'That’s the danger. People rally around them.',
-            lie: 'I don’t see that.',
-            deflect: 'Popular today, target tomorrow.'
-          })
+          npcReplyByStance: {
+            DEFAULT: [({ stance }) => buildReply({
+              stance,
+              truth: 'That’s the danger. People rally around them.',
+              lie: 'I don’t see that.',
+              deflect: 'Popular today, target tomorrow.'
+            })]
+          }
         };
       default:
         return {
           ...baseNode,
           buttonText: 'Neutral',
           playerLine: 'Just talking it out.',
-          npcResponseGenerator: () => 'Alright.'
+          npcReplyByStance: { DEFAULT: ['Alright.'] }
         };
     }
   }
@@ -3715,13 +4044,27 @@ class ConversationSystem {
       title: 'Pick a target to discuss:',
       candidates,
       onPick: target => {
-        const responseMode = this.decideNpcResponseMode({ player, npc, topic: 'strategy', riskLevel: 0.5, askedForNames: true, pressuring: mode === 'deflect' });
-        const reply = responseMode.mode === 'truth'
+        const stance = this.decideNpcStance({
+          topicId: 'strategy',
+          nodeId: mode === 'deflect' ? 'deflect_target' : 'pitch_target',
+          player,
+          npc,
+          context: { ...context, pressuring: mode === 'deflect' },
+          askedForNames: true,
+          riskLevel: 0.5
+        });
+        const reply = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE
           ? `That could work. ${target.firstName} is a viable name.`
-          : responseMode.mode === 'deflect'
+          : stance === NPC_STANCES.DEFLECT || stance === NPC_STANCES.COUNTER
             ? 'That’s a lot to commit to right now.'
             : 'I’m not sure that’s the right move.';
-        this._recordIntel(npc.id, { type: mode === 'deflect' ? 'deflect_target' : 'pitch_target', targetId: target.id, targetName: target.firstName });
+        this._recordIntel(npc.id, {
+          type: 'name_thrown_out',
+          subjectId: target.id,
+          sourceId: npc.id,
+          targetId: target.id,
+          truth: stance === NPC_STANCES.LIE ? false : 'unknown'
+        });
         this._renderMenu(npc, reply, [], {
           onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
           showEnd: true
@@ -6978,88 +7321,22 @@ class ConversationSystem {
     survivor,
     { intentOverride = null, isPurpose = false, meeting = null, location = null, context = {} } = {}
   ) {
-    const intent = intentOverride || this._chooseIntent(survivor, isPurpose);
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
-    const forceNodeFlow = Boolean(context.forceNodeFlow || initiator === 'player');
-
-    if (this._isInCamp() && !conversationContext.forceLegacyConversation) {
-      this.activeConversationContext = conversationContext;
-      if (initiator === 'npc') {
-        this._logConversationStart({ initiator, phase });
-        this._startNpcInitiatedConversation({
-          player: this.gameManager.getPlayerSurvivor?.(),
-          npc: survivor,
-          context: conversationContext
-        });
-      } else {
-        this._logConversationStart({ initiator, phase });
-        this._showTopicSelection(survivor, location);
-      }
-      return;
-    }
-
-    if (this._isDeterministicIntent(intent)) {
-      if (forceNodeFlow) {
-        this._startDeterministicNodeConversation(survivor, intent, conversationContext);
-        return;
-      }
-      this._startDeterministicConversation(survivor, intent, conversationContext);
-      return;
-    }
-
-    const flowKey = this._resolveConversationFlow(intent, conversationContext);
-    if (flowKey) {
-      this._startNodeFlowConversation(survivor, flowKey, conversationContext, intent);
-      return;
-    }
-
-    const dialogue = this._buildDialogue(intent, survivor, conversationContext);
-
-    if (intent === 'hardStrategy' && !dialogue.context?.topicPerson) {
-      const exclude = [survivor.id, this.gameManager.getPlayerSurvivor?.()?.id];
-      this.promptSurvivorPicker({
-        title: `${survivor.firstName} wants a target. Who do you suggest?`,
-        excludeIds: exclude
-      }).then(selectedId => {
-        if (!selectedId) {
-          this._showTopicSelection(survivor, location);
-          return;
-        }
-        const pick = this._getSurvivorById(selectedId);
-        if (!pick) {
-          this._showTopicSelection(survivor, location);
-          return;
-        }
-        this._startConversation(survivor, {
-          intentOverride: 'hardStrategy',
-          isPurpose,
-          meeting,
-          location,
-          context: { ...conversationContext, topicPerson: pick.firstName, stance: 'push' }
-        });
+    /* LEGACY INTENT SYSTEM — NO LONGER USED */
+    this.activeConversationContext = conversationContext;
+    if (initiator === 'npc') {
+      this._logConversationStart({ initiator, phase });
+      this._startNpcInitiatedConversation({
+        player: this.gameManager.getPlayerSurvivor?.(),
+        npc: survivor,
+        context: conversationContext
       });
-      return;
+    } else {
+      this._logConversationStart({ initiator, phase });
+      this._showTopicSelection(survivor, location);
     }
-
-    this._startNodeConversation(survivor, {
-      intent,
-      dialogue,
-      meeting,
-      context: {
-        ...conversationContext,
-        topicPersonName: dialogue.context?.topicPersonName || dialogue.context?.topicPerson || conversationContext.topicPersonName || conversationContext.topicPerson || null,
-        topicPersonId: dialogue.context?.topicPersonId || dialogue.context?.topicId || conversationContext.topicPersonId || conversationContext.topicId || null,
-        playerNamedAllyName: dialogue.context?.playerNamedAllyName || conversationContext.playerNamedAllyName || null,
-        npcTrustedPersonName: dialogue.context?.npcTrustedPersonName || conversationContext.npcTrustedPersonName || null,
-        targetName: dialogue.context?.targetName || null,
-        dealTopic: dialogue.context?.dealTopic || null,
-        intelPayload: dialogue.context?.intelPayload || null,
-        subTopic: dialogue.context?.subTopic || conversationContext.subTopic || null,
-        targetId: dialogue.context?.targetId || conversationContext.targetId || null
-      }
-    });
   }
 
   _startNodeConversation(survivor, { intent, dialogue, meeting = null, context = {} }) {
@@ -13017,6 +13294,9 @@ class ConversationSystem {
   }
 
   validateMenus() {
+    /* LEGACY INTENT SYSTEM — NO LONGER USED */
+    console.warn('ConversationSystem.validateMenus: Legacy intent validation disabled.');
+    return;
     if (!this._isConversationDebugEnabled()) {
       console.warn('ConversationSystem.validateMenus: Debug flag not enabled. Set window.DEBUG_CONVERSATION = true to run.');
       return;
@@ -13080,18 +13360,25 @@ class ConversationSystem {
     topics.forEach(topic => {
       const node = topic.nodes?.[0];
       if (!node) return;
-      const responseMode = this.decideNpcResponseMode({
+      const stance = this.decideNpcStance({
+        topicId: topic.id,
+        nodeId: node.id,
         player,
         npc,
-        topic: topic.id,
-        riskLevel: node.riskLevel ?? 0.3,
+        context,
         askedForNames: Boolean(node.askedForNames),
-        pressuring: Boolean(node.pressuring)
+        riskLevel: node.riskLevel ?? 0.3
       });
       const playerLine = typeof node.playerLine === 'function'
         ? node.playerLine({ player, npc, context })
         : node.playerLine;
-      const npcLine = node.npcResponseGenerator({ player, npc, context, responseMode });
+      const npcLine = this._selectNpcReply({
+        npcReplyByStance: node.npcReplyByStance,
+        stance,
+        player,
+        npc,
+        context
+      });
       results.push({
         topic: topic.label,
         playerLine,
