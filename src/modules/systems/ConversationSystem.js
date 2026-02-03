@@ -413,14 +413,17 @@ class ConversationSystem {
     const style = document.createElement('style');
     style.dataset.conversationStyles = 'true';
     style.textContent = `
-      .convo-line { margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-start; }
-      .convo-speaker { font-weight: 700; letter-spacing: 0.6px; opacity: 0.95; text-transform: uppercase; min-width: 74px; }
+      .convo-line { margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start; }
+      .convo-line:last-child { margin-bottom: 0; }
+      .convo-speaker { font-weight: 700; letter-spacing: 0.6px; opacity: 1; min-width: 92px; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35); }
       .convo-npc .convo-speaker { color: #ffd28a; }
-      .convo-player .convo-speaker { color: #5cc7ff; }
+      .convo-player .convo-speaker { color: #7dd7ff; font-weight: 800; }
       .convo-text { line-height: 1.45; flex: 1; }
+      .convo-player .convo-text { color: #f3fbff; font-weight: 600; }
       .convo-name { font-weight: 700; color: #2b190a; }
-      .convo-narration { opacity: 0.75; color: #e9e9e9; font-style: italic; }
-      .convo-narration .convo-speaker { color: #c7c7c7; }
+      .convo-narration { opacity: 0.75; color: #e0e0e0; font-style: italic; }
+      .convo-narration .convo-speaker { color: #c7c7c7; text-transform: uppercase; }
+      .convo-narration .convo-text { font-size: 0.92em; color: #d4d4d4; }
     `;
     document.head.appendChild(style);
     this._stylesInjected = true;
@@ -429,7 +432,7 @@ class ConversationSystem {
   _fmtNpcLine(npc, text) {
     if (!text) return '';
     const name = npc?.firstName || 'NPC';
-    return `<div class="convo-line convo-npc"><div class="convo-speaker">NPC</div><div class="convo-text"><span class="convo-name">${name}</span>: "${text}"</div></div>`;
+    return `<div class="convo-line convo-npc"><div class="convo-speaker">${name}</div><div class="convo-text">"${text}"</div></div>`;
   }
 
   _fmtPlayerLine(player, text) {
@@ -509,6 +512,8 @@ class ConversationSystem {
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
+    const session = this._getActiveTranscriptSession();
+    if (session) session._justLoggedYou = false;
     this._scrollTranscriptToBottom();
   }
 
@@ -567,12 +572,68 @@ class ConversationSystem {
 
   _ensureTranscriptHelpers(session) {
     if (!session || session.addYou || session.addNpc || session.addNarration) return;
-    session.addYou = text => this._addTranscriptEntry(session, { speaker: 'YOU', text });
+    session.addYou = text => {
+      session._justLoggedYou = true;
+      this._addTranscriptEntry(session, { speaker: 'YOU', text });
+    };
     session.addNpc = text => {
       const npc = session.npcId ? this._getSurvivorById(session.npcId) : null;
       this._addTranscriptEntry(session, { speaker: 'NPC', text, name: npc?.firstName || 'NPC' });
+      session._justLoggedYou = false;
     };
     session.addNarration = text => this._addTranscriptEntry(session, { speaker: 'NARRATION', text });
+  }
+
+  _cleanChoiceLabel(label) {
+    if (!label) return '';
+    const cleaned = String(label).replace(/\s+/g, ' ').trim();
+    const withoutEllipsis = cleaned.replace(/(\.\.\.|…)\s*$/, '').trim();
+    return withoutEllipsis || cleaned;
+  }
+
+  _isQuestionLike(text) {
+    if (!text) return false;
+    const trimmed = String(text).trim();
+    return trimmed.endsWith('?');
+  }
+
+  _runPickFlow({ npc, player, context, pickSpec, onPick, returnTo, stance }) {
+    if (!pickSpec) return;
+    const session = this._getActiveTranscriptSession(this.nodeSession);
+    const type = pickSpec?.type || 'TRIBE_MEMBER';
+    let candidates = [];
+    if (type === 'TRIBE_MEMBER') {
+      candidates = pickSpec.candidates || this._getTribeMembers({
+        includeNpc: pickSpec.includeNpc ?? false,
+        includePlayer: pickSpec.includePlayer ?? false,
+        npcId: npc?.id
+      });
+    }
+    const title = pickSpec.title || 'Pick a name:';
+    if (!candidates.length) {
+      this._renderMenu(npc, this._buildTranscriptBody({ session, narration: 'No valid picks available.' }), [], {
+        onBack: returnTo,
+        showEnd: true
+      });
+      return;
+    }
+    this._renderPickList({
+      npc,
+      title,
+      candidates,
+      onPick: picked => {
+        if (typeof onPick === 'function') {
+          onPick({ picked, player, npc, context, stance, session });
+          session._justLoggedYou = false;
+          return;
+        }
+        session?.addYou?.(`It was ${picked.firstName}.`);
+        session?.addNpc?.('Got it.');
+        session._justLoggedYou = false;
+        this._renderMenu(npc, this._buildTranscriptBody({ session }), [], { onBack: returnTo, showEnd: true });
+      },
+      onBack: returnTo
+    });
   }
 
   _addTranscriptEntry(session, entry) {
@@ -679,9 +740,14 @@ class ConversationSystem {
       riskLevel: node.riskLevel ?? 0.3
     });
 
-    const playerLine = typeof node.playerLine === 'function'
+    const resolvedPlayerLine = typeof node.playerLine === 'function'
       ? node.playerLine({ player, npc, context })
       : node.playerLine;
+    const fallbackChoice = this._cleanChoiceLabel(context?._lastChoiceLabel);
+    if (context?._lastChoiceLabel) {
+      delete context._lastChoiceLabel;
+    }
+    const playerLine = resolvedPlayerLine || fallbackChoice;
     const npcReply = this._selectNpcReply({
       npcReplyByStance: node.npcReplyByStance,
       stance,
@@ -690,7 +756,7 @@ class ConversationSystem {
       context
     });
     // Log the player's line before any NPC response is rendered.
-    if (playerLine) session.addYou?.(playerLine);
+    if (playerLine && !session._justLoggedYou) session.addYou?.(playerLine);
 
     if (this.debugConvo) {
       this._debugLog('[CONVO-DEBUG] Node response', {
@@ -706,8 +772,89 @@ class ConversationSystem {
       ? node.nextNodes({ player, npc, context, stance })
       : (node.nextNodes || []);
 
-    const afterReply = () => {
+    const returnToFallback = returnTo || (() => this._renderMainMenu({
+      player,
+      npc,
+      context,
+      mainTopics: this._buildMainTopics({ player, npc, context })
+    }));
+
+    const handleAfterReply = () => {
+      if (this.debugConvo && this._isQuestionLike(npcReply) && !followupNodes.length && !node.afterReply && !node.requiresPick) {
+        console.warn(`[CONVO-DEBUG] Question reply without followups in node "${node.id || 'unknown'}":`, npcReply);
+      }
+      if (node.requiresPick) {
+        this._runPickFlow({
+          npc,
+          player,
+          context,
+          pickSpec: node.requiresPick,
+          onPick: node.onPick,
+          returnTo: returnToFallback,
+          stance
+        });
+        return;
+      }
+      if (typeof node.afterReply === 'function') {
+        node.afterReply({ player, npc, context, stance, npcReply, returnTo: returnToFallback, session });
+        return;
+      }
+      let followupButtons = followupNodes.map(nextNode => ({
+        label: nextNode.buttonText,
+        onClick: () => this._runConversationNode({
+          npc,
+          player,
+          node: nextNode,
+          context: { ...context, _lastChoiceLabel: nextNode.buttonText },
+          returnTo: returnToFallback
+        })
+      }));
+      if (!followupButtons.length && this._isQuestionLike(npcReply)) {
+        const candidates = this._getTribeMembers({ includeNpc: false, includePlayer: false, npcId: npc?.id });
+        followupButtons = [
+          {
+            label: 'Name them',
+            onClick: () => this._runPickFlow({
+              npc,
+              player,
+              context,
+              pickSpec: { type: 'TRIBE_MEMBER', title: 'Name the source:', candidates },
+              onPick: ({ picked, session: pickSession }) => {
+                pickSession?.addYou?.(`It was ${picked.firstName}.`);
+                pickSession?.addNpc?.(`Alright. I’ll keep an eye on ${picked.firstName}.`);
+                pickSession._justLoggedYou = false;
+                this._renderMenu(npc, this._buildTranscriptBody({ session: pickSession }), [], { onBack: returnToFallback, showEnd: true });
+              },
+              returnTo: returnToFallback,
+              stance
+            })
+          },
+          {
+            label: 'Keep it vague',
+            onClick: () => {
+              session?.addYou?.("I'd rather not say.");
+              session?.addNpc?.('Fair. Keep me posted if it gets real.');
+              session._justLoggedYou = false;
+              this._renderMenu(npc, this._buildTranscriptBody({ session }), [], { onBack: returnToFallback, showEnd: true });
+            }
+          },
+          {
+            label: 'It’s just a vibe',
+            onClick: () => {
+              session?.addYou?.('Just a feeling.');
+              session?.addNpc?.('Got it. I’ll keep listening.');
+              session._justLoggedYou = false;
+              this._renderMenu(npc, this._buildTranscriptBody({ session }), [], { onBack: returnToFallback, showEnd: true });
+            }
+          }
+        ];
+      }
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), followupButtons, { onBack: returnToFallback, showEnd: true });
+    };
+
+    const runReply = () => {
       session.addNpc?.(npcReply);
+      session._justLoggedYou = false;
       this._applyStanceEffects({
         player,
         npc,
@@ -727,26 +874,17 @@ class ConversationSystem {
           this._recordIntel(npc.id, payload);
         }
       }
-      if (typeof node.afterReply === 'function') {
-        node.afterReply({ player, npc, context, stance, npcReply, returnTo, session });
-        return;
-      }
-      const followupButtons = followupNodes.map(nextNode => ({
-        label: nextNode.buttonText,
-        onClick: () => this._runConversationNode({
-          npc,
-          player,
-          node: nextNode,
-          context,
-          returnTo
-        })
-      }));
-      this._renderMenu(npc, this._buildTranscriptBody({ session }), followupButtons, { onBack: returnTo, showEnd: true });
+      handleAfterReply();
     };
 
-    this._renderMenu(npc, this._buildTranscriptBody({ session }), [
-      { label: 'Continue', onClick: afterReply }
-    ], { onBack: null, showEnd: true });
+    if (node.requiresContinue) {
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), [
+        { label: 'Continue', onClick: runReply }
+      ], { onBack: returnToFallback, showEnd: true });
+      return;
+    }
+
+    runReply();
   }
 
   /**
@@ -1127,7 +1265,7 @@ class ConversationSystem {
           npc,
           player,
           node,
-          context: { ...context, mainTopicId: topic.id, subTopicId: node.id },
+          context: { ...context, mainTopicId: topic.id, subTopicId: node.id, _lastChoiceLabel: node.buttonText },
           returnTo: () => this._renderSubMenu({ player, npc, context, topic })
         })
     }));
@@ -1252,7 +1390,7 @@ class ConversationSystem {
         npc,
         player,
         node: responseNode,
-        context: { ...normalizedContext, mainTopicId: selectedTopic.id, subTopicId: responseNode.id },
+        context: { ...normalizedContext, mainTopicId: selectedTopic.id, subTopicId: responseNode.id, _lastChoiceLabel: responseNode.buttonText },
         returnTo: returnToMain
       })
     }));
@@ -2492,7 +2630,7 @@ class ConversationSystem {
         npc,
         player,
         node: this._buildTalkAboutSomeoneNode({ player, npc, context, target, angle: angle.id }),
-        context: { ...context, mainTopicId: 'talk_about_someone', subTopicId: angle.id, targetId: target.id },
+        context: { ...context, mainTopicId: 'talk_about_someone', subTopicId: angle.id, targetId: target.id, _lastChoiceLabel: angle.label },
         returnTo: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target })
       })
     }));
@@ -2609,30 +2747,25 @@ class ConversationSystem {
           buttonText: 'They said a name…',
           playerLine: 'They said a name…',
           npcReplyByStance: { DEFAULT: ['Whose name did they say?'] },
-          afterReply: () => {
-            const candidates = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id });
-            this._renderPickList({
-              npc,
-              title: 'Pick the name they said:',
-              candidates,
-              onPick: picked => {
-                const session = this._getActiveTranscriptSession();
-                // Log the player pick before the NPC reacts.
-                session?.addYou?.(`They said ${picked.firstName}.`);
-                this._recordIntel(npc.id, {
-                  type: 'name_thrown_out',
-                  subjectId: picked.id,
-                  sourceId: npc.id,
-                  targetId: picked.id,
-                  truth: 'unknown'
-                });
-                session?.addNpc?.('Got it. I’ll keep that in mind.');
-                this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
-                  onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
-                  showEnd: true
-                });
-              },
-              onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target })
+          requiresPick: {
+            type: 'TRIBE_MEMBER',
+            title: 'Pick the name they said:',
+            candidates: this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id })
+          },
+          onPick: ({ picked, session }) => {
+            // Log the player pick before the NPC reacts.
+            session?.addYou?.(`They said ${picked.firstName}.`);
+            this._recordIntel(npc.id, {
+              type: 'name_thrown_out',
+              subjectId: picked.id,
+              sourceId: npc.id,
+              targetId: picked.id,
+              truth: 'unknown'
+            });
+            session?.addNpc?.('Got it. I’ll keep that in mind.');
+            this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
+              onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
+              showEnd: true
             });
           }
         };
@@ -2642,30 +2775,26 @@ class ConversationSystem {
           buttonText: 'They’re aligned with…',
           playerLine: 'They’re aligned with someone.',
           npcReplyByStance: { DEFAULT: ['Who do you think they’re aligned with?'] },
-          afterReply: () => {
-            const candidates = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id }).filter(member => member.id !== target.id);
-            this._renderPickList({
-              npc,
-              title: 'Pick the ally:',
-              candidates,
-              onPick: picked => {
-                const session = this._getActiveTranscriptSession();
-                // Log the player pick before the NPC reacts.
-                session?.addYou?.(`Maybe ${picked.firstName}.`);
-                this._recordIntel(npc.id, {
-                  type: 'work_duo',
-                  subjectId: target.id,
-                  sourceId: npc.id,
-                  targetId: picked.id,
-                  truth: 'unknown'
-                });
-                session?.addNpc?.('Interesting. I’ll watch that.');
-                this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
-                  onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
-                  showEnd: true
-                });
-              },
-              onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target })
+          requiresPick: {
+            type: 'TRIBE_MEMBER',
+            title: 'Pick the ally:',
+            candidates: this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id })
+              .filter(member => member.id !== target.id)
+          },
+          onPick: ({ picked, session }) => {
+            // Log the player pick before the NPC reacts.
+            session?.addYou?.(`Maybe ${picked.firstName}.`);
+            this._recordIntel(npc.id, {
+              type: 'work_duo',
+              subjectId: target.id,
+              sourceId: npc.id,
+              targetId: picked.id,
+              truth: 'unknown'
+            });
+            session?.addNpc?.('Interesting. I’ll watch that.');
+            this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
+              onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
+              showEnd: true
             });
           }
         };
