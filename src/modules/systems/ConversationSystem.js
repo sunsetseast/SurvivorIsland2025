@@ -143,6 +143,7 @@ class ConversationSystem {
       window.ConversationSystem = window.ConversationSystem || {};
       window.ConversationSystem.validate = () => this.validate();
       window.ConversationSystem.validateMenus = () => this.validateMenus();
+      window.ConversationSystem.validateConversationNodes = () => this.validateConversationNodes();
       window.ConversationSystem.runSelfTest = () => this.runSelfTest();
     }
   }
@@ -417,7 +418,7 @@ class ConversationSystem {
       .convo-npc .convo-speaker { color: #ffd28a; }
       .convo-player .convo-speaker { color: #9fe3ff; }
       .convo-text { line-height: 1.45; }
-      .convo-narration { opacity: 0.85; color: #e9e9e9; }
+      .convo-narration { opacity: 0.75; color: #e9e9e9; font-style: italic; }
     `;
     document.head.appendChild(style);
     this._stylesInjected = true;
@@ -440,10 +441,14 @@ class ConversationSystem {
   }
 
   _formatMenuBody(text) {
-    if (!text) return '';
+    const transcript = Array.isArray(this.nodeSession?.transcript) ? this.nodeSession.transcript.join('') : '';
+    if (!text) return transcript;
     const raw = String(text);
-    if (raw.includes('convo-line')) return raw;
-    return this._fmtNarration(raw);
+    if (raw.includes('convo-line')) {
+      if (!transcript || raw.startsWith(transcript)) return raw;
+      return `${transcript}${raw}`;
+    }
+    return `${transcript}${this._fmtNarration(raw)}`;
   }
 
   _renderMenu(npc, text, options, { onBack = null, showEnd = true, scrollButtons = false } = {}) {
@@ -504,14 +509,52 @@ class ConversationSystem {
     content.appendChild(parchment);
   }
 
-  _renderPickList({ npc, title, candidates, onPick, onBack }) {
-    const body = `${this._fmtNarration(title)}${this._fmtNarration('Choose a name:')}`;
-    const buttons = candidates.map((member, index) => ({
-      label: member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName,
-      tooltip: member.seasonName || member.gameplayStyle || '',
-      onClick: () => onPick(member)
+  _renderPickList({ npc, title, candidates, onPick, onBack, extraOptions = [] }) {
+    const body = this._buildTranscriptBody({
+      session: this.nodeSession,
+      narration: `${title || 'Pick a name'}\nChoose a name:`
+    });
+    const nameCounts = candidates.reduce((acc, member) => {
+      const key = member.firstName || 'Unknown';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const buttons = candidates.map(member => {
+      const baseName = member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName;
+      const hasDuplicate = nameCounts[member.firstName] > 1;
+      const disambiguator = member.seasonName
+        || (member.lastName ? `${member.lastName[0]}.` : `${member.id}`.slice(-4));
+      const label = hasDuplicate ? `${baseName} (${disambiguator})` : baseName;
+      return {
+        label,
+        tooltip: member.seasonName || member.gameplayStyle || '',
+        onClick: () => onPick(member)
+      };
+    });
+    const extras = extraOptions.map(option => ({
+      label: option.label,
+      alt: option.alt || false,
+      onClick: option.onSelect || option.onClick
     }));
-    this._renderMenu(npc, body, buttons, { onBack, scrollButtons: true });
+    this._renderMenu(npc, body, [...buttons, ...extras], { onBack, scrollButtons: true });
+  }
+
+  _initTranscript(session) {
+    if (!session) return null;
+    if (!Array.isArray(session.transcript)) session.transcript = [];
+    return session.transcript;
+  }
+
+  _appendTranscriptLine(session, lineHtml) {
+    if (!session || !lineHtml) return;
+    this._initTranscript(session);
+    session.transcript.push(lineHtml);
+  }
+
+  _buildTranscriptBody({ session = null, narration = null } = {}) {
+    const transcript = Array.isArray(session?.transcript) ? session.transcript.join('') : '';
+    const narrationLine = narration ? this._fmtNarration(narration) : '';
+    return `${transcript}${narrationLine}`;
   }
 
   _applyExchangeEffects({ player, npc, deltas = {}, contextTag = 'conversation' }) {
@@ -538,6 +581,11 @@ class ConversationSystem {
 
   _runConversationNode({ npc, player, node, context, returnTo }) {
     if (!node) return;
+    if (!this.nodeSession) {
+      this.nodeSession = { npcId: npc?.id || null, context, menuStack: [], transcript: [] };
+    }
+    const session = this.nodeSession;
+    this._initTranscript(session);
     const stance = this.decideNpcStance({
       topicId: context.mainTopicId,
       nodeId: node.id,
@@ -558,6 +606,7 @@ class ConversationSystem {
       npc,
       context
     });
+    this._appendTranscriptLine(session, this._fmtPlayerLine(player, playerLine));
 
     if (this.debugConvo) {
       this._debugLog('[CONVO-DEBUG] Node response', {
@@ -574,9 +623,7 @@ class ConversationSystem {
       : (node.nextNodes || []);
 
     const afterReply = () => {
-      if (typeof node.effects === 'function') {
-        node.effects({ player, npc, context, stance });
-      }
+      this._appendTranscriptLine(session, this._fmtNpcLine(npc, npcReply));
       this._applyStanceEffects({
         player,
         npc,
@@ -584,6 +631,9 @@ class ConversationSystem {
         effectsByStance: node.effectsByStance,
         contextTag: node.id
       });
+      if (typeof node.effects === 'function') {
+        node.effects({ player, npc, context, stance });
+      }
       const intelEntries = node.intelByStance?.[stance] || node.intelByStance?.DEFAULT;
       if (intelEntries) {
         const payload = typeof intelEntries === 'function'
@@ -607,12 +657,12 @@ class ConversationSystem {
           returnTo
         })
       }));
-      this._renderMenu(npc, this._fmtNpcLine(npc, npcReply), followupButtons, { onBack: returnTo, showEnd: true });
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), followupButtons, { onBack: returnTo, showEnd: true });
     };
 
-    this._renderConversationOverlay(npc, this._fmtPlayerLine(player, playerLine), [
+    this._renderMenu(npc, this._buildTranscriptBody({ session }), [
       { label: 'Continue', onClick: afterReply }
-    ]);
+    ], { onBack: null, showEnd: true });
   }
 
   /**
@@ -697,6 +747,7 @@ class ConversationSystem {
       initiatedByNpc: false,
       phase: normalizedPhase,
       location,
+      resetTranscript: true,
       forceNodeFlow: true
     };
 
@@ -929,10 +980,15 @@ class ConversationSystem {
       initiator: this.state?.initiator || 'player'
     });
 
+    const shouldResetTranscript = Boolean(context.resetTranscript)
+      || !this.nodeSession
+      || this.nodeSession.npcId !== survivor.id;
+    const transcript = shouldResetTranscript ? [] : (this.nodeSession?.transcript || []);
     this.nodeSession = {
       npcId: survivor.id,
       context,
-      menuStack: []
+      menuStack: [],
+      transcript
     };
 
     const mainTopics = this._buildMainTopics({ player, npc: survivor, context });
@@ -972,7 +1028,7 @@ class ConversationSystem {
         this._renderSubMenu({ player, npc, context, topic });
       }
     }));
-    this._renderMenu(npc, this._fmtNarration(menuText), buttons, { onBack: null, showEnd: true });
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: menuText }), buttons, { onBack: null, showEnd: true });
   }
 
   _renderSubMenu({ player, npc, context, topic }) {
@@ -991,7 +1047,7 @@ class ConversationSystem {
           returnTo: () => this._renderSubMenu({ player, npc, context, topic })
         })
     }));
-    this._renderMenu(npc, this._fmtNarration(menuText), buttons, {
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: menuText }), buttons, {
       onBack: () => this._renderMainMenu({ player, npc, context, mainTopics: this._buildMainTopics({ player, npc, context }) }),
       showEnd: true
     });
@@ -1065,7 +1121,8 @@ class ConversationSystem {
     this.nodeSession = {
       npcId: npc.id,
       context: normalizedContext,
-      menuStack: []
+      menuStack: [],
+      transcript: []
     };
 
     const mainTopics = this._buildMainTopics({ player, npc, context: normalizedContext });
@@ -1126,7 +1183,8 @@ class ConversationSystem {
       });
     }
 
-    this._renderMenu(npc, this._fmtNpcLine(npc, openingLine), buttons, { onBack: null, showEnd: true });
+    this._appendTranscriptLine(this.nodeSession, this._fmtNpcLine(npc, openingLine));
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true });
   }
 
   _resolveNpcOpeningLine({ node, player, npc, context, stance }) {
@@ -3231,6 +3289,10 @@ class ConversationSystem {
   }
 
   runConversationExchange({ playerId, npcId, choiceId, targetId = null, location = null }) {
+    if (LEGACY_INTENT_SYSTEM_DISABLED) {
+      console.warn('ConversationSystem.runConversationExchange: Legacy exchange flow disabled.');
+      return;
+    }
     console.log('[CONVO-DEBUG] runConversationExchange ENTRY', { npcId, choiceId, targetId });
     const player = this.gameManager.getPlayerSurvivor?.();
     const npc = this._getSurvivorById(npcId);
@@ -4863,131 +4925,31 @@ class ConversationSystem {
     extraOptions = []
   } = {}) {
     return new Promise(resolve => {
-      const overlay = this._buildOverlayShell({ firstName: 'Choose' }, { reuse: true });
-      const content = this._getConversationContent(overlay);
-      this._clearConversationContent(content);
-      const parchment = this._buildParchment(title || 'Pick a survivor');
-
       const tribe = this.gameManager.getPlayerTribe?.();
       const pool = survivors || (tribeOnly ? (tribe?.members || []) : (this.gameManager.survivors || []));
       const filtered = pool.filter(s => !excludeIds.includes(s.id) && !s.isPlayer);
-
-      const grid = createElement('div', {
-        style: {
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-          gap: '10px',
-          marginTop: '10px',
-          maxHeight: '42vh',
-          overflowY: 'auto',
-          width: '100%'
-        }
-      });
-
-      let selectedId = null;
-      const setSelected = (card, id) => {
-        selectedId = id;
-        const cards = Array.from(grid.querySelectorAll('[data-picker-card="true"]'));
-        cards.forEach(el => {
-          el.style.outline = el.dataset.survivorId === String(id) ? '3px solid #e6b676' : '2px solid rgba(0,0,0,0.25)';
-        });
-        confirmBtn.disabled = !selectedId;
-      };
-
-      const pickerFallback = {
-        session: this.nodeSession || this.conversationSession || null,
-        npc: this.state?.npcId ? this._getSurvivorById(this.state.npcId) : null
-      };
-
-      filtered.forEach(target => {
-        const card = createElement('button', {
-          className: 'rect-button full',
-          style: {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            alignItems: 'center',
-            padding: '10px',
-            outline: '2px solid rgba(0,0,0,0.25)'
-          }
-        });
-        card.dataset.pickerCard = 'true';
-        card.dataset.survivorId = String(target.id);
-        card.onclick = this._safeClick(() => setSelected(card, target.id), pickerFallback);
-
-        const avatar = createElement('img', {
-          src: target.avatarUrl,
-          alt: target.firstName,
-          style: {
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            objectFit: 'cover',
-            border: `2px solid ${target.tribeColor || target.tribe?.tribeColor || '#d0b07b'}`
-          }
-        });
-        const name = createElement('div', {
-          style: { fontFamily: 'Survivant, sans-serif', fontSize: '0.95rem' }
-        }, target.firstName);
-        card.appendChild(avatar);
-        card.appendChild(name);
-        grid.appendChild(card);
-      });
-
-      if (!filtered.length) {
-        const empty = createElement('div', { style: { marginTop: '8px' } }, 'No valid targets right now.');
-        grid.appendChild(empty);
-      }
-
-      const buttonRow = createElement('div', {
-        style: {
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          marginTop: '12px',
-          width: '100%'
-        }
-      });
-
-      const confirmBtn = this._createChoiceButton({
-        label: onConfirmLabel || 'Confirm',
-        onClick: () => {
+      const npc = this.state?.npcId ? this._getSurvivorById(this.state.npcId) : null;
+      this._renderPickList({
+        npc,
+        title: title || 'Pick a survivor',
+        candidates: filtered,
+        onPick: picked => {
           this._clearOverlay();
-          resolve(selectedId);
-        }
-      });
-      confirmBtn.disabled = true;
-
-      const cancelBtn = this._createChoiceButton({
-        label: 'Cancel',
-        alt: true,
-        onClick: () => {
+          resolve(picked?.id || null);
+        },
+        onBack: () => {
           this._clearOverlay();
           resolve(null);
-        }
+        },
+        extraOptions: (extraOptions || []).map(option => ({
+          ...option,
+          onSelect: () => {
+            this._clearOverlay();
+            option.onSelect?.();
+            resolve(null);
+          }
+        }))
       });
-
-      buttonRow.appendChild(confirmBtn);
-      buttonRow.appendChild(cancelBtn);
-
-      if (Array.isArray(extraOptions) && extraOptions.length) {
-        extraOptions.forEach(option => {
-          const extraBtn = this._createChoiceButton({
-            label: option.label,
-            alt: true,
-            onClick: () => {
-              this._clearOverlay();
-              resolve(null);
-              if (option.onSelect) option.onSelect();
-            }
-          });
-          buttonRow.appendChild(extraBtn);
-        });
-      }
-
-      parchment.appendChild(grid);
-      parchment.appendChild(buttonRow);
-      content.appendChild(parchment);
     });
   }
 
@@ -11746,6 +11708,59 @@ class ConversationSystem {
       console.log('No warnings detected.');
     }
     console.groupEnd();
+    return report;
+  }
+
+  validateConversationNodes() {
+    const report = { warnings: [] };
+    const npc = (this.gameManager.survivors || []).find(s => !s.isPlayer) || this.gameManager.survivors?.[0];
+    const player = this.gameManager.getPlayerSurvivor?.();
+    if (!npc || !player) {
+      console.warn('ConversationSystem.validateConversationNodes: Missing player or NPC.');
+      return report;
+    }
+
+    const context = this._normalizeConversationContext({ phase: this._getConversationPhase(), initiator: 'player' });
+    const topics = this._buildMainTopics({ player, npc, context });
+    const visited = new Set();
+
+    const isValidDefault = value => {
+      if (Array.isArray(value)) return value.length > 0;
+      return typeof value === 'string' || typeof value === 'function';
+    };
+
+    const walkNode = (node, topicId) => {
+      if (!node || visited.has(node)) return;
+      visited.add(node);
+      if (!node.buttonText) {
+        report.warnings.push(`Topic "${topicId}" node "${node.id || 'unknown'}" missing buttonText.`);
+      }
+      if (!node.playerLine) {
+        report.warnings.push(`Topic "${topicId}" node "${node.id || 'unknown'}" missing playerLine.`);
+      }
+      const defaultReply = node.npcReplyByStance?.DEFAULT;
+      if (!defaultReply || !isValidDefault(defaultReply)) {
+        report.warnings.push(`Topic "${topicId}" node "${node.id || 'unknown'}" missing npcReplyByStance.DEFAULT.`);
+      }
+      const nextNodes = typeof node.nextNodes === 'function'
+        ? node.nextNodes({ player, npc, context, stance: NPC_STANCES.TRUTH })
+        : (node.nextNodes || []);
+      if (Array.isArray(nextNodes)) {
+        nextNodes.forEach(nextNode => {
+          if (!nextNode?.id) {
+            report.warnings.push(`Topic "${topicId}" node "${node.id || 'unknown'}" has follow-up without id.`);
+            return;
+          }
+          walkNode(nextNode, topicId);
+        });
+      }
+    };
+
+    topics.forEach(topic => {
+      (topic.nodes || []).forEach(node => walkNode(node, topic.id));
+    });
+
+    report.warnings.forEach(message => console.warn(`ConversationSystem.validateConversationNodes: ${message}`));
     return report;
   }
 
