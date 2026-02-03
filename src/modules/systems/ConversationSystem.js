@@ -413,12 +413,14 @@ class ConversationSystem {
     const style = document.createElement('style');
     style.dataset.conversationStyles = 'true';
     style.textContent = `
-      .convo-line { margin-bottom: 10px; }
-      .convo-speaker { font-weight: 700; letter-spacing: 0.5px; opacity: 0.9; }
+      .convo-line { margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-start; }
+      .convo-speaker { font-weight: 700; letter-spacing: 0.6px; opacity: 0.95; text-transform: uppercase; min-width: 74px; }
       .convo-npc .convo-speaker { color: #ffd28a; }
-      .convo-player .convo-speaker { color: #9fe3ff; }
-      .convo-text { line-height: 1.45; }
+      .convo-player .convo-speaker { color: #5cc7ff; }
+      .convo-text { line-height: 1.45; flex: 1; }
+      .convo-name { font-weight: 700; color: #2b190a; }
       .convo-narration { opacity: 0.75; color: #e9e9e9; font-style: italic; }
+      .convo-narration .convo-speaker { color: #c7c7c7; }
     `;
     document.head.appendChild(style);
     this._stylesInjected = true;
@@ -427,25 +429,25 @@ class ConversationSystem {
   _fmtNpcLine(npc, text) {
     if (!text) return '';
     const name = npc?.firstName || 'NPC';
-    return `<div class="convo-line convo-npc"><div class="convo-speaker">${name}</div><div class="convo-text">"${text}"</div></div>`;
+    return `<div class="convo-line convo-npc"><div class="convo-speaker">NPC</div><div class="convo-text"><span class="convo-name">${name}</span>: "${text}"</div></div>`;
   }
 
   _fmtPlayerLine(player, text) {
     if (!text) return '';
-    return `<div class="convo-line convo-player"><div class="convo-speaker">You</div><div class="convo-text">"${text}"</div></div>`;
+    return `<div class="convo-line convo-player"><div class="convo-speaker">YOU</div><div class="convo-text">"${text}"</div></div>`;
   }
 
   _fmtNarration(text) {
     if (!text) return '';
-    return `<div class="convo-line convo-narration"><em>${text}</em></div>`;
+    return `<div class="convo-line convo-narration"><div class="convo-speaker">NARRATION</div><div class="convo-text"><em>${text}</em></div></div>`;
   }
 
   _formatMenuBody(text) {
-    const transcript = Array.isArray(this.nodeSession?.transcript) ? this.nodeSession.transcript.join('') : '';
+    const transcript = this._wrapTranscriptHtml(this._renderTranscriptHtml(this._getActiveTranscriptSession()));
     if (!text) return transcript;
     const raw = String(text);
+    if (raw.includes('data-conversation-transcript')) return raw;
     if (raw.includes('convo-line')) {
-      if (!transcript || raw.startsWith(transcript)) return raw;
       return `${transcript}${raw}`;
     }
     return `${transcript}${this._fmtNarration(raw)}`;
@@ -507,21 +509,22 @@ class ConversationSystem {
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
+    this._scrollTranscriptToBottom();
   }
 
   _renderPickList({ npc, title, candidates, onPick, onBack, extraOptions = [] }) {
     const body = this._buildTranscriptBody({
-      session: this.nodeSession,
+      session: this._getActiveTranscriptSession(this.nodeSession),
       narration: `${title || 'Pick a name'}\nChoose a name:`
     });
     const nameCounts = candidates.reduce((acc, member) => {
-      const key = member.firstName || 'Unknown';
+      const key = member.firstName || member.displayName || member.name || 'Unknown';
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
     const buttons = candidates.map(member => {
-      const baseName = member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName;
-      const hasDuplicate = nameCounts[member.firstName] > 1;
+      const baseName = member.firstName || member.displayName || member.name || 'Unknown';
+      const hasDuplicate = nameCounts[baseName] > 1;
       const disambiguator = member.seasonName
         || (member.lastName ? `${member.lastName[0]}.` : `${member.id}`.slice(-4));
       const label = hasDuplicate ? `${baseName} (${disambiguator})` : baseName;
@@ -542,19 +545,99 @@ class ConversationSystem {
   _initTranscript(session) {
     if (!session) return null;
     if (!Array.isArray(session.transcript)) session.transcript = [];
+    session.transcript = session.transcript
+      .map(entry => this._coerceTranscriptEntry(entry))
+      .filter(Boolean);
+    this._ensureTranscriptHelpers(session);
     return session.transcript;
   }
 
   _appendTranscriptLine(session, lineHtml) {
     if (!session || !lineHtml) return;
     this._initTranscript(session);
-    session.transcript.push(lineHtml);
+    session.transcript.push({ speaker: 'NARRATION', text: lineHtml, isHtml: true });
+    this._refreshTranscriptUI(session);
   }
 
   _buildTranscriptBody({ session = null, narration = null } = {}) {
-    const transcript = Array.isArray(session?.transcript) ? session.transcript.join('') : '';
+    const transcript = this._wrapTranscriptHtml(this._renderTranscriptHtml(session));
     const narrationLine = narration ? this._fmtNarration(narration) : '';
     return `${transcript}${narrationLine}`;
+  }
+
+  _ensureTranscriptHelpers(session) {
+    if (!session || session.addYou || session.addNpc || session.addNarration) return;
+    session.addYou = text => this._addTranscriptEntry(session, { speaker: 'YOU', text });
+    session.addNpc = text => {
+      const npc = session.npcId ? this._getSurvivorById(session.npcId) : null;
+      this._addTranscriptEntry(session, { speaker: 'NPC', text, name: npc?.firstName || 'NPC' });
+    };
+    session.addNarration = text => this._addTranscriptEntry(session, { speaker: 'NARRATION', text });
+  }
+
+  _addTranscriptEntry(session, entry) {
+    if (!session || !entry?.text) return;
+    this._initTranscript(session);
+    session.transcript.push({
+      speaker: entry.speaker || 'NARRATION',
+      text: String(entry.text),
+      name: entry.name || null,
+      isHtml: entry.isHtml || false
+    });
+    this._refreshTranscriptUI(session);
+  }
+
+  _coerceTranscriptEntry(entry) {
+    if (!entry) return null;
+    if (typeof entry === 'string') {
+      return { speaker: 'NARRATION', text: entry, isHtml: true };
+    }
+    if (entry?.speaker && entry?.text) return entry;
+    return null;
+  }
+
+  _renderTranscriptHtml(session) {
+    const entries = Array.isArray(session?.transcript) ? session.transcript : [];
+    return entries.map(entry => this._formatTranscriptEntry(entry, session)).join('');
+  }
+
+  _formatTranscriptEntry(entry, session) {
+    if (!entry) return '';
+    if (typeof entry === 'string') return entry;
+    if (entry.isHtml) return entry.text;
+    const speaker = entry.speaker || 'NARRATION';
+    if (speaker === 'YOU') {
+      return this._fmtPlayerLine(this.gameManager?.getPlayerSurvivor?.(), entry.text);
+    }
+    if (speaker === 'NPC') {
+      const npcName = entry.name || this._getSurvivorById(session?.npcId || null)?.firstName || 'NPC';
+      return this._fmtNpcLine({ firstName: npcName }, entry.text);
+    }
+    return this._fmtNarration(entry.text);
+  }
+
+  _wrapTranscriptHtml(transcriptHtml = '') {
+    return `<div class="conversation-transcript" data-conversation-transcript="true">${transcriptHtml || ''}</div>`;
+  }
+
+  _refreshTranscriptUI(session) {
+    const overlay = this.activeOverlay;
+    const transcriptEl = overlay?.querySelector?.('[data-conversation-transcript]');
+    if (!transcriptEl) return;
+    transcriptEl.innerHTML = this._renderTranscriptHtml(session);
+    this._scrollTranscriptToBottom();
+  }
+
+  _scrollTranscriptToBottom() {
+    const overlay = this.activeOverlay;
+    const parchment = overlay?.querySelector?.('.conversation-parchment');
+    if (parchment) {
+      parchment.scrollTop = parchment.scrollHeight;
+    }
+  }
+
+  _getActiveTranscriptSession(preferred = null) {
+    return preferred || this.nodeSession || this.conversationSession || null;
   }
 
   _applyExchangeEffects({ player, npc, deltas = {}, contextTag = 'conversation' }) {
@@ -606,7 +689,8 @@ class ConversationSystem {
       npc,
       context
     });
-    this._appendTranscriptLine(session, this._fmtPlayerLine(player, playerLine));
+    // Log the player's line before any NPC response is rendered.
+    if (playerLine) session.addYou?.(playerLine);
 
     if (this.debugConvo) {
       this._debugLog('[CONVO-DEBUG] Node response', {
@@ -623,7 +707,7 @@ class ConversationSystem {
       : (node.nextNodes || []);
 
     const afterReply = () => {
-      this._appendTranscriptLine(session, this._fmtNpcLine(npc, npcReply));
+      session.addNpc?.(npcReply);
       this._applyStanceEffects({
         player,
         npc,
@@ -644,7 +728,7 @@ class ConversationSystem {
         }
       }
       if (typeof node.afterReply === 'function') {
-        node.afterReply({ player, npc, context, stance });
+        node.afterReply({ player, npc, context, stance, npcReply, returnTo, session });
         return;
       }
       const followupButtons = followupNodes.map(nextNode => ({
@@ -1183,7 +1267,8 @@ class ConversationSystem {
       });
     }
 
-    this._appendTranscriptLine(this.nodeSession, this._fmtNpcLine(npc, openingLine));
+    this._initTranscript(this.nodeSession);
+    this.nodeSession.addNpc?.(openingLine);
     this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true });
   }
 
@@ -2380,7 +2465,12 @@ class ConversationSystem {
       npc,
       title: 'Pick someone to talk about:',
       candidates,
-      onPick: target => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
+      onPick: target => {
+        const session = this._getActiveTranscriptSession();
+        // Log the player pick before moving to the next menu.
+        session?.addYou?.(`Let’s talk about ${target.firstName}.`);
+        this._showTalkAboutSomeoneAngles({ player, npc, context, target });
+      },
       onBack: () => this._renderMainMenu({ player, npc, context, mainTopics: this._buildMainTopics({ player, npc, context }) })
     });
   }
@@ -2506,6 +2596,11 @@ class ConversationSystem {
               lie: 'That doesn’t sound right.',
               deflect: 'Who told you that?'
             })]
+          },
+          afterReply: ({ npcReply, returnTo }) => {
+            if (!npcReply || !/\?/g.test(npcReply)) return;
+            // Follow-up picker ensures NPC questions never dead-end.
+            this._showNameSourceFollowup({ player, npc, context, returnTo });
           }
         };
       case 'said_name':
@@ -2521,6 +2616,9 @@ class ConversationSystem {
               title: 'Pick the name they said:',
               candidates,
               onPick: picked => {
+                const session = this._getActiveTranscriptSession();
+                // Log the player pick before the NPC reacts.
+                session?.addYou?.(`They said ${picked.firstName}.`);
                 this._recordIntel(npc.id, {
                   type: 'name_thrown_out',
                   subjectId: picked.id,
@@ -2528,7 +2626,8 @@ class ConversationSystem {
                   targetId: picked.id,
                   truth: 'unknown'
                 });
-                this._renderMenu(npc, this._fmtNpcLine(npc, 'Got it. I’ll keep that in mind.'), [], {
+                session?.addNpc?.('Got it. I’ll keep that in mind.');
+                this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
                   onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
                   showEnd: true
                 });
@@ -2550,6 +2649,9 @@ class ConversationSystem {
               title: 'Pick the ally:',
               candidates,
               onPick: picked => {
+                const session = this._getActiveTranscriptSession();
+                // Log the player pick before the NPC reacts.
+                session?.addYou?.(`Maybe ${picked.firstName}.`);
                 this._recordIntel(npc.id, {
                   type: 'work_duo',
                   subjectId: target.id,
@@ -2557,7 +2659,8 @@ class ConversationSystem {
                   targetId: picked.id,
                   truth: 'unknown'
                 });
-                this._renderMenu(npc, this._fmtNpcLine(npc, 'Interesting. I’ll watch that.'), [], {
+                session?.addNpc?.('Interesting. I’ll watch that.');
+                this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
                   onBack: () => this._showTalkAboutSomeoneAngles({ player, npc, context, target }),
                   showEnd: true
                 });
@@ -2590,6 +2693,73 @@ class ConversationSystem {
     }
   }
 
+  _showNameSourceFollowup({ player, npc, context, returnTo }) {
+    const session = this._getActiveTranscriptSession();
+    const trustScore = this._getPairTrust(player.id, npc.id);
+    const candidates = this._getTribeMembers({ includeNpc: false, includePlayer: false, npcId: npc.id });
+
+    const finishWithNpcLine = (line, { trustDelta = 0, suspicionDelta = 0 } = {}) => {
+      session?.addNpc?.(line);
+      if (trustDelta) this._applyTrustDelta(player.id, npc.id, trustDelta, 'name_source_followup');
+      if (suspicionDelta) this._applySuspicionDelta(player, suspicionDelta, 'name_source_followup');
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
+        onBack: returnTo,
+        showEnd: true
+      });
+    };
+
+    const pickName = () => {
+      this._renderPickList({
+        npc,
+        title: 'Name the source:',
+        candidates,
+        onPick: picked => {
+          // Log the player line before the NPC response for name pickers.
+          session?.addYou?.(`I heard it from ${picked.firstName}.`);
+          this._applySuspicionDelta(picked, 2, 'name_source_named');
+          if (trustScore >= 60) {
+            this._applyTrustDelta(player.id, npc.id, 2, 'name_source_named');
+            this._applyRelationshipDelta(player.id, npc.id, 1, 'name_source_named');
+            finishWithNpcLine(`Thanks for being straight. I’ll keep an eye on ${picked.firstName}.`);
+          } else {
+            this._applySuspicionDelta(player, 2, 'name_source_named');
+            finishWithNpcLine(`That’s a heavy claim. I’ll verify ${picked.firstName} myself.`);
+          }
+        },
+        onBack: returnTo
+      });
+    };
+
+    const buttons = [
+      { label: 'Name them', onClick: pickName },
+      {
+        label: 'Keep it vague',
+        onClick: () => {
+          session?.addYou?.("I don't want to say.");
+          const npcLine = trustScore >= 60
+            ? 'Alright. I’ll watch my back.'
+            : 'Fine, but that doesn’t help me much.';
+          finishWithNpcLine(npcLine, { trustDelta: trustScore >= 60 ? 1 : 0, suspicionDelta: trustScore < 60 ? 1 : 0 });
+        }
+      },
+      {
+        label: 'It’s just a vibe',
+        onClick: () => {
+          session?.addYou?.('Just a feeling.');
+          const npcLine = trustScore >= 60
+            ? 'Got it. I’ll keep it in mind.'
+            : 'That’s thin, but I’ll keep listening.';
+          finishWithNpcLine(npcLine, { trustDelta: trustScore >= 60 ? 1 : 0, suspicionDelta: trustScore < 60 ? 1 : 0 });
+        }
+      }
+    ];
+
+    this._renderMenu(npc, this._buildTranscriptBody({ session, narration: 'How do you want to answer?' }), buttons, {
+      onBack: returnTo,
+      showEnd: true
+    });
+  }
+
   _pickLikelyDuo(npc) {
     const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
     if (candidates.length < 2) return null;
@@ -2614,6 +2784,7 @@ class ConversationSystem {
       title: 'Pick a target to discuss:',
       candidates,
       onPick: target => {
+        const session = this._getActiveTranscriptSession();
         const stance = this.decideNpcStance({
           topicId: 'strategy',
           nodeId: mode === 'deflect' ? 'deflect_target' : 'pitch_target',
@@ -2626,7 +2797,7 @@ class ConversationSystem {
         const reply = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE
           ? `That could work. ${target.firstName} is a viable name.`
           : stance === NPC_STANCES.DEFLECT || stance === NPC_STANCES.COUNTER
-            ? 'That’s a lot to commit to right now.'
+          ? 'That’s a lot to commit to right now.'
             : 'I’m not sure that’s the right move.';
         this._recordIntel(npc.id, {
           type: 'name_thrown_out',
@@ -2635,7 +2806,10 @@ class ConversationSystem {
           targetId: target.id,
           truth: stance === NPC_STANCES.LIE ? false : 'unknown'
         });
-        this._renderMenu(npc, this._fmtNpcLine(npc, reply), [], {
+        // Log the player pick before the NPC responds.
+        session?.addYou?.(`Let’s talk about ${target.firstName}.`);
+        session?.addNpc?.(reply);
+        this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
           onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
           showEnd: true
         });
@@ -2655,13 +2829,20 @@ class ConversationSystem {
     const buttons = dealTypes.map(dealType => ({
       label: dealType.label,
       onClick: () => {
+        const session = this._getActiveTranscriptSession();
+        session?.addYou?.(`${dealType.label}.`);
         if (dealType.id === 'vote_together' || dealType.id === 'idol_protect') {
           const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
           this._renderPickList({
             npc,
             title: 'Pick a target for the deal:',
             candidates,
-            onPick: target => this._resolveDealOutcome({ player, npc, context, dealType: dealType.id, target }),
+            onPick: target => {
+              const session = this._getActiveTranscriptSession();
+              // Log the selected name for deal pickers.
+              session?.addYou?.(`${target.firstName}.`);
+              this._resolveDealOutcome({ player, npc, context, dealType: dealType.id, target });
+            },
             onBack: () => this._showDealTypeMenu({ player, npc, context })
           });
           return;
@@ -2696,14 +2877,22 @@ class ConversationSystem {
     }
 
     if (outcome === 'counter') {
-      this._renderMenu(npc, this._fmtNpcLine(npc, 'I’m not sure. How about we just share info first?'), [
+      const session = this._getActiveTranscriptSession();
+      session?.addNpc?.('I’m not sure. How about we just share info first?');
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), [
         {
           label: 'Accept counter',
-          onClick: () => this._createDeal({ player, npc, dealType: 'share_info', target, status: 'accepted' })
+          onClick: () => {
+            const session = this._getActiveTranscriptSession();
+            session?.addYou?.('Okay, share info works.');
+            this._createDeal({ player, npc, dealType: 'share_info', target, status: 'accepted' });
+          }
         },
         {
           label: 'Walk away',
           onClick: () => {
+            const session = this._getActiveTranscriptSession();
+            session?.addYou?.('Never mind.');
             this._applyExchangeEffects({ player, npc, deltas: { trust: -1 }, contextTag: 'deal_counter_walk' });
             this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } });
           }
@@ -2726,7 +2915,9 @@ class ConversationSystem {
   _createDeal({ player, npc, dealType, target, status }) {
     const dealSystem = this.gameManager?.systems?.dealSystem;
     if (!dealSystem) {
-      this._renderMenu(npc, this._fmtNpcLine(npc, 'No one is taking deals right now.'), [], {
+      const session = this._getActiveTranscriptSession();
+      session?.addNpc?.('No one is taking deals right now.');
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
         onBack: () => this._renderMainMenu({ player, npc, context: this.activeConversationContext || {}, mainTopics: this._buildMainTopics({ player, npc, context: this.activeConversationContext || {} }) }),
         showEnd: true
       });
@@ -2764,7 +2955,9 @@ class ConversationSystem {
     const responseText = status === 'accepted'
       ? 'Alright. We have a deal.'
       : 'I’m not going for that.';
-    this._renderMenu(npc, this._fmtNpcLine(npc, responseText), [], {
+    const session = this._getActiveTranscriptSession();
+    session?.addNpc?.(responseText);
+    this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
       onBack: () => this._renderSubMenu({ player, npc, context: this.activeConversationContext || {}, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context: this.activeConversationContext || {} }) } }),
       showEnd: true
     });
@@ -2776,8 +2969,11 @@ class ConversationSystem {
       {
         label: 'Recommit',
         onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('Let’s recommit.');
           this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(2, 6) }, contextTag: 'alliance_recommit' });
-          this._renderMenu(npc, this._fmtNpcLine(npc, 'We’re good. Let’s keep it tight.'), [], {
+          session?.addNpc?.('We’re good. Let’s keep it tight.');
+          this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
             onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
             showEnd: true
           });
@@ -2786,8 +2982,11 @@ class ConversationSystem {
       ...(hasMultiple ? [{
         label: 'Prioritize alliance',
         onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('Which alliance matters most?');
           const best = sharedAlliances.sort((a, b) => (b.cohesion ?? 50) - (a.cohesion ?? 50))[0];
-          this._renderMenu(npc, this._fmtNpcLine(npc, `If I had to pick, I’d prioritize ${best.name}.`), [], {
+          session?.addNpc?.(`If I had to pick, I’d prioritize ${best.name}.`);
+          this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
             onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
             showEnd: true
           });
@@ -2795,17 +2994,24 @@ class ConversationSystem {
       }] : []),
       {
         label: 'Address doubt',
-        onClick: () => this._showAllianceDoubtMenu({ player, npc, context, sharedAlliances })
+        onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('I have a doubt.');
+          this._showAllianceDoubtMenu({ player, npc, context, sharedAlliances });
+        }
       },
       {
         label: 'Endgame',
         onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('Let’s talk endgame.');
           const alliance = sharedAlliances[0];
           const size = alliance.memberIds?.length || 2;
           const line = size > 2
             ? 'We should keep each other ahead of the group when it counts.'
             : 'It’s us before anyone else. That’s the deal.';
-          this._renderMenu(npc, this._fmtNpcLine(npc, line), [], {
+          session?.addNpc?.(line);
+          this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
             onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
             showEnd: true
           });
@@ -2823,12 +3029,22 @@ class ConversationSystem {
     const members = this._getTribeMembers({ includeNpc: true, includePlayer: false, npcId: npc.id })
       .filter(member => alliance.memberIds?.includes?.(member.id) && member.id !== player.id);
     this._renderMenu(npc, this._fmtNarration('What doubt are you addressing?'), [
-      { label: 'About us', onClick: () => this._resolveAllianceDoubt({ player, npc, context, target: null }) },
+      {
+        label: 'About us',
+        onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('I’m worried about us.');
+          this._resolveAllianceDoubt({ player, npc, context, target: null });
+        }
+      },
       {
         label: 'About a member',
         onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('I’m worried about someone.');
           if (!members.length) {
-            this._renderMenu(npc, this._fmtNpcLine(npc, 'It’s just the two of us right now.'), [], {
+            session?.addNpc?.('It’s just the two of us right now.');
+            this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
               onBack: () => this._showAllianceMenu({ player, npc, context, sharedAlliances }),
               showEnd: true
             });
@@ -2838,7 +3054,12 @@ class ConversationSystem {
             npc,
             title: 'Pick the member you’re concerned about:',
             candidates: members,
-            onPick: picked => this._resolveAllianceDoubt({ player, npc, context, target: picked }),
+            onPick: picked => {
+              const currentSession = this._getActiveTranscriptSession(session);
+              // Log the selected name before the NPC response.
+              currentSession?.addYou?.(`${picked.firstName}.`);
+              this._resolveAllianceDoubt({ player, npc, context, target: picked });
+            },
             onBack: () => this._showAllianceMenu({ player, npc, context, sharedAlliances })
           });
         }
@@ -2850,10 +3071,12 @@ class ConversationSystem {
   }
 
   _resolveAllianceDoubt({ player, npc, context, target }) {
+    const session = this._getActiveTranscriptSession();
     const trust = this._getPairTrust(player.id, npc.id);
     if (trust < 45) {
       this._applyExchangeEffects({ player, npc, deltas: { trust: -2, suspicion: 1 }, contextTag: 'alliance_doubt_low' });
-      this._renderMenu(npc, this._fmtNpcLine(npc, 'That’s not easing my doubts right now.'), [], {
+      session?.addNpc?.('That’s not easing my doubts right now.');
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
         onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
         showEnd: true
       });
@@ -2863,7 +3086,8 @@ class ConversationSystem {
       ? `If ${target.firstName} wobbles, we handle it.`
       : 'We’re solid. Let’s keep it clean.';
     this._applyExchangeEffects({ player, npc, deltas: { trust: 2 }, contextTag: 'alliance_doubt_reassure' });
-    this._renderMenu(npc, this._fmtNpcLine(npc, line), [], {
+    session?.addNpc?.(line);
+    this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
       onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
       showEnd: true
     });
@@ -2873,15 +3097,27 @@ class ConversationSystem {
     const buttons = [
       {
         label: 'Said your name',
-        onClick: () => this._resolveApology({ player, npc, context, type: 'name' })
+        onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('I said your name.');
+          this._resolveApology({ player, npc, context, type: 'name' });
+        }
       },
       {
         label: 'Voted against you',
-        onClick: () => this._resolveApology({ player, npc, context, type: 'vote' })
+        onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('I voted against you.');
+          this._resolveApology({ player, npc, context, type: 'vote' });
+        }
       },
       {
         label: 'Lied to you',
-        onClick: () => this._resolveApology({ player, npc, context, type: 'lie' })
+        onClick: () => {
+          const session = this._getActiveTranscriptSession();
+          session?.addYou?.('I lied to you.');
+          this._resolveApology({ player, npc, context, type: 'lie' });
+        }
       }
     ];
     this._renderMenu(npc, this._fmtNarration('What are you apologizing for?'), buttons, {
@@ -2891,6 +3127,7 @@ class ConversationSystem {
   }
 
   _resolveApology({ player, npc, context, type }) {
+    const session = this._getActiveTranscriptSession();
     const trust = this._getPairTrust(player.id, npc.id);
     const open = trust > 55;
     const line = open
@@ -2902,7 +3139,8 @@ class ConversationSystem {
       deltas: { trust: open ? 3 : 1, relationship: open ? 2 : 0 },
       contextTag: `apology_${type}`
     });
-    this._renderMenu(npc, this._fmtNpcLine(npc, line), [], {
+    session?.addNpc?.(line);
+    this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
       onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'confront', nodes: this._buildConfrontNodes({ player, npc, context }) } }),
       showEnd: true
     });
@@ -7148,6 +7386,7 @@ class ConversationSystem {
     }
 
     content.appendChild(parchment);
+    this._scrollTranscriptToBottom();
   }
 
   _renderNode(session, nodeId) {
