@@ -552,10 +552,32 @@ class ConversationSystem {
       const disambiguator = member.seasonName
         || (member.lastName ? `${member.lastName[0]}.` : `${member.id}`.slice(-4));
       const label = hasDuplicate ? `${baseName} (${disambiguator})` : baseName;
+      const session = this._getActiveTranscriptSession(this.nodeSession);
       return {
         label,
         tooltip: member.seasonName || member.gameplayStyle || '',
-        onClick: () => onPick(member)
+        onClick: () => {
+          const previousAddYou = session?.addYou;
+          let loggedByPicker = false;
+          let autoLoggedIndex = null;
+          if (session && previousAddYou) {
+            session.addYou = text => {
+              loggedByPicker = true;
+              return previousAddYou(text);
+            };
+            autoLoggedIndex = Array.isArray(session.transcript) ? session.transcript.length : null;
+            previousAddYou(`${label}.`);
+          }
+          onPick(member);
+          if (session && previousAddYou) {
+            session.addYou = previousAddYou;
+            if (loggedByPicker && autoLoggedIndex !== null && Array.isArray(session.transcript)) {
+              session.transcript.splice(autoLoggedIndex, 1);
+              this._refreshTranscriptUI(session);
+            }
+            session._justLoggedYou = true;
+          }
+        }
       };
     });
     const extras = extraOptions.map(option => ({
@@ -625,6 +647,13 @@ class ConversationSystem {
       candidates = pickSpec.candidates || this._getTribeMembers({
         includeNpc: pickSpec.includeNpc ?? false,
         includePlayer: pickSpec.includePlayer ?? false,
+        npcId: npc?.id
+      });
+    }
+    if (!candidates.length && type === 'TRIBE_MEMBER') {
+      candidates = this._getTribeMembers({
+        includeNpc: true,
+        includePlayer: true,
         npcId: npc?.id
       });
     }
@@ -958,6 +987,11 @@ class ConversationSystem {
 
     const beginConversation = () => {
       this._logConversationStart({ initiator, phase: normalizedPhase });
+      this._validateConversationTreeOnStart({
+        player: this.gameManager.getPlayerSurvivor?.(),
+        npc: survivor,
+        context: { ...(seededContext || {}), initiator, phase: normalizedPhase, location }
+      });
       this._startNpcInitiatedConversation({
         player: this.gameManager.getPlayerSurvivor?.(),
         npc: survivor,
@@ -1003,6 +1037,12 @@ class ConversationSystem {
       initiator: 'player',
       context: { ...seededContext, initiator: 'player' }
     };
+
+    this._validateConversationTreeOnStart({
+      player: this.gameManager.getPlayerSurvivor?.(),
+      npc: survivor,
+      context: { ...(seededContext || {}), initiator: 'player', phase: normalizedPhase, location }
+    });
 
     this._startConversation(survivor, {
       isPurpose: true,
@@ -1360,7 +1400,10 @@ class ConversationSystem {
     const { trustSystem, relationshipSystem, allianceSystem, dealSystem } = this._getConversationSystems();
     const trustValue = trustSystem?.getTrust?.(player?.id, npc?.id);
     const relationshipValue = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value;
-    let trust = Number.isFinite(trustValue) ? trustValue : this.gameManager?.getTrust?.(player?.id, npc?.id);
+    let trust = Number.isFinite(trustValue) ? trustValue : this._getPairTrust?.(player?.id, npc?.id);
+    if (!Number.isFinite(trust)) {
+      trust = this.gameManager?.getTrust?.(player?.id, npc?.id);
+    }
     const relationship = this._clampStat(Number.isFinite(relationshipValue) ? relationshipValue : this._getRelationshipValue(player?.id, npc?.id));
     if (!Number.isFinite(trust)) {
       trust = relationship;
@@ -1445,6 +1488,9 @@ class ConversationSystem {
       weights[NPC_APPROACH_PURPOSES.STRATEGY] += 2;
       weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 2;
       reasons.push('phase:post');
+    } else {
+      weights[NPC_APPROACH_PURPOSES.BUILD_CONNECTION] += 1;
+      reasons.push('phase:pre');
     }
 
     if (hasSharedAlliance) {
@@ -1533,22 +1579,136 @@ class ConversationSystem {
     return typeof choice === 'function' ? choice({ player, npc, context, stance }) : choice;
   }
 
-  buildNpcApproachResponses({ purposeId }) {
-    const responses = [
-      { label: 'Talk to me.', actionKey: 'CONTINUE' }
-    ];
+  buildNpcApproachResponses({ purposeId, player, npc, context }) {
+    const commonExit = {
+      label: 'Not now.',
+      playerLine: 'Not right now.',
+      actionKey: 'DECLINE'
+    };
 
-    if ([NPC_APPROACH_PURPOSES.STRATEGY, NPC_APPROACH_PURPOSES.OFFER_DEAL, NPC_APPROACH_PURPOSES.PRESSURE_SOFT, NPC_APPROACH_PURPOSES.GOSSIP].includes(purposeId)) {
-      responses.push({ label: 'Keep it quick.', actionKey: 'QUICK' });
+    const optionsByPurpose = {
+      [NPC_APPROACH_PURPOSES.BUILD_CONNECTION]: [
+        {
+          label: 'Check in',
+          playerLine: 'How you holding up? Just checking in — you good?',
+          route: { topicId: 'build_connection', nodeId: 'check_in' }
+        },
+        {
+          label: 'Share a laugh',
+          playerLine: 'We’ve gotta laugh out here or we’ll go crazy. What’s the funniest thing you’ve seen today?',
+          route: { topicId: 'build_connection', nodeId: 'share_laugh' }
+        },
+        {
+          label: 'Compliment',
+          playerLine: 'Real talk — you’ve been solid out here. I respect how you’re playing this.',
+          route: { topicId: 'build_connection', nodeId: 'compliment' }
+        }
+      ],
+      [NPC_APPROACH_PURPOSES.GOSSIP]: [
+        {
+          label: 'Who are you close with?',
+          playerLine: 'Who do you actually feel good with around here?',
+          route: { topicId: 'gossip', nodeId: 'close_with' }
+        },
+        {
+          label: 'Whose name is coming up?',
+          playerLine: 'Whose name is coming up when people whisper?',
+          route: { topicId: 'gossip', nodeId: 'name_coming_up' }
+        },
+        {
+          label: 'Who’s working together?',
+          playerLine: 'Who do you think is working together?',
+          route: { topicId: 'gossip', nodeId: 'working_together' }
+        }
+      ],
+      [NPC_APPROACH_PURPOSES.STRATEGY]: [
+        {
+          label: 'Vote read',
+          playerLine: 'What do you think the majority wants next?',
+          route: { topicId: 'strategy', nodeId: 'vote_read' }
+        },
+        {
+          label: 'Pitch a target',
+          playerLine: 'I want to pitch a target to you.',
+          route: { topicId: 'strategy', nodeId: 'pitch_target' }
+        },
+        {
+          label: 'Backup plan',
+          playerLine: 'If an idol gets played, what’s the backup plan?',
+          route: { topicId: 'strategy', nodeId: 'backup_plan' }
+        }
+      ],
+      [NPC_APPROACH_PURPOSES.OFFER_DEAL]: [
+        {
+          label: 'Lock something in',
+          playerLine: 'Can we lock something in?',
+          route: { topicId: 'strategy', nodeId: 'offer_deal' }
+        },
+        {
+          label: 'Talk alliance',
+          playerLine: 'Let’s talk alliance.',
+          route: { topicId: 'strategy', nodeId: 'alliances' }
+        },
+        {
+          label: 'Pitch a target',
+          playerLine: 'I want to pitch a target to you.',
+          route: { topicId: 'strategy', nodeId: 'pitch_target' }
+        }
+      ],
+      [NPC_APPROACH_PURPOSES.REASSURE_CHECKIN]: [
+        {
+          label: 'How are you holding up?',
+          playerLine: 'Be honest — how are you holding up physically and mentally?',
+          route: { topicId: 'vibe_check', nodeId: 'holding_up' }
+        },
+        {
+          label: 'What’s bugging you?',
+          playerLine: 'What’s been bugging you out here? Like… what’s the thing you can’t ignore?',
+          route: { topicId: 'vibe_check', nodeId: 'whats_bugging' }
+        },
+        {
+          label: 'Do you feel safe?',
+          playerLine: 'Do you feel safe right now?',
+          route: { topicId: 'vibe_check', nodeId: 'feel_safe' }
+        }
+      ],
+      [NPC_APPROACH_PURPOSES.PRESSURE_SOFT]: [
+        {
+          label: 'Where do we stand?',
+          playerLine: 'Something feels off between us. What’s going on?',
+          route: { topicId: 'confront', nodeId: 'call_out_tension' }
+        },
+        {
+          label: 'I heard my name',
+          playerLine: 'I heard you said my name.',
+          route: { topicId: 'confront', nodeId: 'confront_rumor' }
+        },
+        {
+          label: 'Are we good?',
+          playerLine: 'You and me — are we good?',
+          route: { topicId: 'vibe_check', nodeId: 'are_we_good' }
+        }
+      ]
+    };
+
+    const base = optionsByPurpose[purposeId] || optionsByPurpose[NPC_APPROACH_PURPOSES.BUILD_CONNECTION];
+    const topics = this._buildMainTopics({ player, npc, context: context || {} });
+    const isRouteValid = route => {
+      if (!route?.topicId || !route?.nodeId) return false;
+      const topic = topics.find(item => item.id === route.topicId);
+      const node = topic?.nodes?.find(item => item.id === route.nodeId);
+      return Boolean(topic && node && !node.disabled);
+    };
+    const filtered = base.filter(option => !option.route || isRouteValid(option.route));
+    const fallbackBase = filtered.length ? filtered : optionsByPurpose[NPC_APPROACH_PURPOSES.BUILD_CONNECTION];
+    const responses = [...fallbackBase, commonExit].slice(0, 4);
+    if (this.debugConvo) {
+      this._debugLog('[CONVO-DEBUG] NPC approach options', {
+        purposeId,
+        options: responses.map(option => option.label)
+      });
     }
-
-    if ([NPC_APPROACH_PURPOSES.GOSSIP, NPC_APPROACH_PURPOSES.STRATEGY, NPC_APPROACH_PURPOSES.PRESSURE_SOFT].includes(purposeId)) {
-      responses.push({ label: 'Why are you asking me?', actionKey: 'WHY_ME' });
-    }
-
-    responses.push({ label: 'Not right now.', actionKey: 'DECLINE' });
-
-    return responses.slice(0, 4);
+    return responses;
   }
 
   routeNpcApproachIntoTree({ purposeId, player, npc, context }) {
@@ -1698,48 +1858,51 @@ class ConversationSystem {
       stance: approachStance
     });
     const responseOptions = this.buildNpcApproachResponses({ purposeId: purposeSelection.purposeId, player, npc, context: normalizedContext });
-    const routing = this.routeNpcApproachIntoTree({ purposeId: purposeSelection.purposeId, player, npc, context: normalizedContext });
 
-    const returnToMain = (contextOverride = normalizedContext) => this._renderMainMenu({
-      player,
-      npc,
-      context: contextOverride,
-      mainTopics: this._buildMainTopics({ player, npc, context: contextOverride })
-    });
-
-    const returnToTopic = (contextOverride = normalizedContext) => {
-      if (!routing?.topicId) {
-        returnToMain(contextOverride);
+    const runApproachRoute = ({ route, contextOverride }) => {
+      const updatedContext = contextOverride || normalizedContext;
+      const topics = this._buildMainTopics({ player, npc, context: updatedContext });
+      const topic = route?.topicId ? topics.find(item => item.id === route.topicId) : topics[0];
+      const node = route?.nodeId
+        ? topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled)
+        : null;
+      const fallbackNode = node || topic?.nodes?.find(item => !item.disabled);
+      if (!topic || !fallbackNode) {
+        this._renderMainMenu({ player, npc, context: updatedContext, mainTopics: topics });
         return;
       }
-      const mainTopics = routing.mainTopics || this._buildMainTopics({ player, npc, context: contextOverride });
-      const topic = mainTopics.find(item => item.id === routing.topicId);
-      if (topic) {
-        this._renderSubMenu({ player, npc, context: contextOverride, topic });
-      } else {
-        returnToMain(contextOverride);
+      const nextContext = {
+        ...updatedContext,
+        mainTopicId: topic.id,
+        subTopicId: fallbackNode.id
+      };
+      if (this.debugConvo) {
+        this._debugLog('[CONVO-DEBUG] NPC approach route', {
+          purposeId: purposeSelection.purposeId,
+          topicId: topic.id,
+          nodeId: fallbackNode.id
+        });
       }
+      this._runConversationNode({
+        npc,
+        player,
+        node: fallbackNode,
+        context: nextContext,
+        returnTo: () => this._renderSubMenu({ player, npc, context: nextContext, topic })
+      });
     };
 
     const buttons = responseOptions.map(option => ({
       label: option.label,
       onClick: () => {
-        this.nodeSession?.addYou?.(option.label);
+        const playerLine = option.playerLine || option.label;
+        this.nodeSession?.addYou?.(playerLine);
         const routedContext = { ...normalizedContext };
-        if (option.actionKey === 'QUICK') {
-          routedContext.approachQuick = true;
-        }
-        if (option.actionKey === 'WHY_ME') {
-          routedContext.approachWhyMe = true;
-        }
         if (this.debugConvo) {
           this._debugLog('[CONVO-DEBUG] NPC approach response', {
             actionKey: option.actionKey,
             label: option.label,
-            contextFlags: {
-              approachQuick: routedContext.approachQuick || false,
-              approachWhyMe: routedContext.approachWhyMe || false
-            }
+            playerLine
           });
         }
         if (option.actionKey === 'DECLINE') {
@@ -1753,77 +1916,7 @@ class ConversationSystem {
           this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), [], { onBack: null, showEnd: true });
           return;
         }
-        if (routing?.mode === 'OPEN_TOPIC_MENU') {
-          const topics = routing.mainTopics || this._buildMainTopics({ player, npc, context: routedContext });
-          const topic = topics.find(item => item.id === routing.topicId) || topics[0];
-          if (topic) {
-            this._renderSubMenu({ player, npc, context: routedContext, topic });
-          } else {
-            returnToMain(routedContext);
-          }
-          return;
-        }
-        const topics = routing.mainTopics || this._buildMainTopics({ player, npc, context: routedContext });
-        const topic = topics.find(item => item.id === routing.topicId);
-        const node = topic?.nodes?.find(item => item.id === routing.nodeId);
-        if (!topic || !node) {
-          returnToMain(routedContext);
-          return;
-        }
-        if (routing.mode === 'PICK_THEN_RUN') {
-          const pickSpec = routing.pickSpec || node.requiresPick;
-          if (!pickSpec) {
-            this._runConversationNode({
-              npc,
-              player,
-              node,
-              context: {
-                ...routedContext,
-                mainTopicId: routing?.topicId || null,
-                subTopicId: routing?.nodeId || null
-              },
-              returnTo: () => returnToTopic(routedContext)
-            });
-            return;
-          }
-          this._runPickFlow({
-            npc,
-            player,
-            context: routedContext,
-            pickSpec,
-            onPick: ({ picked, session }) => {
-              session?.addYou?.(`${picked.firstName}.`);
-              const nextContext = {
-                ...routedContext,
-                topicPerson: picked.firstName,
-                topicPersonId: picked.id,
-                topicId: picked.id,
-                mainTopicId: routing?.topicId || null,
-                subTopicId: routing?.nodeId || null
-              };
-              this._runConversationNode({
-                npc,
-                player,
-                node,
-                context: nextContext,
-                returnTo: () => returnToTopic(nextContext)
-              });
-            },
-            returnTo: () => returnToTopic(routedContext)
-          });
-          return;
-        }
-        this._runConversationNode({
-          npc,
-          player,
-          node,
-          context: {
-            ...routedContext,
-            mainTopicId: routing?.topicId || null,
-            subTopicId: routing?.nodeId || null
-          },
-          returnTo: () => returnToTopic(routedContext)
-        });
+        runApproachRoute({ route: option.route, contextOverride: routedContext });
       }
     }));
 
@@ -1832,7 +1925,6 @@ class ConversationSystem {
         initiator: 'npc',
         purposeId: purposeSelection.purposeId,
         weightDebug: purposeSelection.weights,
-        route: { topicId: routing.topicId, nodeId: routing.nodeId, mode: routing.mode },
         openingLine
       });
     }
@@ -1955,6 +2047,63 @@ class ConversationSystem {
   _logConversationStart({ initiator, phase }) {
     if (!this.debugConvo) return;
     console.log('[CONVO-DEBUG] NEW TREE ACTIVE', { initiator, phase });
+  }
+
+  _validateConversationTreeOnStart({ player, npc, context }) {
+    if (!this._isConversationDebugEnabled()) return;
+    if (!player || !npc) return;
+    const topics = this._buildMainTopics({ player, npc, context });
+    const missingIds = [];
+    const emptyChoices = [];
+    const pickConfigIssues = [];
+    const visited = new Set();
+
+    const walkNode = (node, topicId) => {
+      if (!node) return;
+      if (!node.id) {
+        missingIds.push(`Topic "${topicId}" has node without id.`);
+      }
+      const key = node.id || node.buttonText || Math.random().toString(36).slice(2);
+      if (visited.has(key)) return;
+      visited.add(key);
+      if (node.requiresPick) {
+        const pickSpec = node.requiresPick;
+        const pickType = pickSpec?.type || pickSpec?.pickType;
+        if (!pickType) {
+          pickConfigIssues.push(`Node "${node.id || 'unknown'}" missing pickSpec.type.`);
+        }
+        if (pickSpec?.candidates && !Array.isArray(pickSpec.candidates)) {
+          pickConfigIssues.push(`Node "${node.id || 'unknown'}" pickSpec.candidates must be an array.`);
+        }
+      }
+      const followupNodes = typeof node.nextNodes === 'function'
+        ? node.nextNodes({ player, npc, context, stance: NPC_STANCES.TRUTH })
+        : (node.nextNodes || []);
+      const hasChoices = Array.isArray(followupNodes) && followupNodes.length > 0;
+      if (!hasChoices && !node.afterReply && !node.requiresPick && !node.meta?.isEnd) {
+        emptyChoices.push(`Node "${node.id || 'unknown'}" in topic "${topicId}" has no follow-up choices.`);
+      }
+      if (Array.isArray(followupNodes)) {
+        followupNodes.forEach(nextNode => {
+          if (!nextNode?.id) {
+            missingIds.push(`Node "${node.id || 'unknown'}" follow-up missing id.`);
+          }
+          walkNode(nextNode, topicId);
+        });
+      }
+    };
+
+    topics.forEach(topic => {
+      (topic.nodes || []).forEach(node => walkNode(node, topic.id));
+    });
+
+    if (missingIds.length || emptyChoices.length || pickConfigIssues.length) {
+      console.warn('ConversationSystem DEBUG: Conversation tree validation issues.', {
+        missingIds,
+        emptyChoices,
+        pickConfigIssues
+      });
+    }
   }
 
   _reportLegacyMenuUsage() {
