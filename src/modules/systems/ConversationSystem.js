@@ -23,14 +23,12 @@ const NPC_STANCES = Object.freeze({
 });
 
 const NPC_APPROACH_PURPOSES = Object.freeze({
-  BOND: 'BOND',
+  BUILD_CONNECTION: 'BUILD_CONNECTION',
   GOSSIP: 'GOSSIP',
-  STRATEGY_TARGETING: 'STRATEGY_TARGETING',
-  IDOL_CHATTER: 'IDOL_CHATTER',
-  DEAL: 'DEAL',
-  ALLIANCE: 'ALLIANCE',
-  CONFRONT: 'CONFRONT',
-  NEEDS: 'NEEDS'
+  STRATEGY: 'STRATEGY',
+  OFFER_DEAL: 'OFFER_DEAL',
+  REASSURE_CHECKIN: 'REASSURE_CHECKIN',
+  PRESSURE_SOFT: 'PRESSURE_SOFT'
 });
 
 const CAMP_LOCATIONS = [
@@ -277,6 +275,8 @@ class ConversationSystem {
     const threat = npc?.threat ?? 0;
     const style = (npc?.gameplayStyle || npc?.personality || '').toLowerCase();
     const pressuring = Boolean(context.pressuring);
+    const approachQuick = Boolean(context.approachQuick);
+    const approachWhyMe = Boolean(context.approachWhyMe);
     const weights = {
       [NPC_STANCES.TRUTH]: 1,
       [NPC_STANCES.LIE]: 1,
@@ -311,6 +311,14 @@ class ConversationSystem {
       weights[NPC_STANCES.LIE] += 1;
     }
     if (pressuring || threat >= 70) {
+      weights[NPC_STANCES.COUNTER] += 2;
+      weights[NPC_STANCES.DEFLECT] += 1;
+    }
+    if (approachQuick) {
+      weights[NPC_STANCES.PRESSURE] += 2;
+      weights[NPC_STANCES.DEFLECT] += 1;
+    }
+    if (approachWhyMe) {
       weights[NPC_STANCES.COUNTER] += 2;
       weights[NPC_STANCES.DEFLECT] += 1;
     }
@@ -1349,83 +1357,120 @@ class ConversationSystem {
 
   decideNpcApproachPurpose({ player, npc, context = {} }) {
     const phase = context?.phase || this._getConversationPhase();
-    const trust = this._getPairTrust(player?.id, npc?.id);
-    const relationship = this._getRelationshipValue(player?.id, npc?.id);
+    const { trustSystem, relationshipSystem, allianceSystem, dealSystem } = this._getConversationSystems();
+    const trustValue = trustSystem?.getTrust?.(player?.id, npc?.id);
+    const relationshipValue = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value;
+    let trust = Number.isFinite(trustValue) ? trustValue : this.gameManager?.getTrust?.(player?.id, npc?.id);
+    const relationship = this._clampStat(Number.isFinite(relationshipValue) ? relationshipValue : this._getRelationshipValue(player?.id, npc?.id));
+    if (!Number.isFinite(trust)) {
+      trust = relationship;
+    }
+    trust = this._clampStat(trust);
     const paranoia = npc?.paranoia ?? 0;
-    const suspicion = npc?.suspicion ?? 0;
-    const threat = npc?.threat ?? 0;
-    const worstStat = this._pickWorstStat(npc);
+    const threat = npc?.threatLevel ?? npc?.threat ?? 0;
+    const style = npc?.gameplayStyle || '';
+    const reasons = [];
 
-    const { allianceSystem, dealSystem } = this._getConversationSystems();
     const sharedAlliances = allianceSystem?.getAlliancesForSurvivor?.(player?.id) || [];
     const hasSharedAlliance = sharedAlliances.some(alliance => alliance.memberIds?.includes?.(npc?.id));
     const activeDeals = dealSystem?.getActiveDealsBetween?.(player?.id, npc?.id) || [];
     const hasActiveDeal = activeDeals.length > 0;
 
     const weights = {
-      [NPC_APPROACH_PURPOSES.BOND]: 1.1,
+      [NPC_APPROACH_PURPOSES.BUILD_CONNECTION]: 1,
       [NPC_APPROACH_PURPOSES.GOSSIP]: 1,
-      [NPC_APPROACH_PURPOSES.STRATEGY_TARGETING]: 1,
-      [NPC_APPROACH_PURPOSES.IDOL_CHATTER]: 0.8,
-      [NPC_APPROACH_PURPOSES.DEAL]: 0.7,
-      [NPC_APPROACH_PURPOSES.ALLIANCE]: 0.8,
-      [NPC_APPROACH_PURPOSES.CONFRONT]: 0.6,
-      [NPC_APPROACH_PURPOSES.NEEDS]: 0.4
+      [NPC_APPROACH_PURPOSES.STRATEGY]: 1,
+      [NPC_APPROACH_PURPOSES.OFFER_DEAL]: 1,
+      [NPC_APPROACH_PURPOSES.REASSURE_CHECKIN]: 1,
+      [NPC_APPROACH_PURPOSES.PRESSURE_SOFT]: 1
     };
 
-    if (phase === 'post') {
-      weights[NPC_APPROACH_PURPOSES.STRATEGY_TARGETING] += 1.6;
-      weights[NPC_APPROACH_PURPOSES.DEAL] += 1.1;
-      weights[NPC_APPROACH_PURPOSES.ALLIANCE] += 0.8;
-    } else {
-      weights[NPC_APPROACH_PURPOSES.BOND] += 0.8;
-      weights[NPC_APPROACH_PURPOSES.GOSSIP] += 0.6;
+    switch (style) {
+      case 'Competitive':
+        weights[NPC_APPROACH_PURPOSES.STRATEGY] += 2;
+        weights[NPC_APPROACH_PURPOSES.PRESSURE_SOFT] += 2;
+        weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 1;
+        reasons.push('style:Competitive');
+        break;
+      case 'Power Player':
+        weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 3;
+        weights[NPC_APPROACH_PURPOSES.STRATEGY] += 2;
+        weights[NPC_APPROACH_PURPOSES.PRESSURE_SOFT] += 1;
+        reasons.push('style:Power Player');
+        break;
+      case 'Social Genius':
+        weights[NPC_APPROACH_PURPOSES.BUILD_CONNECTION] += 3;
+        weights[NPC_APPROACH_PURPOSES.REASSURE_CHECKIN] += 2;
+        weights[NPC_APPROACH_PURPOSES.GOSSIP] += 1;
+        reasons.push('style:Social Genius');
+        break;
+      case 'Shadow Strategist':
+        weights[NPC_APPROACH_PURPOSES.GOSSIP] += 3;
+        weights[NPC_APPROACH_PURPOSES.STRATEGY] += 2;
+        weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 1;
+        reasons.push('style:Shadow Strategist');
+        break;
+      case 'Wildcard': {
+        const wildcardBoost = getRandomInt(0, 2);
+        Object.keys(weights).forEach(key => {
+          weights[key] += wildcardBoost;
+        });
+        reasons.push(`style:Wildcard +${wildcardBoost}`);
+        break;
+      }
+      case 'Lethal Charmer':
+        weights[NPC_APPROACH_PURPOSES.BUILD_CONNECTION] += 3;
+        weights[NPC_APPROACH_PURPOSES.REASSURE_CHECKIN] += 2;
+        weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 1;
+        reasons.push('style:Lethal Charmer');
+        break;
+      default:
+        break;
     }
 
-    if (trust >= 65 && relationship >= 60) {
-      weights[NPC_APPROACH_PURPOSES.BOND] += 1.2;
-      weights[NPC_APPROACH_PURPOSES.ALLIANCE] += 1.1;
+    if (paranoia >= 60) {
+      weights[NPC_APPROACH_PURPOSES.REASSURE_CHECKIN] += 2;
+      weights[NPC_APPROACH_PURPOSES.GOSSIP] += 1;
+      weights[NPC_APPROACH_PURPOSES.PRESSURE_SOFT] += 1;
+      reasons.push('paranoia');
     }
 
-    if (trust <= 45 || relationship <= 45) {
-      weights[NPC_APPROACH_PURPOSES.CONFRONT] += 1.5;
-      weights[NPC_APPROACH_PURPOSES.BOND] -= 0.4;
+    if (threat >= 60) {
+      weights[NPC_APPROACH_PURPOSES.STRATEGY] += 2;
+      weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 1;
+      reasons.push('threat');
+    }
+
+    if (this._normalizePhase(phase) === 'post' || String(phase).toUpperCase().includes('POST')) {
+      weights[NPC_APPROACH_PURPOSES.STRATEGY] += 2;
+      weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 2;
+      reasons.push('phase:post');
     }
 
     if (hasSharedAlliance) {
-      weights[NPC_APPROACH_PURPOSES.ALLIANCE] += 1.8;
-      weights[NPC_APPROACH_PURPOSES.STRATEGY_TARGETING] += 0.8;
-    } else {
-      weights[NPC_APPROACH_PURPOSES.DEAL] += 0.4;
+      weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 1;
+      weights[NPC_APPROACH_PURPOSES.STRATEGY] += 1;
+      weights[NPC_APPROACH_PURPOSES.REASSURE_CHECKIN] += 1;
+      reasons.push('sharedAlliance');
     }
 
     if (hasActiveDeal) {
-      weights[NPC_APPROACH_PURPOSES.DEAL] += 1.8;
-      weights[NPC_APPROACH_PURPOSES.STRATEGY_TARGETING] += 0.5;
+      weights[NPC_APPROACH_PURPOSES.STRATEGY] += 1;
+      weights[NPC_APPROACH_PURPOSES.REASSURE_CHECKIN] += 1;
+      reasons.push('activeDeal');
     }
 
-    if (paranoia >= 65 || suspicion >= 60) {
-      weights[NPC_APPROACH_PURPOSES.IDOL_CHATTER] += 1.1;
-      weights[NPC_APPROACH_PURPOSES.GOSSIP] += 1;
+    if (trust <= 40 && relationship <= 40) {
+      weights[NPC_APPROACH_PURPOSES.PRESSURE_SOFT] += 3;
+      reasons.push('lowTrustAndRel');
     }
 
-    if (threat >= 70) {
-      weights[NPC_APPROACH_PURPOSES.STRATEGY_TARGETING] += 0.6;
-    }
-
-    if (worstStat.key !== 'steady' && worstStat.key !== 'paranoia') {
-      weights[NPC_APPROACH_PURPOSES.NEEDS] += 1.8;
-    }
-
-    Object.keys(weights).forEach(key => {
-      if (weights[key] < 0.1) weights[key] = 0.1;
-    });
-
-    const entries = Object.entries(weights);
-    const totalWeight = entries.reduce((sum, [, value]) => sum + value, 0);
-    let roll = Math.random() * totalWeight;
-    let purposeId = entries[0][0];
-    for (const [key, value] of entries) {
+    const sorted = Object.entries(weights).sort((a, b) => b[1] - a[1]);
+    const topSlice = sorted.slice(0, Math.min(3, sorted.length));
+    const topTotal = topSlice.reduce((sum, [, value]) => sum + value, 0);
+    let roll = Math.random() * topTotal;
+    let purposeId = topSlice[0][0];
+    for (const [key, value] of topSlice) {
       roll -= value;
       if (roll <= 0) {
         purposeId = key;
@@ -1433,140 +1478,132 @@ class ConversationSystem {
       }
     }
 
+    if (this.debugConvo) {
+      this._debugLog('[CONVO-DEBUG] NPC approach purpose', {
+        npc: npc?.firstName || npc?.id,
+        purposeId,
+        topWeights: topSlice,
+        reasons
+      });
+    }
+
     return {
       purposeId,
-      reason: 'weighted_pick',
-      weightDebug: weights
+      weights,
+      reason: reasons.join(',') || 'baseline'
     };
   }
 
   getNpcApproachOpener({ purposeId, player, npc, context, stance }) {
     const openers = {
-      [NPC_APPROACH_PURPOSES.BOND]: [
-        'Hey—quick vibe check. You and me good?',
-        'Just wanted to check in. We’re good, right?',
-        'Can we vibe for a second? I want to make sure we’re solid.'
+      [NPC_APPROACH_PURPOSES.BUILD_CONNECTION]: [
+        'Hey — just wanted to check in with you.',
+        'You doing okay out here? I figured I’d say hi.',
+        'I’ve been meaning to talk. You and me good?'
       ],
       [NPC_APPROACH_PURPOSES.GOSSIP]: [
-        'I’m hearing some stuff, and it’s not nothing.',
-        'People are talking. I want to see where you’re at.',
-        'There’s some noise around camp. Wanted your read.'
+        'I’m hearing some stuff, and I wanted your take.',
+        'Quick heads-up… there’s chatter going around.',
+        'Not trying to stir anything up, but… people are talking.'
       ],
-      [NPC_APPROACH_PURPOSES.STRATEGY_TARGETING]: [
-        'We need to be on the same page before Tribal.',
-        'Strategy check. We should talk names.',
-        'Let’s make sure we’re aligned before this blows up.'
+      [NPC_APPROACH_PURPOSES.STRATEGY]: [
+        'We should probably talk before Tribal.',
+        'I’m trying to get a read on where the numbers are.',
+        'We can’t go in blind. What are you thinking?'
       ],
-      [NPC_APPROACH_PURPOSES.IDOL_CHATTER]: [
-        'I don’t know if it’s real, but I heard idol talk.',
-        'There’s idol chatter. Just keeping you in the loop.',
-        'I’m hearing idol stuff. It’s got me thinking.'
+      [NPC_APPROACH_PURPOSES.OFFER_DEAL]: [
+        'I think we could help each other here.',
+        'Can we lock something in, just you and me?',
+        'I’m looking for something solid — are you open to that?'
       ],
-      [NPC_APPROACH_PURPOSES.DEAL]: [
-        'Can we lock something in?',
-        'I want to make something concrete with you.',
-        'I’m looking for a firm deal. You open?'
+      [NPC_APPROACH_PURPOSES.REASSURE_CHECKIN]: [
+        'Things feel a little off. You feeling okay?',
+        'I’m not gonna lie — I’m a little uneasy.',
+        'I just want to make sure we’re not on the wrong side of this.'
       ],
-      [NPC_APPROACH_PURPOSES.ALLIANCE]: [
-        'About us… I want to make sure we’re solid.',
-        'Let’s tighten up the alliance piece.',
-        'I want to make sure our thing is real.'
-      ],
-      [NPC_APPROACH_PURPOSES.CONFRONT]: [
-        'I feel some tension between us. What’s going on?',
-        'I’m picking up weird energy. We need to clear it.',
-        'Something feels off. Are we good?'
-      ],
-      [NPC_APPROACH_PURPOSES.NEEDS]: [
-        'I’m dragging. No food, no energy. It’s getting bad.',
-        'I’m running on fumes out here. It’s hitting me.',
-        'I’m wiped. It’s been rough physically.'
+      [NPC_APPROACH_PURPOSES.PRESSURE_SOFT]: [
+        'I need to know where you’re at.',
+        'Be straight with me — are we good?',
+        'I’ve got questions, and I’d rather hear it from you.'
       ]
     };
 
-    const pool = openers[purposeId] || openers[NPC_APPROACH_PURPOSES.BOND];
+    const pool = openers[purposeId] || openers[NPC_APPROACH_PURPOSES.BUILD_CONNECTION];
     const choice = pool[getRandomInt(0, Math.max(0, pool.length - 1))];
     return typeof choice === 'function' ? choice({ player, npc, context, stance }) : choice;
   }
 
-  buildNpcApproachPlayerResponses({ purposeId }) {
+  buildNpcApproachResponses({ purposeId }) {
     const responses = [
-      { id: 'continue', label: 'Talk to me.', playerLine: 'Talk to me.' },
-      { id: 'not_now', label: 'Not right now.', playerLine: 'Not right now.' }
+      { label: 'Talk to me.', actionKey: 'CONTINUE' }
     ];
 
-    if ([NPC_APPROACH_PURPOSES.STRATEGY_TARGETING, NPC_APPROACH_PURPOSES.DEAL, NPC_APPROACH_PURPOSES.CONFRONT, NPC_APPROACH_PURPOSES.IDOL_CHATTER, NPC_APPROACH_PURPOSES.GOSSIP].includes(purposeId)) {
-      responses.splice(1, 0, { id: 'quick', label: 'Keep it quick.', playerLine: 'Keep it quick.', pressuring: true });
+    if ([NPC_APPROACH_PURPOSES.STRATEGY, NPC_APPROACH_PURPOSES.OFFER_DEAL, NPC_APPROACH_PURPOSES.PRESSURE_SOFT, NPC_APPROACH_PURPOSES.GOSSIP].includes(purposeId)) {
+      responses.push({ label: 'Keep it quick.', actionKey: 'QUICK' });
     }
 
-    if ([NPC_APPROACH_PURPOSES.CONFRONT, NPC_APPROACH_PURPOSES.GOSSIP, NPC_APPROACH_PURPOSES.STRATEGY_TARGETING, NPC_APPROACH_PURPOSES.IDOL_CHATTER].includes(purposeId)) {
-      responses.push({ id: 'why', label: 'Why are you asking me?', playerLine: 'Why are you asking me?' });
+    if ([NPC_APPROACH_PURPOSES.GOSSIP, NPC_APPROACH_PURPOSES.STRATEGY, NPC_APPROACH_PURPOSES.PRESSURE_SOFT].includes(purposeId)) {
+      responses.push({ label: 'Why are you asking me?', actionKey: 'WHY_ME' });
     }
+
+    responses.push({ label: 'Not right now.', actionKey: 'DECLINE' });
 
     return responses.slice(0, 4);
   }
 
   routeNpcApproachIntoTree({ purposeId, player, npc, context }) {
     const mainTopics = this._buildMainTopics({ player, npc, context });
-    const trust = this._getPairTrust(player?.id, npc?.id);
-    const relationship = this._getRelationshipValue(player?.id, npc?.id);
-    const { allianceSystem } = this._getConversationSystems();
-    const sharedAlliances = allianceSystem?.getAlliancesForSurvivor?.(player?.id) || [];
-    const hasSharedAlliance = sharedAlliances.some(alliance => alliance.memberIds?.includes?.(npc?.id));
-
     const topicMapping = {
-      [NPC_APPROACH_PURPOSES.BOND]: {
+      [NPC_APPROACH_PURPOSES.BUILD_CONNECTION]: {
         topicId: 'build_connection',
-        nodeId: trust >= 55 && relationship >= 55 ? 'bond_one_on_one' : 'check_in',
-        mode: 'RUN_NODE'
+        nodeId: null,
+        mode: 'OPEN_TOPIC_MENU'
       },
       [NPC_APPROACH_PURPOSES.GOSSIP]: {
         topicId: 'gossip',
-        nodeId: trust >= 55 ? 'name_coming_up' : 'quick_read',
-        mode: 'RUN_NODE'
+        nodeId: null,
+        mode: 'OPEN_TOPIC_MENU'
       },
-      [NPC_APPROACH_PURPOSES.STRATEGY_TARGETING]: {
+      [NPC_APPROACH_PURPOSES.STRATEGY]: {
         topicId: 'strategy',
-        nodeId: context?.phase === 'post' ? 'pitch_target' : 'vote_read',
-        mode: context?.phase === 'post' ? 'PICK_NAME_THEN_RUN' : 'RUN_NODE'
+        nodeId: null,
+        mode: 'OPEN_TOPIC_MENU'
       },
-      [NPC_APPROACH_PURPOSES.IDOL_CHATTER]: {
-        topicId: 'idol_talk',
-        nodeId: 'idol_looked',
-        mode: 'RUN_NODE'
-      },
-      [NPC_APPROACH_PURPOSES.DEAL]: {
+      [NPC_APPROACH_PURPOSES.OFFER_DEAL]: {
         topicId: 'strategy',
         nodeId: 'offer_deal',
-        mode: 'PICK_NAME_THEN_RUN'
-      },
-      [NPC_APPROACH_PURPOSES.ALLIANCE]: {
-        topicId: 'strategy',
-        nodeId: hasSharedAlliance ? 'alliances' : 'offer_deal',
-        mode: hasSharedAlliance ? 'RUN_NODE' : 'RUN_NODE'
-      },
-      [NPC_APPROACH_PURPOSES.CONFRONT]: {
-        topicId: 'confront',
-        nodeId: 'call_out_tension',
         mode: 'RUN_NODE'
       },
-      [NPC_APPROACH_PURPOSES.NEEDS]: {
+      [NPC_APPROACH_PURPOSES.REASSURE_CHECKIN]: {
         topicId: 'vibe_check',
-        nodeId: 'holding_up',
-        mode: 'RUN_NODE'
+        nodeId: null,
+        mode: 'OPEN_TOPIC_MENU'
+      },
+      [NPC_APPROACH_PURPOSES.PRESSURE_SOFT]: {
+        topicId: 'confront',
+        nodeId: null,
+        mode: 'OPEN_TOPIC_MENU'
       }
     };
 
-    const selection = topicMapping[purposeId] || topicMapping[NPC_APPROACH_PURPOSES.BOND];
+    const selection = topicMapping[purposeId] || topicMapping[NPC_APPROACH_PURPOSES.BUILD_CONNECTION];
     const topic = mainTopics.find(item => item.id === selection.topicId);
-    const node = topic?.nodes?.find(item => item.id === selection.nodeId && !item.disabled);
+    const node = selection.nodeId ? topic?.nodes?.find(item => item.id === selection.nodeId && !item.disabled) : null;
     if (!topic) {
-      return { topicId: null, nodeId: null, mode: 'OPEN_TOPIC_MENU', mainTopics };
+      return { topicId: mainTopics[0]?.id || null, nodeId: null, mode: 'OPEN_TOPIC_MENU', mainTopics };
     }
-    if (!node) {
+    if (selection.nodeId && !node) {
       return { topicId: topic.id, nodeId: null, mode: 'OPEN_TOPIC_MENU', mainTopics };
     }
-    return { topicId: topic.id, nodeId: node.id, mode: selection.mode, mainTopics };
+    const pickSpec = node?.requiresPick || selection.pickSpec || null;
+    const mode = pickSpec && selection.mode === 'RUN_NODE' ? 'PICK_THEN_RUN' : selection.mode;
+    return {
+      topicId: topic.id,
+      nodeId: node?.id || null,
+      mode,
+      mainTopics,
+      pickSpec
+    };
   }
 
   _runNpcApproachPickNode({ npc, player, node, context, returnTo }) {
@@ -1660,74 +1697,119 @@ class ConversationSystem {
       context: normalizedContext,
       stance: approachStance
     });
-    const responseOptions = this.buildNpcApproachPlayerResponses({ purposeId: purposeSelection.purposeId, player, npc, context: normalizedContext });
+    const responseOptions = this.buildNpcApproachResponses({ purposeId: purposeSelection.purposeId, player, npc, context: normalizedContext });
     const routing = this.routeNpcApproachIntoTree({ purposeId: purposeSelection.purposeId, player, npc, context: normalizedContext });
 
-    const returnToMain = () => this._renderMainMenu({
+    const returnToMain = (contextOverride = normalizedContext) => this._renderMainMenu({
       player,
       npc,
-      context: normalizedContext,
-      mainTopics: this._buildMainTopics({ player, npc, context: normalizedContext })
+      context: contextOverride,
+      mainTopics: this._buildMainTopics({ player, npc, context: contextOverride })
     });
 
-    const returnToTopic = () => {
+    const returnToTopic = (contextOverride = normalizedContext) => {
       if (!routing?.topicId) {
-        returnToMain();
+        returnToMain(contextOverride);
         return;
       }
-      const mainTopics = routing.mainTopics || this._buildMainTopics({ player, npc, context: normalizedContext });
+      const mainTopics = routing.mainTopics || this._buildMainTopics({ player, npc, context: contextOverride });
       const topic = mainTopics.find(item => item.id === routing.topicId);
       if (topic) {
-        this._renderSubMenu({ player, npc, context: normalizedContext, topic });
+        this._renderSubMenu({ player, npc, context: contextOverride, topic });
       } else {
-        returnToMain();
+        returnToMain(contextOverride);
       }
     };
 
     const buttons = responseOptions.map(option => ({
       label: option.label,
       onClick: () => {
-        this.nodeSession?.addYou?.(option.playerLine || option.label);
-        if (option.id === 'not_now') {
+        this.nodeSession?.addYou?.(option.label);
+        const routedContext = { ...normalizedContext };
+        if (option.actionKey === 'QUICK') {
+          routedContext.approachQuick = true;
+        }
+        if (option.actionKey === 'WHY_ME') {
+          routedContext.approachWhyMe = true;
+        }
+        if (this.debugConvo) {
+          this._debugLog('[CONVO-DEBUG] NPC approach response', {
+            actionKey: option.actionKey,
+            label: option.label,
+            contextFlags: {
+              approachQuick: routedContext.approachQuick || false,
+              approachWhyMe: routedContext.approachWhyMe || false
+            }
+          });
+        }
+        if (option.actionKey === 'DECLINE') {
           this._applyExchangeEffects({
             player,
             npc,
             deltas: { relationship: -1, trust: -1 },
             contextTag: 'npc_approach_declined'
           });
-          this.endConversation(this.nodeSession);
+          this.nodeSession?.addNarration?.('(You brush them off for now.)');
+          this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), [], { onBack: null, showEnd: true });
           return;
         }
-        const routedContext = {
-          ...normalizedContext,
-          mainTopicId: routing?.topicId || null,
-          subTopicId: routing?.nodeId || null,
-          pressuring: Boolean(option.pressuring)
-        };
         if (routing?.mode === 'OPEN_TOPIC_MENU') {
-          const topics = routing.mainTopics || this._buildMainTopics({ player, npc, context: normalizedContext });
+          const topics = routing.mainTopics || this._buildMainTopics({ player, npc, context: routedContext });
           const topic = topics.find(item => item.id === routing.topicId) || topics[0];
           if (topic) {
-            this._renderSubMenu({ player, npc, context: normalizedContext, topic });
+            this._renderSubMenu({ player, npc, context: routedContext, topic });
           } else {
-            returnToMain();
+            returnToMain(routedContext);
           }
           return;
         }
-        const topics = routing.mainTopics || this._buildMainTopics({ player, npc, context: normalizedContext });
+        const topics = routing.mainTopics || this._buildMainTopics({ player, npc, context: routedContext });
         const topic = topics.find(item => item.id === routing.topicId);
         const node = topic?.nodes?.find(item => item.id === routing.nodeId);
         if (!topic || !node) {
-          returnToMain();
+          returnToMain(routedContext);
           return;
         }
-        if (routing.mode === 'PICK_NAME_THEN_RUN') {
-          this._runNpcApproachPickNode({
+        if (routing.mode === 'PICK_THEN_RUN') {
+          const pickSpec = routing.pickSpec || node.requiresPick;
+          if (!pickSpec) {
+            this._runConversationNode({
+              npc,
+              player,
+              node,
+              context: {
+                ...routedContext,
+                mainTopicId: routing?.topicId || null,
+                subTopicId: routing?.nodeId || null
+              },
+              returnTo: () => returnToTopic(routedContext)
+            });
+            return;
+          }
+          this._runPickFlow({
             npc,
             player,
-            node,
             context: routedContext,
-            returnTo: returnToTopic
+            pickSpec,
+            onPick: ({ picked, session }) => {
+              session?.addYou?.(`${picked.firstName}.`);
+              const nextContext = {
+                ...routedContext,
+                topicPerson: picked.firstName,
+                topicPersonId: picked.id,
+                topicId: picked.id,
+                mainTopicId: routing?.topicId || null,
+                subTopicId: routing?.nodeId || null
+              };
+              this._runConversationNode({
+                npc,
+                player,
+                node,
+                context: nextContext,
+                returnTo: () => returnToTopic(nextContext)
+              });
+            },
+            returnTo: () => returnToTopic(routedContext)
           });
           return;
         }
@@ -1735,8 +1817,12 @@ class ConversationSystem {
           npc,
           player,
           node,
-          context: routedContext,
-          returnTo: returnToTopic
+          context: {
+            ...routedContext,
+            mainTopicId: routing?.topicId || null,
+            subTopicId: routing?.nodeId || null
+          },
+          returnTo: () => returnToTopic(routedContext)
         });
       }
     }));
@@ -1745,7 +1831,7 @@ class ConversationSystem {
       this._debugLog('[CONVO-DEBUG] NPC initiated', {
         initiator: 'npc',
         purposeId: purposeSelection.purposeId,
-        weightDebug: purposeSelection.weightDebug,
+        weightDebug: purposeSelection.weights,
         route: { topicId: routing.topicId, nodeId: routing.nodeId, mode: routing.mode },
         openingLine
       });
