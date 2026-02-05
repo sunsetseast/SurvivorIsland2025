@@ -553,7 +553,7 @@ class ConversationSystem {
     return `${transcript}${this._fmtNarration(raw)}`;
   }
 
-  _renderMenu(npc, text, options, { onBack = null, showEnd = true, scrollButtons = false } = {}) {
+  _renderMenu(npc, text, options, { onBack = null, showEnd = true } = {}) {
     this._ensureConversationStyles();
     const overlay = this._buildOverlayShell(npc, { reuse: true });
     const content = this._getConversationContent(overlay);
@@ -566,7 +566,8 @@ class ConversationSystem {
       style: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
+        flex: '1',
+        minHeight: 0,
         marginTop: '12px',
         width: '100%'
       }
@@ -590,25 +591,21 @@ class ConversationSystem {
       return btn;
     };
 
-    if (scrollButtons) {
-      const scrollRegion = createElement('div', {
-        style: {
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          maxHeight: '240px',
-          overflowY: 'auto',
-          paddingRight: '4px'
-        }
-      });
-      mainButtons.forEach(entry => scrollRegion.appendChild(buildButton(entry)));
-      // Keep option lists at the top on each render so choices are immediately visible.
-      scrollRegion.scrollTop = 0;
-      buttonColumn.appendChild(scrollRegion);
-      navButtons.forEach(entry => buttonColumn.appendChild(buildButton(entry)));
-    } else {
-      [...mainButtons, ...navButtons].forEach(entry => buttonColumn.appendChild(buildButton(entry)));
-    }
+    const scrollRegion = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        maxHeight: 'min(42vh, 320px)',
+        overflowY: 'auto',
+        paddingRight: '4px'
+      }
+    });
+
+    [...mainButtons, ...navButtons].forEach(entry => scrollRegion.appendChild(buildButton(entry)));
+    // Keep option lists at the top on each render so choices are immediately visible.
+    scrollRegion.scrollTop = 0;
+    buttonColumn.appendChild(scrollRegion);
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
@@ -665,7 +662,7 @@ class ConversationSystem {
       alt: option.alt || false,
       onClick: option.onSelect || option.onClick
     }));
-    this._renderMenu(npc, body, [...buttons, ...extras], { onBack, scrollButtons: true });
+    this._renderMenu(npc, body, [...buttons, ...extras], { onBack });
   }
 
   _initTranscript(session) {
