@@ -611,7 +611,8 @@ class ConversationSystem {
       const navRegion = createElement('div', {
         style: {
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
           gap: '10px',
           marginTop: '12px',
           paddingTop: '8px',
@@ -8288,6 +8289,10 @@ class ConversationSystem {
       className: `rect-button full${alt ? ' alt' : ''}`,
       onclick: this._safeClick(onClick, resolvedFallback)
     }, label);
+    const compactLabelKey = this._choiceKey({ label });
+    if (['back', 'continue', 'change topic', 'end chat', 'end conversation', 'close'].includes(compactLabelKey)) {
+      button.classList.add('conversation-compact-button');
+    }
     button.dataset.safeClick = 'true';
     return button;
   }
@@ -15149,6 +15154,16 @@ class ConversationSystem {
       .map(btn => String(btn.textContent || '').trim().toLowerCase())
       .filter(Boolean);
     const navChoices = this._buildNavChoices(navOptions);
+    const navRow = createElement('div', {
+      className: 'conversation-nav-row',
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        width: '100%',
+        marginTop: '8px'
+      }
+    });
     navChoices.forEach(choice => {
       const labelKey = this._choiceKey({ label: choice.label });
       if (existing.includes(labelKey)) return;
@@ -15172,8 +15187,11 @@ class ConversationSystem {
         }
       });
       buttonEl.dataset.conversationNav = 'true';
-      buttonColumn.appendChild(buttonEl);
+      navRow.appendChild(buttonEl);
     });
+    if (navRow.childElementCount > 0) {
+      buttonColumn.appendChild(navRow);
+    }
   }
 
   _buildNavOptions({ canBack, canChangeTopic, onBack, onChangeTopic, onEnd, session }) {
@@ -15921,10 +15939,24 @@ class ConversationSystem {
     style.textContent = `
       @keyframes parchmentFadeIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
       #conversation-overlay .rect-button { padding: 8px 10px; }
+      #conversation-overlay .conversation-nav-row .rect-button,
+      #conversation-overlay .conversation-parchment .conversation-compact-button {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 120px;
+        font-size: 0.85rem;
+        padding: 6px 8px;
+      }
       #conversation-overlay .conversation-parchment { max-width: 440px; }
       @media (max-width: 600px) {
         #conversation-overlay .conversation-parchment { width: 94%; padding: 18px 16px 16px; max-height: 66vh; }
         #conversation-overlay .rect-button { font-size: 0.95rem; }
+        #conversation-overlay .conversation-nav-row .rect-button,
+        #conversation-overlay .conversation-parchment .conversation-compact-button {
+          min-width: 0;
+          flex-basis: calc(50% - 6px);
+          font-size: 0.8rem;
+          padding: 5px 7px;
+        }
       }
     `;
     document.head.appendChild(style);
