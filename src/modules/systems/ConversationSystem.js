@@ -602,10 +602,26 @@ class ConversationSystem {
       }
     });
 
-    [...mainButtons, ...navButtons].forEach(entry => scrollRegion.appendChild(buildButton(entry)));
+    mainButtons.forEach(entry => scrollRegion.appendChild(buildButton(entry)));
     // Keep option lists at the top on each render so choices are immediately visible.
     scrollRegion.scrollTop = 0;
     buttonColumn.appendChild(scrollRegion);
+
+    if (navButtons.length) {
+      const navRegion = createElement('div', {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          marginTop: '12px',
+          paddingTop: '8px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.2)'
+        }
+      });
+
+      navButtons.forEach(entry => navRegion.appendChild(buildButton(entry)));
+      buttonColumn.appendChild(navRegion);
+    }
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
