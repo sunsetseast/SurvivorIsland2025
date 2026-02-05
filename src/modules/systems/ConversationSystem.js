@@ -631,16 +631,19 @@ class ConversationSystem {
   }
 
   _renderPickList({ npc, title, candidates, onPick, onBack, extraOptions = [] }) {
+    const safeCandidates = Array.isArray(candidates)
+      ? candidates.filter(member => member && (member.id || member.firstName || member.displayName || member.name))
+      : [];
     const body = this._buildTranscriptBody({
       session: this._getActiveTranscriptSession(this.nodeSession),
       narration: `${title || 'Pick a name'}\nChoose a name:`
     });
-    const nameCounts = candidates.reduce((acc, member) => {
+    const nameCounts = safeCandidates.reduce((acc, member) => {
       const key = member.firstName || member.displayName || member.name || 'Unknown';
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
-    const buttons = candidates.map(member => {
+    const buttons = safeCandidates.map(member => {
       const baseName = member.firstName || member.displayName || member.name || 'Unknown';
       const hasDuplicate = nameCounts[baseName] > 1;
       const disambiguator = member.seasonName
@@ -679,6 +682,13 @@ class ConversationSystem {
       alt: option.alt || false,
       onClick: option.onSelect || option.onClick
     }));
+    if (!buttons.length && !extras.length) {
+      this._renderMenu(npc, this._buildTranscriptBody({
+        session: this._getActiveTranscriptSession(this.nodeSession),
+        narration: `${title || 'Pick a name'}\nNo valid names available right now.`
+      }), [], { onBack, showEnd: true });
+      return;
+    }
     this._renderMenu(npc, body, [...buttons, ...extras], { onBack });
   }
 
