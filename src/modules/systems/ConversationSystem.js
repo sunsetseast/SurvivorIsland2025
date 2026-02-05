@@ -31,6 +31,39 @@ const NPC_APPROACH_PURPOSES = Object.freeze({
   PRESSURE_SOFT: 'PRESSURE_SOFT'
 });
 
+const NPC_APPROACH_OPENERS_BY_PURPOSE = Object.freeze({
+  [NPC_APPROACH_PURPOSES.BUILD_CONNECTION]: [
+    { topicId: 'build_connection', nodeId: 'check_in' },
+    { topicId: 'build_connection', nodeId: 'share_laugh' },
+    { topicId: 'build_connection', nodeId: 'compliment' }
+  ],
+  [NPC_APPROACH_PURPOSES.GOSSIP]: [
+    { topicId: 'gossip', nodeId: 'close_with' },
+    { topicId: 'gossip', nodeId: 'name_coming_up' },
+    { topicId: 'gossip', nodeId: 'working_together' }
+  ],
+  [NPC_APPROACH_PURPOSES.STRATEGY]: [
+    { topicId: 'strategy', nodeId: 'vote_read' },
+    { topicId: 'strategy', nodeId: 'pitch_target' },
+    { topicId: 'strategy', nodeId: 'backup_plan' }
+  ],
+  [NPC_APPROACH_PURPOSES.OFFER_DEAL]: [
+    { topicId: 'strategy', nodeId: 'offer_deal' },
+    { topicId: 'strategy', nodeId: 'alliances' },
+    { topicId: 'strategy', nodeId: 'pitch_target' }
+  ],
+  [NPC_APPROACH_PURPOSES.REASSURE_CHECKIN]: [
+    { topicId: 'vibe_check', nodeId: 'holding_up' },
+    { topicId: 'vibe_check', nodeId: 'whats_bugging' },
+    { topicId: 'vibe_check', nodeId: 'feel_safe' }
+  ],
+  [NPC_APPROACH_PURPOSES.PRESSURE_SOFT]: [
+    { topicId: 'confront', nodeId: 'call_out_tension' },
+    { topicId: 'confront', nodeId: 'confront_rumor' },
+    { topicId: 'vibe_check', nodeId: 'are_we_good' }
+  ]
+});
+
 const CAMP_LOCATIONS = [
   LocationKeys.BEACH,
   LocationKeys.SHELTER,
@@ -139,6 +172,51 @@ class ConversationSystem {
     this.activeExchange = null;
     this.debugStructuredConvo = false;
     this.debugConvo = false;
+    this.convoContext = this._createConvoContext();
+  }
+
+  _createConvoContext() {
+    return {
+      lastVoteReadTargetId: null,
+      lastVoteReadTargetName: null,
+      lastVoteReadNpcAgreed: false,
+      lastVoteReadTurnIndex: null,
+      lastVoteReadTimestamp: null
+    };
+  }
+
+  _resetConvoContext() {
+    this.convoContext = this._createConvoContext();
+  }
+
+
+  _bumpConvoTurn() {
+    if (!this.convoContext) this._resetConvoContext();
+    const current = Number.isFinite(this.convoContext.lastVoteReadTurnIndex)
+      ? this.convoContext.lastVoteReadTurnIndex
+      : 0;
+    this.convoContext.lastVoteReadTurnIndex = current + 1;
+    return this.convoContext.lastVoteReadTurnIndex;
+  }
+
+  _markVoteReadContext({ target = null, npcAgreed = null } = {}) {
+    if (!this.convoContext) this._resetConvoContext();
+    if (target) {
+      this.convoContext.lastVoteReadTargetId = target.id || null;
+      this.convoContext.lastVoteReadTargetName = target.firstName || target.displayName || target.name || null;
+    }
+    if (typeof npcAgreed === 'boolean') {
+      this.convoContext.lastVoteReadNpcAgreed = npcAgreed;
+    }
+    this._bumpConvoTurn();
+    this.convoContext.lastVoteReadTimestamp = Date.now();
+  }
+
+  _isVoteReadContextFresh() {
+    const ctx = this.convoContext;
+    if (!ctx?.lastVoteReadTargetId || !ctx?.lastVoteReadTimestamp) return false;
+    const ageMs = Date.now() - ctx.lastVoteReadTimestamp;
+    return ageMs <= 180000;
   }
 
   initialize() {
@@ -638,6 +716,68 @@ class ConversationSystem {
     return trimmed.endsWith('?');
   }
 
+
+  _looksLikeNameRequest(text = '') {
+    const normalized = String(text || '').toLowerCase();
+    if (!normalized) return false;
+    const cues = [
+      'who told you',
+      'who told me',
+      'whose name',
+      'who are you thinking',
+      'who do you mean',
+      'who are they aligned with',
+      'aligned with who',
+      'which person',
+      'who is it',
+      'who?',
+      'what name'
+    ];
+    return cues.some(cue => normalized.includes(cue));
+  }
+
+  _namePickPromptForReply(npcReply) {
+    if (this._looksLikeNameRequest(npcReply)) {
+      return 'Pick the name:';
+    }
+    return 'Choose a name:';
+  }
+
+  _shouldPromptForNamePick({ node, npcReply }) {
+    if (node?.requiresPick) return false;
+    if (node?.meta?.requiresNamePick) return true;
+    if (node?.askedForNames) return true;
+    return this._looksLikeNameRequest(npcReply);
+  }
+
+  _routeToNamePick({ npc, player, prompt = 'Choose a name:', candidates = null, excludeIds = [], includePlayer = false, onPick, onBack }) {
+    const blockedIds = new Set(Array.isArray(excludeIds) ? excludeIds.filter(Boolean) : []);
+    const pickCandidates = Array.isArray(candidates) && candidates.length
+      ? candidates.filter(member => member && !blockedIds.has(member.id))
+      : this._getTribeMembers({ includeNpc: false, includePlayer, npcId: npc?.id }).filter(member => !blockedIds.has(member.id));
+
+    if (!pickCandidates.length) {
+      const session = this._getActiveTranscriptSession(this.nodeSession);
+      session?.addNarration?.('No valid names to pick right now.');
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), [
+        { label: 'Close', onClick: () => this.closeConversation('name_pick_unavailable') }
+      ], { onBack: null, showEnd: false });
+      return;
+    }
+
+    this._renderPickList({
+      npc,
+      title: prompt,
+      candidates: pickCandidates,
+      onPick: picked => {
+        const session = this._getActiveTranscriptSession(this.nodeSession);
+        session?.addYou?.(`${picked.firstName}.`);
+        onPick?.({ picked, npc, player, session });
+      },
+      onBack
+    });
+  }
+
   _runPickFlow({ npc, player, context, pickSpec, onPick, returnTo, stance }) {
     if (!pickSpec) return;
     const session = this._getActiveTranscriptSession(this.nodeSession);
@@ -778,6 +918,7 @@ class ConversationSystem {
     }
     const session = this.nodeSession;
     this._initTranscript(session);
+    this._bumpConvoTurn();
     const stance = this.decideNpcStance({
       topicId: context.mainTopicId,
       nodeId: node.id,
@@ -857,45 +998,29 @@ class ConversationSystem {
           returnTo: returnToFallback
         })
       }));
-      if (!followupButtons.length && this._isQuestionLike(npcReply)) {
-        const candidates = this._getTribeMembers({ includeNpc: false, includePlayer: false, npcId: npc?.id });
-        followupButtons = [
-          {
-            label: 'Name them',
-            onClick: () => this._runPickFlow({
-              npc,
-              player,
-              context,
-              pickSpec: { type: 'TRIBE_MEMBER', title: 'Name the source:', candidates },
-              onPick: ({ picked, session: pickSession }) => {
-                pickSession?.addYou?.(`It was ${picked.firstName}.`);
-                pickSession?.addNpc?.(`Alright. I’ll keep an eye on ${picked.firstName}.`);
-                pickSession._justLoggedYou = false;
-                this._renderMenu(npc, this._buildTranscriptBody({ session: pickSession }), [], { onBack: returnToFallback, showEnd: true });
-              },
-              returnTo: returnToFallback,
-              stance
-            })
+      const needsNamePick = this._shouldPromptForNamePick({ node, npcReply });
+      if (!followupButtons.length && needsNamePick) {
+        this._routeToNamePick({
+          npc,
+          player,
+          prompt: this._namePickPromptForReply(npcReply),
+          excludeIds: [npc?.id],
+          onPick: ({ picked, session: pickSession }) => {
+            pickSession?.addNpc?.(`Got it. ${picked.firstName} helps me frame this.`);
+            pickSession._justLoggedYou = false;
+            this._renderMenu(npc, this._buildTranscriptBody({ session: pickSession }), [
+              { label: 'Close', onClick: () => this.closeConversation('name_pick_resolved') }
+            ], { onBack: null, showEnd: false });
           },
-          {
-            label: 'Keep it vague',
-            onClick: () => {
-              session?.addYou?.("I'd rather not say.");
-              session?.addNpc?.('Fair. Keep me posted if it gets real.');
-              session._justLoggedYou = false;
-              this._renderMenu(npc, this._buildTranscriptBody({ session }), [], { onBack: returnToFallback, showEnd: true });
-            }
-          },
-          {
-            label: 'It’s just a vibe',
-            onClick: () => {
-              session?.addYou?.('Just a feeling.');
-              session?.addNpc?.('Got it. I’ll keep listening.');
-              session._justLoggedYou = false;
-              this._renderMenu(npc, this._buildTranscriptBody({ session }), [], { onBack: returnToFallback, showEnd: true });
-            }
-          }
-        ];
+          onBack: returnToFallback
+        });
+        return;
+      }
+      if (!followupButtons.length) {
+        this._renderMenu(npc, this._buildTranscriptBody({ session }), [
+          { label: 'Close', onClick: () => this.closeConversation('node_dead_end_close') }
+        ], { onBack: null, showEnd: false });
+        return;
       }
       this._renderMenu(npc, this._buildTranscriptBody({ session }), followupButtons, { onBack: returnToFallback, showEnd: true });
     };
@@ -972,6 +1097,7 @@ class ConversationSystem {
       return;
     }
     const seededContext = { ...context };
+    this._resetConvoContext();
 
     this.state = {
       npcId: survivor.id,
@@ -1579,7 +1705,7 @@ class ConversationSystem {
     return typeof choice === 'function' ? choice({ player, npc, context, stance }) : choice;
   }
 
-  buildNpcApproachResponses({ purposeId, player, npc, context }) {
+  buildNpcApproachResponses({ purposeId, player, npc, context, openerRoute = null }) {
     const commonExit = {
       label: 'Not now.',
       playerLine: 'Not right now.',
@@ -1700,7 +1826,11 @@ class ConversationSystem {
       return Boolean(topic && node && !node.disabled);
     };
     const filtered = base.filter(option => !option.route || isRouteValid(option.route));
-    const fallbackBase = filtered.length ? filtered : optionsByPurpose[NPC_APPROACH_PURPOSES.BUILD_CONNECTION];
+    const withoutOpener = filtered.filter(option => {
+      if (!openerRoute || !option.route) return true;
+      return option.route.topicId !== openerRoute.topicId || option.route.nodeId !== openerRoute.nodeId;
+    });
+    const fallbackBase = withoutOpener.length ? withoutOpener : filtered.length ? filtered : optionsByPurpose[NPC_APPROACH_PURPOSES.BUILD_CONNECTION];
     const responses = [...fallbackBase, commonExit].slice(0, 4);
     if (this.debugConvo) {
       this._debugLog('[CONVO-DEBUG] NPC approach options', {
@@ -1840,24 +1970,44 @@ class ConversationSystem {
     };
 
     const purposeSelection = this.decideNpcApproachPurpose({ player, npc, context: normalizedContext });
-    const approachStance = this.decideNpcStance({
-      topicId: purposeSelection.purposeId,
-      nodeId: 'npc_approach',
+    const approachRoute = this._selectNpcApproachOpenerRoute({
+      purposeId: purposeSelection.purposeId,
       player,
       npc,
-      context: normalizedContext,
-      askedForNames: false,
-      riskLevel: 0.3
+      context: normalizedContext
     });
 
-    const openingLine = this.getNpcApproachOpener({
+    const openingLine = approachRoute?.node
+      ? this._resolveNpcOpeningLine({
+        node: approachRoute.node,
+        player,
+        npc,
+        context: { ...normalizedContext, mainTopicId: approachRoute.topic.id, subTopicId: approachRoute.node.id },
+        stance: this.decideNpcStance({
+          topicId: approachRoute.topic.id,
+          nodeId: approachRoute.node.id,
+          player,
+          npc,
+          context: normalizedContext,
+          askedForNames: Boolean(approachRoute.node.askedForNames),
+          riskLevel: approachRoute.node.riskLevel ?? 0.35
+        })
+      })
+      : this.getNpcApproachOpener({
+        purposeId: purposeSelection.purposeId,
+        player,
+        npc,
+        context: normalizedContext,
+        stance: NPC_STANCES.REASSURE
+      });
+
+    const responseOptions = this.buildNpcApproachResponses({
       purposeId: purposeSelection.purposeId,
       player,
       npc,
       context: normalizedContext,
-      stance: approachStance
+      openerRoute: approachRoute?.route || null
     });
-    const responseOptions = this.buildNpcApproachResponses({ purposeId: purposeSelection.purposeId, player, npc, context: normalizedContext });
 
     const runApproachRoute = ({ route, contextOverride }) => {
       const updatedContext = contextOverride || normalizedContext;
@@ -1876,13 +2026,6 @@ class ConversationSystem {
         mainTopicId: topic.id,
         subTopicId: fallbackNode.id
       };
-      if (this.debugConvo) {
-        this._debugLog('[CONVO-DEBUG] NPC approach route', {
-          purposeId: purposeSelection.purposeId,
-          topicId: topic.id,
-          nodeId: fallbackNode.id
-        });
-      }
       this._runConversationNode({
         npc,
         player,
@@ -1897,14 +2040,6 @@ class ConversationSystem {
       onClick: () => {
         const playerLine = option.playerLine || option.label;
         this.nodeSession?.addYou?.(playerLine);
-        const routedContext = { ...normalizedContext };
-        if (this.debugConvo) {
-          this._debugLog('[CONVO-DEBUG] NPC approach response', {
-            actionKey: option.actionKey,
-            label: option.label,
-            playerLine
-          });
-        }
         if (option.actionKey === 'DECLINE') {
           this._applyExchangeEffects({
             player,
@@ -1912,28 +2047,48 @@ class ConversationSystem {
             deltas: { relationship: -1, trust: -1 },
             contextTag: 'npc_approach_declined'
           });
-          this.nodeSession?.addNarration?.('(You brush them off for now.)');
-          this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), [], { onBack: null, showEnd: true });
+          this.nodeSession?.addNpc?.('Alright. We can talk later.');
+          this.nodeSession?.addNarration?.('(The moment passes, and they step away.)');
+          this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), [
+            { label: 'Close', onClick: () => this.closeConversation('npc_approach_declined') }
+          ], { onBack: null, showEnd: false });
           return;
         }
-        runApproachRoute({ route: option.route, contextOverride: routedContext });
+        runApproachRoute({ route: option.route, contextOverride: { ...normalizedContext } });
       }
     }));
-
-    if (this.debugConvo) {
-      this._debugLog('[CONVO-DEBUG] NPC initiated', {
-        initiator: 'npc',
-        purposeId: purposeSelection.purposeId,
-        weightDebug: purposeSelection.weights,
-        openingLine
-      });
-    }
 
     this._initTranscript(this.nodeSession);
     this.nodeSession.addNpc?.(openingLine);
     this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true });
   }
 
+  _selectNpcApproachOpenerRoute({ purposeId, player, npc, context }) {
+    const topics = this._buildMainTopics({ player, npc, context });
+    const desiredRoutes = NPC_APPROACH_OPENERS_BY_PURPOSE[purposeId]
+      || NPC_APPROACH_OPENERS_BY_PURPOSE[NPC_APPROACH_PURPOSES.BUILD_CONNECTION]
+      || [];
+    const viable = desiredRoutes
+      .map(route => {
+        const topic = topics.find(item => item.id === route.topicId);
+        const node = topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled);
+        if (!topic || !node) return null;
+        return { route, topic, node };
+      })
+      .filter(Boolean);
+    if (viable.length) return viable[getRandomInt(0, viable.length - 1)];
+
+    const fallbackRoutes = Object.values(NPC_APPROACH_OPENERS_BY_PURPOSE).flat();
+    const fallbackViable = fallbackRoutes
+      .map(route => {
+        const topic = topics.find(item => item.id === route.topicId);
+        const node = topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled);
+        return topic && node ? { route, topic, node } : null;
+      })
+      .filter(Boolean);
+    if (!fallbackViable.length) return null;
+    return fallbackViable[getRandomInt(0, fallbackViable.length - 1)];
+  }
   _resolveNpcOpeningLine({ node, player, npc, context, stance }) {
     if (typeof node.npcOpeningLine === 'function') {
       return node.npcOpeningLine({ player, npc, context, stance });
@@ -2985,6 +3140,7 @@ class ConversationSystem {
                 targetId: target.id,
                 truth: true
               });
+              this._markVoteReadContext({ target, npcAgreed: false });
               return `If I’m guessing… ${target.firstName}.`;
             }
             return 'It’s still forming. I’m watching where it tilts.';
@@ -3000,7 +3156,10 @@ class ConversationSystem {
               TRUTH: ['Yeah. It tracks.'],
               REASSURE: ['Yeah. It tracks.']
             },
-            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'strategy_vote_agree' })
+            effects: ({ player, npc, stance }) => {
+              this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'strategy_vote_agree' });
+              this._markVoteReadContext({ npcAgreed: stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE });
+            }
           },
           {
             id: 'vote_read_help',
@@ -3575,6 +3734,7 @@ class ConversationSystem {
     acceptScore -= paranoia / 200;
     if (style.includes('shadow')) acceptScore -= 0.05;
     if (style.includes('social')) acceptScore += 0.05;
+    acceptScore += this._getVoteTogetherContextBonus({ context, target, dealType });
 
     const roll = Math.random();
     let outcome = 'stall';
@@ -6736,7 +6896,22 @@ class ConversationSystem {
 
     this._shiftMood(survivor.id, 'irritated');
     this._highlightNpcIcon(survivor.id, false);
-    this._clearOverlay();
+
+    this.nodeSession = {
+      npcId: survivor.id,
+      context: { initiator: 'npc', declinedAtApproach: true },
+      menuStack: [],
+      transcript: []
+    };
+    this._initTranscript(this.nodeSession);
+    this.nodeSession.addNpc?.('I wanted a quick word.');
+    this.nodeSession.addYou?.('Not now.');
+    this.nodeSession.addNpc?.('Okay. We’ll catch up later.');
+    this.nodeSession.addNarration?.('(They back off and head back to camp.)');
+
+    this._renderMenu(survivor, this._buildTranscriptBody({ session: this.nodeSession }), [
+      { label: 'Close', onClick: () => this.closeConversation('approach_overlay_declined') }
+    ], { onBack: null, showEnd: false });
   }
 
   _startConversation(
@@ -8571,6 +8746,7 @@ class ConversationSystem {
       }
 
       this.activeConversation = null;
+      this._resetConvoContext();
       this.activeConversationContext = null;
       this.nodeSession = null;
       this.conversationSession = null;
@@ -14354,6 +14530,19 @@ class ConversationSystem {
     return typeof rel?.value === 'number' ? rel.value : relationshipSystem.defaultValue || 50;
   }
 
+  _getVoteTogetherContextBonus({ context, target = null, dealType = null }) {
+    const normalizedDealType = String(dealType || context?.dealType || '').toLowerCase();
+    const isVoteTogether = normalizedDealType === 'vote_together' || normalizedDealType === 'votetogether';
+    if (!isVoteTogether || !this._isVoteReadContextFresh()) return 0;
+
+    const targetId = target?.id || this._getSurvivorByName(context?.topicPerson)?.id || null;
+    if (!targetId || targetId !== this.convoContext?.lastVoteReadTargetId) return 0;
+
+    let bonus = 0.04;
+    if (this.convoContext?.lastVoteReadNpcAgreed) bonus += 0.03;
+    return bonus;
+  }
+
   _evaluateDealResponse(survivor, context, option) {
     const player = this.gameManager.getPlayerSurvivor?.();
     const paranoia = survivor.paranoia || 0;
@@ -14381,6 +14570,7 @@ class ConversationSystem {
     if (context.dealType === 'voteTogether') {
       if (context.topicPerson && context.topicPerson === preferredTarget) score += 10;
       else score -= 6;
+      score += this._getVoteTogetherContextBonus({ context }) * 100;
     }
     if (context.dealType === 'splitVote') {
       score -= 10;
