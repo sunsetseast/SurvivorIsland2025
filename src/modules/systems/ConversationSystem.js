@@ -602,6 +602,8 @@ class ConversationSystem {
         }
       });
       mainButtons.forEach(entry => scrollRegion.appendChild(buildButton(entry)));
+      // Keep option lists at the top on each render so choices are immediately visible.
+      scrollRegion.scrollTop = 0;
       buttonColumn.appendChild(scrollRegion);
       navButtons.forEach(entry => buttonColumn.appendChild(buildButton(entry)));
     } else {
@@ -612,9 +614,6 @@ class ConversationSystem {
     content.appendChild(parchment);
     const session = this._getActiveTranscriptSession();
     if (session) session._justLoggedYou = false;
-    if (options.length > 0 || onBack || showEnd) {
-      this._scrollOptionsIntoView();
-    }
   }
 
   _renderPickList({ npc, title, candidates, onPick, onBack, extraOptions = [] }) {
@@ -836,6 +835,7 @@ class ConversationSystem {
       name: entry.name || null,
       isHtml: entry.isHtml || false
     });
+    session._forceAutoScroll = true;
     this._refreshTranscriptUI(session);
   }
 
@@ -872,24 +872,16 @@ class ConversationSystem {
     return `<div class="conversation-transcript" data-conversation-transcript="true">${transcriptHtml || ''}</div>`;
   }
 
-  _isNearBottom(el, thresholdPx = 40) {
+  _isNearBottom(el, threshold = 40) {
     if (!el) return true;
     const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
-    return remaining <= thresholdPx;
+    return remaining <= threshold;
   }
 
   _getTranscriptScrollElement() {
     const overlay = this.activeOverlay;
     if (!overlay) return null;
-    const transcript = overlay.querySelector?.('[data-conversation-transcript]');
-    const transcriptScroller = transcript?.closest?.('.conversation-transcript-scroll');
-    if (transcriptScroller && transcriptScroller.scrollHeight > transcriptScroller.clientHeight) {
-      return transcriptScroller;
-    }
-    if (transcript && transcript.scrollHeight > transcript.clientHeight) {
-      return transcript;
-    }
-    return overlay.querySelector?.('.conversation-parchment') || null;
+    return overlay.querySelector?.('.conversation-transcript-scroll') || null;
   }
 
   _refreshTranscriptUI(session) {
@@ -897,38 +889,40 @@ class ConversationSystem {
     const transcriptEl = overlay?.querySelector?.('[data-conversation-transcript]');
     if (!transcriptEl) return;
     const scrollEl = this._getTranscriptScrollElement();
-    // Chat-like autoscroll: only follow new lines when the viewer is already near the bottom.
     const wasNearBottom = this._isNearBottom(scrollEl);
     transcriptEl.innerHTML = this._renderTranscriptHtml(session);
-    if (wasNearBottom) {
-      this._scrollTranscriptToBottom(scrollEl);
+    if (wasNearBottom || session?._forceAutoScroll === true) {
+      this._scrollTranscriptToBottom();
     }
+    if (session) session._forceAutoScroll = false;
   }
 
-  _scrollTranscriptToBottom(scrollEl) {
-    if (scrollEl) {
-      scrollEl.scrollTop = scrollEl.scrollHeight;
-    }
+  _scrollTranscriptToBottom() {
+    const scrollEl = this._getTranscriptScrollElement();
+    if (!scrollEl) return;
+    scrollEl.scrollTop = scrollEl.scrollHeight;
   }
 
   _ensureTranscriptScrollRegion(parchment) {
     if (!parchment) return;
     const transcriptEl = parchment.querySelector?.('[data-conversation-transcript]');
     if (!transcriptEl) return;
-    const existing = parchment.querySelector('.conversation-transcript-scroll');
-    if (existing) return;
-
-    const wrapper = createElement('div', {
-      className: 'conversation-transcript-scroll',
-      style: {
-        overflowY: 'auto',
-        maxHeight: 'clamp(130px, 34vh, 320px)',
-        paddingRight: '4px'
-      }
-    });
-    transcriptEl.parentNode?.insertBefore(wrapper, transcriptEl);
+    let wrapper = parchment.querySelector('.conversation-transcript-scroll');
+    if (!wrapper) {
+      // Scroll architecture: the parchment is static, only this transcript pane scrolls.
+      wrapper = createElement('div', {
+        className: 'conversation-transcript-scroll',
+        style: {
+          flex: '1 1 auto',
+          minHeight: '0',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          paddingRight: '6px'
+        }
+      });
+      transcriptEl.parentNode?.insertBefore(wrapper, transcriptEl);
+    }
     wrapper.appendChild(transcriptEl);
-    parchment.style.overflowY = 'hidden';
   }
 
   _scrollOptionsIntoView() {
@@ -10900,7 +10894,9 @@ class ConversationSystem {
         fontSize: '1rem',
         lineHeight: '1.4',
         aspectRatio: '3 / 4',
-        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
         animation: 'parchmentFadeIn 0.35s ease'
       }
     });
