@@ -553,8 +553,11 @@ class ConversationSystem {
     return `${transcript}${this._fmtNarration(raw)}`;
   }
 
-  _renderMenu(npc, text, options, { onBack = null, showEnd = true } = {}) {
+  _renderMenu(npc, text, options, { onBack = null, showEnd = true, autoScrollMode = 'ifNearBottom' } = {}) {
     this._ensureConversationStyles();
+    const previousTranscriptScrollEl = this._getTranscriptScrollElement();
+    const transcriptWasNearBottom = this._isNearBottom(previousTranscriptScrollEl);
+    const previousTranscriptScrollTop = previousTranscriptScrollEl?.scrollTop ?? 0;
     const overlay = this._buildOverlayShell(npc, { reuse: true });
     const content = this._getConversationContent(overlay);
     this._clearConversationContent(content);
@@ -575,11 +578,20 @@ class ConversationSystem {
 
     const mainButtons = [...options];
     const navButtons = [];
-    if (onBack) navButtons.push({ label: 'Back', alt: true, onClick: onBack });
-    if (showEnd) navButtons.push({ label: 'End chat', alt: true, onClick: () => this.closeConversation('player_end') });
+    if (onBack) navButtons.push({ label: 'Back', alt: true, onClick: onBack, navButton: true });
+    if (showEnd) navButtons.push({ label: 'End chat', alt: true, onClick: () => this.closeConversation('player_end'), navButton: true });
 
-    const buildButton = ({ label, alt = false, onClick, disabled = false, tooltip = '' }) => {
+    const buildButton = ({ label, alt = false, onClick, disabled = false, tooltip = '', navButton = false }) => {
       const btn = this._createChoiceButton({ label, alt, onClick, fallback: { npc } });
+      if (navButton) {
+        Object.assign(btn.style, {
+          padding: '8px 10px',
+          fontSize: '0.8rem',
+          flex: '1 1 0',
+          width: '48%',
+          minHeight: '0'
+        });
+      }
       if (disabled) {
         btn.disabled = true;
         btn.style.opacity = '0.55';
@@ -612,8 +624,9 @@ class ConversationSystem {
         style: {
           display: 'flex',
           flexDirection: 'row',
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
           gap: '10px',
+          justifyContent: 'space-between',
           marginTop: '12px',
           paddingTop: '8px',
           borderTop: '1px solid rgba(255, 255, 255, 0.2)'
@@ -626,6 +639,11 @@ class ConversationSystem {
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
+    this._maybeAutoScrollTranscript({
+      mode: autoScrollMode,
+      wasNearBottom: transcriptWasNearBottom,
+      previousScrollTop: previousTranscriptScrollTop
+    });
     const session = this._getActiveTranscriptSession();
     if (session) session._justLoggedYou = false;
   }
@@ -859,8 +877,7 @@ class ConversationSystem {
       name: entry.name || null,
       isHtml: entry.isHtml || false
     });
-    session._forceAutoScroll = true;
-    this._refreshTranscriptUI(session);
+    this._refreshTranscriptUI(session, { autoScrollMode: 'forceBottom' });
   }
 
   _coerceTranscriptEntry(entry) {
@@ -908,17 +925,34 @@ class ConversationSystem {
     return overlay.querySelector?.('.conversation-transcript-scroll') || null;
   }
 
-  _refreshTranscriptUI(session) {
+  _refreshTranscriptUI(session, { autoScrollMode = 'ifNearBottom' } = {}) {
     const overlay = this.activeOverlay;
     const transcriptEl = overlay?.querySelector?.('[data-conversation-transcript]');
     if (!transcriptEl) return;
     const scrollEl = this._getTranscriptScrollElement();
     const wasNearBottom = this._isNearBottom(scrollEl);
+    const previousScrollTop = scrollEl?.scrollTop ?? 0;
     transcriptEl.innerHTML = this._renderTranscriptHtml(session);
-    if (wasNearBottom || session?._forceAutoScroll === true) {
+    this._maybeAutoScrollTranscript({ mode: autoScrollMode, wasNearBottom, previousScrollTop });
+  }
+
+  _maybeAutoScrollTranscript({ mode = 'none', wasNearBottom = null, previousScrollTop = null } = {}) {
+    const scrollEl = this._getTranscriptScrollElement();
+    if (!scrollEl) return;
+    if (mode === 'forceBottom') {
       this._scrollTranscriptToBottom();
+      return;
     }
-    if (session) session._forceAutoScroll = false;
+    if (mode === 'ifNearBottom') {
+      const nearBottom = typeof wasNearBottom === 'boolean' ? wasNearBottom : this._isNearBottom(scrollEl);
+      if (nearBottom) {
+        this._scrollTranscriptToBottom();
+        return;
+      }
+    }
+    if (Number.isFinite(previousScrollTop)) {
+      scrollEl.scrollTop = previousScrollTop;
+    }
   }
 
   _scrollTranscriptToBottom() {
@@ -1503,15 +1537,28 @@ class ConversationSystem {
           topic.onSelect();
           return;
         }
-        this._renderSubMenu({ player, npc, context, topic });
+        const rebuiltTopics = this._buildMainTopics({ player, npc, context });
+        const freshTopic = rebuiltTopics.find(candidate => candidate.id === topic.id) || topic;
+        if (!Array.isArray(freshTopic?.nodes) || !freshTopic.nodes.length) {
+          console.warn('[ConversationSystem] Main topic opened with empty submenu.', {
+            topicId: freshTopic?.id || topic?.id || null,
+            label: freshTopic?.label || topic?.label || null,
+            nodeCount: Array.isArray(freshTopic?.nodes) ? freshTopic.nodes.length : 0
+          });
+        }
+        this._renderSubMenu({ player, npc, context, topic: freshTopic, mainTopics: rebuiltTopics });
       }
     }));
-    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: menuText }), buttons, { onBack: null, showEnd: true });
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: menuText }), buttons, { onBack: null, showEnd: true, autoScrollMode: 'ifNearBottom' });
   }
 
-  _renderSubMenu({ player, npc, context, topic }) {
-    const menuText = `What do you want to talk about?`;
-    const buttons = (topic.nodes || []).map(node => ({
+  _renderSubMenu({ player, npc, context, topic, mainTopics = null }) {
+    const topicNodes = Array.isArray(topic?.nodes) ? topic.nodes : [];
+    const hasNodes = topicNodes.length > 0;
+    const menuText = hasNodes
+      ? 'What do you want to talk about?'
+      : 'What do you want to talk about?\nNothing available here right now.';
+    const buttons = topicNodes.map(node => ({
       label: node.buttonText,
       disabled: Boolean(node.disabled),
       tooltip: node.tooltip || '',
@@ -1522,12 +1569,13 @@ class ConversationSystem {
           player,
           node,
           context: { ...context, mainTopicId: topic.id, subTopicId: node.id, _lastChoiceLabel: node.buttonText },
-          returnTo: () => this._renderSubMenu({ player, npc, context, topic })
+          returnTo: () => this._renderSubMenu({ player, npc, context, topic, mainTopics })
         })
     }));
     this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: menuText }), buttons, {
-      onBack: () => this._renderMainMenu({ player, npc, context, mainTopics: this._buildMainTopics({ player, npc, context }) }),
-      showEnd: true
+      onBack: () => this._renderMainMenu({ player, npc, context, mainTopics: mainTopics || this._buildMainTopics({ player, npc, context }) }),
+      showEnd: true,
+      autoScrollMode: 'ifNearBottom'
     });
   }
 
