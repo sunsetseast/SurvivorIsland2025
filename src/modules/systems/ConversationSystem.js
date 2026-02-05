@@ -560,6 +560,7 @@ class ConversationSystem {
     this._clearConversationContent(content);
     const body = this._formatMenuBody(text || '');
     const parchment = this._buildParchment(body || '');
+    this._ensureTranscriptScrollRegion(parchment);
 
     const buttonColumn = createElement('div', {
       style: {
@@ -611,7 +612,9 @@ class ConversationSystem {
     content.appendChild(parchment);
     const session = this._getActiveTranscriptSession();
     if (session) session._justLoggedYou = false;
-    this._scrollTranscriptToBottom();
+    if (options.length > 0 || onBack || showEnd) {
+      this._scrollOptionsIntoView();
+    }
   }
 
   _renderPickList({ npc, title, candidates, onPick, onBack, extraOptions = [] }) {
@@ -869,20 +872,70 @@ class ConversationSystem {
     return `<div class="conversation-transcript" data-conversation-transcript="true">${transcriptHtml || ''}</div>`;
   }
 
+  _isNearBottom(el, thresholdPx = 40) {
+    if (!el) return true;
+    const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+    return remaining <= thresholdPx;
+  }
+
+  _getTranscriptScrollElement() {
+    const overlay = this.activeOverlay;
+    if (!overlay) return null;
+    const transcript = overlay.querySelector?.('[data-conversation-transcript]');
+    const transcriptScroller = transcript?.closest?.('.conversation-transcript-scroll');
+    if (transcriptScroller && transcriptScroller.scrollHeight > transcriptScroller.clientHeight) {
+      return transcriptScroller;
+    }
+    if (transcript && transcript.scrollHeight > transcript.clientHeight) {
+      return transcript;
+    }
+    return overlay.querySelector?.('.conversation-parchment') || null;
+  }
+
   _refreshTranscriptUI(session) {
     const overlay = this.activeOverlay;
     const transcriptEl = overlay?.querySelector?.('[data-conversation-transcript]');
     if (!transcriptEl) return;
+    const scrollEl = this._getTranscriptScrollElement();
+    // Chat-like autoscroll: only follow new lines when the viewer is already near the bottom.
+    const wasNearBottom = this._isNearBottom(scrollEl);
     transcriptEl.innerHTML = this._renderTranscriptHtml(session);
-    this._scrollTranscriptToBottom();
+    if (wasNearBottom) {
+      this._scrollTranscriptToBottom(scrollEl);
+    }
   }
 
-  _scrollTranscriptToBottom() {
-    const overlay = this.activeOverlay;
-    const parchment = overlay?.querySelector?.('.conversation-parchment');
-    if (parchment) {
-      parchment.scrollTop = parchment.scrollHeight;
+  _scrollTranscriptToBottom(scrollEl) {
+    if (scrollEl) {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
     }
+  }
+
+  _ensureTranscriptScrollRegion(parchment) {
+    if (!parchment) return;
+    const transcriptEl = parchment.querySelector?.('[data-conversation-transcript]');
+    if (!transcriptEl) return;
+    const existing = parchment.querySelector('.conversation-transcript-scroll');
+    if (existing) return;
+
+    const wrapper = createElement('div', {
+      className: 'conversation-transcript-scroll',
+      style: {
+        overflowY: 'auto',
+        maxHeight: 'clamp(130px, 34vh, 320px)',
+        paddingRight: '4px'
+      }
+    });
+    transcriptEl.parentNode?.insertBefore(wrapper, transcriptEl);
+    wrapper.appendChild(transcriptEl);
+    parchment.style.overflowY = 'hidden';
+  }
+
+  _scrollOptionsIntoView() {
+    const overlay = this.activeOverlay;
+    const optionsEl = overlay?.querySelector?.('.conversation-parchment > div:last-child');
+    if (!optionsEl) return;
+    optionsEl.scrollIntoView({ block: 'start', behavior: 'auto' });
   }
 
   _getActiveTranscriptSession(preferred = null) {
@@ -1715,104 +1768,70 @@ class ConversationSystem {
     const optionsByPurpose = {
       [NPC_APPROACH_PURPOSES.BUILD_CONNECTION]: [
         {
-          label: 'Check in',
-          playerLine: 'How you holding up? Just checking in — you good?',
+          label: "Yeah, what's up?",
+          playerLine: "Yeah, what's up?",
+          npcFollowUp: 'Nothing huge — just wanted to keep our connection solid.',
           route: { topicId: 'build_connection', nodeId: 'check_in' }
-        },
-        {
-          label: 'Share a laugh',
-          playerLine: 'We’ve gotta laugh out here or we’ll go crazy. What’s the funniest thing you’ve seen today?',
-          route: { topicId: 'build_connection', nodeId: 'share_laugh' }
-        },
-        {
-          label: 'Compliment',
-          playerLine: 'Real talk — you’ve been solid out here. I respect how you’re playing this.',
-          route: { topicId: 'build_connection', nodeId: 'compliment' }
         }
       ],
       [NPC_APPROACH_PURPOSES.GOSSIP]: [
         {
-          label: 'Who are you close with?',
-          playerLine: 'Who do you actually feel good with around here?',
-          route: { topicId: 'gossip', nodeId: 'close_with' }
-        },
-        {
-          label: 'Whose name is coming up?',
-          playerLine: 'Whose name is coming up when people whisper?',
+          label: 'What did you hear?',
+          playerLine: 'What did you hear?',
+          npcFollowUp: "There's been chatter all day.",
           route: { topicId: 'gossip', nodeId: 'name_coming_up' }
         },
         {
-          label: 'Who’s working together?',
-          playerLine: 'Who do you think is working together?',
-          route: { topicId: 'gossip', nodeId: 'working_together' }
+          label: "Who's being targeted?",
+          playerLine: "Who's being targeted?",
+          npcFollowUp: "I'll tell you — whose name are you hearing too?",
+          actionKey: 'ASK_WHO',
+          route: { topicId: 'gossip', nodeId: 'name_coming_up' }
         }
       ],
       [NPC_APPROACH_PURPOSES.STRATEGY]: [
         {
-          label: 'Vote read',
-          playerLine: 'What do you think the majority wants next?',
+          label: 'What are you thinking?',
+          playerLine: 'What are you thinking?',
+          npcFollowUp: "Okay. Here's what I'm seeing before Tribal.",
           route: { topicId: 'strategy', nodeId: 'vote_read' }
         },
         {
-          label: 'Pitch a target',
-          playerLine: 'I want to pitch a target to you.',
+          label: "Who's the name?",
+          playerLine: "Who's the name?",
+          npcFollowUp: 'Say it straight — who are you hearing?',
+          actionKey: 'ASK_WHO',
           route: { topicId: 'strategy', nodeId: 'pitch_target' }
-        },
-        {
-          label: 'Backup plan',
-          playerLine: 'If an idol gets played, what’s the backup plan?',
-          route: { topicId: 'strategy', nodeId: 'backup_plan' }
         }
       ],
       [NPC_APPROACH_PURPOSES.OFFER_DEAL]: [
         {
-          label: 'Lock something in',
-          playerLine: 'Can we lock something in?',
+          label: 'What kind of deal?',
+          playerLine: 'What kind of deal?',
+          npcFollowUp: "Good. Let's lock in details.",
           route: { topicId: 'strategy', nodeId: 'offer_deal' }
-        },
-        {
-          label: 'Talk alliance',
-          playerLine: 'Let’s talk alliance.',
-          route: { topicId: 'strategy', nodeId: 'alliances' }
-        },
-        {
-          label: 'Pitch a target',
-          playerLine: 'I want to pitch a target to you.',
-          route: { topicId: 'strategy', nodeId: 'pitch_target' }
         }
       ],
       [NPC_APPROACH_PURPOSES.REASSURE_CHECKIN]: [
         {
-          label: 'How are you holding up?',
-          playerLine: 'Be honest — how are you holding up physically and mentally?',
-          route: { topicId: 'vibe_check', nodeId: 'holding_up' }
-        },
-        {
-          label: 'What’s bugging you?',
-          playerLine: 'What’s been bugging you out here? Like… what’s the thing you can’t ignore?',
+          label: "What's wrong?",
+          playerLine: "What's wrong?",
+          npcFollowUp: "I'm not panicking, I just need a real read from you.",
           route: { topicId: 'vibe_check', nodeId: 'whats_bugging' }
         },
         {
-          label: 'Do you feel safe?',
-          playerLine: 'Do you feel safe right now?',
-          route: { topicId: 'vibe_check', nodeId: 'feel_safe' }
+          label: "We're good.",
+          playerLine: "We're good.",
+          npcFollowUp: "Alright. I needed to hear that.",
+          route: { topicId: 'vibe_check', nodeId: 'are_we_good' }
         }
       ],
       [NPC_APPROACH_PURPOSES.PRESSURE_SOFT]: [
         {
-          label: 'Where do we stand?',
-          playerLine: 'Something feels off between us. What’s going on?',
+          label: 'Spit it out.',
+          playerLine: 'Spit it out.',
+          npcFollowUp: "Fine. I'm not pretending there's no tension.",
           route: { topicId: 'confront', nodeId: 'call_out_tension' }
-        },
-        {
-          label: 'I heard my name',
-          playerLine: 'I heard you said my name.',
-          route: { topicId: 'confront', nodeId: 'confront_rumor' }
-        },
-        {
-          label: 'Are we good?',
-          playerLine: 'You and me — are we good?',
-          route: { topicId: 'vibe_check', nodeId: 'are_we_good' }
         }
       ]
     };
@@ -1840,6 +1859,7 @@ class ConversationSystem {
     }
     return responses;
   }
+
 
   routeNpcApproachIntoTree({ purposeId, player, npc, context }) {
     const mainTopics = this._buildMainTopics({ player, npc, context });
@@ -1977,29 +1997,13 @@ class ConversationSystem {
       context: normalizedContext
     });
 
-    const openingLine = approachRoute?.node
-      ? this._resolveNpcOpeningLine({
-        node: approachRoute.node,
-        player,
-        npc,
-        context: { ...normalizedContext, mainTopicId: approachRoute.topic.id, subTopicId: approachRoute.node.id },
-        stance: this.decideNpcStance({
-          topicId: approachRoute.topic.id,
-          nodeId: approachRoute.node.id,
-          player,
-          npc,
-          context: normalizedContext,
-          askedForNames: Boolean(approachRoute.node.askedForNames),
-          riskLevel: approachRoute.node.riskLevel ?? 0.35
-        })
-      })
-      : this.getNpcApproachOpener({
-        purposeId: purposeSelection.purposeId,
-        player,
-        npc,
-        context: normalizedContext,
-        stance: NPC_STANCES.REASSURE
-      });
+    const openingLine = this.getNpcApproachOpener({
+      purposeId: purposeSelection.purposeId,
+      player,
+      npc,
+      context: normalizedContext,
+      stance: NPC_STANCES.REASSURE
+    });
 
     const responseOptions = this.buildNpcApproachResponses({
       purposeId: purposeSelection.purposeId,
@@ -2054,6 +2058,49 @@ class ConversationSystem {
           ], { onBack: null, showEnd: false });
           return;
         }
+
+        if (option.npcFollowUp) {
+          this.nodeSession?.addNpc?.(option.npcFollowUp);
+        }
+
+        // Purposeful NPC prompt that asks "who" should immediately open the name picker flow.
+        if (option.actionKey === 'ASK_WHO') {
+          const route = option.route || { topicId: 'strategy', nodeId: 'pitch_target' };
+          const topics = this._buildMainTopics({ player, npc, context: normalizedContext });
+          const topic = topics.find(item => item.id === route.topicId);
+          const node = topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled);
+          if (node?.requiresPick) {
+            this._runPickFlow({
+              npc,
+              player,
+              context: { ...normalizedContext, mainTopicId: topic.id, subTopicId: node.id },
+              pickSpec: node.requiresPick,
+              onPick: ({ picked, session }) => {
+                const nextContext = {
+                  ...normalizedContext,
+                  mainTopicId: topic.id,
+                  subTopicId: node.id,
+                  topicPerson: picked?.firstName,
+                  topicId: picked?.id
+                };
+                if (typeof node.onPick === 'function') {
+                  node.onPick({ picked, npc, player, context: nextContext, session });
+                  return;
+                }
+                this._runConversationNode({
+                  npc,
+                  player,
+                  node,
+                  context: nextContext,
+                  returnTo: () => this._renderSubMenu({ player, npc, context: nextContext, topic })
+                });
+              },
+              returnTo: () => this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true })
+            });
+            return;
+          }
+        }
+
         runApproachRoute({ route: option.route, contextOverride: { ...normalizedContext } });
       }
     }));
@@ -8245,6 +8292,7 @@ class ConversationSystem {
     this._clearConversationContent(content);
     const body = this._formatMenuBody(text || '');
     const parchment = this._buildParchment(body || '');
+    this._ensureTranscriptScrollRegion(parchment);
 
     if (buttons.length > 0) {
       const buttonColumn = createElement('div', {
@@ -8271,7 +8319,9 @@ class ConversationSystem {
     }
 
     content.appendChild(parchment);
-    this._scrollTranscriptToBottom();
+    if (buttons.length > 0) {
+      this._scrollOptionsIntoView();
+    }
   }
 
   _renderNode(session, nodeId) {
