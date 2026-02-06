@@ -510,6 +510,8 @@ class ConversationSystem {
     const style = document.createElement('style');
     style.dataset.conversationStyles = 'true';
     style.textContent = `
+      @keyframes parchmentFadeIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      #conversation-overlay .rect-button { padding: 8px 10px; }
       .convo-line { margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start; }
       .convo-line:last-child { margin-bottom: 0; }
       .convo-speaker { font-weight: 700; letter-spacing: 0.6px; opacity: 1; min-width: 92px; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35); }
@@ -521,10 +523,76 @@ class ConversationSystem {
       .convo-narration { opacity: 0.75; color: #e0e0e0; font-style: italic; }
       .convo-narration .convo-speaker { color: #c7c7c7; text-transform: uppercase; }
       .convo-narration .convo-text { font-size: 0.92em; color: #d4d4d4; }
+      #conversation-overlay .conversation-parchment {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        max-width: 440px;
+      }
+      #conversation-overlay .conversation-transcript-host {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #conversation-overlay .conversation-transcript-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 6px;
+        -webkit-overflow-scrolling: touch;
+      }
+      #conversation-overlay .conversation-options-region {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        margin-top: 10px;
+        width: 100%;
+        min-height: 0;
+      }
+      #conversation-overlay .conversation-options-scroll {
+        flex: 0 0 auto;
+        max-height: 38%;
+        min-height: 90px;
+        overflow-y: auto;
+        padding-top: 8px;
+        padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      #conversation-overlay .conversation-nav-row {
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        flex: 0 0 auto;
+      }
+      #conversation-overlay .conversation-nav-row .rect-button,
+      #conversation-overlay .conversation-parchment .conversation-compact-button {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        font-size: 0.8rem;
+        line-height: 1.15;
+        padding: 5px 8px;
+      }
+      @media (max-width: 600px) {
+        #conversation-overlay .conversation-parchment { width: 94%; padding: 18px 16px 16px; max-height: 66vh; }
+        #conversation-overlay .rect-button { font-size: 0.95rem; }
+        #conversation-overlay .conversation-nav-row .rect-button,
+        #conversation-overlay .conversation-parchment .conversation-compact-button {
+          font-size: 0.76rem;
+          padding: 5px 7px;
+        }
+      }
     `;
     document.head.appendChild(style);
     this._stylesInjected = true;
   }
+
 
   _fmtNpcLine(npc, text) {
     if (!text) return '';
@@ -565,16 +633,7 @@ class ConversationSystem {
     const parchment = this._buildParchment(body || '');
     this._ensureTranscriptScrollRegion(parchment);
 
-    const buttonColumn = createElement('div', {
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        flex: '1',
-        minHeight: 0,
-        marginTop: '12px',
-        width: '100%'
-      }
-    });
+    const buttonColumn = createElement('div', { className: 'conversation-options-region' });
 
     const mainButtons = [...options];
     const navButtons = [];
@@ -585,10 +644,10 @@ class ConversationSystem {
       const btn = this._createChoiceButton({ label, alt, onClick, fallback: { npc } });
       if (navButton) {
         Object.assign(btn.style, {
-          padding: '8px 10px',
+          padding: '5px 8px',
           fontSize: '0.8rem',
           flex: '1 1 0',
-          width: '48%',
+          width: 'auto',
           minHeight: '0'
         });
       }
@@ -603,16 +662,7 @@ class ConversationSystem {
       return btn;
     };
 
-    const scrollRegion = createElement('div', {
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        maxHeight: 'min(42vh, 320px)',
-        overflowY: 'auto',
-        paddingRight: '4px'
-      }
-    });
+    const scrollRegion = createElement('div', { className: 'conversation-options-scroll' });
 
     mainButtons.forEach(entry => scrollRegion.appendChild(buildButton(entry)));
     // Keep option lists at the top on each render so choices are immediately visible.
@@ -620,18 +670,7 @@ class ConversationSystem {
     buttonColumn.appendChild(scrollRegion);
 
     if (navButtons.length) {
-      const navRegion = createElement('div', {
-        style: {
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'nowrap',
-          gap: '10px',
-          justifyContent: 'space-between',
-          marginTop: '12px',
-          paddingTop: '8px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.2)'
-        }
-      });
+      const navRegion = createElement('div', { className: 'conversation-nav-row' });
 
       navButtons.forEach(entry => navRegion.appendChild(buildButton(entry)));
       buttonColumn.appendChild(navRegion);
@@ -639,6 +678,7 @@ class ConversationSystem {
 
     parchment.appendChild(buttonColumn);
     content.appendChild(parchment);
+    scrollRegion.scrollTop = 0;
     this._maybeAutoScrollTranscript({
       mode: autoScrollMode,
       wasNearBottom: transcriptWasNearBottom,
@@ -936,17 +976,28 @@ class ConversationSystem {
     this._maybeAutoScrollTranscript({ mode: autoScrollMode, wasNearBottom, previousScrollTop });
   }
 
+  _scrollToBottomIfNear(el, threshold = 40) {
+    if (!el) return;
+    if (this._isNearBottom(el, threshold)) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
   _maybeAutoScrollTranscript({ mode = 'none', wasNearBottom = null, previousScrollTop = null } = {}) {
     const scrollEl = this._getTranscriptScrollElement();
     if (!scrollEl) return;
     if (mode === 'forceBottom') {
-      this._scrollTranscriptToBottom();
+      scrollEl.scrollTop = scrollEl.scrollHeight;
       return;
     }
     if (mode === 'ifNearBottom') {
-      const nearBottom = typeof wasNearBottom === 'boolean' ? wasNearBottom : this._isNearBottom(scrollEl);
-      if (nearBottom) {
-        this._scrollTranscriptToBottom();
+      if (typeof wasNearBottom === 'boolean') {
+        if (wasNearBottom) {
+          scrollEl.scrollTop = scrollEl.scrollHeight;
+          return;
+        }
+      } else {
+        this._scrollToBottomIfNear(scrollEl);
         return;
       }
     }
@@ -955,39 +1006,21 @@ class ConversationSystem {
     }
   }
 
-  _scrollTranscriptToBottom() {
-    const scrollEl = this._getTranscriptScrollElement();
-    if (!scrollEl) return;
-    scrollEl.scrollTop = scrollEl.scrollHeight;
-  }
-
   _ensureTranscriptScrollRegion(parchment) {
     if (!parchment) return;
     const transcriptEl = parchment.querySelector?.('[data-conversation-transcript]');
     if (!transcriptEl) return;
-    let wrapper = parchment.querySelector('.conversation-transcript-scroll');
+    let host = parchment.querySelector('.conversation-transcript-host');
+    if (!host) {
+      host = createElement('div', { className: 'conversation-transcript-host' });
+      transcriptEl.parentNode?.insertBefore(host, transcriptEl);
+    }
+    let wrapper = host.querySelector('.conversation-transcript-scroll');
     if (!wrapper) {
-      // Scroll architecture: the parchment is static, only this transcript pane scrolls.
-      wrapper = createElement('div', {
-        className: 'conversation-transcript-scroll',
-        style: {
-          flex: '1 1 auto',
-          minHeight: '0',
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          paddingRight: '6px'
-        }
-      });
-      transcriptEl.parentNode?.insertBefore(wrapper, transcriptEl);
+      wrapper = createElement('div', { className: 'conversation-transcript-scroll' });
+      host.appendChild(wrapper);
     }
     wrapper.appendChild(transcriptEl);
-  }
-
-  _scrollOptionsIntoView() {
-    const overlay = this.activeOverlay;
-    const optionsEl = overlay?.querySelector?.('.conversation-parchment > div:last-child');
-    if (!optionsEl) return;
-    optionsEl.scrollIntoView({ block: 'start', behavior: 'auto' });
   }
 
   _getActiveTranscriptSession(preferred = null) {
@@ -2056,19 +2089,19 @@ class ConversationSystem {
     };
 
     const purposeSelection = this.decideNpcApproachPurpose({ player, npc, context: normalizedContext });
-    const approachRoute = this._selectNpcApproachOpenerRoute({
-      purposeId: purposeSelection.purposeId,
-      player,
-      npc,
-      context: normalizedContext
-    });
-
     const openingLine = this.getNpcApproachOpener({
       purposeId: purposeSelection.purposeId,
       player,
       npc,
       context: normalizedContext,
       stance: NPC_STANCES.REASSURE
+    });
+    const approachRoute = this._selectNpcApproachOpenerRoute({
+      purposeId: purposeSelection.purposeId,
+      player,
+      npc,
+      context: normalizedContext,
+      npcOpeningLine: openingLine
     });
 
     const responseOptions = this.buildNpcApproachResponses({
@@ -2078,6 +2111,13 @@ class ConversationSystem {
       context: normalizedContext,
       openerRoute: approachRoute?.route || null
     });
+    if (responseOptions.length < 2) {
+      responseOptions.push({
+        label: 'Not now.',
+        playerLine: 'Not right now.',
+        actionKey: 'DECLINE'
+      });
+    }
 
     const runApproachRoute = ({ route, contextOverride }) => {
       const updatedContext = contextOverride || normalizedContext;
@@ -2176,31 +2216,44 @@ class ConversationSystem {
     this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true });
   }
 
-  _selectNpcApproachOpenerRoute({ purposeId, player, npc, context }) {
+  _selectNpcApproachOpenerRoute({ purposeId, player, npc, context, npcOpeningLine = '' }) {
     const topics = this._buildMainTopics({ player, npc, context });
     const desiredRoutes = NPC_APPROACH_OPENERS_BY_PURPOSE[purposeId]
       || NPC_APPROACH_OPENERS_BY_PURPOSE[NPC_APPROACH_PURPOSES.BUILD_CONNECTION]
       || [];
+    const openingAsksForName = this._openingLineAllowsImmediatePick(npcOpeningLine);
+    const mapRoute = route => {
+      const topic = topics.find(item => item.id === route.topicId);
+      const node = topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled);
+      if (!topic || !node) return null;
+      if (!openingAsksForName && this._nodeRequiresImmediatePick(node)) return null;
+      return { route, topic, node };
+    };
     const viable = desiredRoutes
-      .map(route => {
-        const topic = topics.find(item => item.id === route.topicId);
-        const node = topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled);
-        if (!topic || !node) return null;
-        return { route, topic, node };
-      })
+      .map(mapRoute)
       .filter(Boolean);
     if (viable.length) return viable[getRandomInt(0, viable.length - 1)];
 
     const fallbackRoutes = Object.values(NPC_APPROACH_OPENERS_BY_PURPOSE).flat();
     const fallbackViable = fallbackRoutes
-      .map(route => {
-        const topic = topics.find(item => item.id === route.topicId);
-        const node = topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled);
-        return topic && node ? { route, topic, node } : null;
-      })
+      .map(mapRoute)
       .filter(Boolean);
     if (!fallbackViable.length) return null;
     return fallbackViable[getRandomInt(0, fallbackViable.length - 1)];
+  }
+
+  _openingLineAllowsImmediatePick(openingLine = '') {
+    const text = String(openingLine || '').toLowerCase();
+    return /(\bwho\b|which one|focus on|\bname\b|who are you thinking)/i.test(text);
+  }
+
+  _nodeRequiresImmediatePick(node) {
+    if (!node) return false;
+    if (node.requiresPick) return true;
+    const uiType = String(node.ui || node.uiType || node.meta?.ui || '').toLowerCase();
+    if (uiType.includes('pick')) return true;
+    if (uiType.includes('selectname') || uiType.includes('selecttarget')) return true;
+    return false;
   }
   _resolveNpcOpeningLine({ node, player, npc, context, stance }) {
     if (typeof node.npcOpeningLine === 'function') {
@@ -8365,15 +8418,8 @@ class ConversationSystem {
     this._ensureTranscriptScrollRegion(parchment);
 
     if (buttons.length > 0) {
-      const buttonColumn = createElement('div', {
-        style: {
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          marginTop: '12px',
-          width: '100%'
-        }
-      });
+      const buttonColumn = createElement('div', { className: 'conversation-options-region' });
+      const optionsScroll = createElement('div', { className: 'conversation-options-scroll' });
 
       buttons.forEach(({ label, alt = false, onClick }) => {
         const btn = this._createChoiceButton({
@@ -8382,16 +8428,15 @@ class ConversationSystem {
           onClick,
           fallback: { npc }
         });
-        buttonColumn.appendChild(btn);
+        optionsScroll.appendChild(btn);
       });
 
+      optionsScroll.scrollTop = 0;
+      buttonColumn.appendChild(optionsScroll);
       parchment.appendChild(buttonColumn);
     }
 
     content.appendChild(parchment);
-    if (buttons.length > 0) {
-      this._scrollOptionsIntoView();
-    }
   }
 
   _renderNode(session, nodeId) {
@@ -15992,33 +16037,7 @@ class ConversationSystem {
   }
 
   _injectConversationStyles() {
-    if (this._stylesInjected || typeof document === 'undefined') return;
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes parchmentFadeIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-      #conversation-overlay .rect-button { padding: 8px 10px; }
-      #conversation-overlay .conversation-nav-row .rect-button,
-      #conversation-overlay .conversation-parchment .conversation-compact-button {
-        flex: 1 1 calc(50% - 6px);
-        min-width: 120px;
-        font-size: 0.85rem;
-        padding: 6px 8px;
-      }
-      #conversation-overlay .conversation-parchment { max-width: 440px; }
-      @media (max-width: 600px) {
-        #conversation-overlay .conversation-parchment { width: 94%; padding: 18px 16px 16px; max-height: 66vh; }
-        #conversation-overlay .rect-button { font-size: 0.95rem; }
-        #conversation-overlay .conversation-nav-row .rect-button,
-        #conversation-overlay .conversation-parchment .conversation-compact-button {
-          min-width: 0;
-          flex-basis: calc(50% - 6px);
-          font-size: 0.8rem;
-          padding: 5px 7px;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-    this._stylesInjected = true;
+    this._ensureConversationStyles();
   }
 
   _isInCamp() {
