@@ -526,25 +526,29 @@ class ConversationSystem {
       #conversation-overlay .conversation-parchment {
         display: flex;
         flex-direction: column;
-        width: min(92vw, 520px);
-        height: min(82dvh, 720px);
-        max-height: min(82dvh, 720px);
+        width: min(92%, 380px);
+        max-width: 420px;
+        max-height: calc(100vh - 190px);
         min-height: 0;
         box-sizing: border-box;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
       }
       /* Nested flex scroll requires min-height:0 on children or mobile Safari can lock scrolling. */
-      #conversation-overlay .conversation-transcript-region {
+      #conversation-overlay .conversation-transcript-region,
+      #conversation-overlay .convo-transcript {
         flex: 1 1 auto;
-        min-height: 0;
+        min-height: 140px;
         overflow-y: auto;
         padding-right: 4px;
+        padding-bottom: 8px;
         scrollbar-gutter: stable;
         -webkit-overflow-scrolling: touch;
       }
-      #conversation-overlay .conversation-options-region {
-        flex: 0 1 auto;
+      #conversation-overlay .conversation-options-region,
+      #conversation-overlay .convo-options {
+        flex: 0 0 auto;
         min-height: 0;
-        max-height: 36%;
+        max-height: 32vh;
         overflow-y: auto;
         margin-top: 10px;
         padding-right: 4px;
@@ -554,31 +558,35 @@ class ConversationSystem {
         flex-direction: column;
         gap: 10px;
       }
-      #conversation-overlay .conversation-nav-row {
+      #conversation-overlay .conversation-nav-row,
+      #conversation-overlay .convo-footer {
         flex: 0 0 auto;
         display: flex;
-        gap: 12px;
+        gap: 10px;
         justify-content: space-between;
         margin-top: 10px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
       }
-      #conversation-overlay .conversation-nav-row button {
+      #conversation-overlay .conversation-nav-row button,
+      #conversation-overlay .convo-footer button {
         flex: 1 1 0;
         min-width: 0;
         font-size: 0.8rem;
         line-height: 1.15;
-        padding: 5px 8px;
+        padding: 4px 8px;
       }
       @media (max-width: 600px) {
         #conversation-overlay .conversation-parchment {
-          width: min(94vw, 520px);
-          height: min(80dvh, 680px);
-          max-height: min(80dvh, 680px);
+          width: min(94%, 380px);
+          max-width: 400px;
+          max-height: calc(100vh - 180px);
           padding: 18px 16px 16px;
         }
         #conversation-overlay .rect-button { font-size: 0.95rem; }
-        #conversation-overlay .conversation-nav-row button {
+        #conversation-overlay .conversation-nav-row button,
+        #conversation-overlay .convo-footer button {
           font-size: 0.76rem;
-          padding: 5px 7px;
+          padding: 4px 7px;
         }
       }
     `;
@@ -685,14 +693,13 @@ class ConversationSystem {
       alt: option.alt || false,
       onClick: option.onSelect || option.onClick
     }));
-    if (!buttons.length && !extras.length) {
-      this._renderMenu(npc, this._buildTranscriptBody({
-        session: this._getActiveTranscriptSession(this.nodeSession),
-        narration: `${title || 'Pick a name'}\nNo valid names available right now.`
-      }), [], { onBack, showEnd: true });
-      return;
-    }
-    this._renderMenu(npc, body, [...buttons, ...extras], { onBack });
+    const noTargetsButton = {
+      label: 'No valid targets right now',
+      alt: true,
+      disabled: true,
+      onClick: () => {}
+    };
+    this._renderMenu(npc, body, [...(buttons.length ? buttons : [noTargetsButton]), ...extras], { onBack });
   }
 
   _initTranscript(session) {
@@ -779,20 +786,27 @@ class ConversationSystem {
     return this._looksLikeNameRequest(npcReply);
   }
 
-  _routeToNamePick({ npc, player, prompt = 'Choose a name:', candidates = null, excludeIds = [], includePlayer = false, onPick, onBack }) {
+  _routeToNamePick({
+    npc,
+    player,
+    prompt = 'Choose a name:',
+    candidates = null,
+    excludeIds = [],
+    includePlayer = false,
+    includeSelf = false,
+    onPick,
+    onBack
+  }) {
     const blockedIds = new Set(Array.isArray(excludeIds) ? excludeIds.filter(Boolean) : []);
+    const includeNpc = Boolean(includeSelf);
     const pickCandidates = Array.isArray(candidates) && candidates.length
-      ? candidates.filter(member => member && !blockedIds.has(member.id))
-      : this._getTribeMembers({ includeNpc: false, includePlayer, npcId: npc?.id }).filter(member => !blockedIds.has(member.id));
-
-    if (!pickCandidates.length) {
-      const session = this._getActiveTranscriptSession(this.nodeSession);
-      session?.addNarration?.('No valid names to pick right now.');
-      this._renderMenu(npc, this._buildTranscriptBody({ session }), [
-        { label: 'Close', onClick: () => this.closeConversation('name_pick_unavailable') }
-      ], { onBack: null, showEnd: false });
-      return;
-    }
+      ? candidates.filter(member => {
+        if (!member || blockedIds.has(member.id)) return false;
+        if (!includeNpc && npc?.id && member.id === npc.id) return false;
+        if (!includePlayer && member.id === this.gameManager?.player?.id) return false;
+        return true;
+      })
+      : this._getTribeMembers({ includeNpc, includePlayer, npcId: npc?.id }).filter(member => !blockedIds.has(member.id));
 
     this._renderPickList({
       npc,
@@ -811,29 +825,32 @@ class ConversationSystem {
     if (!pickSpec) return;
     const session = this._getActiveTranscriptSession(this.nodeSession);
     const type = pickSpec?.type || 'TRIBE_MEMBER';
+    const includeNpc = pickSpec?.includeNpc ?? pickSpec?.includeSelf ?? false;
+    const includePlayer = pickSpec?.includePlayer ?? pickSpec?.includeYou ?? pickSpec?.includeMe ?? false;
     let candidates = [];
     if (type === 'TRIBE_MEMBER') {
       candidates = pickSpec.candidates || this._getTribeMembers({
-        includeNpc: pickSpec.includeNpc ?? false,
-        includePlayer: pickSpec.includePlayer ?? false,
+        includeNpc,
+        includePlayer,
         npcId: npc?.id
+      });
+    }
+    if (Array.isArray(candidates) && candidates.length) {
+      candidates = candidates.filter(member => {
+        if (!member) return false;
+        if (!includeNpc && npc?.id && member.id === npc.id) return false;
+        if (!includePlayer && member.id === this.gameManager?.player?.id) return false;
+        return true;
       });
     }
     if (!candidates.length && type === 'TRIBE_MEMBER') {
       candidates = this._getTribeMembers({
-        includeNpc: true,
-        includePlayer: true,
+        includeNpc,
+        includePlayer,
         npcId: npc?.id
       });
     }
     const title = pickSpec.title || 'Pick a name:';
-    if (!candidates.length) {
-      this._renderMenu(npc, this._buildTranscriptBody({ session, narration: 'No valid picks available.' }), [], {
-        onBack: returnTo,
-        showEnd: true
-      });
-      return;
-    }
     this._renderPickList({
       npc,
       title,
@@ -862,7 +879,7 @@ class ConversationSystem {
       name: entry.name || null,
       isHtml: entry.isHtml || false
     });
-    this._refreshTranscriptUI(session, { autoScrollMode: 'forceBottom' });
+    this._refreshTranscriptUI(session, { autoScrollMode: 'ifNearBottom' });
   }
 
   _coerceTranscriptEntry(entry) {
@@ -1006,7 +1023,6 @@ class ConversationSystem {
       optionsDiv.style.maxHeight = 'none';
     }
 
-    optionsDiv.scrollTop = 0;
     this._maybeAutoScrollTranscript({
       mode: autoScrollMode,
       wasNearBottom: transcriptWasNearBottom,
@@ -10882,7 +10898,7 @@ class ConversationSystem {
         justifyContent: 'center',
         alignItems: 'flex-start',
         paddingTop: '10px',
-        overflowY: 'auto'
+        overflow: 'hidden'
       }
     });
 
@@ -10981,11 +10997,11 @@ class ConversationSystem {
     });
 
     // Keep transcript/options in dedicated flex children with min-height:0 for mobile scroll reliability.
-    const transcriptDiv = createElement('div', { className: 'conversation-transcript-region' });
+    const transcriptDiv = createElement('div', { className: 'conversation-transcript-region convo-transcript' });
     const transcriptContent = createElement('div', { className: 'conversation-transcript-content' });
     transcriptDiv.appendChild(transcriptContent);
-    const optionsDiv = createElement('div', { className: 'conversation-options-region' });
-    const navRowDiv = createElement('div', { className: 'conversation-nav-row' });
+    const optionsDiv = createElement('div', { className: 'conversation-options-region convo-options' });
+    const navRowDiv = createElement('div', { className: 'conversation-nav-row convo-footer' });
 
     parchment.appendChild(transcriptDiv);
     parchment.appendChild(optionsDiv);
