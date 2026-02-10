@@ -83,7 +83,29 @@ function formatCampLogBody(entry, tribe, playerId) {
     if (entry.text) return entry.text;
     return `${name} stepped up to help when needed.`;
   }
-  return entry.title || entry.type || '';
+  return '';
+}
+
+function getCampEntryLabel(entry) {
+  const type = String(entry?.type || '').toLowerCase();
+  switch (type) {
+    case 'camp_contribute':
+      return 'Resource Contribution';
+    case 'camp_contribute_food':
+      return 'Food Run';
+    case 'camp_fire_build':
+      return 'Fire Progress';
+    case 'camp_shelter_build':
+      return 'Shelter Progress';
+    case 'float_step_up':
+      return 'Stepping Up';
+    default:
+      return null;
+  }
+}
+
+function hasMeaningfulBody(text) {
+  return typeof text === 'string' && text.trim().length > 0;
 }
 
 function renderCampHighlightsSection(campLog, tribe) {
@@ -106,7 +128,24 @@ function renderCampHighlightsSection(campLog, tribe) {
   }, 'Camp Highlights'));
 
   const playerId = gameManager.getPlayerSurvivor?.()?.id;
-  dedupeCampEntries(campLog).forEach(entry => {
+  const renderedEntries = dedupeCampEntries(campLog)
+    .map(entry => {
+      const label = getCampEntryLabel(entry);
+      const bodyText = formatCampLogBody(entry, tribe, playerId);
+      if (!label && !hasMeaningfulBody(bodyText)) return null;
+      return {
+        label: label || 'Camp Update',
+        bodyText
+      };
+    })
+    .filter(Boolean);
+
+  if (!renderedEntries.length) return null;
+
+  const MAX_VISIBLE = 8;
+  const hiddenCards = [];
+
+  renderedEntries.forEach((entry, index) => {
     const card = createElement('div', {
       style: `
         background: #fff8e1;
@@ -116,12 +155,45 @@ function renderCampHighlightsSection(campLog, tribe) {
       `
     });
 
-    card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, entry.title || entry.type || 'Camp note'));
+    card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415' } }, entry.label));
     const body = createElement('div', { style: { color: '#2b190a', marginTop: '4px', whiteSpace: 'pre-wrap' } });
-    body.textContent = formatCampLogBody(entry, tribe, playerId);
+    body.textContent = entry.bodyText;
     card.appendChild(body);
-    wrapper.appendChild(card);
+    if (index < MAX_VISIBLE) {
+      wrapper.appendChild(card);
+    } else {
+      card.style.display = 'none';
+      hiddenCards.push(card);
+      wrapper.appendChild(card);
+    }
   });
+
+  if (hiddenCards.length) {
+    let expanded = false;
+    const toggle = createElement('button', {
+      style: `
+        margin-top: 4px;
+        align-self: flex-start;
+        background: #5d3b0c;
+        color: #fff;
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-family: inherit;
+        cursor: pointer;
+      `
+    }, `Show more (${hiddenCards.length})`);
+
+    toggle.addEventListener('click', () => {
+      expanded = !expanded;
+      hiddenCards.forEach(card => {
+        card.style.display = expanded ? 'block' : 'none';
+      });
+      toggle.textContent = expanded ? 'Show less' : `Show more (${hiddenCards.length})`;
+    });
+
+    wrapper.appendChild(toggle);
+  }
 
   return wrapper;
 }
@@ -272,7 +344,7 @@ function findLatestEndOfPhaseReport(campLog, day) {
 
 function normalizeCampSocialChanges() {
   if (!window.campSocialChanges) return null;
-  const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts'];
+  const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts', 'reliability'];
   const normalized = {};
 
   buckets.forEach(key => {
@@ -284,6 +356,24 @@ function normalizeCampSocialChanges() {
   return normalized;
 }
 
+function aggregateSocialChanges(changes = [], keys = []) {
+  const grouped = new Map();
+  changes.forEach(change => {
+    if (!change) return;
+    const amount = Number(change.amount ?? change.weight ?? 0);
+    if (!Number.isFinite(amount) || amount === 0) return;
+    const key = keys.map(k => change[k] || '').join('||');
+    if (!key) return;
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, { ...change, amount });
+      return;
+    }
+    existing.amount += amount;
+  });
+  return [...grouped.values()];
+}
+
 function buildSocialRecapSection() {
   const socialLog = normalizeCampSocialChanges();
   if (!socialLog) return null;
@@ -292,6 +382,10 @@ function buildSocialRecapSection() {
     .some(key => Array.isArray(socialLog[key]) && socialLog[key].length > 0);
 
   if (!hasEntries) return null;
+
+  const player = gameManager.getPlayerSurvivor?.();
+  const playerId = player?.id;
+  const playerName = player?.firstName || player?.name || null;
 
   const section = createElement('div', {
     style: `
@@ -319,14 +413,14 @@ function buildSocialRecapSection() {
 
     section.appendChild(createElement('h4', {
       style: `
-        margin: 10px 0 6px;
+        margin: 8px 0 4px;
         color: #5d3b0c;
       `
     }, title));
 
     const list = createElement('ul', {
       style: `
-        margin: 0 0 10px 18px;
+        margin: 0 0 8px 18px;
         padding: 0;
         color: #2b190a;
       `
@@ -345,24 +439,51 @@ function buildSocialRecapSection() {
     section.appendChild(list);
   };
 
-  addCategory('Relationship Changes', socialLog.relationship, change => {
-    const delta = change.amount || 0;
-    const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
-    return `You and ${change.with} had a ${change.context || 'camp'} interaction (${deltaText}).`;
+  const relationshipChanges = aggregateSocialChanges(socialLog.relationship, ['with', 'context']);
+  const trustChanges = aggregateSocialChanges(socialLog.trust, ['with']);
+  const suspicionChanges = aggregateSocialChanges(socialLog.suspicion, ['with']);
+
+  const exposedMentions = (socialLog.memory || []).filter(entry => entry?.type === 'exposed_mention');
+  addCategory('You Got Exposed', exposedMentions, entry => {
+    const confrontedBy = entry.confrontedBy || 'Someone';
+    const target = entry.target || 'a name';
+    if (entry.suspectedSource) {
+      return `⚠️ ${confrontedBy} confronted you about mentioning ${target}. You suspect ${entry.suspectedSource} leaked it.`;
+    }
+    return `⚠️ ${confrontedBy} confronted you about mentioning ${target}.`;
   });
 
-  addCategory('Trust Changes', socialLog.trust, change => {
+  addCategory('Relationship Changes', relationshipChanges, change => {
     const delta = change.amount || 0;
     const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
+    return `${change.with} relationship shift (${change.context || 'camp'}: ${deltaText}).`;
+  });
+
+  addCategory('Trust Changes', trustChanges, change => {
+    const delta = change.amount || 0;
+    const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
+    const withId = change.withId || change.id || null;
+    const isPlayerChange = (withId && withId === playerId) || (playerName && change.with === playerName);
+    if (isPlayerChange) {
+      const target = change.target || change.about;
+      if (target) return `Your trust in ${target} shifted (${deltaText}).`;
+      return `Your trust shifted (${deltaText}).`;
+    }
     const direction = delta >= 0 ? 'trusts you more' : 'trusts you less';
     return `${change.with} ${direction} (${deltaText}).`;
   });
 
-  addCategory('Suspicion', socialLog.suspicion, change => {
+  addCategory('Suspicion', suspicionChanges, change => {
     const delta = change.amount || 0;
     const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
-    const direction = delta >= 0 ? 'more suspicious of you' : 'less suspicious of you';
-    return `${change.with} is now ${direction} (${deltaText}).`;
+    const withId = change.withId || change.id || null;
+    const isPlayerChange = (withId && withId === playerId) || (playerName && change.with === playerName);
+    if (isPlayerChange) {
+      const target = change.target || change.about;
+      if (target) return `You grew more suspicious of ${target} (${deltaText}).`;
+      return `Your suspicion changed (${deltaText}).`;
+    }
+    return `Suspicion ${delta >= 0 ? 'rose' : 'fell'}: ${change.with} (${deltaText}).`;
   });
 
   const mentionEntries = (socialLog.memory || []).filter(m => m && (m.type === 'mention' || m.type === 'strategic_context'));

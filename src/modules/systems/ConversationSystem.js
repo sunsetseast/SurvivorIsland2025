@@ -117,6 +117,30 @@ function ensureCampSocialChanges() {
 
 ensureCampSocialChanges();
 
+function recordExposedMention({
+  target = null,
+  toldTo = null,
+  confrontedBy = null,
+  sourceKnownToPlayer = false,
+  suspectedSource = null,
+  tone = 'tense',
+  timestamp = Date.now(),
+  playerId = null
+} = {}) {
+  const socialLog = ensureCampSocialChanges();
+  socialLog.memory.push({
+    type: 'exposed_mention',
+    target,
+    toldTo,
+    confrontedBy,
+    sourceKnownToPlayer,
+    suspectedSource,
+    tone,
+    timestamp,
+    playerId
+  });
+}
+
 function mapToneFromOutcome(outcome) {
   switch (outcome) {
     case 'playAlong':
@@ -12017,6 +12041,21 @@ class ConversationSystem {
       summary: `You confronted ${npc?.firstName || 'them'} about your name coming up.`
     });
     session.context.accuseEventId = accuseEvent?.id || null;
+
+    if (session.context?.initiatedByNpc && !session.context?.exposedMentionLogged) {
+      const sourceName = session.context?.sourceName || session.context?.suspectedSource || null;
+      recordExposedMention({
+        target: player?.firstName || player?.name || 'you',
+        toldTo: sourceName,
+        confrontedBy: npc?.firstName || 'Someone',
+        sourceKnownToPlayer: Boolean(sourceName),
+        suspectedSource: sourceName,
+        tone: 'confrontation',
+        timestamp: Date.now(),
+        playerId: player?.id || null
+      });
+      session.context.exposedMentionLogged = true;
+    }
 
     return {
       id: 'confront_fromWho',
