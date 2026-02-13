@@ -2,6 +2,7 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import gameManager, { GamePhase, GameState } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import JourneyReturnCampEvent from '../events/JourneyReturnCampEvent.js';
 
 /**
  * StrategyPhaseSystem
@@ -55,16 +56,25 @@ class StrategyPhaseSystem {
     this.completedAllianceMeetings = new Set();
     this.meetingAlertQueue = [];
     this.loggedFactKeys = new Set();
+    this.journeyerIdForPhase = null;
+    this.journeyPart2Running = false;
     if (!skipGameManager) {
       gameManager.conversationPhaseOverride = null;
     }
   }
 
-  startPostChallengePhase() {
+  async startPostChallengePhase() {
     const phaseKey = `${gameManager.getDay?.() ?? gameManager.day}-${gameManager.getGamePhase?.() ?? gameManager.gamePhase}`;
     if (this.startedForPhaseKey === phaseKey) return;
     this.startedForPhaseKey = phaseKey;
     gameManager.conversationPhaseOverride = 'POST_CHALLENGE';
+    gameManager.flags = gameManager.flags || {};
+    if (!(gameManager.flags.absentFromCampIds instanceof Set)) {
+      gameManager.flags.absentFromCampIds = new Set(gameManager.flags.absentFromCampIds || []);
+    }
+    gameManager.flags.journeyReturnPart2Fired = false;
+    gameManager.flags.journeyReturnPart2PlayerResponseLogged = false;
+    this.journeyerIdForPhase = null;
 
     // Set the timer for a 1-hour in-game scramble and freeze survival decay expectations
     gameManager.dayTimer = 3600;
@@ -72,6 +82,37 @@ class StrategyPhaseSystem {
     this.playerTribeSafe = this.didPlayerTribeWinImmunity();
 
     window.debugBanner?.('POST-CHALLENGE', this.playerTribeSafe ? 'IMMUNE' : 'VULNERABLE');
+
+    const journeyIsEligibleForReturnCamp = this.isRiskProtectJourneyPendingForThisPostChallenge();
+    window.debugBanner?.('JOURNEY-RETURN CHECK', journeyIsEligibleForReturnCamp ? 'riskProtect pending' : 'not pending');
+    const journeyerId = journeyIsEligibleForReturnCamp ? this.resolveJourneyerFromPlayerTribe() : null;
+    this.journeyerIdForPhase = journeyerId;
+    const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.getPlayer?.()?.id || gameManager.playerId;
+    const isPlayerJourneyer = !!journeyerId && String(journeyerId) === String(playerId);
+
+    if (journeyerId && isPlayerJourneyer) {
+      await JourneyReturnCampEvent.simulatePart1IfPlayerAway({
+        gameManager,
+        strategyPhaseSystem: this,
+        journeyerId,
+      });
+      gameManager.dayTimer = 2400;
+      gameManager.flags.journeyReturnPart2Fired = true;
+      await JourneyReturnCampEvent.startPart2({
+        gameManager,
+        strategyPhaseSystem: this,
+        journeyerId,
+        isPlayerJourneyer: true,
+      });
+      this.markRiskProtectJourneyReturnHandled();
+    } else if (journeyerId) {
+      gameManager.flags.absentFromCampIds.add(journeyerId);
+      await JourneyReturnCampEvent.startPart1({
+        gameManager,
+        strategyPhaseSystem: this,
+        journeyerId,
+      });
+    }
 
     if (!this.playerTribeSafe) {
       this.promptPersonalTarget();
@@ -429,6 +470,7 @@ class StrategyPhaseSystem {
 
   runStrategyBeat() {
     if (!this.isActive || gameManager.gameState !== GameState.CAMP) return;
+    if (gameManager.flags?.campEventActive) return;
 
     const tribe = gameManager.getPlayerTribe();
     if (!tribe) return;
@@ -747,10 +789,94 @@ class StrategyPhaseSystem {
     this.timerWatcherId && clearInterval(this.timerWatcherId);
     this.timerWatcherId = setInterval(() => {
       if (!this.isActive) return;
+      if (gameManager.flags?.campEventActive) return;
+
+      if (
+        this.journeyerIdForPhase &&
+        !gameManager.flags?.journeyReturnPart2Fired &&
+        gameManager.getDayTimer() <= 2400
+      ) {
+        gameManager.flags.journeyReturnPart2Fired = true;
+        this.journeyPart2Running = true;
+        JourneyReturnCampEvent.startPart2({
+          gameManager,
+          strategyPhaseSystem: this,
+          journeyerId: this.journeyerIdForPhase,
+          isPlayerJourneyer: false,
+        }).finally(() => {
+          this.markRiskProtectJourneyReturnHandled();
+          this.journeyPart2Running = false;
+        });
+        return;
+      }
+
       if (gameManager.getDayTimer() <= 0) {
         this.handleTimerExpired();
       }
     }, 1000);
+  }
+
+  resolveJourneyerFromPlayerTribe() {
+    const journey = gameManager?.journey;
+    const tribe = gameManager.getPlayerTribe?.();
+    if (!journey || !tribe) return null;
+    const members = tribe.members || [];
+    const memberIds = new Set(members.map(m => String(m.id)));
+    const tribeKeys = [tribe.id, tribe.tribeName, tribe.name, tribe.tribeColor, tribe.color]
+      .filter(Boolean)
+      .map(v => String(v));
+
+    if (journey.participantsByTribe) {
+      for (const key of tribeKeys) {
+        const hit = journey.participantsByTribe[key];
+        if (hit && memberIds.has(String(hit))) return hit;
+      }
+      for (const id of Object.values(journey.participantsByTribe)) {
+        if (id && memberIds.has(String(id))) return id;
+      }
+    }
+
+    if (Array.isArray(journey.participants)) {
+      const found = journey.participants.find(id => memberIds.has(String(id)));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  isRiskProtectJourneyPendingForThisPostChallenge() {
+    const marker = gameManager?.flags?.lastJourneyEvent;
+    const currentDay = gameManager.getDay?.() ?? gameManager.day;
+    if (!marker || marker.type !== 'riskProtect' || marker.pendingReturnCampEvent !== true) {
+      return false;
+    }
+    if (Number(marker.day) !== Number(currentDay)) {
+      return false;
+    }
+    return true;
+  }
+
+  markRiskProtectJourneyReturnHandled() {
+    const marker = gameManager?.flags?.lastJourneyEvent;
+    if (marker?.type === 'riskProtect') {
+      marker.pendingReturnCampEvent = false;
+      marker.handledAt = Date.now();
+    }
+    if (gameManager?.journey) {
+      gameManager.journey.returnCampEventPending = false;
+      gameManager.journey.returnCampEventHandledAt = Date.now();
+    }
+  }
+
+  addSummaryFact(fact) {
+    this.logFact(fact);
+  }
+
+  addFact(fact) {
+    this.logFact(fact);
+  }
+
+  recordSummaryFact(fact) {
+    this.logFact(fact);
   }
 
   async handleTimerExpired() {

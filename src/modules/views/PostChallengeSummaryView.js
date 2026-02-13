@@ -99,6 +99,12 @@ export default function renderPostChallengeSummaryView(container) {
   }
 }
 
+
+function formatSigned(n) {
+  const value = Number(n) || 0;
+  return value >= 0 ? `+${value}` : `${value}`;
+}
+
 function buildSections(facts = []) {
   const personal = [];
   const alliance = [];
@@ -137,6 +143,24 @@ function buildSections(facts = []) {
         break;
       case 'npcScramble':
         notable.push(`${speaker} floated ${target} in the scramble.`);
+        break;
+      case 'journeySpeculationConsensus':
+        notable.push(`The tribe speculated about ${target}: the vibe was ${fact.consensus === 'suspicious' ? 'suspicious' : 'mostly calm'}.`);
+        break;
+      case 'journeySpeculationPlayerStance':
+        notable.push(`You reacted to the missing journeyer: ${fact.stance === 'stoke' ? 'you stoked suspicion' : fact.stance === 'defend' ? 'you defended them' : 'you stayed neutral'}.`);
+        break;
+      case 'journeySpeculationSuspicionDelta':
+        notable.push(`Suspicion on ${target} shifted during speculation (${formatSigned(fact.delta)} → now ${fact.newSuspicion ?? '?' }).`);
+        break;
+      case 'journeyReturnStory':
+        notable.push(`${speaker} returned from the journey and told a ${fact.rulesTold === 'truth' ? 'clear' : 'shaky'} story about the rules, and was ${fact.outcomeTold === 'truth' ? 'straight' : 'dodgy'} about the outcome.`);
+        break;
+      case 'journeyReturnReactions':
+        notable.push(`Reaction to ${target}: ${fact.believers ?? 0} believed, ${fact.doubters ?? 0} doubted (${fact.mood || 'mixed'}).`);
+        break;
+      case 'journeyReturnStatDeltas':
+        notable.push(`After the return story: trust net ${formatSigned(fact.trustNet)}, idol-suspicion net ${formatSigned(fact.idolSuspicionNet)}, suspicion ${formatSigned(fact.suspicionDelta)} (now ${fact.newSuspicion ?? '?'}).`);
         break;
       case 'dealProposed':
       case 'dealAccepted':

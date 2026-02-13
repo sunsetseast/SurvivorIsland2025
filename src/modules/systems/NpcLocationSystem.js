@@ -78,8 +78,18 @@ class NpcLocationSystem {
       return;
     }
 
-    // Only NPCs FROM PLAYER'S TRIBE
-    const npcs = roster.filter(s => !s.isPlayer);
+    const absentSet = gameManager.flags?.absentFromCampIds;
+    if (absentSet?.size) {
+      window.debugBanner?.('ABSENT NPC ACTIVE', Array.from(absentSet).join(', '));
+    }
+
+    // Only NPCs FROM PLAYER'S TRIBE and not marked absent
+    const npcs = roster.filter(s => !s.isPlayer && !(absentSet && absentSet.has(s.id)));
+    roster.forEach((npc) => {
+      if (!npc?.isPlayer && absentSet?.has(npc.id)) {
+        npc.location = null;
+      }
+    });
     dbg("NPCs in player tribe", npcs.map(n => n.firstName));
 
     // Safe shuffle
