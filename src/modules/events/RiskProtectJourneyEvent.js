@@ -489,6 +489,21 @@ const RiskProtectJourneyEvent = {
         };
       });
 
+      // Mark this exact journey as ready for immediate post-challenge return-camp handling.
+      // Strategy phase should only trigger JourneyReturnCampEvent when this marker exists.
+      gameManager.flags = gameManager.flags || {};
+      const marker = {
+        type: 'riskProtect',
+        pendingReturnCampEvent: true,
+        day: gameManager.getDay?.() ?? gameManager.day,
+        challengeKey: journey?.challengeKey || null,
+        phase: 'postChallenge',
+        timestamp: Date.now()
+      };
+      gameManager.flags.lastJourneyEvent = marker;
+      journey.returnCampEventPending = true;
+      journey.returnCampEventMeta = marker;
+
       const resultsList = createElement('div', {
         dataset: { journeyPanel: 'centered' },
         style: 'display:flex; flex-direction:column; gap:12px; width:100%; max-width:100%; padding:clamp(6px, 1.5vw, 14px); box-sizing:border-box;'

@@ -83,7 +83,9 @@ class StrategyPhaseSystem {
 
     window.debugBanner?.('POST-CHALLENGE', this.playerTribeSafe ? 'IMMUNE' : 'VULNERABLE');
 
-    const journeyerId = this.resolveJourneyerFromPlayerTribe();
+    const journeyIsEligibleForReturnCamp = this.isRiskProtectJourneyPendingForThisPostChallenge();
+    window.debugBanner?.('JOURNEY-RETURN CHECK', journeyIsEligibleForReturnCamp ? 'riskProtect pending' : 'not pending');
+    const journeyerId = journeyIsEligibleForReturnCamp ? this.resolveJourneyerFromPlayerTribe() : null;
     this.journeyerIdForPhase = journeyerId;
     const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.getPlayer?.()?.id || gameManager.playerId;
     const isPlayerJourneyer = !!journeyerId && String(journeyerId) === String(playerId);
@@ -102,6 +104,7 @@ class StrategyPhaseSystem {
         journeyerId,
         isPlayerJourneyer: true,
       });
+      this.markRiskProtectJourneyReturnHandled();
     } else if (journeyerId) {
       gameManager.flags.absentFromCampIds.add(journeyerId);
       await JourneyReturnCampEvent.startPart1({
@@ -801,6 +804,7 @@ class StrategyPhaseSystem {
           journeyerId: this.journeyerIdForPhase,
           isPlayerJourneyer: false,
         }).finally(() => {
+          this.markRiskProtectJourneyReturnHandled();
           this.journeyPart2Running = false;
         });
         return;
@@ -837,6 +841,30 @@ class StrategyPhaseSystem {
       if (found) return found;
     }
     return null;
+  }
+
+  isRiskProtectJourneyPendingForThisPostChallenge() {
+    const marker = gameManager?.flags?.lastJourneyEvent;
+    const currentDay = gameManager.getDay?.() ?? gameManager.day;
+    if (!marker || marker.type !== 'riskProtect' || marker.pendingReturnCampEvent !== true) {
+      return false;
+    }
+    if (Number(marker.day) !== Number(currentDay)) {
+      return false;
+    }
+    return true;
+  }
+
+  markRiskProtectJourneyReturnHandled() {
+    const marker = gameManager?.flags?.lastJourneyEvent;
+    if (marker?.type === 'riskProtect') {
+      marker.pendingReturnCampEvent = false;
+      marker.handledAt = Date.now();
+    }
+    if (gameManager?.journey) {
+      gameManager.journey.returnCampEventPending = false;
+      gameManager.journey.returnCampEventHandledAt = Date.now();
+    }
   }
 
   addSummaryFact(fact) {
