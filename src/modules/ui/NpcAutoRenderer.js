@@ -123,8 +123,10 @@ class NpcAutoRenderer {
 
         // Get NPCs at this location
         const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(viewName) || [];
+        const absentSet = gameManager.flags?.absentFromCampIds;
+        const filtered = absentSet ? survivorsHere.filter(s => !absentSet.has(s.id)) : survivorsHere;
 
-        console.log('[NpcAutoRenderer] renderFor', viewName, 'NPC count:', survivorsHere.length);
+        console.log('[NpcAutoRenderer] renderFor', viewName, 'NPC count:', filtered.length);
 
         dbg("NPCs at location", {
             viewName,
@@ -132,7 +134,7 @@ class NpcAutoRenderer {
             locationMap: { ...npcLocationSystem.locations }
         });
 
-        if (survivorsHere.length === 0) {
+        if (filtered.length === 0) {
             dbg("No survivors found for view", viewName);
             return;
         }
@@ -154,7 +156,7 @@ class NpcAutoRenderer {
             `
         });
 
-        survivorsHere.forEach(survivor => {
+        filtered.forEach(survivor => {
             const baseStyle = `
                 width: 55px;
                 height: 55px;
@@ -212,9 +214,9 @@ class NpcAutoRenderer {
         });
 
         layer.appendChild(iconContainer);
-        this.renderDebugOverlay(viewName, survivorsHere, layer);
+        this.renderDebugOverlay(viewName, filtered, layer);
 
-        dbg("NPC ICONS RENDERED", { count: survivorsHere.length, viewName });
+        dbg("NPC ICONS RENDERED", { count: filtered.length, viewName });
     }
 
     normalizeViewName(viewName) {
