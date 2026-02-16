@@ -13,6 +13,11 @@ import { isCoreCampLocation, normalizeLocationKey } from "../locations/LocationU
 // Safe debug helper – uses global debugBanner if it exists
 const dbg = (typeof window.debugBanner === "function") ? window.debugBanner : () => {};
 
+function isMarkedAbsent(absentSet, survivorId) {
+  if (!absentSet) return false;
+  return absentSet.has(survivorId) || absentSet.has(String(survivorId));
+}
+
 export const CAMP_LOCATION_WEIGHTS = {
   [LocationKeys.BEACH]: 4,
   [LocationKeys.SHELTER]: 4,
@@ -84,9 +89,9 @@ class NpcLocationSystem {
     }
 
     // Only NPCs FROM PLAYER'S TRIBE and not marked absent
-    const npcs = roster.filter(s => !s.isPlayer && !(absentSet && absentSet.has(s.id)));
+    const npcs = roster.filter(s => !s.isPlayer && !isMarkedAbsent(absentSet, s.id));
     roster.forEach((npc) => {
-      if (!npc?.isPlayer && absentSet?.has(npc.id)) {
+      if (!npc?.isPlayer && isMarkedAbsent(absentSet, npc.id)) {
         npc.location = null;
       }
     });
@@ -327,9 +332,11 @@ class NpcLocationSystem {
     const canonicalLocation = normalizeLocationKey(locationName);
     if (!canonicalLocation) return results;
 
+    const absentSet = gameManager.flags?.absentFromCampIds;
+
     for (let s of tribe.members) {
       const assignedLocation = normalizeLocationKey(this.locations[s.id]);
-      if (!s.isPlayer && assignedLocation === canonicalLocation) {
+      if (!s.isPlayer && !isMarkedAbsent(absentSet, s.id) && assignedLocation === canonicalLocation) {
         results.push(s);
       }
     }
