@@ -111,6 +111,15 @@ function buildSections(facts = []) {
   const rumors = [];
   const deals = [];
   const notable = [];
+  const journeySpeculation = [];
+  const journeyReturn = [];
+
+  const latestFactByType = new Map();
+  facts.forEach((fact) => {
+    if (fact?.type) {
+      latestFactByType.set(fact.type, fact);
+    }
+  });
 
   facts.forEach((fact) => {
     const speaker = nameOrId(fact.speakerId);
@@ -145,22 +154,13 @@ function buildSections(facts = []) {
         notable.push(`${speaker} floated ${target} in the scramble.`);
         break;
       case 'journeySpeculationConsensus':
-        notable.push(`The tribe speculated about ${target}: the vibe was ${fact.consensus === 'suspicious' ? 'suspicious' : 'mostly calm'}.`);
-        break;
       case 'journeySpeculationPlayerStance':
-        notable.push(`You reacted to the missing journeyer: ${fact.stance === 'stoke' ? 'you stoked suspicion' : fact.stance === 'defend' ? 'you defended them' : 'you stayed neutral'}.`);
-        break;
       case 'journeySpeculationSuspicionDelta':
-        notable.push(`Suspicion on ${target} shifted during speculation (${formatSigned(fact.delta)} → now ${fact.newSuspicion ?? '?' }).`);
-        break;
+      case 'journeySpeculationSummary':
       case 'journeyReturnStory':
-        notable.push(`${speaker} returned from the journey and told a ${fact.rulesTold === 'truth' ? 'clear' : 'shaky'} story about the rules, and was ${fact.outcomeTold === 'truth' ? 'straight' : 'dodgy'} about the outcome.`);
-        break;
       case 'journeyReturnReactions':
-        notable.push(`Reaction to ${target}: ${fact.believers ?? 0} believed, ${fact.doubters ?? 0} doubted (${fact.mood || 'mixed'}).`);
-        break;
       case 'journeyReturnStatDeltas':
-        notable.push(`After the return story: trust net ${formatSigned(fact.trustNet)}, idol-suspicion net ${formatSigned(fact.idolSuspicionNet)}, suspicion ${formatSigned(fact.suspicionDelta)} (now ${fact.newSuspicion ?? '?'}).`);
+      case 'journeyReturnSummary':
         break;
       case 'dealProposed':
       case 'dealAccepted':
@@ -181,13 +181,67 @@ function buildSections(facts = []) {
     }
   });
 
+  const part1 = latestFactByType.get('journeySpeculationSummary');
+  const part1Consensus = latestFactByType.get('journeySpeculationConsensus');
+  const part1Stance = latestFactByType.get('journeySpeculationPlayerStance');
+  const part1Suspicion = latestFactByType.get('journeySpeculationSuspicionDelta');
+  if (part1 || part1Consensus || part1Stance || part1Suspicion) {
+    const journeyerId = part1?.journeyerId || part1Consensus?.targetId || part1Suspicion?.targetId;
+    const missingName = nameOrId(journeyerId);
+    const consensusValue = part1?.consensus || part1Consensus?.consensus;
+    const stanceValue = part1?.playerStance || part1Stance?.stance || 'neutral';
+    const suspicionDelta = part1?.suspicionDelta ?? part1Suspicion?.delta ?? 0;
+    const newSuspicion = part1?.newSuspicion ?? part1Suspicion?.newSuspicion ?? '?';
+
+    journeySpeculation.push(`Missing journeyer: ${missingName}.`);
+    journeySpeculation.push(`Tribe consensus: ${consensusValue === 'suspicious' ? 'mostly suspicious' : 'mostly calm'}.`);
+    journeySpeculation.push(`Your stance: ${stanceValue === 'stoke' ? 'stoked suspicion' : stanceValue === 'defend' ? 'defended the journeyer' : 'stayed neutral'}.`);
+    journeySpeculation.push(`Suspicion shift: ${formatSigned(suspicionDelta)} (now ${newSuspicion}).`);
+  }
+
+  const part2 = latestFactByType.get('journeyReturnSummary');
+  const part2Story = latestFactByType.get('journeyReturnStory');
+  const part2Reactions = latestFactByType.get('journeyReturnReactions');
+  const part2Deltas = latestFactByType.get('journeyReturnStatDeltas');
+  if (part2 || part2Story || part2Reactions || part2Deltas) {
+    const journeyerId = part2?.journeyerId || part2Story?.speakerId || part2Reactions?.targetId || part2Deltas?.targetId;
+    const journeyerName = nameOrId(journeyerId);
+    const rulesTold = part2?.rulesTold || part2Story?.rulesTold || 'unknown';
+    const outcomeTold = part2?.outcomeTold || part2Story?.outcomeTold || 'unknown';
+    const believers = part2?.believers ?? part2Reactions?.believers ?? 0;
+    const doubters = part2?.doubters ?? part2Reactions?.doubters ?? 0;
+    const trustNet = part2?.trustNet ?? part2Deltas?.trustNet ?? 0;
+    const idolSuspicionNet = part2?.idolSuspicionNet ?? part2Deltas?.idolSuspicionNet ?? 0;
+    const suspicionDelta = part2?.suspicionDelta ?? part2Deltas?.suspicionDelta ?? 0;
+    const newSuspicion = part2?.newSuspicion ?? part2Deltas?.newSuspicion ?? '?';
+    const claimedOutcome = describeClaimedOutcome(part2?.claimed || part2Story?.claimed);
+
+    journeyReturn.push(`${journeyerName} on return: rules were ${rulesTold}, outcome was ${outcomeTold}.`);
+    if (claimedOutcome) journeyReturn.push(`Claimed outcome: ${claimedOutcome}.`);
+    journeyReturn.push(`Believers vs doubters: ${believers} / ${doubters}.`);
+    journeyReturn.push(`Trust net: ${formatSigned(trustNet)} | Idol suspicion net: ${formatSigned(idolSuspicionNet)}.`);
+    journeyReturn.push(`Suspicion shift: ${formatSigned(suspicionDelta)} (now ${newSuspicion}).`);
+  }
+
   return [
     { title: 'Your Locked Personal Target', lines: dedupe(personal) },
     { title: 'Alliance Targets', lines: dedupe(alliance) },
     { title: 'Rumors You Heard', lines: dedupe(rumors) },
     { title: 'Deals / Pacts', lines: dedupe(deals) },
+    { title: 'Journey Speculation (Part 1)', lines: dedupe(journeySpeculation) },
+    { title: 'Journey Return (Part 2)', lines: dedupe(journeyReturn) },
     { title: 'Notable Moments', lines: dedupe(notable) },
   ];
+}
+
+
+function describeClaimedOutcome(claimed) {
+  if (!claimed) return '';
+  if (claimed.extraVote) return 'earned an extra vote';
+  if (claimed.lostVote) return 'lost their vote';
+  if (claimed.protected) return 'protected and kept their vote';
+  if (claimed.risked) return 'risked but outcome unclear';
+  return '';
 }
 
 function dedupe(list) {

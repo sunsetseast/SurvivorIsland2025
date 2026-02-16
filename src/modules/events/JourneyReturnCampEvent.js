@@ -13,6 +13,11 @@ function getAvatar(survivor) {
   return survivor?.avatarUrl || survivor?.avatar || survivor?.portrait || survivor?.image || 'Assets/logo.png';
 }
 
+function resolveBeatText(beat) {
+  // Lazy beat text lets us reflect final player lie/truth choices at render time.
+  return typeof beat?.text === 'function' ? beat.text() : (beat?.text || '');
+}
+
 function hasDescriptor(survivor, keywords = []) {
   const bucket = [];
   const push = (value) => {
@@ -88,78 +93,193 @@ function pickUnique(items = [], count = 1) {
 }
 
 function buildOverlay() {
+  // Reuse the exact Day 1 frame layout so this event matches beat UI styling 1:1.
   const overlay = document.createElement('div');
+  overlay.id = 'journey-return-overlay';
+  overlay.className = 'conversation-overlay';
   overlay.style.position = 'fixed';
   overlay.style.inset = '0';
-  overlay.style.background = 'rgba(0,0,0,0.78)';
-  overlay.style.zIndex = '5200';
+  overlay.style.background = 'rgba(0,0,0,0.75)';
+  overlay.style.zIndex = '5000';
   overlay.style.display = 'flex';
   overlay.style.alignItems = 'center';
   overlay.style.justifyContent = 'center';
 
-  const card = document.createElement('div');
-  card.style.width = 'min(92vw, 560px)';
-  card.style.minHeight = '360px';
-  card.style.background = 'linear-gradient(180deg, #f0debf 0%, #dfc89f 100%)';
-  card.style.border = '4px solid #5b3c1f';
-  card.style.borderRadius = '14px';
-  card.style.padding = '18px';
-  card.style.display = 'flex';
-  card.style.flexDirection = 'column';
-  card.style.gap = '12px';
-  card.style.boxShadow = '0 16px 40px rgba(0,0,0,0.45)';
-
-  const header = document.createElement('div');
-  header.style.display = 'flex';
-  header.style.alignItems = 'center';
-  header.style.gap = '10px';
+  const beatFrame = document.createElement('div');
+  beatFrame.id = 'journey-return-beat-frame';
+  beatFrame.className = 'day1-frame';
+  beatFrame.style.position = 'relative';
+  beatFrame.style.width = 'min(92vw, 520px)';
+  beatFrame.style.maxHeight = '92vh';
+  beatFrame.style.aspectRatio = '2 / 3';
+  beatFrame.style.display = 'flex';
+  beatFrame.style.alignItems = 'stretch';
+  beatFrame.style.justifyContent = 'center';
+  beatFrame.style.fontFamily = "'Survivant', sans-serif";
 
   const avatar = document.createElement('img');
-  avatar.style.width = '66px';
-  avatar.style.height = '66px';
-  avatar.style.borderRadius = '50%';
+  avatar.id = 'journey-return-avatar';
+  avatar.className = 'day1-speaker-avatar';
+  avatar.alt = 'Speaker avatar';
+  avatar.style.position = 'absolute';
+  avatar.style.aspectRatio = '1 / 1';
+  avatar.style.width = '36%';
+  avatar.style.height = 'auto';
+  avatar.style.top = '10%';
+  avatar.style.left = '9%';
   avatar.style.objectFit = 'cover';
-  avatar.style.border = '3px solid #4e3218';
+  avatar.style.borderRadius = '50%';
+  avatar.style.border = 'none';
+  avatar.style.boxShadow = 'none';
   avatar.style.display = 'none';
+  avatar.style.zIndex = '1';
 
-  const speaker = document.createElement('div');
-  speaker.style.fontFamily = "'Survivant', sans-serif";
-  speaker.style.fontSize = '1.15rem';
-  speaker.style.fontWeight = '700';
+  const templateImg = document.createElement('img');
+  templateImg.id = 'journey-return-template';
+  templateImg.src = 'Assets/beat-ui.png';
+  templateImg.alt = 'Beat template';
+  templateImg.style.position = 'absolute';
+  templateImg.style.inset = '0';
+  templateImg.style.width = '100%';
+  templateImg.style.height = '100%';
+  templateImg.style.objectFit = 'contain';
+  templateImg.style.pointerEvents = 'none';
+  templateImg.style.zIndex = '2';
+
+  const contentLayer = document.createElement('div');
+  contentLayer.style.position = 'absolute';
+  contentLayer.style.inset = '0';
+  contentLayer.style.display = 'flex';
+  contentLayer.style.flexDirection = 'column';
+  contentLayer.style.justifyContent = 'flex-start';
+  contentLayer.style.zIndex = '3';
+
+  const headerTileText = document.createElement('div');
+  headerTileText.id = 'journey-return-header';
+  headerTileText.className = 'day1-header';
+  headerTileText.style.position = 'absolute';
+  headerTileText.style.top = '7.5%';
+  headerTileText.style.left = '30%';
+  headerTileText.style.right = '30%';
+  headerTileText.style.textAlign = 'center';
+  headerTileText.style.fontSize = '1.02rem';
+  headerTileText.style.fontWeight = '700';
+  headerTileText.style.color = '#fdf2d4';
+  headerTileText.style.textShadow = '0 1px 2px rgba(0,0,0,0.6)';
+  headerTileText.style.letterSpacing = '1px';
+
+  const contentArea = document.createElement('div');
+  contentArea.style.position = 'absolute';
+  contentArea.style.top = '23%';
+  contentArea.style.left = '16%';
+  contentArea.style.right = '16%';
+  contentArea.style.bottom = '26%';
+  contentArea.style.display = 'flex';
+  contentArea.style.flexDirection = 'column';
+  contentArea.style.alignItems = 'stretch';
+  contentArea.style.gap = '10px';
+  contentArea.style.padding = '0';
+  contentArea.style.color = '#2b1a0f';
+  contentArea.style.textShadow = '0 1px 1px rgba(255,255,255,0.35)';
+  contentArea.style.pointerEvents = 'auto';
+  contentArea.style.overflow = 'hidden';
 
   const quote = document.createElement('div');
-  quote.style.flex = '1';
-  quote.style.fontSize = '1rem';
+  quote.id = 'journey-return-text';
+  quote.className = 'day1-text';
+  quote.style.position = 'absolute';
+  quote.style.left = '0';
+  quote.style.right = '0';
+  quote.style.top = '0';
+  quote.style.bottom = '0';
+  quote.style.padding = '0 2%';
+  quote.style.background = 'transparent';
+  quote.style.border = 'none';
+  quote.style.borderRadius = '0';
+  quote.style.color = '#2d1b0d';
   quote.style.lineHeight = '1.5';
-  quote.style.color = '#2b1a0f';
+  quote.style.fontSize = '0.96rem';
+  quote.style.maxWidth = '100%';
+  quote.style.margin = '0 auto';
+  quote.style.pointerEvents = 'auto';
+  quote.style.display = 'flex';
+  quote.style.alignItems = 'center';
+  quote.style.justifyContent = 'center';
+  quote.style.textAlign = 'center';
+  quote.style.overflow = 'hidden';
+  quote.style.wordBreak = 'break-word';
 
   const choices = document.createElement('div');
+  choices.id = 'journey-return-choices';
+  choices.className = 'day1-choices';
   choices.style.display = 'none';
+  choices.style.position = 'absolute';
+  choices.style.left = '8%';
+  choices.style.right = '6%';
+  choices.style.bottom = '4%';
   choices.style.flexDirection = 'column';
-  choices.style.gap = '8px';
+  choices.style.gap = '10px';
+  choices.style.maxHeight = '40%';
+  choices.style.overflowY = 'auto';
+  choices.style.pointerEvents = 'auto';
 
-  const nextBtn = document.createElement('button');
-  nextBtn.textContent = 'Next';
-  nextBtn.style.alignSelf = 'flex-end';
-  nextBtn.className = 'rect-button';
+  const nextButton = document.createElement('button');
+  nextButton.id = 'journey-return-next';
+  nextButton.textContent = 'Next';
+  nextButton.style.position = 'absolute';
+  nextButton.style.right = '10%';
+  nextButton.style.bottom = '10%';
+  nextButton.style.width = '28%';
+  nextButton.style.height = '11%';
+  nextButton.style.padding = '0';
+  nextButton.style.background = 'transparent';
+  nextButton.style.color = '#fef3d9';
+  nextButton.style.border = 'none';
+  nextButton.style.borderRadius = '0';
+  nextButton.style.fontWeight = '700';
+  nextButton.style.fontSize = '0.98rem';
+  nextButton.style.textTransform = 'uppercase';
+  nextButton.style.boxShadow = 'none';
+  nextButton.style.cursor = 'pointer';
+  nextButton.style.pointerEvents = 'auto';
+  nextButton.style.minWidth = '0';
+  nextButton.style.display = 'flex';
+  nextButton.style.alignItems = 'center';
+  nextButton.style.justifyContent = 'center';
+  nextButton.style.letterSpacing = '0.5px';
+  nextButton.style.textShadow = '0 1px 2px rgba(0,0,0,0.55)';
 
-  header.append(avatar, speaker);
-  card.append(header, quote, choices, nextBtn);
-  overlay.appendChild(card);
+  contentArea.append(quote, choices);
+  contentLayer.append(headerTileText, contentArea, nextButton);
+
+  beatFrame.append(avatar, templateImg, contentLayer);
+  overlay.appendChild(beatFrame);
   document.body.appendChild(overlay);
 
-  return { overlay, avatar, speaker, quote, choices, nextBtn };
+  return { overlay, avatar, templateImg, headerTileText, quote, choices, nextButton };
 }
 
 function renderChoiceButtons(container, options = [], onPick) {
   container.innerHTML = '';
   container.style.display = 'flex';
   options.forEach((option) => {
-    const btn = document.createElement('button');
-    btn.className = 'rect-button';
-    btn.textContent = option.label;
-    btn.addEventListener('click', () => onPick(option.value));
-    container.appendChild(btn);
+    const button = document.createElement('button');
+    button.style.background = 'transparent';
+    button.style.border = 'none';
+    button.style.borderRadius = '0';
+    button.style.boxShadow = 'none';
+    button.style.setProperty('padding', '10px 12px', 'important');
+    button.style.setProperty('margin', '0', 'important');
+    button.style.width = '100%';
+    button.style.cursor = 'pointer';
+    button.style.fontWeight = '700';
+    button.style.fontSize = '0.95rem';
+    button.style.color = '#2d1b0d';
+    button.style.textAlign = 'center';
+    button.style.textShadow = '0 1px 2px rgba(255,255,255,0.5)';
+    button.textContent = option.label;
+    button.addEventListener('click', () => onPick(option.value));
+    container.appendChild(button);
   });
 }
 
@@ -167,6 +287,7 @@ async function runBeats(gameManager, beats) {
   return new Promise((resolve) => {
     const ui = buildOverlay();
     let index = 0;
+    let isAdvancing = false;
 
     const showBeat = () => {
       const beat = beats[index];
@@ -179,27 +300,40 @@ async function runBeats(gameManager, beats) {
       if (beat.speaker) {
         ui.avatar.style.display = 'block';
         ui.avatar.src = getAvatar(beat.speaker);
-        ui.speaker.textContent = firstName(beat.speaker);
+        ui.templateImg.src = 'Assets/beat-avatar-ui.png';
+        ui.headerTileText.textContent = firstName(beat.speaker).toUpperCase();
+        ui.headerTileText.style.left = '54%';
+        ui.headerTileText.style.right = '10%';
       } else {
         ui.avatar.style.display = 'none';
-        ui.speaker.textContent = beat.title || 'Camp';
+        ui.templateImg.src = 'Assets/beat-ui.png';
+        ui.headerTileText.textContent = (beat.title || 'Camp').toUpperCase();
+        ui.headerTileText.style.left = '26%';
+        ui.headerTileText.style.right = '26%';
       }
-      ui.quote.textContent = beat.text || '';
+      ui.quote.textContent = resolveBeatText(beat);
+      isAdvancing = false;
 
       if (beat.choices?.length) {
-        ui.nextBtn.style.display = 'none';
+        ui.nextButton.style.display = 'none';
         renderChoiceButtons(ui.choices, beat.choices, (value) => {
+          if (isAdvancing) return;
+          isAdvancing = true;
           beat.onChoice?.(value);
+          ui.choices.style.display = 'none';
+          ui.nextButton.style.display = 'flex';
           index += 1;
           showBeat();
         });
       } else {
         ui.choices.style.display = 'none';
-        ui.nextBtn.style.display = 'inline-flex';
+        ui.nextButton.style.display = 'flex';
       }
     };
 
-    ui.nextBtn.addEventListener('click', () => {
+    ui.nextButton.addEventListener('click', () => {
+      if (isAdvancing) return;
+      isAdvancing = true;
       index += 1;
       showBeat();
     });
@@ -316,15 +450,19 @@ function getPart2Story(gameManager, journeyer, isPlayerJourneyer) {
   const rulesLine = rulesTold === 'truth' ? truthRulesLine : pickUnique(lieRulesPool, 1)[0];
   const outcomeLine = outcomeTold === 'truth' ? truthfulOutcome : pickUnique(lieOutcomes, 1)[0];
 
-  const lower = outcomeLine.toLowerCase();
-  const claimed = {
+  const claimed = recomputeClaimedFromOutcomeLine(outcomeLine);
+
+  return { rulesTold, outcomeTold, rulesLine, outcomeLine, claimed, truth };
+}
+
+function recomputeClaimedFromOutcomeLine(outcomeLine = '') {
+  const lower = String(outcomeLine).toLowerCase();
+  return {
     risked: lower.includes('risked') ? true : lower.includes('protected') ? false : null,
     protected: lower.includes('protected') ? true : null,
     extraVote: lower.includes('extra vote') ? true : null,
     lostVote: lower.includes('lost my vote') ? true : null,
   };
-
-  return { rulesTold, outcomeTold, rulesLine, outcomeLine, claimed, truth };
 }
 
 function getTrust(gameManager, observerId, targetId) {
@@ -373,8 +511,6 @@ async function runPart1Core({ gameManager, strategyPhaseSystem, journeyerId, sho
   let stance = 'neutral';
   const introText = 'Back at camp, one person is missing. Eyes keep drifting toward the treeline.';
 
-  const { consensus } = computeConsensus(eligibleNpcs, playerCanChoose ? stance : 'neutral');
-
   if (showOverlay) {
     const stanceChoices = [
       { label: 'They don’t send you out there for nothing. I’m watching this.', value: 'stoke' },
@@ -393,16 +529,28 @@ async function runPart1Core({ gameManager, strategyPhaseSystem, journeyerId, sho
         }
       }
     ];
+    const addReactionBeats = () => {
+      const postChoiceConsensus = computeConsensus(eligibleNpcs, stance).consensus;
+      const majorityPool = postChoiceConsensus === 'suspicious' ? suspiciousLines : supportiveLines;
+      const minorityPool = postChoiceConsensus === 'suspicious' ? supportiveLines : suspiciousLines;
+      const majorityLines = pickUnique(majorityPool, 2).map(text => ({ text, tone: 'majority' }));
+      const minorityLines = pickUnique(minorityPool, 1).map(text => ({ text, tone: 'minority' }));
+      const candidateLines = [...majorityLines, ...minorityLines];
+      const speakers = pickUnique(eligibleNpcs, candidateLines.length);
+      candidateLines.forEach((line, idx) => {
+        if (!speakers[idx]) return;
+        beats.push({ speaker: speakers[idx], text: line.text.replaceAll('{journeyerName}', journeyerName) });
+      });
+    };
 
-    const postChoiceConsensus = computeConsensus(eligibleNpcs, stance).consensus;
-    const majorityPool = postChoiceConsensus === 'suspicious' ? suspiciousLines : supportiveLines;
-    const minorityPool = postChoiceConsensus === 'suspicious' ? supportiveLines : suspiciousLines;
-    const candidateLines = [...pickUnique(majorityPool, 2).map(text => ({ text, tone: 'majority' })), ...pickUnique(minorityPool, 1).map(text => ({ text, tone: 'minority' }))];
-    const speakers = pickUnique(eligibleNpcs, candidateLines.length);
-    candidateLines.forEach((line, idx) => {
-      if (!speakers[idx]) return;
-      beats.push({ speaker: speakers[idx], text: line.text.replaceAll('{journeyerName}', journeyerName) });
-    });
+    beats[1].onChoice = (value) => {
+      stance = value;
+      addReactionBeats();
+    };
+
+    if (!playerCanChoose) {
+      addReactionBeats();
+    }
 
     await runBeats(gameManager, beats);
   }
@@ -422,6 +570,16 @@ async function runPart1Core({ gameManager, strategyPhaseSystem, journeyerId, sho
     pushSummaryFact(strategyPhaseSystem, { type: 'journeySpeculationPlayerStance', speakerId: playerId, targetId: journeyerId, stance, timestamp });
   }
   pushSummaryFact(strategyPhaseSystem, { type: 'journeySpeculationSuspicionDelta', targetId: journeyerId, delta: finalDelta, newSuspicion: journeyer.suspicion, timestamp });
+  pushSummaryFact(strategyPhaseSystem, {
+    type: 'journeySpeculationSummary',
+    journeyerId,
+    journeyerAbsent: true,
+    playerStance: playerCanChoose ? stance : 'neutral',
+    consensus: finalConsensus,
+    suspicionDelta: finalDelta,
+    newSuspicion: journeyer.suspicion,
+    timestamp,
+  });
 
   window.debugBanner?.('JOURNEY-RETURN P1', `${journeyerName} | ${finalConsensus} | suspicion +${finalDelta}`);
 
@@ -511,8 +669,8 @@ const JourneyReturnCampEvent = {
         });
       }
 
-      beats.push({ speaker: journeyer, text: story.rulesLine });
-      beats.push({ speaker: journeyer, text: story.outcomeLine });
+      beats.push({ speaker: journeyer, text: () => story.rulesLine });
+      beats.push({ speaker: journeyer, text: () => story.outcomeLine });
 
       if (!isPlayerJourneyer) {
         beats.push({
@@ -528,7 +686,7 @@ const JourneyReturnCampEvent = {
       }
 
       const eligibleReactors = resolveEligibleNpcs(gameManager, journeyerId, false);
-      const reactors = pickUnique(eligibleReactors, Math.max(2, Math.min(4, eligibleReactors.length)));
+      const reactors = pickUnique(eligibleReactors, Math.min(3, eligibleReactors.length));
 
       let believers = 0;
       let doubters = 0;
@@ -565,6 +723,7 @@ const JourneyReturnCampEvent = {
       });
 
       await runBeats(gameManager, beats);
+      story.claimed = recomputeClaimedFromOutcomeLine(story.outcomeLine);
 
       const total = believers + doubters;
       const mood = doubters > believers ? 'mostly-doubted' : believers > doubters ? 'mostly-believed' : 'mixed';
@@ -592,6 +751,20 @@ const JourneyReturnCampEvent = {
       pushSummaryFact(strategyPhaseSystem, {
         type: 'journeyReturnStatDeltas',
         targetId: journeyerId,
+        trustNet,
+        idolSuspicionNet,
+        suspicionDelta,
+        newSuspicion: journeyer.suspicion,
+        timestamp,
+      });
+      pushSummaryFact(strategyPhaseSystem, {
+        type: 'journeyReturnSummary',
+        journeyerId,
+        rulesTold: story.rulesTold,
+        outcomeTold: story.outcomeTold,
+        claimed: story.claimed,
+        believers,
+        doubters,
         trustNet,
         idolSuspicionNet,
         suspicionDelta,

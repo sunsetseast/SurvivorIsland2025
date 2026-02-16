@@ -14,6 +14,11 @@ import { normalizeLocationKey } from "../locations/LocationUtils.js";
 // Use your existing debug banner (CampScreen has it globally)
 const dbg = window.debugBanner || function(){};
 
+const isMarkedAbsent = (absentSet, survivorId) => {
+    if (!absentSet) return false;
+    return absentSet.has(survivorId) || absentSet.has(String(survivorId));
+};
+
 class NpcAutoRenderer {
     constructor() {
         this.initialized = false;
@@ -124,7 +129,7 @@ class NpcAutoRenderer {
         // Get NPCs at this location
         const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(viewName) || [];
         const absentSet = gameManager.flags?.absentFromCampIds;
-        const filtered = absentSet ? survivorsHere.filter(s => !absentSet.has(s.id)) : survivorsHere;
+        const filtered = absentSet ? survivorsHere.filter(s => !isMarkedAbsent(absentSet, s.id)) : survivorsHere;
 
         console.log('[NpcAutoRenderer] renderFor', viewName, 'NPC count:', filtered.length);
 

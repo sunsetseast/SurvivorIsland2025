@@ -58,6 +58,7 @@ class StrategyPhaseSystem {
     this.loggedFactKeys = new Set();
     this.journeyerIdForPhase = null;
     this.journeyPart2Running = false;
+    this.lastStrategyTimerValue = null;
     if (!skipGameManager) {
       gameManager.conversationPhaseOverride = null;
     }
@@ -76,7 +77,8 @@ class StrategyPhaseSystem {
     gameManager.flags.journeyReturnPart2PlayerResponseLogged = false;
     this.journeyerIdForPhase = null;
 
-    // Set the timer for a 1-hour in-game scramble and freeze survival decay expectations
+    // Set the timer for a 1-hour in-game scramble and freeze survival decay expectations.
+    // The clock should not actually tick until blocking intro beats (Journey Return Part 1) complete.
     gameManager.dayTimer = 3600;
     this.isActive = true;
     this.playerTribeSafe = this.didPlayerTribeWinImmunity();
@@ -120,6 +122,7 @@ class StrategyPhaseSystem {
     }
 
     this.beginStrategyBeats();
+    this.lastStrategyTimerValue = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 3600;
     this.startTimerWatcher();
   }
 
@@ -791,10 +794,14 @@ class StrategyPhaseSystem {
       if (!this.isActive) return;
       if (gameManager.flags?.campEventActive) return;
 
+      const currentTimer = gameManager.getDayTimer();
+      const previousTimer = Number.isFinite(this.lastStrategyTimerValue) ? this.lastStrategyTimerValue : currentTimer;
+
       if (
         this.journeyerIdForPhase &&
         !gameManager.flags?.journeyReturnPart2Fired &&
-        gameManager.getDayTimer() <= 2400
+        previousTimer > 2400 &&
+        currentTimer <= 2400
       ) {
         gameManager.flags.journeyReturnPart2Fired = true;
         this.journeyPart2Running = true;
@@ -807,10 +814,13 @@ class StrategyPhaseSystem {
           this.markRiskProtectJourneyReturnHandled();
           this.journeyPart2Running = false;
         });
+        this.lastStrategyTimerValue = currentTimer;
         return;
       }
 
-      if (gameManager.getDayTimer() <= 0) {
+      this.lastStrategyTimerValue = currentTimer;
+
+      if (currentTimer <= 0) {
         this.handleTimerExpired();
       }
     }, 1000);
@@ -921,7 +931,7 @@ class StrategyPhaseSystem {
   }
 
   getSummaryFacts() {
-    return this.playerVisibleFacts;
+    return this.strategyFacts;
   }
 
   proceedAfterSummary() {
