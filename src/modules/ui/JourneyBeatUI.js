@@ -652,6 +652,8 @@ class JourneyBeatUI {
     this.textArea.innerHTML = '';
     if (html instanceof HTMLElement) {
       this.textArea.appendChild(html);
+    } else if (Array.isArray(html)) {
+      this.textArea.innerHTML = html.join('');
     } else if (typeof html === 'string') {
       this.textArea.innerHTML = html;
     } else if (Array.isArray(textLines)) {
@@ -660,6 +662,10 @@ class JourneyBeatUI {
         p.textContent = line;
         this.textArea.appendChild(p);
       });
+    } else if (typeof textLines === 'string') {
+      const p = createElement('div', { style: 'margin:4px 0;' });
+      p.textContent = textLines;
+      this.textArea.appendChild(p);
     }
 
     this.clearButtons();

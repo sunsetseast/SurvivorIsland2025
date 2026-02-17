@@ -594,6 +594,12 @@ async function runPart1Core({ gameManager, strategyPhaseSystem, journeyerId, sho
 const JourneyReturnCampEvent = {
   async startPart1({ gameManager, strategyPhaseSystem, journeyerId }) {
     if (!gameManager || !journeyerId) return;
+    console.info('[JourneyReturnCampEvent] startPart1', {
+      journeyerId,
+      day: gameManager.getCurrentDay?.() ?? gameManager.day,
+      timer: gameManager.getDayTimer?.() ?? gameManager.dayTimer
+    });
+    window.debugBanner?.('JOURNEY-RETURN P1', `start | ${journeyerId}`);
     const absentSet = ensureAbsentSet(gameManager);
     absentSet.add(journeyerId);
     gameManager.flags.campEventActive = true;
@@ -608,6 +614,11 @@ const JourneyReturnCampEvent = {
 
   async simulatePart1IfPlayerAway({ gameManager, strategyPhaseSystem, journeyerId }) {
     if (!gameManager || !journeyerId) return;
+    console.info('[JourneyReturnCampEvent] simulatePart1IfPlayerAway', {
+      journeyerId,
+      day: gameManager.getCurrentDay?.() ?? gameManager.day,
+      timer: gameManager.getDayTimer?.() ?? gameManager.dayTimer
+    });
     ensureAbsentSet(gameManager).add(journeyerId);
     await runPart1Core({ gameManager, strategyPhaseSystem, journeyerId, showOverlay: false, playerCanChoose: false });
   },

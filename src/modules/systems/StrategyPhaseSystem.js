@@ -64,9 +64,33 @@ class StrategyPhaseSystem {
     }
   }
 
-  async startPostChallengePhase() {
+  async startPostChallengePhase(options = {}) {
+    const { force = false, source = 'unspecified' } = options;
     const phaseKey = `${gameManager.getDay?.() ?? gameManager.day}-${gameManager.getGamePhase?.() ?? gameManager.gamePhase}`;
-    if (this.startedForPhaseKey === phaseKey) return;
+    const existingTimer = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 0;
+    const shouldReinitializeBecauseTimerMissing = existingTimer <= 0;
+
+    console.info('[StrategyPhaseSystem] startPostChallengePhase', {
+      source,
+      phaseKey,
+      existingTimer,
+      force
+    });
+    window.debugBanner?.('POST-CH START', `src:${source} | t:${existingTimer}`);
+
+    if (this.startedForPhaseKey === phaseKey && !force && !shouldReinitializeBecauseTimerMissing) {
+      return;
+    }
+
+    if (this.startedForPhaseKey === phaseKey && (force || shouldReinitializeBecauseTimerMissing)) {
+      console.info('[StrategyPhaseSystem] Re-initializing post-challenge phase', {
+        source,
+        force,
+        existingTimer,
+        phaseKey
+      });
+    }
+
     this.startedForPhaseKey = phaseKey;
     gameManager.conversationPhaseOverride = 'POST_CHALLENGE';
     gameManager.flags = gameManager.flags || {};
@@ -93,6 +117,9 @@ class StrategyPhaseSystem {
     const isPlayerJourneyer = !!journeyerId && String(journeyerId) === String(playerId);
 
     if (journeyerId && isPlayerJourneyer) {
+      console.info('[StrategyPhaseSystem] Player is the journeyer; simulating part 1 then running part 2 immediately', {
+        journeyerId
+      });
       await JourneyReturnCampEvent.simulatePart1IfPlayerAway({
         gameManager,
         strategyPhaseSystem: this,
@@ -108,6 +135,9 @@ class StrategyPhaseSystem {
       });
       this.markRiskProtectJourneyReturnHandled();
     } else if (journeyerId) {
+      console.info('[StrategyPhaseSystem] Running JourneyReturnCampEvent part 1 for non-player journeyer', {
+        journeyerId
+      });
       gameManager.flags.absentFromCampIds.add(journeyerId);
       await JourneyReturnCampEvent.startPart1({
         gameManager,
@@ -124,6 +154,11 @@ class StrategyPhaseSystem {
     this.beginStrategyBeats();
     this.lastStrategyTimerValue = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 3600;
     this.startTimerWatcher();
+    console.info('[StrategyPhaseSystem] Post-challenge phase initialized', {
+      dayTimer: gameManager.getDayTimer?.() ?? gameManager.dayTimer,
+      journeyerIdForPhase: this.journeyerIdForPhase,
+      playerTribeSafe: this.playerTribeSafe
+    });
   }
 
   didPlayerTribeWinImmunity() {
