@@ -130,6 +130,7 @@ export default class CampScreen {
     this.day1EventRunning = false;
     this.clockRunning = false;
     this.isActive = false;
+    this.postChallengeInitPromise = null;
     this.unsubscribeFromCampEventStarted = null;
     this.unsubscribeFromCampEventEnded = null;
     gameManager.flags = gameManager.flags || {};
@@ -266,6 +267,10 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.style.display = 'block';
     this.isActive = true;
+    const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    console.info('[CampScreen] setup', { phase, timer });
+    window.debugBanner?.('CAMP LOAD', `${phase} | t:${timer}`);
     this.ensureTaskIcon();
     this.loadView(LocationKeys.TRIBE_FLAG);
     this.renderClockUI();
@@ -410,7 +415,10 @@ export default class CampScreen {
   }
 
   triggerTreeMailEvent() {
-    console.log('Time ran out - triggering Tree Mail event');
+    const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    console.log('[CampScreen] Time ran out - triggering Tree Mail event', { phase, timer, reason: 'camp timer reached 0 outside POST_CHALLENGE' });
+    window.debugBanner?.('TREE MAIL', `triggered | phase:${phase} | t:${timer}`);
 
     // Create the tree mail icon overlay
     const treeMailOverlay = document.createElement('div');
@@ -703,11 +711,61 @@ export default class CampScreen {
     return clockWrapper;
   }
 
-  startCampClockTick() {
+  async ensurePostChallengeClockReady(source = 'unknown') {
+    const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 0;
+
+    if (phase !== GamePhase.POST_CHALLENGE) {
+      return true;
+    }
+
+    if (timer > 0) {
+      return true;
+    }
+
+    const strat = gameManager?.systems?.strategyPhaseSystem;
+    if (!strat?.startPostChallengePhase) {
+      console.warn('[CampScreen] Missing StrategyPhaseSystem while post-challenge timer is invalid', { source, phase, timer });
+      return false;
+    }
+
+    if (!this.postChallengeInitPromise) {
+      console.info('[CampScreen] Forcing post-challenge initialization before camp clock starts', { source, phase, timer });
+      window.debugBanner?.('POST-CH GUARD', `init via ${source} | t:${timer}`);
+      this.postChallengeInitPromise = Promise.resolve(
+        strat.startPostChallengePhase({ force: true, source: `CampScreen.${source}` })
+      )
+        .catch((error) => {
+          console.error('[CampScreen] Failed to initialize post-challenge phase', error);
+        })
+        .finally(() => {
+          this.postChallengeInitPromise = null;
+          updateCampClockUI(gameManager.getDayTimer?.() ?? gameManager.dayTimer, gameManager.getDay());
+        });
+    }
+
+    await this.postChallengeInitPromise;
+
+    const refreshedTimer = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 0;
+    return refreshedTimer > 0;
+  }
+
+  async startCampClockTick() {
     if (gameManager.flags?.campEventActive || this.clockRunning) return;
+
+    const postChallengeReady = await this.ensurePostChallengeClockReady('startCampClockTick');
+    const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    if (phase === GamePhase.POST_CHALLENGE && (!postChallengeReady || timer <= 0)) {
+      console.warn('[CampScreen] Blocked camp clock start; post-challenge timer is not ready', { phase, timer, postChallengeReady });
+      return;
+    }
+
     this.stopCampClockTick();
     this.clockRunning = true;
     this.ensureClockUI();
+    console.info('[CampScreen] Camp clock ticking started', { phase, timer });
+    window.debugBanner?.('CLOCK START', `${phase} | t:${timer}`);
 
     // 🕒 Track last time water, hunger, and rest were decreased
     let lastWaterTick = gameManager.getDayTimer();
@@ -816,6 +874,15 @@ export default class CampScreen {
   }
 
   renderClockUI() {
-    return this.ensureClockUI();
+    const clock = this.ensureClockUI();
+    const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    console.info('[CampScreen] renderClockUI', { phase, timer });
+
+    if (phase === GamePhase.POST_CHALLENGE && timer <= 0) {
+      void this.ensurePostChallengeClockReady('renderClockUI');
+    }
+
+    return clock;
   }
 }
