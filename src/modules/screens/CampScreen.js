@@ -267,12 +267,23 @@ export default class CampScreen {
     const container = getElement('camp-screen');
     container.style.display = 'block';
     this.isActive = true;
+    gameManager.flags = gameManager.flags || {};
+
     const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
-    console.info('[CampScreen] setup', { phase, timer });
+    console.info('[CampScreen] setup', { phase, timer, campEventActive: !!gameManager.flags?.campEventActive });
     window.debugBanner?.('CAMP LOAD', `${phase} | t:${timer}`);
+
     this.ensureTaskIcon();
-    this.loadView(LocationKeys.TRIBE_FLAG);
+
+    if (gameManager.flags.startCampAtBeachOnce === true) {
+      // Player journeyer returns late from the challenge; first visual should be the beach return moment.
+      this.loadView(LocationKeys.BEACH);
+      gameManager.flags.startCampAtBeachOnce = false;
+    } else {
+      this.loadView(LocationKeys.TRIBE_FLAG);
+    }
+
     this.renderClockUI();
     if (!gameManager.flags?.campEventActive) {
       this.startCampClockTick();

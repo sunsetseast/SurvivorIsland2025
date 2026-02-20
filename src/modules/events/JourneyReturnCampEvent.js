@@ -1,4 +1,5 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
+import { LocationKeys } from '../core/LocationKeys.js';
 
 function clamp(value, min = 0, max = 100) {
   const n = Number.isFinite(value) ? value : min;
@@ -631,6 +632,9 @@ const JourneyReturnCampEvent = {
     const journeyer = findSurvivor(gameManager, journeyerId);
     if (!journeyer) return;
 
+    // Keep the return cinematic grounded at camp beach for the post-challenge arrival beat.
+    window.campScreen?.loadView?.(LocationKeys.BEACH);
+
     gameManager.flags.campEventActive = true;
     eventManager.publish(GameEvents.CAMP_EVENT_STARTED, { eventId: 'journey_return_part2', id: 'journey_return_part2' });
 
@@ -641,7 +645,8 @@ const JourneyReturnCampEvent = {
       const playerId = player?.id || gameManager.playerId;
 
       const beats = [
-        { title: 'Camp', text: 'Footsteps hit the sand. The tribe gathers at the beach.' },
+        { title: 'Camp', text: 'The tribe drifts back into camp after the challenge… but one person still isn’t here.' },
+        { title: 'Camp', text: 'A boat pulls up to the beach. The missing castaway finally returns.' },
         { speaker: journeyer, text: `${firstName(journeyer)} returns from the journey.` },
       ];
 
