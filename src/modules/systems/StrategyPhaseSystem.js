@@ -104,6 +104,7 @@ class StrategyPhaseSystem {
     // Set the timer for a 1-hour in-game scramble and freeze survival decay expectations.
     // The clock should not actually tick until blocking intro beats (Journey Return Part 1) complete.
     gameManager.dayTimer = 3600;
+    window.debugBanner?.('POST-CH TIMER', `phase:${gameManager.getGamePhase?.() ?? gameManager.gamePhase} | t:${gameManager.getDayTimer?.() ?? gameManager.dayTimer}`);
     this.isActive = true;
     this.playerTribeSafe = this.didPlayerTribeWinImmunity();
 
@@ -115,6 +116,7 @@ class StrategyPhaseSystem {
     this.journeyerIdForPhase = journeyerId;
     const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.getPlayer?.()?.id || gameManager.playerId;
     const isPlayerJourneyer = !!journeyerId && String(journeyerId) === String(playerId);
+    window.debugBanner?.('POST-CH JOURNEY', `before return logic | t:${gameManager.getDayTimer?.() ?? gameManager.dayTimer}`);
 
     if (journeyerId && isPlayerJourneyer) {
       console.info('[StrategyPhaseSystem] Player is the journeyer; simulating part 1 then running part 2 immediately', {
@@ -125,8 +127,12 @@ class StrategyPhaseSystem {
         strategyPhaseSystem: this,
         journeyerId,
       });
+      // Player returns late from the journey: post-challenge strategy begins with 40 minutes left.
       gameManager.dayTimer = 2400;
+      gameManager.flags.startCampAtBeachOnce = true;
       gameManager.flags.journeyReturnPart2Fired = true;
+      window.debugBanner?.('POST-CHALLENGE', `playerJourneyer=true timer=${gameManager.getDayTimer?.() ?? gameManager.dayTimer}`);
+      window.debugBanner?.('CAMP START FLAG', 'startCampAtBeachOnce=true');
       await JourneyReturnCampEvent.startPart2({
         gameManager,
         strategyPhaseSystem: this,
@@ -145,6 +151,7 @@ class StrategyPhaseSystem {
         journeyerId,
       });
     }
+    window.debugBanner?.('POST-CH JOURNEY', `after return logic | t:${gameManager.getDayTimer?.() ?? gameManager.dayTimer}`);
 
     if (!this.playerTribeSafe) {
       this.promptPersonalTarget();
