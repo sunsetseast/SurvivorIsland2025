@@ -144,6 +144,8 @@ class StrategyPhaseSystem {
       console.info('[StrategyPhaseSystem] Running JourneyReturnCampEvent part 1 for non-player journeyer', {
         journeyerId
       });
+      // Non-journeyer player should begin strategy with 1 hour while the journeyer is still absent.
+      gameManager.dayTimer = 3600;
       gameManager.flags.absentFromCampIds.add(journeyerId);
       await JourneyReturnCampEvent.startPart1({
         gameManager,
@@ -896,15 +898,35 @@ class StrategyPhaseSystem {
   }
 
   isRiskProtectJourneyPendingForThisPostChallenge() {
+    const journey = gameManager?.journey;
     const marker = gameManager?.flags?.lastJourneyEvent;
     const currentDay = gameManager.getDay?.() ?? gameManager.day;
-    if (!marker || marker.type !== 'riskProtect' || marker.pendingReturnCampEvent !== true) {
+
+    const journeyPending = journey?.type === 'riskProtect' && journey?.returnCampEventPending === true;
+    const markerPending = marker?.type === 'riskProtect' && marker?.pendingReturnCampEvent === true;
+    if (!journeyPending && !markerPending) {
       return false;
     }
-    if (Number(marker.day) !== Number(currentDay)) {
+
+    const markerDayMatches = marker?.day != null && Number(marker.day) === Number(currentDay);
+    const journeyDayMatches = journey?.day != null && Number(journey.day) === Number(currentDay);
+    if (markerPending && markerDayMatches) return true;
+    if (journeyPending && journeyDayMatches) return true;
+
+    // Fallback for older saves that may not have day metadata on journey state.
+    if (journeyPending && journey?.participantsByTribe) {
+      return true;
+    }
+
+    if (markerPending && marker?.day == null && journeyPending) {
+      return true;
+    }
+
+    if (markerPending && marker.day != null && Number(marker.day) !== Number(currentDay)) {
       return false;
     }
-    return true;
+
+    return journeyPending;
   }
 
   markRiskProtectJourneyReturnHandled() {
