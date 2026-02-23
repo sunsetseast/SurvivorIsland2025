@@ -1676,7 +1676,7 @@ body {
   width: 100%;
   margin-bottom: 0;
   perspective: 1000px; /* Enables 3D transform for children */
-    height: 600px;
+    height: clamp(420px, 78vh, 600px);
     scroll-snap-align: center;
   transform-style: preserve-3d;
   transition: transform 0.6s ease;
@@ -2221,6 +2221,11 @@ body {
   color: white;
   font-weight: bold;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+#filter-button.filter-open {
+  filter: brightness(1.08);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
 }
 
 #filter-button.active-filter {
