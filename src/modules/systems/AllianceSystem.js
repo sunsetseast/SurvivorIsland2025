@@ -34,7 +34,9 @@ class AllianceSystem {
     }
 
     this.alliances = this.alliances.map(alliance => this._normalizeAlliance(alliance));
-    this.ensureNpcCommitments();
+    eventManager.subscribe(GameEvents.TRIBES_CREATED, () => {
+      this.ensureNpcCommitments();
+    });
     console.log(`[AllianceSystem] Initialized with ${this.alliances.length} alliances`);
   }
 
