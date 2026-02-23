@@ -29,23 +29,14 @@ export default class CharacterSelectionScreen {
     this._unlockTimer = null;
     this._touchBlocker = null;
     this._keyBlocker = null;
+
+    // filter menu listeners
+    this._outsideClickHandler = null;
+    this._escapeKeyHandler = null;
   }
 
   initialize() {
-    // Close filter panel on outside click (only when this screen is active)
-    document.addEventListener('click', (e) => {
-      const filterOptions = getElement('filter-options');
-      const filterButton = getElement('filter-button');
-      if (!filterOptions || !filterButton) return;
-
-      filterButton.classList.add('rect-button');
-
-      setTimeout(() => {
-        if (!filterOptions.contains(e.target) && e.target !== filterButton) {
-          this._toggleFilterOptions(true);
-        }
-      }, 0);
-    });
+    // no-op; filter listeners are managed when the menu opens/closes
   }
 
   // ---------- Public lifecycle ----------
@@ -100,6 +91,8 @@ export default class CharacterSelectionScreen {
     const filterOptions = getElement('filter-options');
     if (filterOptions) filterOptions.remove();
 
+    this._removeFilterMenuListeners();
+
     // ensure scroll is unlocked if we left mid-flip
     this._unlockScroll();
   }
@@ -135,12 +128,19 @@ export default class CharacterSelectionScreen {
 
     // Floating filter panel
     const filterOptions = createElement('div', { id: 'filter-options', className: 'hidden filter-options' });
-    ['all', 'male', 'female', 'physical', 'mental', 'social'].forEach(type => {
-      const optionBtn = createElement('button', {
-        onclick: () => this._applyFilter(type)
-      }, type.charAt(0).toUpperCase() + type.slice(1));
-      filterOptions.appendChild(optionBtn);
+    const filterOptionsConfig = [
+      { label: 'All', filterType: 'all', filter: 'all' },
+      { label: 'Male', filterType: 'gender', filter: 'male' },
+      { label: 'Female', filterType: 'gender', filter: 'female' },
+      { label: 'Physical', filterType: 'trait', filter: 'physical' },
+      { label: 'Mental', filterType: 'trait', filter: 'mental' },
+      { label: 'Social', filterType: 'trait', filter: 'social' }
+    ];
+
+    filterOptionsConfig.forEach((config) => {
+      filterOptions.appendChild(this._createFilterOption(config));
     });
+
     this.containerEl.appendChild(filterOptions);
   }
 
@@ -189,10 +189,27 @@ export default class CharacterSelectionScreen {
     // nothing else required here; buttons are already wired in _buildUI
   }
 
+  _createFilterOption({ label, filterType, filter }) {
+    const optionBtn = createElement('button', {
+      onclick: () => this._applyFilter(optionBtn)
+    }, label);
+
+    optionBtn.dataset.filterType = filterType;
+    optionBtn.dataset.filter = filter;
+
+    return optionBtn;
+  }
+
   // ---------- Cards ----------
 
   _createSurvivorCard(survivor, index) {
-    return createSurvivorCard(survivor, {
+    const traitClass = (survivor.traitClass || 'social').toLowerCase();
+    const normalizedSurvivor = {
+      ...survivor,
+      traitClass
+    };
+
+    return createSurvivorCard(normalizedSurvivor, {
       mode: 'select',
       onFlipStart: () => this._lockScroll(),
       onFlipEnd: () => this._unlockScroll(),
@@ -206,41 +223,39 @@ export default class CharacterSelectionScreen {
 
   // ---------- Filters ----------
 
-  _isFilterActive(type) {
-    if (type === 'all') {
+  _isFilterActive(type, value) {
+    if (type === 'all' || value === 'all') {
       return !this.genderFilter && !this.traitClassFilter;
     }
-    return type === this.genderFilter || type === this.traitClassFilter;
+    if (type === 'gender') {
+      return value === this.genderFilter;
+    }
+
+    if (type === 'trait') {
+      return value === this.traitClassFilter;
+    }
+
+    return false;
   }
 
-  _applyFilter(type) {
-    if (type === 'all') {
+  _applyFilter(button) {
+    if (!button?.dataset) return;
+
+    const type = button.dataset.filterType;
+    const value = button.dataset.filter;
+
+    if (value === 'all') {
       this.genderFilter = null;
       this.traitClassFilter = null;
-      this._toggleFilterOptions(true);
-    } else if (['male', 'female'].includes(type)) {
-      this.genderFilter = this.genderFilter === type ? null : type;
-    } else if (['physical', 'mental', 'social'].includes(type)) {
-      this.traitClassFilter = this.traitClassFilter === type ? null : type;
+    } else if (type === 'gender') {
+      this.genderFilter = this.genderFilter === value ? null : value;
+    } else if (type === 'trait') {
+      this.traitClassFilter = this.traitClassFilter === value ? null : value;
     }
 
     this._applyFilters();
-
-    // Update option styles
-    const filterOptions = document.querySelectorAll('#filter-options button');
-    filterOptions.forEach(button => {
-      const buttonType = button.textContent.toLowerCase();
-      const isActive = this._isFilterActive(buttonType);
-      button.classList.toggle('active', isActive);
-    });
-
-    // Update main filter button
-    const filterButton = document.getElementById('filter-button');
-    if (filterButton) {
-      const isAnyFilterActive = this.genderFilter || this.traitClassFilter;
-      filterButton.classList.toggle('active-filter', !!isAnyFilterActive);
-      filterButton.style.border = isAnyFilterActive ? '2px solid gold' : '';
-    }
+    this._updateFilterOptionStates();
+    this._updateFilterButtonState();
   }
 
   _toggleFilterOptions(forceHide = false) {
@@ -250,13 +265,75 @@ export default class CharacterSelectionScreen {
 
     if (forceHide) {
       filterOptions.classList.add('hidden');
-      const isAnyFilterActive = this.genderFilter || this.traitClassFilter;
-      filterButton.classList.toggle('active-filter', !!isAnyFilterActive);
+      filterButton.classList.remove('filter-open');
+      this._removeFilterMenuListeners();
     } else {
       filterOptions.classList.toggle('hidden');
-      // while open, treat as active for styling
-      filterButton.classList.add('active-filter');
+      const isOpen = !filterOptions.classList.contains('hidden');
+      filterButton.classList.toggle('filter-open', isOpen);
+
+      if (isOpen) {
+        this._addFilterMenuListeners();
+      } else {
+        this._removeFilterMenuListeners();
+      }
     }
+
+    this._updateFilterButtonState();
+  }
+
+  _addFilterMenuListeners() {
+    if (!this._outsideClickHandler) {
+      this._outsideClickHandler = (event) => {
+        const filterOptions = getElement('filter-options');
+        const filterButton = getElement('filter-button');
+        if (!filterOptions || !filterButton) return;
+
+        if (!filterOptions.contains(event.target) && !filterButton.contains(event.target)) {
+          this._toggleFilterOptions(true);
+        }
+      };
+      document.addEventListener('click', this._outsideClickHandler);
+    }
+
+    if (!this._escapeKeyHandler) {
+      this._escapeKeyHandler = (event) => {
+        if (event.key === 'Escape') {
+          this._toggleFilterOptions(true);
+        }
+      };
+      document.addEventListener('keydown', this._escapeKeyHandler);
+    }
+  }
+
+  _removeFilterMenuListeners() {
+    if (this._outsideClickHandler) {
+      document.removeEventListener('click', this._outsideClickHandler);
+      this._outsideClickHandler = null;
+    }
+
+    if (this._escapeKeyHandler) {
+      document.removeEventListener('keydown', this._escapeKeyHandler);
+      this._escapeKeyHandler = null;
+    }
+  }
+
+  _updateFilterOptionStates() {
+    const filterOptions = document.querySelectorAll('#filter-options button');
+    filterOptions.forEach((button) => {
+      const buttonType = button.dataset.filterType;
+      const buttonFilter = button.dataset.filter;
+      const isActive = this._isFilterActive(buttonType, buttonFilter);
+      button.classList.toggle('active', isActive);
+    });
+  }
+
+  _updateFilterButtonState() {
+    const filterButton = getElement('filter-button');
+    if (!filterButton) return;
+
+    const isAnyFilterActive = this.genderFilter || this.traitClassFilter;
+    filterButton.classList.toggle('active-filter', !!isAnyFilterActive);
   }
 
   _applyFilters() {
@@ -267,17 +344,20 @@ export default class CharacterSelectionScreen {
       const survivor = this.availableSurvivors.find(s => s.id == id);
       if (!survivor) return;
 
-      const matchesGender = !this.genderFilter || survivor.gender === this.genderFilter;
-      const matchesTrait = !this.traitClassFilter || survivor.traitClass?.toLowerCase() === this.traitClassFilter;
+      const survivorGender = String(survivor.gender || '').toLowerCase();
+      const survivorTraitClass = String(survivor.traitClass || '').toLowerCase();
+      const matchesGender = !this.genderFilter || survivorGender === this.genderFilter;
+      const matchesTrait = !this.traitClassFilter || survivorTraitClass === this.traitClassFilter;
 
       wrapper.style.display = matchesGender && matchesTrait ? 'block' : 'none';
     });
 
-    const filterButton = getElement('filter-button');
-    if (filterButton) {
-      const isActive = this.genderFilter || this.traitClassFilter;
-      filterButton.classList.toggle('active-filter', !!isActive);
+    const firstVisibleWrapper = Array.from(wrappers).find((wrapper) => wrapper.style.display !== 'none');
+    if (firstVisibleWrapper) {
+      firstVisibleWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+
+    this._updateFilterButtonState();
   }
 
   // ---------- Scroll guard (JS-only, no CSS needed) ----------
