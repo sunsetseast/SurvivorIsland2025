@@ -334,11 +334,15 @@ class GameManager {
     const groupedMembers = this._buildRequestedTribeGroups({ mode, tribeCount, survivors, minTribeSize });
 
     this.tribes = groupedMembers.map((members, i) => {
+      const tribeName = tribeNames[i];
+      const tribeColor = chosenColors[i];
       const tribe = {
         id: i + 1,
         tribeId: i + 1,
-        tribeName: tribeNames[i],
-        tribeColor: chosenColors[i],
+        tribeName,
+        tribeColor,
+        name: tribeName,
+        color: tribeColor,
         members,
         resources: { fish: 0, fish1: 0, fish2: 0, fish3: 0, water: 50, fire: 75, shelter: 60 },
         fire: 0,
@@ -357,11 +361,32 @@ class GameManager {
       return tribe;
     });
 
+    this.tribes = this.tribes.map(tribe => this._normalizeTribeAliases(tribe));
+
     this.survivors = this.tribes.flatMap(tribe => tribe.members);
     this.player = this.survivors.find(survivor => survivor.isPlayer) || this.player;
 
     eventManager.publish(GameEvents.TRIBES_CREATED, { tribes: this.tribes });
     return this.tribes;
+  }
+
+  _normalizeTribeAliases(tribe) {
+    if (!tribe) return tribe;
+
+    const normalizedTribeName = tribe.tribeName ?? tribe.name;
+    const normalizedTribeColor = tribe.tribeColor ?? tribe.color;
+
+    if (normalizedTribeName !== undefined) {
+      tribe.tribeName = normalizedTribeName;
+      tribe.name = normalizedTribeName;
+    }
+
+    if (normalizedTribeColor !== undefined) {
+      tribe.tribeColor = normalizedTribeColor;
+      tribe.color = normalizedTribeColor;
+    }
+
+    return tribe;
   }
 
   _resolveTribeNames({ mode, tribeCount, allTribeNames }) {
@@ -576,6 +601,7 @@ class GameManager {
     const allMembers = this.tribes.flatMap(t => t.members);
     this.tribes = [{
       id: 1,
+      tribeId: 1,
       tribeName: "Merged Tribe",
       tribeColor: "#FFC107",
       members: allMembers,
@@ -586,6 +612,7 @@ class GameManager {
       rewardWins: 0,
       attributes: this._calculateTribeAttributes(allMembers)
     }];
+    this.tribes = this.tribes.map(tribe => this._normalizeTribeAliases(tribe));
     this.isMerged = true;
     eventManager.publish(GameEvents.TRIBES_MERGED, { mergedTribe: this.tribes[0] });
   }
