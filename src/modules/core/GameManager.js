@@ -316,39 +316,28 @@ class GameManager {
     this.setGameState(GameState.TRIBE_DIVISION);
   }
 
-  createTribes() {
-    const survivors = [...this.survivors];
+  createTribes(options = {}) {
+    const mode = options.mode || this.gameMode || '2-tribe';
+    const requestedCount = Number(options.tribeCount || this.tribeCount || 2);
+    const tribeCount = requestedCount === 3 ? 3 : 2;
+    const survivors = [...(options.survivors || this.survivors || [])];
+    const constraints = options.constraints || {};
+    const minTribeSize = Number(constraints.minTribeSize || 1);
+    const disallowRedOrangeTogether = constraints.disallowRedOrangeTogether !== false;
     const allTribeNames = GameData.getTribeNames();
-    const tribeCount = this.tribeCount;
     const colorPool = ['red', 'orange', 'blue', 'purple', 'green'];
 
-    // Shuffle tribe names and survivors
-    const shuffledNames = shuffleArray(allTribeNames).slice(0, tribeCount);
-    const shuffledSurvivors = shuffleArray(survivors);
+    this.tribeCount = tribeCount;
 
-    // Ensure red + orange aren’t both selected
-    let chosenColors;
-    while (true) {
-      const shuffledColors = shuffleArray(colorPool);
-      chosenColors = shuffledColors.slice(0, tribeCount);
-      if (!(chosenColors.includes('red') && chosenColors.includes('orange'))) break;
-    }
+    const tribeNames = this._resolveTribeNames({ mode, tribeCount, allTribeNames });
+    const chosenColors = this._pickTribeColors({ colorPool, tribeCount, disallowRedOrangeTogether });
+    const groupedMembers = this._buildRequestedTribeGroups({ mode, tribeCount, survivors, minTribeSize });
 
-    this.tribes = [];
-
-    const perTribe = Math.floor(survivors.length / tribeCount);
-    let remainder = survivors.length % tribeCount;
-    let index = 0;
-
-    for (let i = 0; i < tribeCount; i++) {
-      const size = perTribe + (remainder-- > 0 ? 1 : 0);
-      const members = shuffledSurvivors.slice(index, index + size);
-      index += size;
-
+    this.tribes = groupedMembers.map((members, i) => {
       const tribe = {
         id: i + 1,
         tribeId: i + 1,
-        tribeName: shuffledNames[i].name,
+        tribeName: tribeNames[i],
         tribeColor: chosenColors[i],
         members,
         resources: { fish: 0, fish1: 0, fish2: 0, fish3: 0, water: 50, fire: 75, shelter: 60 },
@@ -358,11 +347,97 @@ class GameManager {
         rewardWins: 0,
         attributes: this._calculateTribeAttributes(members)
       };
+
+      members.forEach(member => {
+        member.tribeId = tribe.tribeId;
+        member.tribeColor = tribe.tribeColor;
+      });
+
       this.initializeWaterPlanForTribe(tribe);
-      this.tribes.push(tribe);
-    }
+      return tribe;
+    });
+
+    this.survivors = this.tribes.flatMap(tribe => tribe.members);
+    this.player = this.survivors.find(survivor => survivor.isPlayer) || this.player;
 
     eventManager.publish(GameEvents.TRIBES_CREATED, { tribes: this.tribes });
+    return this.tribes;
+  }
+
+  _resolveTribeNames({ mode, tribeCount, allTribeNames }) {
+    if (mode === 'brains-brawn-beauty') {
+      return ['Brains', 'Brawn', 'Beauty'];
+    }
+    return shuffleArray(allTribeNames)
+      .slice(0, tribeCount)
+      .map(nameEntry => (typeof nameEntry === 'string' ? nameEntry : nameEntry.name));
+  }
+
+  _pickTribeColors({ colorPool, tribeCount, disallowRedOrangeTogether = true }) {
+    let chosenColors;
+    while (true) {
+      const shuffledColors = shuffleArray(colorPool);
+      chosenColors = shuffledColors.slice(0, tribeCount);
+      const hasRedOrange = chosenColors.includes('red') && chosenColors.includes('orange');
+      if (!disallowRedOrangeTogether || !hasRedOrange) break;
+    }
+    return chosenColors;
+  }
+
+  _buildRequestedTribeGroups({ mode, tribeCount, survivors, minTribeSize = 1 }) {
+    let groups = null;
+
+    if (mode === 'brains-brawn-beauty') {
+      groups = [
+        survivors.filter(s => (s.traitClass || '').toLowerCase() === 'mental'),
+        survivors.filter(s => (s.traitClass || '').toLowerCase() === 'physical'),
+        survivors.filter(s => (s.traitClass || '').toLowerCase() === 'social')
+      ];
+    } else if (mode === 'battle-sexes') {
+      groups = [
+        survivors.filter(s => (s.gender || '').toLowerCase() === 'male'),
+        survivors.filter(s => (s.gender || '').toLowerCase() === 'female')
+      ];
+    }
+
+    if (!this._isValidTribeDistribution(groups, tribeCount, minTribeSize)) {
+      if (groups) {
+        console.warn(`[GameManager] Invalid '${mode}' tribe distribution detected; falling back to standard balanced random split.`);
+      }
+      return this._buildBalancedRandomGroups(survivors, tribeCount);
+    }
+
+    return groups;
+  }
+
+  _isValidTribeDistribution(groups, tribeCount, minTribeSize = 1) {
+    if (!Array.isArray(groups)) return false;
+    if (groups.length !== tribeCount) return false;
+    return groups.every(group => Array.isArray(group) && group.length >= minTribeSize);
+  }
+
+  _buildBalancedRandomGroups(survivors, tribeCount) {
+    const males = shuffleArray(survivors.filter(s => (s.gender || '').toLowerCase() === 'male'));
+    const females = shuffleArray(survivors.filter(s => (s.gender || '').toLowerCase() === 'female'));
+    const others = shuffleArray(survivors.filter(s => {
+      const gender = (s.gender || '').toLowerCase();
+      return gender !== 'male' && gender !== 'female';
+    }));
+
+    const interleaved = [];
+    let mi = 0;
+    let fi = 0;
+    while (mi < males.length || fi < females.length) {
+      if (fi < females.length) interleaved.push(females[fi++]);
+      if (mi < males.length) interleaved.push(males[mi++]);
+    }
+    interleaved.push(...others);
+
+    const groups = Array.from({ length: tribeCount }, () => []);
+    interleaved.forEach((survivor, index) => {
+      groups[index % tribeCount].push(survivor);
+    });
+    return groups;
   }
 
   _calculateTribeAttributes(members) {
