@@ -9,12 +9,16 @@ import {
   addDebugBanner,
   timerManager
 } from '../utils/index.js';
-import { gameManager, eventManager, GameEvents } from '../core/index.js';
+import { gameManager } from '../core/index.js';
 import { GamePhase, GameState } from '../core/GameManager.js';
-import gameData from '../data/index.js';
-import { shuffleArray } from '../utils/CommonUtils.js';
 
 export default class TribeDivisionScreen {
+  constructor() {
+    this._managedListeners = [];
+    this._managedTimers = [];
+    this._activeOverlays = new Set();
+  }
+
   initialize() {
     console.log('TribeDivisionScreen initialized');
   }
@@ -38,7 +42,7 @@ export default class TribeDivisionScreen {
       `
     }, 'Start Game');
 
-    startButton.addEventListener('click', () => this._showTribeModePopup(container));
+    this._addManagedListener(startButton, 'click', () => this._showTribeModePopup(container));
     container.appendChild(startButton);
   }
 
@@ -110,6 +114,7 @@ export default class TribeDivisionScreen {
     }, 'Battle of the Sexes');
 
     tribePopup.append(title, twoTribeButton, threeTribeButton, bvbButton, sexesButton);
+    this._trackOverlay(tribePopup);
     container.appendChild(tribePopup);
   }
 
@@ -179,7 +184,7 @@ export default class TribeDivisionScreen {
         `
       }, 'Next');
 
-      nextButtonStage0.addEventListener('click', () => {
+      this._addManagedListener(nextButtonStage0, 'click', () => {
         this._showJeffIntro(container, 1);
       });
 
@@ -208,7 +213,7 @@ export default class TribeDivisionScreen {
         `
       }, 'Next');
 
-      nextButtonStage1.addEventListener('click', () => {
+      this._addManagedListener(nextButtonStage1, 'click', () => {
         this._divideTribes(container);
       });
 
@@ -235,106 +240,33 @@ export default class TribeDivisionScreen {
     const playerSurvivor = gameManager.getPlayerSurvivor();
     const gameMode = gameManager.gameMode;
     const tribeCount = gameManager.tribeCount;
-    const colorPool = ['red', 'orange', 'blue', 'purple', 'green'];
-    const namePool = [...gameData.DEFAULT_TRIBE_NAMES];
-
-    let chosenColors;
-    while (true) {
-      const shuffledColors = shuffleArray(colorPool);
-      chosenColors = shuffledColors.slice(0, tribeCount);
-      if (!(chosenColors.includes('red') && chosenColors.includes('orange'))) break;
-    }
-
-    let shuffledNames;
-    if (gameMode === 'brains-brawn-beauty') {
-      shuffledNames = ['Brains', 'Brawn', 'Beauty'];
-    } else {
-      shuffledNames = shuffleArray(namePool).slice(0, tribeCount);
-    }
-
-    let tribes = [];
-
-    if (gameMode === 'brains-brawn-beauty') {
-      const brains = allSurvivors.filter(s => s.traitClass === 'Mental');
-      const brawn = allSurvivors.filter(s => s.traitClass === 'Physical');
-      const beauty = allSurvivors.filter(s => s.traitClass === 'Social');
-
-      const groups = [brains, brawn, beauty];
-
-      tribes = groups.map((group, i) => ({
-        id: i + 1,
-        tribeId: i + 1,
-        color: chosenColors[i],
-        name: shuffledNames[i],
-        members: group
-      }));
-    } else if (gameMode === 'battle-sexes') {
-      const males = allSurvivors.filter(s => s.gender.toLowerCase() === 'male');
-      const females = allSurvivors.filter(s => s.gender.toLowerCase() === 'female');
-
-      const groups = [males, females];
-
-      tribes = groups.map((group, i) => ({
-        id: i + 1,
-        tribeId: i + 1,
-        color: chosenColors[i],
-        name: shuffledNames[i],
-        members: group
-      }));
-    } else {
-      const males = shuffleArray(allSurvivors.filter(s => s.gender.toLowerCase() === 'male'));
-      const females = shuffleArray(allSurvivors.filter(s => s.gender.toLowerCase() === 'female'));
-
-      const interleaved = [];
-      let mi = 0, fi = 0;
-      while (mi < males.length || fi < females.length) {
-        if (fi < females.length) interleaved.push(females[fi++]);
-        if (mi < males.length) interleaved.push(males[mi++]);
+    const tribes = gameManager.createTribes({
+      tribeCount,
+      mode: gameMode,
+      survivors: allSurvivors,
+      constraints: {
+        disallowRedOrangeTogether: true,
+        minTribeSize: 1
       }
-
-      const shuffledSurvivors = interleaved;
-      const tribeSize = Math.floor(shuffledSurvivors.length / tribeCount);
-      let index = 0;
-
-      for (let i = 0; i < tribeCount; i++) {
-        const size = i === tribeCount - 1
-          ? shuffledSurvivors.length - index
-          : tribeSize;
-
-        const members = shuffledSurvivors.slice(index, index + size);
-        index += size;
-
-        tribes.push({
-          id: i + 1,
-          tribeId: i + 1,
-          color: chosenColors[i],
-          name: shuffledNames[i],
-          members
-        });
-      }
-    }
-
-    tribes.forEach((tribe, i) => {
-      tribe.members.forEach(member => {
-        member.tribeId = i + 1;
-        member.tribeColor = tribe.color;
-      });
     });
 
-    gameManager.tribes = tribes;
-    gameManager.survivors = tribes.flatMap(t => t.members);
-    gameManager.player = gameManager.survivors.find(s => s.isPlayer);
-    
-
-    const playerTribeIndex = tribes.findIndex(tribe =>
+    const displayTribes = [...tribes];
+    const playerTribeIndex = displayTribes.findIndex(tribe =>
       tribe.members.some(m => playerSurvivor && m.id === playerSurvivor.id)
     );
     if (playerTribeIndex !== -1) {
-      const [playerTribe] = tribes.splice(playerTribeIndex, 1);
-      tribes.unshift(playerTribe);
+      const [playerTribe] = displayTribes.splice(playerTribeIndex, 1);
+      displayTribes.unshift(playerTribe);
     }
 
-    tribes.forEach(tribe => {
+    const canonicalPlayerTribe = gameManager.getPlayerTribe();
+    console.log('[TribeDivisionScreen] Tribes created', {
+      tribeCount: tribes.length,
+      colors: tribes.map(tribe => tribe.tribeColor),
+      playerTribe: canonicalPlayerTribe?.tribeName || canonicalPlayerTribe?.id || null
+    });
+
+    displayTribes.forEach(tribe => {
       const wrapper = createElement('div', {
         className: 'tribe-wrapper',
         style: `
@@ -350,15 +282,15 @@ export default class TribeDivisionScreen {
           font-family: 'Survivant', sans-serif;
           font-size: 2rem;
           margin-bottom: 5px;
-          color: ${tribe.color};
+          color: ${tribe.tribeColor};
           -webkit-text-stroke: 1px white;
           text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
         `
-      }, tribe.name);
+      }, tribe.tribeName);
 
       const image = createElement('img', {
-        src: `Assets/Tribe/${tribe.color}-portrait.png`,
-        alt: `${tribe.name} portrait`,
+        src: `Assets/Tribe/${tribe.tribeColor}-portrait.png`,
+        alt: `${tribe.tribeName} portrait`,
         style: `
           width: 100%;
           max-width: 400px;
@@ -390,17 +322,18 @@ export default class TribeDivisionScreen {
         });
 
         const avatar = createElement('img', {
-          src: member.avatarUrl || `Assets/Avatars/${member.firstName.toLowerCase()}.jpeg`,
+          src: this._getAvatarCandidates(member)[0],
           alt: member.firstName,
           style: `
             width: 64px;
             height: 64px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid ${tribe.color};
+            border: 3px solid ${tribe.tribeColor};
             background: #000;
           `
         });
+        this._wireAvatarFallback(avatar, member);
 
         const name = createElement('span', {
           style: `
@@ -440,7 +373,7 @@ export default class TribeDivisionScreen {
     // Removed green border
     // button.style.border = '4px solid lime';
 
-    button.addEventListener('click', () => {
+    this._addManagedListener(button, 'click', () => {
       console.log('Begin Day 1 clicked');
       addDebugBanner('Begin Day 1 clicked', 'purple', 40);
       addDebugBanner('Starting game clock and entering CAMP phase', 'purple', 30);
@@ -453,12 +386,6 @@ export default class TribeDivisionScreen {
 
         // Move into CAMP using GameManager (this triggers correct events)
         gameManager.setGameState(GameState.CAMP);
-
-        // ⭐ TELL THE GAME "TRIBES ARE FINAL" → NPCs can be placed now
-        eventManager.publish(GameEvents.TRIBES_CREATED, {
-          tribes: gameManager.tribes
-        });
-        addDebugBanner('TRIBES_CREATED fired from Begin Day 1', 'teal', 50);
 
         // Reveal hamburger icon
         const hamburger = document.getElementById('hamburger-icon');
@@ -475,7 +402,67 @@ export default class TribeDivisionScreen {
     container.appendChild(scrollWrapper);
   }
 
+  _getAvatarCandidates(member) {
+    const candidates = [];
+    if (member?.avatarUrl) candidates.push(member.avatarUrl);
+    if (member?.id) candidates.push(`Assets/Avatars/${member.id}.jpeg`);
+    candidates.push('Assets/Avatars/default.jpeg');
+
+    const safeName = this._slugifyAvatarName(member?.firstName);
+    if (safeName) {
+      candidates.push(`Assets/Avatars/${safeName}.jpeg`);
+    }
+
+    return [...new Set(candidates)];
+  }
+
+  _wireAvatarFallback(image, member) {
+    const candidates = this._getAvatarCandidates(member);
+    let candidateIndex = candidates.indexOf(image.src);
+    if (candidateIndex < 0) candidateIndex = 0;
+
+    image.addEventListener('error', () => {
+      const nextIndex = candidateIndex + 1;
+      if (nextIndex >= candidates.length) return;
+      candidateIndex = nextIndex;
+      image.src = candidates[candidateIndex];
+    });
+  }
+
+  _slugifyAvatarName(name = '') {
+    return String(name)
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9_-]/g, '');
+  }
+
+  _trackOverlay(element) {
+    if (element) this._activeOverlays.add(element);
+    return element;
+  }
+
+  _addManagedListener(element, eventName, handler, options) {
+    if (!element || !eventName || !handler) return;
+    element.addEventListener(eventName, handler, options);
+    this._managedListeners.push({ element, eventName, handler, options });
+  }
+
   teardown() {
+    this._activeOverlays.forEach(overlay => overlay?.remove?.());
+    this._activeOverlays.clear();
+
+    this._managedListeners.forEach(({ element, eventName, handler, options }) => {
+      element?.removeEventListener?.(eventName, handler, options);
+    });
+    this._managedListeners = [];
+
+    this._managedTimers.forEach(timerId => {
+      timerManager.clearTimeout(timerId);
+      timerManager.clearInterval(timerId);
+    });
+    this._managedTimers = [];
+
     console.log('TribeDivisionScreen teardown');
   }
 }
