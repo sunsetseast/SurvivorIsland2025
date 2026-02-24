@@ -764,9 +764,31 @@ export default class CampScreen {
   async startCampClockTick() {
     if (gameManager.flags?.campEventActive || this.clockRunning) return;
 
+    // Guard: if camp loads with a zero/invalid timer before post-challenge phase settles,
+    // delay Tree Mail behavior and give strategy initialization a chance to recover the clock.
+    let phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    let timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    if (timer <= 0 && phase !== GamePhase.POST_CHALLENGE) {
+      const strat = gameManager?.systems?.strategyPhaseSystem;
+      console.warn('[CampScreen] Guard: timer<=0 in non-post phase; delaying Tree Mail', { phase, timer });
+      if (strat) {
+        await this.ensurePostChallengeClockReady('startCampClockTick-nonpost-t0');
+      } else {
+        console.warn('[CampScreen] Guard: StrategyPhaseSystem unavailable; clock start deferred', { phase, timer });
+        return;
+      }
+
+      phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+      timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+      if (timer <= 0 && phase !== GamePhase.POST_CHALLENGE) {
+        console.warn('[CampScreen] Guard: timer still invalid after recovery; skipping clock start', { phase, timer });
+        return;
+      }
+    }
+
     const postChallengeReady = await this.ensurePostChallengeClockReady('startCampClockTick');
-    const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
-    const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
     if (phase === GamePhase.POST_CHALLENGE && (!postChallengeReady || timer <= 0)) {
       console.warn('[CampScreen] Blocked camp clock start; post-challenge timer is not ready', { phase, timer, postChallengeReady });
       return;
@@ -807,12 +829,43 @@ export default class CampScreen {
       // Check if time has run out
       if (currentTime <= 0) {
         this.stopCampClockTick();
-        if (gameManager.gamePhase === GamePhase.POST_CHALLENGE) {
+        const phaseAtTimeout = gameManager.getGamePhase?.() || gameManager.gamePhase;
+        if (phaseAtTimeout === GamePhase.POST_CHALLENGE) {
           const strat = gameManager?.systems?.strategyPhaseSystem;
           if (strat?.handleTimerExpired) {
             strat.handleTimerExpired();
           }
         } else {
+          const strat = gameManager?.systems?.strategyPhaseSystem;
+          const postChallengeTransitionLikely = Boolean(
+            strat && (
+              strat.isActive ||
+              strat.journeyPart2Running ||
+              gameManager.flags?.startCampAtBeachOnce === true ||
+              this.postChallengeInitPromise
+            )
+          );
+
+          if (postChallengeTransitionLikely) {
+            console.warn('[CampScreen] Guard: timer<=0 in non-post phase; delaying Tree Mail', {
+              phase: phaseAtTimeout,
+              timer: currentTime
+            });
+
+            void this.ensurePostChallengeClockReady('tick-nonpost-t0').then(() => {
+              const refreshedTimer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+              if (refreshedTimer > 0 && this.isActive) {
+                this.startCampClockTick();
+              } else {
+                console.warn('[CampScreen] Guard: timer still invalid after tick recovery; clock remains stopped', {
+                  phase: gameManager.getGamePhase?.() || gameManager.gamePhase,
+                  timer: refreshedTimer
+                });
+              }
+            });
+            return;
+          }
+
           this.triggerTreeMailEvent();
         }
         return;
