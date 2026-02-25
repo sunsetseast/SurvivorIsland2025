@@ -874,10 +874,28 @@ class StrategyPhaseSystem {
         tribeColor: tribe?.color || tribe?.tribeColor,
         defaultSelection: options[0]?.id,
         onConfirm: (targetId) => {
-          const probability = this.calculateSwayProbability(alliance);
-          const success = Math.random() < probability;
-          this.logFact({ type: 'playerSwayAttempt', allianceId: allianceKey, targetId, success, probability });
-          window.debugBanner?.('SWAY-PROB', `${(probability * 100).toFixed(0)}% -> ${success ? 'success' : 'fail'} (${this.getName(targetId)})`);
+          const sway = this.calculateSwayProbability(alliance);
+          const roll = Math.random();
+          const success = roll < sway.probability;
+          this.logFact({
+            type: 'playerSwayAttempt',
+            allianceId: allianceKey,
+            targetId,
+            probability: sway.probability,
+            success,
+            trustAvg: sway.trustAvg,
+            relAvg: sway.relAvg,
+            styleModifier: sway.styleModifier,
+            breakdown: sway.breakdown,
+          });
+          window.debugBanner?.(
+            'SWAY-PROB',
+            `${(sway.probability * 100).toFixed(0)}% roll:${roll.toFixed(3)} ${success ? 'success' : 'fail'} (${this.getName(targetId)})`
+          );
+          window.debugBanner?.(
+            'SWAY-ATTEMPT',
+            `p:${sway.probability.toFixed(3)} result:${success ? 'success' : 'fail'} trustAvg:${sway.trustAvg.toFixed(1)} relAvg:${sway.relAvg.toFixed(1)} style:${sway.styleModifier.toFixed(3)} social:${sway.breakdown.socialComponent.toFixed(3)}`
+          );
           if (success) {
             addLine(`You sway them toward ${this.getName(targetId)}!`);
             this.allianceTargets.set(allianceKey, targetId);
@@ -924,25 +942,106 @@ class StrategyPhaseSystem {
     members.forEach((npc) => {
       const trustValue = this.resolveTrustValue(trustSystem, player?.id, npc.id);
       const relationshipValue = this.resolveRelationshipValue(relationshipSystem, player?.id, npc.id);
-      trustTotal += (trustValue - 50) / 500;
-      relTotal += (relationshipValue - 50) / 500;
-
-      if (npc.gameplayStyle === 'Wildcard') styleBonus += (Math.random() - 0.5) * 0.1;
-      if (npc.gameplayStyle === 'Social Genius') styleBonus += 0.04;
-      if (npc.gameplayStyle === 'Power Player') styleBonus -= 0.05;
+      trustTotal += trustValue;
+      relTotal += relationshipValue;
+      styleBonus += this.calculateStyleModifierForSwayMember(npc);
     });
 
     const memberCount = Math.max(1, members.length);
-    const trustBonus = trustTotal / memberCount;
-    const relationshipBonus = relTotal / memberCount;
-    const probability = Math.min(0.8, Math.max(0.15, 0.35 + trustBonus + relationshipBonus + styleBonus));
+    const trustAvg = trustTotal / memberCount;
+    const relAvg = relTotal / memberCount;
+    const trustDelta = trustAvg - 50;
+    const relDelta = relAvg - 50;
+    const socialComponent = ((trustDelta * 0.6) + (relDelta * 0.4)) / 250;
+    const rawProbability = 0.35 + socialComponent + styleBonus;
+    const probability = Math.min(0.8, Math.max(0.15, rawProbability));
 
     window.debugBanner?.(
       'SWAY-CALC',
-      `base:0.35 trust:${trustBonus.toFixed(2)} rel:${relationshipBonus.toFixed(2)} style:${styleBonus.toFixed(2)} => ${(probability * 100).toFixed(0)}%`
+      `base:0.35 trustAvg:${trustAvg.toFixed(1)} relAvg:${relAvg.toFixed(1)} social:${socialComponent.toFixed(3)} style:${styleBonus.toFixed(3)} => ${(probability * 100).toFixed(0)}%`
     );
 
-    return probability;
+    return {
+      probability,
+      trustAvg,
+      relAvg,
+      styleModifier: styleBonus,
+      breakdown: {
+        base: 0.35,
+        trustWeight: 0.6,
+        relationshipWeight: 0.4,
+        socialComponent,
+        styleModifier: styleBonus,
+        unclampedProbability: rawProbability,
+      },
+    };
+  }
+
+  calculateStyleModifierForSwayMember(npc) {
+    const style = npc?.gameplayStyle || 'Competitive';
+    const hasTrait = (key) => this.resolveSwayTraitValue(npc, key) != null;
+    const trait = (key, fallback = 50) => {
+      const value = this.resolveSwayTraitValue(npc, key);
+      return value == null ? fallback : value;
+    };
+
+    if (style === 'Wildcard') {
+      const hasAnyWildcardTrait = ['paratend', 'risk', 'honesty', 'loyalty', 'bigmove', 'aggression'].some(hasTrait);
+      if (!hasAnyWildcardTrait) return 0.05;
+
+      const risk = trait('risk');
+      const bigmove = trait('bigmove');
+      const aggression = trait('aggression');
+      const loyalty = trait('loyalty');
+      const honesty = trait('honesty');
+      const paratend = trait('paratend');
+      const modifier =
+        ((risk - 50) * 0.0007)
+        + ((bigmove - 50) * 0.0006)
+        + ((aggression - 50) * 0.0005)
+        - ((loyalty - 50) * 0.0004)
+        - ((honesty - 50) * 0.0003)
+        + ((paratend - 50) * 0.0004);
+      return Math.max(-0.08, Math.min(0.08, modifier));
+    }
+
+    if (style === 'Power Player') {
+      const bigmove = trait('bigmove');
+      const aggression = trait('aggression');
+      const loyalty = trait('loyalty');
+      return Math.max(-0.07, Math.min(0.02, -0.05 + ((bigmove - 50) * -0.0002) + ((aggression - 50) * -0.0002) + ((loyalty - 50) * 0.0002)));
+    }
+
+    if (style === 'Shadow Strategist') {
+      const paratend = trait('paratend');
+      const honesty = trait('honesty');
+      return Math.max(-0.03, Math.min(0.05, 0.01 + ((paratend - 50) * 0.0003) - ((honesty - 50) * 0.0002)));
+    }
+
+    if (style === 'Social Genius') {
+      const honesty = trait('honesty');
+      const loyalty = trait('loyalty');
+      return Math.max(0.01, Math.min(0.06, 0.04 + ((honesty - 50) * 0.0002) + ((loyalty - 50) * 0.0002)));
+    }
+
+    return 0;
+  }
+
+  resolveSwayTraitValue(npc, key) {
+    const candidates = [
+      npc?.[key],
+      npc?.traits?.[key],
+      npc?.personality?.[key],
+      npc?.personalityTraits?.[key],
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate !== 'number' || Number.isNaN(candidate)) continue;
+      if (candidate >= 0 && candidate <= 1) return Math.max(0, Math.min(100, candidate * 100));
+      return Math.max(0, Math.min(100, candidate));
+    }
+
+    return null;
   }
 
   resolveTrustValue(trustSystem, fromId, toId) {
