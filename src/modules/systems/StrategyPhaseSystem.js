@@ -43,6 +43,9 @@ class StrategyPhaseSystem {
     this.playerTribeSafe = false;
     this.personalTargetId = null;
     this.allianceTargets = new Map();
+    this.npcIntentTargets = new Map();
+    this.npcIntentMeta = new Map();
+    this.tribalTargetBoard = null;
     this.strategyFacts = [];
     this.playerVisibleFacts = [];
     this.firstTargetIntroduced = false;
@@ -414,6 +417,10 @@ class StrategyPhaseSystem {
     const player = gameManager.getPlayerSurvivor();
     const alliances = allianceSystem?.getAlliancesForMember?.(player?.id) || [];
 
+    if (!alliances.length) {
+      return Promise.resolve();
+    }
+
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'strategy-overlay';
@@ -428,6 +435,8 @@ class StrategyPhaseSystem {
       const list = document.createElement('div');
       list.className = 'strategy-list';
 
+      const keepLoggedByAlliance = new Set();
+
       alliances.forEach((alliance) => {
         const entry = document.createElement('div');
         entry.className = 'strategy-entry';
@@ -439,8 +448,8 @@ class StrategyPhaseSystem {
 
         const targetRow = document.createElement('div');
         targetRow.className = 'strategy-entry-row';
-        const targetId = this.allianceTargets.get(alliance.id);
-        const target = gameManager.survivors?.find((s) => s.id === targetId);
+        const resolveCurrentTargetId = () => this.allianceTargets.get(alliance.id);
+        const target = gameManager.survivors?.find((s) => s.id === resolveCurrentTargetId());
         const targetLabel = document.createElement('div');
         targetLabel.textContent = target ? `${target.firstName}` : 'No target chosen';
         targetRow.appendChild(targetLabel);
@@ -451,9 +460,9 @@ class StrategyPhaseSystem {
         keepBtn.textContent = 'Keep';
         keepBtn.className = 'rect-button';
         keepBtn.addEventListener('click', () => {
-          if (targetId) {
-            this.logFact({ type: 'allianceTargetConfirmed', allianceId: alliance.id, targetId });
-          }
+          if (keepLoggedByAlliance.has(alliance.id)) return;
+          keepLoggedByAlliance.add(alliance.id);
+          this.logFact({ type: 'allianceTargetConfirmed', allianceId: alliance.id, targetId: resolveCurrentTargetId() || null });
         });
 
         const changeBtn = document.createElement('button');
@@ -467,7 +476,7 @@ class StrategyPhaseSystem {
             confirmLabel: 'Choose',
             options,
             tribeColor: tribe?.color || tribe?.tribeColor,
-            defaultSelection: targetId || options[0]?.id,
+            defaultSelection: resolveCurrentTargetId() || options[0]?.id,
             onConfirm: (selected) => {
               this.allianceTargets.set(alliance.id, selected);
               this.logFact({ type: 'allianceTarget', allianceId: alliance.id, targetId: selected });
@@ -515,6 +524,85 @@ class StrategyPhaseSystem {
     this.beatIntervalId = setInterval(() => this.runStrategyBeat(), 12000);
   }
 
+  updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0 } = {}) {
+    if (!npcId || !targetId) return null;
+    const priorMeta = this.npcIntentMeta.get(npcId) || { confidence: 0.5, reason: 'seed', updatedAt: Date.now() };
+    const nextConfidence = Math.min(1, Math.max(0, (Number(priorMeta.confidence) || 0.5) + (Number(confidenceDelta) || 0)));
+
+    this.npcIntentTargets.set(npcId, targetId);
+    const meta = {
+      confidence: Number(nextConfidence.toFixed(2)),
+      reason,
+      updatedAt: Date.now(),
+    };
+    this.npcIntentMeta.set(npcId, meta);
+
+    const npcName = this.getName(npcId);
+    const targetName = this.getName(targetId);
+    this.logFact({
+      type: 'npcIntentTargetUpdated',
+      speakerId: npcId,
+      targetId,
+      reason,
+      confidence: meta.confidence,
+    });
+    window.debugBanner?.('NPC-INTENT', `${npcName} -> ${targetName} (${meta.confidence.toFixed(2)})`);
+    return meta;
+  }
+
+  computeTribalTargetBoard() {
+    const heatMap = {};
+    const increment = (targetId, weight = 1) => {
+      if (!targetId) return;
+      const key = String(targetId);
+      heatMap[key] = (heatMap[key] || 0) + weight;
+    };
+
+    this.npcIntentTargets.forEach((targetId) => increment(targetId));
+
+    if (this.personalTargetId) {
+      increment(this.personalTargetId);
+    }
+
+    const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.player?.id;
+    const allianceSystem = gameManager?.systems?.allianceSystem;
+    const alliances = allianceSystem?.getAlliancesForMember?.(playerId) || [];
+    alliances.forEach((alliance) => {
+      const allianceId = alliance?.id ?? alliance?.allianceId;
+      increment(this.allianceTargets.get(allianceId));
+    });
+
+    const ranked = Object.entries(heatMap).sort((a, b) => b[1] - a[1]);
+    const primaryTargetId = ranked[0]?.[0] ?? null;
+    const secondaryTargetId = ranked[1]?.[0] ?? null;
+    const computedAt = Date.now();
+
+    this.tribalTargetBoard = {
+      primaryTargetId,
+      secondaryTargetId,
+      heatMap,
+      computedAt,
+    };
+
+    gameManager.flags = gameManager.flags || {};
+    gameManager.flags.tribalTargetBoard = this.tribalTargetBoard;
+
+    this.logFact({
+      type: 'tribalTargetBoardComputed',
+      primaryTargetId,
+      secondaryTargetId,
+      heatMap,
+      computedAt,
+    });
+
+    window.debugBanner?.(
+      'TARGET-BOARD',
+      `primary:${this.getName(primaryTargetId)} | secondary:${secondaryTargetId ? this.getName(secondaryTargetId) : 'none'} | ${JSON.stringify(heatMap)}`
+    );
+
+    return this.tribalTargetBoard;
+  }
+
   runStrategyBeat() {
     if (!this.isActive || gameManager.gameState !== GameState.CAMP) return;
     if (gameManager.flags?.campEventActive) return;
@@ -530,6 +618,10 @@ class StrategyPhaseSystem {
 
     if (targetId) {
       this.firstTargetIntroduced = true;
+      this.updateNpcIntentTarget(speaker.id, targetId, {
+        reason: `strategyBeat:${action}`,
+        confidenceDelta: action === 'HARD_COUNTER' ? 0.12 : action === 'SOFT_COUNTER' ? 0.08 : 0.05,
+      });
     }
 
     this.logFact({
@@ -542,6 +634,12 @@ class StrategyPhaseSystem {
 
     if (Math.random() < this.getRumorLeakChance(speaker)) {
       this.logFact({ type: 'rumor', speakerId: speaker.id, targetId, toPlayer: true });
+      if (targetId) {
+        this.updateNpcIntentTarget(speaker.id, targetId, {
+          reason: `rumorLeak:${action}`,
+          confidenceDelta: 0.03,
+        });
+      }
     }
   }
 
@@ -621,6 +719,12 @@ class StrategyPhaseSystem {
 
       this.logFact({ type: 'allianceTargetLocked', allianceId: alliance.id, targetId: chosenTarget });
       this.allianceTargets.set(alliance.id, chosenTarget);
+      npcMembers.forEach((npc) => {
+        this.updateNpcIntentTarget(npc.id, chosenTarget, {
+          reason: `allianceLock:${alliance.id}`,
+          confidenceDelta: 0.04,
+        });
+      });
       return chosenTarget;
     };
 
@@ -710,12 +814,24 @@ class StrategyPhaseSystem {
         tribeColor: tribe?.color || tribe?.tribeColor,
         defaultSelection: options[0]?.id,
         onConfirm: (targetId) => {
-          const success = Math.random() < 0.45;
-          this.logFact({ type: 'playerSwayAttempt', allianceId: alliance.id, targetId, success });
+          const probability = this.calculateSwayProbability(alliance);
+          const success = Math.random() < probability;
+          this.logFact({ type: 'playerSwayAttempt', allianceId: alliance.id, targetId, success, probability });
+          window.debugBanner?.('SWAY-PROB', `${(probability * 100).toFixed(0)}% -> ${success ? 'success' : 'fail'} (${this.getName(targetId)})`);
           if (success) {
             addLine(`You sway them toward ${this.getName(targetId)}!`);
             this.allianceTargets.set(alliance.id, targetId);
             this.logFact({ type: 'allianceTargetLocked', allianceId: alliance.id, targetId });
+            const memberIds = alliance.memberIds || [];
+            memberIds
+              .map((id) => gameManager.survivors?.find((s) => s.id === id))
+              .filter((s) => s && !s.isPlayer)
+              .forEach((npc) => {
+                this.updateNpcIntentTarget(npc.id, targetId, {
+                  reason: `playerSwaySuccess:${alliance.id}`,
+                  confidenceDelta: 0.05,
+                });
+              });
             finishMeeting(targetId);
           } else {
             addLine('They hesitate and stick with the original plan.');
@@ -731,6 +847,61 @@ class StrategyPhaseSystem {
     actionRow.appendChild(goWithGroup);
     actionRow.appendChild(pushDifferent);
     modal.appendChild(actionRow);
+  }
+
+  calculateSwayProbability(alliance) {
+    const trustSystem = gameManager?.systems?.trustSystem;
+    const relationshipSystem = gameManager?.systems?.relationshipSystem;
+    const player = gameManager.getPlayerSurvivor?.();
+    const members = (alliance?.memberIds || [])
+      .map((id) => gameManager.survivors?.find((s) => s.id === id))
+      .filter((s) => s && !s.isPlayer);
+
+    let trustTotal = 0;
+    let relTotal = 0;
+    let styleBonus = 0;
+
+    members.forEach((npc) => {
+      const trustValue = this.resolveTrustValue(trustSystem, player?.id, npc.id);
+      const relationshipValue = this.resolveRelationshipValue(relationshipSystem, player?.id, npc.id);
+      trustTotal += (trustValue - 50) / 500;
+      relTotal += (relationshipValue - 50) / 500;
+
+      if (npc.gameplayStyle === 'Wildcard') styleBonus += (Math.random() - 0.5) * 0.1;
+      if (npc.gameplayStyle === 'Social Genius') styleBonus += 0.04;
+      if (npc.gameplayStyle === 'Power Player') styleBonus -= 0.05;
+    });
+
+    const memberCount = Math.max(1, members.length);
+    const trustBonus = trustTotal / memberCount;
+    const relationshipBonus = relTotal / memberCount;
+    const probability = Math.min(0.8, Math.max(0.15, 0.35 + trustBonus + relationshipBonus + styleBonus));
+
+    window.debugBanner?.(
+      'SWAY-CALC',
+      `base:0.35 trust:${trustBonus.toFixed(2)} rel:${relationshipBonus.toFixed(2)} style:${styleBonus.toFixed(2)} => ${(probability * 100).toFixed(0)}%`
+    );
+
+    return probability;
+  }
+
+  resolveTrustValue(trustSystem, fromId, toId) {
+    if (!trustSystem || !fromId || !toId) return 50;
+    const direct = trustSystem.getTrust?.(fromId, toId);
+    if (typeof direct === 'number') return direct;
+    if (direct && typeof direct === 'object') {
+      if (typeof direct.value === 'number') return direct.value;
+      if (typeof direct.score === 'number') return direct.score;
+    }
+    return 50;
+  }
+
+  resolveRelationshipValue(relationshipSystem, fromId, toId) {
+    if (!relationshipSystem || !fromId || !toId) return 50;
+    const rel = relationshipSystem.getRelationship?.(fromId, toId);
+    if (typeof rel === 'number') return rel;
+    if (rel && typeof rel === 'object' && typeof rel.value === 'number') return rel.value;
+    return 50;
   }
 
   pickSpeaker(members) {
@@ -963,6 +1134,7 @@ class StrategyPhaseSystem {
       await this.lockPersonalTarget();
       await this.lockAlliances();
       this.triggerNpcScramble();
+      this.computeTribalTargetBoard();
     }
 
     this.showSummaryView();
@@ -984,6 +1156,12 @@ class StrategyPhaseSystem {
             action,
             targetId,
           });
+          if (targetId) {
+            this.updateNpcIntentTarget(npc.id, targetId, {
+              reason: `npcScramble:${action}`,
+              confidenceDelta: 0.06,
+            });
+          }
         }
       });
   }
