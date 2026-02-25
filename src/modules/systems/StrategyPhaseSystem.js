@@ -38,6 +38,14 @@ class StrategyPhaseSystem {
       .replace(/view$/i, '');
   }
 
+  getAllianceKey(allianceOrId) {
+    if (!allianceOrId) return null;
+    if (typeof allianceOrId === 'string' || typeof allianceOrId === 'number') {
+      return String(allianceOrId);
+    }
+    return allianceOrId.id ?? allianceOrId.allianceId ?? null;
+  }
+
   reset({ skipGameManager = false } = {}) {
     this.isActive = false;
     this.playerTribeSafe = false;
@@ -161,6 +169,7 @@ class StrategyPhaseSystem {
     if (!this.playerTribeSafe) {
       this.promptPersonalTarget();
       this.scheduleAllianceMeetings();
+      this.seedNpcIntentTargetsForPhase();
     }
 
     this.beginStrategyBeats();
@@ -272,7 +281,7 @@ class StrategyPhaseSystem {
         const memberIds = toMemberIds(alliance);
         const isPlayerMember = memberIds.some((id) => String(id) === String(playerId));
         if (!isPlayerMember || memberIds.length < 2) return null;
-        const allianceId = alliance.id ?? alliance.allianceId ?? `alliance-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const allianceId = this.getAllianceKey(alliance) ?? `alliance-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const spot = meetingSpots[Math.floor(Math.random() * meetingSpots.length)];
         this.logFact({ type: 'allianceMeetingStart', allianceId, location: spot });
         const locationKey = this.normalizeViewKey(spot);
@@ -438,6 +447,7 @@ class StrategyPhaseSystem {
       const keepLoggedByAlliance = new Set();
 
       alliances.forEach((alliance) => {
+        const allianceKey = this.getAllianceKey(alliance) ?? `alliance-${alliance.name || 'unnamed'}`;
         const entry = document.createElement('div');
         entry.className = 'strategy-entry';
 
@@ -448,7 +458,7 @@ class StrategyPhaseSystem {
 
         const targetRow = document.createElement('div');
         targetRow.className = 'strategy-entry-row';
-        const resolveCurrentTargetId = () => this.allianceTargets.get(alliance.id);
+        const resolveCurrentTargetId = () => this.allianceTargets.get(allianceKey);
         const target = gameManager.survivors?.find((s) => s.id === resolveCurrentTargetId());
         const targetLabel = document.createElement('div');
         targetLabel.textContent = target ? `${target.firstName}` : 'No target chosen';
@@ -460,9 +470,9 @@ class StrategyPhaseSystem {
         keepBtn.textContent = 'Keep';
         keepBtn.className = 'rect-button';
         keepBtn.addEventListener('click', () => {
-          if (keepLoggedByAlliance.has(alliance.id)) return;
-          keepLoggedByAlliance.add(alliance.id);
-          this.logFact({ type: 'allianceTargetConfirmed', allianceId: alliance.id, targetId: resolveCurrentTargetId() || null });
+          if (keepLoggedByAlliance.has(allianceKey)) return;
+          keepLoggedByAlliance.add(allianceKey);
+          this.logFact({ type: 'allianceTargetConfirmed', allianceId: allianceKey, targetId: resolveCurrentTargetId() || null });
         });
 
         const changeBtn = document.createElement('button');
@@ -478,8 +488,8 @@ class StrategyPhaseSystem {
             tribeColor: tribe?.color || tribe?.tribeColor,
             defaultSelection: resolveCurrentTargetId() || options[0]?.id,
             onConfirm: (selected) => {
-              this.allianceTargets.set(alliance.id, selected);
-              this.logFact({ type: 'allianceTarget', allianceId: alliance.id, targetId: selected });
+              this.allianceTargets.set(allianceKey, selected);
+              this.logFact({ type: 'allianceTarget', allianceId: allianceKey, targetId: selected });
               targetLabel.textContent = gameManager.survivors?.find((s) => s.id === selected)?.firstName || 'Target chosen';
             },
           });
@@ -521,13 +531,16 @@ class StrategyPhaseSystem {
 
   beginStrategyBeats() {
     this.beatIntervalId && clearInterval(this.beatIntervalId);
+    if (this.playerTribeSafe) return;
     this.beatIntervalId = setInterval(() => this.runStrategyBeat(), 12000);
   }
 
-  updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0 } = {}) {
+  updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0, absoluteConfidence = null } = {}) {
     if (!npcId || !targetId) return null;
     const priorMeta = this.npcIntentMeta.get(npcId) || { confidence: 0.5, reason: 'seed', updatedAt: Date.now() };
-    const nextConfidence = Math.min(1, Math.max(0, (Number(priorMeta.confidence) || 0.5) + (Number(confidenceDelta) || 0)));
+    const fallbackConfidence = (Number(priorMeta.confidence) || 0.5) + (Number(confidenceDelta) || 0);
+    const seededConfidence = absoluteConfidence == null ? fallbackConfidence : Number(absoluteConfidence);
+    const nextConfidence = Math.min(1, Math.max(0, seededConfidence));
 
     this.npcIntentTargets.set(npcId, targetId);
     const meta = {
@@ -550,6 +563,50 @@ class StrategyPhaseSystem {
     return meta;
   }
 
+  seedNpcIntentTargetsForPhase() {
+    if (this.playerTribeSafe) return 0;
+    const tribe = gameManager.getPlayerTribe?.();
+    if (!tribe) return 0;
+
+    const npcMembers = (tribe.members || []).filter((m) => m && !m.isPlayer);
+    if (!npcMembers.length) return 0;
+
+    const pickThreatTargetForNpc = (npc) => {
+      const candidates = npcMembers.filter((m) => String(m.id) !== String(npc.id));
+      if (!candidates.length) return null;
+
+      let best = null;
+      let bestScore = -Infinity;
+      const relationshipSystem = gameManager?.systems?.relationshipSystem;
+      candidates.forEach((candidate) => {
+        const threatScore = ((Number(candidate.physical) || 50) + (Number(candidate.mental) || 50)) / 2;
+        const relationshipValue = this.resolveRelationshipValue(relationshipSystem, npc.id, candidate.id);
+        const score = threatScore + (100 - relationshipValue);
+        if (score > bestScore) {
+          best = candidate;
+          bestScore = score;
+        }
+      });
+
+      return best?.id || null;
+    };
+
+    let seededCount = 0;
+    npcMembers.forEach((npc) => {
+      const seededTargetId = this.personalTargetId || pickThreatTargetForNpc(npc);
+      if (!seededTargetId) return;
+      this.updateNpcIntentTarget(npc.id, seededTargetId, {
+        reason: 'seed:startPhase',
+        confidenceDelta: 0,
+        absoluteConfidence: 0.35,
+      });
+      seededCount += 1;
+    });
+
+    window.debugBanner?.('NPC-SEED', `${seededCount} intents seeded`);
+    return seededCount;
+  }
+
   computeTribalTargetBoard() {
     const heatMap = {};
     const increment = (targetId, weight = 1) => {
@@ -568,7 +625,7 @@ class StrategyPhaseSystem {
     const allianceSystem = gameManager?.systems?.allianceSystem;
     const alliances = allianceSystem?.getAlliancesForMember?.(playerId) || [];
     alliances.forEach((alliance) => {
-      const allianceId = alliance?.id ?? alliance?.allianceId;
+      const allianceId = this.getAllianceKey(alliance);
       increment(this.allianceTargets.get(allianceId));
     });
 
@@ -605,6 +662,7 @@ class StrategyPhaseSystem {
 
   runStrategyBeat() {
     if (!this.isActive || gameManager.gameState !== GameState.CAMP) return;
+    if (this.playerTribeSafe) return;
     if (gameManager.flags?.campEventActive) return;
 
     const tribe = gameManager.getPlayerTribe();
@@ -683,10 +741,11 @@ class StrategyPhaseSystem {
     };
 
     const runDiscussion = (initial) => {
+      const allianceKey = this.getAllianceKey(alliance) ?? `alliance-${alliance.name || 'unnamed'}`;
       const stances = new Map();
       const proposedBy = initial.by;
       stances.set(initial.targetId, [{ speakerId: proposedBy.id, stance: 'propose' }]);
-      this.logFact({ type: 'targetProposed', allianceId: alliance.id, speakerId: proposedBy.id, targetId: initial.targetId });
+      this.logFact({ type: 'targetProposed', allianceId: allianceKey, speakerId: proposedBy.id, targetId: initial.targetId });
 
       npcMembers.forEach((npc) => {
         if (npc.id === proposedBy.id) return;
@@ -703,7 +762,7 @@ class StrategyPhaseSystem {
         const bucket = stances.get(targetId) || [];
         bucket.push({ speakerId: npc.id, stance });
         stances.set(targetId, bucket);
-        this.logFact({ type: 'targetResponse', allianceId: alliance.id, speakerId: npc.id, stance, targetId });
+        this.logFact({ type: 'targetResponse', allianceId: allianceKey, speakerId: npc.id, stance, targetId });
         addLine(`${npc.firstName} ${stance === 'counter' ? 'counters with' : stance === 'reluctant' ? 'softly agrees on' : stance === 'silent' ? 'stays quiet about' : 'backs'} ${this.getName(targetId)}.`);
       });
 
@@ -717,11 +776,11 @@ class StrategyPhaseSystem {
         }
       });
 
-      this.logFact({ type: 'allianceTargetLocked', allianceId: alliance.id, targetId: chosenTarget });
-      this.allianceTargets.set(alliance.id, chosenTarget);
+      this.logFact({ type: 'allianceTargetLocked', allianceId: allianceKey, targetId: chosenTarget });
+      this.allianceTargets.set(allianceKey, chosenTarget);
       npcMembers.forEach((npc) => {
         this.updateNpcIntentTarget(npc.id, chosenTarget, {
-          reason: `allianceLock:${alliance.id}`,
+          reason: `allianceLock:${allianceKey}`,
           confidenceDelta: 0.04,
         });
       });
@@ -789,6 +848,7 @@ class StrategyPhaseSystem {
   }
 
   offerSway(currentTarget, alliance, modal, overlay, addLine, finishMeeting) {
+    const allianceKey = this.getAllianceKey(alliance) ?? `alliance-${alliance.name || 'unnamed'}`;
     const actionRow = document.createElement('div');
     actionRow.className = 'strategy-actions';
 
@@ -816,26 +876,26 @@ class StrategyPhaseSystem {
         onConfirm: (targetId) => {
           const probability = this.calculateSwayProbability(alliance);
           const success = Math.random() < probability;
-          this.logFact({ type: 'playerSwayAttempt', allianceId: alliance.id, targetId, success, probability });
+          this.logFact({ type: 'playerSwayAttempt', allianceId: allianceKey, targetId, success, probability });
           window.debugBanner?.('SWAY-PROB', `${(probability * 100).toFixed(0)}% -> ${success ? 'success' : 'fail'} (${this.getName(targetId)})`);
           if (success) {
             addLine(`You sway them toward ${this.getName(targetId)}!`);
-            this.allianceTargets.set(alliance.id, targetId);
-            this.logFact({ type: 'allianceTargetLocked', allianceId: alliance.id, targetId });
+            this.allianceTargets.set(allianceKey, targetId);
+            this.logFact({ type: 'allianceTargetLocked', allianceId: allianceKey, targetId });
             const memberIds = alliance.memberIds || [];
             memberIds
               .map((id) => gameManager.survivors?.find((s) => s.id === id))
               .filter((s) => s && !s.isPlayer)
               .forEach((npc) => {
                 this.updateNpcIntentTarget(npc.id, targetId, {
-                  reason: `playerSwaySuccess:${alliance.id}`,
+                  reason: `playerSwaySuccess:${allianceKey}`,
                   confidenceDelta: 0.05,
                 });
               });
             finishMeeting(targetId);
           } else {
             addLine('They hesitate and stick with the original plan.');
-            this.logFact({ type: 'suspicionGained', allianceId: alliance.id, speakerId: alliance.id, aboutId: gameManager.player?.id, reason: 'pushed against majority' });
+            this.logFact({ type: 'suspicionGained', allianceId: allianceKey, speakerId: allianceKey, aboutId: gameManager.player?.id, reason: 'pushed against majority' });
             finishMeeting(currentTarget);
           }
           modal.removeChild(actionRow);
@@ -969,7 +1029,7 @@ class StrategyPhaseSystem {
   getRumorLeakChance(speaker) {
     const relSystem = gameManager.systems?.relationshipSystem;
     const player = gameManager.getPlayerSurvivor();
-    const rel = relSystem?.getRelationship?.(player?.id, speaker?.id)?.value ?? 50;
+    const rel = this.resolveRelationshipValue(relSystem, player?.id, speaker?.id);
     const base = rel >= 70 ? 0.35 : rel >= 50 ? 0.25 : 0.15;
 
     if (speaker?.gameplayStyle === 'Lethal Charmer') return base + 0.1;
