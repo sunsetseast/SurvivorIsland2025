@@ -568,11 +568,13 @@ class StrategyPhaseSystem {
     const tribe = gameManager.getPlayerTribe?.();
     if (!tribe) return 0;
 
-    const npcMembers = (tribe.members || []).filter((m) => m && !m.isPlayer);
+    const npcMembers = (tribe.members || []).filter((m) => m && !m.isPlayer && this.isMemberAvailableForTargeting(m));
     if (!npcMembers.length) return 0;
 
     const pickThreatTargetForNpc = (npc) => {
-      const candidates = npcMembers.filter((m) => String(m.id) !== String(npc.id));
+      const candidates = (tribe.members || []).filter(
+        (m) => m && String(m.id) !== String(npc.id) && this.isMemberAvailableForTargeting(m)
+      );
       if (!candidates.length) return null;
 
       let best = null;
@@ -673,6 +675,7 @@ class StrategyPhaseSystem {
 
     const action = this.pickAction(speaker);
     const targetId = this.pickTargetForAction(action, tribe.members, speaker);
+    this.logPlayerNameFloatedIfNeeded({ speaker, targetId, action });
 
     if (targetId) {
       this.firstTargetIntroduced = true;
@@ -1106,7 +1109,9 @@ class StrategyPhaseSystem {
   pickTargetForAction(action, members, speaker) {
     if (action === 'DEFLECT' || action === 'SILENT') return null;
 
-    const others = members.filter((m) => m.id !== speaker.id && !m.isPlayer);
+    const others = (members || []).filter(
+      (m) => m && String(m.id) !== String(speaker?.id) && this.isMemberAvailableForTargeting(m)
+    );
     if (!others.length) return null;
 
     if (!this.firstTargetIntroduced && action === 'ENDORSE') {
@@ -1114,15 +1119,112 @@ class StrategyPhaseSystem {
       action = 'SOFT_COUNTER';
     }
 
+    const player = others.find((m) => m.isPlayer);
+    const trustSystem = gameManager?.systems?.trustSystem;
+    const relationshipSystem = gameManager?.systems?.relationshipSystem;
+    const trustToPlayer = player ? this.resolveTrustValue(trustSystem, speaker?.id, player.id) : null;
+    const relToPlayer = player ? this.resolveRelationshipValue(relationshipSystem, speaker?.id, player.id) : null;
+    const rankedThreats = others
+      .map((member) => ({ id: member.id, threat: this.calculateThreatScore(member) }))
+      .sort((a, b) => b.threat - a.threat);
+    const playerThreatRank = player ? rankedThreats.findIndex((entry) => String(entry.id) === String(player.id)) + 1 : -1;
+    const playerIsTopThreat = playerThreatRank > 0 && playerThreatRank <= Math.min(3, rankedThreats.length);
+    const scrambleAction = this.isScrambleLikeAction(action);
+    const playerGateOpen = !!player && (
+      trustToPlayer < 45
+      || relToPlayer < 45
+      || playerIsTopThreat
+      || scrambleAction
+    );
+
+    const weightedCandidates = others.map((candidate) => {
+      let weight = 1;
+      if (candidate.isPlayer && !playerGateOpen) {
+        weight *= 0.15;
+      }
+      return { candidate, weight };
+    }).filter((entry) => entry.weight > 0);
+
+    if (!weightedCandidates.length) return null;
+
     const competitiveBias = speaker.gameplayStyle === 'Competitive';
     if (competitiveBias) {
-      const challengeThreats = others.filter((m) => m.physical >= 70 || m.mental >= 70);
+      const challengeThreats = weightedCandidates
+        .map((entry) => entry.candidate)
+        .filter((m) => m.physical >= 70 || m.mental >= 70 || this.calculateThreatScore(m) >= 70);
       if (challengeThreats.length && Math.random() < 0.6) {
         return challengeThreats[Math.floor(Math.random() * challengeThreats.length)].id;
       }
     }
 
-    return others[Math.floor(Math.random() * others.length)].id;
+    const totalWeight = weightedCandidates.reduce((sum, entry) => sum + entry.weight, 0);
+    let roll = Math.random() * totalWeight;
+    for (const entry of weightedCandidates) {
+      roll -= entry.weight;
+      if (roll <= 0) {
+        return entry.candidate.id;
+      }
+    }
+
+    const fallback = weightedCandidates[weightedCandidates.length - 1]?.candidate || null;
+    return fallback?.id || null;
+  }
+
+  isMemberAvailableForTargeting(member) {
+    if (!member) return false;
+    return !(
+      member.eliminated
+      || member.isEliminated
+      || member.out
+      || member.isOut
+      || member.outOfGame
+      || member.isOutOfGame
+    );
+  }
+
+  calculateThreatScore(member) {
+    if (!member) return 50;
+    const physical = Number(member.physical);
+    const mental = Number(member.mental);
+    const social = Number(member.social);
+    const normalize = (value) => (Number.isFinite(value) ? value : 50);
+    return (normalize(physical) + normalize(mental) + normalize(social)) / 3;
+  }
+
+  isScrambleLikeAction(action) {
+    const normalized = String(action || '').trim().toLowerCase();
+    return ['whispers', 'paranoia', 'scramble', 'namedrop', 'name_drop', 'name-drop'].includes(normalized);
+  }
+
+  addDebugBanner(message, color = 'orange', duration = 70) {
+    if (typeof window.addDebugBanner === 'function') {
+      window.addDebugBanner(message, color, duration);
+      return;
+    }
+    window.debugBanner?.('PLAYER-TARGET', message);
+  }
+
+  logPlayerNameFloatedIfNeeded({ speaker, targetId, action } = {}) {
+    if (!speaker || !targetId) return;
+    const player = gameManager.getPlayerSurvivor?.();
+    if (!player || String(targetId) !== String(player.id)) return;
+
+    const trustSystem = gameManager?.systems?.trustSystem;
+    const relationshipSystem = gameManager?.systems?.relationshipSystem;
+    const trustToPlayer = this.resolveTrustValue(trustSystem, speaker?.id, player.id);
+    const relToPlayer = this.resolveRelationshipValue(relationshipSystem, speaker?.id, player.id);
+    const playerThreat = this.calculateThreatScore(player);
+
+    this.addDebugBanner(`🎯 Player name floated by ${speaker.firstName} -> ${player.firstName} (${action})`, 'orange', 70);
+    this.logFact({
+      type: 'playerNameFloated',
+      speakerId: speaker.id,
+      targetId: player.id,
+      action,
+      trustToPlayer,
+      relToPlayer,
+      playerThreat,
+    });
   }
 
   getRumorLeakChance(speaker) {
@@ -1309,6 +1411,7 @@ class StrategyPhaseSystem {
         if (Math.random() < 0.4) {
           const action = this.pickAction(npc);
           const targetId = this.pickTargetForAction(action, tribe.members, npc);
+          this.logPlayerNameFloatedIfNeeded({ speaker: npc, targetId, action });
           this.logFact({
             type: 'npcScramble',
             speakerId: npc.id,
