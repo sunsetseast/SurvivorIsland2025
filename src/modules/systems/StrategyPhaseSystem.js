@@ -941,6 +941,7 @@ class StrategyPhaseSystem {
     let trustTotal = 0;
     let relTotal = 0;
     let styleBonus = 0;
+    let memberCount = 0;
 
     members.forEach((npc) => {
       const trustValue = this.resolveTrustValue(trustSystem, player?.id, npc.id);
@@ -948,33 +949,35 @@ class StrategyPhaseSystem {
       trustTotal += trustValue;
       relTotal += relationshipValue;
       styleBonus += this.calculateStyleModifierForSwayMember(npc);
+      memberCount += 1;
     });
 
-    const memberCount = Math.max(1, members.length);
-    const trustAvg = trustTotal / memberCount;
-    const relAvg = relTotal / memberCount;
+    const socialDivisor = Math.max(1, members.length);
+    const trustAvg = trustTotal / socialDivisor;
+    const relAvg = relTotal / socialDivisor;
+    const styleModifierAvg = memberCount > 0 ? (styleBonus / memberCount) : 0;
     const trustDelta = trustAvg - 50;
     const relDelta = relAvg - 50;
     const socialComponent = ((trustDelta * 0.6) + (relDelta * 0.4)) / 250;
-    const rawProbability = 0.35 + socialComponent + styleBonus;
+    const rawProbability = 0.35 + socialComponent + styleModifierAvg;
     const probability = Math.min(0.8, Math.max(0.15, rawProbability));
 
     window.debugBanner?.(
       'SWAY-CALC',
-      `base:0.35 trustAvg:${trustAvg.toFixed(1)} relAvg:${relAvg.toFixed(1)} social:${socialComponent.toFixed(3)} style:${styleBonus.toFixed(3)} => ${(probability * 100).toFixed(0)}%`
+      `base:0.35 trustAvg:${trustAvg.toFixed(1)} relAvg:${relAvg.toFixed(1)} social:${socialComponent.toFixed(3)} styleAvg:${styleModifierAvg.toFixed(3)} => ${(probability * 100).toFixed(0)}%`
     );
 
     return {
       probability,
       trustAvg,
       relAvg,
-      styleModifier: styleBonus,
+      styleModifier: styleModifierAvg,
       breakdown: {
         base: 0.35,
         trustWeight: 0.6,
         relationshipWeight: 0.4,
         socialComponent,
-        styleModifier: styleBonus,
+        styleModifier: styleModifierAvg,
         unclampedProbability: rawProbability,
       },
     };
@@ -1192,8 +1195,8 @@ class StrategyPhaseSystem {
   }
 
   isScrambleLikeAction(action) {
-    const normalized = String(action || '').trim().toLowerCase();
-    return ['whispers', 'paranoia', 'scramble', 'namedrop', 'name_drop', 'name-drop'].includes(normalized);
+    const normalized = String(action || '').trim().toUpperCase();
+    return normalized === 'HARD_COUNTER' || normalized === 'SOFT_COUNTER';
   }
 
   addDebugBanner(message, color = 'orange', duration = 70) {
