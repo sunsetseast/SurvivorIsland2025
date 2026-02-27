@@ -66,6 +66,7 @@ class GameManager {
     this.isMerged = false;
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
+    this.gameHistory = { tribals: [] };
     this.state = {};
     // Tracks whether the player stepped into an early leadership role (e.g., Day 1 First Impressions)
     // Set to true when those events mark the player as the top leader.
@@ -91,6 +92,7 @@ class GameManager {
     eventManager.clear();
     eventManager.setDebug(false);
     screenManager.initialize();
+    this._attachTribalCompleteListener();
 
     timerManager.clearAll();
 
@@ -108,6 +110,33 @@ class GameManager {
     this.gameState = GameState.WELCOME;
     this.isInitialized = true;
     eventManager.publish(GameEvents.GAME_INITIALIZED);
+  }
+
+
+  _attachTribalCompleteListener() {
+    if (this._tribalCompleteListenerAttached) return;
+    this._tribalCompleteListenerAttached = true;
+
+    eventManager.subscribe('TRIBAL_COMPLETE', (tribalSummary = {}) => {
+      if (!this.gameHistory) this.gameHistory = { tribals: [] };
+      if (!Array.isArray(this.gameHistory.tribals)) this.gameHistory.tribals = [];
+      this.gameHistory.tribals.push(tribalSummary);
+
+      const playerId = this.player?.id;
+      const playerEliminated = Boolean(playerId && tribalSummary.eliminatedId === playerId);
+      const juryInactive = !this.isMerged;
+
+      if (playerEliminated && juryInactive) {
+        this.showGameOverScreen();
+        return;
+      }
+
+      this.day += 1;
+      this.gamePhase = GamePhase.PRE_CHALLENGE;
+      this.dayTimer = 120;
+      this.setGameState(GameState.CAMP);
+      screenManager.showScreen('camp');
+    });
   }
 
   // ----------------------------
@@ -193,6 +222,7 @@ class GameManager {
     this.isMerged = false;
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
+    this.gameHistory = { tribals: [] };
     this.state = {};
     this.gamePhase = GamePhase.PRE_GAME;
     this.dayTimer = 7200;
@@ -715,6 +745,7 @@ class GameManager {
       isMerged: this.isMerged,
       flags: this.flags,
       campLog: this.campLog,
+      gameHistory: this.gameHistory,
       state: this.state,
       gameSettings: this.gameSettings,
       systemsState: {
@@ -734,6 +765,7 @@ class GameManager {
     Object.assign(this, data);
     this.flags = data.flags || { day1FirstImpressionsCompleted: false };
     this.campLog = data.campLog || [];
+    this.gameHistory = data.gameHistory || { tribals: [] };
     this.state = data.state || {};
     this.survivors = (this.survivors || []).map(survivor => ({ ...survivor, laziness: survivor.laziness ?? 0 }));
     (this.tribes || []).forEach(tribe => {
