@@ -50,6 +50,7 @@ export const GameEvents = {
 
   // Tribal council events
   TRIBAL_COUNCIL_STARTED: 'tribalCouncil:started',
+  TRIBAL_COUNCIL_COMPLETE: 'tribalCouncil:complete',
   VOTE_CAST: 'vote:cast',
   SURVIVOR_ELIMINATED: 'survivor:eliminated',
 

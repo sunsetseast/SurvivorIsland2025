@@ -67,6 +67,7 @@ class GameManager {
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
     this.gameHistory = { tribals: [] };
+    this.tribalCouncilLog = [];
     this.state = {};
     // Tracks whether the player stepped into an early leadership role (e.g., Day 1 First Impressions)
     // Set to true when those events mark the player as the top leader.
@@ -117,10 +118,23 @@ class GameManager {
     if (this._tribalCompleteListenerAttached) return;
     this._tribalCompleteListenerAttached = true;
 
-    eventManager.subscribe('TRIBAL_COMPLETE', (tribalSummary = {}) => {
+    eventManager.subscribe(GameEvents.TRIBAL_COUNCIL_COMPLETE, (tribalSummary = {}) => {
       if (!this.gameHistory) this.gameHistory = { tribals: [] };
       if (!Array.isArray(this.gameHistory.tribals)) this.gameHistory.tribals = [];
       this.gameHistory.tribals.push(tribalSummary);
+
+      if (!Array.isArray(this.tribalCouncilLog)) this.tribalCouncilLog = [];
+      const eliminatedSurvivor = this.survivors.find(survivor => survivor.id === tribalSummary.eliminatedId) || null;
+      const tribalLogEntry = {
+        ...tribalSummary,
+        day: this.day,
+        eliminatedName: eliminatedSurvivor?.name || null
+      };
+      this.tribalCouncilLog.push(tribalLogEntry);
+
+      if (tribalSummary.eliminatedId) {
+        this.eliminateSurvivor(tribalSummary.eliminatedId, tribalSummary.reason || 'vote');
+      }
 
       const playerId = this.player?.id;
       const playerEliminated = Boolean(playerId && tribalSummary.eliminatedId === playerId);
@@ -133,7 +147,7 @@ class GameManager {
 
       this.day += 1;
       this.gamePhase = GamePhase.PRE_CHALLENGE;
-      this.dayTimer = 120;
+      this.dayTimer = 7200;
       this.setGameState(GameState.CAMP);
       screenManager.showScreen('camp');
     });
@@ -223,6 +237,7 @@ class GameManager {
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
     this.gameHistory = { tribals: [] };
+    this.tribalCouncilLog = [];
     this.state = {};
     this.gamePhase = GamePhase.PRE_GAME;
     this.dayTimer = 7200;
@@ -647,18 +662,66 @@ class GameManager {
     eventManager.publish(GameEvents.TRIBES_MERGED, { mergedTribe: this.tribes[0] });
   }
 
-  eliminateSurvivor(survivor) {
+  eliminateSurvivor(survivorOrId, reason = 'vote') {
+    const survivorId = typeof survivorOrId === 'string' ? survivorOrId : survivorOrId?.id;
+    if (!survivorId) return;
+
+    const survivor = this.survivors.find(entry => entry.id === survivorId) || survivorOrId;
     if (!survivor) return;
-    const tribe = this.tribes.find(t => t.members.some(m => m.id === survivor.id));
-    if (!tribe) return;
-    tribe.members = tribe.members.filter(m => m.id !== survivor.id);
+
+    survivor.isOut = true;
+
+    let sourceTribe = null;
+    this.tribes.forEach(tribe => {
+      if (tribe.members.some(member => member.id === survivorId)) {
+        sourceTribe = sourceTribe || tribe;
+        tribe.members = tribe.members.filter(member => member.id !== survivorId);
+      }
+    });
+
+    if (!sourceTribe) return;
     if (this.isMerged) this.jury.push(survivor);
+
     eventManager.publish(GameEvents.SURVIVOR_ELIMINATED, {
       eliminatedSurvivor: survivor,
-      tribe: tribe.id,
-      addedToJury: this.isMerged
+      tribe: sourceTribe.id,
+      addedToJury: this.isMerged,
+      reason,
+      day: this.day
     });
     if (survivor.isPlayer) this.setGameState(GameState.GAME_OVER);
+  }
+
+  consumeIdolForSurvivor(survivorId, context = {}) {
+    if (!survivorId) return false;
+
+    const idolSystem = this.systems?.idolSystem;
+    const inventory = idolSystem?.survivorInventories?.get?.(survivorId);
+    const idolToUse = inventory?.idols?.find(idol => !idol?.isUsed && !idol?.played);
+    if (!idolToUse) {
+      return false;
+    }
+
+    idolToUse.isUsed = true;
+    idolToUse.played = true;
+    idolToUse.usedOnDay = this.day;
+
+    const tribeId = idolToUse.tribeId;
+    const tribeIdolState = idolSystem?.tribeIdolStates?.get?.(tribeId);
+    if (tribeIdolState && tribeIdolState.id === idolToUse.id) {
+      tribeIdolState.isUsed = true;
+      tribeIdolState.usedOnDay = this.day;
+    }
+
+    eventManager.publish(GameEvents.IDOL_PLAYED, {
+      survivorId,
+      idolId: idolToUse.id,
+      tribeId,
+      day: this.day,
+      ...context
+    });
+
+    return true;
   }
 
   decreaseWaterForAll(amount) {
@@ -746,6 +809,7 @@ class GameManager {
       flags: this.flags,
       campLog: this.campLog,
       gameHistory: this.gameHistory,
+      tribalCouncilLog: this.tribalCouncilLog,
       state: this.state,
       gameSettings: this.gameSettings,
       systemsState: {
@@ -766,6 +830,7 @@ class GameManager {
     this.flags = data.flags || { day1FirstImpressionsCompleted: false };
     this.campLog = data.campLog || [];
     this.gameHistory = data.gameHistory || { tribals: [] };
+    this.tribalCouncilLog = data.tribalCouncilLog || [];
     this.state = data.state || {};
     this.survivors = (this.survivors || []).map(survivor => ({ ...survivor, laziness: survivor.laziness ?? 0 }));
     (this.tribes || []).forEach(tribe => {
