@@ -1,4 +1,5 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
+import eventManager, { GameEvents } from '../core/EventManager.js';
 
 const ASSET_BASE = 'Assets/TribalCouncil';
 
@@ -10,12 +11,17 @@ export default class TribalCouncilView {
     this.onComplete = onComplete;
     this.revealQueue = [];
     this.result = null;
+    this.tribalSummary = null;
     this.playerVote = null;
     this.sitdUsed = false;
+    this.attendingTribeId = null;
+    this.isCompleting = false;
   }
 
   start() {
     if (!this.container) return;
+    const playerTribe = this.gameManager.getPlayerTribe?.();
+    this.attendingTribeId = playerTribe?.tribeId ?? playerTribe?.id ?? null;
     this.renderArrival();
   }
 
@@ -36,7 +42,15 @@ export default class TribalCouncilView {
   }
 
   renderSeating() {
-    const tribe = this.gameManager.getPlayerTribe?.();
+    const tribe = this._getAttendingTribe();
+    if (!tribe) {
+      this._renderScene({
+        background: `${ASSET_BASE}/arrival.png`,
+        text: 'Unable to start Tribal Council: no attending tribe found.',
+        buttonLabel: null
+      });
+      return;
+    }
     const alive = (tribe?.members || []).filter(member => !member.isOut);
     this._renderScene({
       background: this._resolveTribalBackground(alive.length),
@@ -73,7 +87,7 @@ export default class TribalCouncilView {
 
   renderVotingBooth(notice = '') {
     const player = this.gameManager.getPlayerSurvivor?.();
-    const hasLostVote = Boolean(player?.lostVote || player?.penalties?.lostVote);
+    const hasLostVote = this.gameManager.hasLostVote?.(player) === true;
 
     if (hasLostVote) {
       this._renderScene({
@@ -128,7 +142,7 @@ export default class TribalCouncilView {
   }
 
   openTargetGrid() {
-    const tribe = this.gameManager.getPlayerTribe?.();
+    const tribe = this._getAttendingTribe();
     const player = this.gameManager.getPlayerSurvivor?.();
     const targets = (tribe?.members || []).filter(member => (
       !member.isOut
@@ -169,7 +183,7 @@ export default class TribalCouncilView {
 
   renderIdolWindow() {
     const player = this.gameManager.getPlayerSurvivor?.();
-    const tribe = this.gameManager.getPlayerTribe?.();
+    const tribe = this._getAttendingTribe();
     const members = (tribe?.members || []).filter(member => !member.isOut);
     const hasIdol = this.tribalCouncilSystem?.playerHasIdol?.(player?.id);
 
@@ -218,26 +232,45 @@ export default class TribalCouncilView {
   }
 
   renderVoteReading() {
-    const tribe = this.gameManager.getPlayerTribe?.();
-    const attendingTribeId = tribe?.tribeId ?? tribe?.id;
-    this.result = this.tribalCouncilSystem.runPreMergeTribal({ attendingTribeId });
-    this.revealQueue = this.tribalCouncilSystem.getVoteRevealQueue();
+    if (!this.attendingTribeId) {
+      this._renderScene({
+        background: `${ASSET_BASE}/voteread.png`,
+        text: 'Tribal Council cannot proceed: attending tribe missing.',
+        buttonLabel: 'Continue',
+        onNext: () => this.finish()
+      });
+      return;
+    }
+
+    this.tribalSummary = this.tribalCouncilSystem.runPreMergeTribal({
+      attendingTribeId: this.attendingTribeId
+    });
+    this.result = this.tribalSummary;
+    this.revealQueue = [...(this.tribalSummary?.voteOrder || [])];
+    const revealedCounts = {};
 
     let index = 0;
     const renderCurrent = () => {
       const current = this.revealQueue[index];
-      const target = (this.gameManager.survivors || []).find(survivor => survivor.id === current?.targetId);
-      const targetName = target?.name || 'Unknown';
+      const targetName = current?.targetName || 'Unknown';
+      if (current && !current.nullified) {
+        revealedCounts[current.targetId] = (revealedCounts[current.targetId] || 0) + 1;
+      }
       const label = current
-        ? (current.revealType === 'NULLIFIED' ? `${targetName} (Does not count)` : targetName)
+        ? (current.nullified ? `${targetName} (Does not count)` : targetName)
         : 'Done';
+
+      const runningTop = Object.values(revealedCounts).reduce((top, value) => Math.max(top, value), 0);
+      const reachedMajority = runningTop >= (this.tribalSummary?.majorityThreshold || Number.MAX_SAFE_INTEGER);
+      const atLastReveal = index >= this.revealQueue.length - 1;
+      const shouldFinishReading = reachedMajority || atLastReveal;
 
       this._renderScene({
         background: `${ASSET_BASE}/voteread.png`,
         text: label,
-        buttonLabel: index < this.revealQueue.length - 1 ? 'Next Vote' : 'Continue',
+        buttonLabel: shouldFinishReading ? 'Continue' : 'Next Vote',
         onNext: () => {
-          if (index < this.revealQueue.length - 1) {
+          if (!shouldFinishReading) {
             index += 1;
             renderCurrent();
             return;
@@ -251,7 +284,7 @@ export default class TribalCouncilView {
   }
 
   renderSnuff() {
-    const tribe = this.gameManager.getPlayerTribe?.();
+    const tribe = this._getAttendingTribe();
     const eliminated = (this.gameManager.survivors || []).find(survivor => survivor.id === this.result?.eliminatedId)
       || (tribe?.members || []).find(member => member.id === this.result?.eliminatedId);
     const tieMessage = this.result?.wasTie && !this.result?.eliminatedId
@@ -261,12 +294,19 @@ export default class TribalCouncilView {
     this._renderScene({
       background: `${ASSET_BASE}/snuff.jpeg`,
       text: tieMessage,
-      buttonLabel: 'Continue',
+      buttonLabel: 'Finish',
       onNext: () => this.finish()
     });
   }
 
   finish() {
+    if (this.isCompleting) return;
+    this.isCompleting = true;
+
+    if (this.tribalSummary) {
+      eventManager.publish(GameEvents.TRIBAL_COUNCIL_COMPLETE, this.tribalSummary);
+    }
+
     if (typeof this.onComplete === 'function') {
       this.onComplete(this.result);
     }
@@ -275,7 +315,7 @@ export default class TribalCouncilView {
   _renderScene({ background, text = '', portrait, buttonLabel, onNext, afterRender, disableNext = false, notice = '' } = {}) {
     clearChildren(this.container);
 
-    this.container.style.backgroundImage = background ? `url('${background}'), linear-gradient(rgba(10,10,10,0.55), rgba(10,10,10,0.55))` : '';
+    this._setBackground(background);
     this.container.style.backgroundSize = 'cover';
     this.container.style.backgroundPosition = 'center';
 
@@ -316,5 +356,28 @@ export default class TribalCouncilView {
     }
 
     this.container.appendChild(panel);
+  }
+
+  _getAttendingTribe() {
+    const tribes = this.gameManager.getTribes?.() || this.gameManager.tribes || [];
+    const tribe = tribes.find(candidate => String(candidate?.tribeId ?? candidate?.id) === String(this.attendingTribeId));
+    return tribe || null;
+  }
+
+  _setBackground(background) {
+    const fallback = `${ASSET_BASE}/12.png`;
+    if (!background) {
+      this.container.style.backgroundImage = '';
+      return;
+    }
+
+    const apply = (imagePath) => {
+      this.container.style.backgroundImage = `url('${imagePath}'), linear-gradient(rgba(10,10,10,0.55), rgba(10,10,10,0.55))`;
+    };
+
+    const testImage = new Image();
+    testImage.onload = () => apply(background);
+    testImage.onerror = () => apply(fallback);
+    testImage.src = background;
   }
 }

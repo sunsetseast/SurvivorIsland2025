@@ -46,6 +46,7 @@ export default class TribalCouncilSystem {
     this.tribalNumber += 1;
 
     this.buildTribeContext(attendingTribeId);
+    const day = this.gameManager.getDay?.() ?? null;
 
     for (const voter of this.voters) {
       if (this.sitdUsers.has(voter.id) || this.lostVoteIds.has(voter.id)) {
@@ -88,34 +89,53 @@ export default class TribalCouncilSystem {
 
     this.revealQueue = this._buildRevealQueue();
 
-    const finalTally = this.buildVoteTally();
+    const finalCounts = this.buildVoteTally();
+    const validVoteCount = this.voteRecords.filter(vote => !vote.wasNullified).length;
+    const nullifiedVoteCount = this.voteRecords.filter(vote => vote.wasNullified).length;
     const tribalTimestamp = Date.now();
     const attendingTribeIdResolved = this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null;
+    const survivors = this.gameManager.survivors || [];
+    const getName = (id) => survivors.find(member => member.id === id)?.name
+      || this.voters.find(member => member.id === id)?.name
+      || id;
 
     const tribalSummary = {
-      tribalNumber: this.tribalNumber,
-      tribeId: attendingTribeIdResolved,
+      day,
       attendingTribeId: attendingTribeIdResolved,
-      majorityThreshold: this.majorityThreshold,
-      votes: [...this.voteRecords],
-      shotResults: [...this.shotResults],
-      idolPlays: [...this.idolPlays],
-      nullifiedVotes: [...this.nullifiedVotes],
-      finalTally,
-      tribalContext: {
-        attendingTribeId: attendingTribeIdResolved,
-        memberIds: this.voters.map(voter => voter.id)
-      },
+      votes: this.voteRecords.map(vote => ({
+        ...vote,
+        voterName: getName(vote.voterId),
+        targetName: getName(vote.targetId),
+        nullified: vote.wasNullified
+      })),
+      validVoteCount,
+      nullifiedVoteCount,
+      immuneIds: [...this.immunityHolderIds],
+      idolPlays: this.idolPlays.map(play => ({
+        ...play,
+        playerId: play.playedById,
+        playerName: getName(play.playedById),
+        targetId: play.playedOnId,
+        targetName: getName(play.playedOnId)
+      })),
+      shotResults: this.shotResults.map(result => ({
+        ...result,
+        playerName: getName(result.playerId)
+      })),
+      finalCounts,
       eliminatedId: this.eliminatedId,
-      reason: this.eliminatedId ? 'vote' : (this.wasTie ? 'tie' : 'noVotes'),
+      eliminatedName: this.eliminatedId ? getName(this.eliminatedId) : null,
+      majorityThreshold: this.majorityThreshold,
+      voteOrder: this.revealQueue.map(vote => ({
+        ...vote,
+        voterName: getName(vote.voterId),
+        targetName: getName(vote.targetId),
+        nullified: vote.wasNullified
+      })),
       wasTie: this.wasTie,
-      wentToRocks: this.wentToRocks,
-      timestamp: tribalTimestamp
+      createdAt: tribalTimestamp
     };
 
-    this.eventManager.publish(GameEvents.TRIBAL_COUNCIL_COMPLETE, tribalSummary);
-    // Backward compatibility for existing listeners.
-    this.eventManager.publish('TRIBAL_COMPLETE', tribalSummary);
     return tribalSummary;
   }
 
@@ -196,6 +216,7 @@ export default class TribalCouncilSystem {
   }
 
   resolveShotInTheDark() {
+    // SITD remains available to anyone who registered it, even if they also lost their normal vote.
     for (const playerId of this.sitdUsers) {
       const isSafe = Math.random() < 1 / 6;
       this.shotResults.push({
@@ -479,8 +500,7 @@ export default class TribalCouncilSystem {
   }
 
   _hasLostVote(survivor) {
-    const penalty = survivor?.penalties?.lostVote;
-    return penalty === true || penalty > 0 || survivor?.lostVote === true;
+    return this.gameManager.hasLostVote?.(survivor) === true;
   }
 
   _hasShotInTheDark(survivor) {
