@@ -36,7 +36,7 @@ export default class TribalCouncilView {
   }
 
   _resolveTribalBackground(count) {
-    const normalized = Number.isFinite(count) ? Math.max(2, Math.min(12, count)) : 6;
+    const normalized = Number.isFinite(count) ? Math.max(2, Math.min(12, count)) : 12;
     const candidate = `${ASSET_BASE}/${normalized}.png`;
     return candidate;
   }
@@ -87,12 +87,12 @@ export default class TribalCouncilView {
 
   renderVotingBooth(notice = '') {
     const player = this.gameManager.getPlayerSurvivor?.();
-    const hasLostVote = this.gameManager.hasLostVote?.(player) === true;
+    const hasVote = this.gameManager.hasVote?.(player) === true;
 
-    if (hasLostVote) {
+    if (!hasVote) {
       this._renderScene({
         background: `${ASSET_BASE}/novote.png`,
-        text: 'You have lost your vote.',
+        text: 'You have lost your vote. You cannot vote or play Shot In The Dark.',
         buttonLabel: 'Continue',
         onNext: () => this.renderIdolWindow()
       });
@@ -101,7 +101,9 @@ export default class TribalCouncilView {
 
     this._renderScene({
       background: `${ASSET_BASE}/votingbooth.png`,
-      text: 'Cast your vote or risk it with Shot In The Dark.',
+      text: this.sitdUsed
+        ? 'You have used your Shot in the Dark. You will not vote.'
+        : 'Cast your vote or risk it with Shot In The Dark.',
       buttonLabel: 'Continue',
       disableNext: !this.playerVote && !this.sitdUsed,
       onNext: () => {
@@ -119,16 +121,22 @@ export default class TribalCouncilView {
         const parchmentButton = createElement('button', {
           onclick: () => this.openTargetGrid()
         }, this.playerVote ? 'Change Vote' : 'Parchment');
+        parchmentButton.disabled = this.sitdUsed;
 
         actions.appendChild(parchmentButton);
 
-        if (player?.shotInTheDarkAvailable !== false) {
+        if (this.gameManager.canPlayShotInTheDark?.(player) === true && player?.shotInTheDarkAvailable !== false) {
           const sitdButton = createElement('button', {
             onclick: () => {
-              this.tribalCouncilSystem.registerPlayerShotInTheDark(player.id);
+              const registered = this.tribalCouncilSystem.registerPlayerShotInTheDark(player.id);
+              if (!registered) {
+                this.renderVotingBooth('Shot In The Dark is not available right now.');
+                return;
+              }
+
               this.sitdUsed = true;
               this.playerVote = null;
-              this.renderVotingBooth('Shot In The Dark selected.');
+              this.renderVotingBooth('You have used your Shot in the Dark. You will not vote.');
             }
           }, this.sitdUsed ? 'SITD Selected' : 'Bag (Shot In The Dark)');
           sitdButton.disabled = this.sitdUsed;
@@ -144,11 +152,17 @@ export default class TribalCouncilView {
   openTargetGrid() {
     const tribe = this._getAttendingTribe();
     const player = this.gameManager.getPlayerSurvivor?.();
+    const hasVote = this.gameManager.hasVote?.(player) === true;
+
+    if (!hasVote || this.sitdUsed) {
+      this.renderVotingBooth();
+      return;
+    }
+
     const targets = (tribe?.members || []).filter(member => (
       !member.isOut
       && member.id !== player?.id
-      && !member.hasImmunity
-      && !member.isImmune
+      && !this.gameManager.hasImmunity?.(member)
     ));
 
     this._renderScene({
@@ -168,7 +182,11 @@ export default class TribalCouncilView {
             'data-target-name': member.name || member.id,
             style: `border:${selected ? '2px solid #FFD700' : '1px solid #333'};background:${selected ? 'rgba(255,215,0,0.22)' : ''};`,
             onclick: () => {
-              this.tribalCouncilSystem.registerPlayerVote(player.id, member.id);
+              const registered = this.tribalCouncilSystem.registerPlayerVote(player.id, member.id);
+              if (!registered) {
+                this.renderVotingBooth('You cannot vote right now.');
+                return;
+              }
               this.playerVote = member.id;
               this.sitdUsed = false;
               this.renderVotingBooth();
@@ -184,7 +202,9 @@ export default class TribalCouncilView {
   renderIdolWindow() {
     const player = this.gameManager.getPlayerSurvivor?.();
     const tribe = this._getAttendingTribe();
-    const members = (tribe?.members || []).filter(member => !member.isOut);
+    const members = (tribe?.members || []).filter(member => (
+      !member.isOut && !this.gameManager.hasImmunity?.(member)
+    ));
     const hasIdol = this.tribalCouncilSystem?.playerHasIdol?.(player?.id);
 
     this._renderScene({
@@ -302,6 +322,7 @@ export default class TribalCouncilView {
   finish() {
     if (this.isCompleting) return;
     this.isCompleting = true;
+    this._disableActions();
 
     if (this.tribalSummary) {
       eventManager.publish(GameEvents.TRIBAL_COUNCIL_COMPLETE, this.tribalSummary);
@@ -310,6 +331,15 @@ export default class TribalCouncilView {
     if (typeof this.onComplete === 'function') {
       this.onComplete(this.result);
     }
+  }
+
+
+  _disableActions() {
+    if (!this.container) return;
+    this.container.querySelectorAll('button').forEach(button => {
+      button.disabled = true;
+      button.onclick = null;
+    });
   }
 
   _renderScene({ background, text = '', portrait, buttonLabel, onNext, afterRender, disableNext = false, notice = '' } = {}) {

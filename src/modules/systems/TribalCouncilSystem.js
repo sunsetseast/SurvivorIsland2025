@@ -47,27 +47,14 @@ export default class TribalCouncilSystem {
 
     this.buildTribeContext(attendingTribeId);
     const day = this.gameManager.getDay?.() ?? null;
+    const membersAtTribal = this.voters.map(member => ({
+      id: member.id,
+      name: member.name || member.id
+    }));
 
     for (const voter of this.voters) {
-      if (this.sitdUsers.has(voter.id) || this.lostVoteIds.has(voter.id)) {
-        continue;
-      }
-
-      const hasPlayerVote = this.playerVotes.has(voter.id);
-      if (voter.isPlayer && hasPlayerVote) {
-        const targetId = this.playerVotes.get(voter.id);
-        this._recordVote(voter.id, targetId, false);
-        continue;
-      }
-
-      if (!voter.isPlayer) {
-        continue;
-      }
-
-      const fallbackTarget = this.eligibleTargets.find(target => target.id !== voter.id);
-      if (fallbackTarget) {
-        this._recordVote(voter.id, fallbackTarget.id, false);
-      }
+      if (!voter.isPlayer) continue;
+      this._castPlayerVoteIfNeeded(voter);
     }
 
     this.computeNpcVotes();
@@ -102,6 +89,7 @@ export default class TribalCouncilSystem {
     const tribalSummary = {
       day,
       attendingTribeId: attendingTribeIdResolved,
+      membersAtTribal,
       votes: this.voteRecords.map(vote => ({
         ...vote,
         voterName: getName(vote.voterId),
@@ -160,15 +148,24 @@ export default class TribalCouncilSystem {
   }
 
   registerPlayerVote(voterId, targetId) {
+    if (!this.gameManager.hasVote?.(voterId)) {
+      return false;
+    }
     this.playerVotes.set(voterId, targetId);
     if (this.sitdUsers.has(voterId)) {
       this.sitdUsers.delete(voterId);
     }
+    return true;
   }
 
   registerPlayerShotInTheDark(voterId) {
+    // SITD requires a vote to spend this tribal.
+    if (!this.gameManager.canPlayShotInTheDark?.(voterId)) {
+      return false;
+    }
     this.sitdUsers.add(voterId);
     this.playerVotes.delete(voterId);
+    return true;
   }
 
   registerIdolPlay(playedById, playedOnId) {
@@ -216,8 +213,10 @@ export default class TribalCouncilSystem {
   }
 
   resolveShotInTheDark() {
-    // SITD remains available to anyone who registered it, even if they also lost their normal vote.
     for (const playerId of this.sitdUsers) {
+      if (!this.gameManager.canPlayShotInTheDark?.(playerId)) {
+        continue;
+      }
       const isSafe = Math.random() < 1 / 6;
       this.shotResults.push({
         type: 'shotInTheDark',
@@ -384,6 +383,8 @@ export default class TribalCouncilSystem {
 
   _recordVote(voterId, targetId, wasRevote = false, targetCollection = this.voteRecords) {
     if (!voterId || !targetId) return null;
+    // Safety: immune survivors cannot receive valid votes.
+    if (this.immunityHolderIds.has(targetId)) return null;
     const record = {
       voterId,
       targetId,
@@ -491,12 +492,7 @@ export default class TribalCouncilSystem {
   }
 
   _hasImmunity(survivor) {
-    return Boolean(
-      survivor?.hasImmunity
-      || survivor?.isImmune
-      || survivor?.advantages?.individualImmunity
-      || survivor?.immunity?.individual
-    );
+    return this.gameManager.hasImmunity?.(survivor) === true;
   }
 
   _hasLostVote(survivor) {
@@ -508,6 +504,36 @@ export default class TribalCouncilSystem {
     if (typeof value === 'boolean') return value;
     if (Number.isFinite(value)) return value > 0;
     return survivor?.shotInTheDarkAvailable !== false;
+  }
+
+  _castPlayerVoteIfNeeded(voter) {
+    if (!voter?.id) return;
+
+    if (this.sitdUsers.has(voter.id)) {
+      // SITD consumes the player's vote for this tribal.
+      this.playerVotes.delete(voter.id);
+      return;
+    }
+
+    if (!this.gameManager.hasVote?.(voter)) {
+      return;
+    }
+
+    if (this.playerVotes.has(voter.id)) {
+      const selectedTarget = this.playerVotes.get(voter.id);
+      this._recordVote(voter.id, selectedTarget, false);
+      return;
+    }
+
+    const fallbackTarget = this.eligibleTargets.find(target => (
+      target.id !== voter.id
+      && !target.isOut
+      && !this.immunityHolderIds.has(target.id)
+    ));
+
+    if (fallbackTarget) {
+      this._recordVote(voter.id, fallbackTarget.id, false);
+    }
   }
 
   _hasIdol(survivor) {
