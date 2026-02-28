@@ -36,6 +36,7 @@ export default class TribalCouncilSystem {
     this.idolProtectedIds = new Set();
     this.wasTie = false;
     this.wentToRocks = false;
+    this.forcedResolution = false;
     this.eliminatedId = null;
     this.majorityThreshold = 0;
   }
@@ -67,11 +68,36 @@ export default class TribalCouncilSystem {
       ? Object.entries(tally).filter(([, count]) => count === highest).map(([id]) => id)
       : [];
 
-    if (tiedCandidates.length > 1) {
-      this.wasTie = true;
-      this.eliminatedId = null;
-    } else {
+    const initialTie = tiedCandidates.length > 1;
+    let revoteOccurred = false;
+    let revoteVotes = [];
+    let revoteEligibleVoterIds = [];
+    let rockDrawOccurred = false;
+    let rockDrawEligible = [];
+    let rockDrawEliminatedId = null;
+
+    if (!initialTie) {
       this.eliminatedId = tiedCandidates[0] || null;
+    } else {
+      // Survivor tie flow: tie -> revote -> rocks.
+      this.wasTie = true;
+      revoteOccurred = true;
+      const revoteResult = this.runRevote(tiedCandidates);
+      revoteVotes = revoteResult.records;
+      revoteEligibleVoterIds = revoteResult.eligibleVoterIds;
+
+      if (revoteResult.eliminatedId) {
+        this.eliminatedId = revoteResult.eliminatedId;
+      } else {
+        // Still tied after revote: draw rocks among eligible non-immune, non-tied players.
+        this.wentToRocks = true;
+        rockDrawOccurred = true;
+        const rockResult = this.runRockDraw(tiedCandidates);
+        rockDrawEligible = rockResult.eligible;
+        rockDrawEliminatedId = rockResult.eliminatedId;
+        this.forcedResolution = Boolean(rockResult.forcedResolution);
+        this.eliminatedId = rockResult.eliminatedId;
+      }
     }
 
     this.revealQueue = this._buildRevealQueue();
@@ -121,6 +147,20 @@ export default class TribalCouncilSystem {
         nullified: vote.wasNullified
       })),
       wasTie: this.wasTie,
+      initialTie,
+      revoteOccurred,
+      revoteEligibleVoterIds,
+      revoteVotes: revoteVotes.map(vote => ({
+        ...vote,
+        voterName: getName(vote.voterId),
+        targetName: getName(vote.targetId),
+        nullified: vote.wasNullified
+      })),
+      rockDrawOccurred,
+      rockDrawEligible: rockDrawEligible.map(id => ({ id, name: getName(id) })),
+      rockDrawEliminatedId,
+      forcedResolution: this.forcedResolution,
+      tiedCandidateIds,
       createdAt: tribalTimestamp
     };
 
@@ -325,9 +365,10 @@ export default class TribalCouncilSystem {
   runRevote(tiedCandidateIds) {
     const revoteRecords = [];
     const revoters = this.voters.filter(voter => (
-      !this.immunityHolderIds.has(voter.id)
-      && !tiedCandidateIds.includes(voter.id)
+      !tiedCandidateIds.includes(voter.id)
       && !voter.isOut
+      && !this.lostVoteIds.has(voter.id)
+      && !this.sitdUsers.has(voter.id)
     ));
 
     for (const voter of revoters) {
@@ -348,7 +389,7 @@ export default class TribalCouncilSystem {
         }
       }
 
-      this._recordVote(voter.id, selected, true, revoteRecords);
+      this._recordVote(voter.id, selected, true, revoteRecords, 'revote');
     }
 
     this.voteRecords.push(...revoteRecords);
@@ -358,11 +399,11 @@ export default class TribalCouncilSystem {
       ? Object.entries(revoteTally).filter(([, count]) => count === topCount).map(([id]) => id)
       : [];
 
-    if (leaders.length === 1) {
-      return leaders[0];
-    }
-
-    return null;
+    return {
+      eliminatedId: leaders.length === 1 ? leaders[0] : null,
+      records: revoteRecords,
+      eligibleVoterIds: revoters.map(voter => voter.id)
+    };
   }
 
   runRockDraw(tiedCandidateIds) {
@@ -370,18 +411,26 @@ export default class TribalCouncilSystem {
       !member.isOut
       && !this.immunityHolderIds.has(member.id)
       && !tiedCandidateIds.includes(member.id)
-      && !this.idolProtectedIds.has(member.id)
     ));
 
     if (eligible.length === 0) {
-      return tiedCandidateIds[Math.floor(Math.random() * tiedCandidateIds.length)] || null;
+      console.error('[TribalCouncilSystem] Rock draw had zero eligible players. Forcing random elimination among tied players.');
+      return {
+        eligible: [],
+        eliminatedId: tiedCandidateIds[Math.floor(Math.random() * tiedCandidateIds.length)] || null,
+        forcedResolution: true
+      };
     }
 
     const drawn = eligible[Math.floor(Math.random() * eligible.length)];
-    return drawn?.id || null;
+    return {
+      eligible: eligible.map(member => member.id),
+      eliminatedId: drawn?.id || null,
+      forcedResolution: false
+    };
   }
 
-  _recordVote(voterId, targetId, wasRevote = false, targetCollection = this.voteRecords) {
+  _recordVote(voterId, targetId, wasRevote = false, targetCollection = this.voteRecords, phase = 'initial') {
     if (!voterId || !targetId) return null;
     // Safety: immune survivors cannot receive valid votes.
     if (this.immunityHolderIds.has(targetId)) return null;
@@ -389,6 +438,7 @@ export default class TribalCouncilSystem {
       voterId,
       targetId,
       wasRevote,
+      phase,
       wasNullified: false,
       timestamp: Date.now()
     };
@@ -397,33 +447,31 @@ export default class TribalCouncilSystem {
       voterId,
       targetId,
       wasRevote,
+      phase,
       timestamp: record.timestamp
     });
     return record;
   }
 
   _buildRevealQueue() {
-    const stack = [...this.voteRecords];
-    for (let i = stack.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [stack[i], stack[j]] = [stack[j], stack[i]];
-    }
+    const initialVotes = this.voteRecords.filter(vote => vote.phase !== 'revote');
+    const revoteVotes = this.voteRecords.filter(vote => vote.phase === 'revote');
+
+    const shuffle = (stack) => {
+      for (let i = stack.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [stack[i], stack[j]] = [stack[j], stack[i]];
+      }
+      return stack;
+    };
+
+    const stack = [...shuffle([...initialVotes]), ...shuffle([...revoteVotes])];
 
     const queue = [];
 
-    let runningCounts = {};
-    let top = 0;
     for (const vote of stack) {
       const revealType = vote.wasNullified ? 'NULLIFIED' : 'VALID';
       queue.push({ ...vote, revealType });
-
-      if (vote.wasNullified) continue;
-
-      runningCounts[vote.targetId] = (runningCounts[vote.targetId] || 0) + 1;
-      top = Math.max(top, runningCounts[vote.targetId]);
-      if (top >= this.majorityThreshold) {
-        break;
-      }
     }
 
     return queue;
