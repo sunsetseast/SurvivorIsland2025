@@ -266,36 +266,138 @@ export default class TribalCouncilView {
       attendingTribeId: this.attendingTribeId
     });
     this.result = this.tribalSummary;
-    this.revealQueue = [...(this.tribalSummary?.voteOrder || [])];
-    const revealedCounts = {};
 
+    const initialQueue = (this.tribalSummary?.voteOrder || []).filter(vote => vote.phase !== 'revote');
+    const revoteQueue = (this.tribalSummary?.voteOrder || []).filter(vote => vote.phase === 'revote');
+
+    this._renderVoteQueue(initialQueue, {
+      onDone: () => {
+        if (!this.tribalSummary?.initialTie) {
+          this.renderSnuff();
+          return;
+        }
+
+        this.renderTieAnnouncement(() => {
+          this.renderRevoteScreen(() => {
+            if (revoteQueue.length > 0) {
+              this._renderVoteQueue(revoteQueue, {
+                onDone: () => this._continueAfterRevote()
+              });
+              return;
+            }
+            this._continueAfterRevote();
+          });
+        });
+      }
+    });
+  }
+
+  _continueAfterRevote() {
+    if (this.tribalSummary?.rockDrawOccurred) {
+      this.renderRockDrawScreen(() => this.renderSnuff());
+      return;
+    }
+    this.renderSnuff();
+  }
+
+  renderTieAnnouncement(onNext) {
+    const tiedNames = this._getTiedPlayerNames();
+    this._renderScene({
+      background: `${ASSET_BASE}/voteread.png`,
+      text: `It is a tie between ${tiedNames.join(' and ')}. We will now revote.`,
+      buttonLabel: 'Proceed to Revote',
+      onNext
+    });
+  }
+
+  renderRevoteScreen(onNext) {
+    const tiedNames = this._getTiedPlayerNames();
+    const excludedVoters = this._getRevoteExcludedVoters();
+
+    this._renderScene({
+      background: `${ASSET_BASE}/votingbooth.png`,
+      text: `Revote targets: ${tiedNames.join(' / ')}`,
+      buttonLabel: 'Submit Revote',
+      onNext,
+      afterRender: panel => {
+        panel.appendChild(createElement('div', {
+          style: 'font-size:14px;color:#fff;text-align:center;max-width:680px;'
+        }, 'Only tied players are valid targets. Tied players do not vote. Lost vote and Shot In The Dark users still cannot vote.'));
+
+        if (excludedVoters.length > 0) {
+          panel.appendChild(createElement('div', {
+            style: 'font-size:13px;color:#FFD166;text-align:center;max-width:680px;'
+          }, `Not voting in revote: ${excludedVoters.join(', ')}`));
+        }
+      }
+    });
+  }
+
+  renderRockDrawScreen(onNext) {
+    const eligible = this.tribalSummary?.rockDrawEligible || [];
+    const eliminatedId = this.tribalSummary?.rockDrawEliminatedId;
+    const eliminatedName = this._resolveName(eliminatedId);
+
+    this._renderScene({
+      background: `${ASSET_BASE}/voteread.png`,
+      text: 'The tribe cannot decide. We are going to rocks.',
+      buttonLabel: 'Draw Rock',
+      onNext: () => {
+        this._renderScene({
+          background: `${ASSET_BASE}/snuff.jpeg`,
+          text: `${eliminatedName} draws the bad rock.`,
+          buttonLabel: 'Continue',
+          onNext
+        });
+      },
+      afterRender: panel => {
+        const visual = createElement('div', {
+          style: 'display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:700px;'
+        });
+
+        eligible.forEach(entry => {
+          visual.appendChild(createElement('span', {
+            style: 'padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.35);font-size:12px;color:#fff;'
+          }, entry.name || this._resolveName(entry.id || entry)));
+        });
+
+        panel.appendChild(visual);
+      }
+    });
+  }
+
+  _renderVoteQueue(queue = [], { onDone } = {}) {
+    if (!Array.isArray(queue) || queue.length === 0) {
+      onDone?.();
+      return;
+    }
+
+    const revealedCounts = {};
     let index = 0;
+
     const renderCurrent = () => {
-      const current = this.revealQueue[index];
+      const current = queue[index];
       const targetName = current?.targetName || 'Unknown';
       if (current && !current.nullified) {
         revealedCounts[current.targetId] = (revealedCounts[current.targetId] || 0) + 1;
       }
+
       const label = current
         ? (current.nullified ? `${targetName} (Does not count)` : targetName)
         : 'Done';
 
-      const runningTop = Object.values(revealedCounts).reduce((top, value) => Math.max(top, value), 0);
-      const reachedMajority = runningTop >= (this.tribalSummary?.majorityThreshold || Number.MAX_SAFE_INTEGER);
-      const atLastReveal = index >= this.revealQueue.length - 1;
-      const shouldFinishReading = reachedMajority || atLastReveal;
-
+      const atLastReveal = index >= queue.length - 1;
       this._renderScene({
         background: `${ASSET_BASE}/voteread.png`,
         text: label,
-        buttonLabel: shouldFinishReading ? 'Continue' : 'Next Vote',
+        buttonLabel: atLastReveal ? 'Continue' : 'Next Vote',
         onNext: () => {
-          if (!shouldFinishReading) {
+          if (!atLastReveal) {
             index += 1;
             renderCurrent();
             return;
           }
-          this.renderSnuff();
+          onDone?.();
         }
       });
     };
@@ -307,13 +409,10 @@ export default class TribalCouncilView {
     const tribe = this._getAttendingTribe();
     const eliminated = (this.gameManager.survivors || []).find(survivor => survivor.id === this.result?.eliminatedId)
       || (tribe?.members || []).find(member => member.id === this.result?.eliminatedId);
-    const tieMessage = this.result?.wasTie && !this.result?.eliminatedId
-      ? 'It is a tie. No one is eliminated tonight.'
-      : `The tribe has spoken. ${eliminated?.name || this.result?.eliminatedId || ''}`;
 
     this._renderScene({
       background: `${ASSET_BASE}/snuff.jpeg`,
-      text: tieMessage,
+      text: `The tribe has spoken. ${eliminated?.name || this.result?.eliminatedId || ''}`,
       buttonLabel: 'Finish',
       onNext: () => this.finish()
     });
@@ -392,6 +491,34 @@ export default class TribalCouncilView {
     const tribes = this.gameManager.getTribes?.() || this.gameManager.tribes || [];
     const tribe = tribes.find(candidate => String(candidate?.tribeId ?? candidate?.id) === String(this.attendingTribeId));
     return tribe || null;
+  }
+
+  _resolveName(id) {
+    if (!id) return 'Unknown';
+    return (this.gameManager.survivors || []).find(member => member.id === id)?.name
+      || this._getAttendingTribe()?.members?.find(member => member.id === id)?.name
+      || id;
+  }
+
+  _getTiedPlayerNames() {
+    const tiedIds = this.tribalSummary?.tiedCandidateIds || [];
+    if (!tiedIds.length) return ['Unknown'];
+    return tiedIds.map(id => this._resolveName(id));
+  }
+
+  _getRevoteExcludedVoters() {
+    const excluded = new Set();
+    const members = this.tribalSummary?.membersAtTribal || [];
+    const tiedIds = new Set(this.tribalSummary?.tiedCandidateIds || []);
+    const revoteEligibleIds = new Set(this.tribalSummary?.revoteEligibleVoterIds || []);
+
+    members.forEach(member => {
+      const name = member.name || this._resolveName(member.id);
+      if (tiedIds.has(member.id)) excluded.add(name);
+      if (!revoteEligibleIds.has(member.id)) excluded.add(name);
+    });
+
+    return [...excluded];
   }
 
   _setBackground(background) {

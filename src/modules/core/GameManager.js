@@ -128,6 +128,15 @@ class GameManager {
       this.gameHistory.tribals.push(canonicalEntry);
       this.tribalCouncilLog.push(canonicalEntry);
 
+      if (canonicalEntry.wasTie) {
+        console.log('[TribalCouncil] Tie detected:', {
+          revoteVotes: canonicalEntry.revoteVotes,
+          rockDrawEligible: canonicalEntry.rockDrawEligible,
+          rockDrawEliminatedId: canonicalEntry.rockDrawEliminatedId,
+          forcedResolution: canonicalEntry.forcedResolution
+        });
+      }
+
       if (canonicalEntry.eliminatedId) {
         this.eliminateSurvivor(canonicalEntry.eliminatedId, 'vote');
       }
@@ -184,6 +193,27 @@ class GameManager {
         targetName: vote.targetName || getName(vote.targetId),
         nullified: vote.nullified ?? vote.wasNullified ?? false
       })),
+      initialVotes: (tribalSummary.votes || [])
+        .filter(vote => vote.phase !== 'revote')
+        .map(vote => ({
+          voterId: vote.voterId,
+          voterName: vote.voterName || getName(vote.voterId),
+          targetId: vote.targetId,
+          targetName: vote.targetName || getName(vote.targetId),
+          nullified: vote.nullified ?? vote.wasNullified ?? false
+        })),
+      revoteVotes: (tribalSummary.revoteVotes || []).map(vote => ({
+        voterId: vote.voterId,
+        voterName: vote.voterName || getName(vote.voterId),
+        targetId: vote.targetId,
+        targetName: vote.targetName || getName(vote.targetId),
+        nullified: vote.nullified ?? vote.wasNullified ?? false
+      })),
+      rockDrawEligible: (tribalSummary.rockDrawEligible || []).map(entry => ({
+        id: entry.id || entry,
+        name: entry.name || getName(entry.id || entry) || 'Unknown'
+      })),
+      rockDrawEliminatedId: tribalSummary.rockDrawEliminatedId || null,
       idolPlays: (tribalSummary.idolPlays || []).map(play => ({
         playerId: play.playerId || play.playedById || null,
         playerName: play.playerName || getName(play.playerId || play.playedById) || 'Unknown',
@@ -201,6 +231,8 @@ class GameManager {
       eliminatedId: tribalSummary.eliminatedId || null,
       eliminatedName: tribalSummary.eliminatedName || getName(tribalSummary.eliminatedId) || null,
       wasTie: Boolean(tribalSummary.wasTie),
+      wasRockDraw: Boolean(tribalSummary.rockDrawOccurred),
+      forcedResolution: Boolean(tribalSummary.forcedResolution),
       majorityThreshold: tribalSummary.majorityThreshold || 0,
       createdAt: tribalSummary.createdAt || Date.now()
     };
