@@ -143,11 +143,10 @@ class GameManager {
 
       this.consumeVotePenaltiesAfterTribal(canonicalEntry.membersAtTribal.map(member => member.id));
 
-      this.day += 1;
+      this.advanceDay();
       this.gamePhase = GamePhase.PRE_CHALLENGE;
       this.dayTimer = 7200;
       this.setGameState(GameState.CAMP);
-      screenManager.showScreen('camp');
     });
   }
 
@@ -164,10 +163,13 @@ class GameManager {
     };
 
     const membersAtTribal = (tribalSummary.membersAtTribal && tribalSummary.membersAtTribal.length > 0)
-      ? tribalSummary.membersAtTribal
+      ? tribalSummary.membersAtTribal.map(member => ({
+        id: member?.id || null,
+        name: member?.name || getName(member?.id) || member?.id || 'Unknown'
+      }))
       : (tribe?.members || [])
         .filter(member => !member.isOut)
-        .map(member => ({ id: member.id, name: member.name || member.id }));
+        .map(member => ({ id: member.id, name: member.name || getName(member.id) || member.id }));
 
     return {
       id: `tribal_${tribalSummary.createdAt || Date.now()}`,
@@ -183,21 +185,21 @@ class GameManager {
         nullified: vote.nullified ?? vote.wasNullified ?? false
       })),
       idolPlays: (tribalSummary.idolPlays || []).map(play => ({
-        playerId: play.playerId || play.playedById,
-        playerName: play.playerName || getName(play.playerId || play.playedById),
-        targetId: play.targetId || play.playedOnId,
-        targetName: play.targetName || getName(play.targetId || play.playedOnId),
+        playerId: play.playerId || play.playedById || null,
+        playerName: play.playerName || getName(play.playerId || play.playedById) || 'Unknown',
+        targetId: play.targetId || play.playedOnId || null,
+        targetName: play.targetName || getName(play.targetId || play.playedOnId) || 'Unknown',
         successful: Boolean(play.successful)
       })),
       shotResults: (tribalSummary.shotResults || []).map(result => ({
-        playerId: result.playerId,
-        playerName: result.playerName || getName(result.playerId),
+        playerId: result.playerId || null,
+        playerName: result.playerName || getName(result.playerId) || 'Unknown',
         success: Boolean(result.success),
         gainedImmunity: Boolean(result.gainedImmunity)
       })),
       finalCounts: { ...(tribalSummary.finalCounts || tribalSummary.finalTally || {}) },
       eliminatedId: tribalSummary.eliminatedId || null,
-      eliminatedName: tribalSummary.eliminatedName || getName(tribalSummary.eliminatedId),
+      eliminatedName: tribalSummary.eliminatedName || getName(tribalSummary.eliminatedId) || null,
       wasTie: Boolean(tribalSummary.wasTie),
       majorityThreshold: tribalSummary.majorityThreshold || 0,
       createdAt: tribalSummary.createdAt || Date.now()
@@ -605,6 +607,37 @@ class GameManager {
     if (Number.isFinite(votePenalty.roundsRemaining) && votePenalty.roundsRemaining > 0) return true;
 
     return false;
+  }
+
+  hasVote(survivorIdOrObj) {
+    const survivor = typeof survivorIdOrObj === 'string'
+      ? this.survivors.find(entry => entry.id === survivorIdOrObj)
+      : survivorIdOrObj;
+
+    if (!survivor) return false;
+    if (survivor.hasVote === false) return false;
+    return this.hasLostVote(survivor) === false;
+  }
+
+  canPlayShotInTheDark(survivorIdOrObj) {
+    return this.hasVote(survivorIdOrObj) === true;
+  }
+
+  hasImmunity(survivorIdOrObj) {
+    const survivor = typeof survivorIdOrObj === 'string'
+      ? this.survivors.find(entry => entry.id === survivorIdOrObj)
+      : survivorIdOrObj;
+
+    if (!survivor) return false;
+
+    return Boolean(
+      survivor.hasImmunity
+      || survivor.isImmune
+      || survivor.immunity?.individual
+      || survivor.advantages?.individualImmunity
+      || survivor.immunityWon
+      || survivor.temporaryImmunity
+    );
   }
 
   getTribes() {
