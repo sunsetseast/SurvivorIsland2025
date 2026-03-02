@@ -119,49 +119,78 @@ class GameManager {
     this._tribalCompleteListenerAttached = true;
 
     eventManager.subscribe(GameEvents.TRIBAL_COUNCIL_COMPLETE, (tribalSummary = {}) => {
-      if (!this.gameHistory) this.gameHistory = { tribals: [] };
-      if (!Array.isArray(this.gameHistory.tribals)) this.gameHistory.tribals = [];
-      if (!Array.isArray(this.tribalCouncilLog)) this.tribalCouncilLog = [];
+      this.handleTribalCouncilComplete(tribalSummary);
+    });
+  }
 
-      // Canonical tribal log format shared by history + tribalCouncilLog.
-      const canonicalEntry = this._buildTribalLogEntry(tribalSummary);
-      this.gameHistory.tribals.push(canonicalEntry);
-      this.tribalCouncilLog.push(canonicalEntry);
 
-      if (canonicalEntry.wasTie) {
-        console.log('[TribalCouncil] Tie detected:', {
-          revoteVotes: canonicalEntry.revoteVotes,
-          rockDrawEligible: canonicalEntry.rockDrawEligible,
-          rockDrawEliminatedId: canonicalEntry.rockDrawEliminatedId,
-          forcedResolution: canonicalEntry.forcedResolution
+  handleTribalCouncilComplete(tribalSummary = {}) {
+    if (!this.gameHistory) this.gameHistory = { tribals: [] };
+    if (!Array.isArray(this.gameHistory.tribals)) this.gameHistory.tribals = [];
+    if (!Array.isArray(this.tribalCouncilLog)) this.tribalCouncilLog = [];
+
+    const canonicalEntry = this._buildTribalLogEntry(tribalSummary);
+    this.gameHistory.tribals.push(canonicalEntry);
+    this.tribalCouncilLog.push(canonicalEntry);
+
+    console.log('[GameManager] handleTribalCouncilComplete', {
+      day: canonicalEntry.day,
+      attendingTribeId: canonicalEntry.attendingTribeId,
+      eliminatedId: canonicalEntry.eliminatedId,
+      initialTie: canonicalEntry.initialTie,
+      revoteOccurred: canonicalEntry.revoteOccurred,
+      wasRockDraw: canonicalEntry.wasRockDraw
+    });
+
+    if (canonicalEntry.wasTie) {
+      console.log('[TribalCouncil] Tie detected:', {
+        revoteVotes: canonicalEntry.revoteVotes,
+        rockDrawEligible: canonicalEntry.rockDrawEligible,
+        rockDrawEliminatedId: canonicalEntry.rockDrawEliminatedId,
+        forcedResolution: canonicalEntry.forcedResolution
+      });
+    }
+
+    if (canonicalEntry.eliminatedId) {
+      const alreadyOut = this.survivors?.find(s => s.id === canonicalEntry.eliminatedId)?.isOut === true;
+      if (alreadyOut) {
+        console.warn('[GameManager] Skipping duplicate elimination; survivor already out', {
+          eliminatedId: canonicalEntry.eliminatedId
         });
-      }
-
-      if (canonicalEntry.eliminatedId) {
+      } else {
         this.eliminateSurvivor(canonicalEntry.eliminatedId, 'vote');
       }
+    }
 
-      if (this.systems.dealConsequencesSystem?.initialize) {
-        this.systems.dealConsequencesSystem.initialize();
-      }
-      this.systems.dealSystem?.processTribalOutcome?.(canonicalEntry, this);
-      this.systems.allianceSystem?.processPostTribalFallout?.(canonicalEntry, this);
+    if (this.systems.dealConsequencesSystem?.initialize) {
+      this.systems.dealConsequencesSystem.initialize();
+    }
+    this.systems.dealSystem?.processTribalOutcome?.(canonicalEntry, this);
+    this.systems.allianceSystem?.processPostTribalFallout?.(canonicalEntry, this);
+    console.log('[GameManager] Tribal consequences processed', {
+      dealsProcessed: Boolean(this.systems.dealSystem?.processTribalOutcome),
+      allianceFalloutProcessed: Boolean(this.systems.allianceSystem?.processPostTribalFallout)
+    });
 
-      const playerId = this.player?.id;
-      const playerEliminated = Boolean(playerId && canonicalEntry.eliminatedId === playerId);
-      const juryInactive = !this.isMerged;
+    const playerId = this.player?.id;
+    const playerEliminated = Boolean(playerId && canonicalEntry.eliminatedId === playerId);
+    const juryInactive = !this.isMerged;
 
-      if (playerEliminated && juryInactive) {
-        this.showGameOverScreen();
-        return;
-      }
+    if (playerEliminated && juryInactive) {
+      this.showGameOverScreen();
+      return;
+    }
 
-      this.consumeVotePenaltiesAfterTribal(canonicalEntry.membersAtTribal.map(member => member.id));
+    this.consumeVotePenaltiesAfterTribal(canonicalEntry.membersAtTribal.map(member => member.id));
 
-      this.advanceDay();
-      this.gamePhase = GamePhase.PRE_CHALLENGE;
-      this.dayTimer = 7200;
-      this.setGameState(GameState.CAMP);
+    this.advanceDay();
+    this.gamePhase = GamePhase.PRE_CHALLENGE;
+    this.dayTimer = 7200;
+    this.setGameState(GameState.CAMP);
+    console.log('[GameManager] Tribal complete -> next day/camp transition complete', {
+      day: this.day,
+      gamePhase: this.gamePhase,
+      gameState: this.gameState
     });
   }
 
@@ -234,9 +263,12 @@ class GameManager {
         success: Boolean(result.success),
         gainedImmunity: Boolean(result.gainedImmunity)
       })),
-      initialTally: { ...(tribalSummary.initialTally || {}) },
-      revoteTally: tribalSummary.revoteTally ? { ...(tribalSummary.revoteTally || {}) } : null,
-      decidingTally: tribalSummary.decidingTally ? { ...(tribalSummary.decidingTally || {}) } : null,
+      initialCounts: { ...(tribalSummary.initialCounts || tribalSummary.initialTally || {}) },
+      initialTally: { ...(tribalSummary.initialCounts || tribalSummary.initialTally || {}) },
+      revoteCounts: tribalSummary.revoteCounts ? { ...(tribalSummary.revoteCounts || {}) } : (tribalSummary.revoteTally ? { ...(tribalSummary.revoteTally || {}) } : null),
+      revoteTally: tribalSummary.revoteCounts ? { ...(tribalSummary.revoteCounts || {}) } : (tribalSummary.revoteTally ? { ...(tribalSummary.revoteTally || {}) } : null),
+      decidingCounts: tribalSummary.decidingCounts ? { ...(tribalSummary.decidingCounts || {}) } : (tribalSummary.decidingTally ? { ...(tribalSummary.decidingTally || {}) } : null),
+      decidingTally: tribalSummary.decidingCounts ? { ...(tribalSummary.decidingCounts || {}) } : (tribalSummary.decidingTally ? { ...(tribalSummary.decidingTally || {}) } : null),
       eliminatedId: tribalSummary.eliminatedId || null,
       eliminatedName: tribalSummary.eliminatedName || getName(tribalSummary.eliminatedId) || null,
       wasTie: Boolean(tribalSummary.wasTie),

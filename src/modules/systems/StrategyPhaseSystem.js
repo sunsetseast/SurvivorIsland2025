@@ -1442,6 +1442,14 @@ class StrategyPhaseSystem {
   }
 
   proceedAfterSummary() {
+    const currentState = gameManager.getGameState?.() || gameManager.gameState;
+    const currentPhase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    console.log('[StrategyPhaseSystem] proceedAfterSummary start', {
+      playerTribeSafe: this.playerTribeSafe,
+      currentState,
+      currentPhase
+    });
+
     if (this.playerTribeSafe) {
       gameManager.day += 1;
       gameManager.gamePhase = GamePhase.PRE_CHALLENGE;
@@ -1450,10 +1458,25 @@ class StrategyPhaseSystem {
       const existingClock = document.getElementById('camp-clock');
       if (existingClock) existingClock.remove();
       window.campScreen?.renderClockUI?.();
+      console.log('[StrategyPhaseSystem] proceedAfterSummary safe branch complete', {
+        day: gameManager.day,
+        gamePhase: gameManager.gamePhase,
+        gameState: gameManager.getGameState?.() || gameManager.gameState
+      });
       return;
     }
 
-    // TODO: Wire Tribal Council transition when available
+    gameManager.gamePhase = GamePhase.TRIBAL_COUNCIL;
+    gameManager.setGameState(GameState.TRIBAL_COUNCIL);
+    eventManager.publish(GameEvents.TRIBAL_COUNCIL_STARTED, {
+      day: gameManager.getDay?.() || gameManager.day,
+      tribeId: gameManager.getPlayerTribe?.()?.tribeId || gameManager.getPlayerTribe?.()?.id || null
+    });
+
+    console.log('[StrategyPhaseSystem] proceedAfterSummary tribal branch complete', {
+      gamePhase: gameManager.gamePhase,
+      gameState: gameManager.getGameState?.() || gameManager.gameState
+    });
   }
 
   buildAvatarGridPickerModal({ title, confirmLabel, options, tribeColor = '#f5c76a', defaultSelection, onConfirm, onCancel }) {

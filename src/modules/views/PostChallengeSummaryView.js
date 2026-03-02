@@ -3,6 +3,8 @@ import gameManager from '../core/GameManager.js';
 import { clearChildren } from '../utils/index.js';
 
 export default function renderPostChallengeSummaryView(container) {
+  clearChildren(container);
+
   const wrapper = document.createElement('div');
   wrapper.className = 'post-challenge-summary';
 
@@ -41,18 +43,49 @@ export default function renderPostChallengeSummaryView(container) {
 
   wrapper.appendChild(scroll);
 
-  const button = document.createElement('button');
-  button.className = 'summary-button';
-  button.textContent = strategyPhaseSystem.playerTribeSafe
+  container.appendChild(wrapper);
+
+  const proceedLabel = strategyPhaseSystem.playerTribeSafe
     ? 'Proceed to Next Day'
     : 'Proceed to Tribal Council';
-  button.addEventListener('click', () => strategyPhaseSystem.proceedAfterSummary());
 
-  wrapper.appendChild(button);
-  container.appendChild(wrapper);
+  const proceedAfterSummary = () => {
+    const currentState = gameManager.getGameState?.() || gameManager.gameState;
+    const currentPhase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+    const intendedNextState = strategyPhaseSystem.playerTribeSafe ? 'camp' : 'tribalCouncil';
+
+    console.log('[PostChallengeSummaryView] Proceed clicked', {
+      playerTribeSafe: strategyPhaseSystem.playerTribeSafe,
+      currentState,
+      currentPhase,
+      intendedNextState
+    });
+
+    try {
+      strategyPhaseSystem.proceedAfterSummary();
+      console.log('[PostChallengeSummaryView] Proceed completed', {
+        newState: gameManager.getGameState?.() || gameManager.gameState,
+        newPhase: gameManager.getGamePhase?.() || gameManager.gamePhase
+      });
+    } catch (error) {
+      console.error('[PostChallengeSummaryView] Failed to proceed after summary', {
+        error,
+        playerTribeSafe: strategyPhaseSystem.playerTribeSafe,
+        currentState,
+        currentPhase,
+        intendedNextState
+      });
+    }
+  };
 
   const actionButtons = document.getElementById('action-buttons');
   if (actionButtons) {
+    const actionBar = document.getElementById('camp-action-bar');
+    if (actionBar) {
+      actionBar.style.zIndex = '2100';
+      actionBar.style.pointerEvents = 'auto';
+    }
+
     clearChildren(actionButtons);
 
     const buttonWrapper = document.createElement('div');
@@ -77,7 +110,7 @@ export default function renderPostChallengeSummaryView(container) {
     `;
 
     const label = document.createElement('div');
-    label.textContent = button.textContent;
+    label.textContent = proceedLabel;
     label.style.cssText = `
       position: absolute;
       top: 50%;
@@ -94,7 +127,7 @@ export default function renderPostChallengeSummaryView(container) {
 
     buttonWrapper.appendChild(background);
     buttonWrapper.appendChild(label);
-    buttonWrapper.addEventListener('click', () => strategyPhaseSystem.proceedAfterSummary());
+    buttonWrapper.addEventListener('click', proceedAfterSummary);
     actionButtons.appendChild(buttonWrapper);
   }
 }

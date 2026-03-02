@@ -246,13 +246,19 @@ export default class TribalCouncilView {
   renderIllReadScreen() {
     this._renderScene({
       background: `${ASSET_BASE}/illread.png`,
-      text: this._commentaryLine('readVotesIntro', ''),
+      text: [
+        this._commentaryLine('sitdExplain', ''),
+        this._commentaryLine('idolOpportunity', ''),
+        this._commentaryLine('readVotesIntro', '')
+      ].filter(Boolean).join('\n'),
       buttonLabel: 'Read Votes',
       onNext: () => this.renderVoteReading()
     });
   }
 
   renderVoteReading() {
+    console.log('[TribalCouncilView] renderVoteReading start', { attendingTribeId: this.attendingTribeId });
+
     if (!this.attendingTribeId) {
       this._renderScene({
         background: `${ASSET_BASE}/voteread.png`,
@@ -267,6 +273,13 @@ export default class TribalCouncilView {
       attendingTribeId: this.attendingTribeId
     });
     this.result = this.tribalSummary;
+
+    console.log('[TribalCouncilView] tribal summary received', {
+      initialTie: this.tribalSummary?.initialTie,
+      revoteOccurred: this.tribalSummary?.revoteOccurred,
+      rockDrawOccurred: this.tribalSummary?.rockDrawOccurred,
+      eliminatedId: this.tribalSummary?.eliminatedId
+    });
 
     const initialQueue = (this.tribalSummary?.voteOrder || []).filter(vote => vote.phase !== 'revote');
     const revoteQueue = (this.tribalSummary?.voteOrder || []).filter(vote => vote.phase === 'revote');
@@ -318,7 +331,7 @@ export default class TribalCouncilView {
     this._renderScene({
       background: `${ASSET_BASE}/votingbooth.png`,
       text: this._commentaryLine('revoteIntro', `Revote targets: ${tiedNames.join(' / ')}`),
-      buttonLabel: 'Submit Revote',
+      buttonLabel: 'Proceed to Revote Vote Reading',
       onNext,
       afterRender: panel => {
         panel.appendChild(createElement('div', {
@@ -437,6 +450,10 @@ export default class TribalCouncilView {
     this._disableActions();
 
     if (this.tribalSummary) {
+      console.log('[TribalCouncilView] Publishing TRIBAL_COUNCIL_COMPLETE', {
+        eliminatedId: this.tribalSummary?.eliminatedId,
+        attendingTribeId: this.tribalSummary?.attendingTribeId
+      });
       eventManager.publish(GameEvents.TRIBAL_COUNCIL_COMPLETE, this.tribalSummary);
     }
 
@@ -525,7 +542,8 @@ export default class TribalCouncilView {
   }
 
   _shouldShowDebugSummary() {
-    return this.gameManager?.gameSettings?.debugTribal === true;
+    return this.gameManager?.debug?.showTribalSummaryScreen === true
+      || this.gameManager?.gameSettings?.debugTribal === true;
   }
 
   renderDebugSummary() {

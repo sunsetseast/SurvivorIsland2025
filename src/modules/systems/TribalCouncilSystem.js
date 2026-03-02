@@ -50,6 +50,20 @@ export default class TribalCouncilSystem {
 
     this.buildTribeContext(attendingTribeId);
     const day = this.gameManager.getDay?.() ?? null;
+
+    console.log('[TribalCouncilSystem] runPreMergeTribal start', {
+      day,
+      attendingTribeId,
+      resolvedTribeId: this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null,
+      voters: this.voters.length
+    });
+
+    if (!this.currentTribe || this.voters.length === 0) {
+      console.warn('[TribalCouncilSystem] Missing attending tribe or voters; returning empty tribal summary.', {
+        attendingTribeId,
+        resolvedTribeId: this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null
+      });
+    }
     const membersAtTribal = this.voters.map(member => ({
       id: member.id,
       name: member.name || member.id
@@ -64,15 +78,15 @@ export default class TribalCouncilSystem {
     this.resolveShotInTheDark();
     this.resolveIdolStage();
 
-    const initialTally = this.buildVoteTally(this.initialVotes);
-    const initialHighest = this._getHighestCount(initialTally);
+    const initialCounts = this.buildVoteTally(this.initialVotes.filter(vote => vote.phase === 'initial'));
+    const initialHighest = this._getHighestCount(initialCounts);
     const tiedCandidates = initialHighest > 0
-      ? Object.entries(initialTally).filter(([, count]) => count === initialHighest).map(([id]) => id)
+      ? Object.entries(initialCounts).filter(([, count]) => count === initialHighest).map(([id]) => id)
       : [];
 
     const initialTie = tiedCandidates.length > 1;
     let revoteOccurred = false;
-    let decidingTally = initialTally;
+    let decidingCounts = initialCounts;
     let revoteEligibleVoterIds = [];
     let rockDrawOccurred = false;
     let rockDrawEligible = [];
@@ -89,7 +103,7 @@ export default class TribalCouncilSystem {
 
       if (revoteResult.eliminatedId) {
         this.eliminatedId = revoteResult.eliminatedId;
-        decidingTally = this.buildVoteTally(this.revoteVotes);
+        decidingCounts = this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote'));
       } else {
         // Still tied after revote: draw rocks among eligible non-immune, non-tied players.
         this.wentToRocks = true;
@@ -99,16 +113,14 @@ export default class TribalCouncilSystem {
         rockDrawEliminatedId = rockResult.eliminatedId;
         this.forcedResolution = Boolean(rockResult.forcedResolution);
         this.eliminatedId = rockResult.eliminatedId;
-        decidingTally = null;
+        decidingCounts = null;
       }
     }
 
     this.revealQueue = this._buildRevealQueue();
 
-    const validVoteCount = this.initialVotes.filter(vote => !vote.wasNullified).length
-      + this.revoteVotes.filter(vote => !vote.wasNullified).length;
-    const nullifiedVoteCount = this.initialVotes.filter(vote => vote.wasNullified).length
-      + this.revoteVotes.filter(vote => vote.wasNullified).length;
+    const validVoteCount = this.voteRecords.filter(vote => !vote.wasNullified).length;
+    const nullifiedVoteCount = this.voteRecords.filter(vote => vote.wasNullified).length;
     const tribalTimestamp = Date.now();
     const attendingTribeIdResolved = this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null;
     const survivors = this.gameManager.survivors || [];
@@ -146,9 +158,12 @@ export default class TribalCouncilSystem {
         ...result,
         playerName: getName(result.playerId)
       })),
-      initialTally,
-      revoteTally: revoteOccurred ? this.buildVoteTally(this.revoteVotes) : null,
-      decidingTally,
+      initialCounts,
+      initialTally: initialCounts,
+      revoteCounts: revoteOccurred ? this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')) : null,
+      revoteTally: revoteOccurred ? this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')) : null,
+      decidingCounts,
+      decidingTally: decidingCounts,
       eliminatedId: this.eliminatedId,
       eliminatedName: this.eliminatedId ? getName(this.eliminatedId) : null,
       majorityThreshold: this.majorityThreshold,
@@ -178,6 +193,14 @@ export default class TribalCouncilSystem {
 
     tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
 
+    console.log('[TribalCouncilSystem] runPreMergeTribal resolved', {
+      initialTie,
+      revoteOccurred,
+      rockDrawOccurred,
+      eliminatedId: this.eliminatedId,
+      decidingCounts: tribalSummary.decidingCounts
+    });
+
     return tribalSummary;
   }
 
@@ -186,9 +209,9 @@ export default class TribalCouncilSystem {
     const tribe = tribes.find(candidate => (
       String(candidate?.tribeId ?? candidate?.id) === String(attendingTribeId)
     )) || this.gameManager.getPlayerTribe?.();
-    const aliveMembers = (tribe?.members || []).filter(member => !member.isOut);
+    const aliveMembers = (tribe?.members || []).filter(member => !member?.isOut);
 
-    this.currentTribe = tribe;
+    this.currentTribe = tribe || null;
     this.voters = [...aliveMembers];
     this.eligibleTargets = [...aliveMembers];
     this.majorityThreshold = Math.floor(aliveMembers.length / 2) + 1;
@@ -577,8 +600,8 @@ export default class TribalCouncilSystem {
   }
 
   generateJeffCommentary(tribalSummary = {}) {
-    const initialTally = tribalSummary.initialTally || {};
-    const decidingTally = tribalSummary.decidingTally || {};
+    const initialTally = tribalSummary.initialCounts || tribalSummary.initialTally || {};
+    const decidingTally = tribalSummary.decidingCounts || tribalSummary.decidingTally || {};
     const nullifiedVoteCount = Number(tribalSummary.nullifiedVoteCount || 0);
     const idolSuccessCount = (tribalSummary.idolPlays || []).filter(play => play.successful).length;
     const sitdSuccess = (tribalSummary.shotResults || []).some(result => result.success);
@@ -593,6 +616,9 @@ export default class TribalCouncilSystem {
     return {
       arrival: 'Come on in. Grab a torch and get fire, because in this game, fire represents your life.',
       preVote: 'Tonight, trust is currency. Spend it carefully.',
+      sitdExplain: tribalSummary.shotResults?.length ? 'A Shot in the Dark was played tonight. One gamble can flip everything.' : '',
+      idolOpportunity: tribalSummary.idolPlays?.length ? 'If you have an idol and you want to play it, now would be the time.' : 'If anybody has a hidden immunity idol and you want to play it, now would be the time.',
+      votingIntro: 'It is time to vote.',
       readVotesIntro: 'I will read the votes.',
       afterInitial: unanimous
         ? 'That was decisive. When everyone lands on one name, that sends a message.'
