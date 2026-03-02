@@ -141,6 +141,12 @@ class GameManager {
         this.eliminateSurvivor(canonicalEntry.eliminatedId, 'vote');
       }
 
+      if (this.systems.dealConsequencesSystem?.initialize) {
+        this.systems.dealConsequencesSystem.initialize();
+      }
+      this.systems.dealSystem?.processTribalOutcome?.(canonicalEntry, this);
+      this.systems.allianceSystem?.processPostTribalFallout?.(canonicalEntry, this);
+
       const playerId = this.player?.id;
       const playerEliminated = Boolean(playerId && canonicalEntry.eliminatedId === playerId);
       const juryInactive = !this.isMerged;
@@ -193,14 +199,15 @@ class GameManager {
         targetName: vote.targetName || getName(vote.targetId),
         nullified: vote.nullified ?? vote.wasNullified ?? false
       })),
-      initialVotes: (tribalSummary.votes || [])
+      initialVotes: (tribalSummary.initialVotes || tribalSummary.votes || [])
         .filter(vote => vote.phase !== 'revote')
         .map(vote => ({
           voterId: vote.voterId,
           voterName: vote.voterName || getName(vote.voterId),
           targetId: vote.targetId,
           targetName: vote.targetName || getName(vote.targetId),
-          nullified: vote.nullified ?? vote.wasNullified ?? false
+          nullified: vote.nullified ?? vote.wasNullified ?? false,
+          phase: vote.phase || 'initial'
         })),
       revoteVotes: (tribalSummary.revoteVotes || []).map(vote => ({
         voterId: vote.voterId,
@@ -227,12 +234,17 @@ class GameManager {
         success: Boolean(result.success),
         gainedImmunity: Boolean(result.gainedImmunity)
       })),
-      finalCounts: { ...(tribalSummary.finalCounts || tribalSummary.finalTally || {}) },
+      initialTally: { ...(tribalSummary.initialTally || {}) },
+      revoteTally: tribalSummary.revoteTally ? { ...(tribalSummary.revoteTally || {}) } : null,
+      decidingTally: tribalSummary.decidingTally ? { ...(tribalSummary.decidingTally || {}) } : null,
       eliminatedId: tribalSummary.eliminatedId || null,
       eliminatedName: tribalSummary.eliminatedName || getName(tribalSummary.eliminatedId) || null,
       wasTie: Boolean(tribalSummary.wasTie),
+      initialTie: Boolean(tribalSummary.initialTie),
+      revoteOccurred: Boolean(tribalSummary.revoteOccurred),
       wasRockDraw: Boolean(tribalSummary.rockDrawOccurred),
       forcedResolution: Boolean(tribalSummary.forcedResolution),
+      jeffCommentary: tribalSummary.jeffCommentary || null,
       majorityThreshold: tribalSummary.majorityThreshold || 0,
       createdAt: tribalSummary.createdAt || Date.now()
     };

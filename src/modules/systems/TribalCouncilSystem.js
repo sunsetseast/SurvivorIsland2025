@@ -21,6 +21,8 @@ export default class TribalCouncilSystem {
     this.currentTribe = null;
     this.voters = [];
     this.eligibleTargets = [];
+    this.initialVotes = [];
+    this.revoteVotes = [];
     this.voteRecords = [];
     this.shotResults = [];
     this.idolPlays = [];
@@ -62,15 +64,15 @@ export default class TribalCouncilSystem {
     this.resolveShotInTheDark();
     this.resolveIdolStage();
 
-    const tally = this.buildVoteTally();
-    const highest = this._getHighestCount(tally);
-    const tiedCandidates = highest > 0
-      ? Object.entries(tally).filter(([, count]) => count === highest).map(([id]) => id)
+    const initialTally = this.buildVoteTally(this.initialVotes);
+    const initialHighest = this._getHighestCount(initialTally);
+    const tiedCandidates = initialHighest > 0
+      ? Object.entries(initialTally).filter(([, count]) => count === initialHighest).map(([id]) => id)
       : [];
 
     const initialTie = tiedCandidates.length > 1;
     let revoteOccurred = false;
-    let revoteVotes = [];
+    let decidingTally = initialTally;
     let revoteEligibleVoterIds = [];
     let rockDrawOccurred = false;
     let rockDrawEligible = [];
@@ -83,11 +85,11 @@ export default class TribalCouncilSystem {
       this.wasTie = true;
       revoteOccurred = true;
       const revoteResult = this.runRevote(tiedCandidates);
-      revoteVotes = revoteResult.records;
       revoteEligibleVoterIds = revoteResult.eligibleVoterIds;
 
       if (revoteResult.eliminatedId) {
         this.eliminatedId = revoteResult.eliminatedId;
+        decidingTally = this.buildVoteTally(this.revoteVotes);
       } else {
         // Still tied after revote: draw rocks among eligible non-immune, non-tied players.
         this.wentToRocks = true;
@@ -97,14 +99,16 @@ export default class TribalCouncilSystem {
         rockDrawEliminatedId = rockResult.eliminatedId;
         this.forcedResolution = Boolean(rockResult.forcedResolution);
         this.eliminatedId = rockResult.eliminatedId;
+        decidingTally = null;
       }
     }
 
     this.revealQueue = this._buildRevealQueue();
 
-    const finalCounts = this.buildVoteTally();
-    const validVoteCount = this.voteRecords.filter(vote => !vote.wasNullified).length;
-    const nullifiedVoteCount = this.voteRecords.filter(vote => vote.wasNullified).length;
+    const validVoteCount = this.initialVotes.filter(vote => !vote.wasNullified).length
+      + this.revoteVotes.filter(vote => !vote.wasNullified).length;
+    const nullifiedVoteCount = this.initialVotes.filter(vote => vote.wasNullified).length
+      + this.revoteVotes.filter(vote => vote.wasNullified).length;
     const tribalTimestamp = Date.now();
     const attendingTribeIdResolved = this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null;
     const survivors = this.gameManager.survivors || [];
@@ -117,6 +121,12 @@ export default class TribalCouncilSystem {
       attendingTribeId: attendingTribeIdResolved,
       membersAtTribal,
       votes: this.voteRecords.map(vote => ({
+        ...vote,
+        voterName: getName(vote.voterId),
+        targetName: getName(vote.targetId),
+        nullified: vote.wasNullified
+      })),
+      initialVotes: this.initialVotes.map(vote => ({
         ...vote,
         voterName: getName(vote.voterId),
         targetName: getName(vote.targetId),
@@ -136,7 +146,9 @@ export default class TribalCouncilSystem {
         ...result,
         playerName: getName(result.playerId)
       })),
-      finalCounts,
+      initialTally,
+      revoteTally: revoteOccurred ? this.buildVoteTally(this.revoteVotes) : null,
+      decidingTally,
       eliminatedId: this.eliminatedId,
       eliminatedName: this.eliminatedId ? getName(this.eliminatedId) : null,
       majorityThreshold: this.majorityThreshold,
@@ -150,7 +162,7 @@ export default class TribalCouncilSystem {
       initialTie,
       revoteOccurred,
       revoteEligibleVoterIds,
-      revoteVotes: revoteVotes.map(vote => ({
+      revoteVotes: this.revoteVotes.map(vote => ({
         ...vote,
         voterName: getName(vote.voterId),
         targetName: getName(vote.targetId),
@@ -160,9 +172,11 @@ export default class TribalCouncilSystem {
       rockDrawEligible: rockDrawEligible.map(id => ({ id, name: getName(id) })),
       rockDrawEliminatedId,
       forcedResolution: this.forcedResolution,
-      tiedCandidateIds,
+      tiedCandidateIds: tiedCandidates,
       createdAt: tribalTimestamp
     };
+
+    tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
 
     return tribalSummary;
   }
@@ -349,9 +363,10 @@ export default class TribalCouncilSystem {
     }
   }
 
-  buildVoteTally(records = this.voteRecords) {
+  buildVoteTally(records = []) {
+    const source = Array.isArray(records) ? records : [];
     const tally = {};
-    for (const vote of records) {
+    for (const vote of source) {
       if (vote.wasNullified) continue;
       tally[vote.targetId] = (tally[vote.targetId] || 0) + 1;
     }
@@ -392,7 +407,6 @@ export default class TribalCouncilSystem {
       this._recordVote(voter.id, selected, true, revoteRecords, 'revote');
     }
 
-    this.voteRecords.push(...revoteRecords);
     const revoteTally = this.buildVoteTally(revoteRecords);
     const topCount = this._getHighestCount(revoteTally);
     const leaders = topCount > 0
@@ -443,6 +457,14 @@ export default class TribalCouncilSystem {
       timestamp: Date.now()
     };
     targetCollection.push(record);
+    if (phase === 'revote') {
+      this.revoteVotes.push(record);
+    } else {
+      this.initialVotes.push(record);
+    }
+    if (targetCollection !== this.voteRecords) {
+      this.voteRecords.push(record);
+    }
     this.eventManager.publish(GameEvents.VOTE_CAST, {
       voterId,
       targetId,
@@ -454,8 +476,8 @@ export default class TribalCouncilSystem {
   }
 
   _buildRevealQueue() {
-    const initialVotes = this.voteRecords.filter(vote => vote.phase !== 'revote');
-    const revoteVotes = this.voteRecords.filter(vote => vote.phase === 'revote');
+    const initialVotes = [...this.initialVotes];
+    const revoteVotes = [...this.revoteVotes];
 
     const shuffle = (stack) => {
       for (let i = stack.length - 1; i > 0; i -= 1) {
@@ -526,7 +548,7 @@ export default class TribalCouncilSystem {
 
   _countVotesAgainst(targetId, opts = {}) {
     const includeNullified = opts.includeNullified === true;
-    return this.voteRecords.filter(record => {
+    return this.initialVotes.filter(record => {
       if (record.targetId !== targetId) return false;
       if (!includeNullified && record.wasNullified) return false;
       return true;
@@ -552,6 +574,52 @@ export default class TribalCouncilSystem {
     if (typeof value === 'boolean') return value;
     if (Number.isFinite(value)) return value > 0;
     return survivor?.shotInTheDarkAvailable !== false;
+  }
+
+  generateJeffCommentary(tribalSummary = {}) {
+    const initialTally = tribalSummary.initialTally || {};
+    const decidingTally = tribalSummary.decidingTally || {};
+    const nullifiedVoteCount = Number(tribalSummary.nullifiedVoteCount || 0);
+    const idolSuccessCount = (tribalSummary.idolPlays || []).filter(play => play.successful).length;
+    const sitdSuccess = (tribalSummary.shotResults || []).some(result => result.success);
+
+    const ordered = Object.entries(initialTally).sort((a, b) => b[1] - a[1]);
+    const lead = ordered[0]?.[1] || 0;
+    const second = ordered[1]?.[1] || 0;
+    const margin = Math.max(0, lead - second);
+    const totalDecidingVotes = Object.values(decidingTally).reduce((sum, count) => sum + count, 0);
+    const unanimous = totalDecidingVotes > 0 && Object.keys(decidingTally).length === 1;
+
+    return {
+      arrival: 'Come on in. Grab a torch and get fire, because in this game, fire represents your life.',
+      preVote: 'Tonight, trust is currency. Spend it carefully.',
+      readVotesIntro: 'I will read the votes.',
+      afterInitial: unanimous
+        ? 'That was decisive. When everyone lands on one name, that sends a message.'
+        : margin <= 1
+          ? 'Close vote. That is how cracks become fault lines.'
+          : 'Clear numbers tonight, but those numbers can move fast in this game.',
+      tieAnnouncement: tribalSummary.initialTie
+        ? 'We are tied. That means we vote again, and only for the tied players.'
+        : '',
+      revoteIntro: tribalSummary.revoteOccurred
+        ? 'This revote is your chance to show where you truly stand.'
+        : '',
+      afterRevote: tribalSummary.revoteOccurred && !tribalSummary.rockDrawOccurred
+        ? 'The revote settled it. Lines are no longer hidden.'
+        : '',
+      rocksIntro: tribalSummary.rockDrawOccurred
+        ? 'We are deadlocked. When strategy fails, chance takes over. We are drawing rocks.'
+        : '',
+      rocksResult: tribalSummary.rockDrawOccurred
+        ? 'Tonight was decided by fate, not votes.'
+        : '',
+      snuffLine: [
+        idolSuccessCount > 0 ? `An idol changed everything tonight with ${nullifiedVoteCount} vote${nullifiedVoteCount === 1 ? '' : 's'} voided.` : null,
+        sitdSuccess ? 'Shot in the Dark hit, and safety came at the exact right moment.' : null,
+        'The tribe has spoken.'
+      ].filter(Boolean).join(' ')
+    };
   }
 
   _castPlayerVoteIfNeeded(voter) {
