@@ -724,6 +724,11 @@ body {
     color: #333;
 }
 
+#tribal-council-screen .tribal-panel button {
+    font-family: 'Survivant', sans-serif;
+}
+
+
 #voting-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
