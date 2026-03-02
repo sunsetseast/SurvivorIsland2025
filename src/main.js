@@ -9,7 +9,8 @@ import {
   CharacterSelectionScreen,
   TribeDivisionScreen,
   CampScreen,
-  ChallengeScreen
+  ChallengeScreen,
+  TribalCouncilView
 } from './modules/screens/index.js';
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
@@ -19,6 +20,7 @@ import { openAlliancesOverlay, closeAlliancesOverlay } from './modules/screens/c
 import npcAutoRenderer from './modules/ui/NpcAutoRenderer.js';
 import { initOverlaysController } from './modules/ui/OverlaysController.js';
 import InventoryUI from './modules/ui/InventoryUI.js';
+import TribalCouncilSystem from './modules/systems/TribalCouncilSystem.js';
 
 window.mainJsLoaded = true;
 window.openRelationshipsOverlay = openRelationshipsOverlay;
@@ -57,6 +59,14 @@ function init() {
 
   const challengeScreenInstance = new ChallengeScreen();
   screenManager.registerScreen('challenge', challengeScreenInstance);
+
+  const tribalCouncilSystem = new TribalCouncilSystem(gameManager, eventManager);
+  gameManager.systems.tribalCouncilSystem = tribalCouncilSystem;
+  const tribalCouncilScreenInstance = new TribalCouncilView({
+    gameManager,
+    tribalCouncilSystem
+  });
+  screenManager.registerScreen('tribal-council', tribalCouncilScreenInstance);
 
   screenManager.initialize();
   screenManager.showScreen('welcome');

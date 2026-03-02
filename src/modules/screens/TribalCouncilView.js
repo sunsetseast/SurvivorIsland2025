@@ -25,6 +25,21 @@ export default class TribalCouncilView {
     this.renderArrival();
   }
 
+  setup() {
+    if (!this.container) {
+      this.container = document.getElementById('tribal-council-screen');
+    }
+    this.isCompleting = false;
+    this.start();
+  }
+
+  teardown() {
+    if (this.container) {
+      clearChildren(this.container);
+      this.container.style.backgroundImage = '';
+    }
+  }
+
   renderArrival() {
     this._renderScene({
       background: `${ASSET_BASE}/arrival.png`,
