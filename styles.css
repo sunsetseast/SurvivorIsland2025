@@ -3080,3 +3080,153 @@ body {
   font-weight: 700;
   cursor: pointer;
 }
+
+/* Tribal Council polish */
+.tribal-panel {
+  position: absolute;
+  inset: 2vh 2vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  max-height: 96vh;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(to bottom, rgba(15, 10, 5, 0.25), rgba(15, 10, 5, 0.75));
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.tribal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.tribal-text {
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 1px 1px 2px #000;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.tribal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+.tribal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.tribal-tally {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-width: 130px;
+  max-width: 45vw;
+  background: rgba(221, 195, 140, 0.92);
+  color: #3b240c;
+  border: 2px solid #6a4b1f;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  line-height: 1.25;
+}
+
+.tribal-tally-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.vote-parchment-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  min-width: 170px;
+  max-width: 60vw;
+  text-align: center;
+  color: #1f1108;
+  font-size: clamp(1.1rem, 3.1vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tribal-avatar-ring {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 82%;
+  margin: 0 auto;
+}
+
+.tribal-seat-avatar {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.tribal-subtext {
+  font-size: 14px;
+  color: #fff;
+  text-align: center;
+  max-width: 680px;
+}
+
+.tribal-warning {
+  font-size: 13px;
+  color: #FFD166;
+  text-align: center;
+  max-width: 680px;
+}
+
+.tribal-rocks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 700px;
+}
+
+.tribal-rocks-list span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  color: #fff;
+}
+
+#tribal-council-screen button,
+#tribal-council-screen .rect-button {
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .tribal-panel { inset: 1vh 1vw; max-height: 98vh; padding: 10px; }
+  .vote-parchment-overlay { bottom: 19%; max-width: 72vw; }
+  .tribal-actions .rect-button { width: min(92vw, 250px); }
+  .tribal-actions .rect-button.small { width: min(44vw, 180px); }
+}
