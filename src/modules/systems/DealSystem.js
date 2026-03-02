@@ -321,6 +321,90 @@ class DealSystem {
     });
   }
 
+  processTribalOutcome(tribalSummary = {}, gameManager = this.gameManager) {
+    const membersAtTribal = new Set((tribalSummary.membersAtTribal || []).map(member => member.id));
+    if (!membersAtTribal.size) return;
+
+    const decidingVotes = tribalSummary.revoteOccurred && !tribalSummary.rockDrawOccurred
+      ? (tribalSummary.revoteVotes || [])
+      : (tribalSummary.initialVotes || tribalSummary.votes || []);
+    const votesByVoter = new Map(decidingVotes.map(vote => [vote.voterId, vote.targetId]));
+    const activeStatuses = new Set([DealStatus.PROPOSED, DealStatus.ACCEPTED]);
+    const activeDeals = Object.values(this.dealsById).filter(deal => activeStatuses.has(deal?.status));
+
+    activeDeals.forEach(deal => {
+      const [partyAId, partyBId] = deal.parties || [];
+      if (!partyAId || !partyBId) return;
+      if (!membersAtTribal.has(partyAId) || !membersAtTribal.has(partyBId)) return;
+
+      const aVote = votesByVoter.get(partyAId);
+      const bVote = votesByVoter.get(partyBId);
+      const terms = deal.terms || {};
+
+      if (deal.type === DealTypes.VOTE_TOGETHER) {
+        const requiredTargetId = terms.targetId ?? null;
+        if (requiredTargetId) {
+          if (aVote && aVote !== requiredTargetId) {
+            this.breakDeal(deal.id, partyAId, 'VOTE_TOGETHER target not honored');
+            return;
+          }
+          if (bVote && bVote !== requiredTargetId) {
+            this.breakDeal(deal.id, partyBId, 'VOTE_TOGETHER target not honored');
+            return;
+          }
+          if (aVote === requiredTargetId && bVote === requiredTargetId) {
+            this.completeDeal(deal.id, null, 'VOTE_TOGETHER target honored');
+          }
+          return;
+        }
+
+        if (aVote && bVote && aVote !== bVote) {
+          this.breakDeal(deal.id, null, 'VOTE_TOGETHER alignment failed');
+          return;
+        }
+        if (aVote && bVote && aVote === bVote) {
+          this.completeDeal(deal.id, null, 'VOTE_TOGETHER alignment held');
+        }
+        return;
+      }
+
+      if (deal.type === DealTypes.MUTUAL_PROTECTION || deal.type === 'DO_NOT_VOTE_ME' || deal.type === 'PROTECT_X') {
+        const protectedId = terms.protectedId ?? terms.targetId ?? null;
+        const protectedForA = protectedId || partyBId;
+        const protectedForB = protectedId || partyAId;
+
+        if (aVote && aVote === protectedForA) {
+          this.breakDeal(deal.id, partyAId, 'Protection promise broken');
+          return;
+        }
+        if (bVote && bVote === protectedForB) {
+          this.breakDeal(deal.id, partyBId, 'Protection promise broken');
+          return;
+        }
+
+        if (aVote && bVote) {
+          this.completeDeal(deal.id, null, 'Protection promise honored');
+        }
+        return;
+      }
+
+      if (deal.type === DealTypes.FINAL_TWO || deal.type === 'FINAL_THREE') {
+        if (aVote && aVote === partyBId) {
+          this.breakDeal(deal.id, partyAId, 'Final pact broken by direct vote');
+          return;
+        }
+        if (bVote && bVote === partyAId) {
+          this.breakDeal(deal.id, partyBId, 'Final pact broken by direct vote');
+          return;
+        }
+      }
+    });
+
+    if (gameManager?.systems?.dealConsequencesSystem?.initialize) {
+      gameManager.systems.dealConsequencesSystem.initialize();
+    }
+  }
+
   _appendHistory(deal, { action, by = null, note = '' }) {
     const now = Date.now();
     const context = this._getGameContext();

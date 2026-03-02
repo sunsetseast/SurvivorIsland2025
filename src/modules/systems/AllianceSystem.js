@@ -461,6 +461,62 @@ class AllianceSystem {
     return { accept: !!result.accepted, score: Math.max(0, Math.min(1, result.score / 100)) };
   }
 
+
+  processPostTribalFallout(tribalSummary = {}, gameManager = this.gameManager) {
+    const decidingVotes = tribalSummary.revoteOccurred && !tribalSummary.rockDrawOccurred
+      ? (tribalSummary.revoteVotes || [])
+      : (tribalSummary.initialVotes || tribalSummary.votes || []);
+    if (!decidingVotes.length) return;
+
+    const attendees = new Set((tribalSummary.membersAtTribal || []).map(member => member.id));
+    const activeAlliances = this.getAlliances().filter(alliance => (
+      (alliance.memberIds || []).some(memberId => attendees.has(memberId))
+    ));
+
+    activeAlliances.forEach(alliance => {
+      if (!Number.isFinite(alliance.cohesion)) {
+        alliance.cohesion = this.computeCohesion(alliance);
+      }
+
+      const memberVotes = decidingVotes.filter(vote => alliance.memberIds.includes(vote.voterId));
+      if (!memberVotes.length) return;
+
+      let cohesionPenalty = 0;
+
+      memberVotes.forEach(vote => {
+        if (alliance.memberIds.includes(vote.targetId)) {
+          cohesionPenalty += 3;
+        }
+      });
+
+      const voteFrequency = {};
+      memberVotes.forEach(vote => {
+        voteFrequency[vote.targetId] = (voteFrequency[vote.targetId] || 0) + 1;
+      });
+      const majorityTarget = Object.entries(voteFrequency).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      if (majorityTarget) {
+        memberVotes.forEach(vote => {
+          if (vote.targetId !== majorityTarget) {
+            cohesionPenalty += 1;
+          }
+        });
+      }
+
+      if (cohesionPenalty <= 0) return;
+
+      alliance.cohesion = Math.max(0, Math.min(100, alliance.cohesion - cohesionPenalty));
+      alliance.notes = alliance.notes
+        ? `${alliance.notes} | post_tribal_fallout:-${cohesionPenalty}`
+        : `post_tribal_fallout:-${cohesionPenalty}`;
+
+      this._publish(GameEvents.ALLIANCE_UPDATED, { alliance, cohesionPenalty, tribalDay: tribalSummary.day });
+    });
+
+    if (gameManager?.systems?.allianceSystem?.ensureNpcCommitments) {
+      gameManager.systems.allianceSystem.ensureNpcCommitments();
+    }
+  }
+
   dissolveAlliance(allianceId) {
     return this.disbandAlliance(allianceId, 'dissolved');
   }

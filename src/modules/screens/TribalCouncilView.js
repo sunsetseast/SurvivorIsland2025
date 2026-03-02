@@ -28,7 +28,7 @@ export default class TribalCouncilView {
   renderArrival() {
     this._renderScene({
       background: `${ASSET_BASE}/arrival.png`,
-      text: 'Welcome to Tribal Council.',
+      text: this._commentaryLine('arrival', 'Welcome to Tribal Council.'),
       portrait: `${ASSET_BASE}/Jeff.png`,
       buttonLabel: 'Continue',
       onNext: () => this.renderSeating()
@@ -103,7 +103,7 @@ export default class TribalCouncilView {
       background: `${ASSET_BASE}/votingbooth.png`,
       text: this.sitdUsed
         ? 'You have used your Shot in the Dark. You will not vote.'
-        : 'Cast your vote or risk it with Shot In The Dark.',
+        : this._commentaryLine('preVote', 'Cast your vote or risk it with Shot In The Dark.'),
       buttonLabel: 'Continue',
       disableNext: !this.playerVote && !this.sitdUsed,
       onNext: () => {
@@ -246,6 +246,7 @@ export default class TribalCouncilView {
   renderIllReadScreen() {
     this._renderScene({
       background: `${ASSET_BASE}/illread.png`,
+      text: this._commentaryLine('readVotesIntro', ''),
       buttonLabel: 'Read Votes',
       onNext: () => this.renderVoteReading()
     });
@@ -304,7 +305,7 @@ export default class TribalCouncilView {
     const tiedNames = this._getTiedPlayerNames();
     this._renderScene({
       background: `${ASSET_BASE}/voteread.png`,
-      text: `It is a tie between ${tiedNames.join(' and ')}. We will now revote.`,
+      text: this._commentaryLine('tieAnnouncement', `It is a tie between ${tiedNames.join(' and ')}. We will now revote.`),
       buttonLabel: 'Proceed to Revote',
       onNext
     });
@@ -316,7 +317,7 @@ export default class TribalCouncilView {
 
     this._renderScene({
       background: `${ASSET_BASE}/votingbooth.png`,
-      text: `Revote targets: ${tiedNames.join(' / ')}`,
+      text: this._commentaryLine('revoteIntro', `Revote targets: ${tiedNames.join(' / ')}`),
       buttonLabel: 'Submit Revote',
       onNext,
       afterRender: panel => {
@@ -340,12 +341,12 @@ export default class TribalCouncilView {
 
     this._renderScene({
       background: `${ASSET_BASE}/voteread.png`,
-      text: 'The tribe cannot decide. We are going to rocks.',
+      text: this._commentaryLine('rocksIntro', 'The tribe cannot decide. We are going to rocks.'),
       buttonLabel: 'Draw Rock',
       onNext: () => {
         this._renderScene({
           background: `${ASSET_BASE}/snuff.jpeg`,
-          text: `${eliminatedName} draws the bad rock.`,
+          text: this._commentaryLine('rocksResult', `${eliminatedName} draws the bad rock.`),
           buttonLabel: 'Continue',
           onNext
         });
@@ -386,10 +387,16 @@ export default class TribalCouncilView {
         ? (current.nullified ? `${targetName} (Does not count)` : targetName)
         : 'Done';
 
+      const commentarySuffix = index === queue.length - 1 && current?.phase !== 'revote'
+        ? this._commentaryLine('afterInitial', '')
+        : (index === queue.length - 1 && current?.phase === 'revote'
+          ? this._commentaryLine('afterRevote', '')
+          : '');
+
       const atLastReveal = index >= queue.length - 1;
       this._renderScene({
         background: `${ASSET_BASE}/voteread.png`,
-        text: label,
+        text: [label, commentarySuffix].filter(Boolean).join('\n'),
         buttonLabel: atLastReveal ? 'Continue' : 'Next Vote',
         onNext: () => {
           if (!atLastReveal) {
@@ -412,9 +419,15 @@ export default class TribalCouncilView {
 
     this._renderScene({
       background: `${ASSET_BASE}/snuff.jpeg`,
-      text: `The tribe has spoken. ${eliminated?.name || this.result?.eliminatedId || ''}`,
-      buttonLabel: 'Finish',
-      onNext: () => this.finish()
+      text: `${this._commentaryLine('snuffLine', 'The tribe has spoken.')} ${eliminated?.name || this.result?.eliminatedId || ''}`.trim(),
+      buttonLabel: this._shouldShowDebugSummary() ? 'Review Summary' : 'Finish',
+      onNext: () => {
+        if (this._shouldShowDebugSummary()) {
+          this.renderDebugSummary();
+          return;
+        }
+        this.finish();
+      }
     });
   }
 
@@ -504,6 +517,51 @@ export default class TribalCouncilView {
     const tiedIds = this.tribalSummary?.tiedCandidateIds || [];
     if (!tiedIds.length) return ['Unknown'];
     return tiedIds.map(id => this._resolveName(id));
+  }
+
+
+  _commentaryLine(key, fallback = '') {
+    return this.tribalSummary?.jeffCommentary?.[key] || fallback;
+  }
+
+  _shouldShowDebugSummary() {
+    return this.gameManager?.gameSettings?.debugTribal === true;
+  }
+
+  renderDebugSummary() {
+    const summary = this.tribalSummary || {};
+    const initialVotes = summary.initialVotes || [];
+    const revoteVotes = summary.revoteVotes || [];
+    const decidingLabel = summary.rockDrawOccurred
+      ? 'Elimination by rocks'
+      : JSON.stringify(summary.decidingTally || {});
+
+    this._renderScene({
+      background: `${ASSET_BASE}/voteread.png`,
+      text: 'Tribal Summary (Debug)',
+      buttonLabel: 'Continue',
+      onNext: () => this.finish(),
+      afterRender: panel => {
+        const block = createElement('div', {
+          style: 'display:flex;flex-direction:column;gap:8px;max-width:760px;width:100%;font-size:13px;color:#fff;background:rgba(0,0,0,0.55);padding:10px;border-radius:8px;'
+        });
+
+        const formatVotes = votes => votes.map(vote => `${this._resolveName(vote.voterId)} → ${this._resolveName(vote.targetId)}${vote.nullified ? ' (nullified)' : ''}`).join(' | ') || 'None';
+
+        const lines = [
+          `Initial votes: ${formatVotes(initialVotes)}`,
+          `Revote votes: ${formatVotes(revoteVotes)}`,
+          `Idol plays: ${(summary.idolPlays || []).map(play => `${this._resolveName(play.playerId || play.playedById)} on ${this._resolveName(play.targetId || play.playedOnId)}${play.successful ? ' (success)' : ''}`).join(' | ') || 'None'}`,
+          `SITD results: ${(summary.shotResults || []).map(result => `${this._resolveName(result.playerId)}: ${result.success ? 'SAFE' : 'NOT SAFE'}`).join(' | ') || 'None'}`,
+          `Tie/Revote/Rocks: ${Boolean(summary.initialTie)} / ${Boolean(summary.revoteOccurred)} / ${Boolean(summary.rockDrawOccurred)}`,
+          `Eliminated: ${this._resolveName(summary.eliminatedId)} (${summary.eliminatedId || 'none'})`,
+          `Deciding tally: ${decidingLabel}`
+        ];
+
+        lines.forEach(line => block.appendChild(createElement('div', {}, line)));
+        panel.appendChild(block);
+      }
+    });
   }
 
   _getRevoteExcludedVoters() {
