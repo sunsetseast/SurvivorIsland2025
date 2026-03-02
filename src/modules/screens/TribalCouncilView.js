@@ -134,6 +134,8 @@ export default class TribalCouncilView {
         });
 
         const parchmentButton = createElement('button', {
+          className: 'rect-button small',
+          type: 'button',
           onclick: () => this.openTargetGrid()
         }, this.playerVote ? 'Change Vote' : 'Parchment');
         parchmentButton.disabled = this.sitdUsed;
@@ -142,6 +144,8 @@ export default class TribalCouncilView {
 
         if (this.gameManager.canPlayShotInTheDark?.(player) === true && player?.shotInTheDarkAvailable !== false) {
           const sitdButton = createElement('button', {
+            className: 'rect-button small',
+            type: 'button',
             onclick: () => {
               const registered = this.tribalCouncilSystem.registerPlayerShotInTheDark(player.id);
               if (!registered) {
@@ -193,6 +197,8 @@ export default class TribalCouncilView {
         targets.forEach(member => {
           const selected = this.playerVote === member.id;
           grid.appendChild(createElement('button', {
+            className: 'rect-button small',
+            type: 'button',
             'data-target-id': member.id,
             'data-target-name': member.name || member.id,
             style: `border:${selected ? '2px solid #FFD700' : '1px solid #333'};background:${selected ? 'rgba(255,215,0,0.22)' : ''};`,
@@ -234,6 +240,8 @@ export default class TribalCouncilView {
         });
 
         actions.appendChild(createElement('button', {
+          className: 'rect-button small',
+          type: 'button',
           onclick: () => {
             this.tribalCouncilSystem.registerIdolPlay(player.id, player.id);
             this.renderIllReadScreen();
@@ -242,6 +250,8 @@ export default class TribalCouncilView {
 
         members.filter(member => member.id !== player.id).forEach(member => {
           actions.appendChild(createElement('button', {
+            className: 'rect-button small',
+            type: 'button',
             onclick: () => {
               this.tribalCouncilSystem.registerIdolPlay(player.id, member.id);
               this.renderIllReadScreen();
@@ -250,6 +260,8 @@ export default class TribalCouncilView {
         });
 
         actions.appendChild(createElement('button', {
+          className: 'rect-button small',
+          type: 'button',
           onclick: () => this.renderIllReadScreen()
         }, 'No'));
 
@@ -523,10 +535,13 @@ export default class TribalCouncilView {
     }
 
     if (buttonLabel) {
-      panel.appendChild(createElement('button', {
-        disabled: disableNext,
+      const nextButton = createElement('button', {
+        className: 'rect-button',
+        type: 'button',
         onclick: () => onNext?.()
-      }, buttonLabel));
+      }, buttonLabel);
+      nextButton.disabled = !!disableNext;
+      panel.appendChild(nextButton);
     }
 
     this.container.appendChild(panel);

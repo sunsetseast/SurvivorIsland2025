@@ -49,9 +49,15 @@ export function getElements(selector) {
  */
 export function createElement(tag, attributes = {}, children = []) {
   const element = document.createElement(tag);
+
+  const hasProperty = (target, property) => property in target;
   
   // Set attributes
   Object.entries(attributes).forEach(([key, value]) => {
+    if (value === null || value === undefined) {
+      return;
+    }
+
     if (key === 'style' && typeof value === 'object') {
       // Handle style object
       Object.entries(value).forEach(([property, propertyValue]) => {
@@ -69,9 +75,24 @@ export function createElement(tag, attributes = {}, children = []) {
     } else if (key === 'className') {
       // Handle className
       element.className = value;
+    } else if (typeof value === 'boolean') {
+      // Handle boolean attributes/properties safely
+      if (hasProperty(element, key)) {
+        element[key] = value;
+      }
+
+      if (value) {
+        element.setAttribute(key, '');
+      } else {
+        element.removeAttribute(key);
+      }
     } else {
       // Handle other attributes
-      element.setAttribute(key, value);
+      if (hasProperty(element, key)) {
+        element[key] = value;
+      } else {
+        element.setAttribute(key, value);
+      }
     }
   });
   
