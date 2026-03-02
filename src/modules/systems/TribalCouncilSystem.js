@@ -123,10 +123,7 @@ export default class TribalCouncilSystem {
     const nullifiedVoteCount = this.voteRecords.filter(vote => vote.wasNullified).length;
     const tribalTimestamp = Date.now();
     const attendingTribeIdResolved = this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null;
-    const survivors = this.gameManager.survivors || [];
-    const getName = (id) => survivors.find(member => member.id === id)?.name
-      || this.voters.find(member => member.id === id)?.name
-      || id;
+    const getName = (id) => this._findSurvivorById(id)?.name || id;
 
     const tribalSummary = {
       day,
@@ -217,31 +214,38 @@ export default class TribalCouncilSystem {
     this.majorityThreshold = Math.floor(aliveMembers.length / 2) + 1;
 
     for (const member of aliveMembers) {
-      if (this._hasImmunity(member)) this.immunityHolderIds.add(member.id);
-      if (this._hasLostVote(member)) this.lostVoteIds.add(member.id);
-      if (this._hasShotInTheDark(member)) this.shotEligibleIds.add(member.id);
-      if (this._hasIdol(member)) this.idolHolderIds.add(member.id);
+      if (this._hasImmunity(member)) this.immunityHolderIds.add(this._normalizeId(member.id));
+      if (this._hasLostVote(member)) this.lostVoteIds.add(this._normalizeId(member.id));
+      if (this._hasShotInTheDark(member)) this.shotEligibleIds.add(this._normalizeId(member.id));
+      if (this._hasIdol(member)) this.idolHolderIds.add(this._normalizeId(member.id));
     }
   }
 
   registerPlayerVote(voterId, targetId) {
-    if (!this.gameManager.hasVote?.(voterId)) {
+    const voter = this._findSurvivorById(voterId) || voterId;
+    if (!this.gameManager.hasVote?.(voter) || this.lostVoteIds.has(this._normalizeId(voterId))) {
       return false;
     }
-    this.playerVotes.set(voterId, targetId);
-    if (this.sitdUsers.has(voterId)) {
-      this.sitdUsers.delete(voterId);
+    const normalizedVoterId = this._normalizeId(voterId);
+    this.playerVotes.set(normalizedVoterId, targetId);
+    if (this.sitdUsers.has(normalizedVoterId)) {
+      this.sitdUsers.delete(normalizedVoterId);
     }
     return true;
   }
 
   registerPlayerShotInTheDark(voterId) {
-    // SITD requires a vote to spend this tribal.
-    if (!this.gameManager.canPlayShotInTheDark?.(voterId)) {
+    const normalizedVoterId = this._normalizeId(voterId);
+    if (this.lostVoteIds.has(normalizedVoterId)) {
       return false;
     }
-    this.sitdUsers.add(voterId);
-    this.playerVotes.delete(voterId);
+    // SITD requires a vote to spend this tribal.
+    const voter = this._findSurvivorById(voterId) || voterId;
+    if (!this.gameManager.canPlayShotInTheDark?.(voter) || !this.gameManager.hasVote?.(voter)) {
+      return false;
+    }
+    this.sitdUsers.add(normalizedVoterId);
+    this.playerVotes.delete(normalizedVoterId);
     return true;
   }
 
@@ -252,9 +256,7 @@ export default class TribalCouncilSystem {
 
   playerHasIdol(playerId) {
     if (!playerId) return false;
-    const survivor = (this.gameManager.survivors || []).find(member => member.id === playerId)
-      || this.voters.find(member => member.id === playerId)
-      || this.eligibleTargets.find(member => member.id === playerId);
+    const survivor = this._findSurvivorById(playerId);
     return this._hasIdol(survivor);
   }
 
@@ -262,7 +264,7 @@ export default class TribalCouncilSystem {
     const npcs = this.voters.filter(voter => !voter.isPlayer);
 
     for (const voter of npcs) {
-      if (this.sitdUsers.has(voter.id) || this.lostVoteIds.has(voter.id)) {
+      if (this.sitdUsers.has(this._normalizeId(voter.id)) || this.lostVoteIds.has(this._normalizeId(voter.id))) {
         continue;
       }
 
@@ -270,9 +272,9 @@ export default class TribalCouncilSystem {
       let bestScore = Number.NEGATIVE_INFINITY;
 
       const eligible = this.eligibleTargets.filter(target => (
-        target.id !== voter.id
+        !this._idsEqual(target.id, voter.id)
         && !target.isOut
-        && !this.immunityHolderIds.has(target.id)
+        && !this.immunityHolderIds.has(this._normalizeId(target.id))
       ));
 
       for (const target of eligible) {
@@ -291,7 +293,8 @@ export default class TribalCouncilSystem {
 
   resolveShotInTheDark() {
     for (const playerId of this.sitdUsers) {
-      if (!this.gameManager.canPlayShotInTheDark?.(playerId)) {
+      const player = this._findSurvivorById(playerId) || playerId;
+      if (!this.gameManager.canPlayShotInTheDark?.(player)) {
         continue;
       }
       const isSafe = Math.random() < 1 / 6;
@@ -308,7 +311,7 @@ export default class TribalCouncilSystem {
       if (!isSafe) continue;
 
       for (const record of this.voteRecords) {
-        if (record.targetId === playerId && !record.wasNullified) {
+        if (this._idsEqual(record.targetId, playerId) && !record.wasNullified) {
           record.wasNullified = true;
           this.nullifiedVotes.push({
             voterId: record.voterId,
@@ -337,7 +340,7 @@ export default class TribalCouncilSystem {
     }
 
     for (const play of this.idolRegistrations) {
-      const playedBy = this.eligibleTargets.find(member => member.id === play.playedById);
+      const playedBy = this.eligibleTargets.find(member => this._idsEqual(member.id, play.playedById));
       if (!playedBy || !this._hasIdol(playedBy)) {
         this.idolPlays.push({
           type: 'idolPlay',
@@ -355,7 +358,7 @@ export default class TribalCouncilSystem {
       let nullifiedVotesCount = 0;
 
       for (const record of this.voteRecords) {
-        if (record.targetId === protectedId && !record.wasNullified) {
+        if (this._idsEqual(record.targetId, protectedId) && !record.wasNullified) {
           record.wasNullified = true;
           nullifiedVotesCount += 1;
           this.nullifiedVotes.push({
@@ -391,7 +394,8 @@ export default class TribalCouncilSystem {
     const tally = {};
     for (const vote of source) {
       if (vote.wasNullified) continue;
-      tally[vote.targetId] = (tally[vote.targetId] || 0) + 1;
+      const key = this._normalizeId(vote.targetId);
+      tally[key] = (tally[key] || 0) + 1;
     }
     return tally;
   }
@@ -403,21 +407,21 @@ export default class TribalCouncilSystem {
   runRevote(tiedCandidateIds) {
     const revoteRecords = [];
     const revoters = this.voters.filter(voter => (
-      !tiedCandidateIds.includes(voter.id)
+      !tiedCandidateIds.some(id => this._idsEqual(id, voter.id))
       && !voter.isOut
-      && !this.lostVoteIds.has(voter.id)
-      && !this.sitdUsers.has(voter.id)
+      && !this.lostVoteIds.has(this._normalizeId(voter.id))
+      && !this.sitdUsers.has(this._normalizeId(voter.id))
     ));
 
     for (const voter of revoters) {
-      const candidates = tiedCandidateIds.filter(id => !this.immunityHolderIds.has(id));
+      const candidates = tiedCandidateIds.filter(id => !this.immunityHolderIds.has(this._normalizeId(id)));
       if (candidates.length === 0) continue;
 
       let selected = candidates[0];
       if (!voter.isPlayer) {
         let score = Number.NEGATIVE_INFINITY;
         for (const candidateId of candidates) {
-          const candidate = this.eligibleTargets.find(target => target.id === candidateId);
+          const candidate = this.eligibleTargets.find(target => this._idsEqual(target.id, candidateId));
           if (!candidate) continue;
           const candidateScore = this._scoreNpcTarget(voter, candidate);
           if (candidateScore > score) {
@@ -439,15 +443,15 @@ export default class TribalCouncilSystem {
     return {
       eliminatedId: leaders.length === 1 ? leaders[0] : null,
       records: revoteRecords,
-      eligibleVoterIds: revoters.map(voter => voter.id)
+      eligibleVoterIds: revoters.map(voter => this._normalizeId(voter.id))
     };
   }
 
   runRockDraw(tiedCandidateIds) {
     const eligible = this.eligibleTargets.filter(member => (
       !member.isOut
-      && !this.immunityHolderIds.has(member.id)
-      && !tiedCandidateIds.includes(member.id)
+      && !this.immunityHolderIds.has(this._normalizeId(member.id))
+      && !tiedCandidateIds.some(id => this._idsEqual(id, member.id))
     ));
 
     if (eligible.length === 0) {
@@ -461,7 +465,7 @@ export default class TribalCouncilSystem {
 
     const drawn = eligible[Math.floor(Math.random() * eligible.length)];
     return {
-      eligible: eligible.map(member => member.id),
+      eligible: eligible.map(member => this._normalizeId(member.id)),
       eliminatedId: drawn?.id || null,
       forcedResolution: false
     };
@@ -470,7 +474,7 @@ export default class TribalCouncilSystem {
   _recordVote(voterId, targetId, wasRevote = false, targetCollection = this.voteRecords, phase = 'initial') {
     if (!voterId || !targetId) return null;
     // Safety: immune survivors cannot receive valid votes.
-    if (this.immunityHolderIds.has(targetId)) return null;
+    if (this.immunityHolderIds.has(this._normalizeId(targetId))) return null;
     const record = {
       voterId,
       targetId,
@@ -499,27 +503,57 @@ export default class TribalCouncilSystem {
   }
 
   _buildRevealQueue() {
-    const initialVotes = [...this.initialVotes];
-    const revoteVotes = [...this.revoteVotes];
+    const initialVotes = this.buildSuspensefulRevealOrder(this.initialVotes, this.buildVoteTally(this.initialVotes));
+    const revoteVotes = this.buildSuspensefulRevealOrder(this.revoteVotes, this.buildVoteTally(this.revoteVotes));
+    const stack = [...initialVotes, ...revoteVotes];
+    return stack.map(vote => ({ ...vote, revealType: vote.wasNullified ? 'NULLIFIED' : 'VALID' }));
+  }
 
-    const shuffle = (stack) => {
-      for (let i = stack.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [stack[i], stack[j]] = [stack[j], stack[i]];
-      }
-      return stack;
-    };
-
-    const stack = [...shuffle([...initialVotes]), ...shuffle([...revoteVotes])];
-
-    const queue = [];
-
-    for (const vote of stack) {
-      const revealType = vote.wasNullified ? 'NULLIFIED' : 'VALID';
-      queue.push({ ...vote, revealType });
+  buildSuspensefulRevealOrder(voteRecords = [], finalTally = {}) {
+    if (!Array.isArray(voteRecords) || voteRecords.length <= 1) {
+      return [...(voteRecords || [])];
     }
 
-    return queue;
+    const buckets = new Map();
+    for (const record of voteRecords) {
+      const key = this._normalizeId(record.targetId);
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(record);
+    }
+
+    const baseOrder = Object.entries(finalTally)
+      .map(([id, count]) => ({ id: this._normalizeId(id), count: Number(count) || 0 }))
+      .filter(entry => entry.count > 0 && buckets.has(entry.id))
+      .sort((a, b) => b.count - a.count || String(a.id).localeCompare(String(b.id)))
+      .map(entry => entry.id);
+
+    const fallbackOrder = [...buckets.keys()].filter(id => !baseOrder.includes(id));
+    const candidateOrder = [...baseOrder, ...fallbackOrder];
+    const remaining = new Map(candidateOrder.map(id => [id, buckets.get(id).length]));
+    const ordered = [];
+
+    while ([...remaining.values()].some(count => count > 0)) {
+      const active = candidateOrder
+        .filter(id => (remaining.get(id) || 0) > 0)
+        .sort((a, b) => (remaining.get(b) || 0) - (remaining.get(a) || 0) || candidateOrder.indexOf(a) - candidateOrder.indexOf(b));
+
+      if (active.length === 1) {
+        const lone = active[0];
+        while ((remaining.get(lone) || 0) > 0) {
+          ordered.push(buckets.get(lone).shift());
+          remaining.set(lone, (remaining.get(lone) || 0) - 1);
+        }
+        continue;
+      }
+
+      for (const id of active) {
+        if ((remaining.get(id) || 0) <= 0) continue;
+        ordered.push(buckets.get(id).shift());
+        remaining.set(id, (remaining.get(id) || 0) - 1);
+      }
+    }
+
+    return ordered.filter(Boolean);
   }
 
   _scoreNpcTarget(voter, target) {
@@ -539,15 +573,15 @@ export default class TribalCouncilSystem {
     if (!allianceSystem || typeof allianceSystem.getAllAlliances !== 'function') return false;
     const alliances = allianceSystem.getAllAlliances() || [];
     return alliances.some(alliance => {
-      const members = alliance.members || alliance.memberIds || [];
-      return members.includes(id1) && members.includes(id2);
+      const members = (alliance.members || alliance.memberIds || []).map(memberId => this._normalizeId(memberId));
+      return members.includes(this._normalizeId(id1)) && members.includes(this._normalizeId(id2));
     });
   }
 
   _getIntentConfidence(voter, target) {
     const intents = voter.personalIntent || voter.personalIntents || voter.intentions || [];
     if (!Array.isArray(intents)) return 0;
-    const hit = intents.find(intent => intent?.targetId === target.id || intent?.target === target.id);
+    const hit = intents.find(intent => this._idsEqual(intent?.targetId, target.id) || this._idsEqual(intent?.target, target.id));
     return Number.isFinite(hit?.confidence) ? Math.max(0, Math.min(1, hit.confidence)) : 0;
   }
 
@@ -572,7 +606,7 @@ export default class TribalCouncilSystem {
   _countVotesAgainst(targetId, opts = {}) {
     const includeNullified = opts.includeNullified === true;
     return this.initialVotes.filter(record => {
-      if (record.targetId !== targetId) return false;
+      if (!this._idsEqual(record.targetId, targetId)) return false;
       if (!includeNullified && record.wasNullified) return false;
       return true;
     }).length;
@@ -651,9 +685,11 @@ export default class TribalCouncilSystem {
   _castPlayerVoteIfNeeded(voter) {
     if (!voter?.id) return;
 
-    if (this.sitdUsers.has(voter.id)) {
+    const voterId = this._normalizeId(voter.id);
+
+    if (this.sitdUsers.has(voterId)) {
       // SITD consumes the player's vote for this tribal.
-      this.playerVotes.delete(voter.id);
+      this.playerVotes.delete(voterId);
       return;
     }
 
@@ -661,16 +697,16 @@ export default class TribalCouncilSystem {
       return;
     }
 
-    if (this.playerVotes.has(voter.id)) {
-      const selectedTarget = this.playerVotes.get(voter.id);
+    if (this.playerVotes.has(voterId)) {
+      const selectedTarget = this.playerVotes.get(voterId);
       this._recordVote(voter.id, selectedTarget, false);
       return;
     }
 
     const fallbackTarget = this.eligibleTargets.find(target => (
-      target.id !== voter.id
+      !this._idsEqual(target.id, voter.id)
       && !target.isOut
-      && !this.immunityHolderIds.has(target.id)
+      && !this.immunityHolderIds.has(this._normalizeId(target.id))
     ));
 
     if (fallbackTarget) {
@@ -685,9 +721,25 @@ export default class TribalCouncilSystem {
     }
 
     const idolSystem = this.gameManager.systems?.idolSystem;
-    const inventory = idolSystem?.survivorInventories?.get?.(survivor?.id);
+    const inventory = idolSystem?.survivorInventories?.get?.(survivor?.id)
+      || idolSystem?.survivorInventories?.get?.(this._normalizeId(survivor?.id));
     if (!inventory?.idols) return false;
     return inventory.idols.some(idol => !idol.isUsed && !idol.played);
+  }
+
+  _normalizeId(id) {
+    return id === undefined || id === null ? '' : String(id);
+  }
+
+  _idsEqual(a, b) {
+    return this._normalizeId(a) === this._normalizeId(b);
+  }
+
+  _findSurvivorById(id) {
+    const normalized = this._normalizeId(id);
+    return (this.gameManager.survivors || []).find(member => this._idsEqual(member?.id, normalized))
+      || this.voters.find(member => this._idsEqual(member?.id, normalized))
+      || null;
   }
 
 }
