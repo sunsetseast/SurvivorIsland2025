@@ -3082,27 +3082,40 @@ body {
 }
 
 /* Tribal Council polish */
+#tribal-council-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 .tribal-panel {
   position: absolute;
-  inset: 2vh 2vw;
+  left: 2vw;
+  right: 2vw;
+  bottom: 1.5vh;
+  top: max(1.5vh, env(safe-area-inset-top, 0px));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  max-height: 96vh;
-  padding: 16px;
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3vh);
+  padding: 14px;
   border-radius: 14px;
-  background: linear-gradient(to bottom, rgba(15, 10, 5, 0.25), rgba(15, 10, 5, 0.75));
-  overflow: hidden;
+  background: linear-gradient(to bottom, rgba(15, 10, 5, 0.2), rgba(15, 10, 5, 0.78));
+  overflow: auto;
   pointer-events: auto;
+  z-index: 2;
 }
 
 .tribal-content {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
   align-items: center;
   overflow-y: auto;
   padding-right: 4px;
+  min-height: 0;
 }
 
 .tribal-text {
@@ -3119,10 +3132,27 @@ body {
   bottom: 0;
   z-index: 5;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+  pointer-events: auto;
+}
+
+.tribal-actions-row {
+  display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
-  padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+  gap: 8px;
+  width: 100%;
+}
+
+.tribal-notice,
+.tribal-warning {
+  font-size: 13px;
+  color: #FFD166;
+  text-align: center;
+  max-width: 680px;
 }
 
 .tribal-grid {
@@ -3134,11 +3164,11 @@ body {
   margin: 0 auto;
 }
 
-.tribal-tally {
+.tribal-tally-box {
   position: absolute;
   top: 12px;
   right: 12px;
-  min-width: 130px;
+  min-width: 140px;
   max-width: 45vw;
   background: rgba(221, 195, 140, 0.92);
   color: #3b240c;
@@ -3147,6 +3177,8 @@ body {
   padding: 8px 10px;
   font-size: 0.85rem;
   line-height: 1.25;
+  z-index: 3;
+  pointer-events: none;
 }
 
 .tribal-tally-title {
@@ -3155,18 +3187,29 @@ body {
   margin-bottom: 4px;
 }
 
-.vote-parchment-overlay {
+.tribal-vote-parchment {
   position: absolute;
   left: 50%;
-  bottom: 22%;
-  transform: translateX(-50%);
-  min-width: 170px;
-  max-width: 60vw;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  width: min(68vw, 540px);
+  min-height: 120px;
+  background: url('Assets/parch-landscape.png') center / contain no-repeat, rgba(232, 209, 163, 0.88);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tribal-vote-name {
   text-align: center;
   color: #1f1108;
-  font-size: clamp(1.1rem, 3.1vw, 2rem);
+  font-size: clamp(1.2rem, 3.4vw, 2.2rem);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
@@ -3195,13 +3238,6 @@ body {
   max-width: 680px;
 }
 
-.tribal-warning {
-  font-size: 13px;
-  color: #FFD166;
-  text-align: center;
-  max-width: 680px;
-}
-
 .tribal-rocks-list {
   display: flex;
   flex-wrap: wrap;
@@ -3222,11 +3258,13 @@ body {
 #tribal-council-screen button,
 #tribal-council-screen .rect-button {
   cursor: pointer;
+  pointer-events: auto;
 }
 
 @media (max-width: 768px) {
-  .tribal-panel { inset: 1vh 1vw; max-height: 98vh; padding: 10px; }
-  .vote-parchment-overlay { bottom: 19%; max-width: 72vw; }
+  .tribal-panel { left: 1vw; right: 1vw; padding: 10px; }
+  .tribal-vote-parchment { width: min(82vw, 520px); top: 41%; }
   .tribal-actions .rect-button { width: min(92vw, 250px); }
   .tribal-actions .rect-button.small { width: min(44vw, 180px); }
+  .tribal-tally-box { max-width: 55vw; font-size: 0.75rem; }
 }
