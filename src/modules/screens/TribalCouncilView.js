@@ -382,8 +382,11 @@ export default class TribalCouncilView {
           onDone?.();
         },
         afterRender: panel => {
-          panel.appendChild(createElement('div', { className: 'vote-parchment-overlay' }, label));
-          const tally = createElement('div', { className: 'tribal-tally' });
+          const parchment = createElement('div', { className: 'tribal-vote-parchment' });
+          parchment.appendChild(createElement('div', { className: 'tribal-vote-name' }, label));
+          panel.appendChild(parchment);
+
+          const tally = createElement('div', { className: 'tribal-tally-box' });
           tally.appendChild(createElement('div', { className: 'tribal-tally-title' }, current?.phase === 'revote' ? 'REVOTE TALLY' : 'VOTE TALLY'));
           tallyEntries.forEach(line => tally.appendChild(createElement('div', {}, line)));
           if (tallyEntries.length === 0) {
@@ -401,7 +404,7 @@ export default class TribalCouncilView {
     const eliminatedName = this.getDisplayName(this.result?.eliminatedId, { firstOnly: false });
     this._renderScene({
       background: `${ASSET_BASE}/snuff.jpeg`,
-      text: `${this._commentaryLine('snuffLine', 'The tribe has spoken.')} ${eliminatedName}`.trim(),
+      text: `THE TRIBE HAS SPOKEN.\n${eliminatedName}`,
       buttonLabel: this._shouldShowDebugSummary() ? 'Review Summary' : 'Finish',
       onNext: () => (this._shouldShowDebugSummary() ? this.renderDebugSummary() : this.finish())
     });
@@ -427,7 +430,7 @@ export default class TribalCouncilView {
     });
   }
 
-  _renderScene({ background, text = '', portrait, buttonLabel, onNext, afterRender, disableNext = false, notice = '', secondaryActions = [] } = {}) {
+  _renderScene({ background, text = '', portrait, buttonLabel, onNext, afterRender, disableNext = false, notice = '', secondaryActions = [], buttonClassName = 'rect-button' } = {}) {
     clearChildren(this.container);
     this._setBackground(background);
     this.container.style.backgroundSize = 'cover';
@@ -444,10 +447,6 @@ export default class TribalCouncilView {
       content.appendChild(createElement('div', { className: 'tribal-text' }, text));
     }
 
-    if (notice) {
-      content.appendChild(createElement('div', { className: 'tribal-warning' }, notice));
-    }
-
     if (typeof afterRender === 'function') {
       afterRender(content);
     }
@@ -455,6 +454,7 @@ export default class TribalCouncilView {
     panel.appendChild(content);
 
     const actions = createElement('div', { className: 'tribal-actions' });
+    const secondaryRow = createElement('div', { className: 'tribal-actions-row' });
     secondaryActions.forEach(action => {
       const button = createElement('button', {
         className: action.className || 'rect-button small',
@@ -462,12 +462,20 @@ export default class TribalCouncilView {
         onclick: () => action.onClick?.()
       }, action.label || 'Action');
       button.disabled = !!action.disabled;
-      actions.appendChild(button);
+      secondaryRow.appendChild(button);
     });
+
+    if (secondaryRow.childNodes.length > 0) {
+      actions.appendChild(secondaryRow);
+    }
+
+    if (notice) {
+      actions.appendChild(createElement('div', { className: 'tribal-notice' }, notice));
+    }
 
     if (buttonLabel) {
       const nextButton = createElement('button', {
-        className: 'rect-button',
+        className: buttonClassName?.includes('rect-button') ? buttonClassName : `rect-button ${buttonClassName || ''}`.trim(),
         type: 'button',
         onclick: () => onNext?.()
       }, buttonLabel);

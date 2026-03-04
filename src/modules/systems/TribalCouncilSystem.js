@@ -36,8 +36,9 @@ export default class TribalCouncilSystem {
     this.shotEligibleIds = new Set();
     this.idolHolderIds = new Set();
     this.idolProtectedIds = new Set();
-    this.wasTie = false;
-    this.wentToRocks = false;
+    this.initialTie = false;
+    this.revoteOccurred = false;
+    this.rockDrawOccurred = false;
     this.forcedResolution = false;
     this.eliminatedId = null;
     this.majorityThreshold = 0;
@@ -85,6 +86,7 @@ export default class TribalCouncilSystem {
       : [];
 
     const initialTie = tiedCandidates.length > 1;
+    this.initialTie = initialTie;
     let revoteOccurred = false;
     let decidingCounts = initialCounts;
     let revoteEligibleVoterIds = [];
@@ -96,8 +98,9 @@ export default class TribalCouncilSystem {
       this.eliminatedId = tiedCandidates[0] || null;
     } else {
       // Survivor tie flow: tie -> revote -> rocks.
-      this.wasTie = true;
+      this.initialTie = true;
       revoteOccurred = true;
+      this.revoteOccurred = true;
       const revoteResult = this.runRevote(tiedCandidates);
       revoteEligibleVoterIds = revoteResult.eligibleVoterIds;
 
@@ -106,7 +109,7 @@ export default class TribalCouncilSystem {
         decidingCounts = this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote'));
       } else {
         // Still tied after revote: draw rocks among eligible non-immune, non-tied players.
-        this.wentToRocks = true;
+        this.rockDrawOccurred = true;
         rockDrawOccurred = true;
         const rockResult = this.runRockDraw(tiedCandidates);
         rockDrawEligible = rockResult.eligible;
@@ -117,7 +120,7 @@ export default class TribalCouncilSystem {
       }
     }
 
-    this.revealQueue = this._buildRevealQueue();
+    this.revealQueue = this._buildRevealQueue({ initialVotes: this.initialVotes, revoteVotes: this.revoteVotes });
 
     const validVoteCount = this.voteRecords.filter(vote => !vote.wasNullified).length;
     const nullifiedVoteCount = this.voteRecords.filter(vote => vote.wasNullified).length;
@@ -170,7 +173,7 @@ export default class TribalCouncilSystem {
         targetName: getName(vote.targetId),
         nullified: vote.wasNullified
       })),
-      wasTie: this.wasTie,
+      wasTie: this.initialTie,
       initialTie,
       revoteOccurred,
       revoteEligibleVoterIds,
@@ -236,7 +239,7 @@ export default class TribalCouncilSystem {
 
   registerPlayerShotInTheDark(voterId) {
     const normalizedVoterId = this._normalizeId(voterId);
-    if (this.lostVoteIds.has(normalizedVoterId)) {
+    if (this.lostVoteIds.has(normalizedVoterId) || this.sitdUsers.has(normalizedVoterId)) {
       return false;
     }
     // SITD requires a vote to spend this tribal.
@@ -294,7 +297,7 @@ export default class TribalCouncilSystem {
   resolveShotInTheDark() {
     for (const playerId of this.sitdUsers) {
       const player = this._findSurvivorById(playerId) || playerId;
-      if (!this.gameManager.canPlayShotInTheDark?.(player)) {
+      if (!this.gameManager.canPlayShotInTheDark?.(player) || !this.gameManager.hasVote?.(player)) {
         continue;
       }
       const isSafe = Math.random() < 1 / 6;
@@ -502,11 +505,46 @@ export default class TribalCouncilSystem {
     return record;
   }
 
-  _buildRevealQueue() {
-    const initialVotes = this.buildSuspensefulRevealOrder(this.initialVotes, this.buildVoteTally(this.initialVotes));
-    const revoteVotes = this.buildSuspensefulRevealOrder(this.revoteVotes, this.buildVoteTally(this.revoteVotes));
-    const stack = [...initialVotes, ...revoteVotes];
+  _buildRevealQueue({ initialVotes = [], revoteVotes = [] } = {}) {
+    const initialOrder = this.buildSuspensefulRevealOrder(initialVotes, this.buildVoteTally(initialVotes));
+    const revoteOrder = this.buildSuspensefulRevealOrder(revoteVotes, this.buildVoteTally(revoteVotes));
+    const initialReveals = this._trimRevealsWhenLocked(initialOrder);
+    const revoteReveals = this._trimRevealsWhenLocked(revoteOrder);
+    const stack = [...initialReveals, ...revoteReveals];
     return stack.map(vote => ({ ...vote, revealType: vote.wasNullified ? 'NULLIFIED' : 'VALID' }));
+  }
+
+  _trimRevealsWhenLocked(voteRecords = []) {
+    const remaining = {};
+    voteRecords.forEach(vote => {
+      if (vote.wasNullified) return;
+      const key = this._normalizeId(vote.targetId);
+      remaining[key] = (remaining[key] || 0) + 1;
+    });
+
+    const running = {};
+    const reveal = [];
+    for (const vote of voteRecords) {
+      reveal.push(vote);
+      if (!vote.wasNullified) {
+        const key = this._normalizeId(vote.targetId);
+        running[key] = (running[key] || 0) + 1;
+        remaining[key] = Math.max(0, (remaining[key] || 0) - 1);
+      }
+
+      const leaderEntry = Object.entries(running).sort((a, b) => b[1] - a[1])[0];
+      if (!leaderEntry) continue;
+      const [leaderId, leaderCount] = leaderEntry;
+      const chaserPotential = Object.entries(remaining)
+        .filter(([id]) => id !== leaderId)
+        .reduce((max, [id, left]) => Math.max(max, (running[id] || 0) + left), 0);
+
+      if (leaderCount > chaserPotential) {
+        break;
+      }
+    }
+
+    return reveal;
   }
 
   buildSuspensefulRevealOrder(voteRecords = [], finalTally = {}) {
@@ -514,46 +552,67 @@ export default class TribalCouncilSystem {
       return [...(voteRecords || [])];
     }
 
+    const validVotes = voteRecords.filter(vote => !vote.wasNullified);
+    const nullifiedVotes = voteRecords.filter(vote => vote.wasNullified);
     const buckets = new Map();
-    for (const record of voteRecords) {
-      const key = this._normalizeId(record.targetId);
+
+    for (const vote of validVotes) {
+      const key = this._normalizeId(vote.targetId);
       if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key).push(record);
+      buckets.get(key).push(vote);
     }
 
-    const baseOrder = Object.entries(finalTally)
+    const tallyEntries = Object.entries(finalTally)
       .map(([id, count]) => ({ id: this._normalizeId(id), count: Number(count) || 0 }))
       .filter(entry => entry.count > 0 && buckets.has(entry.id))
-      .sort((a, b) => b.count - a.count || String(a.id).localeCompare(String(b.id)))
-      .map(entry => entry.id);
+      .sort((a, b) => b.count - a.count || String(a.id).localeCompare(String(b.id)));
 
-    const fallbackOrder = [...buckets.keys()].filter(id => !baseOrder.includes(id));
-    const candidateOrder = [...baseOrder, ...fallbackOrder];
-    const remaining = new Map(candidateOrder.map(id => [id, buckets.get(id).length]));
     const ordered = [];
+    const contenderOrder = tallyEntries.slice().sort((a, b) => a.count - b.count).map(entry => entry.id);
 
-    while ([...remaining.values()].some(count => count > 0)) {
-      const active = candidateOrder
-        .filter(id => (remaining.get(id) || 0) > 0)
-        .sort((a, b) => (remaining.get(b) || 0) - (remaining.get(a) || 0) || candidateOrder.indexOf(a) - candidateOrder.indexOf(b));
+    contenderOrder.forEach(id => {
+      const first = buckets.get(id)?.shift();
+      if (first) ordered.push(first);
+    });
 
-      if (active.length === 1) {
-        const lone = active[0];
-        while ((remaining.get(lone) || 0) > 0) {
-          ordered.push(buckets.get(lone).shift());
-          remaining.set(lone, (remaining.get(lone) || 0) - 1);
-        }
-        continue;
-      }
+    const winnerId = tallyEntries[0]?.id || null;
+    const candidateOrder = tallyEntries
+      .map(entry => entry.id)
+      .sort((a, b) => {
+        if (a === winnerId) return 1;
+        if (b === winnerId) return -1;
+        return (buckets.get(a)?.length || 0) - (buckets.get(b)?.length || 0);
+      });
 
-      for (const id of active) {
-        if ((remaining.get(id) || 0) <= 0) continue;
-        ordered.push(buckets.get(id).shift());
-        remaining.set(id, (remaining.get(id) || 0) - 1);
+    while (candidateOrder.some(id => (buckets.get(id) || []).length > 0)) {
+      for (const id of candidateOrder) {
+        const next = buckets.get(id)?.shift();
+        if (next) ordered.push(next);
       }
     }
 
-    return ordered.filter(Boolean);
+    if (nullifiedVotes.length === 0) {
+      return ordered;
+    }
+
+    const withNullified = [];
+    const spacing = Math.max(1, Math.floor(ordered.length / (nullifiedVotes.length + 1)));
+    let nullifiedIndex = 0;
+
+    ordered.forEach((vote, index) => {
+      withNullified.push(vote);
+      if ((index + 1) % spacing === 0 && nullifiedVotes[nullifiedIndex]) {
+        withNullified.push(nullifiedVotes[nullifiedIndex]);
+        nullifiedIndex += 1;
+      }
+    });
+
+    while (nullifiedVotes[nullifiedIndex]) {
+      withNullified.push(nullifiedVotes[nullifiedIndex]);
+      nullifiedIndex += 1;
+    }
+
+    return withNullified;
   }
 
   _scoreNpcTarget(voter, target) {
