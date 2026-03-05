@@ -3103,7 +3103,7 @@ body {
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
-  z-index: 1;
+  z-index: 0;
 }
 
 .tribal-panel {
@@ -3118,10 +3118,11 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
+  width: 100%;
   padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
   padding-inline: 14px;
-  z-index: 9;
+  text-align: center;
+  z-index: 3;
 }
 
 .tribal-center-wrap {
@@ -3156,7 +3157,7 @@ body {
 .tribal-seats-wrap {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 2;
   pointer-events: none;
 }
 
@@ -3193,7 +3194,7 @@ body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  z-index: 12;
+  z-index: 4;
   pointer-events: none;
 }
 
@@ -3211,7 +3212,7 @@ body {
 }
 
 .tribal-vote-name {
-  z-index: 14;
+  z-index: 5;
   color: #180d06;
   font-size: clamp(1.3rem, 4.2vw, 2.5rem);
   font-weight: 900;
@@ -3219,6 +3220,20 @@ body {
   letter-spacing: 0.06em;
   line-height: 1.1;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.tribal-jeff-wrap {
+  position: absolute;
+  right: 4%;
+  bottom: 14%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tribal-jeff-img {
+  width: clamp(120px, 24vw, 320px);
+  height: auto;
+  display: block;
 }
 
 .tribal-vote-subtext {
