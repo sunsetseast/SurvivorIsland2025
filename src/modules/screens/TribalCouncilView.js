@@ -18,6 +18,7 @@ export default class TribalCouncilView {
     this.isCompleting = false;
     this.root = null;
     this.beatRunner = null;
+    this.allPlayers = [];
   }
 
   start() {
@@ -38,6 +39,7 @@ export default class TribalCouncilView {
 
     const playerTribe = this.gameManager.getPlayerTribe?.();
     this.attendingTribeId = playerTribe?.tribeId ?? playerTribe?.id ?? null;
+    this.allPlayers = this._buildAllPlayersList();
 
     clearChildren(this.container);
     this.root = createElement('div', { className: 'tribal-root' });
@@ -245,7 +247,7 @@ export default class TribalCouncilView {
         textPos: 'parchment',
         parchment: {
           show: true,
-          voteName: vote?.targetName || this.getDisplayName(vote?.targetId, { firstOnly: true }),
+          voteName: this._resolveVoteName(vote),
           subText: vote?.wasNullified ? 'DOES NOT COUNT' : ''
         },
         tallyLines,
@@ -263,6 +265,10 @@ export default class TribalCouncilView {
 
     if (beat?.showStools) {
       scene.appendChild(this._createSeats(beat.stoolsData || [], beat.stoolHighlightId));
+    }
+
+    if (beat?.jeff && beat.jeff.img) {
+      scene.appendChild(this._renderJeff(beat.jeff));
     }
 
     const panel = createElement('div', { className: 'tribal-panel' });
@@ -468,7 +474,7 @@ export default class TribalCouncilView {
 
   _createSeats(members = [], highlightId = null) {
     const wrap = createElement('div', { className: 'tribal-seats-wrap' });
-    const positions = this._getTribalSeatPositions(members.length);
+    const positions = this._getSeatPositions(members.length);
 
     members.forEach((member, index) => {
       const position = positions[index] || { leftPct: 50, topPct: 40 };
@@ -494,7 +500,33 @@ export default class TribalCouncilView {
     return wrap;
   }
 
-  _getTribalSeatPositions(count) {
+  _getSeatPositions(count) {
+    const presets = {
+      6: [
+        { leftPct: 14, topPct: 56 },
+        { leftPct: 27, topPct: 48 },
+        { leftPct: 40, topPct: 42 },
+        { leftPct: 60, topPct: 42 },
+        { leftPct: 73, topPct: 48 },
+        { leftPct: 86, topPct: 56 }
+      ],
+      9: [
+        { leftPct: 8, topPct: 62 },
+        { leftPct: 18, topPct: 54 },
+        { leftPct: 29, topPct: 47 },
+        { leftPct: 40, topPct: 42 },
+        { leftPct: 50, topPct: 40 },
+        { leftPct: 60, topPct: 42 },
+        { leftPct: 71, topPct: 47 },
+        { leftPct: 82, topPct: 54 },
+        { leftPct: 92, topPct: 62 }
+      ]
+    };
+
+    if (presets[count]) {
+      return presets[count];
+    }
+
     const size = Math.max(2, Math.min(12, Number(count) || 2));
     const centerX = 50;
     const centerY = 58;
@@ -511,6 +543,36 @@ export default class TribalCouncilView {
         topPct: centerY + (Math.sin(angle) * radiusY)
       };
     });
+  }
+
+  _resolveVoteName(vote) {
+    if (!vote) return 'UNKNOWN';
+    const target = this.allPlayers.find(player => String(player?.id) === String(vote.targetId));
+    return target?.name || 'UNKNOWN';
+  }
+
+  _buildAllPlayersList() {
+    const tribeMembers = this._getAttendingTribe()?.members || [];
+    const survivors = this.gameManager?.survivors || [];
+    const byId = new Map();
+
+    [...survivors, ...tribeMembers].forEach(player => {
+      if (!player?.id) return;
+      byId.set(String(player.id), player);
+    });
+
+    return [...byId.values()];
+  }
+
+  _renderJeff(jeff = {}) {
+    const wrap = createElement('div', { className: 'tribal-jeff-wrap' });
+    const img = createElement('img', {
+      className: 'tribal-jeff-img',
+      src: jeff.img,
+      alt: 'Jeff'
+    });
+    wrap.appendChild(img);
+    return wrap;
   }
 
   _getAvatarUrl(member) {
