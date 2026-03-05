@@ -244,7 +244,7 @@ export default class TribalCouncilView {
   renderIllReadScreen() {
     this._renderScene({
       background: `${ASSET_BASE}/illread.png`,
-      text: [this._commentaryLine('sitdExplain', ''), this._commentaryLine('idolOpportunity', ''), this._commentaryLine('readVotesIntro', '')].filter(Boolean).join('\n'),
+      text: this._commentaryLine('readVotesIntro', 'I will read the votes.'),
       buttonLabel: 'Read Votes',
       onNext: () => this.renderVoteReading()
     });
@@ -269,7 +269,7 @@ export default class TribalCouncilView {
 
     this._renderVoteQueue(initialQueue, {
       onDone: () => {
-        if (!this.tribalSummary?.initialTie) {
+        if (!this.tribalSummary?.wasTie) {
           this.renderSnuff();
           return;
         }
@@ -353,20 +353,25 @@ export default class TribalCouncilView {
     }
 
     const revealedCounts = {};
+    const phase = queue[0]?.phase === 'revote' ? 'revote' : 'initial';
+    const candidates = phase === 'revote'
+      ? Object.keys(this.tribalSummary?.finalTallyRevote || this.tribalSummary?.revoteCounts || {})
+      : Object.keys(this.tribalSummary?.finalTallyInitial || this.tribalSummary?.initialCounts || {});
+    candidates.forEach(id => { revealedCounts[String(id)] = 0; });
     let index = 0;
 
     const renderCurrent = () => {
       const current = queue[index];
-      if (current && !current.nullified) {
+      if (current && !current.wasNullified) {
         const key = String(current.targetId);
         revealedCounts[key] = (revealedCounts[key] || 0) + 1;
       }
 
-      const targetName = this.getDisplayName(current?.targetId, { firstOnly: true });
-      const label = current?.nullified ? `${targetName} (DOES NOT COUNT)` : targetName;
+      const targetName = current?.displayName || this.getDisplayName(current?.targetId, { firstOnly: true });
+      const label = current?.wasNullified ? `${targetName} (DOES NOT COUNT)` : targetName;
       const tallyEntries = Object.entries(revealedCounts)
         .sort((a, b) => b[1] - a[1])
-        .map(([id, count]) => `${this.getDisplayName(id)}: ${count}`);
+        .map(([id, count]) => `${this.getDisplayName(id, { firstOnly: true })}: ${count}`);
 
       const atLastReveal = index >= queue.length - 1;
       this._renderScene({
@@ -404,7 +409,7 @@ export default class TribalCouncilView {
     const eliminatedName = this.getDisplayName(this.result?.eliminatedId, { firstOnly: false });
     this._renderScene({
       background: `${ASSET_BASE}/snuff.jpeg`,
-      text: `THE TRIBE HAS SPOKEN.\n${eliminatedName}`,
+      text: `${this._commentaryLine('snuffLine', 'The tribe has spoken.')}\n${eliminatedName}`,
       buttonLabel: this._shouldShowDebugSummary() ? 'Review Summary' : 'Finish',
       onNext: () => (this._shouldShowDebugSummary() ? this.renderDebugSummary() : this.finish())
     });
@@ -561,7 +566,10 @@ export default class TribalCouncilView {
       return;
     }
     const apply = (imagePath) => {
-      this.container.style.backgroundImage = `url('${imagePath}'), linear-gradient(rgba(10,10,10,0.55), rgba(10,10,10,0.55))`;
+      this.container.style.backgroundImage = `url('${imagePath}')`;
+      this.container.style.backgroundSize = 'cover';
+      this.container.style.backgroundPosition = 'center';
+      this.container.style.backgroundRepeat = 'no-repeat';
     };
     const testImage = new Image();
     testImage.onload = () => apply(background);

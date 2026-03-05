@@ -160,8 +160,10 @@ export default class TribalCouncilSystem {
       })),
       initialCounts,
       initialTally: initialCounts,
+      finalTallyInitial: initialCounts,
       revoteCounts: revoteOccurred ? this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')) : null,
       revoteTally: revoteOccurred ? this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')) : null,
+      finalTallyRevote: revoteOccurred ? this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')) : null,
       decidingCounts,
       decidingTally: decidingCounts,
       eliminatedId: this.eliminatedId,
@@ -184,6 +186,7 @@ export default class TribalCouncilSystem {
         nullified: vote.wasNullified
       })),
       rockDrawOccurred,
+      wentToRocks: rockDrawOccurred,
       rockDrawEligible: rockDrawEligible.map(id => ({ id, name: getName(id) })),
       rockDrawEliminatedId,
       forcedResolution: this.forcedResolution,
@@ -508,43 +511,28 @@ export default class TribalCouncilSystem {
   _buildRevealQueue({ initialVotes = [], revoteVotes = [] } = {}) {
     const initialOrder = this.buildSuspensefulRevealOrder(initialVotes, this.buildVoteTally(initialVotes));
     const revoteOrder = this.buildSuspensefulRevealOrder(revoteVotes, this.buildVoteTally(revoteVotes));
-    const initialReveals = this._trimRevealsWhenLocked(initialOrder);
-    const revoteReveals = this._trimRevealsWhenLocked(revoteOrder);
-    const stack = [...initialReveals, ...revoteReveals];
-    return stack.map(vote => ({ ...vote, revealType: vote.wasNullified ? 'NULLIFIED' : 'VALID' }));
-  }
+    const toRevealEntry = (vote, phase) => {
+      const target = this._findSurvivorById(vote.targetId);
+      const displayName = this._getFirstName(target?.name || vote.targetId);
+      const nullifyReason = this.nullifiedVotes.find(entry => (
+        this._idsEqual(entry.voterId, vote.voterId) && this._idsEqual(entry.targetId, vote.targetId)
+      ))?.reason || null;
 
-  _trimRevealsWhenLocked(voteRecords = []) {
-    const remaining = {};
-    voteRecords.forEach(vote => {
-      if (vote.wasNullified) return;
-      const key = this._normalizeId(vote.targetId);
-      remaining[key] = (remaining[key] || 0) + 1;
-    });
+      return {
+        phase,
+        voterId: this._normalizeId(vote.voterId),
+        targetId: this._normalizeId(vote.targetId),
+        wasNullified: Boolean(vote.wasNullified),
+        nullifyReason,
+        displayName,
+        revealType: vote.wasNullified ? 'NULLIFIED' : 'VALID'
+      };
+    };
 
-    const running = {};
-    const reveal = [];
-    for (const vote of voteRecords) {
-      reveal.push(vote);
-      if (!vote.wasNullified) {
-        const key = this._normalizeId(vote.targetId);
-        running[key] = (running[key] || 0) + 1;
-        remaining[key] = Math.max(0, (remaining[key] || 0) - 1);
-      }
-
-      const leaderEntry = Object.entries(running).sort((a, b) => b[1] - a[1])[0];
-      if (!leaderEntry) continue;
-      const [leaderId, leaderCount] = leaderEntry;
-      const chaserPotential = Object.entries(remaining)
-        .filter(([id]) => id !== leaderId)
-        .reduce((max, [id, left]) => Math.max(max, (running[id] || 0) + left), 0);
-
-      if (leaderCount > chaserPotential) {
-        break;
-      }
-    }
-
-    return reveal;
+    return [
+      ...initialOrder.map(vote => toRevealEntry(vote, 'initial')),
+      ...revoteOrder.map(vote => toRevealEntry(vote, 'revote'))
+    ];
   }
 
   buildSuspensefulRevealOrder(voteRecords = [], finalTally = {}) {
@@ -568,27 +556,59 @@ export default class TribalCouncilSystem {
       .sort((a, b) => b.count - a.count || String(a.id).localeCompare(String(b.id)));
 
     const ordered = [];
-    const contenderOrder = tallyEntries.slice().sort((a, b) => a.count - b.count).map(entry => entry.id);
-
-    contenderOrder.forEach(id => {
-      const first = buckets.get(id)?.shift();
-      if (first) ordered.push(first);
+    const running = {};
+    const remaining = {};
+    tallyEntries.forEach(entry => {
+      running[entry.id] = 0;
+      remaining[entry.id] = entry.count;
     });
 
-    const winnerId = tallyEntries[0]?.id || null;
-    const candidateOrder = tallyEntries
-      .map(entry => entry.id)
-      .sort((a, b) => {
-        if (a === winnerId) return 1;
-        if (b === winnerId) return -1;
-        return (buckets.get(a)?.length || 0) - (buckets.get(b)?.length || 0);
+    // Seeding phase.
+    tallyEntries.forEach(entry => {
+      const first = buckets.get(entry.id)?.shift();
+      if (!first) return;
+      ordered.push(first);
+      running[entry.id] += 1;
+      remaining[entry.id] -= 1;
+    });
+
+    const rankCandidate = (candidateId) => {
+      const projectedShown = { ...running, [candidateId]: (running[candidateId] || 0) + 1 };
+      const projectedRemaining = { ...remaining, [candidateId]: Math.max(0, (remaining[candidateId] || 0) - 1) };
+      const states = Object.keys(projectedShown).map(id => ({
+        shown: projectedShown[id] || 0,
+        potential: (projectedShown[id] || 0) + (projectedRemaining[id] || 0)
+      })).sort((a, b) => b.shown - a.shown || b.potential - a.potential);
+      const leader = states[0] || { shown: 0, potential: 0 };
+      const second = states[1] || { shown: 0, potential: 0 };
+      const bestChaserPotential = states.slice(1).reduce((max, state) => Math.max(max, state.potential), 0);
+      const locked = leader.shown > bestChaserPotential;
+      return {
+        locked,
+        spread: leader.shown - second.shown,
+        chaserPotential: bestChaserPotential,
+        remaining: projectedRemaining[candidateId] || 0
+      };
+    };
+
+    while (Object.values(remaining).some(count => count > 0)) {
+      const candidates = tallyEntries.filter(entry => remaining[entry.id] > 0).map(entry => entry.id);
+      candidates.sort((a, b) => {
+        const ra = rankCandidate(a);
+        const rb = rankCandidate(b);
+        if (ra.locked !== rb.locked) return Number(ra.locked) - Number(rb.locked);
+        if (ra.spread !== rb.spread) return ra.spread - rb.spread;
+        if (ra.chaserPotential !== rb.chaserPotential) return rb.chaserPotential - ra.chaserPotential;
+        if (ra.remaining !== rb.remaining) return ra.remaining - rb.remaining;
+        return String(a).localeCompare(String(b));
       });
 
-    while (candidateOrder.some(id => (buckets.get(id) || []).length > 0)) {
-      for (const id of candidateOrder) {
-        const next = buckets.get(id)?.shift();
-        if (next) ordered.push(next);
-      }
+      const selected = candidates[0];
+      const next = buckets.get(selected)?.shift();
+      if (!next) break;
+      ordered.push(next);
+      running[selected] += 1;
+      remaining[selected] = Math.max(0, remaining[selected] - 1);
     }
 
     if (nullifiedVotes.length === 0) {
@@ -613,6 +633,11 @@ export default class TribalCouncilSystem {
     }
 
     return withNullified;
+  }
+
+  _getFirstName(rawName = '') {
+    const first = String(rawName || '').trim().split(/\s+/)[0];
+    return first ? first.toUpperCase() : 'UNKNOWN';
   }
 
   _scoreNpcTarget(voter, target) {
