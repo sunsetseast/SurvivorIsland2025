@@ -3079,60 +3079,190 @@ body {
   cursor: pointer;
 }
 
-/* Tribal Council polish */
+
+/* Tribal Council beat renderer */
 #tribal-council-screen {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: transparent;
+}
+
+.tribal-root,
+.tribal-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tribal-bg {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  z-index: 1;
 }
 
 .tribal-panel {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
   background: transparent;
-  overflow: hidden;
-  pointer-events: auto;
-  z-index: 2;
+  z-index: 5;
+  pointer-events: none;
 }
 
-.tribal-content {
-  position: relative;
-  flex: 1;
-  width: 100%;
+.tribal-top-safe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  padding-inline: 14px;
+  z-index: 9;
+}
+
+.tribal-center-wrap {
+  position: absolute;
+  inset: 0;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
   align-items: center;
   justify-content: center;
-  overflow-y: auto;
-  padding-right: 4px;
-  min-height: 0;
+  padding: 24px;
+  z-index: 8;
 }
 
 .tribal-text {
-  font-size: clamp(1rem, 2.5vw, 1.35rem);
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 1px 1px 2px #000;
   text-align: center;
+  color: #fff;
+  text-shadow: 1px 2px 3px rgba(0, 0, 0, 0.9);
   white-space: pre-line;
+  letter-spacing: 0.02em;
+}
+
+.tribal-text-top {
+  font-size: clamp(1.05rem, 2.8vw, 1.5rem);
+  font-weight: 800;
+}
+
+.tribal-text-center {
+  font-size: clamp(1.1rem, 3.2vw, 1.7rem);
+  font-weight: 800;
+  max-width: min(90vw, 860px);
+}
+
+.tribal-seats-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.tribal-seat {
+  position: absolute;
+  width: clamp(44px, 7.8vw, 86px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(244, 218, 171, 0.85);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(53, 33, 20, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.tribal-seat-fallback {
+  color: #fff;
+  font-size: clamp(0.8rem, 2vw, 1.1rem);
+  font-weight: 800;
+}
+
+.tribal-seat.is-highlighted {
+  border-color: #ffd700;
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.tribal-parchment-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 12;
+  pointer-events: none;
+}
+
+.tribal-parchment {
+  width: min(74vw, 560px);
+  min-height: clamp(140px, 22vw, 210px);
+  background: url('Assets/parch-landscape.png') center / contain no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.tribal-vote-name {
+  z-index: 14;
+  color: #180d06;
+  font-size: clamp(1.3rem, 4.2vw, 2.5rem);
+  font-weight: 900;
+  text-align: center;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.tribal-vote-subtext {
+  color: #4a2312;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.tribal-custom-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  pointer-events: none;
+}
+
+.tribal-custom-wrap > * {
+  pointer-events: auto;
+}
+
+.tribal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  width: min(88vw, 760px);
 }
 
 .tribal-actions {
-  width: 100%;
-  position: relative;
-  z-index: 5;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 10px);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 6px 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
   pointer-events: auto;
 }
 
@@ -3141,124 +3271,73 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-}
-
-.tribal-notice,
-.tribal-warning {
-  font-size: 13px;
-  color: #FFD166;
-  text-align: center;
-  max-width: 680px;
-}
-
-.tribal-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-  width: 100%;
-  max-width: 680px;
-  margin: 0 auto;
+  max-width: min(92vw, 760px);
 }
 
 .tribal-tally-box {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: 12px;
+  z-index: 13;
   min-width: 140px;
-  max-width: 45vw;
-  background: rgba(221, 195, 140, 0.92);
-  color: #3b240c;
+  max-width: min(48vw, 230px);
+  background: rgba(228, 202, 150, 0.94);
   border: 2px solid #6a4b1f;
   border-radius: 10px;
+  color: #3b240c;
+  font-size: 0.84rem;
+  line-height: 1.2;
   padding: 8px 10px;
-  font-size: 0.85rem;
-  line-height: 1.25;
-  z-index: 3;
-  pointer-events: none;
 }
 
 .tribal-tally-title {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 4px;
 }
 
-.tribal-vote-parchment {
-  position: relative;
-  width: min(68vw, 540px);
-  min-height: 120px;
-  background: url('Assets/parch-landscape.png') center / contain no-repeat;
-  margin: 8px auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px;
-  pointer-events: none;
-  z-index: 3;
-}
-
-.tribal-vote-name {
-  text-align: center;
-  color: #1f1108;
-  font-size: clamp(1.2rem, 3.4vw, 2.2rem);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-.tribal-avatar-ring {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  max-width: 82%;
-  margin: 0 auto;
-}
-
-.tribal-seat-avatar {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-}
-
-.tribal-subtext {
-  font-size: 14px;
+.tribal-subtext,
+.tribal-warning {
   color: #fff;
   text-align: center;
-  max-width: 680px;
+  max-width: min(90vw, 820px);
+  text-shadow: 1px 2px 3px rgba(0, 0, 0, 0.9);
+}
+
+.tribal-warning {
+  color: #ffd166;
 }
 
 .tribal-rocks-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
   justify-content: center;
-  max-width: 700px;
+  gap: 8px;
+  max-width: min(90vw, 820px);
 }
 
 .tribal-rocks-list span {
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
   color: #fff;
+  font-size: 12px;
+}
+
+.tribal-debug-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(92vw, 860px);
+  font-size: 13px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 10px;
+  border-radius: 8px;
 }
 
 #tribal-council-screen button,
 #tribal-council-screen .rect-button {
   cursor: pointer;
   pointer-events: auto;
-}
-
-@media (max-width: 768px) {
-  .tribal-panel { padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 10px); }
-  .tribal-vote-parchment { width: min(82vw, 520px); }
-  .tribal-actions .rect-button { width: min(92vw, 250px); }
-  .tribal-actions .rect-button.small { width: min(44vw, 180px); }
-  .tribal-tally-box { max-width: 55vw; font-size: 0.75rem; }
 }
