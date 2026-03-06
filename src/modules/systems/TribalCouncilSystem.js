@@ -93,30 +93,25 @@ export default class TribalCouncilSystem {
     let rockDrawOccurred = false;
     let rockDrawEligible = [];
     let rockDrawEliminatedId = null;
+    let revotePendingPlayerChoice = false;
 
     if (!initialTie) {
       this.eliminatedId = tiedCandidates[0] || null;
     } else {
-      // Survivor tie flow: tie -> revote -> rocks.
       this.initialTie = true;
-      revoteOccurred = true;
-      this.revoteOccurred = true;
-      const revoteResult = this.runRevote(tiedCandidates);
-      revoteEligibleVoterIds = revoteResult.eligibleVoterIds;
+      revoteEligibleVoterIds = this._getRevoteEligibleVoterIds(tiedCandidates);
+      const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
+      const playerCanRevote = revoteEligibleVoterIds.includes(playerId);
 
-      if (revoteResult.eliminatedId) {
-        this.eliminatedId = revoteResult.eliminatedId;
-        decidingCounts = this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote'));
+      if (playerCanRevote) {
+        revotePendingPlayerChoice = true;
       } else {
-        // Still tied after revote: draw rocks among eligible non-immune, non-tied players.
-        this.rockDrawOccurred = true;
-        rockDrawOccurred = true;
-        const rockResult = this.runRockDraw(tiedCandidates);
-        rockDrawEligible = rockResult.eligible;
-        rockDrawEliminatedId = rockResult.eliminatedId;
-        this.forcedResolution = Boolean(rockResult.forcedResolution);
-        this.eliminatedId = rockResult.eliminatedId;
-        decidingCounts = null;
+        const resolution = this._resolveRevoteFlow({ tiedCandidateIds: tiedCandidates, playerChoiceTargetId: null });
+        revoteOccurred = resolution.revoteOccurred;
+        decidingCounts = resolution.decidingCounts;
+        rockDrawOccurred = resolution.rockDrawOccurred;
+        rockDrawEligible = resolution.rockDrawEligible;
+        rockDrawEliminatedId = resolution.rockDrawEliminatedId;
       }
     }
 
@@ -178,6 +173,8 @@ export default class TribalCouncilSystem {
       wasTie: this.initialTie,
       initialTie,
       revoteOccurred,
+      revotePendingPlayerChoice,
+      playerCanRevote: revoteEligibleVoterIds.includes(this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id)),
       revoteEligibleVoterIds,
       revoteVotes: this.revoteVotes.map(vote => ({
         ...vote,
@@ -204,6 +201,67 @@ export default class TribalCouncilSystem {
       decidingCounts: tribalSummary.decidingCounts
     });
 
+    return tribalSummary;
+  }
+
+  resolveRevoteWithPlayerChoice({ tiedCandidateIds = [], playerChoiceTargetId = null } = {}) {
+    const resolvedTiedIds = (Array.isArray(tiedCandidateIds) && tiedCandidateIds.length)
+      ? tiedCandidateIds
+      : this._getCurrentTiedCandidateIds();
+    if (!resolvedTiedIds.length) {
+      return this.runPreMergeTribal({ attendingTribeId: this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null });
+    }
+
+    const initialCounts = this.buildVoteTally(this.initialVotes.filter(vote => vote.phase === 'initial'));
+    const resolution = this._resolveRevoteFlow({ tiedCandidateIds: resolvedTiedIds, playerChoiceTargetId });
+    this.revealQueue = this._buildRevealQueue({ initialVotes: this.initialVotes, revoteVotes: this.revoteVotes });
+
+    const day = this.gameManager.getDay?.() ?? null;
+    const membersAtTribal = this.voters.map(member => ({ id: member.id, name: member.name || member.id }));
+    const getName = (id) => this._findSurvivorById(id)?.name || id;
+    const validVoteCount = this.voteRecords.filter(vote => !vote.wasNullified).length;
+    const nullifiedVoteCount = this.voteRecords.filter(vote => vote.wasNullified).length;
+
+    const tribalSummary = {
+      day,
+      attendingTribeId: this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null,
+      membersAtTribal,
+      votes: this.voteRecords.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
+      initialVotes: this.initialVotes.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
+      validVoteCount,
+      nullifiedVoteCount,
+      immuneIds: [...this.immunityHolderIds],
+      idolPlays: this.idolPlays.map(play => ({ ...play, playerId: play.playedById, playerName: getName(play.playedById), targetId: play.playedOnId, targetName: getName(play.playedOnId) })),
+      shotResults: this.shotResults.map(result => ({ ...result, playerName: getName(result.playerId) })),
+      initialCounts,
+      initialTally: initialCounts,
+      finalTallyInitial: initialCounts,
+      revoteCounts: this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')),
+      revoteTally: this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')),
+      finalTallyRevote: this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote')),
+      decidingCounts: resolution.decidingCounts,
+      decidingTally: resolution.decidingCounts,
+      eliminatedId: this.eliminatedId,
+      eliminatedName: this.eliminatedId ? getName(this.eliminatedId) : null,
+      majorityThreshold: this.majorityThreshold,
+      voteOrder: this.revealQueue.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
+      wasTie: this.initialTie,
+      initialTie: this.initialTie,
+      revoteOccurred: true,
+      revotePendingPlayerChoice: false,
+      playerCanRevote: false,
+      revoteEligibleVoterIds: resolution.revoteEligibleVoterIds,
+      revoteVotes: this.revoteVotes.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
+      rockDrawOccurred: resolution.rockDrawOccurred,
+      wentToRocks: resolution.rockDrawOccurred,
+      rockDrawEligible: resolution.rockDrawEligible.map(id => ({ id, name: getName(id) })),
+      rockDrawEliminatedId: resolution.rockDrawEliminatedId,
+      forcedResolution: this.forcedResolution,
+      tiedCandidateIds: resolvedTiedIds,
+      createdAt: Date.now()
+    };
+
+    tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
     return tribalSummary;
   }
 
@@ -410,7 +468,59 @@ export default class TribalCouncilSystem {
     return [...this.revealQueue];
   }
 
-  runRevote(tiedCandidateIds) {
+  _getCurrentTiedCandidateIds() {
+    const initialCounts = this.buildVoteTally(this.initialVotes.filter(vote => vote.phase === 'initial'));
+    const highest = this._getHighestCount(initialCounts);
+    if (highest <= 0) return [];
+    return Object.entries(initialCounts)
+      .filter(([, count]) => count === highest)
+      .map(([id]) => id);
+  }
+
+  _getRevoteEligibleVoterIds(tiedCandidateIds = []) {
+    const tiedSet = new Set((tiedCandidateIds || []).map(id => this._normalizeId(id)));
+    return this.voters
+      .filter(voter => (
+        !voter.isOut
+        && !tiedSet.has(this._normalizeId(voter.id))
+        && !this.lostVoteIds.has(this._normalizeId(voter.id))
+        && !this.sitdUsers.has(this._normalizeId(voter.id))
+      ))
+      .map(voter => this._normalizeId(voter.id));
+  }
+
+  _resolveRevoteFlow({ tiedCandidateIds = [], playerChoiceTargetId = null } = {}) {
+    this.revoteOccurred = true;
+    const revoteResult = this.runRevote(tiedCandidateIds, { playerChoiceTargetId });
+    let decidingCounts = this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote'));
+    let rockDrawOccurred = false;
+    let rockDrawEligible = [];
+    let rockDrawEliminatedId = null;
+
+    if (revoteResult.eliminatedId) {
+      this.eliminatedId = revoteResult.eliminatedId;
+    } else {
+      this.rockDrawOccurred = true;
+      rockDrawOccurred = true;
+      const rockResult = this.runRockDraw(tiedCandidateIds);
+      rockDrawEligible = rockResult.eligible;
+      rockDrawEliminatedId = rockResult.eliminatedId;
+      this.forcedResolution = Boolean(rockResult.forcedResolution);
+      this.eliminatedId = rockResult.eliminatedId;
+      decidingCounts = null;
+    }
+
+    return {
+      revoteOccurred: true,
+      decidingCounts,
+      revoteEligibleVoterIds: revoteResult.eligibleVoterIds,
+      rockDrawOccurred,
+      rockDrawEligible,
+      rockDrawEliminatedId
+    };
+  }
+
+  runRevote(tiedCandidateIds, { playerChoiceTargetId = null } = {}) {
     const revoteRecords = [];
     const revoters = this.voters.filter(voter => (
       !tiedCandidateIds.some(id => this._idsEqual(id, voter.id))
@@ -424,7 +534,13 @@ export default class TribalCouncilSystem {
       if (candidates.length === 0) continue;
 
       let selected = candidates[0];
-      if (!voter.isPlayer) {
+      if (voter.isPlayer) {
+        const normalizedChoice = this._normalizeId(playerChoiceTargetId);
+        if (!normalizedChoice || !candidates.some(id => this._idsEqual(id, normalizedChoice))) {
+          continue;
+        }
+        selected = normalizedChoice;
+      } else {
         let score = Number.NEGATIVE_INFINITY;
         for (const candidateId of candidates) {
           const candidate = this.eligibleTargets.find(target => this._idsEqual(target.id, candidateId));
