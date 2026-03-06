@@ -14,6 +14,7 @@ export default class TribalCouncilView {
     this.tribalSummary = null;
     this.playerVote = null;
     this.sitdUsed = false;
+    this.playerRevote = null;
     this.attendingTribeId = null;
     this.isCompleting = false;
     this.root = null;
@@ -36,6 +37,7 @@ export default class TribalCouncilView {
     this.tribalSummary = null;
     this.playerVote = null;
     this.sitdUsed = false;
+    this.playerRevote = null;
 
     const playerTribe = this.gameManager.getPlayerTribe?.();
     this.attendingTribeId = playerTribe?.tribeId ?? playerTribe?.id ?? null;
@@ -79,6 +81,10 @@ export default class TribalCouncilView {
     return String(rawName).trim().split(/\s+/)[0]?.toUpperCase?.() || 'UNKNOWN';
   }
 
+
+  getTribalName(idOrSurvivor) {
+    return this.getDisplayName(idOrSurvivor, { firstOnly: true });
+  }
   _buildPreVoteBeats() {
     const tribe = this._getAttendingTribe();
     if (!tribe) {
@@ -160,13 +166,14 @@ export default class TribalCouncilView {
         background: `${ASSET_BASE}/illread.png`,
         text: 'I will read the votes.',
         textPos: 'top',
+        jeff: this.tribalSummary?.jeffCommentary?.readVotesIntro ? { img: `${ASSET_BASE}/jeff.png` } : null,
         button: { label: 'READ VOTES' }
       },
       ...this._buildVoteRevealBeats((this.tribalSummary?.voteOrder || []).filter(v => v.phase !== 'revote'), 'initial')
     ];
 
     if (this.tribalSummary?.initialTie) {
-      beats.push(
+      const tieBeats = [
         {
           id: 'tie-announcement',
           background: `${ASSET_BASE}/voteread.png`,
@@ -179,14 +186,30 @@ export default class TribalCouncilView {
           background: `${ASSET_BASE}/votingbooth.png`,
           text: 'THIS REVOTE IS YOUR CHANCE TO SHOW WHERE YOU TRULY STAND.',
           textPos: 'top',
-          button: { label: 'CONTINUE' },
+          button: { label: this.tribalSummary?.playerCanRevote ? 'VOTE NOW' : 'CONTINUE' },
           customRender: (content) => this._renderRevoteContext(content)
-        },
-        ...this._buildVoteRevealBeats((this.tribalSummary?.voteOrder || []).filter(v => v.phase === 'revote'), 'revote')
-      );
+        }
+      ];
+
+      if (this.tribalSummary?.playerCanRevote && this.tribalSummary?.revotePendingPlayerChoice) {
+        tieBeats.push({
+          id: 'revote-voting-booth',
+          background: `${ASSET_BASE}/votingbooth.png`,
+          textPos: 'top',
+          customRender: (content) => this._renderRevoteVotingContent(content),
+          button: {
+            label: 'CAST REVOTE',
+            disabled: () => !this.playerRevote,
+            onClick: (controls) => this._resolvePendingRevote(controls)
+          }
+        });
+      }
+
+      tieBeats.push(...this._buildVoteRevealBeats((this.tribalSummary?.voteOrder || []).filter(v => v.phase === 'revote'), 'revote'));
+      beats.push(...tieBeats);
 
       if (this.tribalSummary?.rockDrawOccurred) {
-        const eliminatedName = this.getDisplayName(this.tribalSummary?.rockDrawEliminatedId, { firstOnly: false });
+        const eliminatedName = this.getTribalName(this.tribalSummary?.rockDrawEliminatedId);
         beats.push(
           {
             id: 'rocks-intro',
@@ -207,7 +230,7 @@ export default class TribalCouncilView {
       }
     }
 
-    const eliminatedName = this.getDisplayName(this.result?.eliminatedId, { firstOnly: false });
+    const eliminatedName = this.getTribalName(this.result?.eliminatedId);
     beats.push({
       id: 'snuff',
       background: `${ASSET_BASE}/snuff.jpeg`,
@@ -223,32 +246,53 @@ export default class TribalCouncilView {
     if (!votes.length) return [];
 
     const counts = {};
-    const candidateCounts = phase === 'revote'
-      ? (this.tribalSummary?.finalTallyRevote || this.tribalSummary?.revoteCounts || {})
-      : (this.tribalSummary?.finalTallyInitial || this.tribalSummary?.initialCounts || {});
-
-    Object.keys(candidateCounts).forEach(id => {
-      counts[String(id)] = 0;
-    });
+    let lastLeaderId = null;
 
     return votes.map((vote, index) => {
+      const countsBefore = { ...counts };
       if (!vote.wasNullified) {
         const key = String(vote.targetId);
         counts[key] = (counts[key] || 0) + 1;
       }
+      const countsAfter = { ...counts };
+      const sorted = Object.entries(countsAfter).sort((a, b) => b[1] - a[1]);
+      const topCount = sorted[0]?.[1] || 0;
+      const tiedIds = topCount > 0 ? sorted.filter(([, count]) => count === topCount).map(([id]) => id) : [];
+      const currentLeaderId = tiedIds.length === 1 ? tiedIds[0] : null;
+      const totalReveals = votes.length;
+      const revealIndex = index + 1;
 
-      const tallyLines = Object.entries(counts)
+      const tallyLines = Object.entries(countsAfter)
+        .filter(([, count]) => count > 0)
         .sort((a, b) => b[1] - a[1])
-        .map(([id, count]) => `${this.getDisplayName(id, { firstOnly: true })}: ${count}`);
+        .map(([id, count]) => `${this.getTribalName(id)}: ${count}`);
+
+      const jeffLine = this._getVoteCommentary({
+        countsBefore,
+        countsAfter,
+        vote,
+        phase,
+        revealIndex,
+        totalReveals,
+        lastLeaderId,
+        currentLeaderId,
+        tiedIds,
+        isNullified: Boolean(vote?.wasNullified),
+        isLast: revealIndex === totalReveals
+      });
+
+      if (currentLeaderId) lastLeaderId = currentLeaderId;
 
       return {
         id: `${phase}-vote-${index}`,
         background: `${ASSET_BASE}/voteread.png`,
         textPos: 'parchment',
+        jeffLine,
         parchment: {
           show: true,
           voteName: this._resolveVoteName(vote),
-          subText: vote?.wasNullified ? 'DOES NOT COUNT' : ''
+          subText: vote?.wasNullified ? 'DOES NOT COUNT' : '',
+          nullified: Boolean(vote?.wasNullified)
         },
         tallyLines,
         tallyTitle: phase === 'revote' ? 'REVOTE TALLY' : 'VOTE TALLY',
@@ -281,9 +325,15 @@ export default class TribalCouncilView {
       panel.appendChild(textWrap);
     }
 
+    if (beat?.jeffLine) {
+      const commentaryWrap = createElement('div', { className: 'tribal-commentary-wrap' });
+      commentaryWrap.appendChild(createElement('div', { className: 'tribal-commentary' }, beat.jeffLine));
+      panel.appendChild(commentaryWrap);
+    }
+
     if (beat?.parchment?.show) {
       const parchmentWrap = createElement('div', { className: 'tribal-parchment-wrap' });
-      const parchment = createElement('div', { className: 'tribal-parchment' });
+      const parchment = createElement('div', { className: `tribal-parchment ${beat.parchment.nullified ? 'is-nullified' : ''}`.trim() });
       const voteName = createElement('div', { className: 'tribal-vote-name' }, String(beat.parchment.voteName || 'UNKNOWN').toUpperCase());
       parchment.appendChild(voteName);
       if (beat.parchment.subText) {
@@ -369,7 +419,7 @@ export default class TribalCouncilView {
     const votingText = this.sitdUsed
       ? 'SHOT IN THE DARK USED. YOU WILL NOT CAST A VOTE.'
       : (this.playerVote
-        ? `CURRENT VOTE: ${this.getDisplayName(this.playerVote, { firstOnly: false }).toUpperCase()}`
+        ? `CURRENT VOTE: ${this.getTribalName(this.playerVote)}`
         : 'CAST YOUR VOTE OR PLAY SHOT IN THE DARK.');
 
     content.appendChild(createElement('div', { className: 'tribal-top-safe' }, [
@@ -393,7 +443,7 @@ export default class TribalCouncilView {
           this.sitdUsed = false;
           this.beatRunner.goTo(this.beatRunner.currentIndex);
         }
-      }, this.getDisplayName(member, { firstOnly: false })));
+      }, this.getTribalName(member)));
     });
 
     content.appendChild(actions);
@@ -453,7 +503,7 @@ export default class TribalCouncilView {
             this.tribalCouncilSystem.registerIdolPlay(player.id, member.id);
             this._transitionToReadVotes(controls);
           }
-        }, `PLAY ON ${this.getDisplayName(member, { firstOnly: true })}`));
+        }, `PLAY ON ${this.getTribalName(member)}`));
       });
 
     list.appendChild(createElement('button', {
@@ -481,7 +531,7 @@ export default class TribalCouncilView {
       const avatarUrl = this._getAvatarUrl(member);
       const seat = createElement('div', {
         className: `tribal-seat ${String(member?.id) === String(highlightId) ? 'is-highlighted' : ''}`.trim(),
-        title: this.getDisplayName(member, { firstOnly: false }),
+        title: this.getTribalName(member),
         style: {
           left: `${position.leftPct}%`,
           top: `${position.topPct}%`
@@ -502,53 +552,115 @@ export default class TribalCouncilView {
 
   _getSeatPositions(count) {
     const presets = {
+      2: [
+        { leftPct: 38, topPct: 56 },
+        { leftPct: 62, topPct: 56 }
+      ],
+      3: [
+        { leftPct: 30, topPct: 58 },
+        { leftPct: 50, topPct: 54 },
+        { leftPct: 70, topPct: 58 }
+      ],
+      4: [
+        { leftPct: 24, topPct: 59 },
+        { leftPct: 41, topPct: 55 },
+        { leftPct: 59, topPct: 55 },
+        { leftPct: 76, topPct: 59 }
+      ],
+      5: [
+        { leftPct: 18, topPct: 60 },
+        { leftPct: 34, topPct: 56 },
+        { leftPct: 50, topPct: 53 },
+        { leftPct: 66, topPct: 56 },
+        { leftPct: 82, topPct: 60 }
+      ],
       6: [
-        { leftPct: 14, topPct: 56 },
-        { leftPct: 27, topPct: 48 },
-        { leftPct: 40, topPct: 42 },
-        { leftPct: 60, topPct: 42 },
-        { leftPct: 73, topPct: 48 },
-        { leftPct: 86, topPct: 56 }
+        { leftPct: 14, topPct: 60 },
+        { leftPct: 28, topPct: 57 },
+        { leftPct: 42, topPct: 54 },
+        { leftPct: 58, topPct: 54 },
+        { leftPct: 72, topPct: 57 },
+        { leftPct: 86, topPct: 60 }
+      ],
+      7: [
+        { leftPct: 24, topPct: 47 },
+        { leftPct: 50, topPct: 44 },
+        { leftPct: 76, topPct: 47 },
+        { leftPct: 14, topPct: 62 },
+        { leftPct: 36, topPct: 59 },
+        { leftPct: 64, topPct: 59 },
+        { leftPct: 86, topPct: 62 }
+      ],
+      8: [
+        { leftPct: 18, topPct: 47 },
+        { leftPct: 39, topPct: 44 },
+        { leftPct: 61, topPct: 44 },
+        { leftPct: 82, topPct: 47 },
+        { leftPct: 12, topPct: 62 },
+        { leftPct: 33, topPct: 59 },
+        { leftPct: 67, topPct: 59 },
+        { leftPct: 88, topPct: 62 }
       ],
       9: [
+        { leftPct: 12, topPct: 47 },
+        { leftPct: 31, topPct: 44 },
+        { leftPct: 50, topPct: 42 },
+        { leftPct: 69, topPct: 44 },
+        { leftPct: 88, topPct: 47 },
+        { leftPct: 10, topPct: 62 },
+        { leftPct: 30, topPct: 59 },
+        { leftPct: 70, topPct: 59 },
+        { leftPct: 90, topPct: 62 }
+      ],
+      10: [
+        { leftPct: 11, topPct: 47 },
+        { leftPct: 28, topPct: 44 },
+        { leftPct: 44, topPct: 42 },
+        { leftPct: 56, topPct: 42 },
+        { leftPct: 72, topPct: 44 },
+        { leftPct: 89, topPct: 47 },
+        { leftPct: 10, topPct: 62 },
+        { leftPct: 28, topPct: 59 },
+        { leftPct: 72, topPct: 59 },
+        { leftPct: 90, topPct: 62 }
+      ],
+      11: [
+        { leftPct: 9, topPct: 47 },
+        { leftPct: 24, topPct: 44 },
+        { leftPct: 38, topPct: 42 },
+        { leftPct: 50, topPct: 41 },
+        { leftPct: 62, topPct: 42 },
+        { leftPct: 76, topPct: 44 },
+        { leftPct: 91, topPct: 47 },
+        { leftPct: 10, topPct: 62 },
+        { leftPct: 30, topPct: 59 },
+        { leftPct: 70, topPct: 59 },
+        { leftPct: 90, topPct: 62 }
+      ],
+      12: [
+        { leftPct: 8, topPct: 47 },
+        { leftPct: 22, topPct: 44 },
+        { leftPct: 36, topPct: 42 },
+        { leftPct: 50, topPct: 41 },
+        { leftPct: 64, topPct: 42 },
+        { leftPct: 78, topPct: 44 },
+        { leftPct: 92, topPct: 47 },
         { leftPct: 8, topPct: 62 },
-        { leftPct: 18, topPct: 54 },
-        { leftPct: 29, topPct: 47 },
-        { leftPct: 40, topPct: 42 },
-        { leftPct: 50, topPct: 40 },
-        { leftPct: 60, topPct: 42 },
-        { leftPct: 71, topPct: 47 },
-        { leftPct: 82, topPct: 54 },
-        { leftPct: 92, topPct: 62 }
+        { leftPct: 24, topPct: 59 },
+        { leftPct: 42, topPct: 57 },
+        { leftPct: 58, topPct: 57 },
+        { leftPct: 76, topPct: 59 }
       ]
     };
 
-    if (presets[count]) {
-      return presets[count];
-    }
-
-    const size = Math.max(2, Math.min(12, Number(count) || 2));
-    const centerX = 50;
-    const centerY = 58;
-    const radiusX = 36;
-    const radiusY = 22;
-    const start = Math.PI * 1.08;
-    const end = Math.PI * -0.08;
-    const step = size > 1 ? (end - start) / (size - 1) : 0;
-
-    return Array.from({ length: size }, (_, index) => {
-      const angle = start + (step * index);
-      return {
-        leftPct: centerX + (Math.cos(angle) * radiusX),
-        topPct: centerY + (Math.sin(angle) * radiusY)
-      };
-    });
+    const normalized = Math.max(2, Math.min(12, Number(count) || 2));
+    return presets[normalized] || presets[12];
   }
 
   _resolveVoteName(vote) {
     if (!vote) return 'UNKNOWN';
     const target = this.allPlayers.find(player => String(player?.id) === String(vote.targetId));
-    return target?.name || 'UNKNOWN';
+    return this.getTribalName(target || vote?.targetId);
   }
 
   _buildAllPlayersList() {
@@ -599,6 +711,79 @@ export default class TribalCouncilView {
     return tribes.find(candidate => String(candidate?.tribeId ?? candidate?.id) === String(this.attendingTribeId)) || null;
   }
 
+
+  _resolvePendingRevote(controls) {
+    if (!this.playerRevote) return;
+    this.tribalSummary = this.tribalCouncilSystem.resolveRevoteWithPlayerChoice({
+      tiedCandidateIds: this.tribalSummary?.tiedCandidateIds || [],
+      playerChoiceTargetId: this.playerRevote
+    });
+    this.result = this.tribalSummary;
+    this.playerRevote = null;
+    const beats = this._buildPostVoteBeats();
+    const nextIndex = beats.findIndex(beat => String(beat?.id || '').startsWith('revote-vote-') || beat?.id === 'rocks-intro' || beat?.id === 'snuff');
+    controls.setBeats(beats, { index: nextIndex >= 0 ? nextIndex : 0 });
+  }
+
+  _renderRevoteVotingContent(content) {
+    const tiedIds = this.tribalSummary?.tiedCandidateIds || [];
+    const tiedTargets = tiedIds
+      .map(id => this.getSurvivorById(id))
+      .filter(Boolean);
+
+    const votingText = this.playerRevote
+      ? `REVOTE LOCKED: ${this.getTribalName(this.playerRevote)}`
+      : 'CAST YOUR REVOTE FOR ONE OF THE TIED PLAYERS.';
+
+    content.appendChild(createElement('div', { className: 'tribal-top-safe' }, [
+      createElement('div', { className: 'tribal-text tribal-text-top' }, votingText)
+    ]));
+
+    const actions = createElement('div', { className: 'tribal-grid' });
+    tiedTargets.forEach(member => {
+      const selected = String(this.playerRevote) === String(member.id);
+      actions.appendChild(createElement('button', {
+        className: 'rect-button small',
+        type: 'button',
+        style: selected ? { filter: 'brightness(1.2)', outline: '2px solid #FFD700' } : {},
+        onclick: () => {
+          this.playerRevote = member.id;
+          this.beatRunner.goTo(this.beatRunner.currentIndex);
+        }
+      }, this.getTribalName(member)));
+    });
+
+    content.appendChild(actions);
+  }
+
+  _getVoteCommentary({ countsBefore, countsAfter, vote, phase, revealIndex, totalReveals, lastLeaderId, currentLeaderId, tiedIds, isNullified, isLast }) {
+    const name = this.getTribalName(vote?.targetId || vote?.displayName || 'UNKNOWN');
+    const topCount = Math.max(0, ...Object.values(countsAfter));
+    const beforeTop = Math.max(0, ...Object.values(countsBefore));
+    const phaseLabel = phase === 'revote' ? ' on the revote' : '';
+
+    if (isNullified) return `This vote is for ${name}. This vote does not count.`;
+    if (revealIndex === 1) return `First vote${phaseLabel}... ${name}.`;
+
+    const currentCount = countsAfter[String(vote.targetId)] || 0;
+    if (currentLeaderId && lastLeaderId && currentLeaderId !== lastLeaderId) {
+      return `${this.getTribalName(currentLeaderId)} takes the lead.`;
+    }
+    if (tiedIds.length > 1 && topCount > 0 && beforeTop !== topCount) {
+      return isLast ? "We're deadlocked." : 'We are tied.';
+    }
+    if (currentCount >= 2) {
+      return `That's ${currentCount} votes ${name}.`;
+    }
+    if (isLast && tiedIds.length === 1) {
+      return `${this.getTribalName(tiedIds[0])} has enough. That's it.`;
+    }
+
+    const remaining = totalReveals - revealIndex;
+    if (remaining === 1) return 'This next vote could decide it.';
+    return `Vote ${revealIndex}${phaseLabel}... ${name}.`;
+  }
+
   _renderRevoteContext(content) {
     const tiedNames = this._getTiedPlayerNames().join(' / ');
     const excludedVoters = this._getRevoteExcludedVoters();
@@ -612,14 +797,14 @@ export default class TribalCouncilView {
     const eligible = this.tribalSummary?.rockDrawEligible || [];
     const list = createElement('div', { className: 'tribal-rocks-list' });
     eligible.forEach(entry => {
-      list.appendChild(createElement('span', {}, this.getDisplayName(entry.id || entry, { firstOnly: false })));
+      list.appendChild(createElement('span', {}, this.getTribalName(entry.id || entry)));
     });
     content.appendChild(list);
   }
 
   _getTiedPlayerNames() {
     const tiedIds = this.tribalSummary?.tiedCandidateIds || [];
-    return tiedIds.length ? tiedIds.map(id => this.getDisplayName(id)) : ['UNKNOWN'];
+    return tiedIds.length ? tiedIds.map(id => this.getTribalName(id)) : ['UNKNOWN'];
   }
 
   _resolveName(id) {
@@ -669,7 +854,7 @@ export default class TribalCouncilView {
     const revoteEligibleIds = new Set((this.tribalSummary?.revoteEligibleVoterIds || []).map(id => String(id)));
     members.forEach(member => {
       const key = String(member.id);
-      const name = this.getDisplayName(member, { firstOnly: false });
+      const name = this.getTribalName(member);
       if (tiedIds.has(key) || !revoteEligibleIds.has(key)) excluded.add(name);
     });
     return [...excluded];

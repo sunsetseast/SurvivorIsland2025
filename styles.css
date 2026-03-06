@@ -3119,9 +3119,11 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 42px);
   padding-inline: 14px;
   text-align: center;
+  display: flex;
+  justify-content: center;
   z-index: 3;
 }
 
@@ -3146,6 +3148,7 @@ body {
 .tribal-text-top {
   font-size: clamp(1.05rem, 2.8vw, 1.5rem);
   font-weight: 800;
+  max-width: min(92vw, 860px);
 }
 
 .tribal-text-center {
@@ -3194,7 +3197,7 @@ body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  z-index: 4;
+  z-index: 11;
   pointer-events: none;
 }
 
@@ -3241,6 +3244,38 @@ body {
   font-size: clamp(0.8rem, 2vw, 1rem);
   font-weight: 700;
   letter-spacing: 0.08em;
+}
+
+
+.tribal-parchment.is-nullified {
+  filter: saturate(0.9) contrast(1.04);
+}
+
+.tribal-parchment.is-nullified .tribal-vote-subtext {
+  color: #7a1b1b;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.tribal-commentary-wrap {
+  position: absolute;
+  left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + 106px);
+  transform: translateX(-50%);
+  z-index: 10;
+  width: min(92vw, 840px);
+  display: flex;
+  justify-content: center;
+}
+
+.tribal-commentary {
+  color: #f8e7be;
+  text-align: center;
+  font-size: clamp(0.9rem, 2.1vw, 1.15rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 1px 2px 4px rgba(0, 0, 0, 0.9);
+  white-space: pre-line;
 }
 
 .tribal-custom-wrap {
@@ -3291,7 +3326,7 @@ body {
 
 .tribal-tally-box {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  top: calc(env(safe-area-inset-top, 0px) + 58px);
   left: 12px;
   z-index: 13;
   min-width: 140px;
