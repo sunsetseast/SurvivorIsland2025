@@ -94,6 +94,8 @@ export default class TribalCouncilSystem {
     let rockDrawEligible = [];
     let rockDrawEliminatedId = null;
     let revotePendingPlayerChoice = false;
+    let tribalState = 'FINAL_VOTE';
+    let decisionResolved = true;
 
     if (!initialTie) {
       this.eliminatedId = tiedCandidates[0] || null;
@@ -105,6 +107,9 @@ export default class TribalCouncilSystem {
 
       if (playerCanRevote) {
         revotePendingPlayerChoice = true;
+        tribalState = 'REVOTE_PENDING';
+        decisionResolved = false;
+        decidingCounts = null;
       } else {
         const resolution = this._resolveRevoteFlow({ tiedCandidateIds: tiedCandidates, playerChoiceTargetId: null });
         revoteOccurred = resolution.revoteOccurred;
@@ -112,6 +117,7 @@ export default class TribalCouncilSystem {
         rockDrawOccurred = resolution.rockDrawOccurred;
         rockDrawEligible = resolution.rockDrawEligible;
         rockDrawEliminatedId = resolution.rockDrawEliminatedId;
+        tribalState = rockDrawOccurred ? 'ROCKS_DRAW' : 'FINAL_VOTE';
       }
     }
 
@@ -174,6 +180,8 @@ export default class TribalCouncilSystem {
       initialTie,
       revoteOccurred,
       revotePendingPlayerChoice,
+      tribalState,
+      decisionResolved,
       playerCanRevote: revoteEligibleVoterIds.includes(this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id)),
       revoteEligibleVoterIds,
       revoteVotes: this.revoteVotes.map(vote => ({
@@ -249,6 +257,8 @@ export default class TribalCouncilSystem {
       initialTie: this.initialTie,
       revoteOccurred: true,
       revotePendingPlayerChoice: false,
+      tribalState: 'FINAL_VOTE',
+      decisionResolved: true,
       playerCanRevote: false,
       revoteEligibleVoterIds: resolution.revoteEligibleVoterIds,
       revoteVotes: this.revoteVotes.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
@@ -834,53 +844,23 @@ export default class TribalCouncilSystem {
   }
 
   generateJeffCommentary(tribalSummary = {}) {
-    const initialTally = tribalSummary.initialCounts || tribalSummary.initialTally || {};
-    const decidingTally = tribalSummary.decidingCounts || tribalSummary.decidingTally || {};
-    const nullifiedVoteCount = Number(tribalSummary.nullifiedVoteCount || 0);
-    const idolSuccessCount = (tribalSummary.idolPlays || []).filter(play => play.successful).length;
-    const sitdSuccess = (tribalSummary.shotResults || []).some(result => result.success);
-
-    const ordered = Object.entries(initialTally).sort((a, b) => b[1] - a[1]);
-    const lead = ordered[0]?.[1] || 0;
-    const second = ordered[1]?.[1] || 0;
-    const margin = Math.max(0, lead - second);
-    const totalDecidingVotes = Object.values(decidingTally).reduce((sum, count) => sum + count, 0);
-    const unanimous = totalDecidingVotes > 0 && Object.keys(decidingTally).length === 1;
+    const eliminatedFirstName = this._getFirstName(tribalSummary.eliminatedName || tribalSummary.eliminatedId);
+    const tieLine = 'We are tied.';
 
     return {
-      arrival: 'Come on in. Grab a torch and get fire, because in this game, fire represents your life.',
-      preVote: 'Tonight, trust is currency. Spend it carefully.',
-      sitdExplain: tribalSummary.shotResults?.length ? 'A Shot in the Dark was played tonight. One gamble can flip everything.' : '',
-      idolOpportunity: tribalSummary.idolPlays?.length ? 'If you have an idol and you want to play it, now would be the time.' : 'If anybody has a hidden immunity idol and you want to play it, now would be the time.',
-      votingIntro: 'It is time to vote.',
-      readVotesIntro: 'I will read the votes.',
-      afterInitial: unanimous
-        ? 'That was decisive. When everyone lands on one name, that sends a message.'
-        : margin <= 1
-          ? 'Close vote. That is how cracks become fault lines.'
-          : 'Clear numbers tonight, but those numbers can move fast in this game.',
-      tieAnnouncement: tribalSummary.initialTie
-        ? 'We are tied. That means we vote again, and only for the tied players.'
-        : '',
-      revoteIntro: tribalSummary.revoteOccurred
-        ? 'This revote is your chance to show where you truly stand.'
-        : '',
-      afterRevote: tribalSummary.revoteOccurred && !tribalSummary.rockDrawOccurred
-        ? 'The revote settled it. Lines are no longer hidden.'
-        : '',
-      rocksIntro: tribalSummary.rockDrawOccurred
-        ? 'We are deadlocked. When strategy fails, chance takes over. We are drawing rocks.'
-        : '',
-      rocksResult: tribalSummary.rockDrawOccurred
-        ? 'Tonight was decided by fate, not votes.'
-        : '',
-      snuffLine: [
-        idolSuccessCount > 0 ? `An idol changed everything tonight with ${nullifiedVoteCount} vote${nullifiedVoteCount === 1 ? '' : 's'} voided.` : null,
-        sitdSuccess ? 'Shot in the Dark hit, and safety came at the exact right moment.' : null,
-        'The tribe has spoken.'
-      ].filter(Boolean).join(' ')
+      arrivalLine: 'Welcome to Tribal Council.',
+      votingIntroLine: 'It is time to vote.',
+      votesRevealingIntroLine: 'I will read the votes.',
+      idolWindowLine: 'If anyone has a hidden immunity idol and wants to play it, now would be the time to do so.',
+      tieLine,
+      revoteIntroLine: 'We will vote again. You may only vote for the tied players.',
+      rocksIntroLine: 'We are deadlocked. We will draw rocks.',
+      snuffLine: eliminatedFirstName
+        ? `${eliminatedFirstName}, the tribe has spoken.`
+        : 'The tribe has spoken.'
     };
   }
+
 
   _castPlayerVoteIfNeeded(voter) {
     if (!voter?.id) return;
@@ -925,6 +905,12 @@ export default class TribalCouncilSystem {
       || idolSystem?.survivorInventories?.get?.(this._normalizeId(survivor?.id));
     if (!inventory?.idols) return false;
     return inventory.idols.some(idol => !idol.isUsed && !idol.played);
+  }
+
+  _getFirstName(nameOrId) {
+    const rawName = String(nameOrId || '').trim();
+    if (!rawName) return '';
+    return rawName.split(/\s+/)[0];
   }
 
   _normalizeId(id) {

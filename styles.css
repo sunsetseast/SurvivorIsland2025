@@ -3117,15 +3117,17 @@ body {
 .tribal-top-safe {
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
+  left: 50%;
+  width: min(94vw, 900px);
+  transform: translateX(-50%);
   padding-top: calc(env(safe-area-inset-top, 0px) + 42px);
-  padding-inline: 14px;
+  padding-inline: 18px;
   text-align: center;
   display: flex;
   justify-content: center;
-  z-index: 3;
+  z-index: 9;
 }
+
 
 .tribal-center-wrap {
   position: absolute;
@@ -3148,8 +3150,10 @@ body {
 .tribal-text-top {
   font-size: clamp(1.05rem, 2.8vw, 1.5rem);
   font-weight: 800;
-  max-width: min(92vw, 860px);
+  max-width: min(92vw, 760px);
+  overflow-wrap: anywhere;
 }
+
 
 .tribal-text-center {
   font-size: clamp(1.1rem, 3.2vw, 1.7rem);
@@ -3237,7 +3241,9 @@ body {
   width: clamp(120px, 24vw, 320px);
   height: auto;
   display: block;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
 }
+
 
 .tribal-vote-subtext {
   color: #4a2312;
@@ -3247,26 +3253,39 @@ body {
 }
 
 
-.tribal-parchment.is-nullified {
-  filter: saturate(0.9) contrast(1.04);
+.tribal-parchment.tribal-nullified {
+  filter: saturate(0.75) brightness(0.88) contrast(1.05);
 }
 
-.tribal-parchment.is-nullified .tribal-vote-subtext {
-  color: #7a1b1b;
+.tribal-parchment.tribal-nullified .tribal-vote-subtext {
+  color: #b11b1b;
   font-weight: 900;
   letter-spacing: 0.12em;
+}
+
+
+.tribal-delayed-reveal {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.98);
+}
+
+.tribal-delayed-reveal.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
 .tribal-commentary-wrap {
   position: absolute;
   left: 50%;
-  top: calc(env(safe-area-inset-top, 0px) + 106px);
+  top: calc(env(safe-area-inset-top, 0px) + 122px);
   transform: translateX(-50%);
   z-index: 10;
-  width: min(92vw, 840px);
+  width: min(90vw, 760px);
   display: flex;
   justify-content: center;
 }
+
 
 .tribal-commentary {
   color: #f8e7be;
@@ -3326,7 +3345,7 @@ body {
 
 .tribal-tally-box {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 58px);
+  top: calc(env(safe-area-inset-top, 0px) + 170px);
   left: 12px;
   z-index: 13;
   min-width: 140px;
@@ -3390,4 +3409,12 @@ body {
 #tribal-council-screen .rect-button {
   cursor: pointer;
   pointer-events: auto;
+}
+
+.tribal-tally-box.tribal-delayed-reveal {
+  transform: translateY(-6px);
+}
+
+.tribal-tally-box.tribal-delayed-reveal.is-visible {
+  transform: translateY(0);
 }
