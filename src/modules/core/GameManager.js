@@ -69,6 +69,7 @@ class GameManager {
     this.gameHistory = { tribals: [] };
     this.tribalCouncilLog = [];
     this.state = {};
+    this.postTribalOutcome = null;
     // Tracks whether the player stepped into an early leadership role (e.g., Day 1 First Impressions)
     // Set to true when those events mark the player as the top leader.
     this.flags.playerIsLeader = false;
@@ -158,7 +159,7 @@ class GameManager {
           eliminatedId: canonicalEntry.eliminatedId
         });
       } else {
-        this.eliminateSurvivor(canonicalEntry.eliminatedId, 'vote');
+        this.eliminateSurvivor(canonicalEntry.eliminatedId, 'vote', { skipPlayerGameOver: true });
       }
     }
 
@@ -172,13 +173,14 @@ class GameManager {
       allianceFalloutProcessed: Boolean(this.systems.allianceSystem?.processPostTribalFallout)
     });
 
-    const playerId = this.player?.id;
-    const playerEliminated = Boolean(playerId && canonicalEntry.eliminatedId === playerId);
-    const juryInactive = !this.isMerged;
+    const postTribalOutcome = this._buildPlayerPostTribalOutcome(canonicalEntry);
+    this.postTribalOutcome = postTribalOutcome;
 
-    if (playerEliminated && juryInactive) {
-      this.showGameOverScreen();
-      return;
+    if (postTribalOutcome.playerWasEliminated) {
+      this._applyPlayerPostTribalOutcome(postTribalOutcome);
+      if (postTribalOutcome.gameOver) {
+        return;
+      }
     }
 
     this.consumeVotePenaltiesAfterTribal(canonicalEntry.membersAtTribal.map(member => member.id));
@@ -192,6 +194,55 @@ class GameManager {
       gamePhase: this.gamePhase,
       gameState: this.gameState
     });
+  }
+
+  _buildPlayerPostTribalOutcome(tribalEntry = {}) {
+    const playerId = this.player?.id;
+    const eliminatedId = tribalEntry?.eliminatedId;
+    const playerWasEliminated = Boolean(playerId && eliminatedId && String(playerId) === String(eliminatedId));
+    const aliveAfterTribal = (this.survivors || []).filter(member => !member?.isOut).length;
+    const playerMadeJury = playerWasEliminated && aliveAfterTribal === 11;
+
+    return {
+      playerWasEliminated,
+      playerMadeJury,
+      gameOver: playerWasEliminated && !playerMadeJury,
+      playerId,
+      eliminatedId,
+      aliveAfterTribal
+    };
+  }
+
+  _applyPlayerPostTribalOutcome(outcome = {}) {
+    const playerSurvivor = this.getPlayerSurvivor?.();
+    this.state = this.state || {};
+
+    if (outcome.playerMadeJury) {
+      if (playerSurvivor) {
+        playerSurvivor.isJuror = true;
+      }
+      this.state.playerOnJury = true;
+      this._showPostTribalPlayerMessage(
+        'You were voted out, but you made the jury.\nYour game as a player is over, but you will still have a role to play at Final Tribal Council.',
+        'success'
+      );
+      return;
+    }
+
+    this.state.playerOnJury = false;
+    this.state.gameOver = true;
+    this._showPostTribalPlayerMessage(
+      'You were voted out of Survivor Island.\nYour game is over.\nBetter luck on your next season.',
+      'warning'
+    );
+    this.showGameOverScreen();
+  }
+
+  _showPostTribalPlayerMessage(message, type = 'info') {
+    this.systems?.dialogueSystem?.showNotification?.(message, type, 9000);
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert(message);
+    }
   }
 
   _buildTribalLogEntry(tribalSummary = {}) {
@@ -848,7 +899,7 @@ class GameManager {
     eventManager.publish(GameEvents.TRIBES_MERGED, { mergedTribe: this.tribes[0] });
   }
 
-  eliminateSurvivor(survivorOrId, reason = 'vote') {
+  eliminateSurvivor(survivorOrId, reason = 'vote', options = {}) {
     const survivorId = typeof survivorOrId === 'string' ? survivorOrId : survivorOrId?.id;
     if (!survivorId) return;
 
@@ -875,7 +926,7 @@ class GameManager {
       reason,
       day: this.day
     });
-    if (survivor.isPlayer) this.setGameState(GameState.GAME_OVER);
+    if (survivor.isPlayer && options.skipPlayerGameOver !== true) this.setGameState(GameState.GAME_OVER);
   }
 
   consumeIdolForSurvivor(survivorId, context = {}) {
