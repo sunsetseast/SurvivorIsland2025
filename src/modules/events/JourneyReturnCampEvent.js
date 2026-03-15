@@ -84,6 +84,20 @@ function campLog(gameManager, message, payload = {}) {
   });
 }
 
+function markJourneyReturnHandled(gameManager) {
+  if (!gameManager) return;
+  gameManager.flags = gameManager.flags || {};
+  const marker = gameManager.flags.lastJourneyEvent;
+  if (marker?.type === 'riskProtect') {
+    marker.pendingReturnCampEvent = false;
+    marker.handledAt = Date.now();
+  }
+  if (gameManager.journey?.type === 'riskProtect') {
+    gameManager.journey.returnCampEventPending = false;
+    gameManager.journey.returnCampEventHandledAt = Date.now();
+  }
+}
+
 function pickUnique(items = [], count = 1) {
   const pool = [...items];
   const picked = [];
@@ -615,6 +629,29 @@ const JourneyReturnCampEvent = {
     ) || gameManager?.journey?.results?.[0]?.survivorId;
     const journeyer = journeyerId ? findSurvivor(gameManager, journeyerId) : null;
     const journeyerName = firstName(journeyer);
+    const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.getPlayer?.()?.id || gameManager.playerId;
+    const isPlayerJourneyer = journeyerId && String(journeyerId) === String(playerId);
+
+    // In scripted post-challenge mode, reuse the canonical part-2 flow when the
+    // player is the journeyer so they still get the truth/lie decisions.
+    if (isPlayerJourneyer) {
+      await this.simulatePart1IfPlayerAway({
+        gameManager,
+        strategyPhaseSystem: null,
+        journeyerId,
+      });
+      await this.startPart2({
+        gameManager,
+        strategyPhaseSystem: null,
+        journeyerId,
+        isPlayerJourneyer: true,
+      });
+      markJourneyReturnHandled(gameManager);
+      gameManager.flags = gameManager.flags || {};
+      gameManager.flags.journeyReturnEventSeen = true;
+      return;
+    }
+
     const script = {
       id: 'journey_return_scripted',
       beats: [
@@ -628,6 +665,7 @@ const JourneyReturnCampEvent = {
     await runner.run(script);
     gameManager.flags = gameManager.flags || {};
     gameManager.flags.journeyReturnEventSeen = true;
+    markJourneyReturnHandled(gameManager);
   },
 
   async startPart1({ gameManager, strategyPhaseSystem, journeyerId }) {
