@@ -787,6 +787,11 @@ class GameManager {
       postChallengeMode: this.postChallengeMode
     });
     this._publishPhaseChange();
+
+    if (this.gameState === GameState.CAMP) {
+      console.info('[GameManager] Refreshing camp screen for next pre-challenge day');
+      this.setGameState(GameState.CAMP);
+    }
   }
 
   _triggerTreeMail() {

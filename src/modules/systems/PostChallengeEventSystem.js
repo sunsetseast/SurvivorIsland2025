@@ -11,7 +11,10 @@ export default class PostChallengeEventSystem {
 
   buildQueue() {
     const result = this.challengeManager.getLastChallengeResult?.();
-    if (!result) return [];
+    if (!result) {
+      console.info('[PostChallengeEventSystem] queue build skipped: no challenge result found');
+      return [];
+    }
 
     this.queue = [];
 
@@ -31,6 +34,11 @@ export default class PostChallengeEventSystem {
   }
 
   async run() {
+    console.info('[PostChallengeEventSystem] run start', {
+      day: this.gameManager?.day,
+      phase: this.gameManager?.gamePhase,
+      postChallengeMode: this.gameManager?.postChallengeMode
+    });
     this.buildQueue();
 
     for (const EventModule of this.queue) {
