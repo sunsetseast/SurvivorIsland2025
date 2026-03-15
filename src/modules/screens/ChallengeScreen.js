@@ -1,11 +1,9 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager, { GamePhase } from '../core/GameManager.js';
-import screenManager from '../core/ScreenManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import ChallengeIntroView from '../views/ChallengeIntroView.js';
 import TribeChallengeView from '../views/TribeChallengeView.js';
 import IndividualChallengeView from '../views/IndividualChallengeView.js';
-import { LocationKeys } from '../core/LocationKeys.js';
 
 export default class ChallengeScreen {
   constructor() {
@@ -164,14 +162,16 @@ export default class ChallengeScreen {
       gameManager.advanceGamePhase();
     }
 
-    // Return to camp
-    gameManager.setGameState('camp');
-    screenManager.showScreen('camp');
+    console.info('[ChallengeScreen] challenge complete; transitioning to camp', {
+      challengeDay: this.currentChallenge?.day,
+      challengeName: this.currentChallenge?.name,
+      phase: gameManager.gamePhase,
+      postChallengeMode: gameManager.postChallengeMode,
+      usedStateDrivenTransition: true
+    });
 
-    // Load flag view to show results
-    if (window.campScreen && typeof window.campScreen.loadView === 'function') {
-      window.campScreen.loadView(LocationKeys.TRIBE_FLAG);
-    }
+    // Return to camp via the state-driven path only.
+    gameManager.setGameState('camp');
   }
 
   teardown() {

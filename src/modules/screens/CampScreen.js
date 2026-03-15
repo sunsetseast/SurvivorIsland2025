@@ -133,6 +133,7 @@ export default class CampScreen {
     this.clockRunning = false;
     this.isActive = false;
     this.postChallengeInitPromise = null;
+    this.isRunningScriptedPostChallenge = false;
     this.unsubscribeFromCampEventStarted = null;
     this.unsubscribeFromCampEventEnded = null;
     gameManager.flags = gameManager.flags || {};
@@ -278,6 +279,24 @@ export default class CampScreen {
 
     this.ensureTaskIcon();
 
+    if (phase === GamePhase.POST_CHALLENGE && gameManager.postChallengeMode === 'scripted') {
+      if (this.isRunningScriptedPostChallenge || this.postChallengeInitPromise) {
+        console.info('[CampScreen] scripted post-challenge mode setup skipped (already running)', {
+          isRunningScriptedPostChallenge: this.isRunningScriptedPostChallenge,
+          hasInitPromise: !!this.postChallengeInitPromise
+        });
+        return;
+      }
+
+      this.renderClockUI();
+      console.info('[CampScreen] scripted post-challenge mode start', {
+        phase,
+        postChallengeMode: gameManager.postChallengeMode
+      });
+      void this.runScriptedPostChallengeFlow();
+      return;
+    }
+
     if (gameManager.flags.startCampAtBeachOnce === true) {
       // Player journeyer returns late from the challenge; first visual should be the beach return moment.
       this.loadView(LocationKeys.BEACH);
@@ -287,11 +306,6 @@ export default class CampScreen {
     }
 
     this.renderClockUI();
-    if (phase === GamePhase.POST_CHALLENGE && gameManager.postChallengeMode === 'scripted') {
-      console.info('[CampScreen] scripted post-challenge mode start');
-      void this.runScriptedPostChallengeFlow();
-      return;
-    }
 
     if (!gameManager.flags?.campEventActive) {
       this.startCampClockTick();
@@ -300,15 +314,32 @@ export default class CampScreen {
   }
 
   async runScriptedPostChallengeFlow() {
-    const system = new PostChallengeEventSystem({
-      gameManager,
-      challengeManager,
-      campScreen: this
-    });
+    if (this.isRunningScriptedPostChallenge || this.postChallengeInitPromise) {
+      console.info('[CampScreen] runScriptedPostChallengeFlow ignored; already in progress', {
+        isRunningScriptedPostChallenge: this.isRunningScriptedPostChallenge,
+        hasInitPromise: !!this.postChallengeInitPromise
+      });
+      return this.postChallengeInitPromise;
+    }
 
-    await system.run();
-    console.info('[CampScreen] scripted post-challenge mode ended');
-    this.loadView(LocationKeys.TRIBE_FLAG);
+    this.isRunningScriptedPostChallenge = true;
+    this.postChallengeInitPromise = (async () => {
+      const system = new PostChallengeEventSystem({
+        gameManager,
+        challengeManager,
+        campScreen: this
+      });
+
+      await system.run();
+      console.info('[CampScreen] scripted post-challenge mode ended');
+    })();
+
+    try {
+      await this.postChallengeInitPromise;
+    } finally {
+      this.isRunningScriptedPostChallenge = false;
+      this.postChallengeInitPromise = null;
+    }
   }
 
   teardown() {
