@@ -234,6 +234,7 @@ const FirstWinEvent = {
 
   async runScripted({ gameManager, challengeManager, campScreen }) {
     const result = challengeManager.getLastChallengeResult?.();
+    console.log('[FirstWinEvent] eligibility check mode =', gameManager?.postChallengeMode);
     if (!this.isEligible(result, gameManager)) return;
 
     const player = gameManager.getPlayerSurvivor?.();
