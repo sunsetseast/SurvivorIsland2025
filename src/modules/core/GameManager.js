@@ -69,6 +69,7 @@ class GameManager {
     this.gameHistory = { tribals: [] };
     this.tribalCouncilLog = [];
     this.state = {};
+    this.postChallengeMode = 'playable';
     // Tracks whether the player stepped into an early leadership role (e.g., Day 1 First Impressions)
     // Set to true when those events mark the player as the top leader.
     this.flags.playerIsLeader = false;
@@ -364,6 +365,7 @@ class GameManager {
     this.isTribesShuffled = false;
     this.isMerged = false;
     this.flags = { day1FirstImpressionsCompleted: false };
+    this.postChallengeMode = 'playable';
     this.campLog = [];
     this.gameHistory = { tribals: [] };
     this.tribalCouncilLog = [];
@@ -772,6 +774,21 @@ class GameManager {
     this._publishPhaseChange();
   }
 
+  async endPostChallengePhase() {
+    this.flags = this.flags || {};
+    this.flags.postChallengeScriptedComplete = true;
+    this.postChallengeMode = 'playable';
+    this.day += 1;
+    this.dayTimer = 7200;
+    this.gamePhase = GamePhase.PRE_CHALLENGE;
+    console.info('[GameManager] Scripted post-challenge phase complete; advancing to next day', {
+      day: this.day,
+      gamePhase: this.gamePhase,
+      postChallengeMode: this.postChallengeMode
+    });
+    this._publishPhaseChange();
+  }
+
   _triggerTreeMail() {
     console.log('Tree Mail triggered for challenge phase');
     eventManager.publish(GameEvents.TREE_MAIL_RECEIVED, { 
@@ -997,6 +1014,7 @@ class GameManager {
       gameHistory: this.gameHistory,
       tribalCouncilLog: this.tribalCouncilLog,
       state: this.state,
+      postChallengeMode: this.postChallengeMode,
       gameSettings: this.gameSettings,
       systemsState: {
         dealSystem: this.systems.dealSystem?.serialize?.() ?? null,
@@ -1018,6 +1036,7 @@ class GameManager {
     this.gameHistory = data.gameHistory || { tribals: [] };
     this.tribalCouncilLog = data.tribalCouncilLog || [];
     this.state = data.state || {};
+    this.postChallengeMode = data.postChallengeMode || 'playable';
     this.survivors = (this.survivors || []).map(survivor => ({ ...survivor, laziness: survivor.laziness ?? 0 }));
     (this.tribes || []).forEach(tribe => {
       this.initializeWaterPlanForTribe(tribe);

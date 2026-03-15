@@ -87,6 +87,11 @@ class StrategyPhaseSystem {
       existingTimer,
       force
     });
+
+    if (gameManager.postChallengeMode === 'scripted') {
+      console.info('[StrategyPhaseSystem] Skipping timed strategy init for scripted post-challenge mode');
+      return;
+    }
     window.debugBanner?.('POST-CH START', `src:${source} | t:${existingTimer}`);
 
     if (this.startedForPhaseKey === phaseKey && !force && !shouldReinitializeBecauseTimerMissing) {

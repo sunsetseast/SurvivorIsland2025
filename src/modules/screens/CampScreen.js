@@ -16,6 +16,7 @@ import { refreshMenuCard } from '../utils/MenuUtils.js';
 import { timerManager } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { GamePhase } from '../core/GameManager.js';
+import challengeManager from '../core/ChallengeManager.js';
 import renderFirewoodView from '../views/FirewoodView.js';
 import renderBambooView from '../views/BambooView.js';
 import renderShakeView from '../views/ShakeView.js';
@@ -28,6 +29,7 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
 import { runDay1FirstImpressions, canRunDay1FirstImpressions, runPart2FromCheckpointReport } from '../events/Day1FirstImpressionsEvent.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import PostChallengeEventSystem from '../systems/PostChallengeEventSystem.js';
 
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
 const TASK_ICON_HIDDEN_VIEWS = new Set();
@@ -285,10 +287,28 @@ export default class CampScreen {
     }
 
     this.renderClockUI();
+    if (phase === GamePhase.POST_CHALLENGE && gameManager.postChallengeMode === 'scripted') {
+      console.info('[CampScreen] scripted post-challenge mode start');
+      void this.runScriptedPostChallengeFlow();
+      return;
+    }
+
     if (!gameManager.flags?.campEventActive) {
       this.startCampClockTick();
     }
     this._startCampClockAfterDay1();
+  }
+
+  async runScriptedPostChallengeFlow() {
+    const system = new PostChallengeEventSystem({
+      gameManager,
+      challengeManager,
+      campScreen: this
+    });
+
+    await system.run();
+    console.info('[CampScreen] scripted post-challenge mode ended');
+    this.loadView(LocationKeys.TRIBE_FLAG);
   }
 
   teardown() {

@@ -1,5 +1,6 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import NarrativeEventRunner from '../systems/NarrativeEventRunner.js';
 
 function clamp(value, min = 0, max = 100) {
   const n = Number.isFinite(value) ? value : min;
@@ -593,6 +594,41 @@ async function runPart1Core({ gameManager, strategyPhaseSystem, journeyerId, sho
 }
 
 const JourneyReturnCampEvent = {
+  id: 'journey_return_camp_event',
+
+  isEligible(result, gameManager) {
+    if (!result?.playerTribeWon) return false;
+    if (gameManager?.postChallengeMode !== 'scripted') return false;
+    if (gameManager?.flags?.journeyReturnEventSeen) return false;
+    const pendingJourney = Boolean(gameManager?.journey?.participants?.length || gameManager?.journey?.results?.length);
+    return pendingJourney;
+  },
+
+  async runScripted({ gameManager, challengeManager, campScreen }) {
+    const result = challengeManager?.getLastChallengeResult?.();
+    if (!this.isEligible(result, gameManager)) return;
+
+    const tribe = gameManager.getPlayerTribe?.();
+    const journeyerId = gameManager?.journey?.participants?.find((id) =>
+      (tribe?.members || []).some((member) => String(member.id) === String(id))
+    ) || gameManager?.journey?.results?.[0]?.survivorId;
+    const journeyer = journeyerId ? findSurvivor(gameManager, journeyerId) : null;
+    const journeyerName = firstName(journeyer);
+    const script = {
+      id: 'journey_return_scripted',
+      beats: [
+        { type: 'narration', text: 'The tribe returns to camp after the challenge, but one survivor is still missing.' },
+        { type: 'narration', text: 'A few minutes later, the missing survivor finally returns to camp.' },
+        { type: 'npcDialogue', speakerId: journeyerId, text: `${journeyerName} explains what happened on the journey before the tribe settles in.` }
+      ]
+    };
+
+    const runner = new NarrativeEventRunner({ gameManager, challengeManager, campScreen });
+    await runner.run(script);
+    gameManager.flags = gameManager.flags || {};
+    gameManager.flags.journeyReturnEventSeen = true;
+  },
+
   async startPart1({ gameManager, strategyPhaseSystem, journeyerId }) {
     if (!gameManager || !journeyerId) return;
     console.info('[JourneyReturnCampEvent] startPart1', {

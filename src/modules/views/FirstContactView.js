@@ -1214,19 +1214,67 @@ const FirstContactView = {
 
   _buildResults() {
     const stagePerformance = this._computeStagePerformance();
+    const playerTribe = gameManager.getPlayerTribe?.();
+    const playerTribeKey = getKey(playerTribe);
+    const playerMemberIds = new Set((playerTribe?.members || []).map((member) => member?.id).filter(Boolean));
     const stagePerformanceCompact = {};
+    const playerTribeStagePerformance = {
+      stage1: { mvp: null, lvp: null },
+      stage2: { mvp: null, lvp: null },
+      stage3: { mvp: null, lvp: null },
+      stage4: { mvp: null, lvp: null }
+    };
+    const mvpCounts = new Map();
+    const lvpCounts = new Map();
+
     Object.entries(stagePerformance).forEach(([segId, info]) => {
+      const stageIndex = SEGMENTS.findIndex(seg => seg.id === segId);
+      const stageKey = `stage${stageIndex + 1}`;
       stagePerformanceCompact[segId] = {
         mvp: info.mvp ? { survivorId: info.mvp.survivor.id, tribeKey: getKey(info.mvp.tribe) } : null,
         lvp: info.lvp ? { survivorId: info.lvp.survivor.id, tribeKey: getKey(info.lvp.tribe) } : null
       };
+
+      const mvpId = info?.mvp?.survivor?.id;
+      const lvpId = info?.lvp?.survivor?.id;
+      if (stageKey && playerMemberIds.has(mvpId)) {
+        playerTribeStagePerformance[stageKey].mvp = mvpId;
+        mvpCounts.set(mvpId, (mvpCounts.get(mvpId) || 0) + 1);
+      }
+      if (stageKey && playerMemberIds.has(lvpId)) {
+        playerTribeStagePerformance[stageKey].lvp = lvpId;
+        lvpCounts.set(lvpId, (lvpCounts.get(lvpId) || 0) + 1);
+      }
     });
 
+    const pickOverall = (countsMap) => {
+      const entries = Array.from(countsMap.entries()).sort((a, b) => b[1] - a[1]);
+      if (!entries.length) return null;
+      if (entries.length > 1 && entries[0][1] === entries[1][1]) return null;
+      return entries[0][0] || null;
+    };
+
+    const winningTribeKeys = this.isThree ? this.state.finishedOrder.slice(0,2) : this.state.finishedOrder.slice(0,1);
+    const playerTribeWon = winningTribeKeys.some((key) => String(key) === String(playerTribeKey));
+    const playerTribeMvpCandidates = Array.from(mvpCounts.keys());
+    const playerTribeLvpCandidates = Array.from(lvpCounts.keys());
+    const currentDay = gameManager.getDay?.() || 1;
+
     return {
+      challengeKey: 'first_contact',
+      challengeName: 'First Contact',
+      challengeDay: currentDay,
       finishedOrder: [...this.state.finishedOrder],
       winningTribeKey: this.state.finishedOrder[0],
-      winningTribeKeys: this.isThree ? this.state.finishedOrder.slice(0,2) : this.state.finishedOrder.slice(0,1),
-      stagePerformance: stagePerformanceCompact
+      winningTribeKeys,
+      playerTribeKey,
+      playerTribeWon,
+      stagePerformance: stagePerformanceCompact,
+      playerTribeStagePerformance,
+      playerTribeMvpCandidates,
+      playerTribeLvpCandidates,
+      playerTribeOverallMvp: pickOverall(mvpCounts),
+      playerTribeOverallLvp: pickOverall(lvpCounts)
     };
   },
 

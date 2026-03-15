@@ -264,6 +264,10 @@ class ChallengeManager {
     return null;
   }
 
+  getLastChallengeResult(day = null) {
+    return this.getLatestChallengeResult(day);
+  }
+
   getStageStandoutsForTribe(tribeIdOrKey, day = null) {
     const result = this.getLatestChallengeResult(day);
     if (!result) return { mvps: [], lvps: [] };
