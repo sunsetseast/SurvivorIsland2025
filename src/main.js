@@ -3,7 +3,8 @@
  * Initializes game systems and starts the game
  */
 
-import { gameManager, screenManager, eventManager, GameEvents } from './modules/core/index.js';
+import { gameManager } from './modules/core/GameManager.js';
+import { screenManager, eventManager, GameEvents } from './modules/core/index.js';
 import {
   WelcomeScreen,
   CharacterSelectionScreen,

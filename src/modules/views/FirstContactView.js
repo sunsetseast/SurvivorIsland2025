@@ -7,7 +7,7 @@
 // Paste over your existing file. Requires: createElement, clearChildren, gameManager.
 
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import gameManager from '../core/GameManager.js';
+import { gameManager } from '../core/GameManager.js';
 import JourneySelectionEvent from '../events/JourneySelectionEvent.js';
 import RiskProtectJourneyEvent from '../events/RiskProtectJourneyEvent.js';
 import JourneyBeatUI from '../ui/JourneyBeatUI.js';

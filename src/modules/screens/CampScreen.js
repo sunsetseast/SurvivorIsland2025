@@ -14,8 +14,7 @@ import renderFork2 from '../views/Fork2View.js';
 import renderFork3 from '../views/Fork3View.js';
 import { refreshMenuCard } from '../utils/MenuUtils.js';
 import { timerManager } from '../utils/index.js';
-import { gameManager } from '../core/index.js';
-import { GamePhase } from '../core/GameManager.js';
+import { gameManager, GamePhase } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import renderFirewoodView from '../views/FirewoodView.js';
 import renderBambooView from '../views/BambooView.js';
@@ -274,6 +273,7 @@ export default class CampScreen {
 
     const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    console.log('CampScreen sees postChallengeMode:', gameManager.postChallengeMode);
     console.info('[CampScreen] setup', { phase, timer, campEventActive: !!gameManager.flags?.campEventActive });
     window.debugBanner?.('CAMP LOAD', `${phase} | t:${timer}`);
 
