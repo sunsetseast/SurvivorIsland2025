@@ -606,6 +606,7 @@ const JourneyReturnCampEvent = {
 
   async runScripted({ gameManager, challengeManager, campScreen }) {
     const result = challengeManager?.getLastChallengeResult?.();
+    console.log('[JourneyReturnCampEvent] eligibility check mode =', gameManager?.postChallengeMode);
     if (!this.isEligible(result, gameManager)) return;
 
     const tribe = gameManager.getPlayerTribe?.();

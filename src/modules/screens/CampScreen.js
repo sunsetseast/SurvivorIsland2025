@@ -271,22 +271,7 @@ export default class CampScreen {
     this.isActive = true;
     gameManager.flags = gameManager.flags || {};
 
-    console.log('CampScreen setup. postChallengeMode =', gameManager.postChallengeMode);
-
-    if (gameManager.postChallengeMode === 'scripted') {
-      console.log('CampScreen: running scripted post-challenge events');
-
-      const eventSystem = new PostChallengeEventSystem({
-        gameManager,
-        challengeManager,
-        campScreen: this
-      });
-
-      void eventSystem.run();
-
-      gameManager.postChallengeMode = null;
-      return;
-    }
+    console.log('[CampScreen] setup postChallengeMode =', gameManager.postChallengeMode);
 
     const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
@@ -341,6 +326,7 @@ export default class CampScreen {
 
     this.isRunningScriptedPostChallenge = true;
     this.postChallengeInitPromise = (async () => {
+      console.log('[CampScreen] runScriptedPostChallengeFlow start', gameManager.postChallengeMode);
       const system = new PostChallengeEventSystem({
         gameManager,
         challengeManager,

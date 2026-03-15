@@ -35,6 +35,7 @@ export default class PostChallengeEventSystem {
 
   async run() {
     console.log('PostChallengeEventSystem running');
+    console.log('[PostChallengeEventSystem] run start', this.gameManager?.postChallengeMode);
     console.info('[PostChallengeEventSystem] run start', {
       day: this.gameManager?.day,
       phase: this.gameManager?.gamePhase,
@@ -44,6 +45,7 @@ export default class PostChallengeEventSystem {
 
     for (const EventModule of this.queue) {
       const eventName = EventModule?.id || EventModule?.name || 'unknown_event';
+      console.log('[PostChallengeEventSystem] event start', eventName, this.gameManager?.postChallengeMode);
       console.info('[PostChallengeEventSystem] event start', { eventName });
       await EventModule.runScripted({
         gameManager: this.gameManager,
