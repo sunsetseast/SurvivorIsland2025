@@ -1,5 +1,5 @@
 // ChallengeManager.js
-import gameManager from './GameManager.js';
+import { gameManager } from './GameManager.js';
 
 class ChallengeManager {
   constructor() {

@@ -1,5 +1,5 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
-import gameManager, { GamePhase, GameState } from '../core/GameManager.js';
+import { gameManager, GamePhase, GameState } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import JourneyReturnCampEvent from '../events/JourneyReturnCampEvent.js';

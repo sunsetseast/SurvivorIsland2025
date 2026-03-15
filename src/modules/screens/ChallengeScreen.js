@@ -1,5 +1,5 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
-import gameManager, { GamePhase } from '../core/GameManager.js';
+import { gameManager, GamePhase } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import ChallengeIntroView from '../views/ChallengeIntroView.js';
 import TribeChallengeView from '../views/TribeChallengeView.js';
@@ -149,6 +149,7 @@ export default class ChallengeScreen {
 
     if (this.currentChallenge?.type === 'tribal') {
       gameManager.postChallengeMode = playerTribeWon ? 'scripted' : 'playable';
+      console.log('PostChallengeMode set to:', gameManager.postChallengeMode);
       console.info('[ChallengeScreen] postChallengeMode set', {
         postChallengeMode: gameManager.postChallengeMode,
         playerTribeWon,
