@@ -1255,7 +1255,34 @@ const FirstContactView = {
     };
 
     const winningTribeKeys = this.isThree ? this.state.finishedOrder.slice(0,2) : this.state.finishedOrder.slice(0,1);
-    const playerTribeWon = winningTribeKeys.some((key) => String(key) === String(playerTribeKey));
+    const collectKeyVariants = (value, exactSet, normalizedSet) => {
+      if (value == null) return;
+      const stringValue = String(value);
+      const trimmed = stringValue.trim();
+      exactSet.add(value);
+      exactSet.add(stringValue);
+      if (trimmed) {
+        exactSet.add(trimmed);
+        normalizedSet.add(trimmed.toLowerCase());
+      }
+      normalizedSet.add(stringValue.toLowerCase());
+    };
+    const winningExact = new Set();
+    const winningNormalized = new Set();
+    winningTribeKeys.forEach((key) => collectKeyVariants(key, winningExact, winningNormalized));
+    const playerCandidates = new Set([playerTribe?.id, playerTribe?.tribeName, playerTribe?.name, playerTribe?.tribeColor, playerTribe?.color, playerTribeKey]);
+    const playerTribeWon = Array.from(playerCandidates)
+      .filter((candidate) => candidate != null)
+      .some((candidate) => {
+        const str = String(candidate);
+        const trimmed = str.trim();
+        const normalized = trimmed.toLowerCase();
+        return winningExact.has(candidate)
+          || winningExact.has(str)
+          || winningExact.has(trimmed)
+          || winningNormalized.has(str.toLowerCase())
+          || winningNormalized.has(normalized);
+      });
     const playerTribeMvpCandidates = Array.from(mvpCounts.keys());
     const playerTribeLvpCandidates = Array.from(lvpCounts.keys());
     const currentDay = gameManager.getDay?.() || 1;
