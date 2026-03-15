@@ -34,6 +34,7 @@ export default class PostChallengeEventSystem {
   }
 
   async run() {
+    console.log('PostChallengeEventSystem running');
     console.info('[PostChallengeEventSystem] run start', {
       day: this.gameManager?.day,
       phase: this.gameManager?.gamePhase,

@@ -150,6 +150,7 @@ export default class ChallengeScreen {
     if (this.currentChallenge?.type === 'tribal') {
       gameManager.postChallengeMode = playerTribeWon ? 'scripted' : 'playable';
       console.log('PostChallengeMode set to:', gameManager.postChallengeMode);
+      console.log('Challenge complete. postChallengeMode =', gameManager.postChallengeMode);
       console.info('[ChallengeScreen] postChallengeMode set', {
         postChallengeMode: gameManager.postChallengeMode,
         playerTribeWon,
