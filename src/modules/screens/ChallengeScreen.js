@@ -126,8 +126,37 @@ export default class ChallengeScreen {
 
   // Method to handle challenge completion (called by views)
   completeChallenge(results = null) {
+    const playerTribe = gameManager.getPlayerTribe?.();
+    const playerTribeKey = playerTribe?.id ?? playerTribe?.tribeName ?? null;
+    const hasPlayerWinSignal = typeof results?.playerTribeWon === 'boolean';
+    const winningTribeKeys = Array.isArray(results?.winningTribeKeys)
+      ? results.winningTribeKeys
+      : results?.winningTribeKey != null
+        ? [results.winningTribeKey]
+        : [];
+    const playerTribeWon = hasPlayerWinSignal
+      ? results.playerTribeWon
+      : winningTribeKeys.some((key) => String(key) === String(playerTribeKey));
+
     if (results && this.currentChallenge) {
-      challengeManager.storeChallengeResult(this.currentChallenge.day, results);
+      challengeManager.storeChallengeResult(this.currentChallenge.day, {
+        challengeKey: this.currentChallenge.day === 1 ? 'first_contact' : (results.challengeKey || this.currentChallenge.name || '').toLowerCase().replace(/\s+/g, '_'),
+        challengeName: this.currentChallenge.name,
+        challengeDay: this.currentChallenge.day,
+        playerTribeKey,
+        playerTribeWon,
+        ...results
+      });
+    }
+
+    if (this.currentChallenge?.type === 'tribal') {
+      gameManager.postChallengeMode = playerTribeWon ? 'scripted' : 'playable';
+      console.info('[ChallengeScreen] postChallengeMode set', {
+        postChallengeMode: gameManager.postChallengeMode,
+        playerTribeWon,
+        challengeDay: this.currentChallenge?.day,
+        challengeName: this.currentChallenge?.name
+      });
     }
 
     // Advance game phase unless already set for post-challenge return

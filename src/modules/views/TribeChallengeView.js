@@ -288,10 +288,25 @@ const TribeChallengeView = {
   completeChallengeAndReturnToCamp(config) {
     // Store basic challenge completion result
     const result = {
+      challengeKey: (config.name || 'tribe_challenge').toLowerCase().replace(/\s+/g, '_'),
       challengeName: config.name,
+      challengeDay: gameManager.getDay(),
       challengeType: config.type,
+      playerTribeKey: gameManager.getPlayerTribe?.()?.id ?? null,
+      playerTribeWon: false,
       completed: true,
-      completedAt: new Date().toISOString()
+      completedAt: new Date().toISOString(),
+      stagePerformance: {},
+      playerTribeStagePerformance: {
+        stage1: { mvp: null, lvp: null },
+        stage2: { mvp: null, lvp: null },
+        stage3: { mvp: null, lvp: null },
+        stage4: { mvp: null, lvp: null }
+      },
+      playerTribeMvpCandidates: [],
+      playerTribeLvpCandidates: [],
+      playerTribeOverallMvp: null,
+      playerTribeOverallLvp: null
     };
 
     // Use challenge screen's completion method if available
