@@ -1,5 +1,6 @@
 import JourneyReturnCampEvent from '../events/JourneyReturnCampEvent.js';
 import FirstWinEvent from '../events/FirstWinEvent.js';
+import FirstLossEvent from '../events/FirstLossEvent.js';
 
 export default class PostChallengeEventSystem {
   constructor({ gameManager, challengeManager, campScreen }) {
@@ -24,6 +25,10 @@ export default class PostChallengeEventSystem {
 
     if (FirstWinEvent.isEligible(result, this.gameManager)) {
       this.queue.push(FirstWinEvent);
+    }
+
+    if (FirstLossEvent.isEligible(result, this.gameManager)) {
+      this.queue.push(FirstLossEvent);
     }
 
     console.info('[PostChallengeEventSystem] queue built', {

@@ -184,8 +184,6 @@ const FirstWinEvent = {
   isEligible(result, gameManager) {
     if (!result) return false;
     if (!result.playerTribeWon) return false;
-    if (result.challengeDay !== 1) return false;
-    if (result.challengeKey !== 'first_contact') return false;
     if (gameManager.postChallengeMode !== 'scripted') return false;
     if (gameManager.flags?.firstWinEventSeen) return false;
     return true;
