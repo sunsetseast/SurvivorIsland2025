@@ -3,6 +3,7 @@ import { gameManager, GamePhase, GameState } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import JourneyReturnCampEvent from '../events/JourneyReturnCampEvent.js';
+import FirstLossEvent from '../events/FirstLossEvent.js';
 
 /**
  * StrategyPhaseSystem
@@ -172,6 +173,11 @@ class StrategyPhaseSystem {
     window.debugBanner?.('POST-CH JOURNEY', `after return logic | t:${gameManager.getDayTimer?.() ?? gameManager.dayTimer}`);
 
     if (!this.playerTribeSafe) {
+      await FirstLossEvent.runScripted({
+        gameManager,
+        challengeManager,
+        campScreen: null,
+      });
       this.promptPersonalTarget();
       this.scheduleAllianceMeetings();
       this.seedNpcIntentTargetsForPhase();
