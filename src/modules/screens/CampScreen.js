@@ -271,19 +271,17 @@ export default class CampScreen {
     this.isActive = true;
     gameManager.flags = gameManager.flags || {};
 
-    console.log('[CampScreen] setup postChallengeMode =', gameManager.postChallengeMode);
 
     const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
-    console.log('CampScreen sees postChallengeMode:', gameManager.postChallengeMode);
     console.info('[CampScreen] setup', { phase, timer, campEventActive: !!gameManager.flags?.campEventActive });
     window.debugBanner?.('CAMP LOAD', `${phase} | t:${timer}`);
 
     this.ensureTaskIcon();
 
-    if (phase === GamePhase.POST_CHALLENGE && gameManager.postChallengeMode === 'scripted') {
+    if (phase === GamePhase.POST_CHALLENGE) {
       if (this.isRunningScriptedPostChallenge || this.postChallengeInitPromise) {
-        console.info('[CampScreen] scripted post-challenge mode setup skipped (already running)', {
+        console.info('[CampScreen] post-challenge event setup skipped (already running)', {
           isRunningScriptedPostChallenge: this.isRunningScriptedPostChallenge,
           hasInitPromise: !!this.postChallengeInitPromise
         });
@@ -291,9 +289,8 @@ export default class CampScreen {
       }
 
       this.renderClockUI();
-      console.info('[CampScreen] scripted post-challenge mode start', {
-        phase,
-        postChallengeMode: gameManager.postChallengeMode
+      console.info('[CampScreen] post-challenge event flow start', {
+        phase
       });
       void this.runScriptedPostChallengeFlow();
       return;
@@ -326,7 +323,7 @@ export default class CampScreen {
 
     this.isRunningScriptedPostChallenge = true;
     this.postChallengeInitPromise = (async () => {
-      console.log('[CampScreen] runScriptedPostChallengeFlow start', gameManager.postChallengeMode);
+      console.log('[CampScreen] runScriptedPostChallengeFlow start');
       const system = new PostChallengeEventSystem({
         gameManager,
         challengeManager,
@@ -334,7 +331,7 @@ export default class CampScreen {
       });
 
       await system.run();
-      console.info('[CampScreen] scripted post-challenge mode ended');
+      console.info('[CampScreen] post-challenge event flow ended');
     })();
 
     try {

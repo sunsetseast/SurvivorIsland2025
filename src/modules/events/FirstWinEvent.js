@@ -184,7 +184,6 @@ const FirstWinEvent = {
   isEligible(result, gameManager) {
     if (!result) return false;
     if (!result.playerTribeWon) return false;
-    if (gameManager.postChallengeMode !== 'scripted') return false;
     if (gameManager.flags?.firstWinEventSeen) return false;
     return true;
   },
@@ -232,7 +231,7 @@ const FirstWinEvent = {
 
   async runScripted({ gameManager, challengeManager, campScreen }) {
     const result = challengeManager.getLastChallengeResult?.();
-    console.log('[FirstWinEvent] eligibility check mode =', gameManager?.postChallengeMode);
+    console.log('[FirstWinEvent] eligibility check');
     if (!this.isEligible(result, gameManager)) return;
 
     const player = gameManager.getPlayerSurvivor?.();

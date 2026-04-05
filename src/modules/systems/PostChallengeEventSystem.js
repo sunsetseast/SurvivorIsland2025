@@ -19,9 +19,8 @@ export default class PostChallengeEventSystem {
 
     this.queue = [];
 
-    if (JourneyReturnCampEvent.isEligible(result, this.gameManager)) {
-      this.queue.push(JourneyReturnCampEvent);
-    }
+    // Journey return camp reaction is always the first narrative beat after challenge.
+    this.queue.push(JourneyReturnCampEvent);
 
     if (FirstWinEvent.isEligible(result, this.gameManager)) {
       this.queue.push(FirstWinEvent);
@@ -40,17 +39,16 @@ export default class PostChallengeEventSystem {
 
   async run() {
     console.log('PostChallengeEventSystem running');
-    console.log('[PostChallengeEventSystem] run start', this.gameManager?.postChallengeMode);
     console.info('[PostChallengeEventSystem] run start', {
       day: this.gameManager?.day,
-      phase: this.gameManager?.gamePhase,
-      postChallengeMode: this.gameManager?.postChallengeMode
+      phase: this.gameManager?.gamePhase
     });
-    this.buildQueue();
+    const queue = this.buildQueue();
+    const result = this.challengeManager.getLastChallengeResult?.();
 
-    for (const EventModule of this.queue) {
+    for (const EventModule of queue) {
       const eventName = EventModule?.id || EventModule?.name || 'unknown_event';
-      console.log('[PostChallengeEventSystem] event start', eventName, this.gameManager?.postChallengeMode);
+      console.log('[PostChallengeEventSystem] event start', eventName);
       console.info('[PostChallengeEventSystem] event start', { eventName });
       await EventModule.runScripted({
         gameManager: this.gameManager,
@@ -60,7 +58,15 @@ export default class PostChallengeEventSystem {
       console.info('[PostChallengeEventSystem] event end', { eventName });
     }
 
-    console.info('[PostChallengeEventSystem] scripted flow complete; ending post challenge');
-    await this.gameManager.endPostChallengePhase();
+    if (result?.playerTribeWon) {
+      console.info('[PostChallengeEventSystem] event queue complete after immunity win; ending post challenge phase');
+      await this.gameManager.endPostChallengePhase();
+      return;
+    }
+
+    console.info('[PostChallengeEventSystem] event queue complete after immunity loss; starting timed strategy phase');
+    await this.gameManager.systems?.strategyPhaseSystem?.startPostChallengePhase?.({
+      source: 'PostChallengeEventSystem.run'
+    });
   }
 }
