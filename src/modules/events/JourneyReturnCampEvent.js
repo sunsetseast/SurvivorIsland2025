@@ -611,15 +611,13 @@ const JourneyReturnCampEvent = {
 
   isEligible(result, gameManager) {
     if (!result) return false;
-    if (gameManager?.postChallengeMode !== 'scripted') return false;
     if (gameManager?.flags?.journeyReturnEventSeen) return false;
-    const pendingJourney = Boolean(gameManager?.journey?.participants?.length || gameManager?.journey?.results?.length);
-    return pendingJourney;
+    return true;
   },
 
   async runScripted({ gameManager, challengeManager, campScreen }) {
     const result = challengeManager?.getLastChallengeResult?.();
-    console.log('[JourneyReturnCampEvent] eligibility check mode =', gameManager?.postChallengeMode);
+    console.log('[JourneyReturnCampEvent] eligibility check');
     if (!this.isEligible(result, gameManager)) return;
 
     const tribe = gameManager.getPlayerTribe?.();
