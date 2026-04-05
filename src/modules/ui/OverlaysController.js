@@ -21,6 +21,7 @@ function handleBagClick() {
   hideMenuAndOverlay();
   const inventoryOverlay = document.getElementById('inventory-overlay');
   if (inventoryOverlay) inventoryOverlay.style.display = 'block';
+  InventoryUI.renderResources();
   InventoryUI.render();
 }
 

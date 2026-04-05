@@ -229,68 +229,66 @@
         ></button>
       </div>
 
-      <!-- Add inside your #game-container, right after the #map-overlay -->
-          <div
-            id="inventory-overlay"
-            style="
-              display: none;
-              position: fixed;
-              top: 0;
-              left: 0;
-              width: 100vw;
-              height: 100vh;
-              background-color: rgba(0, 0, 0, 0.85);
-              z-index: 1002;
-            "
-          >
-            <img
-              id="inventory-image"
-              src="Assets/inventory1.png"
-              alt="Inventory"
-              style="
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                max-width: 95vw;
-                max-height: 95vh;
-              "
-            />
+      <!-- Inventory Overlay -->
+      <div
+        id="inventory-overlay"
+        style="
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.85);
+          z-index: 1002;
+        "
+      >
+        <img
+          id="inventory-image"
+          src="Assets/inventory1.png"
+          alt="Inventory"
+          style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 95vw;
+            max-height: 95vh;
+          "
+        />
 
-            <!-- Resource Values positioned relative to center -->
-            <div id="inventory-values" style="
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              z-index: 1004;
-            ">
-              <div id="value-fish1" class="resource-value" style="position: absolute; top: -142px; left: -40px;">0</div>
-              <div id="value-fish2" class="resource-value" style="position: absolute; top: -142px; left: 96px;">0</div>
-              <div id="value-fish3" class="resource-value" style="position: absolute; top: -88px; left: -40px;">0</div>
-              <div id="value-coconut" class="resource-value" style="position: absolute; top: -88px; left: 96px;">0</div>
-              <div id="value-firewood" class="resource-value" style="position: absolute; top: -35px; left: -40px;">0</div>
-              <div id="value-water" class="resource-value" style="position: absolute; top: -35px; left: 96px;">0</div>
-              <div id="value-bamboo" class="resource-value" style="position: absolute; top: 20px; left: -40px;">0</div>
-              <div id="value-palms" class="resource-value" style="position: absolute; top: 20px; left: 96px;">0</div>
-            </div>
-            <div id="inventory-items-grid" aria-label="Player inventory items grid"></div>
-              <!-- Invisible button to toggle inventory pages -->
-              <button
-                id="inventory-nav-button"
-                class="menu-action-button"
-                style="
-                  bottom: 25%;
-                  left: 55%;
-                  transform: translateX(-50%);
-                  width: 100px; /* Adjust as needed */
-                  height: 50px; /* Adjust as needed */
-                  background: transparent;
-                  border: none;
-                "
-              ></button>
-          </div>
+        <!-- Resource Values positioned relative to center -->
+        <div id="inventory-values" style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 1004;
+        ">
+          <div id="value-fish1" class="resource-value" style="position: absolute; top: -142px; left: -40px;">0</div>
+          <div id="value-fish2" class="resource-value" style="position: absolute; top: -142px; left: 96px;">0</div>
+          <div id="value-fish3" class="resource-value" style="position: absolute; top: -88px; left: -40px;">0</div>
+          <div id="value-coconut" class="resource-value" style="position: absolute; top: -88px; left: 96px;">0</div>
+          <div id="value-firewood" class="resource-value" style="position: absolute; top: -35px; left: -40px;">0</div>
+          <div id="value-water" class="resource-value" style="position: absolute; top: -35px; left: 96px;">0</div>
+          <div id="value-bamboo" class="resource-value" style="position: absolute; top: 20px; left: -40px;">0</div>
+          <div id="value-palms" class="resource-value" style="position: absolute; top: 20px; left: 96px;">0</div>
         </div>
+        <div id="inventory-items-grid" aria-label="Player inventory items grid"></div>
+        <!-- Invisible button to toggle inventory pages -->
+        <button
+          id="inventory-nav-button"
+          class="menu-action-button"
+          style="
+            bottom: 25%;
+            left: 55%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 50px;
+            background: transparent;
+            border: none;
+          "
+        ></button>
       </div>
 
       <!-- Social Menu Overlay -->

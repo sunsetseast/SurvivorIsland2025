@@ -167,24 +167,7 @@ function setupEventListeners() {
 }
 
 function updateInventoryUI() {
-  const player = gameManager.getPlayerSurvivor();
-  if (!player) return;
-
-  const mapping = {
-    'value-fish1': player.fish1,
-    'value-fish2': player.fish2,
-    'value-fish3': player.fish3,
-    'value-coconut': player.coconuts,
-    'value-firewood': player.firewood,
-    'value-water': player.water,
-    'value-bamboo': player.bamboo,
-    'value-palms': player.palms
-  };
-
-  for (let id in mapping) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = mapping[id] || 0;
-  }
+  InventoryUI.renderResources();
 }
 
 function setupMenuToggle() {
