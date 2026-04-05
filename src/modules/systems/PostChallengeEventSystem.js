@@ -19,8 +19,10 @@ export default class PostChallengeEventSystem {
 
     this.queue = [];
 
-    // Journey return camp reaction is always the first narrative beat after challenge.
-    this.queue.push(JourneyReturnCampEvent);
+    // Journey return camp reaction is the first narrative beat when a journey return is pending.
+    if (JourneyReturnCampEvent.isEligible(result, this.gameManager)) {
+      this.queue.push(JourneyReturnCampEvent);
+    }
 
     if (FirstWinEvent.isEligible(result, this.gameManager)) {
       this.queue.push(FirstWinEvent);

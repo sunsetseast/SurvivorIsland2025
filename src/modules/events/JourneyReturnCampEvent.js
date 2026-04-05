@@ -97,6 +97,43 @@ function markJourneyReturnHandled(gameManager) {
   }
 }
 
+function resolvePendingJourneyReturnContext(gameManager) {
+  if (!gameManager) return null;
+  const currentJourney = gameManager?.journey || null;
+  const marker = gameManager?.flags?.lastJourneyEvent || null;
+  const hasJourneyContext = Boolean(currentJourney || marker);
+  if (!hasJourneyContext) return null;
+
+  const pendingFromJourney = currentJourney?.returnCampEventPending === true;
+  const pendingFromMarker = marker?.pendingReturnCampEvent === true;
+  if (!pendingFromJourney && !pendingFromMarker) return null;
+
+  const tribe = gameManager.getPlayerTribe?.();
+  const tribeMemberIds = new Set((tribe?.members || []).map((member) => String(member?.id)));
+  const candidateJourneyerIds = [
+    ...(currentJourney?.participants || []),
+    ...(currentJourney?.results || []).map((entry) => entry?.survivorId),
+    ...(marker?.participants || []),
+    marker?.survivorId,
+    marker?.journeyerId,
+  ].filter(Boolean);
+
+  const uniqueCandidates = Array.from(new Set(candidateJourneyerIds.map((id) => String(id))));
+  const tribeJourneyerId = uniqueCandidates.find((id) => tribeMemberIds.has(id)) || null;
+  const fallbackJourneyerId = uniqueCandidates[0] || null;
+  const journeyerId = tribeJourneyerId || fallbackJourneyerId;
+  if (!journeyerId || !findSurvivor(gameManager, journeyerId)) return null;
+
+  const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.getPlayer?.()?.id || gameManager.playerId;
+
+  return {
+    journeyerId,
+    isPlayerJourneyer: Boolean(playerId) && String(journeyerId) === String(playerId),
+    pendingFromJourney,
+    pendingFromMarker
+  };
+}
+
 function pickUnique(items = [], count = 1) {
   const pool = [...items];
   const picked = [];
@@ -611,8 +648,8 @@ const JourneyReturnCampEvent = {
 
   isEligible(result, gameManager) {
     if (!result) return false;
-    if (gameManager?.flags?.journeyReturnEventSeen) return false;
-    return true;
+    if (!gameManager?.journey && !gameManager?.flags?.lastJourneyEvent) return false;
+    return Boolean(resolvePendingJourneyReturnContext(gameManager));
   },
 
   async runScripted({ gameManager, challengeManager, campScreen }) {
@@ -620,12 +657,10 @@ const JourneyReturnCampEvent = {
     console.log('[JourneyReturnCampEvent] eligibility check');
     if (!this.isEligible(result, gameManager)) return;
 
-    const tribe = gameManager.getPlayerTribe?.();
-    const journeyerId = gameManager?.journey?.participants?.find((id) =>
-      (tribe?.members || []).some((member) => String(member.id) === String(id))
-    ) || gameManager?.journey?.results?.[0]?.survivorId;
-    const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.getPlayer?.()?.id || gameManager.playerId;
-    const isPlayerJourneyer = journeyerId && String(journeyerId) === String(playerId);
+    const context = resolvePendingJourneyReturnContext(gameManager);
+    const journeyerId = context?.journeyerId;
+    const isPlayerJourneyer = context?.isPlayerJourneyer;
+    if (!journeyerId) return;
 
     // In scripted post-challenge mode, reuse the canonical part-2 flow when the
     // player is the journeyer so they still get the truth/lie decisions.
@@ -642,8 +677,6 @@ const JourneyReturnCampEvent = {
         isPlayerJourneyer: true,
       });
       markJourneyReturnHandled(gameManager);
-      gameManager.flags = gameManager.flags || {};
-      gameManager.flags.journeyReturnEventSeen = true;
       return;
     }
 
@@ -658,8 +691,6 @@ const JourneyReturnCampEvent = {
       journeyerId,
       isPlayerJourneyer: false,
     });
-    gameManager.flags = gameManager.flags || {};
-    gameManager.flags.journeyReturnEventSeen = true;
     markJourneyReturnHandled(gameManager);
   },
 
