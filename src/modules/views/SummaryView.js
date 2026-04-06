@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { GamePhase } from '../core/GameManager.js';
 
 const RESOURCE_LABELS = {
   bamboo: 'bamboo',
@@ -739,8 +740,11 @@ export default function renderSummary(container) {
 
     continueButton.addEventListener('click', () => {
       console.log('Continue to Challenge button clicked');
+      const currentPhase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+      if (currentPhase === GamePhase.PRE_CHALLENGE) {
+        gameManager.advanceGamePhase();
+      }
       gameManager.setGameState('challenge');
-      screenManager.showScreen('challenge');
       window.campSocialChanges = {
         relationship: [],
         trust: [],
