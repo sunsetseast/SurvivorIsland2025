@@ -160,9 +160,24 @@ export default class ChallengeScreen {
       });
     }
 
-    // Advance game phase unless already set for post-challenge return
+    // Advance into post-challenge. Some entry points can still open the challenge
+    // screen while phase is PRE_CHALLENGE; in that case we need two transitions:
+    // PRE_CHALLENGE -> CHALLENGE -> POST_CHALLENGE.
     if (gameManager.gamePhase !== GamePhase.POST_CHALLENGE) {
-      gameManager.advanceGamePhase();
+      let safety = 0;
+      while (gameManager.gamePhase !== GamePhase.POST_CHALLENGE && safety < 3) {
+        const phaseBeforeAdvance = gameManager.gamePhase;
+        gameManager.advanceGamePhase();
+        safety += 1;
+
+        if (gameManager.gamePhase === phaseBeforeAdvance) {
+          console.warn('[ChallengeScreen] Game phase did not advance as expected', {
+            phase: gameManager.gamePhase,
+            safety
+          });
+          break;
+        }
+      }
     }
 
     console.info('[ChallengeScreen] challenge complete; transitioning to camp', {
