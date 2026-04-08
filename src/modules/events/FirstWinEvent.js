@@ -184,6 +184,7 @@ const FirstWinEvent = {
   isEligible(result, gameManager) {
     if (!result) return false;
     if (!result.playerTribeWon) return false;
+    if (gameManager?.journey?.selection?.playerWasSelected) return false;
     if (gameManager.flags?.firstWinEventSeen) return false;
     return true;
   },

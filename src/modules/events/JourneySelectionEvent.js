@@ -26,6 +26,94 @@ function getFirstName(fullName) {
   return fullName.trim().split(' ')[0] || '';
 }
 
+function findSurvivor(gameManager, id) {
+  return (gameManager?.survivors || []).find((survivor) => survivor?.id === id) || null;
+}
+
+function awardExtraVote(survivor, journey) {
+  if (!survivor) return;
+  if (!survivor.advantages) survivor.advantages = {};
+  if (!survivor.advantages.extraVote) {
+    survivor.advantages.extraVote = { count: 0, expiresAtSurvivorsRemaining: 6 };
+  }
+  survivor.advantages.extraVote.count += 1;
+  survivor.advantages.extraVote.expiresAtSurvivorsRemaining = 6;
+
+  if (Array.isArray(survivor.extraVotes)) {
+    survivor.extraVotes.push({
+      type: 'JOURNEY_EXTRA_VOTE',
+      createdDay: journey?.day,
+      createdChallengeKey: journey?.challengeKey,
+      expiresAtSurvivorsRemaining: 6,
+      used: false
+    });
+  } else if (Number.isFinite(survivor.extraVotes)) {
+    survivor.extraVotes += 1;
+  } else {
+    survivor.extraVotes = 1;
+  }
+}
+
+function simulateNpcOnlyJourneyOutcome(gameManager, journey) {
+  const participantIds = Array.from(new Set(journey?.participants || [])).filter(Boolean);
+  if (!participantIds.length) return;
+
+  const decisions = participantIds.map((survivorId) => ({
+    survivorId,
+    choice: Math.random() < 0.5 ? 'risk' : 'protect'
+  }));
+
+  const allRisk = decisions.every((decision) => decision.choice === 'risk');
+  const allProtect = decisions.every((decision) => decision.choice === 'protect');
+  const mixed = !allRisk && !allProtect;
+
+  decisions.forEach((decision) => {
+    const survivor = findSurvivor(gameManager, decision.survivorId);
+    if (!survivor) return;
+
+    if (allRisk) {
+      survivor.hasVote = false;
+      survivor.votePenalty = {
+        type: 'LOST_VOTE_JOURNEY',
+        pending: true,
+        reason: 'Journey Risk/Protect',
+        createdChallengeKey: journey?.challengeKey,
+        createdDay: journey?.day
+      };
+      return;
+    }
+
+    survivor.hasVote = true;
+    if (mixed && decision.choice === 'risk') {
+      awardExtraVote(survivor, journey);
+    }
+  });
+
+  journey.results = decisions.map((decision) => {
+    const survivor = findSurvivor(gameManager, decision.survivorId);
+    return {
+      survivorId: decision.survivorId,
+      choice: decision.choice,
+      hasVoteAfter: survivor?.hasVote,
+      extraVotesGained: mixed && decision.choice === 'risk' ? 1 : 0
+    };
+  });
+
+  gameManager.flags = gameManager.flags || {};
+  const marker = {
+    type: 'riskProtect',
+    pendingReturnCampEvent: true,
+    day: gameManager.getDay?.() ?? gameManager.day,
+    challengeKey: journey?.challengeKey || null,
+    phase: 'postChallenge',
+    participants: participantIds,
+    timestamp: Date.now()
+  };
+  gameManager.flags.lastJourneyEvent = marker;
+  journey.returnCampEventPending = true;
+  journey.returnCampEventMeta = marker;
+}
+
 const FALLBACK_TRIBE_COLORS = {
   red: '#d64541',
   orange: '#e67e22',
@@ -268,6 +356,7 @@ const JourneySelectionEvent = {
 
       gameManager.journey = {
         active: playerWasSelected,
+        type: 'riskProtect',
         challengeKey,
         day,
         phase: 'postChallenge',
@@ -285,6 +374,10 @@ const JourneySelectionEvent = {
         participantsByTribe,
         participants
       });
+
+      if (!playerWasSelected) {
+        simulateNpcOnlyJourneyOutcome(gameManager, gameManager.journey);
+      }
 
       return {
         playerWasSelected,

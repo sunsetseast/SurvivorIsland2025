@@ -45,8 +45,103 @@ export default class PostChallengeEventSystem {
       day: this.gameManager?.day,
       phase: this.gameManager?.gamePhase
     });
-    const queue = this.buildQueue();
     const result = this.challengeManager.getLastChallengeResult?.();
+    const isDay1FirstContact = (result?.challengeDay === 1) || (result?.challengeKey === 'first_contact' && this.gameManager?.day === 1);
+
+    if (isDay1FirstContact) {
+      const journeyContext = JourneyReturnCampEvent.getPendingContext?.(this.gameManager);
+      const hasPendingJourneyReturn = Boolean(journeyContext?.journeyerId);
+      const playerWasJourneyer = Boolean(journeyContext?.isPlayerJourneyer || this.gameManager?.journey?.selection?.playerWasSelected);
+
+      if (result?.playerTribeWon) {
+        if (!playerWasJourneyer) {
+          await FirstWinEvent.runScripted({
+            gameManager: this.gameManager,
+            challengeManager: this.challengeManager,
+            campScreen: this.campScreen
+          });
+        }
+
+        if (hasPendingJourneyReturn) {
+          if (playerWasJourneyer) {
+            await JourneyReturnCampEvent.simulatePart1IfPlayerAway({
+              gameManager: this.gameManager,
+              strategyPhaseSystem: null,
+              journeyerId: journeyContext.journeyerId
+            });
+            await JourneyReturnCampEvent.startPart2({
+              gameManager: this.gameManager,
+              strategyPhaseSystem: null,
+              journeyerId: journeyContext.journeyerId,
+              isPlayerJourneyer: true
+            });
+          } else {
+            await JourneyReturnCampEvent.startPart1({
+              gameManager: this.gameManager,
+              strategyPhaseSystem: null,
+              journeyerId: journeyContext.journeyerId
+            });
+            this.campScreen?.loadView?.('tribeFlag');
+            await new Promise((resolve) => setTimeout(resolve, 16000));
+            await JourneyReturnCampEvent.startPart2({
+              gameManager: this.gameManager,
+              strategyPhaseSystem: null,
+              journeyerId: journeyContext.journeyerId,
+              isPlayerJourneyer: false
+            });
+          }
+          JourneyReturnCampEvent.markHandled?.(this.gameManager);
+        }
+
+        await this.gameManager.endPostChallengePhase();
+        return;
+      }
+
+      await this.gameManager.systems?.strategyPhaseSystem?.startPostChallengePhase?.({
+        source: 'PostChallengeEventSystem.run.day1-loss'
+      });
+
+      if (!playerWasJourneyer) {
+        await FirstLossEvent.runScripted({
+          gameManager: this.gameManager,
+          challengeManager: this.challengeManager,
+          campScreen: this.campScreen
+        });
+      }
+
+      if (hasPendingJourneyReturn) {
+        if (playerWasJourneyer) {
+          await JourneyReturnCampEvent.simulatePart1IfPlayerAway({
+            gameManager: this.gameManager,
+            strategyPhaseSystem: this.gameManager.systems?.strategyPhaseSystem || null,
+            journeyerId: journeyContext.journeyerId
+          });
+          await JourneyReturnCampEvent.startPart2({
+            gameManager: this.gameManager,
+            strategyPhaseSystem: this.gameManager.systems?.strategyPhaseSystem || null,
+            journeyerId: journeyContext.journeyerId,
+            isPlayerJourneyer: true
+          });
+        } else {
+          await JourneyReturnCampEvent.startPart1({
+            gameManager: this.gameManager,
+            strategyPhaseSystem: this.gameManager.systems?.strategyPhaseSystem || null,
+            journeyerId: journeyContext.journeyerId
+          });
+          await JourneyReturnCampEvent.startPart2({
+            gameManager: this.gameManager,
+            strategyPhaseSystem: this.gameManager.systems?.strategyPhaseSystem || null,
+            journeyerId: journeyContext.journeyerId,
+            isPlayerJourneyer: false
+          });
+        }
+        JourneyReturnCampEvent.markHandled?.(this.gameManager);
+      }
+
+      return;
+    }
+
+    const queue = this.buildQueue();
 
     for (const EventModule of queue) {
       const eventName = EventModule?.id || EventModule?.name || 'unknown_event';

@@ -646,6 +646,14 @@ async function runPart1Core({ gameManager, strategyPhaseSystem, journeyerId, sho
 const JourneyReturnCampEvent = {
   id: 'journey_return_camp_event',
 
+  getPendingContext(gameManager) {
+    return resolvePendingJourneyReturnContext(gameManager);
+  },
+
+  markHandled(gameManager) {
+    markJourneyReturnHandled(gameManager);
+  },
+
   isEligible(result, gameManager) {
     if (!result) return false;
     if (!gameManager?.journey && !gameManager?.flags?.lastJourneyEvent) return false;
