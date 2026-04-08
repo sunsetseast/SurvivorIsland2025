@@ -63,6 +63,7 @@ const FirstLossEvent = {
   isEligible(result, gameManager) {
     if (!result) return false;
     if (result.playerTribeWon) return false;
+    if (gameManager?.journey?.selection?.playerWasSelected) return false;
     if (gameManager.flags?.firstLossEventSeen) return false;
     return true;
   },
