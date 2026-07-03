@@ -24,6 +24,9 @@ export const CAMP_LOCATION_WEIGHTS = {
   [LocationKeys.CAMPFIRE]: 3,
   [LocationKeys.TRIBE_FLAG]: 2,
   [LocationKeys.WATER_WELL]: 3,
+  [LocationKeys.FORK1]: 1,
+  [LocationKeys.FORK2]: 1,
+  [LocationKeys.FORK3]: 1,
 
   [LocationKeys.ROCKY_SHORE]: 1,
   [LocationKeys.JUNGLE_TRAIL]: 1,
@@ -36,23 +39,79 @@ export const CAMP_LOCATION_WEIGHTS = {
 // Dynamically derived key list
 export const CAMP_LOCATIONS = Object.keys(CAMP_LOCATION_WEIGHTS);
 
+export const ISLAND_LOCATION_GRAPH = Object.freeze({
+  [LocationKeys.TRIBE_FLAG]: [LocationKeys.BEACH, LocationKeys.CAMPFIRE],
+  [LocationKeys.BEACH]: [LocationKeys.TRIBE_FLAG, LocationKeys.ROCKY_SHORE],
+  [LocationKeys.ROCKY_SHORE]: [LocationKeys.BEACH],
+  [LocationKeys.CAMPFIRE]: [LocationKeys.TRIBE_FLAG, LocationKeys.SHELTER],
+  [LocationKeys.SHELTER]: [LocationKeys.CAMPFIRE, LocationKeys.FORK1, LocationKeys.FORK2, LocationKeys.FORK3],
+  [LocationKeys.FORK1]: [LocationKeys.SHELTER, LocationKeys.MOUNTAIN_TRAIL, LocationKeys.JUNGLE_TRAIL],
+  [LocationKeys.FORK2]: [LocationKeys.SHELTER, LocationKeys.MOUNTAIN_TRAIL, LocationKeys.JUNGLE_TRAIL],
+  [LocationKeys.FORK3]: [LocationKeys.SHELTER, LocationKeys.MOUNTAIN_TRAIL, LocationKeys.JUNGLE_TRAIL],
+  [LocationKeys.MOUNTAIN_TRAIL]: [LocationKeys.FORK1, LocationKeys.FORK2, LocationKeys.FORK3, LocationKeys.TREE_MAIL],
+  [LocationKeys.TREE_MAIL]: [LocationKeys.MOUNTAIN_TRAIL, LocationKeys.WATERFALL_TRAIL],
+  [LocationKeys.WATERFALL_TRAIL]: [LocationKeys.TREE_MAIL, LocationKeys.WATER_WELL],
+  [LocationKeys.WATER_WELL]: [LocationKeys.WATERFALL_TRAIL, LocationKeys.JUNGLE_TRAIL],
+  [LocationKeys.JUNGLE_TRAIL]: [LocationKeys.WATER_WELL, LocationKeys.FORK1, LocationKeys.FORK2, LocationKeys.FORK3]
+});
+
+const SOCIAL_MEETING_LOCATIONS = new Set([
+  LocationKeys.BEACH,
+  LocationKeys.SHELTER,
+  LocationKeys.CAMPFIRE,
+  LocationKeys.TRIBE_FLAG,
+  LocationKeys.WATER_WELL
+]);
+
+const IDOL_SUSPICION_LOCATIONS = new Set([
+  LocationKeys.ROCKY_SHORE,
+  LocationKeys.JUNGLE_TRAIL,
+  LocationKeys.MOUNTAIN_TRAIL,
+  LocationKeys.WATERFALL_TRAIL,
+  LocationKeys.TREE_MAIL,
+  LocationKeys.WATER_WELL
+]);
+
+const ROAM_INTERVAL_SECONDS = 240;
+const FORCED_ROAM_AFTER_SECONDS = 720;
+const IDOL_SUSPICION_AFTER_SECONDS = 480;
+
 class NpcLocationSystem {
   constructor() {
     this.locations = {};    // survivorId → viewName
     this.phaseAssigned = false;
     this.lastFights = [];   // confrontation events
     this.lastPhaseUsed = null;
+    this.locationSinceTimer = {};
+    this.lastRoamTimer = null;
+    this.meetingReservations = {};
+    this.lastSuspicionTimer = {};
   }
 
   // So main.js can safely call initialize()
   initialize() {
     dbg("NpcLocationSystem.initialize called");
+    if (typeof window !== "undefined") {
+      window.NpcLocationDebug = window.NpcLocationDebug || {};
+      window.NpcLocationDebug.map = () => ({ ...ISLAND_LOCATION_GRAPH });
+      window.NpcLocationDebug.locations = () => ({ ...this.locations });
+      window.NpcLocationDebug.counts = () => this.getLocationCounts();
+      window.NpcLocationDebug.forceRoam = () => this.advanceRoaming({
+        currentTime: (gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 0) - ROAM_INTERVAL_SECONDS,
+        phase: gameManager.getGamePhase?.() || gameManager.gamePhase,
+        currentView: window.campScreen?.currentView || null
+      });
+    }
   }
 
   reset() {
     this.locations = {};
     this.phaseAssigned = false;
     this.lastFights = [];
+    this.locationSinceTimer = {};
+    this.lastRoamTimer = null;
+    this.meetingReservations = {};
+    this.lastSuspicionTimer = {};
     dbg("NpcLocationSystem reset");
   }
 
@@ -70,6 +129,10 @@ class NpcLocationSystem {
     this.locations = {};
     this.phaseAssigned = true;
     this.lastFights = [];
+    this.locationSinceTimer = {};
+    this.meetingReservations = {};
+    this.lastSuspicionTimer = {};
+    this.lastRoamTimer = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? null;
 
     const tribe = gameManager.getPlayerTribe();
     if (!tribe) {
@@ -108,6 +171,7 @@ class NpcLocationSystem {
       }
       this.locations[npc.id] = loc;
       npc.location = loc;
+      this.locationSinceTimer[npc.id] = this.lastRoamTimer;
       console.log("[NpcLocationSystem] assigned", npc.name || npc.firstName || npc.id, "->", loc);
       dbg("Assigned NPC location", { npc: npc.firstName, loc });
     }
@@ -253,6 +317,9 @@ class NpcLocationSystem {
           this.locations[npcB.id] = locA;
           npcA.location = locB;
           npcB.location = locA;
+          const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? null;
+          this.locationSinceTimer[npcA.id] = timer;
+          this.locationSinceTimer[npcB.id] = timer;
         }
       }
     }
@@ -322,7 +389,105 @@ class NpcLocationSystem {
    * PUBLIC HELPERS
    */
   getLocation(id) {
-    return this.locations[id] || null;
+    if (id == null) return null;
+    return this.locations[id] || this.locations[String(id)] || null;
+  }
+
+  getAdjacentLocations(locationKey) {
+    const normalized = normalizeLocationKey(locationKey);
+    if (!normalized) return [];
+    return ISLAND_LOCATION_GRAPH[normalized] || [];
+  }
+
+  getBestMeetingLocation(npcId, { preferredLocation = null, currentView = null } = {}) {
+    const preferred = normalizeLocationKey(preferredLocation);
+    const currentNpcLocation = normalizeLocationKey(this.getLocation(npcId));
+
+    if (preferred && isCoreCampLocation(preferred)) {
+      if (!currentNpcLocation) return preferred;
+      const reachable = preferred === currentNpcLocation || this.getAdjacentLocations(currentNpcLocation).includes(preferred);
+      if (reachable) return preferred;
+    }
+
+    if (currentNpcLocation && isCoreCampLocation(currentNpcLocation)) {
+      if (SOCIAL_MEETING_LOCATIONS.has(currentNpcLocation)) return currentNpcLocation;
+      const nearbySocial = this.getAdjacentLocations(currentNpcLocation).find(loc => SOCIAL_MEETING_LOCATIONS.has(loc));
+      if (nearbySocial) return nearbySocial;
+      return currentNpcLocation;
+    }
+
+    const currentPlayerView = normalizeLocationKey(currentView);
+    if (currentPlayerView && isCoreCampLocation(currentPlayerView)) {
+      return currentPlayerView;
+    }
+
+    return LocationKeys.CAMPFIRE;
+  }
+
+  reserveNpcForMeeting(npcId, locationKey, { reason = "meeting", ttlMs = 180000 } = {}) {
+    const normalized = normalizeLocationKey(locationKey);
+    if (!npcId || !isCoreCampLocation(normalized)) return null;
+    const key = String(npcId);
+    this.meetingReservations[key] = {
+      location: normalized,
+      reason,
+      expiresAt: Date.now() + ttlMs
+    };
+    this.updateNpcLocation(npcId, normalized, { reason });
+    return normalized;
+  }
+
+  releaseNpcMeetingReservation(npcId, { reason = "meeting_released" } = {}) {
+    const key = String(npcId);
+    if (!npcId || !this.meetingReservations[key]) return;
+    delete this.meetingReservations[key];
+    eventManager.publish("npc:locationUpdated", { npcId, locationKey: this.getLocation(npcId), reason });
+  }
+
+  advanceRoaming({ currentTime = null, phase = null, currentView = null } = {}) {
+    if (gameManager.flags?.campEventActive) return;
+    const timer = Number.isFinite(currentTime) ? currentTime : (gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? null);
+    if (!Number.isFinite(timer)) return;
+    if (this.lastRoamTimer == null) {
+      this.lastRoamTimer = timer;
+      return;
+    }
+
+    const elapsedSinceRoam = this.lastRoamTimer - timer;
+    this._expireMeetingReservations();
+    this._applyLoiterSuspicion(timer);
+    if (elapsedSinceRoam < ROAM_INTERVAL_SECONDS) return;
+
+    this.lastRoamTimer = timer;
+    const tribe = gameManager.getPlayerTribe();
+    const absentSet = gameManager.flags?.absentFromCampIds;
+    const moved = [];
+    const npcs = (tribe?.members || []).filter(member => member && !member.isPlayer && !isMarkedAbsent(absentSet, member.id));
+    const normalizedCurrentView = normalizeLocationKey(currentView);
+
+    npcs.forEach(npc => {
+      if (this._isReservedForMeeting(npc.id)) return;
+      const from = normalizeLocationKey(this.locations[npc.id]) || LocationKeys.SHELTER;
+      const neighbors = this.getAdjacentLocations(from).filter(isCoreCampLocation);
+      if (!neighbors.length) return;
+
+      const since = this.locationSinceTimer[npc.id];
+      const dwellSeconds = Number.isFinite(since) ? Math.max(0, since - timer) : 0;
+      const shouldMove = dwellSeconds >= FORCED_ROAM_AFTER_SECONDS || Math.random() < this._getRoamChance(npc, from, phase);
+      if (!shouldMove) return;
+
+      const to = this._pickNextLocation(npc, from, neighbors, { phase, currentView: normalizedCurrentView });
+      if (!to || to === from) return;
+      this.locations[npc.id] = to;
+      npc.location = to;
+      this.locationSinceTimer[npc.id] = timer;
+      moved.push({ npcId: npc.id, from, to });
+    });
+
+    if (moved.length) {
+      eventManager.publish("npc:locationsRoamed", { moved, currentTime: timer, phase });
+      eventManager.publish("npc:locationUpdated", { reason: "roam", moved });
+    }
   }
 
   getSurvivorsAtLocation(locationName) {
@@ -353,7 +518,9 @@ class NpcLocationSystem {
     if (!npcId) return;
     const normalized = normalizeLocationKey(locationKey);
     if (!isCoreCampLocation(normalized)) return;
-    this.locations[npcId] = normalized;
+    const key = String(npcId);
+    this.locations[key] = normalized;
+    this.locationSinceTimer[key] = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? this.locationSinceTimer[key] ?? null;
     const tribe = gameManager.getPlayerTribe();
     const npc = tribe?.members?.find(member => String(member.id) === String(npcId));
     if (npc) {
@@ -369,6 +536,82 @@ class NpcLocationSystem {
       counts[location] = (counts[location] || 0) + 1;
     });
     return counts;
+  }
+
+  _isReservedForMeeting(npcId) {
+    const key = String(npcId);
+    const reservation = this.meetingReservations[key];
+    if (!reservation) return false;
+    if (reservation.expiresAt && reservation.expiresAt < Date.now()) {
+      delete this.meetingReservations[key];
+      return false;
+    }
+    return true;
+  }
+
+  _expireMeetingReservations() {
+    Object.keys(this.meetingReservations).forEach(npcId => {
+      this._isReservedForMeeting(npcId);
+    });
+  }
+
+  _getRoamChance(npc, location, phase) {
+    let chance = phase === "post" ? 0.22 : 0.18;
+    const traits = npc.personalityTraits || [];
+    const style = String(npc.gameplayStyle || npc.personality || "").toLowerCase();
+    if (traits.includes("idol_hunter") || style.includes("shadow") || style.includes("strateg")) chance += 0.08;
+    if (traits.includes("social") && SOCIAL_MEETING_LOCATIONS.has(location)) chance -= 0.04;
+    if (traits.includes("loner") && IDOL_SUSPICION_LOCATIONS.has(location)) chance -= 0.04;
+    return Math.max(0.08, Math.min(0.42, chance));
+  }
+
+  _pickNextLocation(npc, from, neighbors, { phase = null, currentView = null } = {}) {
+    const traits = npc.personalityTraits || [];
+    const style = String(npc.gameplayStyle || npc.personality || "").toLowerCase();
+    const weighted = [];
+
+    neighbors.forEach(location => {
+      let score = 2;
+      if (CAMP_LOCATION_WEIGHTS[location]) score += CAMP_LOCATION_WEIGHTS[location] * 0.25;
+      if (phase === "post" && [LocationKeys.CAMPFIRE, LocationKeys.SHELTER, LocationKeys.WATER_WELL].includes(location)) score += 1;
+      if (traits.includes("social") && SOCIAL_MEETING_LOCATIONS.has(location)) score += 2;
+      if ((traits.includes("idol_hunter") || style.includes("shadow")) && IDOL_SUSPICION_LOCATIONS.has(location)) score += 1.5;
+      if (traits.includes("loner") && [LocationKeys.ROCKY_SHORE, LocationKeys.WATERFALL_TRAIL, LocationKeys.TREE_MAIL].includes(location)) score += 2;
+      if (currentView && location === currentView) score += 0.75;
+      if (location === from) score = 0;
+
+      const count = Math.max(1, Math.round(score));
+      for (let i = 0; i < count; i++) weighted.push(location);
+    });
+
+    if (!weighted.length) return neighbors[getRandomInt(0, neighbors.length - 1)];
+    return weighted[getRandomInt(0, weighted.length - 1)];
+  }
+
+  _applyLoiterSuspicion(currentTime) {
+    const tribe = gameManager.getPlayerTribe();
+    if (!tribe?.members?.length) return;
+    tribe.members.forEach(npc => {
+      if (!npc || npc.isPlayer || this._isReservedForMeeting(npc.id)) return;
+      const location = normalizeLocationKey(this.locations[npc.id]);
+      if (!IDOL_SUSPICION_LOCATIONS.has(location)) return;
+      const since = this.locationSinceTimer[npc.id];
+      if (!Number.isFinite(since)) return;
+      const dwellSeconds = Math.max(0, since - currentTime);
+      if (dwellSeconds < IDOL_SUSPICION_AFTER_SECONDS) return;
+      const lastNoted = this.lastSuspicionTimer[npc.id];
+      if (Number.isFinite(lastNoted) && lastNoted - currentTime < IDOL_SUSPICION_AFTER_SECONDS) return;
+
+      npc.idolSuspicion = Math.min(100, (npc.idolSuspicion ?? npc.suspicion ?? 0) + 2);
+      npc.suspicion = Math.min(100, (npc.suspicion ?? 0) + 1);
+      this.lastSuspicionTimer[npc.id] = currentTime;
+      eventManager.publish("npc:idolSuspicionRaised", {
+        npcId: npc.id,
+        location,
+        dwellSeconds,
+        idolSuspicion: npc.idolSuspicion
+      });
+    });
   }
 }
 

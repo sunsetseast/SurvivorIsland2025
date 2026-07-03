@@ -865,6 +865,11 @@ export default class CampScreen {
       const currentTime = gameManager.getDayTimer();
       updateCampClockUI(currentTime, gameManager.getDay());
       this.refreshTaskIconState();
+      gameManager.systems?.npcLocationSystem?.advanceRoaming?.({
+        currentTime,
+        phase: gameManager.getGamePhase?.() || gameManager.gamePhase,
+        currentView: this.currentView
+      });
 
       if (
         gameManager.gamePhase !== GamePhase.POST_CHALLENGE &&

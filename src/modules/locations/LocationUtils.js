@@ -47,7 +47,10 @@ const CORE_CAMP_LOCATIONS = new Set([
   LocationKeys.WATERFALL_TRAIL,
   LocationKeys.TREE_MAIL,
   LocationKeys.WATER_WELL,
-  LocationKeys.TRIBE_FLAG
+  LocationKeys.TRIBE_FLAG,
+  LocationKeys.FORK1,
+  LocationKeys.FORK2,
+  LocationKeys.FORK3
 ]);
 
 export function normalizeLocationKey(input) {
