@@ -83,6 +83,7 @@ class GameManager {
     this.taskSystem = new TaskSystem(this);
     this.systems.taskSimulationSystem = new TaskSimulationSystem(this);
     this._missingTrustSystemWarned = false;
+    this._autoSaveInProgress = false;
   }
 
   initialize() {
@@ -166,6 +167,7 @@ class GameManager {
     }
     this.systems.dealSystem?.processTribalOutcome?.(canonicalEntry, this);
     this.systems.allianceSystem?.processPostTribalFallout?.(canonicalEntry, this);
+    this.requestAutoSave('tribalCouncilComplete');
     console.log('[GameManager] Tribal consequences processed', {
       dealsProcessed: Boolean(this.systems.dealSystem?.processTribalOutcome),
       allianceFalloutProcessed: Boolean(this.systems.allianceSystem?.processPostTribalFallout)
@@ -464,6 +466,10 @@ class GameManager {
 
     this._updateScreenForState(newState);
     eventManager.publish(GameEvents.GAME_STATE_CHANGED, { oldState, newState });
+
+    if (newState === GameState.CAMP || newState === GameState.TRIBAL_COUNCIL || newState === GameState.GAME_OVER) {
+      this.requestAutoSave(`state:${newState}`);
+    }
   }
 
   _updateScreenForState(state) {
@@ -790,6 +796,7 @@ class GameManager {
       console.info('[GameManager] Refreshing camp screen for next pre-challenge day');
       this.setGameState(GameState.CAMP);
     }
+    this.requestAutoSave('postChallengeComplete');
   }
 
   _triggerTreeMail() {
@@ -812,6 +819,7 @@ class GameManager {
       phase: this.gamePhase,
       day: this.day 
     });
+    this.requestAutoSave(`phase:${this.gamePhase}`);
   }
 
   updateTribeHealth() {
@@ -1114,7 +1122,35 @@ class GameManager {
   saveGame() {
     const data = this.createSavePayload();
     const success = saveManager.save(data);
-    if (success) eventManager.publish(GameEvents.GAME_SAVED, { timestamp: data.savedAt });
+    if (success) {
+      eventManager.publish(GameEvents.GAME_SAVED, {
+        timestamp: data.savedAt,
+        manual: true,
+        reason: 'manual'
+      });
+    }
+    return success;
+  }
+
+  requestAutoSave(reason = 'auto') {
+    if (this._autoSaveInProgress) return false;
+    if (!this.isInitialized) return false;
+    if ([GameState.INITIALIZING, GameState.WELCOME, GameState.CHARACTER_SELECTION, GameState.TRIBE_DIVISION].includes(this.gameState)) {
+      return false;
+    }
+
+    this._autoSaveInProgress = true;
+    const data = this.createSavePayload();
+    const success = saveManager.save(data);
+    this._autoSaveInProgress = false;
+
+    if (success) {
+      eventManager.publish(GameEvents.GAME_SAVED, {
+        timestamp: data.savedAt,
+        manual: false,
+        reason
+      });
+    }
     return success;
   }
 
