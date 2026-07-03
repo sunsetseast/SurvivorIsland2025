@@ -52,10 +52,13 @@ export class WelcomeScreen {
     const loadGameButton = createElement('div', {
       id: 'continue-game-button',
       className: 'rect-button',
+      style: {
+        display: gameManager.hasSavedGame?.() ? 'block' : 'none'
+      },
       onclick: () => {
         gameManager.loadGame();
       }
-    }, 'Load Game');
+    }, 'Continue');
 
     const infoButton = createElement('div', {
       id: 'info-button',

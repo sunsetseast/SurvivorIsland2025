@@ -989,6 +989,31 @@ body {
   z-index: 2;
 }
 
+#save-status-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 3000;
+  min-width: 132px;
+  padding: 10px 14px;
+  border: 1px solid rgba(245, 199, 106, 0.7);
+  border-radius: 6px;
+  background: rgba(22, 17, 10, 0.92);
+  color: #f8e8b5;
+  font-family: 'Survivant', sans-serif;
+  font-size: 0.95rem;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+#save-status-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .menu-action-button {
   position: absolute;
   width: 60px;
