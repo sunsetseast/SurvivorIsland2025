@@ -288,6 +288,11 @@ class ConversationSystem {
       window.ConversationSystem.validateMenus = () => this.validateMenus();
       window.ConversationSystem.validateConversationNodes = () => this.validateConversationNodes();
       window.ConversationSystem.runSelfTest = () => this.runSelfTest();
+      window.ConversationDebug = window.ConversationDebug || {};
+      window.ConversationDebug.testNpcApproach = () => this._debugStartNpcApproach();
+      window.ConversationDebug.testVotePitch = () => this._debugStartNpcApproach({ intentType: 'vote_pitch' });
+      window.ConversationDebug.testAlliancePitch = () => this._debugStartNpcApproach({ intentType: 'alliance_pitch' });
+      window.ConversationDebug.testWarning = () => this._debugStartNpcApproach({ intentType: 'warning' });
     }
   }
 
@@ -1434,6 +1439,7 @@ class ConversationSystem {
           initiatedByNpc: true,
           location: pending.location || location || null,
           phase: this._normalizePhase(pending.phase),
+          socialType: pending.socialType || null,
           lastChallengeSummary: this.gameManager.lastChallengeSummary || null
         }
       });
@@ -1482,6 +1488,7 @@ class ConversationSystem {
             initiatedByNpc: true,
             location: meeting.location || viewName || null,
             phase: this._normalizePhase(meeting.phase),
+            socialType: meeting.socialType || null,
             lastChallengeSummary: this.gameManager.lastChallengeSummary || null
           }
         });
@@ -2179,132 +2186,631 @@ class ConversationSystem {
       transcript: []
     };
 
-    const purposeSelection = this.decideNpcApproachPurpose({ player, npc, context: normalizedContext });
-    const openingLine = this.getNpcApproachOpener({
-      purposeId: purposeSelection.purposeId,
-      player,
+    const intent = this.buildNpcConversationIntent(npc, player, normalizedContext);
+    normalizedContext.npcConversationIntent = intent;
+    this.nodeSession.context = normalizedContext;
+    this._recordNpcIntentStarted({ npc, player, intent, context: normalizedContext });
+    const buttons = this._buildNpcIntentButtons({ npc, player, intent, context: normalizedContext });
+    this._initTranscript(this.nodeSession);
+    this.nodeSession.addNpc?.(intent.openingLine);
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true });
+  }
+
+  buildNpcConversationIntent(npc, player, context = {}) {
+    const normalizedContext = this._normalizeConversationContext({ ...context, initiator: 'npc', initiatedByNpc: true });
+    const purpose = this.decideNpcApproachPurpose({ player, npc, context: normalizedContext });
+    const forcedType = normalizedContext.forceNpcIntentType || normalizedContext.intentType || normalizedContext.socialType || null;
+    const type = this._resolveNpcIntentType({ forcedType, purposeId: purpose.purposeId, npc, player, context: normalizedContext });
+    const target = type === 'check_in'
+      ? null
+      : this._chooseNpcIntentTarget({ npc, player, type, context: normalizedContext });
+    const targetName = target?.firstName || null;
+    const reason = this._describeNpcIntentReason({ npc, player, type, target, purpose, context: normalizedContext });
+    const alliancePlan = type === 'alliance_pitch'
+      ? this._buildNpcAlliancePlan({ npc, player, target, context: normalizedContext })
+      : null;
+    const infoNeed = type === 'ask_info'
+      ? this._buildNpcInfoNeed({ npc, player, target, context: normalizedContext })
+      : null;
+    const openingLine = this._buildNpcIntentOpeningLine({
       npc,
-      context: normalizedContext,
-      stance: NPC_STANCES.REASSURE
-    });
-    const approachRoute = this._selectNpcApproachOpenerRoute({
-      purposeId: purposeSelection.purposeId,
       player,
-      npc,
-      context: normalizedContext,
-      npcOpeningLine: openingLine
+      type,
+      target,
+      reason,
+      alliancePlan,
+      infoNeed,
+      context: normalizedContext
     });
 
-    const responseOptions = this.buildNpcApproachResponses({
-      purposeId: purposeSelection.purposeId,
+    return {
+      type,
+      purposeId: purpose.purposeId,
+      topic: this._topicForNpcIntentType(type),
+      targetId: target?.id || null,
+      targetName,
+      reason,
+      motive: purpose.reason,
+      alliancePlan,
+      infoNeed,
+      createdAt: Date.now(),
+      openingLine,
+      responseOptions: this._buildNpcIntentResponses({ type, target, alliancePlan, infoNeed })
+    };
+  }
+
+  _resolveNpcIntentType({ forcedType, purposeId, npc, player, context = {} }) {
+    const normalizedForced = this._normalizeNpcIntentType(forcedType);
+    if (normalizedForced) return normalizedForced;
+
+    const phase = this._normalizePhase(context.phase);
+    const trust = this._getPairTrust(player?.id, npc?.id);
+    const paranoia = npc?.paranoia ?? 0;
+    const style = String(npc?.gameplayStyle || npc?.personality || '').toLowerCase();
+    const weights = {
+      check_in: phase === 'pre' ? 3 : 1,
+      gossip_specific: 2,
+      ask_info: 2,
+      warning: paranoia >= 55 ? 3 : 1,
+      vote_pitch: phase === 'post' && !this._isPlayerTribeSafeTonight() ? 5 : 1,
+      alliance_pitch: trust >= 55 ? 3 : 1
+    };
+
+    if (purposeId === NPC_APPROACH_PURPOSES.BUILD_CONNECTION) weights.check_in += 4;
+    if (purposeId === NPC_APPROACH_PURPOSES.GOSSIP) {
+      weights.gossip_specific += 4;
+      weights.ask_info += 2;
+    }
+    if (purposeId === NPC_APPROACH_PURPOSES.STRATEGY) weights.vote_pitch += 4;
+    if (purposeId === NPC_APPROACH_PURPOSES.OFFER_DEAL) weights.alliance_pitch += 4;
+    if (purposeId === NPC_APPROACH_PURPOSES.REASSURE_CHECKIN) weights.warning += 2;
+    if (purposeId === NPC_APPROACH_PURPOSES.PRESSURE_SOFT) weights.ask_info += 3;
+    if (style.includes('shadow') || style.includes('strateg')) weights.ask_info += 2;
+    if (style.includes('power') || style.includes('competitive')) weights.vote_pitch += 2;
+    if (style.includes('social') || style.includes('charmer')) weights.alliance_pitch += 2;
+
+    if (phase !== 'post' || this._isPlayerTribeSafeTonight()) {
+      weights.vote_pitch = Math.max(0.5, weights.vote_pitch - 3);
+    }
+
+    return this._weightedPick(weights) || 'check_in';
+  }
+
+  _normalizeNpcIntentType(value) {
+    if (!value) return null;
+    const raw = String(value).trim();
+    const normalized = raw.toLowerCase().replace(/[-\s]+/g, '_');
+    const aliases = {
+      strategy: 'vote_pitch',
+      pitch_target: 'vote_pitch',
+      vote: 'vote_pitch',
+      vote_pitch: 'vote_pitch',
+      warning: 'warning',
+      plant_seed: 'warning',
+      ask_intel: 'ask_info',
+      ask_info: 'ask_info',
+      information: 'ask_info',
+      gossip: 'gossip_specific',
+      gossip_specific: 'gossip_specific',
+      talk_specific_person: 'gossip_specific',
+      alliance: 'alliance_pitch',
+      alliance_pitch: 'alliance_pitch',
+      deal: 'alliance_pitch',
+      check_in: 'check_in',
+      build_connection: 'check_in',
+      reassure_checkin: 'check_in'
+    };
+    return aliases[normalized] || null;
+  }
+
+  _weightedPick(weights = {}) {
+    const entries = Object.entries(weights).filter(([, weight]) => Number(weight) > 0);
+    if (!entries.length) return null;
+    const total = entries.reduce((sum, [, weight]) => sum + Number(weight), 0);
+    let roll = Math.random() * total;
+    for (const [key, weight] of entries) {
+      roll -= Number(weight);
+      if (roll <= 0) return key;
+    }
+    return entries[0][0];
+  }
+
+  _topicForNpcIntentType(type) {
+    const map = {
+      vote_pitch: 'strategy',
+      alliance_pitch: 'strategy',
+      warning: 'warning',
+      ask_info: 'information',
+      gossip_specific: 'gossip',
+      check_in: 'connection'
+    };
+    return map[type] || 'connection';
+  }
+
+  _getAvailableNpcIntentTargets({ npc, player, includePlayer = false } = {}) {
+    const tribeMembers = this.gameManager.getPlayerTribe?.()?.members || this.gameManager.survivors || [];
+    const playerId = player?.id || this.gameManager.getPlayerSurvivor?.()?.id || null;
+    return tribeMembers.filter(member => {
+      if (!member?.id) return false;
+      if (npc?.id && String(member.id) === String(npc.id)) return false;
+      if (!includePlayer && playerId && String(member.id) === String(playerId)) return false;
+      if (member.eliminated || member.isEliminated || member.status === 'eliminated' || member.dead) return false;
+      if (member.evacuated || member.unavailable) return false;
+      return true;
+    });
+  }
+
+  _chooseNpcIntentTarget({ npc, player, type, context = {} }) {
+    if (context.targetId || context.topicPersonId || context.topicId) {
+      const existing = this._getSurvivorById(context.targetId || context.topicPersonId || context.topicId);
+      if (this._isValidNpcIntentTarget({ target: existing, npc, player, type })) return existing;
+    }
+    if (context.targetName || context.topicPersonName || context.topicPerson) {
+      const existing = this._getSurvivorByName(context.targetName || context.topicPersonName || context.topicPerson);
+      if (this._isValidNpcIntentTarget({ target: existing, npc, player, type })) return existing;
+    }
+
+    const strategyPhaseSystem = this.gameManager.systems?.strategyPhaseSystem;
+    const intended = strategyPhaseSystem?.getNpcTargetIntent?.(npc?.id);
+    const intendedTarget = intended?.targetId ? this._getSurvivorById(intended.targetId) : null;
+    if (['vote_pitch', 'warning', 'gossip_specific'].includes(type) && this._isValidNpcIntentTarget({ target: intendedTarget, npc, player, type })) {
+      return intendedTarget;
+    }
+
+    const board = strategyPhaseSystem?.getTribalTargetBoard?.() || this.gameManager.flags?.tribalTargetBoard || null;
+    const boardTargetId = board?.primaryTargetId || board?.secondaryTargetId || null;
+    const boardTarget = boardTargetId ? this._getSurvivorById(boardTargetId) : null;
+    if (['vote_pitch', 'warning'].includes(type) && this._isValidNpcIntentTarget({ target: boardTarget, npc, player, type })) {
+      return boardTarget;
+    }
+
+    const candidates = this._getAvailableNpcIntentTargets({ npc, player, includePlayer: false });
+    if (!candidates.length) return null;
+
+    const scored = candidates.map(candidate => {
+      const rel = this._getRelationshipValue(npc.id, candidate.id);
+      const trust = this._getPairTrust(npc.id, candidate.id);
+      const threat = candidate.threat ?? Math.round(((candidate.physical ?? 50) + (candidate.mental ?? 50)) / 2);
+      const suspicion = candidate.suspicion ?? 0;
+      const teamPlayer = candidate.teamPlayer ?? 50;
+      let score = 0;
+      if (type === 'vote_pitch') score = threat + suspicion + (100 - rel) + (100 - trust) * 0.4 - teamPlayer * 0.2;
+      else if (type === 'warning') score = threat + suspicion + (100 - trust) * 0.25;
+      else if (type === 'ask_info') score = threat + suspicion + Math.abs(50 - rel);
+      else if (type === 'alliance_pitch') score = rel + trust + teamPlayer * 0.25 - suspicion * 0.2;
+      else score = suspicion + threat + Math.random() * 10;
+      return { candidate, score };
+    }).sort((a, b) => b.score - a.score);
+
+    return scored[0]?.candidate || candidates[getRandomInt(0, candidates.length - 1)];
+  }
+
+  _isValidNpcIntentTarget({ target, npc, player, type }) {
+    if (!target?.id || !npc?.id) return false;
+    if (String(target.id) === String(npc.id)) return false;
+    if (String(target.id) === String(player?.id)) return false;
+    if (target.eliminated || target.isEliminated || target.status === 'eliminated' || target.dead) return false;
+    if (target.evacuated || target.unavailable) return false;
+    if (type === 'vote_pitch' || type === 'warning') {
+      const tribeIds = new Set((this.gameManager.getPlayerTribe?.()?.members || []).map(member => String(member.id)));
+      if (tribeIds.size && !tribeIds.has(String(target.id))) return false;
+    }
+    return true;
+  }
+
+  _describeNpcIntentReason({ npc, player, type, target, purpose, context = {} }) {
+    const reasonBits = [];
+    const phase = this._normalizePhase(context.phase);
+    const relToTarget = target ? this._getRelationshipValue(npc.id, target.id) : null;
+    const trustToTarget = target ? this._getPairTrust(npc.id, target.id) : null;
+    const threat = target?.threat ?? null;
+    const suspicion = target?.suspicion ?? 0;
+    if (phase === 'post' && !this._isPlayerTribeSafeTonight()) reasonBits.push('the vote is coming');
+    if (target && relToTarget != null && relToTarget < 42) reasonBits.push(`${target.firstName} is not close with ${npc.firstName}`);
+    if (target && trustToTarget != null && trustToTarget < 42) reasonBits.push(`${npc.firstName} does not fully trust ${target.firstName}`);
+    if (target && threat >= 65) reasonBits.push(`${target.firstName} looks threatening`);
+    if (target && suspicion >= 60) reasonBits.push(`${target.firstName} is acting suspicious`);
+    if (type === 'alliance_pitch') reasonBits.push('they want something stable');
+    if (type === 'ask_info') reasonBits.push('they are fishing for a read');
+    if (purpose?.reason) reasonBits.push(purpose.reason);
+    return reasonBits.filter(Boolean).slice(0, 3).join('; ') || 'their read of camp';
+  }
+
+  _buildNpcAlliancePlan({ npc, player, target, context = {} }) {
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const shared = allianceSystem?.getSharedAlliances?.(npc?.id, player?.id) || [];
+    if (shared.length) {
+      return {
+        mode: 'recommit',
+        memberIds: [npc.id, player.id],
+        memberNames: [npc.firstName, player.firstName],
+        targetId: null,
+        targetName: null
+      };
+    }
+    const third = this._chooseNpcIntentTarget({ npc, player, type: 'alliance_pitch', context });
+    const members = [npc, player, third].filter(Boolean);
+    const uniqueMembers = members.filter((member, index, arr) => arr.findIndex(item => String(item.id) === String(member.id)) === index);
+    return {
+      mode: uniqueMembers.length > 2 ? 'trio' : 'duo',
+      memberIds: uniqueMembers.map(member => member.id),
+      memberNames: uniqueMembers.map(member => member.firstName),
+      targetId: null,
+      targetName: null
+    };
+  }
+
+  _buildNpcInfoNeed({ npc, player, target, context = {} }) {
+    const options = [
+      { key: 'vote_read', label: 'where the vote is leaning' },
+      { key: 'alliance_read', label: target ? `who ${target.firstName} is close with` : 'who is working together' },
+      { key: 'idol_read', label: target ? `whether ${target.firstName} has idol heat` : 'who has idol heat' }
+    ];
+    const pick = options[getRandomInt(0, options.length - 1)];
+    return {
+      ...pick,
+      targetId: target?.id || null,
+      targetName: target?.firstName || null
+    };
+  }
+
+  _buildNpcIntentOpeningLine({ npc, type, target, reason, alliancePlan, infoNeed }) {
+    const targetName = target?.firstName || 'someone';
+    if (type === 'vote_pitch') {
+      return `I want to talk vote. I’m looking at ${targetName}. ${reason ? `Reason is simple: ${reason}.` : 'It feels like the right move.'}`;
+    }
+    if (type === 'warning') {
+      return `I need to warn you about ${targetName}. ${reason ? `My read is ${reason}.` : 'Something feels off.'}`;
+    }
+    if (type === 'ask_info') {
+      return `I’m trying to figure out ${infoNeed?.label || 'what people know'}. What are you hearing${infoNeed?.targetName ? ` about ${infoNeed.targetName}` : ''}?`;
+    }
+    if (type === 'alliance_pitch') {
+      const names = alliancePlan?.memberNames?.filter(Boolean).join(', ') || `you and ${npc.firstName}`;
+      if (alliancePlan?.mode === 'recommit') return 'I want to make sure our alliance is still real. I need us steady.';
+      return `I want something solid. I’m thinking ${names}.`;
+    }
+    if (type === 'gossip_specific') {
+      return `I wanted to talk about ${targetName}. ${reason ? `Something about this feels worth watching: ${reason}.` : 'Their name keeps sitting in my head.'}`;
+    }
+    return 'I wanted to check in with you. No agenda, just making sure we’re good.';
+  }
+
+  _buildNpcIntentResponses({ type, target, alliancePlan, infoNeed }) {
+    const targetName = target?.firstName || 'that';
+    if (type === 'vote_pitch') {
+      return [
+        { key: 'agree', label: `Agree on ${targetName}`, playerLine: `${targetName} makes sense. I can work with that.` },
+        { key: 'ask_why', label: 'Ask why', playerLine: 'Why that name?' },
+        { key: 'counter', label: 'Counter with someone else', playerLine: 'I have a different name.' },
+        { key: 'refuse', label: 'Refuse to commit', playerLine: 'I’m not committing to that right now.' }
+      ];
+    }
+    if (type === 'warning') {
+      return [
+        { key: 'thank', label: 'Take the warning', playerLine: 'Thanks for telling me. I’ll watch it.' },
+        { key: 'ask_proof', label: 'Ask for proof', playerLine: 'What makes you say that?' },
+        { key: 'defend_target', label: `Defend ${targetName}`, playerLine: `I don’t think ${targetName} is the problem.` },
+        { key: 'share_info', label: 'Share what you know', playerLine: 'I’ve heard some things too.' }
+      ];
+    }
+    if (type === 'ask_info') {
+      return [
+        { key: 'share_truth', label: 'Share a real read', playerLine: 'Here’s my real read.' },
+        { key: 'refuse_info', label: 'Keep it vague', playerLine: 'I don’t want to put too much out there.' },
+        { key: 'lie', label: 'Mislead them', playerLine: 'I’ll give them a cleaner version than the truth.' },
+        { key: 'ask_trade', label: 'Ask for something back', playerLine: 'I’ll share if you share something too.' }
+      ];
+    }
+    if (type === 'alliance_pitch') {
+      const group = alliancePlan?.memberNames?.filter(Boolean).join(', ') || 'that';
+      return [
+        { key: 'accept_alliance', label: 'Accept', playerLine: `${group} works for me. I’m in.` },
+        { key: 'ask_terms', label: 'Ask terms', playerLine: 'What exactly are you asking for?' },
+        { key: 'soft_decline', label: 'Not yet', playerLine: 'Not yet. I don’t want to lock too early.' },
+        { key: 'hard_decline', label: 'Reject it', playerLine: 'No. I don’t think that works for me.' }
+      ];
+    }
+    if (type === 'gossip_specific') {
+      return [
+        { key: 'agree_concern', label: 'Share concern', playerLine: `Yeah, ${targetName} worries me too.` },
+        { key: 'downplay', label: 'Downplay it', playerLine: `I think you might be overreading ${targetName}.` },
+        { key: 'ask_why', label: 'Ask why', playerLine: 'What are you seeing?' },
+        { key: 'redirect', label: 'Redirect', playerLine: 'There’s another angle here.' }
+      ];
+    }
+    return [
+      { key: 'warm', label: 'Warm response', playerLine: 'I appreciate you checking in.' },
+      { key: 'guarded', label: 'Stay guarded', playerLine: 'I’m good. Just keeping my head down.' },
+      { key: 'ask_motive', label: 'Ask motive', playerLine: 'Why check in now?' },
+      { key: 'decline', label: 'End it', playerLine: 'Not right now.' }
+    ];
+  }
+
+  _buildNpcIntentButtons({ npc, player, intent, context }) {
+    return (intent.responseOptions || []).map(option => ({
+      label: option.label,
+      onClick: () => this._handleNpcIntentResponse({ npc, player, intent, option, context })
+    }));
+  }
+
+  _handleNpcIntentResponse({ npc, player, intent, option, context }) {
+    const session = this._getActiveTranscriptSession();
+    session?.addYou?.(option.playerLine || option.label);
+    const target = intent.targetId ? this._getSurvivorById(intent.targetId) : null;
+    const targetName = target?.firstName || intent.targetName || 'that name';
+
+    if (option.key === 'counter' || option.key === 'redirect') {
+      this._showNpcIntentCounterPicker({ npc, player, intent, context });
+      return;
+    }
+
+    const result = this._resolveNpcIntentOutcome({ npc, player, intent, option, target, context });
+    if (result?.npcLine) session?.addNpc?.(result.npcLine);
+    this._applyNpcIntentConsequences({ npc, player, intent, option, target, result, context });
+
+    if (option.key === 'ask_why' || option.key === 'ask_proof' || option.key === 'ask_terms' || option.key === 'ask_trade') {
+      const followups = this._buildNpcIntentFollowupButtons({ npc, player, intent, context, target });
+      this._renderMenu(npc, this._buildTranscriptBody({ session }), followups, { onBack: null, showEnd: true });
+      return;
+    }
+
+    const closeLabel = intent.type === 'vote_pitch' && ['agree', 'refuse'].includes(option.key)
+      ? 'End with that plan'
+      : 'Close';
+    this._renderMenu(npc, this._buildTranscriptBody({ session }), [
+      { label: closeLabel, onClick: () => this.closeConversation(`npc_intent_${intent.type}_${option.key}`) }
+    ], { onBack: null, showEnd: false });
+
+    if (this.debugConvo) {
+      this._debugLog('[CONVO-DEBUG] NPC intent outcome', { type: intent.type, option: option.key, targetName });
+    }
+  }
+
+  _resolveNpcIntentOutcome({ npc, player, intent, option, target }) {
+    const targetName = target?.firstName || intent.targetName || 'them';
+    const rel = this._getRelationshipValue(player.id, npc.id);
+    const trustsPlayer = this._getPairTrust(player.id, npc.id) >= 55;
+    const type = intent.type;
+
+    if (type === 'vote_pitch') {
+      if (option.key === 'agree') return { npcLine: `Good. Quietly, then. We keep ${targetName} as the name.`, trust: 3, relationship: 1, status: 'accepted' };
+      if (option.key === 'ask_why') return { npcLine: `Because ${intent.reason || `${targetName} is exposed`}. I don’t want us walking into Tribal without a name.`, trust: 1, status: 'explained' };
+      if (option.key === 'refuse') return { npcLine: trustsPlayer ? 'I hear you, but I needed to know where you stood.' : 'That makes me nervous. I needed clarity.', trust: trustsPlayer ? -1 : -3, suspicion: trustsPlayer ? 0 : 2, status: 'refused' };
+    }
+    if (type === 'warning') {
+      if (option.key === 'thank') return { npcLine: 'Just keep your eyes open. I’m telling you because it matters.', trust: 2, relationship: 1, status: 'accepted_warning' };
+      if (option.key === 'ask_proof') return { npcLine: `${targetName} keeps landing in the same little conversations. I don’t have a receipt, but I have a pattern.`, trust: 0, status: 'explained' };
+      if (option.key === 'defend_target') return { npcLine: `Maybe. But if ${targetName} burns you, don’t say nobody said it.`, trust: -1, suspicion: 1, status: 'defended_target' };
+      if (option.key === 'share_info') return { npcLine: 'That helps. I’ll compare that with what I’m hearing.', trust: 2, relationship: 1, status: 'info_shared' };
+    }
+    if (type === 'ask_info') {
+      if (option.key === 'share_truth') return { npcLine: 'That’s useful. I won’t forget you gave me something real.', trust: 3, relationship: 1, status: 'truth_shared' };
+      if (option.key === 'refuse_info') return { npcLine: 'Fair. I don’t love it, but fair.', trust: -1, status: 'withheld' };
+      if (option.key === 'lie') return { npcLine: 'Interesting. I’ll see if that lines up.', trust: -1, suspicion: 2, status: 'lied' };
+      if (option.key === 'ask_trade') return { npcLine: `Okay. I’ll give you mine: ${targetName} is the name I’m watching.`, trust: 1, status: 'trade' };
+    }
+    if (type === 'alliance_pitch') {
+      if (option.key === 'accept_alliance') return { npcLine: 'Good. Quiet and real. We don’t need everyone knowing.', trust: 4, relationship: 3, status: 'accepted' };
+      if (option.key === 'ask_terms') return { npcLine: 'We protect each other and compare notes before names move.', trust: 1, status: 'terms_explained' };
+      if (option.key === 'soft_decline') return { npcLine: 'Alright. I can live with slow. But I needed to ask.', trust: -1, status: 'soft_decline' };
+      if (option.key === 'hard_decline') return { npcLine: 'Got it. That tells me something.', trust: -4, relationship: -2, suspicion: 2, status: 'hard_decline' };
+    }
+    if (type === 'gossip_specific') {
+      if (option.key === 'agree_concern') return { npcLine: `Exactly. I’m glad I’m not the only one seeing ${targetName}.`, trust: 2, relationship: 1, status: 'concern_shared' };
+      if (option.key === 'downplay') return { npcLine: `Maybe. I’m still keeping ${targetName} on my radar.`, trust: 0, status: 'downplayed' };
+      if (option.key === 'ask_why') return { npcLine: intent.reason ? `Because ${intent.reason}.` : `Because ${targetName} keeps showing up around the wrong conversations.`, trust: 1, status: 'explained' };
+    }
+
+    if (option.key === 'warm') return { npcLine: 'That means something. I want us good.', trust: 2, relationship: 2, status: 'warm' };
+    if (option.key === 'guarded') return { npcLine: 'I get it. Everybody’s protecting themselves.', trust: 0, status: 'guarded' };
+    if (option.key === 'ask_motive') return { npcLine: 'Because out here, silence becomes a story. I wanted to hear you directly.', trust: 1, status: 'motive_explained' };
+    return { npcLine: 'Alright. We can talk later.', trust: -1, status: 'declined' };
+  }
+
+  _buildNpcIntentFollowupButtons({ npc, player, intent, context, target }) {
+    const agreeOption = intent.responseOptions?.find(option => ['agree', 'thank', 'accept_alliance', 'share_truth', 'agree_concern', 'warm'].includes(option.key));
+    const refuseOption = intent.responseOptions?.find(option => ['refuse', 'soft_decline', 'hard_decline', 'refuse_info', 'downplay', 'guarded'].includes(option.key));
+    return [
+      ...(agreeOption ? [{
+        label: agreeOption.label,
+        onClick: () => this._handleNpcIntentResponse({ npc, player, intent, option: agreeOption, context })
+      }] : []),
+      ...(intent.type === 'vote_pitch' ? [{
+        label: 'Counter with another name',
+        onClick: () => this._showNpcIntentCounterPicker({ npc, player, intent, context })
+      }] : []),
+      ...(refuseOption ? [{
+        label: refuseOption.label,
+        alt: true,
+        onClick: () => this._handleNpcIntentResponse({ npc, player, intent, option: refuseOption, context })
+      }] : []),
+      { label: 'End Conversation', alt: true, onClick: () => this.closeConversation(`npc_intent_${intent.type}_followup_end`) }
+    ];
+  }
+
+  _showNpcIntentCounterPicker({ npc, player, intent, context }) {
+    const candidates = this._getAvailableNpcIntentTargets({ npc, player, includePlayer: false })
+      .filter(member => String(member.id) !== String(intent.targetId || ''));
+    this._renderPickList({
+      npc,
+      title: 'Counter with who?',
+      candidates,
+      onPick: picked => this._resolveNpcIntentCounter({ npc, player, intent, context, counterTarget: picked }),
+      onBack: () => this._renderMenu(
+        npc,
+        this._buildTranscriptBody({ session: this.nodeSession }),
+        this._buildNpcIntentButtons({ npc, player, intent, context }),
+        { onBack: null, showEnd: true }
+      )
+    });
+  }
+
+  _resolveNpcIntentCounter({ npc, player, intent, context, counterTarget }) {
+    const session = this._getActiveTranscriptSession();
+    if (!counterTarget) return;
+    session?.addYou?.(`What about ${counterTarget.firstName}?`);
+    const originalTarget = intent.targetId ? this._getSurvivorById(intent.targetId) : null;
+    const npcRelToCounter = this._getRelationshipValue(npc.id, counterTarget.id);
+    const npcRelToOriginal = originalTarget ? this._getRelationshipValue(npc.id, originalTarget.id) : 50;
+    const likesCounter = npcRelToCounter <= npcRelToOriginal || (counterTarget.threat ?? 0) > (originalTarget?.threat ?? 0);
+    const strategyPhaseSystem = this.gameManager.systems?.strategyPhaseSystem;
+    if (likesCounter) {
+      session?.addNpc?.(`${counterTarget.firstName} could work. I’m not fully off ${originalTarget?.firstName || 'my name'}, but I’ll move with that if the numbers are real.`);
+      this._applyExchangeEffects({ player, npc, deltas: { trust: 2, relationship: 1 }, contextTag: 'npc_counter_pitch_accepted' });
+      strategyPhaseSystem?.updateNpcIntentTarget?.(npc.id, counterTarget.id, {
+        reason: 'conversation:playerCounter',
+        confidenceDelta: 0.12
+      });
+      this._recordStructuredSocialEvent({
+        type: 'NPC_COUNTER_ACCEPTED',
+        speakerId: player.id,
+        listenerId: npc.id,
+        subjectId: counterTarget.id,
+        data: { originalTargetId: intent.targetId || null, intentType: intent.type },
+        summary: `You counter-pitched ${counterTarget.firstName} to ${npc.firstName}.`
+      });
+    } else {
+      session?.addNpc?.(`I don’t love ${counterTarget.firstName}. That feels like you steering me away from the real problem.`);
+      this._applyExchangeEffects({ player, npc, deltas: { trust: -2, suspicion: 1 }, contextTag: 'npc_counter_pitch_rejected' });
+      this._recordStructuredSocialEvent({
+        type: 'NPC_COUNTER_REJECTED',
+        speakerId: player.id,
+        listenerId: npc.id,
+        subjectId: counterTarget.id,
+        data: { originalTargetId: intent.targetId || null, intentType: intent.type }
+      });
+    }
+    this._renderMenu(npc, this._buildTranscriptBody({ session }), [
+      { label: 'Close', onClick: () => this.closeConversation('npc_intent_counter_resolved') }
+    ], { onBack: null, showEnd: false });
+  }
+
+  _applyNpcIntentConsequences({ npc, player, intent, option, target, result, context }) {
+    if (!result) return;
+    this._applyExchangeEffects({
       player,
       npc,
-      context: normalizedContext,
-      openerRoute: approachRoute?.route || null
+      deltas: {
+        trust: result.trust || 0,
+        relationship: result.relationship || 0,
+        suspicion: result.suspicion || 0
+      },
+      contextTag: `npc_${intent.type}_${option.key}`
     });
-    if (responseOptions.length < 2) {
-      responseOptions.push({
-        label: 'Not now.',
-        playerLine: 'Not right now.',
-        actionKey: 'DECLINE'
+
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const strategyPhaseSystem = this.gameManager.systems?.strategyPhaseSystem;
+    const targetId = target?.id || intent.targetId || null;
+    const accepted = ['agree', 'thank', 'accept_alliance', 'share_truth', 'agree_concern', 'warm'].includes(option.key);
+
+    if (intent.type === 'vote_pitch' && targetId) {
+      if (option.key === 'agree') {
+        strategyPhaseSystem?.updateNpcIntentTarget?.(npc.id, targetId, {
+          reason: 'conversation:npcPitchAccepted',
+          confidenceDelta: 0.18
+        });
+        memory?.recordDeal?.(player.id, npc.id, 'voteTogether', targetId, true);
+        memory?.recordPromise?.(npc.id, player.id, 'voteTogether');
+      } else if (option.key === 'refuse') {
+        memory?.recordDeal?.(player.id, npc.id, 'voteTogether', targetId, false);
+      }
+      memory?.recordTargetRequest?.(npc.id, player.id, targetId, 'high', option.key);
+      memory?.recordTargetPreference?.(npc.id, targetId, accepted ? 'high' : 'soft', option.key);
+    }
+
+    if (intent.type === 'alliance_pitch') {
+      this._resolveNpcAllianceIntentState({ npc, player, intent, option, target, result });
+    }
+
+    if (intent.type === 'ask_info') {
+      memory?.storeMemory?.(npc.id, 'npc_asked_player_info', {
+        playerId: player.id,
+        infoNeed: intent.infoNeed,
+        outcome: result.status,
+        targetId,
+        day: this.gameManager.getCurrentDay?.() || this.gameManager.day || 1,
+        phase: this._getConversationPhase()
       });
     }
 
-    const runApproachRoute = ({ route, contextOverride }) => {
-      const updatedContext = contextOverride || normalizedContext;
-      const topics = this._buildMainTopics({ player, npc, context: updatedContext });
-      const topic = route?.topicId ? topics.find(item => item.id === route.topicId) : topics[0];
-      const node = route?.nodeId
-        ? topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled)
-        : null;
-      const fallbackNode = node || topic?.nodes?.find(item => !item.disabled);
-      if (!topic || !fallbackNode) {
-        this._renderMainMenu({ player, npc, context: updatedContext, mainTopics: topics });
-        return;
-      }
-      const nextContext = {
-        ...updatedContext,
-        mainTopicId: topic.id,
-        subTopicId: fallbackNode.id
-      };
-      this._runConversationNode({
-        npc,
-        player,
-        node: fallbackNode,
-        context: nextContext,
-        returnTo: () => this._renderSubMenu({ player, npc, context: nextContext, topic })
+    this._recordStructuredSocialEvent({
+      type: 'NPC_CONVERSATION_RESPONSE',
+      speakerId: player.id,
+      listenerId: npc.id,
+      subjectId: targetId,
+      data: {
+        intentType: intent.type,
+        responseKey: option.key,
+        outcome: result.status,
+        reason: intent.reason || null,
+        alliancePlan: intent.alliancePlan || null,
+        infoNeed: intent.infoNeed || null
+      },
+      summary: `${player.firstName || 'You'} responded to ${npc.firstName}'s ${intent.type.replace(/_/g, ' ')}.`
+    });
+  }
+
+  _resolveNpcAllianceIntentState({ npc, player, intent, option, target, result }) {
+    const memory = this.gameManager.systems?.socialMemorySystem;
+    const allianceSystem = this.gameManager.systems?.allianceSystem;
+    const accepted = option.key === 'accept_alliance';
+    memory?.recordAllianceInvite?.({
+      day: this.gameManager.getCurrentDay?.() || this.gameManager.day || 1,
+      location: this.activeConversationContext?.location || 'camp',
+      npcId: npc.id,
+      playerId: player.id,
+      outcome: result.status,
+      pickedThirdId: intent.alliancePlan?.memberIds?.find(id => String(id) !== String(npc.id) && String(id) !== String(player.id)) || null,
+      isFake: false,
+      accepted,
+      declineType: accepted ? null : result.status,
+      pitchType: intent.alliancePlan?.mode || 'npc_pitch',
+      proposedBy: 'npc'
+    });
+    if (!accepted || !allianceSystem?.createAlliance || intent.alliancePlan?.mode === 'recommit') return;
+    const memberIds = (intent.alliancePlan?.memberIds || [npc.id, player.id]).filter(Boolean);
+    const uniqueMemberIds = [...new Set(memberIds.map(id => String(id)))];
+    allianceSystem.createAlliance({
+      name: this._generateAllianceName(),
+      memberIds: uniqueMemberIds,
+      tribeId: this.gameManager.getPlayerTribe?.()?.id || null,
+      leaderId: npc.id,
+      type: uniqueMemberIds.length > 2 ? 'core' : 'temporary',
+      targetId: null,
+      sincerityMap: uniqueMemberIds.reduce((acc, id) => {
+        acc[id] = 'real';
+        return acc;
+      }, {})
+    });
+  }
+
+  _recordNpcIntentStarted({ npc, player, intent, context }) {
+    const targetId = intent.targetId || null;
+    this._recordStructuredSocialEvent({
+      type: 'NPC_CONVERSATION_INTENT',
+      speakerId: npc.id,
+      listenerId: player.id,
+      subjectId: targetId,
+      data: {
+        intentType: intent.type,
+        topic: intent.topic,
+        targetName: intent.targetName || null,
+        reason: intent.reason || null,
+        motive: intent.motive || null,
+        location: context.location || null,
+        phase: context.phase || this._getConversationPhase()
+      },
+      summary: `${npc.firstName} initiated a ${intent.type.replace(/_/g, ' ')} conversation${intent.targetName ? ` about ${intent.targetName}` : ''}.`
+    });
+    if (targetId) {
+      this._recordMention({
+        speaker: npc.firstName,
+        about: intent.targetName,
+        context: `npc_${intent.type}`,
+        tone: 'truthful'
       });
-    };
-
-    const buttons = responseOptions.map(option => ({
-      label: option.label,
-      onClick: () => {
-        const playerLine = option.playerLine || option.label;
-        this.nodeSession?.addYou?.(playerLine);
-        if (option.actionKey === 'DECLINE') {
-          this._applyExchangeEffects({
-            player,
-            npc,
-            deltas: { relationship: -1, trust: -1 },
-            contextTag: 'npc_approach_declined'
-          });
-          this.nodeSession?.addNpc?.('Alright. We can talk later.');
-          this.nodeSession?.addNarration?.('(The moment passes, and they step away.)');
-          this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), [
-            { label: 'Close', onClick: () => this.closeConversation('npc_approach_declined') }
-          ], { onBack: null, showEnd: false });
-          return;
-        }
-
-        if (option.npcFollowUp) {
-          this.nodeSession?.addNpc?.(option.npcFollowUp);
-        }
-
-        // Purposeful NPC prompt that asks "who" should immediately open the name picker flow.
-        if (option.actionKey === 'ASK_WHO') {
-          const route = option.route || { topicId: 'strategy', nodeId: 'pitch_target' };
-          const topics = this._buildMainTopics({ player, npc, context: normalizedContext });
-          const topic = topics.find(item => item.id === route.topicId);
-          const node = topic?.nodes?.find(item => item.id === route.nodeId && !item.disabled);
-          if (node?.requiresPick) {
-            this._runPickFlow({
-              npc,
-              player,
-              context: { ...normalizedContext, mainTopicId: topic.id, subTopicId: node.id },
-              pickSpec: node.requiresPick,
-              onPick: ({ picked, session }) => {
-                const nextContext = {
-                  ...normalizedContext,
-                  mainTopicId: topic.id,
-                  subTopicId: node.id,
-                  topicPerson: picked?.firstName,
-                  topicId: picked?.id
-                };
-                if (typeof node.onPick === 'function') {
-                  node.onPick({ picked, npc, player, context: nextContext, session });
-                  return;
-                }
-                this._runConversationNode({
-                  npc,
-                  player,
-                  node,
-                  context: nextContext,
-                  returnTo: () => this._renderSubMenu({ player, npc, context: nextContext, topic })
-                });
-              },
-              returnTo: () => this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true })
-            });
-            return;
-          }
-        }
-
-        runApproachRoute({ route: option.route, contextOverride: { ...normalizedContext } });
-      }
-    }));
-
-    this._initTranscript(this.nodeSession);
-    this.nodeSession.addNpc?.(openingLine);
-    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }), buttons, { onBack: null, showEnd: true });
+    }
   }
 
   _selectNpcApproachOpenerRoute({ purposeId, player, npc, context, npcOpeningLine = '' }) {
@@ -16144,7 +16650,34 @@ class ConversationSystem {
   }
 
   _getSurvivorById(id) {
-    return (this.gameManager.survivors || []).find(s => s.id === id) || null;
+    if (id == null) return null;
+    return (this.gameManager.survivors || []).find(s => String(s.id) === String(id)) || null;
+  }
+
+  _debugStartNpcApproach({ intentType = null } = {}) {
+    if (!this._isInCamp()) {
+      console.warn('ConversationDebug: enter camp before starting a debug NPC approach.');
+      return null;
+    }
+    const player = this.gameManager.getPlayerSurvivor?.();
+    const npc = this._pickConversationNpc();
+    if (!player || !npc) {
+      console.warn('ConversationDebug: missing player or NPC for debug approach.');
+      return null;
+    }
+    this.startConversation({
+      npcId: npc.id,
+      phase: this._getConversationPhase(),
+      socialType: intentType,
+      context: {
+        initiator: 'npc',
+        initiatedByNpc: true,
+        forceNpcIntentType: intentType,
+        location: typeof window !== 'undefined' ? window?.campScreen?.currentView : null,
+        debug: true
+      }
+    });
+    return { npcId: npc.id, npcName: npc.firstName, intentType: intentType || 'auto' };
   }
 
   _survivorHasIdol(survivorId) {
