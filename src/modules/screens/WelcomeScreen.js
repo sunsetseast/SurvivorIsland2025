@@ -6,7 +6,6 @@
 import { getElement, createElement, clearChildren } from '../utils/index.js';
 import { gameManager, eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
-import { screenManager } from '../core/index.js'; // Make sure this is imported if not already
 
 export class WelcomeScreen {
   initialize() {
@@ -43,17 +42,18 @@ export class WelcomeScreen {
     });
 
     const newGameButton = createElement('div', {
+      id: 'new-game-button',
       className: 'rect-button',
       onclick: () => {
-        screenManager.showScreen('character-selection'); // Adjust this if your first screen differs
+        gameManager.startNewGame();
       }
     }, 'New Game');
 
     const loadGameButton = createElement('div', {
-      id: 'load-game-button',
+      id: 'continue-game-button',
       className: 'rect-button',
       onclick: () => {
-        console.log('Load Game button clicked');
+        gameManager.loadGame();
       }
     }, 'Load Game');
 
