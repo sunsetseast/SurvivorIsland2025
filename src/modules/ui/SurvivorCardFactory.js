@@ -123,11 +123,6 @@ export function createSurvivorCard(survivor, options = {}) {
   const closeTraitCardButton = createElement('button', {
     className: 'rect-button small close-trait-card'
   }, 'Back');
-  closeTraitCardButton.style.position = 'absolute';
-  closeTraitCardButton.style.left = '50%';
-  closeTraitCardButton.style.bottom = '30px';
-  closeTraitCardButton.style.transform = 'translateX(-50%)';
-  closeTraitCardButton.style.zIndex = '5';
 
   closeTraitCardButton.addEventListener('click', () => {
     traitCardOverlay.classList.add('hidden');
