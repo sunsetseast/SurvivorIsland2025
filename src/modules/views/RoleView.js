@@ -595,10 +595,11 @@ const RoleView = {
 
     // Create traits card wrapper similar to CharacterSelectionScreen
     const traitsCardWrapper = createElement('div', {
+      className: 'trait-card-wrapper role-trait-card-wrapper',
       style: `
         position: relative;
-        width: 334px;
-        height: 550px;
+        width: min(86vw, 360px);
+        aspect-ratio: 2 / 3;
         background-image: url('Assets/card-back-traits.png');
         background-size: 100% 100%;
         background-repeat: no-repeat;
@@ -613,24 +614,24 @@ const RoleView = {
 
     // Use the same trait coordinates as CharacterSelectionScreen
     const traitCoordinates = {
-      physical: [75, 71],
-      mental: [168, 71],
-      social: [261, 71],
-      strength: [75, 141],
-      memory: [168, 141],
-      connections: [261, 141],
-      speed: [75, 220],
-      puzzles: [168, 220],
-      likeability: [261, 220],
-      endurance: [75, 297],
-      fortitude: [168, 297],
-      interrogation: [261, 297],
-      dexterity: [75, 370],
-      awareness: [168, 370],
-      deception: [261, 370],
-      balance: [75, 445],
-      focus: [168, 445],
-      alliances: [261, 445]
+      physical: [19.8, 15.7],
+      mental: [50, 15.7],
+      social: [80.2, 15.7],
+      strength: [19.8, 30.2],
+      memory: [50, 30.2],
+      connections: [80.2, 30.2],
+      speed: [19.8, 45],
+      puzzles: [50, 45],
+      likeability: [80.2, 45],
+      endurance: [19.8, 59.8],
+      fortitude: [50, 59.8],
+      interrogation: [80.2, 59.8],
+      dexterity: [19.8, 74.6],
+      awareness: [50, 74.6],
+      deception: [80.2, 74.6],
+      balance: [19.8, 88.4],
+      focus: [50, 88.4],
+      alliances: [80.2, 88.4]
     };
 
     // Get traits that should be highlighted for this stage
@@ -643,16 +644,9 @@ const RoleView = {
       const traitElement = createElement('div', {
         className: 'trait-element',
         style: `
-          position: absolute;
-          left: ${x}px;
-          top: ${y}px;
-          font-size: 18px;
-          font-weight: bold;
           color: ${isHighlighted ? 'gold' : 'white'};
-          text-align: center;
-          transform: translate(-50%, -50%);
-          text-shadow: 1px 1px 3px black;
-          pointer-events: none;
+          --trait-x: ${x}%;
+          --trait-y: ${y}%;
         `
       }, value?.toString() ?? '?');
       traitsCardWrapper.appendChild(traitElement);

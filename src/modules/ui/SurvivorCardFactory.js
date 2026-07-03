@@ -103,19 +103,19 @@ export function createSurvivorCard(survivor, options = {}) {
   traitCardWrapper.appendChild(traitCardBg);
 
   const traitCoordinates = {
-    physical: [75, 141], mental: [168, 141], social: [261, 141],
-    strength: [75, 201], memory: [168, 201], connections: [261, 201],
-    speed: [75, 266], puzzles: [168, 266], likeability: [261, 266],
-    endurance: [75, 328], fortitude: [168, 328], interrogation: [261, 328],
-    dexterity: [75, 392], awareness: [168, 392], deception: [261, 392],
-    balance: [75, 457], focus: [168, 457], alliances: [261, 457]
+    physical: [19.8, 15.7], mental: [50, 15.7], social: [80.2, 15.7],
+    strength: [19.8, 30.2], memory: [50, 30.2], connections: [80.2, 30.2],
+    speed: [19.8, 45], puzzles: [50, 45], likeability: [80.2, 45],
+    endurance: [19.8, 59.8], fortitude: [50, 59.8], interrogation: [80.2, 59.8],
+    dexterity: [19.8, 74.6], awareness: [50, 74.6], deception: [80.2, 74.6],
+    balance: [19.8, 88.4], focus: [50, 88.4], alliances: [80.2, 88.4]
   };
 
   Object.entries(traitCoordinates).forEach(([key, [x, y]]) => {
     const value = survivor[key];
     const el = createElement('div', {
       className: 'trait-element',
-      style: `left: ${x}px; top: ${y}px;`
+      style: `--trait-x: ${x}%; --trait-y: ${y}%;`
     }, value?.toString() ?? '?');
     traitCardWrapper.appendChild(el);
   });
