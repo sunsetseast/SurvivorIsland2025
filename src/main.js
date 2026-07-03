@@ -4,7 +4,7 @@
  */
 
 import { gameManager } from './modules/core/GameManager.js';
-import { screenManager, eventManager, GameEvents } from './modules/core/index.js';
+import { screenManager, eventManager, GameEvents, challengeManager } from './modules/core/index.js';
 import {
   WelcomeScreen,
   CharacterSelectionScreen,
@@ -86,6 +86,7 @@ function init() {
   gameManager.registerSystem("allianceSystem", new systems.AllianceSystem(gameManager));
   gameManager.registerSystem("dealSystem", new systems.DealSystem(gameManager));
   gameManager.registerSystem("dealConsequencesSystem", new systems.DealConsequencesSystem(gameManager));
+  gameManager.registerSystem("challengeManager", challengeManager);
 
   // ⭐ NPC LOCATION SYSTEM — USE THE SINGLETON, NOT A NEW INSTANCE
   gameManager.registerSystem("npcLocationSystem", systems.npcLocationSystem);
@@ -185,3 +186,80 @@ if (document.readyState === 'loading') {
 
 window.addEventListener('beforeunload', cleanup);
 window.gameManager = gameManager;
+
+function getCriticalSaveFields(payload) {
+  const gm = payload?.gameManager || {};
+  const systemsState = payload?.systems || {};
+  return {
+    saveVersion: payload?.saveVersion,
+    gameState: gm.gameState,
+    gamePhase: gm.gamePhase,
+    day: gm.day,
+    dayTimer: gm.dayTimer,
+    playerId: gm.playerId ?? gm.player?.id ?? null,
+    survivorCount: Array.isArray(gm.survivors) ? gm.survivors.length : null,
+    tribeCount: Array.isArray(gm.tribes) ? gm.tribes.length : null,
+    journeyPresent: Boolean(gm.journey),
+    flagsCount: gm.flags ? Object.keys(gm.flags).length : 0,
+    socialMemoryNpcs: systemsState.socialMemorySystem?.memory
+      ? Object.keys(systemsState.socialMemorySystem.memory).length
+      : null,
+    relationshipCount: systemsState.relationshipSystem?.relationships
+      ? Object.keys(systemsState.relationshipSystem.relationships).length
+      : null,
+    allianceCount: Array.isArray(systemsState.allianceSystem?.alliances)
+      ? systemsState.allianceSystem.alliances.length
+      : null,
+    dealCount: systemsState.dealSystem?.dealsById
+      ? Object.keys(systemsState.dealSystem.dealsById).length
+      : null,
+    challengeResultCount: Array.isArray(systemsState.challengeManager?.challengeResults)
+      ? systemsState.challengeManager.challengeResults.length
+      : null
+  };
+}
+
+function diffCriticalSaveFields(before, after) {
+  const diffs = [];
+  const keys = Array.from(new Set([...Object.keys(before || {}), ...Object.keys(after || {})]));
+  keys.forEach((key) => {
+    if (before?.[key] !== after?.[key]) {
+      diffs.push({ key, before: before?.[key], after: after?.[key] });
+    }
+  });
+  return diffs;
+}
+
+window.SaveDebug = {
+  snapshot() {
+    const payload = gameManager.createSavePayload();
+    console.info('[SaveDebug] snapshot', payload);
+    return payload;
+  },
+
+  inspect() {
+    const payload = gameManager.createSavePayload();
+    const summary = getCriticalSaveFields(payload);
+    console.table(summary);
+    return summary;
+  },
+
+  roundTrip() {
+    const beforePayload = gameManager.createSavePayload();
+    const beforeSummary = getCriticalSaveFields(beforePayload);
+    const parsed = JSON.parse(JSON.stringify(beforePayload));
+    const restored = gameManager.restoreSavePayload(parsed);
+    const afterPayload = gameManager.createSavePayload();
+    const afterSummary = getCriticalSaveFields(afterPayload);
+    const diffs = diffCriticalSaveFields(beforeSummary, afterSummary);
+    const report = {
+      ok: restored && diffs.length === 0,
+      restored,
+      diffs,
+      before: beforeSummary,
+      after: afterSummary
+    };
+    console.info('[SaveDebug] roundTrip', report);
+    return report;
+  }
+};

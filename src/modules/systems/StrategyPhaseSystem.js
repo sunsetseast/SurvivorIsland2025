@@ -74,6 +74,56 @@ class StrategyPhaseSystem {
     }
   }
 
+  serialize() {
+    return JSON.parse(JSON.stringify({
+      isActive: this.isActive,
+      playerTribeSafe: this.playerTribeSafe,
+      personalTargetId: this.personalTargetId,
+      allianceTargets: Array.from(this.allianceTargets.entries()),
+      npcIntentTargets: Array.from(this.npcIntentTargets.entries()),
+      npcIntentMeta: Array.from(this.npcIntentMeta.entries()),
+      tribalTargetBoard: this.tribalTargetBoard,
+      strategyFacts: this.strategyFacts,
+      playerVisibleFacts: this.playerVisibleFacts,
+      firstTargetIntroduced: this.firstTargetIntroduced,
+      startedForPhaseKey: this.startedForPhaseKey,
+      pendingAllianceMeetings: this.pendingAllianceMeetings,
+      completedAllianceMeetings: Array.from(this.completedAllianceMeetings.values()),
+      meetingAlertQueue: this.meetingAlertQueue,
+      loggedFactKeys: Array.from(this.loggedFactKeys.values()),
+      journeyerIdForPhase: this.journeyerIdForPhase,
+      journeyPart2Running: this.journeyPart2Running,
+      lastStrategyTimerValue: this.lastStrategyTimerValue
+    }));
+  }
+
+  deserialize(payload) {
+    this.reset();
+    if (!payload || typeof payload !== 'object') return;
+
+    this.isActive = Boolean(payload.isActive);
+    this.playerTribeSafe = Boolean(payload.playerTribeSafe);
+    this.personalTargetId = payload.personalTargetId ?? null;
+    this.allianceTargets = new Map(Array.isArray(payload.allianceTargets) ? payload.allianceTargets : []);
+    this.npcIntentTargets = new Map(Array.isArray(payload.npcIntentTargets) ? payload.npcIntentTargets : []);
+    this.npcIntentMeta = new Map(Array.isArray(payload.npcIntentMeta) ? payload.npcIntentMeta : []);
+    this.tribalTargetBoard = payload.tribalTargetBoard ?? null;
+    this.strategyFacts = Array.isArray(payload.strategyFacts) ? payload.strategyFacts : [];
+    this.playerVisibleFacts = Array.isArray(payload.playerVisibleFacts) ? payload.playerVisibleFacts : [];
+    this.firstTargetIntroduced = Boolean(payload.firstTargetIntroduced);
+    this.startedForPhaseKey = payload.startedForPhaseKey ?? null;
+    this.pendingAllianceMeetings = Array.isArray(payload.pendingAllianceMeetings) ? payload.pendingAllianceMeetings : [];
+    this.completedAllianceMeetings = new Set(Array.isArray(payload.completedAllianceMeetings) ? payload.completedAllianceMeetings : []);
+    this.meetingAlertQueue = Array.isArray(payload.meetingAlertQueue) ? payload.meetingAlertQueue : [];
+    this.loggedFactKeys = new Set(Array.isArray(payload.loggedFactKeys) ? payload.loggedFactKeys : []);
+    this.journeyerIdForPhase = payload.journeyerIdForPhase ?? null;
+    this.journeyPart2Running = Boolean(payload.journeyPart2Running);
+    this.lastStrategyTimerValue = Number.isFinite(payload.lastStrategyTimerValue) ? payload.lastStrategyTimerValue : null;
+    if (this.isActive) {
+      gameManager.conversationPhaseOverride = 'POST_CHALLENGE';
+    }
+  }
+
   async startPostChallengePhase(options = {}) {
     const { force = false, source = 'unspecified' } = options;
     const phaseKey = `${gameManager.getDay?.() ?? gameManager.day}-${gameManager.getGamePhase?.() ?? gameManager.gamePhase}`;

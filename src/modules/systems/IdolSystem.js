@@ -145,6 +145,31 @@ class IdolSystem {
     this.debugForceFind = { idol: false, clue: false };
   }
 
+  serialize() {
+    return JSON.parse(JSON.stringify({
+      tribeIdolStates: Array.from(this.tribeIdolStates.entries()),
+      tribeClueStates: Array.from(this.tribeClueStates.entries()),
+      survivorInventories: Array.from(this.survivorInventories.entries()),
+      casualSearchCounts: Array.from(this.casualSearchCounts.entries()),
+      currentCampPhaseId: this.currentCampPhaseId,
+      initialSpawnCompleted: this.initialSpawnCompleted,
+      debugMode: this.debugMode
+    }));
+  }
+
+  deserialize(payload) {
+    this.reset();
+    if (!payload || typeof payload !== 'object') return;
+
+    this.tribeIdolStates = new Map(Array.isArray(payload.tribeIdolStates) ? payload.tribeIdolStates : []);
+    this.tribeClueStates = new Map(Array.isArray(payload.tribeClueStates) ? payload.tribeClueStates : []);
+    this.survivorInventories = new Map(Array.isArray(payload.survivorInventories) ? payload.survivorInventories : []);
+    this.casualSearchCounts = new Map(Array.isArray(payload.casualSearchCounts) ? payload.casualSearchCounts : []);
+    this.currentCampPhaseId = payload.currentCampPhaseId ?? null;
+    this.initialSpawnCompleted = Boolean(payload.initialSpawnCompleted);
+    this.setDebugMode(Boolean(payload.debugMode));
+  }
+
   spawnInitialForAllTribes() {
     if (this.initialSpawnCompleted || !this.gameManager.gameSettings?.enableIdols) {
       return;
@@ -1082,6 +1107,7 @@ class IdolSystem {
 
   _removeDebugButton() {
     if (typeof document === 'undefined') return;
+    if (typeof document.getElementById !== 'function') return;
     const button = document.getElementById(this.debugButtonId);
     if (button?.parentNode) {
       button.parentNode.removeChild(button);

@@ -1097,6 +1097,30 @@ class SocialMemorySystem {
             return true;
         });
     }
+
+    serialize() {
+        return JSON.parse(JSON.stringify({
+            memory: this.memory,
+            intelEvents: this.intelEvents,
+            socialEvents: this.socialEvents,
+            structuredEvents: this.structuredEvents
+        }));
+    }
+
+    deserialize(payload) {
+        if (!payload || typeof payload !== 'object') {
+            this.memory = {};
+            this.intelEvents = [];
+            this.socialEvents = [];
+            this.structuredEvents = [];
+            return;
+        }
+
+        this.memory = payload.memory && typeof payload.memory === 'object' ? payload.memory : {};
+        this.intelEvents = Array.isArray(payload.intelEvents) ? payload.intelEvents : [];
+        this.socialEvents = Array.isArray(payload.socialEvents) ? payload.socialEvents : [];
+        this.structuredEvents = Array.isArray(payload.structuredEvents) ? payload.structuredEvents : [];
+    }
 }
 
 // GLOBAL EXPORT

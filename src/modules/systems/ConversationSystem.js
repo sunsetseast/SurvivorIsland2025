@@ -1390,6 +1390,32 @@ class ConversationSystem {
     }
   }
 
+  serialize() {
+    return JSON.parse(JSON.stringify({
+      moods: Array.from(this.moods.entries()),
+      memoryLog: this._memoryLog,
+      npcMemory: this.npcMemory,
+      debugStructuredConvo: this.debugStructuredConvo,
+      debugConvo: this.debugConvo
+    }));
+  }
+
+  deserialize(payload) {
+    this.reset();
+    if (!payload || typeof payload !== 'object') {
+      this.moods = new Map();
+      this._memoryLog = [];
+      this.npcMemory = {};
+      return;
+    }
+
+    this.moods = new Map(Array.isArray(payload.moods) ? payload.moods : []);
+    this._memoryLog = Array.isArray(payload.memoryLog) ? payload.memoryLog : [];
+    this.npcMemory = payload.npcMemory && typeof payload.npcMemory === 'object' ? payload.npcMemory : {};
+    this.debugStructuredConvo = Boolean(payload.debugStructuredConvo);
+    this.debugConvo = Boolean(payload.debugConvo);
+  }
+
   _handleNpcConfrontation({ survivor, location }) {
     if (!this._isInCamp() || !survivor || this.gameManager.flags?.campEventActive) return;
 

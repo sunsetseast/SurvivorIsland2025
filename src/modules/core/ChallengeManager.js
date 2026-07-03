@@ -395,6 +395,24 @@ class ChallengeManager {
     this.challengeResults.clear();
   }
 
+  serialize() {
+    return JSON.parse(JSON.stringify({
+      currentChallenge: this.currentChallenge,
+      challengeResults: Array.from(this.challengeResults.entries())
+    }));
+  }
+
+  deserialize(payload) {
+    this.currentChallenge = payload?.currentChallenge ?? null;
+    this.challengeResults.clear();
+    if (Array.isArray(payload?.challengeResults)) {
+      payload.challengeResults.forEach(([day, result]) => {
+        const numericDay = Number(day);
+        this.challengeResults.set(Number.isFinite(numericDay) ? numericDay : day, result);
+      });
+    }
+  }
+
   // Debug method to log all challenges
   logAllChallenges() {
     console.log('=== ALL CHALLENGES ===');
