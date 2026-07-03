@@ -111,6 +111,7 @@ function init() {
 
   setupEventListeners();
   setupMenuToggle();
+  setupSaveControls();
   console.log('Initialization complete');
 }
 
@@ -168,6 +169,38 @@ function setupMenuToggle() {
     menuCard.style.display = 'none';
     overlay.style.display = 'none';
   });
+}
+
+function setupSaveControls() {
+  const saveButton = document.getElementById('menu-save-button');
+  if (saveButton) {
+    saveButton.addEventListener('click', () => {
+      const saved = gameManager.saveGame();
+      if (!saved) showSaveStatus('Save failed');
+    });
+  }
+
+  eventManager.subscribe(GameEvents.GAME_SAVED, ({ manual = false } = {}) => {
+    showSaveStatus(manual ? 'Saved' : 'Autosaved');
+    const continueButton = document.getElementById('continue-game-button');
+    if (continueButton) {
+      continueButton.style.display = 'block';
+    }
+  });
+}
+
+let saveStatusTimer = null;
+
+function showSaveStatus(message = 'Saved') {
+  const toast = document.getElementById('save-status-toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('visible');
+  if (saveStatusTimer) clearTimeout(saveStatusTimer);
+  saveStatusTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+    saveStatusTimer = null;
+  }, 1800);
 }
 
 function cleanup() {
