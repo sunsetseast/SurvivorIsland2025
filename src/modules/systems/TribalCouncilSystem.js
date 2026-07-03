@@ -773,9 +773,31 @@ export default class TribalCouncilSystem {
     const distrustWeight = (100 - trust) / 100;
     const threatValue = this._extractThreat(target);
     const paranoia = this._extractParanoia(voter);
+    const strategyIntentWeight = this._getStrategyIntentWeight(voter, target);
     const chaos = Math.random() * 0.05;
 
-    return allianceWeight + intentConfidence + distrustWeight + threatValue + paranoia + chaos;
+    return allianceWeight + intentConfidence + strategyIntentWeight + distrustWeight + threatValue + paranoia + chaos;
+  }
+
+  _getStrategyIntentWeight(voter, target) {
+    const strategyPhaseSystem = this.gameManager.systems?.strategyPhaseSystem;
+    if (!strategyPhaseSystem || !voter?.id || !target?.id) return 0;
+
+    const directIntent = strategyPhaseSystem.getNpcTargetIntent?.(voter.id);
+    if (directIntent && this._idsEqual(directIntent.targetId, target.id)) {
+      return Math.max(0, Math.min(1, directIntent.confidence ?? 0.5));
+    }
+
+    // Fallback bridge for player/alliance target-board pressure when no direct NPC intent exists.
+    const board = strategyPhaseSystem.getTribalTargetBoard?.() || this.gameManager.flags?.tribalTargetBoard;
+    const heatMap = board?.heatMap || {};
+    const targetHeat = Number(heatMap[this._normalizeId(target.id)]) || 0;
+    if (targetHeat <= 0) return 0;
+
+    const maxHeat = Math.max(...Object.values(heatMap).map(value => Number(value) || 0), 0);
+    if (maxHeat <= 0) return 0;
+
+    return Math.min(0.25, (targetHeat / maxHeat) * 0.25);
   }
 
   _inSameAlliance(id1, id2) {

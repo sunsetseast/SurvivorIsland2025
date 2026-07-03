@@ -78,8 +78,40 @@ const CAMP_LOCATIONS = [
 /* LEGACY INTENT SYSTEM — NO LONGER USED */
 const LEGACY_INTENT_SYSTEM_DISABLED = true;
 const PRE_CHALLENGE_TREE = { categories: [] };
-const PRE_PHASE_INTENTS = Object.freeze({});
-const POST_PHASE_INTENTS = Object.freeze({});
+const PRE_PHASE_INTENTS = Object.freeze({
+  bond_smalltalk: 'bond_smalltalk',
+  bond_personal: 'bond_personal',
+  check_trust: 'check_trust',
+  light_strategy: 'light_strategy',
+  ask_general_info: 'ask_general_info',
+  repair_relationship: 'repair_relationship',
+  confront_rumor: 'confront_rumor'
+});
+const POST_PHASE_INTENTS = Object.freeze({
+  ask_intel: 'ask_intel',
+  pitch_target: 'pitch_target',
+  deflect_target: 'deflect_target',
+  verify_story: 'verify_story',
+  plant_seed: 'plant_seed',
+  threaten_pressure: 'threaten_pressure',
+  alliance_commitment: 'alliance_commitment',
+  talk_specific_person: 'talk_specific_person',
+  challenge_performance: 'challenge_performance',
+  challenge_debrief: 'challenge_debrief',
+  idol_suspicion: 'idol_suspicion',
+  idol_ask_found: 'idol_ask_found',
+  idol_ask_who_has: 'idol_ask_who_has',
+  idol_ask_looked_where: 'idol_ask_looked_where',
+  idol_claim_have_truth: 'idol_claim_have_truth',
+  idol_claim_have_lie: 'idol_claim_have_lie',
+  idol_claim_other_has_lie: 'idol_claim_other_has_lie',
+  idol_pressure_for_info: 'idol_pressure_for_info',
+  offer_deal_vote_together: 'offer_deal_vote_together',
+  offer_deal_share_info: 'offer_deal_share_info',
+  offer_deal_protect: 'offer_deal_protect',
+  offer_deal_final2: 'offer_deal_final2',
+  offer_split_vote: 'offer_split_vote'
+});
 const DETERMINISTIC_INTENTS = Object.freeze({});
 const STRATEGY_APPROACHES = Object.freeze({});
 const INTENT_TEMPLATES = Object.freeze({});

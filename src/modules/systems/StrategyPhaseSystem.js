@@ -376,7 +376,7 @@ class StrategyPhaseSystem {
 
     const allianceSystem = gameManager?.systems?.allianceSystem;
     const player = gameManager.getPlayerSurvivor();
-    const alliances = allianceSystem?.getAlliancesForMember?.(player?.id) || [];
+    const alliances = allianceSystem?.getAlliancesForSurvivor?.(player?.id) || [];
 
     if (!alliances.length) {
       return Promise.resolve();
@@ -515,6 +515,24 @@ class StrategyPhaseSystem {
     return meta;
   }
 
+  getNpcTargetIntent(npcId) {
+    if (!npcId) return null;
+    const targetId = this.npcIntentTargets.get(npcId)
+      || this.npcIntentTargets.get(String(npcId))
+      || this.npcIntentTargets.get(Number(npcId));
+    if (!targetId) return null;
+    const meta = this.npcIntentMeta.get(npcId)
+      || this.npcIntentMeta.get(String(npcId))
+      || this.npcIntentMeta.get(Number(npcId))
+      || {};
+    return {
+      targetId,
+      confidence: Number.isFinite(meta.confidence) ? meta.confidence : 0.5,
+      reason: meta.reason || 'unknown',
+      updatedAt: meta.updatedAt || null
+    };
+  }
+
   seedNpcIntentTargetsForPhase() {
     if (this.playerTribeSafe) return 0;
     const tribe = gameManager.getPlayerTribe?.();
@@ -577,7 +595,7 @@ class StrategyPhaseSystem {
 
     const playerId = gameManager.getPlayerSurvivor?.()?.id || gameManager.player?.id;
     const allianceSystem = gameManager?.systems?.allianceSystem;
-    const alliances = allianceSystem?.getAlliancesForMember?.(playerId) || [];
+    const alliances = allianceSystem?.getAlliancesForSurvivor?.(playerId) || [];
     alliances.forEach((alliance) => {
       const allianceId = this.getAllianceKey(alliance);
       increment(this.allianceTargets.get(allianceId));
@@ -612,6 +630,10 @@ class StrategyPhaseSystem {
     );
 
     return this.tribalTargetBoard;
+  }
+
+  getTribalTargetBoard() {
+    return this.tribalTargetBoard || gameManager.flags?.tribalTargetBoard || null;
   }
 
   runStrategyBeat() {

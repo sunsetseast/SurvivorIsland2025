@@ -122,33 +122,7 @@ function handleGameStarted(data) {
 }
 
 function setupEventListeners() {
-  const newGameButton = document.getElementById('new-game-button');
-  const continueButton = document.getElementById('continue-game-button');
-  const settingsButton = document.getElementById('settings-button');
-  const infoButton = document.getElementById('info-button');
   const closeButtons = document.querySelectorAll('.dialog-close');
-
-  if (newGameButton) {
-    newGameButton.addEventListener('click', () => gameManager.startNewGame());
-  }
-
-  if (continueButton) {
-    continueButton.addEventListener('click', () => gameManager.loadGame());
-  }
-
-  if (settingsButton) {
-    settingsButton.addEventListener('click', () => {
-      const dialog = document.getElementById('settings-dialog');
-      if (dialog) dialog.style.display = 'block';
-    });
-  }
-
-  if (infoButton) {
-    infoButton.addEventListener('click', () => {
-      const dialog = document.getElementById('info-dialog');
-      if (dialog) dialog.style.display = 'block';
-    });
-  }
 
   closeButtons.forEach(button => {
     button.addEventListener('click', () => {
