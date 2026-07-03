@@ -1430,6 +1430,9 @@ class ConversationSystem {
     );
     if (pending) {
       pending.hasTriggered = true;
+      this.gameManager.systems?.npcLocationSystem?.releaseNpcMeetingReservation?.(survivor.id, {
+        reason: 'conversation_started'
+      });
       this._startConversation(survivor, {
         isPurpose: true,
         meeting: pending,
@@ -1479,6 +1482,9 @@ class ConversationSystem {
       meeting.hasTriggered = true;
       const survivor = this._getSurvivorById(meeting.npcId);
       if (survivor) {
+        this.gameManager.systems?.npcLocationSystem?.releaseNpcMeetingReservation?.(survivor.id, {
+          reason: 'conversation_started'
+        });
         this._startConversation(survivor, {
           isPurpose: true,
           meeting,
@@ -1544,14 +1550,23 @@ class ConversationSystem {
     const npc = plannedIntent?.npcId ? this._getSurvivorById(plannedIntent.npcId) : this._pickConversationNpc();
     if (!npc) return;
 
-    const fallbackLocation = CAMP_LOCATIONS[getRandomInt(0, CAMP_LOCATIONS.length - 1)];
-    const location = plannedIntent?.location || fallbackLocation;
+    const locationSystem = this.gameManager.systems?.npcLocationSystem || null;
+    const fallbackLocation = locationSystem?.getBestMeetingLocation?.(npc.id, { currentView })
+      || CAMP_LOCATIONS[getRandomInt(0, CAMP_LOCATIONS.length - 1)];
+    const location = locationSystem?.getBestMeetingLocation?.(npc.id, {
+      preferredLocation: plannedIntent?.location || null,
+      currentView
+    }) || plannedIntent?.location || fallbackLocation;
     const normalizedLocation = this._normalizeLocationKey(location);
+    const reservedLocation = locationSystem?.reserveNpcForMeeting?.(npc.id, normalizedLocation, {
+      reason: 'conversation_meeting',
+      ttlMs: type === 'phaseIntro' ? 240000 : 180000
+    }) || normalizedLocation;
     const meeting = {
       phase: phaseType,
       npcId: npc.id,
-      location,
-      normalizedLocation,
+      location: reservedLocation,
+      normalizedLocation: this._normalizeLocationKey(reservedLocation),
       hasTriggered: false,
       type,
       socialType: plannedIntent?.intent || null
@@ -1559,14 +1574,14 @@ class ConversationSystem {
 
     this.pendingMeetings.push(meeting);
     this._highlightNpcIcon(npc.id, true);
-    this._showInvitationToast(npc, location, type);
+    this._showInvitationToast(npc, reservedLocation, type);
 
     if (
-      this._normalizeLocationKey(currentView) === normalizedLocation &&
+      this._normalizeLocationKey(currentView) === meeting.normalizedLocation &&
       this._isInCamp() &&
       !this.gameManager.flags?.campEventActive
     ) {
-      this._handleCampViewLoaded({ viewName: location });
+      this._handleCampViewLoaded({ viewName: reservedLocation });
     }
   }
 
@@ -1585,6 +1600,7 @@ class ConversationSystem {
   }
 
   _showInvitationToast(npc, location, type) {
+    const locationLabel = this._formatLocation(location) || location;
     const toast = createElement('div', {
       className: 'conversation-invite-toast',
       style: {
@@ -1604,8 +1620,8 @@ class ConversationSystem {
     });
 
     const note = type === 'phaseIntro'
-      ? `${npc.firstName} wants to talk to you at the ${location}.`
-      : `${npc.firstName} whispers: meet me at the ${location} soon.`;
+      ? `${npc.firstName} wants to talk to you at the ${locationLabel}.`
+      : `${npc.firstName} whispers: meet me at the ${locationLabel} soon.`;
 
     toast.textContent = note;
     document.body.appendChild(toast);
@@ -16638,6 +16654,13 @@ class ConversationSystem {
       });
     }
     this.pendingMeetings.forEach(m => this._highlightNpcIcon(m.npcId, false));
+    this.pendingMeetings.forEach(m => {
+      if (!m.hasTriggered) {
+        this.gameManager.systems?.npcLocationSystem?.releaseNpcMeetingReservation?.(m.npcId, {
+          reason: applyConsequences ? 'meeting_missed' : 'meeting_cleared'
+        });
+      }
+    });
     this.pendingMeetings = [];
   }
 
