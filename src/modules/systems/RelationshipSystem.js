@@ -424,6 +424,40 @@ class RelationshipSystem {
   setRelationships(relationships) {
     this.relationships = relationships;
   }
+
+  serialize() {
+    return JSON.parse(JSON.stringify({
+      relationships: this.relationships,
+      defaultValue: this.defaultValue,
+      threshold: this.threshold
+    }));
+  }
+
+  deserialize(payload) {
+    if (!payload || typeof payload !== 'object') {
+      this.relationships = {};
+      return;
+    }
+
+    const rawRelationships = payload.relationships && typeof payload.relationships === 'object'
+      ? payload.relationships
+      : payload;
+
+    this.relationships = {};
+    Object.entries(rawRelationships || {}).forEach(([key, relationship]) => {
+      if (!relationship || typeof relationship !== 'object') return;
+      const value = Number.isFinite(relationship.value) ? relationship.value : this.defaultValue;
+      this.relationships[key] = {
+        value: Math.max(0, Math.min(100, value)),
+        type: relationship.type || this._getRelationshipType(value)
+      };
+    });
+
+    if (Number.isFinite(payload.defaultValue)) this.defaultValue = payload.defaultValue;
+    if (payload.threshold && typeof payload.threshold === 'object') {
+      this.threshold = { ...this.threshold, ...payload.threshold };
+    }
+  }
   
   /**
    * Ensure all survivors have relationships with each other

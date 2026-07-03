@@ -257,6 +257,37 @@ class AllianceSystem {
     return [...this.alliances];
   }
 
+  serialize() {
+    return JSON.parse(JSON.stringify({
+      alliances: this.alliances,
+      commitments: Array.from(this.commitments.entries())
+    }));
+  }
+
+  deserialize(payload) {
+    if (!payload || typeof payload !== 'object') {
+      this.alliances = [];
+      this.commitments = new Map();
+      return;
+    }
+
+    this.alliances = Array.isArray(payload.alliances)
+      ? payload.alliances.map(alliance => this._normalizeAlliance(alliance))
+      : [];
+
+    this.commitments = new Map();
+    if (Array.isArray(payload.commitments)) {
+      payload.commitments.forEach(([survivorId, allianceId]) => {
+        if (survivorId != null && allianceId != null) {
+          this.commitments.set(Number.isFinite(Number(survivorId)) ? Number(survivorId) : survivorId, allianceId);
+        }
+      });
+    }
+
+    this._ensureRelationshipSystem();
+    this._ensureSocialMemorySystem();
+  }
+
   getAlliancesForSurvivor(survivorId) {
     return this.getAlliances().filter(alliance => alliance.memberIds.includes(survivorId));
   }

@@ -5,8 +5,8 @@
 
 import eventManager, { GameEvents } from './EventManager.js';
 import screenManager from './ScreenManager.js';
+import saveManager from './SaveManager.js';
 import { GameData } from '../data/index.js';
-import { loadFromLocalStorage, saveToLocalStorage } from '../utils/StorageUtils.js';
 import { deepCopy, shuffleArray } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import { MAX_WATER, MAX_HUNGER } from '../data/GameData.js';
@@ -44,8 +44,6 @@ export const GamePhase = {
   TRIBAL_COUNCIL: 'tribalCouncil',
   NIGHT: 'night'
 };
-
-const SAVE_GAME_KEY = 'survivorIsland.saveGame';
 
 class GameManager {
   constructor() {
@@ -1001,8 +999,133 @@ class GameManager {
     return this.systems?.taskSimulationSystem?.runCheckpoint?.(checkpoint, opts);
   }
 
+  _cloneForSave(value, fallback = null) {
+    return saveManager.cloneJsonSafe(value, fallback);
+  }
+
+  _serializeSystemsForSave() {
+    const systemsState = {};
+    Object.entries(this.systems || {}).forEach(([name, system]) => {
+      if (typeof system?.serialize !== 'function') return;
+      try {
+        systemsState[name] = this._cloneForSave(system.serialize(), null);
+      } catch (error) {
+        console.warn(`[GameManager] Failed to serialize ${name}`, error);
+        systemsState[name] = null;
+      }
+    });
+
+    return systemsState;
+  }
+
+  createSavePayload() {
+    const appVersion = typeof document !== 'undefined'
+      ? document.querySelector('.version-info')?.textContent || null
+      : null;
+
+    return saveManager.preparePayload({
+      saveVersion: saveManager.getSaveVersion(),
+      savedAt: Date.now(),
+      appVersion,
+      gameManager: {
+        isInitialized: this.isInitialized,
+        gameState: this.gameState,
+        gamePhase: this.gamePhase,
+        day: this.day,
+        dayTimer: this.dayTimer,
+        timeSpeed: this.timeSpeed,
+        tribeCount: this.tribeCount,
+        tribes: this.tribes,
+        survivors: this.survivors,
+        player: this.player,
+        playerId: this.player?.id ?? null,
+        journey: this.journey,
+        jury: this.jury,
+        finalists: this.finalists,
+        winner: this.winner,
+        mergeAt: this.mergeAt,
+        isTribesShuffled: this.isTribesShuffled,
+        isMerged: this.isMerged,
+        flags: this.flags,
+        campLog: this.campLog,
+        gameHistory: this.gameHistory,
+        tribalCouncilLog: this.tribalCouncilLog,
+        state: this.state,
+        postChallengeMode: this.postChallengeMode,
+        gameSettings: this.gameSettings
+      },
+      systems: this._serializeSystemsForSave()
+    });
+  }
+
+  restoreSavePayload(payload) {
+    const normalized = saveManager.normalizePayload(payload);
+    if (!normalized) return false;
+
+    const data = normalized.gameManager || {};
+
+    this.isInitialized = data.isInitialized ?? this.isInitialized;
+    this.gameState = data.gameState || this.gameState || GameState.WELCOME;
+    this.gamePhase = data.gamePhase || this.gamePhase || GamePhase.PRE_GAME;
+    this.day = Number.isFinite(data.day) ? data.day : 1;
+    this.dayTimer = Number.isFinite(data.dayTimer) ? data.dayTimer : 7200;
+    this.timeSpeed = Number.isFinite(data.timeSpeed) ? data.timeSpeed : 8;
+    this.tribeCount = Number.isFinite(data.tribeCount) ? data.tribeCount : this.tribeCount;
+    this.tribes = Array.isArray(data.tribes) ? data.tribes : [];
+    this.survivors = Array.isArray(data.survivors)
+      ? data.survivors
+      : this.tribes.flatMap(tribe => tribe?.members || []);
+    this.survivors = this.survivors.map(survivor => ({ ...survivor, laziness: survivor?.laziness ?? 0 }));
+    this.player = data.player || this.survivors.find(survivor => survivor?.id === data.playerId || survivor?.isPlayer) || null;
+    this.journey = data.journey ?? null;
+    this.jury = Array.isArray(data.jury) ? data.jury : [];
+    this.finalists = Array.isArray(data.finalists) ? data.finalists : [];
+    this.winner = data.winner ?? null;
+    this.mergeAt = Number.isFinite(data.mergeAt) ? data.mergeAt : this.mergeAt;
+    this.isTribesShuffled = Boolean(data.isTribesShuffled);
+    this.isMerged = Boolean(data.isMerged);
+    this.flags = data.flags || { day1FirstImpressionsCompleted: false };
+    this.campLog = Array.isArray(data.campLog) ? data.campLog : [];
+    this.gameHistory = data.gameHistory || { tribals: [] };
+    this.tribalCouncilLog = Array.isArray(data.tribalCouncilLog) ? data.tribalCouncilLog : [];
+    this.state = data.state || {};
+    this.postChallengeMode = data.postChallengeMode || 'playable';
+    this.gameSettings = { ...this.gameSettings, ...(data.gameSettings || {}) };
+
+    (this.tribes || []).forEach(tribe => {
+      this.initializeWaterPlanForTribe(tribe);
+    });
+
+    const systemsState = normalized.systems || {};
+    Object.entries(this.systems || {}).forEach(([name, system]) => {
+      if (typeof system?.deserialize !== 'function') return;
+      try {
+        system.deserialize(systemsState[name] ?? null);
+      } catch (error) {
+        console.warn(`[GameManager] Failed to deserialize ${name}`, error);
+      }
+    });
+
+    this._updateScreenForState(this.gameState);
+    eventManager.publish(GameEvents.GAME_LOADED, { timestamp: normalized.savedAt });
+    return true;
+  }
+
   saveGame() {
-    const data = {
+    const data = this.createSavePayload();
+    const success = saveManager.save(data);
+    if (success) eventManager.publish(GameEvents.GAME_SAVED, { timestamp: data.savedAt });
+    return success;
+  }
+
+  loadGame() {
+    const data = saveManager.load();
+    if (!data) return false;
+    return this.restoreSavePayload(data);
+  }
+
+  createLegacySavePayload() {
+    return {
       gameState: this.gameState,
       gamePhase: this.gamePhase,
       day: this.day,
@@ -1027,39 +1150,6 @@ class GameManager {
       },
       timestamp: Date.now()
     };
-    const success = saveToLocalStorage(SAVE_GAME_KEY, data);
-    if (success) eventManager.publish(GameEvents.GAME_SAVED, { timestamp: data.timestamp });
-    return success;
-  }
-
-  loadGame() {
-    const data = loadFromLocalStorage(SAVE_GAME_KEY);
-    if (!data) return false;
-    Object.assign(this, data);
-    this.flags = data.flags || { day1FirstImpressionsCompleted: false };
-    this.campLog = data.campLog || [];
-    this.gameHistory = data.gameHistory || { tribals: [] };
-    this.tribalCouncilLog = data.tribalCouncilLog || [];
-    this.state = data.state || {};
-    this.postChallengeMode = data.postChallengeMode || 'playable';
-    this.survivors = (this.survivors || []).map(survivor => ({ ...survivor, laziness: survivor.laziness ?? 0 }));
-    (this.tribes || []).forEach(tribe => {
-      this.initializeWaterPlanForTribe(tribe);
-    });
-    if (typeof this.systems.dealSystem.deserialize === 'function') {
-      const dealPayload = data.systemsState?.dealSystem ?? data.dealSystemData ?? null;
-      this.systems.dealSystem.deserialize(dealPayload);
-    }
-    if (this.systems.trustSystem?.deserialize) {
-      const trustPayload = data.systemsState?.trustSystem ?? null;
-      this.systems.trustSystem.deserialize(trustPayload);
-    } else {
-      console.warn('[GameManager] TrustSystem unavailable during load; trust will default to 50.');
-    }
-    this.resetTaskSimFlags({ reason: 'load' });
-    this._updateScreenForState(this.gameState);
-    eventManager.publish(GameEvents.GAME_LOADED, { timestamp: data.timestamp });
-    return true;
   }
 
   resetTaskSimFlags({ reason = 'manual' } = {}) {
@@ -1111,7 +1201,7 @@ class GameManager {
   }
 
   hasSavedGame() {
-    return !!loadFromLocalStorage(SAVE_GAME_KEY);
+    return saveManager.hasSave();
   }
 
   showGameOverScreen() {
