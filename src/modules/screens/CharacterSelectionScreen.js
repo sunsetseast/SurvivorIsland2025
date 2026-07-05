@@ -7,7 +7,6 @@ import { getElement, createElement, clearChildren } from '../utils/index.js';
 import { gameManager, eventManager } from '../core/index.js';
 import { GameEvents } from '../core/EventManager.js';
 import gameData from '../data/index.js';
-import { setupScrollReveal } from '../utils/ScrollReveal.js';
 import { createSurvivorCard } from '../ui/SurvivorCardFactory.js';
 import { shuffleArray } from '../utils/CommonUtils.js';
 
@@ -23,6 +22,9 @@ export default class CharacterSelectionScreen {
     this.screenEl = null;
     this.containerEl = null;   // #game-container
     this.stackEl = null;       // #survivor-stack
+    this.scrollHintEl = null;
+    this._stackScrollHandler = null;
+    this._scrollHintTimer = null;
 
     // scroll guard state
     this._savedScrollTop = 0;
@@ -63,8 +65,7 @@ export default class CharacterSelectionScreen {
     this._buildButtons();
     this._wireFilters();
 
-    // Reveal helper
-    setupScrollReveal();
+    this._setupBrowsingHint();
 
     // Done
     eventManager.publish(GameEvents.SCREEN_CHANGED, {
@@ -92,6 +93,7 @@ export default class CharacterSelectionScreen {
     if (filterOptions) filterOptions.remove();
 
     this._removeFilterMenuListeners();
+    this._removeBrowsingHint();
 
     // ensure scroll is unlocked if we left mid-flip
     this._unlockScroll();
@@ -119,12 +121,22 @@ export default class CharacterSelectionScreen {
 
   _buildUI() {
     // Scroll stack
-    this.stackEl = createElement('div', { id: 'survivor-stack' });
+    this.stackEl = createElement('div', {
+      id: 'survivor-stack',
+      className: 'stable-card-stack'
+    });
     this.availableSurvivors.forEach((survivor, index) => {
       const card = this._createSurvivorCard(survivor, index);
       this.stackEl.appendChild(card);
     });
     this.screenEl.appendChild(this.stackEl);
+
+    this.scrollHintEl = createElement('div', {
+      id: 'survivor-scroll-hint',
+      className: 'survivor-scroll-hint',
+      'aria-hidden': 'true'
+    }, 'Swipe up/down to browse');
+    this.screenEl.appendChild(this.scrollHintEl);
 
     // Floating filter panel
     const filterOptions = createElement('div', { id: 'filter-options', className: 'hidden filter-options' });
@@ -187,6 +199,34 @@ export default class CharacterSelectionScreen {
 
   _wireFilters() {
     // nothing else required here; buttons are already wired in _buildUI
+  }
+
+  _setupBrowsingHint() {
+    if (!this.stackEl || !this.scrollHintEl) return;
+
+    this._stackScrollHandler = () => this._hideBrowsingHint();
+    this.stackEl.addEventListener('scroll', this._stackScrollHandler, { passive: true });
+
+    clearTimeout(this._scrollHintTimer);
+    this._scrollHintTimer = setTimeout(() => this._hideBrowsingHint(), 3500);
+  }
+
+  _hideBrowsingHint() {
+    if (this.scrollHintEl) {
+      this.scrollHintEl.classList.add('hidden');
+    }
+    clearTimeout(this._scrollHintTimer);
+    this._scrollHintTimer = null;
+  }
+
+  _removeBrowsingHint() {
+    if (this.stackEl && this._stackScrollHandler) {
+      this.stackEl.removeEventListener('scroll', this._stackScrollHandler);
+    }
+    this._stackScrollHandler = null;
+    clearTimeout(this._scrollHintTimer);
+    this._scrollHintTimer = null;
+    this.scrollHintEl = null;
   }
 
   _createFilterOption({ label, filterType, filter }) {

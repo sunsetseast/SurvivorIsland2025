@@ -113,8 +113,9 @@ export function createSurvivorCard(survivor, options = {}) {
 
   Object.entries(traitCoordinates).forEach(([key, [x, y]]) => {
     const value = survivor[key];
+    const isTopTraitValue = ['physical', 'mental', 'social'].includes(key);
     const el = createElement('div', {
-      className: 'trait-element',
+      className: `trait-element${isTopTraitValue ? '' : ' lower-trait-value'}`,
       style: `--trait-x: ${x}%; --trait-y: ${y}%;`
     }, value?.toString() ?? '?');
     traitCardWrapper.appendChild(el);
