@@ -296,9 +296,10 @@ body {
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
   margin: 0 auto;
   opacity: 0;
-  position: relative;
+  position: absolute;
+  inset: 0;
   text-align: center;
-  z-index: 1;
+  z-index: 2;
   transform: translateY(50px);
   transition: transform 0.6s ease, z-index 0.6s ease;
   scroll-snap-align: center;
@@ -1703,8 +1704,38 @@ body {
 .card-wrapper {
   position: relative;
   flex: 0 0 auto;
-  --survivor-card-height: clamp(430px, min(72dvh, calc((100vw - 28px) * 1.507)), 600px);
-  width: calc(var(--survivor-card-height) * 0.6635);
+  --card-aspect: 0.6635;
+  --survivor-card-height: clamp(430px, min(72dvh, calc((100vw - 28px) / var(--card-aspect))), 600px);
+  --avatar-top: 40.8%;
+  --avatar-left: 50%;
+  --avatar-width: 55.5%;
+  --avatar-height: 27.5%;
+  --front-name-top: 18.4%;
+  --front-name-width: 72%;
+  --front-name-height: 10.5%;
+  --front-buttons-bottom: 14.6%;
+  --front-buttons-width: 64%;
+  --back-name-top: 27%;
+  --back-name-width: 72%;
+  --back-name-height: 12%;
+  --gameplay-style-top: 40.3%;
+  --gameplay-style-width: 66%;
+  --gameplay-style-height: 6.5%;
+  --trait-main-x: 50%;
+  --trait-main-y: 59.5%;
+  --trait-main-width: 30%;
+  --trait-main-height: 10%;
+  --trait-side-left-x: 34.5%;
+  --trait-side-right-x: 65.5%;
+  --trait-side-y: 80.2%;
+  --trait-side-width: 22%;
+  --trait-side-height: 7%;
+  --back-buttons-bottom: 4.5%;
+  --back-buttons-width: 58%;
+  --trait-overlay-button-bottom: 1%;
+  --trait-overlay-button-width: 34%;
+  --trait-overlay-button-height: 5.6%;
+  width: calc(var(--survivor-card-height) * var(--card-aspect));
   max-width: calc(100vw - 28px);
   margin-bottom: 0;
   perspective: 1000px; /* Enables 3D transform for children */
@@ -1747,11 +1778,11 @@ body {
 
 .card-front .survivor-header {
   position: absolute;
-  top: 18.4%;
+  top: var(--front-name-top);
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 72%;
-  min-height: 10.5%;
+  width: var(--front-name-width);
+  min-height: var(--front-name-height);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1774,11 +1805,11 @@ body {
 /* Avatar frame behind the card */
 .card-wrapper .avatar-frame {
   position: absolute;
-  top: 40.8%;
-  left: 50%;
+  top: var(--avatar-top);
+  left: var(--avatar-left);
   transform: translateX(-50%);
-  width: 55.5%;
-  height: 27.5%;
+  width: var(--avatar-width);
+  height: var(--avatar-height);
   overflow: hidden;
   border-radius: 8px;
   z-index: 1;
@@ -1859,11 +1890,11 @@ body {
 
 .name-box {
   position: absolute;
-  top: 27%;
+  top: var(--back-name-top);
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 72%;
-  min-height: 12%;
+  width: var(--back-name-width);
+  min-height: var(--back-name-height);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1896,11 +1927,11 @@ body {
 
 .gameplay-style-box {
   position: absolute;
-  top: 40.3%;
+  top: var(--gameplay-style-top);
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 66%;
-  min-height: 6.5%;
+  width: var(--gameplay-style-width);
+  min-height: var(--gameplay-style-height);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1942,56 +1973,68 @@ body {
 
 /* === Physical Layout === */
 .physical-layout .physical-value {
-  --trait-x: 50%;
-  --trait-y: 59.5%;
-  --trait-slot-w: 30%;
-  --trait-slot-h: 10%;
+  --trait-x: var(--trait-main-x);
+  --trait-y: var(--trait-main-y);
+  --trait-slot-w: var(--trait-main-width);
+  --trait-slot-h: var(--trait-main-height);
 }
 
 .physical-layout .mental-value {
-  --trait-x: 34.5%;
-  --trait-y: 80.2%;
+  --trait-x: var(--trait-side-left-x);
+  --trait-y: var(--trait-side-y);
+  --trait-slot-w: var(--trait-side-width);
+  --trait-slot-h: var(--trait-side-height);
 }
 
 .physical-layout .social-value {
-  --trait-x: 65.5%;
-  --trait-y: 80.2%;
+  --trait-x: var(--trait-side-right-x);
+  --trait-y: var(--trait-side-y);
+  --trait-slot-w: var(--trait-side-width);
+  --trait-slot-h: var(--trait-side-height);
 }
 
 /* === Mental Layout === */
 .mental-layout .mental-value {
-  --trait-x: 50%;
-  --trait-y: 59.5%;
-  --trait-slot-w: 30%;
-  --trait-slot-h: 10%;
+  --trait-x: var(--trait-main-x);
+  --trait-y: var(--trait-main-y);
+  --trait-slot-w: var(--trait-main-width);
+  --trait-slot-h: var(--trait-main-height);
 }
 
 .mental-layout .physical-value {
-  --trait-x: 34.5%;
-  --trait-y: 80.2%;
+  --trait-x: var(--trait-side-left-x);
+  --trait-y: var(--trait-side-y);
+  --trait-slot-w: var(--trait-side-width);
+  --trait-slot-h: var(--trait-side-height);
 }
 
 .mental-layout .social-value {
-  --trait-x: 65.5%;
-  --trait-y: 80.2%;
+  --trait-x: var(--trait-side-right-x);
+  --trait-y: var(--trait-side-y);
+  --trait-slot-w: var(--trait-side-width);
+  --trait-slot-h: var(--trait-side-height);
 }
 
 /* === Social Layout === */
 .social-layout .social-value {
-  --trait-x: 50%;
-  --trait-y: 59.5%;
-  --trait-slot-w: 30%;
-  --trait-slot-h: 10%;
+  --trait-x: var(--trait-main-x);
+  --trait-y: var(--trait-main-y);
+  --trait-slot-w: var(--trait-main-width);
+  --trait-slot-h: var(--trait-main-height);
 }
 
 .social-layout .physical-value {
-  --trait-x: 34.5%;
-  --trait-y: 80.2%;
+  --trait-x: var(--trait-side-left-x);
+  --trait-y: var(--trait-side-y);
+  --trait-slot-w: var(--trait-side-width);
+  --trait-slot-h: var(--trait-side-height);
 }
 
 .social-layout .mental-value {
-  --trait-x: 65.5%;
-  --trait-y: 80.2%;
+  --trait-x: var(--trait-side-right-x);
+  --trait-y: var(--trait-side-y);
+  --trait-slot-w: var(--trait-side-width);
+  --trait-slot-h: var(--trait-side-height);
 }
 
 /* Make the centered trait value larger */
@@ -2050,13 +2093,13 @@ body {
 
 .close-trait-card {
   position: absolute;
-  bottom: 1% !important;
+  bottom: var(--trait-overlay-button-bottom) !important;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9;
   pointer-events: auto;
-  width: 34% !important;
-  height: 5.6% !important;
+  width: var(--trait-overlay-button-width) !important;
+  height: var(--trait-overlay-button-height) !important;
   min-height: 0;
   font-size: clamp(12px, calc(var(--survivor-card-height) * 0.025), 16px) !important;
   padding: 0 !important;
@@ -2078,9 +2121,9 @@ body {
 .card-buttons {
   position: absolute;
   left: 50%;
-  bottom: 14.6%;
+  bottom: var(--front-buttons-bottom);
   transform: translateX(-50%);
-  width: 64%;
+  width: var(--front-buttons-width);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -2144,13 +2187,13 @@ body {
 .card-buttons-back {
   position: absolute;
   left: 50%;
-  bottom: 4.5%;
+  bottom: var(--back-buttons-bottom);
   transform: translateX(-50%);
   display: flex;
   gap: 6%;
   justify-content: center;
   align-items: center;
-  width: 58%;
+  width: var(--back-buttons-width);
   z-index: 4;
 }
 
@@ -2162,6 +2205,33 @@ body {
   font-size: clamp(12px, calc(var(--survivor-card-height) * 0.025), 14px);
   line-height: 1.1;
   padding: 0 6px;
+}
+
+body.debug-card-layout .card-wrapper,
+#game-container.debug-card-layout .card-wrapper {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+body.debug-card-layout .avatar-frame,
+body.debug-card-layout .survivor-header,
+body.debug-card-layout .card-buttons,
+body.debug-card-layout .name-box,
+body.debug-card-layout .gameplay-style-box,
+body.debug-card-layout .trait-row,
+body.debug-card-layout .card-buttons-back,
+body.debug-card-layout .trait-element,
+#game-container.debug-card-layout .avatar-frame,
+#game-container.debug-card-layout .survivor-header,
+#game-container.debug-card-layout .card-buttons,
+#game-container.debug-card-layout .name-box,
+#game-container.debug-card-layout .gameplay-style-box,
+#game-container.debug-card-layout .trait-row,
+#game-container.debug-card-layout .card-buttons-back,
+#game-container.debug-card-layout .trait-element {
+  outline: 2px dashed rgba(255, 230, 0, 0.9);
+  outline-offset: 1px;
+  background-color: rgba(255, 230, 0, 0.08);
 }
 
 .button-row {
@@ -2240,8 +2310,8 @@ body {
   overflow-y: auto;
   overflow-x: hidden;            /* prevent horizontal drag artifacts */
   height: 100%;
-  padding-block: 34dvh max(28dvh, 120px);
-  scroll-padding-block: 34dvh max(28dvh, 120px);
+  padding-block: 14dvh max(22dvh, 120px);
+  scroll-padding-block: 14dvh max(22dvh, 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2276,18 +2346,12 @@ body {
 
 @media (max-width: 480px) {
   .card-wrapper {
-    --survivor-card-height: clamp(430px, min(68dvh, calc((100vw - 20px) * 1.507)), 570px);
+    --survivor-card-height: clamp(430px, min(68dvh, calc((100vw - 20px) / var(--card-aspect))), 570px);
+    --front-name-width: 76%;
+    --back-name-width: 76%;
+    --front-buttons-width: 68%;
+    --front-buttons-bottom: 14%;
     max-width: calc(100vw - 20px);
-  }
-
-  .card-front .survivor-header,
-  .name-box {
-    width: 76%;
-  }
-
-  .card-buttons {
-    width: 68%;
-    bottom: 14%;
   }
 
   #survivor-stack {
