@@ -268,6 +268,7 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  position: relative;
   min-height: 0;
   width: 100%;
   background: transparent !important;
@@ -327,6 +328,59 @@ body {
   border: 3px solid #f4b942; /* Gold border for selected card */
   transform: scale(1.05);
   z-index: 10;
+}
+
+#survivor-stack.stable-card-stack .survivor-card {
+  opacity: 1;
+  transform: none;
+  transition: box-shadow 0.25s ease, filter 0.25s ease;
+}
+
+#survivor-stack.stable-card-stack .survivor-card.reveal,
+#survivor-stack.stable-card-stack .survivor-card.focused {
+  opacity: 1;
+  transform: none;
+}
+
+#survivor-stack.stable-card-stack .card-wrapper {
+  transition: transform 0.6s ease, opacity 0.25s ease, filter 0.25s ease;
+}
+
+.survivor-scroll-hint {
+  position: absolute;
+  left: 50%;
+  top: max(132px, 16dvh);
+  transform: translateX(-50%);
+  z-index: 12;
+  pointer-events: none;
+  padding: 7px 12px 8px;
+  border-radius: 999px;
+  background: rgba(31, 20, 11, 0.58);
+  color: #fff8e7;
+  font-family: 'Survivant', fantasy;
+  font-size: clamp(11px, 2.8vw, 14px);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 2px 2px #000;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
+  opacity: 0.82;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.survivor-scroll-hint::after {
+  content: '  \2195';
+}
+
+.survivor-scroll-hint.hidden {
+  opacity: 0;
+  transform: translate(-50%, 8px);
+}
+
+@media (min-width: 700px) {
+  .survivor-scroll-hint {
+    display: none;
+  }
 }
 
 .stat-line {
@@ -1708,26 +1762,26 @@ body {
   --survivor-card-height: clamp(430px, min(72dvh, calc((100vw - 28px) / var(--card-aspect))), 600px);
   --avatar-top: 24.2%;
   --avatar-left: 50.2%;
-  --avatar-width: 65.8%;
-  --avatar-height: 48.4%;
-  --front-name-top: 16.8%;
+  --avatar-width: 67.2%;
+  --avatar-height: 49.8%;
+  --front-name-top: 15.6%;
   --front-name-width: 72%;
   --front-name-height: 10.5%;
   --front-buttons-bottom: 14.6%;
   --front-buttons-width: 64%;
-  --back-name-top: 25.4%;
+  --back-name-top: 24.4%;
   --back-name-width: 72%;
   --back-name-height: 12%;
-  --gameplay-style-top: 40.3%;
+  --gameplay-style-top: 41%;
   --gameplay-style-width: 66%;
   --gameplay-style-height: 6.5%;
   --trait-main-x: 50%;
-  --trait-main-y: 58.3%;
+  --trait-main-y: 58.9%;
   --trait-main-width: 30%;
   --trait-main-height: 10%;
   --trait-side-left-x: 34.5%;
   --trait-side-right-x: 65.5%;
-  --trait-side-y: 79.1%;
+  --trait-side-y: 78.7%;
   --trait-side-width: 22%;
   --trait-side-height: 7%;
   --back-buttons-bottom: 5.8%;
@@ -1914,16 +1968,16 @@ body {
 
 .name-box strong {
   display: block;
-  font-size: clamp(19px, calc(var(--survivor-card-height) * 0.048), 30px);
+  font-size: clamp(20px, calc(var(--survivor-card-height) * 0.052), 32px);
   font-weight: bold;
   margin: 0;
 }
 
 .name-box small {
   display: block;
-  font-size: clamp(10px, calc(var(--survivor-card-height) * 0.021), 13px);
+  font-size: clamp(11px, calc(var(--survivor-card-height) * 0.023), 14px);
   opacity: 0.85;
-  margin-top: 0.25em;
+  margin-top: 0.18em;
 }
 
 .gameplay-style-box {
@@ -2075,7 +2129,7 @@ body {
 .trait-element {
   position: absolute;
   left: var(--trait-x);
-  top: calc(var(--trait-y) + var(--trait-overlay-value-y-offset, 0%));
+  top: var(--trait-y);
   z-index: 2;
   width: 15%;
   height: 4.5%;
@@ -2090,6 +2144,10 @@ body {
   line-height: 1;
   text-shadow: 1px 1px 3px black;
   pointer-events: none;
+}
+
+.trait-element.lower-trait-value {
+  top: calc(var(--trait-y) + var(--trait-overlay-value-y-offset, 0%));
 }
 
 .close-trait-card {
@@ -2318,7 +2376,7 @@ body.debug-card-layout .trait-element,
   align-items: center;
   justify-content: flex-start;
   gap: clamp(18px, 3dvh, 28px);
-  scroll-snap-type: y proximity;
+  scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
