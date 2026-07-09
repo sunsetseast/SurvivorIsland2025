@@ -51,8 +51,9 @@ export default class TribalCouncilSystem {
 
     this.buildTribeContext(attendingTribeId);
     const day = this.gameManager.getDay?.() ?? null;
+    const attendingTribeIdResolved = this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null;
 
-    console.log('[TribalCouncilSystem] runPreMergeTribal start', {
+    this._debug('runPreMergeTribal start', {
       day,
       attendingTribeId,
       resolvedTribeId: this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null,
@@ -69,6 +70,11 @@ export default class TribalCouncilSystem {
       id: member.id,
       name: member.name || member.id
     }));
+
+    const playerVoteRequirement = this._getPlayerVoteRequirement();
+    if (playerVoteRequirement) {
+      return this._buildPlayerVoteRequiredSummary({ day, membersAtTribal, attendingTribeId: attendingTribeIdResolved });
+    }
 
     for (const voter of this.voters) {
       if (!voter.isPlayer) continue;
@@ -126,7 +132,6 @@ export default class TribalCouncilSystem {
     const validVoteCount = this.voteRecords.filter(vote => !vote.wasNullified).length;
     const nullifiedVoteCount = this.voteRecords.filter(vote => vote.wasNullified).length;
     const tribalTimestamp = Date.now();
-    const attendingTribeIdResolved = this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null;
     const getName = (id) => this._findSurvivorById(id)?.name || id;
 
     const tribalSummary = {
@@ -201,7 +206,7 @@ export default class TribalCouncilSystem {
 
     tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
 
-    console.log('[TribalCouncilSystem] runPreMergeTribal resolved', {
+    this._debug('runPreMergeTribal resolved', {
       initialTie,
       revoteOccurred,
       rockDrawOccurred,
@@ -295,6 +300,57 @@ export default class TribalCouncilSystem {
     }
   }
 
+  _getPlayerVoteRequirement() {
+    const player = this.voters.find(member => member?.isPlayer);
+    if (!player?.id || !this.gameManager.hasVote?.(player)) return null;
+
+    const playerId = this._normalizeId(player.id);
+    if (this.sitdUsers.has(playerId) || this.playerVotes.has(playerId)) return null;
+
+    return {
+      playerId,
+      playerName: player.name || playerId,
+      reason: 'PLAYER_VOTE_REQUIRED'
+    };
+  }
+
+  _buildPlayerVoteRequiredSummary({ day = null, membersAtTribal = [], attendingTribeId = null } = {}) {
+    const requirement = this._getPlayerVoteRequirement();
+    const summary = {
+      day,
+      attendingTribeId,
+      membersAtTribal,
+      votes: [],
+      initialVotes: [],
+      revoteVotes: [],
+      idolPlays: [],
+      shotResults: [],
+      initialCounts: {},
+      initialTally: {},
+      decidingCounts: null,
+      decidingTally: null,
+      eliminatedId: null,
+      eliminatedName: null,
+      voteOrder: [],
+      majorityThreshold: this.majorityThreshold,
+      wasTie: false,
+      initialTie: false,
+      revoteOccurred: false,
+      revotePendingPlayerChoice: false,
+      tribalState: 'PLAYER_VOTE_REQUIRED',
+      blockedReason: requirement?.reason || 'PLAYER_VOTE_REQUIRED',
+      playerVoteRequired: true,
+      requiredPlayerId: requirement?.playerId || null,
+      decisionResolved: false,
+      createdAt: Date.now()
+    };
+    summary.jeffCommentary = {
+      ...this.generateJeffCommentary(summary),
+      votingIntroLine: 'A player vote is still required before Tribal Council can continue.'
+    };
+    return summary;
+  }
+
   registerPlayerVote(voterId, targetId) {
     const voter = this._findSurvivorById(voterId) || voterId;
     if (!this.gameManager.hasVote?.(voter) || this.lostVoteIds.has(this._normalizeId(voterId))) {
@@ -368,9 +424,16 @@ export default class TribalCouncilSystem {
   resolveShotInTheDark() {
     for (const playerId of this.sitdUsers) {
       const player = this._findSurvivorById(playerId) || playerId;
-      if (!this.gameManager.canPlayShotInTheDark?.(player) || !this.gameManager.hasVote?.(player)) {
+      if (!this.gameManager.canPlayShotInTheDark?.(player)) {
         continue;
       }
+
+      const consumed = this.gameManager.consumeShotInTheDarkForSurvivor?.(playerId, {
+        tribalNumber: this.tribalNumber,
+        day: this.gameManager.getDay?.()
+      });
+      if (consumed === false) continue;
+
       const isSafe = Math.random() < 1 / 6;
       this.shotResults.push({
         type: 'shotInTheDark',
@@ -379,6 +442,7 @@ export default class TribalCouncilSystem {
         gainedImmunity: isSafe,
         result: isSafe ? 'SAFE' : 'NOT_SAFE',
         forfeitedVote: true,
+        consumed: true,
         timestamp: Date.now()
       });
 
@@ -444,19 +508,19 @@ export default class TribalCouncilSystem {
       }
 
       const successful = nullifiedVotesCount > 0;
-      if (successful) {
-        this.gameManager.consumeIdolForSurvivor?.(play.playedById, {
-          playedOnId: play.playedOnId,
-          day: this.gameManager.getDay?.(),
-          tribalNumber: this.tribalNumber
-        });
-      }
+      const consumed = this.gameManager.consumeIdolForSurvivor?.(play.playedById, {
+        playedOnId: play.playedOnId,
+        day: this.gameManager.getDay?.(),
+        tribalNumber: this.tribalNumber,
+        successful
+      }) || this._consumeIdolFallback(playedBy);
 
       this.idolPlays.push({
         type: 'idolPlay',
         playedById: play.playedById,
         playedOnId: play.playedOnId,
         successful,
+        consumed: Boolean(consumed),
         nullifiedVotesCount,
         timestamp: Date.now()
       });
@@ -902,18 +966,38 @@ export default class TribalCouncilSystem {
     if (this.playerVotes.has(voterId)) {
       const selectedTarget = this.playerVotes.get(voterId);
       this._recordVote(voter.id, selectedTarget, false);
-      return;
+      return true;
     }
 
-    const fallbackTarget = this.eligibleTargets.find(target => (
-      !this._idsEqual(target.id, voter.id)
-      && !target.isOut
-      && !this.immunityHolderIds.has(this._normalizeId(target.id))
-    ));
+    // The player must make this choice through the UI. Never invent a vote.
+    return false;
+  }
 
-    if (fallbackTarget) {
-      this._recordVote(voter.id, fallbackTarget.id, false);
+  _consumeIdolFallback(survivor) {
+    if (!survivor) return false;
+
+    const idolSystem = this.gameManager.systems?.idolSystem;
+    const inventory = idolSystem?.survivorInventories?.get?.(survivor.id)
+      || idolSystem?.survivorInventories?.get?.(this._normalizeId(survivor.id));
+    const idol = inventory?.idols?.find(entry => !entry?.isUsed && !entry?.played);
+    if (idol) {
+      idol.isUsed = true;
+      idol.played = true;
+      idol.usedOnDay = this.gameManager.getDay?.();
+      return true;
     }
+
+    if (survivor.hasIdol || survivor?.advantages?.idol || survivor?.advantages?.hasIdol) {
+      survivor.hasIdol = false;
+      survivor.advantages = {
+        ...(survivor.advantages || {}),
+        idol: false,
+        hasIdol: false
+      };
+      return true;
+    }
+
+    return false;
   }
 
   _hasIdol(survivor) {
@@ -948,6 +1032,11 @@ export default class TribalCouncilSystem {
     return (this.gameManager.survivors || []).find(member => this._idsEqual(member?.id, normalized))
       || this.voters.find(member => this._idsEqual(member?.id, normalized))
       || null;
+  }
+
+  _debug(message, payload = null) {
+    if (this.gameManager?.gameSettings?.debugTribal !== true && this.gameManager?.debug?.tribal !== true) return;
+    console.debug(`[TribalCouncilSystem] ${message}`, payload);
   }
 
 }

@@ -1399,12 +1399,13 @@ class StrategyPhaseSystem {
       return;
     }
 
+    const attendingTribeId = gameManager.getPlayerTribe?.()?.tribeId || gameManager.getPlayerTribe?.()?.id || null;
     gameManager.gamePhase = GamePhase.TRIBAL_COUNCIL;
-    gameManager.setGameState(GameState.TRIBAL_COUNCIL);
     eventManager.publish(GameEvents.TRIBAL_COUNCIL_STARTED, {
       day: gameManager.getDay?.() || gameManager.day,
-      tribeId: gameManager.getPlayerTribe?.()?.tribeId || gameManager.getPlayerTribe?.()?.id || null
+      tribeId: attendingTribeId
     });
+    gameManager.setGameState(GameState.TRIBAL_COUNCIL, { attendingTribeId });
 
     console.log('[StrategyPhaseSystem] proceedAfterSummary tribal branch complete', {
       gamePhase: gameManager.gamePhase,

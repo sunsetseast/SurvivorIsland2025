@@ -465,6 +465,10 @@
     </script>
 
     <script>
+    const debugUiEnabled = new URLSearchParams(window.location.search).has('debug') || window.DEBUG_MODE === true;
+    if (!debugUiEnabled) {
+      window.debugBanner = function() {};
+    } else {
     window.debugBanner = window.debugBanner || function(message, data) {
       try {
         let panel = document.getElementById("__debug_panel");
@@ -516,6 +520,7 @@
         console.log("DebugBanner error:", err);
       }
     };
+    }
     </script>
 
 <!-- MUST COME AFTER debugBanner so modules can use it -->
