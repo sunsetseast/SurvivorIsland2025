@@ -52,6 +52,7 @@ export const GameEvents = {
   TRIBAL_COUNCIL_STARTED: 'tribalCouncil:started',
   TRIBAL_COUNCIL_COMPLETE: 'tribalCouncil:complete',
   VOTE_CAST: 'vote:cast',
+  SHOT_IN_THE_DARK_PLAYED: 'shotInTheDark:played',
   SURVIVOR_ELIMINATED: 'survivor:eliminated',
 
   // Relationship events

@@ -30,18 +30,13 @@ window.closeSocialMenuOverlay = closeSocialMenuOverlay;
 window.openAlliancesOverlay = openAlliancesOverlay;
 window.closeAlliancesOverlay = closeAlliancesOverlay;
 
-// Banner to confirm main.js is running
-const debugBanner = document.createElement('div');
-debugBanner.textContent = 'main.js is running!';
-debugBanner.style.position = 'fixed';
-debugBanner.style.top = '0px';
-debugBanner.style.marginBottom = '50px';
-debugBanner.style.left = '0';
-debugBanner.style.backgroundColor = 'red';
-debugBanner.style.color = 'white';
-debugBanner.style.padding = '5px 10px';
-debugBanner.style.zIndex = '9999';
-document.body.appendChild(debugBanner);
+// A startup marker is available only when explicitly debugging.
+if (new URLSearchParams(window.location.search).has('debug')) {
+  const debugBanner = document.createElement('div');
+  debugBanner.textContent = 'main.js is running!';
+  debugBanner.style.cssText = 'position:fixed;top:0;left:0;background:#8d1b16;color:#fff;padding:5px 10px;z-index:9999;';
+  document.body.appendChild(debugBanner);
+}
 
 /**
  * Initialize the game when the DOM is loaded
