@@ -64,14 +64,14 @@ class ScreenManager {
 
     if (!screen) {
       console.error(`Screen ${screenId} not found`);
-      addDebugBanner(`Screen ${screenId} not found`, 'red', 20);
+      this._showDebugBanner(`Screen ${screenId} not found`, 'red', 20);
       return;
     }
 
     const screenElement = getElement(`${screenId}-screen`);
     if (!screenElement) {
       console.error(`Screen element #${screenId}-screen not found`);
-      addDebugBanner(`Element #${screenId}-screen not found`, 'red', 30);
+      this._showDebugBanner(`Element #${screenId}-screen not found`, 'red', 30);
       return;
     }
 
@@ -103,10 +103,10 @@ class ScreenManager {
 
     try {
       screen.setup(data);
-      addDebugBanner(`✅ setup() executed for ${screenId}`, 'lime', 50);
+      this._showDebugBanner(`✅ setup() executed for ${screenId}`, 'lime', 50);
     } catch (error) {
       console.error(`Error in screen setup for ${screenId}:`, error);
-      addDebugBanner(`ERROR in setup(): ${error.message}`, 'red', 60);
+      this._showDebugBanner(`ERROR in setup(): ${error.message}`, 'red', 60);
     }
 
     eventManager.publish(GameEvents.SCREEN_CHANGED, {
@@ -173,6 +173,11 @@ class ScreenManager {
     screenElements.forEach(element => {
       hideElement(element);
     });
+  }
+
+  _showDebugBanner(message, color, duration) {
+    if (!new URLSearchParams(window.location.search).has('debug')) return;
+    addDebugBanner(message, color, duration);
   }
 
   _noTransition(element, callback) {

@@ -133,7 +133,7 @@ class GameManager {
     this.gameHistory.tribals.push(canonicalEntry);
     this.tribalCouncilLog.push(canonicalEntry);
 
-    console.log('[GameManager] handleTribalCouncilComplete', {
+    this._debugTribal('handleTribalCouncilComplete', {
       day: canonicalEntry.day,
       attendingTribeId: canonicalEntry.attendingTribeId,
       eliminatedId: canonicalEntry.eliminatedId,
@@ -143,7 +143,7 @@ class GameManager {
     });
 
     if (canonicalEntry.wasTie) {
-      console.log('[TribalCouncil] Tie detected:', {
+      this._debugTribal('Tie detected', {
         revoteVotes: canonicalEntry.revoteVotes,
         rockDrawEligible: canonicalEntry.rockDrawEligible,
         rockDrawEliminatedId: canonicalEntry.rockDrawEliminatedId,
@@ -168,7 +168,7 @@ class GameManager {
     this.systems.dealSystem?.processTribalOutcome?.(canonicalEntry, this);
     this.systems.allianceSystem?.processPostTribalFallout?.(canonicalEntry, this);
     this.requestAutoSave('tribalCouncilComplete');
-    console.log('[GameManager] Tribal consequences processed', {
+    this._debugTribal('Tribal consequences processed', {
       dealsProcessed: Boolean(this.systems.dealSystem?.processTribalOutcome),
       allianceFalloutProcessed: Boolean(this.systems.allianceSystem?.processPostTribalFallout)
     });
@@ -188,11 +188,16 @@ class GameManager {
     this.gamePhase = GamePhase.PRE_CHALLENGE;
     this.dayTimer = 7200;
     this.setGameState(GameState.CAMP);
-    console.log('[GameManager] Tribal complete -> next day/camp transition complete', {
+    this._debugTribal('Tribal complete -> next day/camp transition complete', {
       day: this.day,
       gamePhase: this.gamePhase,
       gameState: this.gameState
     });
+  }
+
+  _debugTribal(message, payload = null) {
+    if (this.gameSettings?.debugTribal !== true && this.debug?.tribal !== true) return;
+    console.debug(`[GameManager:Tribal] ${message}`, payload);
   }
 
   _buildTribalLogEntry(tribalSummary = {}) {
@@ -278,6 +283,21 @@ class GameManager {
       wasRockDraw: Boolean(tribalSummary.rockDrawOccurred),
       forcedResolution: Boolean(tribalSummary.forcedResolution),
       jeffCommentary: tribalSummary.jeffCommentary || null,
+      tribalQuestions: (tribalSummary.tribalQuestions || []).map(question => ({
+        id: question.id || null,
+        topic: question.topic || null,
+        focusSurvivorId: question.focusSurvivorId || null,
+        severity: Number(question.severity) || 0,
+        questionText: question.questionText || null
+      })),
+      questionResponses: (tribalSummary.questionResponses || []).map(response => ({
+        questionId: response.questionId || null,
+        topic: response.topic || null,
+        responseId: response.responseId || null,
+        responseLabel: response.responseLabel || null,
+        responseText: response.responseText || null,
+        applied: Boolean(response.applied)
+      })),
       majorityThreshold: tribalSummary.majorityThreshold || 0,
       createdAt: tribalSummary.createdAt || Date.now()
     };
@@ -418,7 +438,7 @@ class GameManager {
     return true;
   }
 
-  setGameState(newState) {
+  setGameState(newState, screenData = {}) {
     if (!Object.values(GameState).includes(newState)) return;
     const oldState = this.gameState;
     this.gameState = newState;
@@ -464,15 +484,15 @@ class GameManager {
 
     }
 
-    this._updateScreenForState(newState);
-    eventManager.publish(GameEvents.GAME_STATE_CHANGED, { oldState, newState });
+    this._updateScreenForState(newState, screenData);
+    eventManager.publish(GameEvents.GAME_STATE_CHANGED, { oldState, newState, screenData });
 
     if (newState === GameState.CAMP || newState === GameState.TRIBAL_COUNCIL || newState === GameState.GAME_OVER) {
       this.requestAutoSave(`state:${newState}`);
     }
   }
 
-  _updateScreenForState(state) {
+  _updateScreenForState(state, screenData = {}) {
     const map = {
       welcome: 'welcome',
       characterSelection: 'character-selection',
@@ -485,7 +505,7 @@ class GameManager {
       gameOver: 'game-over'
     };
     const screenId = map[state];
-    if (screenId) screenManager.showScreen(screenId);
+    if (screenId) screenManager.showScreen(screenId, screenData);
   }
 
   selectCharacter(survivor) {
@@ -702,7 +722,33 @@ class GameManager {
   }
 
   canPlayShotInTheDark(survivorIdOrObj) {
-    return this.hasVote(survivorIdOrObj) === true;
+    const survivor = typeof survivorIdOrObj === 'string'
+      ? this.survivors.find(entry => entry.id === survivorIdOrObj)
+      : survivorIdOrObj;
+
+    if (!survivor || this.hasVote(survivor) !== true) return false;
+
+    const availability = survivor.advantages?.shotInTheDarkAvailable ?? survivor.shotInTheDarkAvailable;
+    return availability !== false && availability !== 0;
+  }
+
+  consumeShotInTheDarkForSurvivor(survivorId, context = {}) {
+    if (!survivorId) return false;
+
+    const survivor = this.survivors.find(entry => String(entry?.id) === String(survivorId));
+    if (!survivor || !this.canPlayShotInTheDark(survivor)) return false;
+
+    survivor.advantages = { ...(survivor.advantages || {}), shotInTheDarkAvailable: false };
+    survivor.shotInTheDarkAvailable = false;
+    survivor.shotInTheDarkUsedOnDay = this.day;
+
+    eventManager.publish(GameEvents.SHOT_IN_THE_DARK_PLAYED, {
+      survivorId: survivor.id,
+      day: this.day,
+      ...context
+    });
+
+    return true;
   }
 
   hasImmunity(survivorIdOrObj) {

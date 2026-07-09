@@ -1,6 +1,7 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import TribalBeatRunner from './TribalBeatRunner.js';
+import TribalQuestionEngine from '../systems/TribalQuestionEngine.js';
 
 const ASSET_BASE = 'Assets/TribalCouncil';
 
@@ -21,13 +22,19 @@ export default class TribalCouncilView {
     this.beatRunner = null;
     this.allPlayers = [];
     this.sessionJeffCommentary = {};
+    this.questionEngine = new TribalQuestionEngine(gameManager);
+    this.tribalContext = null;
+    this.tribalQuestions = [];
+    this.liveTribalMoment = null;
+    this.questionResponses = new Map();
+    this.questionResponseLog = [];
   }
 
   start() {
     this.setup();
   }
 
-  setup() {
+  setup(data = {}) {
     if (!this.container) {
       this.container = document.getElementById('tribal-council-screen');
     }
@@ -39,11 +46,16 @@ export default class TribalCouncilView {
     this.playerVote = null;
     this.sitdUsed = false;
     this.playerRevote = null;
+    this.questionResponses = new Map();
+    this.questionResponseLog = [];
 
     const playerTribe = this.gameManager.getPlayerTribe?.();
-    this.attendingTribeId = playerTribe?.tribeId ?? playerTribe?.id ?? null;
+    this.attendingTribeId = data?.attendingTribeId ?? data?.tribeId ?? playerTribe?.tribeId ?? playerTribe?.id ?? null;
     this.allPlayers = this._buildAllPlayersList();
     this.sessionJeffCommentary = this.tribalCouncilSystem?.generateJeffCommentary?.({}) || {};
+    this.tribalContext = this.questionEngine.createContext({ attendingTribeId: this.attendingTribeId });
+    this.tribalQuestions = this.questionEngine.generateQuestions({ context: this.tribalContext });
+    this.liveTribalMoment = this.questionEngine.generateLiveTribalMoment({ context: this.tribalContext });
 
     clearChildren(this.container);
     this.root = createElement('div', { className: 'tribal-root' });
@@ -108,6 +120,9 @@ export default class TribalCouncilView {
         text: this.sessionJeffCommentary?.arrivalLine || 'WELCOME TO TRIBAL COUNCIL.',
         textPos: 'top',
         jeff: null,
+        mood: 'tense',
+        pauseMs: 500,
+        canSkipAfterMs: 260,
         button: { label: 'CONTINUE' }
       },
       {
@@ -115,13 +130,29 @@ export default class TribalCouncilView {
         background: this._resolveTribalBackground(alive.length),
         showStools: true,
         stoolsData: alive,
+        customRender: (content) => this._renderMoodScan(content, alive),
+        mood: 'tense',
         button: { label: 'CONTINUE' }
       },
       {
+        id: 'jeff-opening',
+        background: this._resolveTribalBackground(alive.length),
+        showStools: true,
+        stoolsData: alive,
+        text: this.questionEngine.getOpeningLine(this.tribalContext),
+        textPos: 'top',
+        jeff: { img: `${ASSET_BASE}/jeff.png` },
+        mood: 'watchful',
+        button: { label: 'LET\'S TALK' }
+      },
+      ...this._buildQuestionBeats(alive),
+      ...(this.liveTribalMoment ? [this._buildLiveTribalBeat(alive)] : []),
+      {
         id: 'vote-intro',
         background: `${ASSET_BASE}/votewalk.jpeg`,
-        text: this.sessionJeffCommentary?.votingIntroLine || 'It is time to vote.',
+        text: 'The fire has heard enough. It is time to vote.',
         textPos: 'center',
+        mood: 'decisive',
         button: { label: 'Vote' }
       },
       {
@@ -148,6 +179,119 @@ export default class TribalCouncilView {
     ];
   }
 
+  _buildQuestionBeats(alive = []) {
+    return this.tribalQuestions.map((question, index) => ({
+      id: `tribal-question-${question.id}`,
+      background: this._resolveTribalBackground(alive.length),
+      showStools: true,
+      stoolsData: alive,
+      stoolHighlightId: question.focusSurvivorId,
+      jeff: { img: `${ASSET_BASE}/jeff.png` },
+      mood: question.mood?.id || 'tense',
+      cameraTargetIds: question.focusSurvivorId ? [question.focusSurvivorId] : [],
+      reactionTargetIds: (question.reactions || []).map(reaction => reaction.survivorId),
+      customRender: (content) => this._renderQuestionContent(content, question),
+      button: {
+        label: index === this.tribalQuestions.length - 1 && !this.liveTribalMoment ? 'MOVE TO THE VOTE' : 'CONTINUE',
+        disabled: () => question.responseOptions?.length > 0 && !this.questionResponses.has(question.id)
+      }
+    }));
+  }
+
+  _buildLiveTribalBeat(alive = []) {
+    const moment = this.liveTribalMoment;
+    return {
+      id: 'live-tribal-tension',
+      background: this._resolveTribalBackground(alive.length),
+      showStools: true,
+      stoolsData: alive,
+      stoolHighlightId: moment?.focusSurvivorId,
+      mood: 'chaotic',
+      cameraTargetIds: moment?.focusSurvivorId ? [moment.focusSurvivorId] : [],
+      customRender: (content) => this._renderQuestionContent(content, moment, { live: true }),
+      button: {
+        label: 'SETTLE BACK IN',
+        disabled: () => !this.questionResponses.has(moment?.id)
+      }
+    };
+  }
+
+  _renderMoodScan(content, members = []) {
+    const summary = createElement('div', { className: 'tribal-mood-summary' });
+    summary.appendChild(createElement('div', { className: 'tribal-mood-summary-title' }, 'TRIBE MOOD'));
+    const list = createElement('div', { className: 'tribal-mood-list' });
+    members.forEach(member => {
+      const mood = this.questionEngine.getMood(member, { context: this.tribalContext });
+      list.appendChild(createElement('span', { className: `tribal-mood-chip is-${mood.id}` }, `${this.getTribalName(member)} · ${mood.label}`));
+    });
+    summary.appendChild(list);
+    content.appendChild(summary);
+  }
+
+  _renderQuestionContent(content, question, { live = false } = {}) {
+    if (!question) return;
+    const focus = this.getSurvivorById(question.focusSurvivorId);
+    const card = createElement('div', { className: `tribal-question ${live ? 'tribal-question-live' : ''}`.trim() });
+
+    if (live) {
+      card.appendChild(createElement('div', { className: 'tribal-question-kicker' }, 'LIVE TRIBAL'));
+    } else {
+      card.appendChild(createElement('div', { className: 'tribal-question-kicker' }, focus ? `HOST TO ${this.getTribalName(focus)}` : 'TRIBAL COUNCIL'));
+    }
+    card.appendChild(createElement('div', { className: 'tribal-question-text' }, question.questionText));
+
+    if (question.npcAnswer) {
+      card.appendChild(createElement('div', { className: 'tribal-answer' }, question.npcAnswer));
+    }
+
+    const selectedResponseId = this.questionResponses.get(question.id);
+    if (question.responseOptions?.length) {
+      const options = createElement('div', { className: 'tribal-response-options' });
+      question.responseOptions.forEach(response => {
+        const isSelected = selectedResponseId === response.id;
+        options.appendChild(createElement('button', {
+          className: `rect-button small ${isSelected ? 'is-selected' : ''}`.trim(),
+          type: 'button',
+          disabled: Boolean(selectedResponseId),
+          onclick: () => this._selectQuestionResponse(question, response)
+        }, response.label));
+      });
+      card.appendChild(options);
+
+      if (selectedResponseId) {
+        const selected = question.responseOptions.find(response => response.id === selectedResponseId);
+        card.appendChild(createElement('div', { className: 'tribal-response-feedback' }, selected?.text || 'You make your answer.'));
+      }
+    }
+
+    content.appendChild(card);
+
+    const reactions = question.reactions || [];
+    if (reactions.length) {
+      const reactionWrap = createElement('div', { className: 'tribal-reactions' });
+      reactions.slice(0, 2).forEach(reaction => {
+        reactionWrap.appendChild(createElement('div', { className: 'tribal-reaction' }, reaction.text));
+      });
+      content.appendChild(reactionWrap);
+    }
+  }
+
+  _selectQuestionResponse(question, response) {
+    if (!question || !response || this.questionResponses.has(question.id)) return;
+    const result = this.questionEngine.applyResponse(question, response);
+    this.questionResponses.set(question.id, response.id);
+    this.questionResponseLog.push({
+      questionId: question.id,
+      topic: question.topic,
+      responseId: response.id,
+      responseLabel: response.label,
+      responseText: response.text,
+      applied: Boolean(result?.applied)
+    });
+    this.tribalContext = this.questionEngine.createContext({ attendingTribeId: this.attendingTribeId });
+    this.beatRunner?.goTo(this.beatRunner.currentIndex, { force: true });
+  }
+
   _transitionToReadVotes(controls) {
     if (!this.attendingTribeId) {
       this.finish();
@@ -155,10 +299,27 @@ export default class TribalCouncilView {
     }
 
     this.tribalSummary = this.tribalCouncilSystem.runPreMergeTribal({ attendingTribeId: this.attendingTribeId });
+    if (this.tribalSummary?.tribalState === 'PLAYER_VOTE_REQUIRED') {
+      controls.setBeats(this._buildPreVoteBeats(), { index: this._findVotingBoothIndex() });
+      return;
+    }
+
+    this.tribalSummary.questionResponses = [...this.questionResponseLog];
+    this.tribalSummary.tribalQuestions = this.tribalQuestions.map(question => ({
+      id: question.id,
+      topic: question.topic,
+      focusSurvivorId: question.focusSurvivorId,
+      severity: question.severity,
+      questionText: question.questionText
+    }));
     this.result = this.tribalSummary;
 
     const postVoteBeats = this._buildPostVoteBeats();
     controls.setBeats(postVoteBeats, { index: 0 });
+  }
+
+  _findVotingBoothIndex() {
+    return Math.max(0, this._buildPreVoteBeats().findIndex(beat => beat.id === 'voting-booth'));
   }
 
   _buildPostVoteBeats() {
@@ -166,9 +327,10 @@ export default class TribalCouncilView {
       {
         id: 'read-votes-intro',
         background: `${ASSET_BASE}/illread.png`,
-        text: this.tribalSummary?.jeffCommentary?.votesRevealingIntroLine || 'I will read the votes.',
+        text: 'Once the votes are read, the decision is final. I will read the votes.',
         textPos: 'top',
         jeff: this.tribalSummary?.jeffCommentary?.votesRevealingIntroLine ? { img: `${ASSET_BASE}/jeff.png` } : null,
+        mood: 'suspense',
         button: { label: 'READ VOTES' }
       },
       ...this._buildVoteRevealBeats((this.tribalSummary?.voteOrder || []).filter(v => v.phase !== 'revote'), 'initial')
@@ -181,6 +343,7 @@ export default class TribalCouncilView {
           background: `${ASSET_BASE}/voteread.png`,
           text: this.tribalSummary?.jeffCommentary?.tieLine || 'WE ARE TIED. THAT MEANS WE VOTE AGAIN, AND ONLY FOR THE TIED PLAYERS.',
           textPos: 'top',
+          mood: 'shock',
           button: { label: 'CONTINUE' }
         },
         {
@@ -214,6 +377,15 @@ export default class TribalCouncilView {
         const eliminatedName = this.getTribalName(this.tribalSummary?.rockDrawEliminatedId);
         beats.push(
           {
+            id: 'deadlock-discussion',
+            background: `${ASSET_BASE}/voteread.png`,
+            text: 'The revote did not break the tie. This is the final chance to change the outcome before rocks decide it.',
+            textPos: 'top',
+            mood: 'deadlock',
+            customRender: (content) => this._renderDeadlockDiscussion(content),
+            button: { label: 'NO ONE BUDGES' }
+          },
+          {
             id: 'rocks-intro',
             background: `${ASSET_BASE}/voteread.png`,
             text: this.tribalSummary?.jeffCommentary?.rocksIntroLine || 'WE ARE DEADLOCKED. WE ARE GOING TO ROCKS.',
@@ -238,7 +410,21 @@ export default class TribalCouncilView {
       background: `${ASSET_BASE}/snuff.jpeg`,
       text: this.result?.jeffCommentary?.snuffLine || `${eliminatedName}, THE TRIBE HAS SPOKEN.`,
       textPos: 'center',
-      button: { label: this._shouldShowDebugSummary() ? 'REVIEW SUMMARY' : 'FINISH', onClick: () => (this._shouldShowDebugSummary() ? this.renderDebugSummary() : this.finish()) }
+      mood: 'final',
+      button: { label: 'CONTINUE' }
+    });
+
+    beats.push({
+      id: 'tribal-aftermath',
+      background: `${ASSET_BASE}/snuff.jpeg`,
+      text: 'THE FIRE GOES OUT. THE FALLOUT DOES NOT.',
+      textPos: 'top',
+      mood: 'aftermath',
+      customRender: (content) => this._renderAftermath(content),
+      button: {
+        label: this._shouldShowDebugSummary() ? 'REVIEW SUMMARY' : 'RETURN TO CAMP',
+        onClick: () => (this._shouldShowDebugSummary() ? this.renderDebugSummary() : this.finish())
+      }
     });
 
     return beats;
@@ -289,6 +475,10 @@ export default class TribalCouncilView {
         background: `${ASSET_BASE}/voteread.png`,
         textPos: 'parchment',
         jeffLine,
+        mood: revealIndex >= totalReveals - 1 ? 'peak-suspense' : 'suspense',
+        pauseMs: revealIndex >= totalReveals - 1 ? 1050 : 650,
+        canSkipAfterMs: revealIndex >= totalReveals - 1 ? 800 : 420,
+        reactionLines: this._getVoteReactionLines({ vote, countsAfter, phase, revealIndex, totalReveals }),
         parchment: {
           show: true,
           voteName: this._resolveVoteName(vote),
@@ -364,6 +554,13 @@ export default class TribalCouncilView {
       if (isVoteRevealBeat) delayedRevealElements.push(tally);
     }
 
+    if (Array.isArray(beat?.reactionLines) && beat.reactionLines.length) {
+      const reactions = createElement('div', { className: `tribal-reaction-stack ${isVoteRevealBeat ? 'tribal-delayed-reveal' : ''}`.trim() });
+      beat.reactionLines.forEach(line => reactions.appendChild(createElement('div', { className: 'tribal-reaction' }, line)));
+      panel.appendChild(reactions);
+      if (isVoteRevealBeat) delayedRevealElements.push(reactions);
+    }
+
     const actions = this._createActions(beat, controls);
     if (actions) panel.appendChild(actions);
 
@@ -399,12 +596,13 @@ export default class TribalCouncilView {
     }
 
     if (hasButton) {
-      const button = createElement('button', {
-        className: 'rect-button',
-        type: 'button',
-        disabled: typeof beat.button.disabled === 'function' ? beat.button.disabled() : !!beat.button.disabled,
-        onclick: () => {
-          if (beat.button.onClick) {
+        const button = createElement('button', {
+          className: 'rect-button',
+          type: 'button',
+          disabled: !controls.canAdvance() || (typeof beat.button.disabled === 'function' ? beat.button.disabled() : !!beat.button.disabled),
+          onclick: () => {
+            if (!controls.canAdvance()) return;
+            if (beat.button.onClick) {
             beat.button.onClick(controls);
             return;
           }
@@ -541,9 +739,10 @@ export default class TribalCouncilView {
     members.forEach((member, index) => {
       const position = positions[index] || { leftPct: 50, topPct: 40 };
       const avatarUrl = this._getAvatarUrl(member);
+      const mood = this.questionEngine.getMood(member, { context: this.tribalContext });
       const seat = createElement('div', {
-        className: `tribal-seat ${String(member?.id) === String(highlightId) ? 'is-highlighted' : ''}`.trim(),
-        title: this.getTribalName(member),
+        className: `tribal-seat is-${mood.id} ${String(member?.id) === String(highlightId) ? 'is-highlighted' : ''}`.trim(),
+        title: `${this.getTribalName(member)} · ${mood.label}`,
         style: {
           left: `${position.leftPct}%`,
           top: `${position.topPct}%`
@@ -555,6 +754,8 @@ export default class TribalCouncilView {
       } else {
         seat.appendChild(createElement('span', { className: 'tribal-seat-fallback' }, this.getDisplayName(member).charAt(0)));
       }
+
+      seat.appendChild(createElement('span', { className: `tribal-mood-chip is-${mood.id}` }, mood.label));
 
       wrap.appendChild(seat);
     });
@@ -696,7 +897,7 @@ export default class TribalCouncilView {
   }
 
   _renderJeff(jeff = {}) {
-    const wrap = createElement('div', { className: 'tribal-jeff-wrap' });
+    const wrap = createElement('div', { className: 'tribal-jeff tribal-jeff-wrap' });
     const img = createElement('img', {
       className: 'tribal-jeff-img',
       src: jeff.img,
@@ -822,6 +1023,72 @@ export default class TribalCouncilView {
     const remaining = totalReveals - revealIndex;
     if (remaining <= 1) return 'This next vote could decide it.';
     return `Vote ${revealIndex}${phaseLabel}... ${name}.`;
+  }
+
+  _getVoteReactionLines({ vote, countsAfter, revealIndex, totalReveals }) {
+    if (vote?.wasNullified) {
+      return ['The tribe exhales as the parchment is set aside.'];
+    }
+
+    const targetName = this.getTribalName(vote?.targetId);
+    const voteCount = countsAfter[String(vote?.targetId)] || 0;
+    if (revealIndex === totalReveals) return [`Every eye moves to ${targetName}.`];
+    if (voteCount >= 2) return [`${targetName} absorbs another vote without looking away.`];
+    return ['A few heads turn, but nobody shows their hand.'];
+  }
+
+  _renderDeadlockDiscussion(content) {
+    const discussion = createElement('div', { className: 'tribal-aftermath' });
+    discussion.appendChild(createElement('div', { className: 'tribal-aftermath-title' }, 'THE DECISION DISCUSSION'));
+    discussion.appendChild(createElement('div', { className: 'tribal-aftermath-line' }, 'The tied players cannot vote. Everyone else must decide whether they are willing to change course.'));
+    discussion.appendChild(createElement('div', { className: 'tribal-aftermath-line tribal-warning' }, 'No one moves. The deadlock stands.'));
+    content.appendChild(discussion);
+  }
+
+  _renderAftermath(content) {
+    const summary = this.tribalSummary || {};
+    const finalCounts = summary.rockDrawOccurred
+      ? summary.initialCounts || {}
+      : summary.decidingCounts || summary.revoteCounts || summary.initialCounts || {};
+    const voteLines = Object.entries(finalCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, count]) => `${this.getTribalName(id)}: ${count}`);
+    const eliminated = this.getTribalName(summary.eliminatedId || summary.rockDrawEliminatedId);
+    const details = [];
+
+    if ((summary.idolPlays || []).length) {
+      details.push(`${summary.idolPlays.length === 1 ? 'An idol was played' : `${summary.idolPlays.length} idols were played`} — and every played idol is gone.`);
+    }
+    if ((summary.shotResults || []).length) {
+      const safe = summary.shotResults.some(result => result.success);
+      details.push(`Shot in the Dark: ${safe ? 'SAFE' : 'NOT SAFE'}. The vote was sacrificed.`);
+    }
+    if (summary.revoteOccurred) details.push(summary.rockDrawOccurred ? 'The revote failed to break the tie. Rocks decided the night.' : 'The revote broke the tie.');
+    const betrayal = this._getBiggestBetrayal(summary);
+    if (betrayal) details.push(betrayal);
+    details.push('Back at camp, nobody will be quite as comfortable as they were before this fire.');
+
+    const wrap = createElement('div', { className: 'tribal-aftermath' });
+    wrap.appendChild(createElement('div', { className: 'tribal-aftermath-title' }, `${eliminated} IS OUT`));
+    if (voteLines.length) {
+      wrap.appendChild(createElement('div', { className: 'tribal-aftermath-vote' }, `FINAL VOTE · ${voteLines.join('  |  ')}`));
+    }
+    details.forEach(line => wrap.appendChild(createElement('div', { className: 'tribal-aftermath-line' }, line)));
+    content.appendChild(wrap);
+  }
+
+  _getBiggestBetrayal(summary = {}) {
+    const allianceSystem = this.gameManager?.systems?.allianceSystem;
+    const alliances = allianceSystem?.getAlliances?.() || [];
+    const decidingVotes = summary.revoteOccurred && !summary.rockDrawOccurred
+      ? summary.revoteVotes || []
+      : summary.initialVotes || summary.votes || [];
+    const betrayal = decidingVotes.find(vote => alliances.some(alliance => {
+      const ids = alliance.memberIds || [];
+      return ids.some(id => String(id) === String(vote.voterId)) && ids.some(id => String(id) === String(vote.targetId));
+    }));
+    if (!betrayal) return null;
+    return `${this.getTribalName(betrayal.voterId)} voted against an ally in the open — an alliance has fractured.`;
   }
 
 
