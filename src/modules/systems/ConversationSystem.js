@@ -3193,6 +3193,10 @@ class ConversationSystem {
   _buildVibeCheckNodes({ player, npc, context }) {
     const tribe = this.gameManager.getPlayerTribe?.();
     const day1Mood = tribe?.day1Mood || tribe?.closingMood || 'tentative';
+    const day1Memories = this.gameManager.systems?.socialMemorySystem?.getDay1CampMemories?.(npc?.id) || [];
+    const rememberedTension = day1Memories.find(memory => ['early_tension', 'first_impression_watch', 'camp_tension'].includes(memory.type));
+    const rememberedLeadership = day1Memories.find(memory => memory.type === 'unofficial_leader');
+    const rememberedBond = day1Memories.find(memory => ['early_respect', 'early_bond'].includes(memory.type));
     return [
       {
         id: 'camp_vibe',
@@ -3200,6 +3204,9 @@ class ConversationSystem {
         playerLine: 'What’s the vibe like right now? This tribe feels… something.',
         npcReplyByStance: {
           DEFAULT: [() => {
+            if (rememberedTension) return 'It feels tense. First impressions out here do not just vanish because everybody picked up a job.';
+            if (rememberedBond) return 'There are a few real connections already. That can steady a tribe — or make everyone else start counting pairs.';
+            if (rememberedLeadership?.tags?.includes('contested')) return 'Nobody said it out loud, but people are still deciding who gets to set the pace.';
             if (day1Mood === 'chaotic') return 'It’s chaotic. People are smiling, but it feels like everyone’s taking notes.';
             if (day1Mood === 'confident') return 'It’s confident. Like people think we’ve got this… which makes me nervous.';
             return 'It’s tentative. Nobody wants to be the first person to show their cards.';

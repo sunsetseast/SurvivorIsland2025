@@ -314,6 +314,26 @@ function renderCinematicRecap(entry) {
     summaryBlock.textContent = entry.text || '';
   }
   card.appendChild(summaryBlock);
+
+  const memories = Array.isArray(entry.data?.memories) ? entry.data.memories : [];
+  const memorable = memories.filter(memory => ['unofficial_leader', 'player_first_impression', 'early_respect', 'early_tension', 'early_bond', 'camp_tension'].includes(memory?.type)).slice(0, 5);
+  if (memorable.length) {
+    const memorySection = createElement('div', {
+      style: {
+        marginTop: '12px',
+        paddingTop: '10px',
+        borderTop: '1px solid #d2b48c',
+        color: '#3c2415'
+      }
+    });
+    memorySection.appendChild(createElement('div', { style: { fontWeight: 'bold', marginBottom: '5px' } }, 'What will carry forward'));
+    memorable.forEach(memory => {
+      const line = createElement('div', { style: { marginBottom: '4px', paddingLeft: '10px', position: 'relative' } });
+      line.textContent = `• ${memory.summary}`;
+      memorySection.appendChild(line);
+    });
+    card.appendChild(memorySection);
+  }
   return card;
 }
 

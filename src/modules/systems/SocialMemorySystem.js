@@ -1098,6 +1098,16 @@ class SocialMemorySystem {
         });
     }
 
+    getDay1CampMemories(npcId, { limit = 6 } = {}) {
+        if (npcId == null) return [];
+        this.initNPC(npcId);
+        return (this.memory[npcId].structuredEvents || [])
+            .filter(entry => entry.type === 'day1_camp_memory' && entry.data?.eventId === 'day1_first_impressions')
+            .map(entry => entry.data)
+            .filter((entry, index, all) => all.findIndex(candidate => candidate.id === entry.id) === index)
+            .slice(-limit);
+    }
+
     serialize() {
         return JSON.parse(JSON.stringify({
             memory: this.memory,
