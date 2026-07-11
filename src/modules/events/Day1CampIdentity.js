@@ -4,60 +4,76 @@
 
 const IDENTITY_BLUEPRINTS = {
   'boston rob': {
-    leaderStyle: 'command', command: 26, strategic: 16, reputation: 24,
+    leaderStyle: 'command', command: 26, strategic: 16, reputation: 24, resistance: 18,
     tags: ['command_leader', 'controlling_leader', 'strategic_legend'], expectedRoles: ['shelter', 'fire']
   },
   sandra: {
-    leaderStyle: 'under_the_radar', social: 18, observer: 25, reputation: 18,
+    leaderStyle: 'under_the_radar', social: 18, observer: 25, reputation: 18, resistance: 20,
     tags: ['quiet_observer', 'under_the_radar_survival', 'social_instinct'], expectedRoles: ['float', 'shelter']
   },
   cirie: {
-    leaderStyle: 'social', social: 28, consensus: 24, observer: 18, reputation: 20,
+    leaderStyle: 'social', social: 28, consensus: 24, observer: 18, reputation: 20, resistance: 10,
     tags: ['social_connector', 'quiet_influence', 'strategic_threat'], expectedRoles: ['shelter', 'float']
   },
   ozzy: {
-    leaderStyle: 'provider', provider: 32, worker: 18, reputation: 17,
+    leaderStyle: 'provider', provider: 32, worker: 18, reputation: 17, resistance: 12,
     tags: ['provider_reputation', 'challenge_provider', 'useful_worker'], expectedRoles: ['resources', 'fire']
   },
   tony: {
-    leaderStyle: 'chaotic', command: 14, strategic: 25, chaos: 31, reputation: 23,
+    leaderStyle: 'chaotic', command: 14, strategic: 25, chaos: 31, reputation: 23, resistance: 28,
     tags: ['chaotic_control', 'strategic_threat', 'idol_paranoia'], expectedRoles: ['wood', 'fire']
   },
   parvati: {
-    leaderStyle: 'social', social: 27, strategic: 18, reputation: 24,
+    leaderStyle: 'social', social: 27, strategic: 18, reputation: 24, resistance: 14,
     tags: ['social_magnetism', 'charming_social_threat', 'pairing_concern'], expectedRoles: ['resources', 'float']
   },
   russell: {
-    leaderStyle: 'forceful', command: 18, strategic: 25, chaos: 27, reputation: 25,
+    leaderStyle: 'forceful', command: 18, strategic: 25, chaos: 27, reputation: 25, resistance: 30,
     tags: ['forceful_control', 'strategic_threat', 'mistrust'], expectedRoles: ['fire', 'wood']
   },
   kim: {
-    leaderStyle: 'consensus', consensus: 28, social: 19, strategic: 17, reputation: 20,
+    leaderStyle: 'consensus', consensus: 28, social: 19, strategic: 17, reputation: 20, resistance: 10,
     tags: ['calm_consensus_leader', 'quiet_control', 'social_threat'], expectedRoles: ['shelter', 'wood']
   },
   yul: {
-    leaderStyle: 'structured', consensus: 25, strategic: 23, social: 13, reputation: 20,
+    leaderStyle: 'structured', consensus: 25, strategic: 23, social: 13, reputation: 20, resistance: 12,
     tags: ['calm_structured_leader', 'strategic_threat', 'trusted_planner'], expectedRoles: ['shelter', 'fire']
   },
   jeremy: {
-    leaderStyle: 'steady', consensus: 23, social: 21, worker: 11, reputation: 17,
+    leaderStyle: 'steady', consensus: 23, social: 21, worker: 11, reputation: 17, resistance: 8,
     tags: ['steady_group_leader', 'social_connector', 'trusted_presence'], expectedRoles: ['shelter', 'wood']
   },
   michele: {
-    leaderStyle: 'under_the_radar', social: 20, observer: 16, reputation: 14,
+    leaderStyle: 'under_the_radar', social: 20, observer: 16, reputation: 14, resistance: 10,
     tags: ['social_connector', 'quiet_observer', 'underestimated'], expectedRoles: ['shelter', 'float']
   },
   carolyn: {
-    leaderStyle: 'emotional', social: 18, observer: 17, chaos: 10, reputation: 15,
+    leaderStyle: 'emotional', social: 18, observer: 17, chaos: 10, reputation: 15, resistance: 18,
     tags: ['emotional_honesty', 'social_connector', 'unpredictable_energy'], expectedRoles: ['resources', 'shelter']
   },
   tyson: {
-    leaderStyle: 'dry_social', social: 15, observer: 18, strategic: 14, reputation: 17,
+    leaderStyle: 'dry_social', social: 15, observer: 18, strategic: 14, reputation: 17, resistance: 16,
     tags: ['wry_observer', 'strategic_threat', 'provider_reputation'], expectedRoles: ['wood', 'resources']
   },
   natalie: {
-    leaderStyle: 'forceful', command: 14, worker: 19, strategic: 16, reputation: 17,
+    leaderStyle: 'forceful', command: 14, worker: 19, strategic: 16, reputation: 17, resistance: 20,
     tags: ['competitive_worker', 'forceful_presence', 'strategic_threat'], expectedRoles: ['wood', 'resources']
+  },
+  jay: {
+    leaderStyle: 'social', social: 14, provider: 10, resistance: 14, reputation: 11,
+    tags: ['social_connector', 'competitive_worker', 'adaptable'], expectedRoles: ['resources', 'wood']
+  },
+  andrea: {
+    leaderStyle: 'steady', consensus: 12, social: 16, worker: 14, resistance: 10, reputation: 13,
+    tags: ['balanced_worker', 'social_connector', 'quiet_competitor'], expectedRoles: ['shelter', 'resources']
+  },
+  kelley: {
+    leaderStyle: 'independent', observer: 18, strategic: 18, social: 12, resistance: 22, reputation: 18,
+    tags: ['quiet_observer', 'independent_strategist', 'strategic_threat'], expectedRoles: ['wood', 'float']
+  },
+  wendell: {
+    leaderStyle: 'provider', provider: 20, worker: 20, consensus: 14, resistance: 8, reputation: 13,
+    tags: ['shelter_specialist', 'useful_worker', 'steady_group_leader'], expectedRoles: ['shelter', 'wood']
   }
 };
 
@@ -146,6 +162,7 @@ export function getDay1Identity(survivor = {}) {
     wood: clamp(strength * 0.64 + workEthic * 0.25 + survival * 0.11),
     resources: clamp(survival * 0.65 + strength * 0.2 + social * 0.15)
   };
+  scores.resistance = clamp(risk * 0.38 + strategic * 0.27 + (100 - honesty) * 0.15 + (blueprint.resistance || 0));
   const tags = new Set(blueprint.tags || []);
   if (scores.command >= 70) tags.add('loud_command_leadership');
   if (scores.consensus >= 70) tags.add('calm_consensus_leadership');
@@ -171,6 +188,7 @@ export function getDay1Identity(survivor = {}) {
     leaderStyle,
     scores,
     tags: [...tags],
+    expectedRoles: [...(blueprint.expectedRoles || [])],
     practicalRole,
     practicalRoleLabel: ROLE_LABELS[practicalRole],
     reputationRead: scores.reputation >= 72
@@ -208,25 +226,56 @@ export function scanDay1Tribe(members = []) {
   return { profiles, spotlights };
 }
 
-export function resolveDay1Leadership(members = [], player = null, scan = scanDay1Tribe(members)) {
-  const leaders = scan.profiles.map(profile => ({
-    profile,
-    score: clamp(
-      profile.scores.command * 0.44
-      + profile.scores.consensus * 0.34
-      + profile.scores.provider * 0.12
-      + profile.scores.social * 0.1
-      - Math.max(0, profile.scores.chaos - 68) * 0.12
-    )
-  })).sort((a, b) => b.score - a.score || String(a.profile.id).localeCompare(String(b.profile.id)));
+export function resolveDay1Leadership(members = [], player = null, scan = scanDay1Tribe(members), context = {}) {
+  const averagePairValue = (profile, getter, fallback = 50) => {
+    if (typeof getter !== 'function') return fallback;
+    const others = members.filter(member => String(member.id) !== String(profile.id));
+    if (!others.length) return fallback;
+    const values = others.map(member => Number(getter(profile.id, member.id))).filter(Number.isFinite);
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback;
+  };
+  const leaders = scan.profiles.map(profile => {
+    const relationship = averagePairValue(profile, context.getRelationship);
+    const trust = averagePairValue(profile, context.getTrust);
+    const suspicion = Number(context.getSuspicion?.(profile.survivor) ?? profile.survivor?.suspicion ?? 0);
+    const operationalFit = ['command', 'forceful', 'chaotic'].includes(profile.leaderStyle)
+      ? 8
+      : ['consensus', 'structured', 'steady', 'provider'].includes(profile.leaderStyle)
+        ? 6
+        : profile.leaderStyle === 'social'
+          ? -2
+          : -7;
+    return {
+      profile,
+      score: clamp(
+        profile.scores.command * 0.38
+        + profile.scores.consensus * 0.3
+        + profile.scores.provider * 0.17
+        + profile.scores.worker * 0.08
+        + profile.scores.social * 0.07
+        + (relationship - 50) * 0.08
+        + (trust - 50) * 0.08
+        + operationalFit
+        - Math.max(0, profile.scores.chaos - 72) * 0.12
+        - Math.max(0, suspicion) * 0.05
+      )
+    };
+  }).sort((a, b) => b.score - a.score || String(a.profile.id).localeCompare(String(b.profile.id)));
   const top = leaders[0];
   const runner = leaders[1] || null;
   const playerEntry = leaders.find(entry => String(entry.profile.id) === String(player?.id));
-  const contested = Boolean(runner && Math.abs(top.score - runner.score) <= 9 && top.score >= 54);
-  const scattered = Boolean(top && top.score < 51);
-  const playerLeads = Boolean(playerEntry && top && String(top.profile.id) === String(player.id) && !contested && !scattered);
-  const scenario = scattered ? 'scattered' : playerLeads ? 'player_leads' : contested ? 'contested' : 'npc_leads';
+  const contested = Boolean(runner && Math.abs(top.score - runner.score) <= 8);
+  const playerLeads = Boolean(playerEntry && top && String(top.profile.id) === String(player.id) && !contested);
+  const scenario = playerLeads ? 'player_leads' : contested ? 'contested' : 'npc_leads';
   const style = top?.profile.leaderStyle || 'under_the_radar';
+  const quietResistor = scan.profiles
+    .filter(profile => String(profile.id) !== String(top?.profile.id))
+    .sort((a, b) => b.scores.resistance - a.scores.resistance || b.scores.observer - a.scores.observer || String(a.id).localeCompare(String(b.id)))[0] || null;
+  const leadershipStatus = contested
+    ? 'contested'
+    : quietResistor?.scores.resistance >= 78 || top?.profile.scores.chaos >= 82
+      ? 'resisted'
+      : 'accepted';
   const acceptance = top?.profile.scores.chaos >= 72
     ? 'useful, but people are already wary of where the energy could go'
     : top?.profile.scores.reputation >= 72 || top?.profile.scores.command >= 75
@@ -235,18 +284,90 @@ export function resolveDay1Leadership(members = [], player = null, scan = scanDa
 
   return {
     topLeader: top?.profile?.survivor || null,
+    operationalLeader: top?.profile?.survivor || null,
     runnerUp: runner?.profile?.survivor || null,
+    rival: runner?.profile?.survivor || null,
+    quietResistor: quietResistor?.survivor || null,
+    socialCenter: [...scan.profiles].sort((a, b) => b.scores.social - a.scores.social || String(a.id).localeCompare(String(b.id)))[0]?.survivor || null,
+    practicalProvider: [...scan.profiles].sort((a, b) => b.scores.provider - a.scores.provider || String(a.id).localeCompare(String(b.id)))[0]?.survivor || null,
     topProfile: top?.profile || null,
     runnerProfile: runner?.profile || null,
+    candidates: leaders,
     scenario,
+    leadershipStatus,
     contestedPair: contested ? [top.profile.survivor, runner.profile.survivor] : null,
     style,
     score: top?.score || 0,
     acceptance,
-    leadershipRead: scattered
-      ? 'No one has claimed the center of camp yet; the tribe is moving before it agrees on how.'
-      : `${top?.profile?.name || 'Someone'} is setting the first tempo — ${acceptance}.`
+    leadershipRead: `${top?.profile?.name || 'Someone'} is setting the first tempo — ${acceptance}.`
   };
+}
+
+export function getContextualLeadershipDecision({ leadership, player } = {}) {
+  const playerEntry = leadership?.candidates?.find(entry => String(entry.profile.id) === String(player?.id));
+  const topEntry = leadership?.candidates?.[0];
+  if (!playerEntry || !topEntry) return null;
+  const rank = leadership.candidates.findIndex(entry => entry === playerEntry);
+  const involved = rank <= 1 && topEntry.score - playerEntry.score <= 12;
+  if (!involved) return null;
+  const playerProfile = playerEntry.profile;
+  const currentLeader = leadership.topLeader;
+  const playerIsLeader = String(currentLeader?.id) === String(player?.id);
+  const alternate = playerIsLeader ? leadership.runnerUp : currentLeader;
+  const leadLabel = playerProfile.leaderStyle === 'provider'
+    ? 'Direct survival work'
+    : ['social', 'consensus', 'steady'].includes(playerProfile.leaderStyle)
+      ? 'Guide the group'
+      : 'Take the lead';
+  const options = [{ key: 'take_lead', label: leadLabel }];
+  if (alternate) options.push({ key: 'back_leader', label: `Back ${alternate.firstName || alternate.name}` });
+  options.push({ key: 'stay_out', label: 'Stay out of it' });
+  return { options: options.slice(0, 3), playerIsLeader, alternateLeader: alternate || null };
+}
+
+export function applyLeadershipDecision(leadership, player, action = 'automatic') {
+  if (!leadership || !player || action === 'automatic') return { ...leadership, leadershipAction: action };
+  if (action !== 'take_lead') {
+    return {
+      ...leadership,
+      leadershipAction: action,
+      leadershipStatus: action === 'back_leader' ? 'accepted' : leadership.leadershipStatus
+    };
+  }
+  const previousLeader = leadership.topLeader;
+  const playerEntry = leadership.candidates?.find(entry => String(entry.profile.id) === String(player.id));
+  return {
+    ...leadership,
+    topLeader: player,
+    operationalLeader: player,
+    topProfile: playerEntry?.profile || getDay1Identity(player),
+    runnerUp: String(previousLeader?.id) === String(player.id) ? leadership.runnerUp : previousLeader,
+    rival: String(previousLeader?.id) === String(player.id) ? leadership.rival : previousLeader,
+    scenario: 'player_leads',
+    style: playerEntry?.profile?.leaderStyle || getDay1Identity(player).leaderStyle,
+    leadershipStatus: String(previousLeader?.id) === String(player.id) ? leadership.leadershipStatus : 'contested',
+    leadershipAction: action,
+    leadershipRead: `${player.firstName || player.name} took responsibility for directing the first camp setup.`
+  };
+}
+
+export function getDay1LeaderLine(profileOrSurvivor) {
+  const profile = profileOrSurvivor?.scores ? profileOrSurvivor : getDay1Identity(profileOrSurvivor);
+  const lines = {
+    command: 'Shelter first. Fire and food move at the same time.',
+    forceful: 'Split up now. Shelter, fire, wood, and food—move.',
+    chaotic: 'Let’s move fast. I’ll keep the pieces from falling apart.',
+    consensus: 'Let’s split the work and make sure every job has support.',
+    structured: 'Shelter anchors camp. Let’s assign the rest around it.',
+    steady: 'Everybody take a lane. We’ll check in once camp is moving.',
+    provider: 'I’ll handle survival work. Let’s get shelter and fire covered.',
+    social: 'Nobody needs a title. We just need every job covered.',
+    emotional: 'Say what you can do, then let’s actually do it.',
+    independent: 'Pick a job you can finish. We need results, not titles.',
+    dry_social: 'Five jobs, one camp. This should not require a committee.',
+    under_the_radar: 'Let’s cover the essentials and keep everybody moving.'
+  };
+  return lines[profile.leaderStyle] || lines.under_the_radar;
 }
 
 function closestProfile(scan, playerId, predicate) {

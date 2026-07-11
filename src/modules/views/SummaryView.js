@@ -295,6 +295,9 @@ function renderCheckpointReportSection(report, tribe, heading) {
 
 function renderCinematicRecap(entry) {
   if (!entry) return null;
+  const outcome = entry.data?.day1CampOutcome;
+  const tribe = gameManager.getPlayerTribe?.();
+  const playerId = gameManager.getPlayerSurvivor?.()?.id;
   const card = createElement('div', {
     style: `
       background: #fff4d6;
@@ -306,34 +309,26 @@ function renderCinematicRecap(entry) {
     `
   });
 
-  card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415', fontSize: '1.15rem' } }, 'Day 1: First Impressions'));
+  card.appendChild(createElement('div', { style: { fontWeight: 'bold', color: '#3c2415', fontSize: '1.15rem' } }, 'Day 1: Camp Setup'));
   const summaryBlock = createElement('div', { style: { color: '#2b190a', marginTop: '4px', whiteSpace: 'pre-wrap' } });
-  if (entry.data?.summaryHtml) {
+  if (outcome) {
+    const roleLabels = { fire: 'Fire', shelter: 'Shelter', wood: 'Wood', resources: 'Resources', float: 'Flex' };
+    const leaderName = displayNameById(outcome.operationalLeaderId, tribe, playerId);
+    const important = [
+      `${leaderName} directed the first camp setup (${outcome.leadershipStatus}).`,
+      `You took ${roleLabels[outcome.playerRole] || outcome.playerRole}. ${outcome.firstImpression?.summary || ''}`,
+      outcome.strongestBond?.explanation,
+      outcome.strongestTension?.explanation,
+      outcome.reputationExpectation?.explanation
+    ].filter(Boolean);
+    summaryBlock.textContent = important.join('\n');
+  } else if (entry.data?.summaryHtml) {
     summaryBlock.innerHTML = entry.data.summaryHtml;
   } else {
     summaryBlock.textContent = entry.text || '';
   }
   card.appendChild(summaryBlock);
 
-  const memories = Array.isArray(entry.data?.memories) ? entry.data.memories : [];
-  const memorable = memories.filter(memory => ['unofficial_leader', 'player_first_impression', 'early_respect', 'early_tension', 'early_bond', 'camp_tension'].includes(memory?.type)).slice(0, 5);
-  if (memorable.length) {
-    const memorySection = createElement('div', {
-      style: {
-        marginTop: '12px',
-        paddingTop: '10px',
-        borderTop: '1px solid #d2b48c',
-        color: '#3c2415'
-      }
-    });
-    memorySection.appendChild(createElement('div', { style: { fontWeight: 'bold', marginBottom: '5px' } }, 'What will carry forward'));
-    memorable.forEach(memory => {
-      const line = createElement('div', { style: { marginBottom: '4px', paddingLeft: '10px', position: 'relative' } });
-      line.textContent = `• ${memory.summary}`;
-      memorySection.appendChild(line);
-    });
-    card.appendChild(memorySection);
-  }
   return card;
 }
 

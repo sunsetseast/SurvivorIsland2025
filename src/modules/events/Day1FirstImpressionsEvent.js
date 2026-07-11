@@ -3,13 +3,30 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import { GamePhase } from '../core/GameManager.js';
 import { gameManager as sharedGameManager } from '../core/index.js';
 import {
+  applyLeadershipDecision,
   buildDay1Reactions,
   createDay1MemoryRecords,
+  getContextualLeadershipDecision,
+  getDay1LeaderLine,
   getDay1Identity,
   resolveDay1Leadership,
   resolveFirstImpression,
   scanDay1Tribe
 } from './Day1CampIdentity.js';
+import {
+  buildDay1Plan,
+  buildSuggestedDay1Assignments,
+  rebalanceDay1Assignments
+} from './Day1CampAssignmentResolver.js';
+import Day1CampSetupUI from './Day1CampSetupUI.js';
+import {
+  applyDay1CampConsequences,
+  createCanonicalDay1CampMemory,
+  deriveDay1FirstImpression,
+  recordDay1CampOutcome,
+  resolveDay1CampMood,
+  resolveDay1SocialPulse
+} from './Day1CampMemory.js';
 
 // What changed:
 // - Fixed dead choice buttons (ReferenceError: applyPlayerChoice was missing) causing clicks to do nothing.
@@ -2008,7 +2025,7 @@ function pickChemistryMoments(tasks, members, leadershipScenario, playerId) {
 }
 
 
-export async function runDay1FirstImpressions({ gameManager } = {}) {
+async function runLegacyDay1FirstImpressions({ gameManager } = {}) {
   const context = arguments[0];
   const gm = gameManager || context?.gameManager || context;
   const gate = canRunDay1FirstImpressions(gm);
@@ -2743,6 +2760,161 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       showBlockingError('Something went wrong preparing the scene.', { error, reason: 'setup_failed' });
     }
   });
+}
+
+export async function runDay1FirstImpressions({ gameManager, campScreen } = {}) {
+  const gm = gameManager || sharedGameManager;
+  const gate = canRunDay1FirstImpressions(gm);
+  if (!gate.ok) {
+    logSkip(gate.reason, gate.details);
+    return { skipped: true, reason: gate.reason, details: gate.details };
+  }
+
+  const tribe = gm.getPlayerTribe?.() || gm.playerTribe;
+  const members = tribe?.members || [];
+  const resolution = resolvePlayerIdentity(gm, tribe, members);
+  const player = resolution.player;
+  if (!tribe || !player) return { error: true, reason: 'missing_player_or_tribe' };
+
+  gm.flags = gm.flags || {};
+  gm.flags.campEventActive = true;
+  eventManager.publish(GameEvents.CAMP_EVENT_STARTED, { eventId: 'day1_first_impressions', id: 'day1_first_impressions' });
+  eventManager.publish(GameEvents.DIALOGUE_SHOWN, { source: 'day1-camp-setup' });
+
+  const ui = new Day1CampSetupUI({
+    members,
+    player,
+    tribeColor: tribe.color || tribe.tribeColor || '#c17f34',
+    avatarResolver: getSurvivorAvatarSrc
+  });
+
+  let completed = false;
+  try {
+    const scan = scanDay1Tribe(members);
+    const relationshipSystem = gm.systems?.relationshipSystem;
+    const initialLeadership = resolveDay1Leadership(members, player, scan, {
+      getRelationship: (aId, bId) => relationshipSystem?.getRelationship?.(aId, bId)?.value ?? 50,
+      getTrust: (aId, bId) => gm.getTrust?.(aId, bId) ?? 50,
+      getSuspicion: survivor => survivor?.suspicion ?? 0
+    });
+    const leadershipDecision = getContextualLeadershipDecision({ leadership: initialLeadership, player });
+
+    await ui.showArrival();
+    const leadershipAction = await ui.chooseLeadership({
+      leader: initialLeadership.topLeader,
+      line: getDay1LeaderLine(initialLeadership.topProfile),
+      decision: leadershipDecision
+    });
+    const leadership = applyLeadershipDecision(initialLeadership, player, leadershipAction);
+    if (leadershipDecision) {
+      await ui.settleLeader(leadership.topLeader, getDay1LeaderLine(leadership.topProfile));
+    }
+
+    const suggested = buildSuggestedDay1Assignments({
+      members,
+      playerId: player.id,
+      scan,
+      leaderId: leadership.topLeader?.id
+    });
+    const calculateState = roleKey => {
+      const assignmentState = rebalanceDay1Assignments({
+        members,
+        playerId: player.id,
+        roleKey,
+        scan,
+        leaderId: leadership.topLeader?.id
+      });
+      const playerProfile = scan.profiles.find(profile => String(profile.id) === String(player.id));
+      const impression = deriveDay1FirstImpression({
+        leadershipAction,
+        playerRole: assignmentState.playerRole,
+        suggestedRole: suggested.suggestedRole,
+        playerProfile,
+        leadership
+      });
+      const socialPulse = resolveDay1SocialPulse({
+        scan,
+        leadership,
+        assignments: assignmentState.assignments,
+        playerId: player.id,
+        impression
+      });
+      const mood = resolveDay1CampMood({ leadership, socialPulse });
+      return { ...assignmentState, impression, socialPulse, mood };
+    };
+
+    const initialState = {
+      ...suggested,
+      impression: null,
+      socialPulse: [],
+      mood: resolveDay1CampMood({ leadership, socialPulse: [] })
+    };
+    const finalState = await ui.chooseAssignment({
+      leader: leadership.topLeader,
+      assignmentState: initialState,
+      suggestedRole: suggested.suggestedRole,
+      calculateState
+    });
+
+    const plan = buildDay1Plan({
+      assignments: finalState.assignments,
+      leadership,
+      playerId: player.id,
+      playerRole: finalState.playerRole,
+      suggestedRole: suggested.suggestedRole,
+      leadershipAction,
+      impression: finalState.impression,
+      socialPulse: finalState.socialPulse,
+      mood: finalState.mood
+    });
+    tribe.day1Plan = plan;
+    tribe.day1PlanCreated = true;
+    tribe.day1Mood = finalState.mood;
+    tribe.day1Choice = finalState.playerRole;
+
+    applyDay1CampConsequences({
+      gameManager: gm,
+      player,
+      impression: finalState.impression,
+      socialPulse: finalState.socialPulse
+    });
+    const canonicalMemory = createCanonicalDay1CampMemory({
+      day: gm.getCurrentDay?.() ?? gm.day ?? 1,
+      phase: gm.gamePhase,
+      tribeId: tribe.id,
+      leadership,
+      leadershipAction,
+      assignments: finalState.assignments,
+      player,
+      playerRole: finalState.playerRole,
+      impression: finalState.impression,
+      socialPulse: finalState.socialPulse,
+      mood: finalState.mood
+    });
+    recordDay1CampOutcome({ gameManager: gm, tribe, members, canonicalMemory });
+
+    gm.flags.day1FirstImpressionsDone = true;
+    gm.flags.day1FirstImpressionsCompleted = true;
+    const phaseId = gm.taskSystem?.getCurrentPhaseId?.(gm) ?? gm.getCurrentCampPhaseId?.();
+    gm.taskSystem?.startPhaseForTribe?.(tribe, phaseId);
+    gm.taskSystem?.createDay1TasksFromPlan?.(tribe, phaseId, { force: true });
+    completed = true;
+    return { plan, canonicalMemory };
+  } catch (error) {
+    gm.flags.day1FirstImpressionsDone = false;
+    gm.flags.day1FirstImpressionsCompleted = false;
+    logDebug('compact_event_failed', error);
+    throw error;
+  } finally {
+    ui.destroy();
+    gm.flags.campEventActive = false;
+    eventManager.publish(GameEvents.DIALOGUE_HIDDEN, { source: 'day1-camp-setup' });
+    eventManager.publish(GameEvents.CAMP_EVENT_ENDED, {
+      eventId: 'day1_first_impressions',
+      id: 'day1_first_impressions',
+      completed
+    });
+  }
 }
 
 export default runDay1FirstImpressions;

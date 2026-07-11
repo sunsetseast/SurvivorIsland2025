@@ -140,7 +140,6 @@ export default class CampScreen {
     this.taskOverlayOpen = false;
 
     this.unsubscribeFromCampEventStarted = eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, ({ eventId }) => {
-      console.info('[CampScreen] Camp event started', eventId);
       gameManager.flags.campEventActive = true;
       this.stopCampClockTick();
 
@@ -150,7 +149,6 @@ export default class CampScreen {
     });
 
     this.unsubscribeFromCampEventEnded = eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, ({ eventId }) => {
-      console.info('[CampScreen] Camp event ended', eventId);
       gameManager.flags.campEventActive = false;
       this.ensureClockUI();
 
@@ -170,8 +168,6 @@ export default class CampScreen {
 
       const survivors = gameManager.survivors;
       const phaseKey = gameManager.gamePhase === GamePhase.POST_CHALLENGE ? 'post' : 'pre';
-      console.info('[CampScreen] Resuming camp systems after event');
-
       gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors, gameManager.gamePhase);
       gameManager.systems?.socialEngine?.resetForNewPhase?.(phaseKey);
 
@@ -222,18 +218,8 @@ export default class CampScreen {
     const playerTribe = gameManager.getPlayerTribe();
     if (!playerTribe) return;
     gameManager.flags = gameManager.flags || {};
-    const tribeSize = playerTribe?.members?.length || 0;
     const gate = canRunDay1FirstImpressions(gameManager);
-    console.info('[CampScreen] Day 1 trigger check', {
-      invoking: typeof runDay1FirstImpressions,
-      phase: gameManager.gamePhase,
-      day: gameManager.day,
-      tribeSize,
-      gate
-    });
-
     if (!gate.ok) {
-      console.info('[CampScreen] Day 1 event not triggered', gate);
       return { skipped: true, reason: gate.reason };
     }
 
@@ -243,9 +229,8 @@ export default class CampScreen {
     let result;
     try {
       if (container) container.style.pointerEvents = 'none';
-      console.info('[CampScreen] Invoking runDay1FirstImpressions');
       result = await runDay1FirstImpressions({ gameManager, campScreen: this });
-      if (!result?.skipped) {
+      if (!result?.skipped && !result?.error) {
         gameManager.flags.day1FirstImpressionsCompleted = true;
         gameManager.flags.day1FirstImpressionsDone = true;
       }
@@ -255,7 +240,9 @@ export default class CampScreen {
       console.error('[CampScreen] Day 1 event failed', error);
       gameManager.flags.day1FirstImpressionsCompleted = false;
       gameManager.flags.day1FirstImpressionsDone = false;
-      eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions', id: 'day1_first_impressions', error: true });
+      if (gameManager.flags?.campEventActive) {
+        eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions', id: 'day1_first_impressions', error: true });
+      }
       result = { error: true };
     } finally {
       if (container) container.style.pointerEvents = '';
