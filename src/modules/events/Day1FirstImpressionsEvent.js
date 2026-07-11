@@ -2,6 +2,14 @@ import { getRandomInt, shuffleArray } from '../utils/CommonUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { GamePhase } from '../core/GameManager.js';
 import { gameManager as sharedGameManager } from '../core/index.js';
+import {
+  buildDay1Reactions,
+  createDay1MemoryRecords,
+  getDay1Identity,
+  resolveDay1Leadership,
+  resolveFirstImpression,
+  scanDay1Tribe
+} from './Day1CampIdentity.js';
 
 // What changed:
 // - Fixed dead choice buttons (ReferenceError: applyPlayerChoice was missing) causing clicks to do nothing.
@@ -156,6 +164,7 @@ function getTraitValue(survivor, traitKeyCandidates = [], fallback = 50) {
 }
 
 function buildCapabilities(survivor) {
+  const identity = getDay1Identity(survivor);
   const leadership = getTraitValue(survivor, ['leader', 'leadership', 'social.leadership', 'connections', 'alliances'], 45);
   const confidence = getTraitValue(survivor, ['fortitude', 'risk', 'aggression', 'confidence'], 45);
   const social = getTraitValue(survivor, ['likeability', 'social', 'charisma', 'alliances', 'connections'], 50);
@@ -165,14 +174,18 @@ function buildCapabilities(survivor) {
   const laziness = getTraitValue(survivor, ['laziness', 'energy', 'stamina'], 50);
 
   const capability = {
-    leadership: leadership + confidence * 0.35 + social * 0.3,
-    fire: survival * 1.3 + confidence * 0.6 + leadership * 0.2,
-    shelter: strength * 1.05 + practicality * 0.6 + leadership * 0.25,
-    resources: survival * 1.15 + strength * 0.35 + confidence * 0.25,
-    wood: strength * 0.95 + practicality * 0.45 + social * 0.1,
-    workEthic: clamp(100 - laziness + confidence * 0.25, 0, 100),
-    social,
-    stubbornness: getTraitValue(survivor, ['aggression', 'risk', 'pride', 'fortitude'], 45)
+    leadership: clamp(identity.scores.command * 0.58 + identity.scores.consensus * 0.42),
+    fire: identity.scores.fire,
+    shelter: identity.scores.shelter,
+    resources: identity.scores.resources,
+    wood: identity.scores.wood,
+    workEthic: identity.scores.worker,
+    social: identity.scores.social,
+    stubbornness: identity.scores.chaos,
+    identity,
+    // Retain the legacy reads in the object for any downstream caller that
+    // expects the old score family while using the normalized identity scores.
+    legacy: { leadership, confidence, social, survival, strength, practicality, laziness }
   };
   return capability;
 }
@@ -183,7 +196,7 @@ function getPersonalityProfile(survivor) {
   const bossy = caps.leadership > 65 && caps.stubbornness > 55;
   const proud = caps.stubbornness > 65;
   const strategicFloater = caps.social > 60 && workEthic < 55;
-  return { caps, workEthic, bossy, proud, strategicFloater };
+  return { caps, identity: caps.identity, workEthic, bossy, proud, strategicFloater };
 }
 
 function buildOverlay() {
@@ -374,8 +387,7 @@ function buildOverlay() {
   beatFrame.appendChild(contentLayer);
   overlay.appendChild(beatFrame);
 
-  // eslint-disable-next-line no-console
-  console.log('[Day1Event] Using beat-ui.png / beat-avatar-ui.png frame layout');
+  logDebug('using beat-ui frame layout');
 
   document.body.appendChild(overlay);
   return { overlay, beatFrame, templateImg, headerTileText, avatar, textArea, choices, nextBtn, rolesPanel, contentArea };
@@ -510,6 +522,113 @@ function applyRelationshipDeltas(gameManager, checkpointReport, deltas) {
   });
   checkpointReport.relationshipDeltasApplied = applied;
   return applied;
+}
+
+function addCampSocialChange(bucket, entry) {
+  if (typeof window === 'undefined') return;
+  window.campSocialChanges = window.campSocialChanges || {};
+  window.campSocialChanges[bucket] = Array.isArray(window.campSocialChanges[bucket])
+    ? window.campSocialChanges[bucket]
+    : [];
+  window.campSocialChanges[bucket].push(entry);
+}
+
+function applyPairImpact(gameManager, fromId, toId, { relationship = 0, trust = 0, reason = 'day1_camp_opening' } = {}) {
+  if (fromId == null || toId == null || String(fromId) === String(toId)) return;
+  const relationshipSystem = gameManager?.systems?.relationshipSystem;
+  const trustSystem = gameManager?.systems?.trustSystem;
+  if (relationship && relationshipSystem?.getRelationship && relationshipSystem?.setRelationship) {
+    const current = relationshipSystem.getRelationship(fromId, toId)?.value ?? 50;
+    relationshipSystem.setRelationship(fromId, toId, clamp(current + relationship, 0, 100));
+    addCampSocialChange('relationship', { from: fromId, to: toId, amount: relationship, reason });
+  }
+  if (trust && trustSystem?.changeTrust) {
+    trustSystem.changeTrust(fromId, toId, trust, reason);
+    addCampSocialChange('trust', { from: fromId, to: toId, amount: trust, reason });
+  }
+}
+
+function applyDay1Consequences({ gameManager, player, firstImpression, reactions = [], chemistryMoments = [] }) {
+  if (!gameManager || !player || !firstImpression) return;
+  const effects = firstImpression.effects || {};
+  const playerIdentity = getDay1Identity(player);
+  const roleKey = normalizeRoleKey(firstImpression.roleKey);
+  const providerRole = ['fire', 'resources'].includes(roleKey) && playerIdentity.scores.provider >= 65;
+  const visibleBuild = ['fire', 'shelter'].includes(roleKey) && ['take_charge', 'push_back'].includes(firstImpression.key);
+  const quietFloat = roleKey === 'float' && firstImpression.key === 'observe';
+  const teamPlayerDelta = (effects.teamPlayer || 0) + (providerRole ? 1 : 0) + (quietFloat && playerIdentity.leaderStyle !== 'under_the_radar' ? -1 : 0);
+  const suspicionDelta = (effects.suspicion || 0) + (quietFloat && playerIdentity.scores.worker < 60 ? 1 : 0);
+  const threatDelta = (effects.threat || 0) + (providerRole ? 1 : 0) + (visibleBuild ? 1 : 0);
+  player.teamPlayer = clamp((player.teamPlayer ?? 50) + teamPlayerDelta, 0, 100);
+  player.suspicion = clamp((player.suspicion ?? 0) + suspicionDelta, 0, 100);
+  player.threat = clamp((player.threat ?? 5) + threatDelta, 0, 10);
+  if (suspicionDelta) {
+    addCampSocialChange('suspicion', { with: player.id, amount: suspicionDelta, reason: 'day1_first_impression' });
+  }
+  reactions.forEach(reaction => {
+    const npcId = reaction.npc?.id;
+    if (npcId == null) return;
+    applyPairImpact(gameManager, player.id, npcId, {
+      relationship: reaction.relationshipImpact,
+      trust: reaction.trustImpact,
+      reason: `day1_${reaction.tag}`
+    });
+    const socialMemory = gameManager.systems?.socialMemorySystem;
+    if (reaction.trustImpact) socialMemory?.adjustTrust?.(npcId, reaction.trustImpact);
+  });
+  chemistryMoments.forEach(moment => {
+    const [first, second] = moment.pair || [];
+    if (!first?.id || !second?.id || !moment.delta) return;
+    applyPairImpact(gameManager, first.id, second.id, {
+      relationship: Math.round(moment.delta / 3),
+      trust: moment.type === 'bond' ? 2 : -2,
+      reason: `day1_${moment.tag || moment.type}`
+    });
+  });
+}
+
+function storeDay1Memories({ gameManager, tribe, members, player, memories = [] }) {
+  if (!gameManager || !tribe || !player || !memories.length) return [];
+  const upsert = (list, entries) => {
+    const safe = Array.isArray(list) ? list : [];
+    const ids = new Set(safe.map(entry => entry?.id));
+    entries.forEach(entry => {
+      if (!ids.has(entry.id)) safe.push(entry);
+    });
+    return safe;
+  };
+  tribe.day1Memories = upsert(tribe.day1Memories, memories);
+  gameManager.day1Memories = upsert(gameManager.day1Memories, memories);
+
+  const socialMemory = gameManager.systems?.socialMemorySystem;
+  if (!socialMemory) return memories;
+  const npcIds = members.filter(member => String(member.id) !== String(player.id)).map(member => member.id);
+  const broadcastTypes = new Set(['unofficial_leader', 'player_first_impression', 'camp_role']);
+  memories.forEach(memory => {
+    const targets = broadcastTypes.has(memory.type)
+      ? npcIds
+      : [memory.targetId].filter(id => id != null && String(id) !== String(player.id));
+    targets.forEach(npcId => {
+      socialMemory.recordStructuredEvent?.({
+        type: 'day1_camp_memory',
+        speakerId: player.id,
+        listenerId: npcId,
+        subjectId: player.id,
+        data: memory,
+        day: memory.day,
+        phase: memory.phase
+      });
+      socialMemory.addMemory?.(npcId, { ...memory, perspective: 'npc' });
+      socialMemory.storeMemory?.(npcId, 'day1_camp_opening', memory);
+    });
+  });
+  memories.forEach(memory => addCampSocialChange('memory', {
+    with: memory.targetId ?? memory.actorId,
+    tags: memory.tags,
+    eventId: memory.eventId,
+    summary: memory.summary
+  }));
+  return memories;
 }
 
 function createAvatarBadge(survivor, gameManager) {
@@ -649,17 +768,6 @@ function pickUniqueLine(pool, usedLines, fallback) {
 
 function formatNarrationQuote(narration, quote) {
   return `${narration}\n\n“${quote}”`;
-}
-
-function resolveLeadershipScenario(members, player) {
-  const scored = members.map(m => ({ member: m, cap: buildCapabilities(m), score: buildCapabilities(m).leadership || 0 }));
-  scored.sort((a, b) => b.score - a.score);
-  const top = scored[0];
-  const runner = scored[1];
-  const contested = runner && Math.abs(top.score - runner.score) <= 8;
-  const playerTop = player && top.member.id === player.id;
-  const scenario = playerTop ? 'player_leads' : contested ? 'contested' : 'npc_leads';
-  return { topLeader: top.member, runnerUp: runner?.member || null, scenario, contestedPair: contested ? [top.member, runner.member] : null };
 }
 
 function minCoverageState(tasks) {
@@ -1290,7 +1398,7 @@ function buildRoleTaskSummary({ tribe, roleKey, phaseId }) {
   return formatted.join(' and ');
 }
 
-function buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary) {
+function buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary, scene = {}) {
   const roleAssignments = key => {
     const task = getTask(tasks, key) || { assignedIds: [] };
     return formatIdsAsNameList(task.assignedIds, members, player.id) || 'None';
@@ -1346,6 +1454,33 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
 
   const playerRole = resolvePlayerRole(tasks, player);
   const taskLine = roleTaskSummary ? `• Your task: ${roleTaskSummary}.` : null;
+  const firstImpression = scene.firstImpression;
+  const reactions = scene.reactions || [];
+  const earlyBond = reactions.find(reaction => reaction.type === 'respect')
+    || chemistryMoments.find(moment => moment.type === 'bond');
+  const earlyTension = reactions.find(reaction => reaction.type === 'tension')
+    || chemistryMoments.find(moment => moment.type !== 'bond');
+  const reactionName = reaction => displayName(reaction?.npc || reaction?.pair?.[0], members, player.id);
+  const status = {
+    unofficialLeader: leadership.scenario === 'scattered'
+      ? 'No one owns the center of camp yet.'
+      : leadership.leadershipRead || `${displayName(leadership.topLeader, members, player.id)} set the first tempo.`,
+    leadershipRead: leadership.acceptance || 'People are still deciding whether direction feels like help or control.',
+    firstImpression: firstImpression
+      ? `${firstImpression.label}: ${firstImpression.summary} ${firstImpression.identityNote}`
+      : 'The tribe is still forming its read on you.',
+    campRole: `You took on ${playerRole}.`,
+    campTone: toneLine,
+    earlyBond: earlyBond
+      ? (earlyBond.npc ? `${reactionName(earlyBond)} responded well to your first move.` : `${formatPair(earlyBond.pair.map(person => person.id), members, player.id)} found an early rhythm.`)
+      : 'No clear bond has separated itself from the noise yet.',
+    earlyTension: earlyTension
+      ? (earlyTension.npc ? `${reactionName(earlyTension)} is already watching you carefully.` : `${formatPair(earlyTension.pair.map(person => person.id), members, player.id)} hit an early fault line.`)
+      : 'No one has made the tension explicit yet.',
+    reputation: firstImpression?.identityNote || 'Your reputation has not settled into a clear story yet.',
+    pressure: roleTaskSummary || 'The tribe still needs to turn assignments into actual progress.',
+    socialRead: firstImpression?.strategicMeaning || 'The first social map is still being drawn.'
+  };
 
   return {
     leadership: [`• ${leadershipLines[0]}`, clashLine],
@@ -1359,13 +1494,26 @@ function buildRecapSections(player, members, tasks, leadership, chemistryMoments
     chemistry: chemistryLines,
     tone: [`• ${toneLine}`],
     yourRole: [`• You end up on ${playerRole}${choiceLabel ? ` (you chose ${choiceLabel})` : ''}.`, taskLine].filter(Boolean),
-    playerRole
+    playerRole,
+    status
   };
 }
 
-function buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary) {
-  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary);
+function buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary, scene = {}) {
+  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary, scene);
   return [
+    'DAY 1 CAMP STATUS',
+    `Unofficial leader: ${sections.status.unofficialLeader}`,
+    `Leadership read: ${sections.status.leadershipRead}`,
+    `Your first impression: ${sections.status.firstImpression}`,
+    `Your camp role: ${sections.status.campRole}`,
+    `Camp tone: ${sections.status.campTone}`,
+    `Early bond: ${sections.status.earlyBond}`,
+    `Early tension: ${sections.status.earlyTension}`,
+    `Reputation effect: ${sections.status.reputation}`,
+    `Immediate pressure: ${sections.status.pressure}`,
+    `Social read: ${sections.status.socialRead}`,
+    '',
     'Leadership:',
     ...sections.leadership,
     '',
@@ -1383,8 +1531,8 @@ function buildRecapText(player, members, tasks, leadership, chemistryMoments, cl
   ].join('\n');
 }
 
-function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary) {
-  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary);
+function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary, scene = {}) {
+  const sections = buildRecapSections(player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, roleTaskSummary, scene);
   const container = document.createElement('div');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
@@ -1434,6 +1582,41 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
     section.appendChild(lineList);
     container.appendChild(section);
   };
+
+  const statusSection = document.createElement('div');
+  statusSection.style.display = 'flex';
+  statusSection.style.flexDirection = 'column';
+  statusSection.style.gap = '7px';
+  statusSection.style.padding = '10px';
+  statusSection.style.border = '1px solid rgba(93,59,12,0.35)';
+  statusSection.style.borderRadius = '8px';
+  statusSection.style.background = 'rgba(255,248,225,0.72)';
+  const statusTitle = document.createElement('div');
+  statusTitle.textContent = 'DAY 1 CAMP STATUS';
+  statusTitle.style.fontWeight = '800';
+  statusTitle.style.letterSpacing = '0.06em';
+  statusTitle.style.color = '#5d3b0c';
+  statusSection.appendChild(statusTitle);
+  [
+    ['Unofficial leader', sections.status.unofficialLeader],
+    ['Leadership read', sections.status.leadershipRead],
+    ['Your first impression', sections.status.firstImpression],
+    ['Your camp role', sections.status.campRole],
+    ['Camp tone', sections.status.campTone],
+    ['Early bond', sections.status.earlyBond],
+    ['Early tension', sections.status.earlyTension],
+    ['Reputation effect', sections.status.reputation],
+    ['Immediate pressure', sections.status.pressure],
+    ['Social read', sections.status.socialRead]
+  ].forEach(([label, line]) => {
+    const row = document.createElement('div');
+    const labelEl = document.createElement('strong');
+    labelEl.textContent = `${label}: `;
+    row.appendChild(labelEl);
+    row.appendChild(document.createTextNode(line));
+    statusSection.appendChild(row);
+  });
+  container.appendChild(statusSection);
 
   addSection('Leadership', sections.leadership);
 
@@ -1514,7 +1697,7 @@ function buildRecapHtml(player, members, tasks, leadership, chemistryMoments, cl
 }
 
 // Builds the final recap beat and ensures overlay closes cleanly.
-function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, overlay, resolve, gameManager, cleanup, revealAllAssignments, finishEvent }) {
+function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey, firstImpression = null, reactions = [], overlay, resolve, gameManager, cleanup, revealAllAssignments, finishEvent }) {
   const chemistryMomentsDetailed = chemistryMoments.map(m => ({
     type: m.type,
     pair: m.pair,
@@ -1524,6 +1707,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
   }));
   const chemistryMomentsCompact = chemistryMomentsDetailed.map(({ type, pairIds, delta, tag }) => ({ type, pairIds, delta, tag }));
   let finalized = false;
+  let sceneCommitted = false;
 
   const finalizeBeat = {
     speaker: 'Narrator',
@@ -1566,8 +1750,7 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       gameManager.flags = gameManager.flags || {};
       gameManager.campLog = gameManager.campLog || [];
 
-      // eslint-disable-next-line no-console
-      console.error('[Day1Finalize] onEnter sanity', { hasTribe: !!gameManager.playerTribe, hasFlags: !!gameManager.flags, day: gameManager.day });
+      logDebug('finalize_sanity', { hasTribe: !!gameManager.playerTribe, hasFlags: !!gameManager.flags, day: gameManager.day });
 
       if (!gameManager.playerTribe) throw new Error('Finalize failed: missing gameManager.playerTribe');
 
@@ -1596,7 +1779,19 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         choice: normalizedPlayerChoiceKey,
         playerId: player?.id,
         playerRole,
-        playerChoice: normalizedPlayerChoiceKey
+        playerChoice: normalizedPlayerChoiceKey,
+        firstImpression: firstImpression?.key || null,
+        firstImpressionPosture: firstImpression?.posture || null,
+        leadershipStyle: leadership.style || null,
+        leadershipRead: leadership.leadershipRead || null,
+        reactions: reactions.map(reaction => ({
+          npcId: reaction.npc?.id,
+          type: reaction.type,
+          tag: reaction.tag,
+          relationshipImpact: reaction.relationshipImpact,
+          trustImpact: reaction.trustImpact,
+          suspicionImpact: reaction.suspicionImpact
+        }))
       };
 
       tribe.day1Plan = plan;
@@ -1610,9 +1805,30 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
       gameManager.taskSystem?.startPhaseForTribe?.(tribe, phaseId);
       gameManager.taskSystem?.createDay1TasksFromPlan?.(tribe, phaseId);
       const roleTaskSummary = buildRoleTaskSummary({ tribe, roleKey: playerRoleKey, phaseId });
+      const scene = { firstImpression, reactions };
+      const memories = createDay1MemoryRecords({
+        day: gameManager.getCurrentDay?.() ?? gameManager.day ?? 1,
+        phase: gameManager.gamePhase,
+        player,
+        leadership,
+        firstImpression: firstImpression || {
+          label: 'Stay flexible', key: 'observe', posture: 'quiet_observer', summary: 'The player stayed flexible as camp found its footing.',
+          tags: ['first_impression', 'quiet_observer'], effects: { suspicion: 0, visibility: 0 }, strategicMeaning: 'The player kept options open.', futureHook: 'The tribe will continue to read the player through camp work.'
+        },
+        playerRoleKey,
+        reactions,
+        chemistryMoments,
+        mood: closingMood
+      });
 
-      const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, normalizedPlayerChoiceKey, roleTaskSummary);
-      const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, normalizedPlayerChoiceKey, roleTaskSummary);
+      if (!sceneCommitted) {
+        applyDay1Consequences({ gameManager, player, firstImpression, reactions, chemistryMoments });
+        storeDay1Memories({ gameManager, tribe, members, player, memories });
+        sceneCommitted = true;
+      }
+
+      const recapHtml = buildRecapHtml(player, members, tasks, leadership, chemistryMoments, closingMood, normalizedPlayerChoiceKey, roleTaskSummary, scene);
+      const recapText = buildRecapText(player, members, tasks, leadership, chemistryMoments, closingMood, normalizedPlayerChoiceKey, roleTaskSummary, scene);
       const assignmentsByRole = {
         fire: getTask(tasks, 'fire').assignedIds,
         shelter: getTask(tasks, 'shelter').assignedIds,
@@ -1642,9 +1858,20 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
         playerId: player?.id,
         playerRole,
         playerChoiceKey: normalizedPlayerChoiceKey,
+        firstImpression: firstImpression?.key || null,
+        firstImpressionPosture: firstImpression?.posture || null,
+        leadershipStyle: leadership.style || null,
+        leadershipRead: leadership.leadershipRead || null,
         assignmentsByRole,
         chemistryMoments: chemistryMomentsCompact,
         chemistryMomentsDetailed,
+        reactions: reactions.map(reaction => ({
+          npcId: reaction.npc?.id,
+          type: reaction.type,
+          tag: reaction.tag,
+          text: reaction.text
+        })),
+        memories,
         tribeId: gameManager.playerTribe?.id,
         tone: closingMood,
         summaryText: recapText,
@@ -1663,6 +1890,10 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
           leaders: [leadership.topLeader?.id, leadership.runnerUp?.id].filter(Boolean),
           clashOccurred: leadership.scenario === 'contested',
           playerChoiceKey: normalizedPlayerChoiceKey,
+          firstImpression: firstImpression?.key || null,
+          firstImpressionPosture: firstImpression?.posture || null,
+          leadershipStyle: leadership.style || null,
+          leadershipRead: leadership.leadershipRead || null,
           playerRole,
           runnerUpId: leadership.runnerUp?.id,
           playerId: player?.id,
@@ -1675,6 +1906,8 @@ function buildFinalizeBeat({ player, members, tasks, leadership, chemistryMoment
           },
           assignmentsByRole,
           chemistryMoments: chemistryMomentsCompact,
+          reactions: summaryPayload.reactions,
+          memories,
           tone: closingMood,
           mood: closingMood,
           summaryText: recapText,
@@ -1875,7 +2108,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       } catch (error) {
         console.error('[Day1FirstImpressions] Error during finishEvent', error);
       } finally {
-        console.info('[Day1FirstImpressions] Event finished');
+        logDebug('event_finished');
         eventManager.publish(GameEvents.CAMP_EVENT_ENDED, { eventId: 'day1_first_impressions', id: 'day1_first_impressions' });
         resolve(payload);
       }
@@ -1888,8 +2121,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         return;
       }
 
-      // eslint-disable-next-line no-console
-      console.warn('[Day1FirstImpressions] Finish requested before finalize rendered', payload);
+      logDebug('finish_requested_before_finalize', payload);
       if (typeof ensureFinalizeBeat !== 'function' || typeof renderBeatUI !== 'function') {
         finishEvent(payload);
         return;
@@ -1956,11 +2188,14 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       if (avatar) {
         avatar.style.borderColor = tribeAccentColor;
       }
-      const leadership = resolveLeadershipScenario(members, PLAYER);
+      const identityScan = scanDay1Tribe(members);
+      const leadership = resolveDay1Leadership(members, PLAYER, identityScan);
       awaitingChoice = { value: false };
       let choiceLocked = false;
       let chemistryMoments = [];
       let playerChoiceKey = null;
+      let firstImpression = null;
+      let npcReactions = [];
       let closingMood = 'tentative';
 
       if (!PLAYER) {
@@ -1996,8 +2231,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       const logRender = (beat) => {
         if (renderedLogIndices.has(currentIndex)) return;
         renderedLogIndices.add(currentIndex);
-        // eslint-disable-next-line no-console
-        console.info('[Day1FirstImpressions] Render beat', { index: currentIndex, type: beat?.type });
+        logDebug('render_beat', { index: currentIndex, type: beat?.type });
       };
 
       ensureFinalizeBeat = (reason = 'auto') => {
@@ -2011,6 +2245,8 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             chemistryMoments,
             closingMood,
             playerChoiceKey,
+            firstImpression,
+            reactions: npcReactions,
             overlay,
             resolve,
             gameManager: gm,
@@ -2019,8 +2255,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             finishEvent: requestFinishEvent
           });
           beatQueue.push(finalizeBeat);
-          // eslint-disable-next-line no-console
-          console.info('[Day1FirstImpressions] Finalize beat appended', { reason, queueLength: beatQueue.length });
+          logDebug('finalize_beat_appended', { reason, queueLength: beatQueue.length });
           return beatQueue.length - 1;
         }
 
@@ -2034,8 +2269,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         if (finalIndex !== beatQueue.length - 1) {
           const [beat] = beatQueue.splice(finalIndex, 1);
           beatQueue.push(beat);
-          // eslint-disable-next-line no-console
-          console.info('[Day1FirstImpressions] Finalize beat moved to end', { reason, queueLength: beatQueue.length });
+          logDebug('finalize_beat_moved_to_end', { reason, queueLength: beatQueue.length });
           return beatQueue.length - 1;
         }
         return finalIndex;
@@ -2044,10 +2278,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       renderBeatUI = () => {
         const beat = beatQueue[currentIndex];
         if (!beat) return;
-        if (beat.type === 'finalize') {
-          // eslint-disable-next-line no-console
-          console.info('[Day1FirstImpressions] Rendering finalize beat', { index: currentIndex, queueLen: beatQueue.length });
-        }
+        if (beat.type === 'finalize') logDebug('rendering_finalize_beat', { index: currentIndex, queueLen: beatQueue.length });
         const speakerSurvivor = resolveSpeakerSurvivor(beat, members);
         const isNarratorBeat = !speakerSurvivor && (beat.speaker === 'Narrator' || !beat.speakerId);
         if (isNarratorBeat) {
@@ -2104,8 +2335,11 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         const { scenario, topLeader, runnerUp } = leadership;
         const topName = displayName(topLeader, members, PLAYER_ID);
         const runnerName = displayName(runnerUp, members, PLAYER_ID);
+        const provider = identityScan.spotlights.find(spotlight => spotlight.kind === 'provider')?.profile;
+        const observer = identityScan.spotlights.find(spotlight => spotlight.kind === 'observer')?.profile;
 
-        beats.push({ speaker: 'Narrator', text: 'Bags hit the sand. Voices overlap as everyone sizes each other up.' });
+        beats.push({ speaker: 'Narrator', text: 'Bags hit the sand. The tribe spreads before anyone has called a plan.' });
+        beats.push({ speaker: 'Narrator', text: `${provider?.name || 'Someone'} eyes the water and tree line. ${observer?.name || 'Someone else'} hangs back, taking in who moves first.` });
 
         if (scenario === 'contested') {
           if (topLeader.id === runnerUp.id) {
@@ -2124,55 +2358,109 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
             beats.push({ speaker: 'Narrator', text: `${topName} and ${runnerName} both angle to steer—voices tightening until others chime in.` });
           }
         } else if (scenario === 'player_leads') {
-          beats.push({ speaker: 'Narrator', text: 'You speak first, framing what needs to happen.' });
+          beats.push({ speaker: 'Narrator', text: 'A few eyes find you before anyone says your name. The tribe is waiting to see what you do with that.' });
+        } else if (scenario === 'scattered') {
+          beats.push({ speaker: 'Narrator', text: 'Nobody owns the center of camp. Useful hands move, but the tribe has not agreed on a rhythm.' });
         } else {
-          beats.push({ speaker: 'Narrator', text: `${topName} squares shoulders and starts directing traffic.` });
+          beats.push({ speaker: 'Narrator', text: `${topName} starts directing traffic. ${leadership.acceptance || 'The tribe listens without making anything official.'}` });
         }
         return beats;
       };
 
       let resetChoiceButtons = null;
 
-      const addChoiceBeat = () => {
+      const renderChoiceButtons = (options, onChoose) => {
+        choices.innerHTML = '';
+        const setChoiceButtonsDisabled = isDisabled => {
+          choices.querySelectorAll('button').forEach(button => {
+            button.disabled = isDisabled;
+            button.style.opacity = isDisabled ? '0.8' : '1';
+            button.style.pointerEvents = isDisabled ? 'none' : 'auto';
+          });
+        };
+        options.forEach(option => {
+          const button = document.createElement('button');
+          button.textContent = option.label;
+          if (option.detail) button.title = option.detail;
+          styleChoiceButton(button);
+          button.addEventListener('click', () => {
+            if (!awaitingChoice.value || choiceLocked) return;
+            choiceLocked = true;
+            setChoiceButtonsDisabled(true);
+            onChoose(option);
+          });
+          choices.appendChild(button);
+        });
+        resetChoiceButtons = () => setChoiceButtonsDisabled(false);
+      };
+
+      const buildFirstImpressionChoiceBeat = () => {
         awaitingChoice.value = true;
-        const beat = {
+        return {
           speaker: 'Narrator',
           type: 'choice',
-          text: 'Where do you plant your flag?',
+          text: 'Before camp work divides everyone up, what do you want the tribe to notice about you?',
           renderChoices: () => {
-            choices.innerHTML = '';
-            const setChoiceButtonsDisabled = isDisabled => {
-              choices.querySelectorAll('button').forEach(b => {
-                b.disabled = isDisabled;
-                b.style.opacity = isDisabled ? '0.8' : '1';
-                b.style.pointerEvents = isDisabled ? 'none' : 'auto';
-              });
-            };
-            const options = [
-              { key: 'fire', label: 'Fire Builder' },
-              { key: 'shelter', label: 'Shelter Builder' },
-              { key: 'wood', label: 'Wood Gatherer' },
-              { key: 'resources', label: 'Resource Gatherer' },
-              { key: 'float', label: 'Float' }
-            ];
-            logDebug('renderChoices', { options: options.map(o => o.key) });
-            options.forEach(option => {
-              const btn = document.createElement('button');
-              btn.textContent = option.label;
-              styleChoiceButton(btn);
-              btn.addEventListener('click', () => {
-                if (!awaitingChoice.value || choiceLocked) return;
-                choiceLocked = true;
-                logDebug('choice_clicked', { key: option.key });
-                setChoiceButtonsDisabled(true);
-                commitChoice(option.key, option.label);
-              });
-              choices.appendChild(btn);
-            });
-            resetChoiceButtons = () => setChoiceButtonsDisabled(false);
+            renderChoiceButtons([
+              { key: 'take_charge', label: 'Take charge', detail: 'Set direction and become visible.' },
+              { key: 'work_hard', label: 'Work hard and stay useful', detail: 'Earn value through camp work.' },
+              { key: 'support_leader', label: 'Support the emerging leader', detail: 'Build trust without owning the spotlight.' },
+              { key: 'observe', label: 'Hang back and observe', detail: 'Keep your profile low while reading the tribe.' },
+              { key: 'bond_early', label: 'Bond with someone early', detail: 'Create a personal line before the tribe settles.' },
+              { key: 'push_back', label: 'Push back on the loudest voice', detail: 'Make authority a negotiation.' }
+            ], option => commitFirstImpression(option.key, option.label));
           }
         };
-        addBeat(beat);
+      };
+
+      const buildRoleChoiceBeat = () => ({
+        speaker: 'Narrator',
+        type: 'choice',
+        text: 'The first signal is out there. Where do you put your hands?',
+        renderChoices: () => {
+          renderChoiceButtons([
+            { key: 'fire', label: 'Fire Builder' },
+            { key: 'shelter', label: 'Shelter Builder' },
+            { key: 'wood', label: 'Wood Gatherer' },
+            { key: 'resources', label: 'Resource Gatherer' },
+            { key: 'float', label: 'Float / Fill gaps' }
+          ], option => commitRoleChoice(option.key, option.label));
+        }
+      });
+
+      const commitFirstImpression = (choiceKey, label) => {
+        if (!awaitingChoice.value && !choiceLocked) return;
+        try {
+          firstImpression = resolveFirstImpression({
+            player: PLAYER,
+            choiceKey,
+            scan: identityScan,
+            leadership
+          });
+          const responseText = `${firstImpression.summary}\n\n${firstImpression.identityNote}`;
+          const targetName = firstImpression.socialTarget
+            ? displayName(firstImpression.socialTarget, members, PLAYER_ID)
+            : null;
+          const followUp = targetName && choiceKey === 'bond_early'
+            ? `${targetName} is close enough to hear it. The connection has a chance to become real before the tribe even splits up.`
+            : choiceKey === 'push_back' && leadership.topLeader
+              ? `${displayName(leadership.topLeader, members, PLAYER_ID)} hears the pushback. The moment does not end there.`
+              : 'Now the camp has to turn that signal into work.';
+          beatQueue.splice(currentIndex + 1, 0,
+            { speaker: 'Narrator', text: responseText },
+            { speaker: 'Narrator', text: followUp },
+            buildRoleChoiceBeat()
+          );
+          awaitingChoice.value = false;
+          currentIndex += 1;
+          renderBeatUI();
+        } catch (err) {
+          logDebug('first_impression_choice_failed', err);
+          awaitingChoice.value = true;
+          if (typeof resetChoiceButtons === 'function') resetChoiceButtons();
+        } finally {
+          choiceLocked = false;
+        }
       };
 
       const applyPlayerChoice = choiceKey => {
@@ -2280,23 +2568,50 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         return intent;
       };
 
-      const commitChoice = (choiceKey, label) => {
+      const commitRoleChoice = (choiceKey, label) => {
         const normalizedChoiceKey = normalizeRoleKey(choiceKey);
-        logDebug('commitChoice_enter', { choiceKey, normalizedChoiceKey, awaiting: awaitingChoice.value });
+        logDebug('commitRoleChoice_enter', { choiceKey, normalizedChoiceKey, awaiting: awaitingChoice.value });
         if (!awaitingChoice.value && !choiceLocked) return;
 
         try {
           playerChoiceKey = normalizedChoiceKey;
+          if (firstImpression) {
+            firstImpression.roleKey = normalizedChoiceKey;
+            firstImpression.roleLabel = label || getRoleLabel(normalizedChoiceKey);
+            firstImpression.tags = [...new Set([...(firstImpression.tags || []), 'camp_role', normalizedChoiceKey])];
+            firstImpression.combinedRead = `${firstImpression.label} + ${firstImpression.roleLabel}`;
+          }
           const intent = applyPlayerChoice(normalizedChoiceKey);
-          const choiceBeat = { speaker: 'Narrator', text: `You claim: ${label || normalizedChoiceKey}.` };
+          const choiceBeat = {
+            speaker: 'Narrator',
+            text: firstImpression
+              ? `You choose ${label || normalizedChoiceKey}. ${firstImpression.combinedRead} is the first version of you this tribe gets.`
+              : `You claim: ${label || normalizedChoiceKey}.`
+          };
           const beats = [
             choiceBeat,
             ...buildAssignmentBeats(intent),
             ...addChemistryBeats(),
             ...addClosingBeat(),
-            buildFinalizeBeat({ player: PLAYER, members, tasks, leadership, chemistryMoments, closingMood, playerChoiceKey: normalizedChoiceKey, overlay, resolve, gameManager: gm, cleanup, revealAllAssignments, finishEvent: requestFinishEvent })
+            buildFinalizeBeat({
+              player: PLAYER,
+              members,
+              tasks,
+              leadership,
+              chemistryMoments,
+              closingMood,
+              playerChoiceKey: normalizedChoiceKey,
+              firstImpression,
+              reactions: npcReactions,
+              overlay,
+              resolve,
+              gameManager: gm,
+              cleanup,
+              revealAllAssignments,
+              finishEvent: requestFinishEvent
+            })
           ];
-          logDebug('commitChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
+          logDebug('commitRoleChoice_inserting_beats', { insertAt: currentIndex + 1, count: beats.length });
           beatQueue.splice(currentIndex + 1, 0, ...beats);
           ensureFinalizeBeat('commit_choice');
           awaitingChoice.value = false;
@@ -2304,10 +2619,10 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
           renderBeatUI();
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.error('[Day1FirstImpressions] commitChoice failed', err);
+          console.error('[Day1FirstImpressions] role choice failed', err);
           if (err?.stack) {
             // eslint-disable-next-line no-console
-            console.error('[Day1FirstImpressions] commitChoice stack', err.stack);
+            console.error('[Day1FirstImpressions] role choice stack', err.stack);
           }
           awaitingChoice.value = true;
           choiceLocked = false;
@@ -2333,6 +2648,21 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
         const grouped = groupAssignmentsByRole(tasks, members);
         beats.push(...groupBeatsByRole(grouped, members, PLAYER_ID, describeAssignmentLine, usedLines));
         beats.push({ speaker: 'Narrator', text: 'Plans settle into place. People echo assignments back to be sure.', onEnter: updateStatusLine });
+        npcReactions = buildDay1Reactions({
+          members,
+          player: PLAYER,
+          scan: identityScan,
+          leadership,
+          firstImpression: firstImpression || resolveFirstImpression({ player: PLAYER, choiceKey: 'observe', scan: identityScan, leadership })
+        });
+        npcReactions.forEach(reaction => {
+          beats.push({
+            speaker: displayName(reaction.npc, members, PLAYER_ID),
+            speakerId: reaction.npc.id,
+            speakerRef: reaction.npc,
+            text: reaction.text
+          });
+        });
         return beats;
       };
 
@@ -2360,7 +2690,7 @@ export async function runDay1FirstImpressions({ gameManager } = {}) {
       };
 
       buildLeadershipBeats().forEach(addBeat);
-      addChoiceBeat();
+      addBeat(buildFirstImpressionChoiceBeat());
       ensureFinalizeBeat('initial_queue');
 
       nextBtnHandler = () => {

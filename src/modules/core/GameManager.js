@@ -1102,6 +1102,7 @@ class GameManager {
         isMerged: this.isMerged,
         flags: this.flags,
         campLog: this.campLog,
+        day1Memories: this.day1Memories,
         gameHistory: this.gameHistory,
         tribalCouncilLog: this.tribalCouncilLog,
         state: this.state,
@@ -1140,6 +1141,7 @@ class GameManager {
     this.isMerged = Boolean(data.isMerged);
     this.flags = data.flags || { day1FirstImpressionsCompleted: false };
     this.campLog = Array.isArray(data.campLog) ? data.campLog : [];
+    this.day1Memories = Array.isArray(data.day1Memories) ? data.day1Memories : [];
     this.gameHistory = data.gameHistory || { tribals: [] };
     this.tribalCouncilLog = Array.isArray(data.tribalCouncilLog) ? data.tribalCouncilLog : [];
     this.state = data.state || {};
@@ -1221,6 +1223,7 @@ class GameManager {
       isMerged: this.isMerged,
       flags: this.flags,
       campLog: this.campLog,
+      day1Memories: this.day1Memories,
       gameHistory: this.gameHistory,
       tribalCouncilLog: this.tribalCouncilLog,
       state: this.state,
