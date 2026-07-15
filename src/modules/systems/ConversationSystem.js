@@ -7,6 +7,7 @@ import timerManager from '../utils/TimerManager.js';
 import socialEngine from './SocialEngine.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import { DealTypes } from './DealSystem.js';
+import { buildDay1NpcReference } from '../events/Day1CampMemory.js';
 
 // DEV NOTE (ConversationSystem)
 // - NPC stances: computed per exchange from relationship, paranoia, gameplay style, and risk.
@@ -3201,6 +3202,11 @@ class ConversationSystem {
       || day1Memories.find(memory => memory.type === 'unofficial_leader');
     const rememberedBond = canonicalDay1?.strongestBond
       || day1Memories.find(memory => ['early_respect', 'early_bond'].includes(memory.type));
+    const day1Reference = buildDay1NpcReference({
+      memory: canonicalDay1,
+      speakerId: npc?.id,
+      members: tribe?.members || []
+    });
     return [
       {
         id: 'camp_vibe',
@@ -3208,6 +3214,7 @@ class ConversationSystem {
         playerLine: 'What’s the vibe like right now? This tribe feels… something.',
         npcReplyByStance: {
           DEFAULT: [() => {
+            if (day1Reference) return day1Reference;
             if (rememberedTension) return 'It feels tense. First impressions out here do not just vanish because everybody picked up a job.';
             if (rememberedBond) return 'There are a few real connections already. That can steady a tribe — or make everyone else start counting pairs.';
             if (rememberedLeadership?.leadershipStatus === 'contested' || rememberedLeadership?.tags?.includes('contested')) return 'Nobody said it out loud, but people are still deciding who gets to set the pace.';

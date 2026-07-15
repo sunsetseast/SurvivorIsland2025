@@ -314,13 +314,18 @@ function renderCinematicRecap(entry) {
   if (outcome) {
     const roleLabels = { fire: 'Fire', shelter: 'Shelter', wood: 'Wood', resources: 'Resources', float: 'Flex' };
     const leaderName = displayNameById(outcome.operationalLeaderId, tribe, playerId);
+    const leadershipRead = {
+      accepted: 'the tribe accepted the direction',
+      contested: 'another leader pushed back',
+      resisted: 'somebody quietly resisted'
+    }[outcome.leadershipStatus] || 'the tribe found its first direction';
     const important = [
-      `${leaderName} directed the first camp setup (${outcome.leadershipStatus}).`,
-      `You took ${roleLabels[outcome.playerRole] || outcome.playerRole}. ${outcome.firstImpression?.summary || ''}`,
+      `${leaderName} directed camp setup; ${leadershipRead}.`,
+      `You took ${roleLabels[outcome.playerRole] || outcome.playerRole} — ${outcome.firstImpression?.label || 'first impression set'}.`,
       outcome.strongestBond?.explanation,
       outcome.strongestTension?.explanation,
       outcome.reputationExpectation?.explanation
-    ].filter(Boolean);
+    ].filter(Boolean).slice(0, 5);
     summaryBlock.textContent = important.join('\n');
   } else if (entry.data?.summaryHtml) {
     summaryBlock.innerHTML = entry.data.summaryHtml;

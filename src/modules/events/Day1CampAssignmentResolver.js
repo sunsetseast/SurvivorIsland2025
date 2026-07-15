@@ -74,6 +74,11 @@ function emptyAssignments() {
   return { fire: [], shelter: [], wood: [], resources: [], float: [] };
 }
 
+// Reserve specialized providers and builders before the general work roles.
+// This prevents a strong provider (for example Ozzy) from being consumed by
+// the first adequate Fire slot before Resources is evaluated.
+const ASSIGNMENT_PRIORITY = Object.freeze(['resources', 'shelter', 'fire', 'wood', 'float']);
+
 function assignProfile(assignments, profile, roleKey) {
   if (!profile || !DAY1_ROLE_KEYS.includes(roleKey)) return false;
   if (Object.values(assignments).some(list => list.some(entry => normalizeId(entry.id) === normalizeId(profile.id)))) return false;
@@ -134,10 +139,10 @@ export function resolveDay1Assignments({ members = [], playerId = null, requeste
     if (playerIndex >= 0) unassigned.splice(playerIndex, 1);
   }
 
-  ['fire', 'shelter', 'wood', 'resources', 'float'].forEach(roleKey => {
+  ASSIGNMENT_PRIORITY.forEach(roleKey => {
     fillRole({ assignments, unassigned, roleKey, target: config.required[roleKey], config, leaderId });
   });
-  ['fire', 'shelter', 'wood', 'resources', 'float'].forEach(roleKey => {
+  ASSIGNMENT_PRIORITY.forEach(roleKey => {
     fillRole({ assignments, unassigned, roleKey, target: config.preferred[roleKey], config, leaderId });
   });
   while (unassigned.length) {

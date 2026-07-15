@@ -230,12 +230,7 @@ export default class CampScreen {
     try {
       if (container) container.style.pointerEvents = 'none';
       result = await runDay1FirstImpressions({ gameManager, campScreen: this });
-      if (!result?.skipped && !result?.error) {
-        gameManager.flags.day1FirstImpressionsCompleted = true;
-        gameManager.flags.day1FirstImpressionsDone = true;
-      }
       if (container) container.style.pointerEvents = '';
-      gameManager.saveGame?.();
     } catch (error) {
       console.error('[CampScreen] Day 1 event failed', error);
       gameManager.flags.day1FirstImpressionsCompleted = false;
