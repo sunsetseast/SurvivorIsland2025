@@ -6,13 +6,13 @@ const FRAME_ASSETS = {
 };
 
 export function getSurvivorAvatarSrc(survivor) {
-  if (!survivor) return 'Assets/Avatars/default.png';
+  if (!survivor) return 'Assets/logo.png';
   const candidates = [survivor.avatarUrl, survivor.avatar, survivor.portrait, survivor.image, survivor.img];
   const found = candidates.find(Boolean);
   if (found) return found;
   const first = survivor.firstName ? survivor.firstName.toLowerCase() : '';
   if (first) return `Assets/Avatars/${first}.jpeg`;
-  return 'Assets/Avatars/default.png';
+  return 'Assets/logo.png';
 }
 
 class JourneyBeatUI {

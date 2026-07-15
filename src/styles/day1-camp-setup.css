@@ -1,0 +1,781 @@
+/* Day 1 compact camp setup */
+.day1-setup {
+  --day1-tribe-color: #c17f34;
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  overflow: hidden;
+  isolation: isolate;
+  font-family: Survivant, Georgia, serif;
+  color: #2b190a;
+  touch-action: manipulation;
+}
+
+.day1-setup,
+.day1-setup *,
+.day1-checkpoint,
+.day1-checkpoint * {
+  box-sizing: border-box;
+}
+
+body.day1-setup-active {
+  overscroll-behavior: none;
+}
+
+.day1-setup__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--day1-tribe-color) 24%, transparent), transparent 42%),
+    linear-gradient(180deg, rgba(8, 15, 10, 0.84), rgba(3, 7, 4, 0.96));
+  backdrop-filter: blur(5px) saturate(0.78);
+}
+
+.day1-setup__scrim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(115deg, transparent 46%, rgba(255,255,255,.12) 49%, transparent 52%),
+    radial-gradient(circle at 20% 75%, rgba(76, 118, 62, .35), transparent 24%);
+  background-size: 160px 160px, auto;
+  animation: day1AmbientDrift 9s ease-in-out infinite alternate;
+}
+
+.day1-setup__stage {
+  width: min(960px, 100%);
+  max-height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.day1-setup__arrival {
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  color: #f9e9c5;
+  text-transform: uppercase;
+  text-shadow: 0 3px 18px #000;
+  animation: day1Arrival 850ms ease both;
+}
+
+.day1-setup__stage:not([data-stage="arrival"]) .day1-setup__arrival {
+  display: none;
+}
+
+.day1-setup__arrival span {
+  font-size: clamp(.78rem, 2vw, 1rem);
+  letter-spacing: .34em;
+  color: color-mix(in srgb, var(--day1-tribe-color) 60%, #fff4ce);
+}
+
+.day1-setup__arrival strong {
+  font-size: clamp(1.8rem, 8vw, 4.5rem);
+  letter-spacing: .08em;
+}
+
+.day1-setup__speaker {
+  width: min(94vw, 430px);
+  max-height: 94dvh;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  animation: day1LeaderSettle 420ms cubic-bezier(.2,.85,.2,1) both;
+}
+
+.day1-setup__speaker[hidden],
+.day1-setup__board[hidden] {
+  display: none !important;
+}
+
+.day1-setup__speaker-skip {
+  position: relative;
+  width: min(94vw, 430px);
+  aspect-ratio: 2 / 3;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.day1-setup__portrait-crop {
+  position: absolute;
+  z-index: 1;
+  left: var(--day1-portrait-left, 19.63%);
+  top: var(--day1-portrait-top, 10.81%);
+  width: var(--day1-portrait-size, 27.34%);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #22170e;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
+}
+
+.day1-setup__portrait {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transform: scale(var(--avatar-scale, 1.04));
+  transform-origin: center;
+}
+
+.day1-setup__speaker-frame {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.day1-setup__speaker-name {
+  position: absolute;
+  z-index: 3;
+  top: 16.5%;
+  left: 51%;
+  width: 31%;
+  overflow: hidden;
+  color: #fff0c8;
+  font-size: clamp(.82rem, 3.8vw, 1.08rem);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 2px 3px #000;
+}
+
+.day1-setup__speaker-line {
+  position: absolute;
+  z-index: 3;
+  top: 34%;
+  left: 20%;
+  right: 18%;
+  margin: 0;
+  color: #34200f;
+  font-family: Survivant, Georgia, serif;
+  font-size: clamp(1rem, 4.6vw, 1.34rem);
+  font-weight: 700;
+  line-height: 1.32;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.day1-setup__leadership-options {
+  display: flex;
+  width: min(94vw, 430px);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: -22%;
+  position: relative;
+  z-index: 4;
+}
+
+.day1-setup__leadership-options:empty {
+  display: none;
+}
+
+.day1-setup__leadership-options button,
+.day1-setup__start {
+  min-height: 44px;
+  border: 1px solid rgba(255, 220, 147, .48);
+  border-radius: 8px;
+  background: linear-gradient(#704417, #3d220c);
+  color: #fff1cc;
+  padding: 9px 14px;
+  font: 800 clamp(.78rem, 2.8vw, .98rem)/1.1 Survivant, Georgia, serif;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0,0,0,.36), inset 0 1px rgba(255,255,255,.15);
+  cursor: pointer;
+}
+
+.day1-setup__leadership-options button:focus-visible,
+.day1-setup__start:focus-visible,
+.day1-setup__task:focus-visible,
+.day1-setup__pulse-item:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--day1-tribe-color) 55%, #fff1b8);
+  outline-offset: 3px;
+}
+
+.day1-setup__board {
+  width: min(960px, 100%);
+  max-height: min(92dvh, 820px);
+  display: grid;
+  grid-template-rows: auto minmax(0, auto) auto auto auto;
+  gap: clamp(8px, 1.5dvh, 15px);
+  overflow: auto;
+  padding: clamp(14px, 3vw, 28px);
+  border: clamp(7px, 1.2vw, 12px) solid #4a2a0f;
+  border-radius: clamp(16px, 3vw, 28px);
+  background:
+    linear-gradient(rgba(255, 244, 208, .72), rgba(218, 170, 99, .35)),
+    repeating-linear-gradient(92deg, rgba(93, 55, 19, .05) 0 2px, transparent 2px 12px),
+    #e6bd77;
+  box-shadow:
+    0 22px 70px rgba(0,0,0,.64),
+    inset 0 0 0 3px #9c672b,
+    inset 0 0 32px rgba(75,38,10,.24);
+  scrollbar-color: #77501f transparent;
+  animation: day1BoardIn 360ms cubic-bezier(.2,.85,.2,1) both;
+}
+
+.day1-setup__board-header,
+.day1-setup__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.day1-setup__eyebrow {
+  display: block;
+  color: #6e451b;
+  font-size: clamp(.68rem, 1.5vw, .82rem);
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.day1-setup__board h2 {
+  margin: 3px 0 0;
+  color: #2d1a0b;
+  font-size: clamp(1.35rem, 4vw, 2.25rem);
+  line-height: 1;
+}
+
+.day1-setup__leader-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.day1-setup__leader-chip small,
+.day1-setup__leader-chip strong {
+  display: block;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day1-setup__leader-chip small {
+  color: #795426;
+  font-size: .65rem;
+  text-transform: uppercase;
+}
+
+.day1-setup__tasks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(7px, 1.2vw, 12px);
+}
+
+.day1-setup__task {
+  position: relative;
+  min-width: 0;
+  min-height: clamp(112px, 18dvh, 154px);
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+  padding: 11px 7px 9px;
+  overflow: hidden;
+  border: 2px solid rgba(92, 53, 18, .48);
+  border-radius: 13px;
+  background: linear-gradient(150deg, rgba(255,250,226,.9), rgba(178,123,55,.25));
+  color: #3c240f;
+  box-shadow: inset 0 1px rgba(255,255,255,.72), 0 4px 10px rgba(65,33,9,.17);
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.day1-setup__task:hover {
+  transform: translateY(-2px);
+}
+
+.day1-setup__task.is-suggested::after {
+  content: 'SUGGESTED';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #5d3a13;
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+
+.day1-setup__task.is-selected {
+  border-color: color-mix(in srgb, var(--day1-tribe-color) 72%, #3b210d);
+  background: linear-gradient(150deg, rgba(255,251,224,.98), color-mix(in srgb, var(--day1-tribe-color) 24%, #d4a45d));
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--day1-tribe-color) 48%, transparent),
+    0 0 20px color-mix(in srgb, var(--day1-tribe-color) 42%, transparent);
+}
+
+.day1-setup__task-icon {
+  width: clamp(32px, 5vw, 48px);
+  height: clamp(32px, 5vw, 48px);
+  display: grid;
+  place-items: center;
+  color: #5f3712;
+}
+
+.day1-setup__icon {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.day1-setup__task > strong {
+  font-size: clamp(.72rem, 1.6vw, .95rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.day1-setup__task-avatars,
+.day1-setup__pulse-avatars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.day1-setup__avatar-chip {
+  position: relative;
+  width: clamp(27px, 4vw, 38px);
+  aspect-ratio: 1;
+  display: inline-block;
+  overflow: visible;
+  border: 2px solid #76501f;
+  border-radius: 50%;
+  background: #2e1b0c;
+  box-shadow: 0 2px 5px rgba(0,0,0,.28);
+  animation: day1AvatarPopulate 240ms cubic-bezier(.2,.85,.2,1) both;
+}
+
+.day1-setup__avatar-chip:nth-child(2) { animation-delay: 45ms; }
+.day1-setup__avatar-chip:nth-child(3) { animation-delay: 90ms; }
+
+.day1-setup__avatar-chip img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+  border-radius: 50%;
+  object-fit: cover;
+  transform: scale(var(--avatar-scale, 1.04));
+}
+
+.day1-setup__avatar-chip.is-player {
+  border-color: color-mix(in srgb, var(--day1-tribe-color) 62%, #fff0ac);
+  box-shadow: 0 0 0 2px #fff2bd, 0 0 12px var(--day1-tribe-color);
+}
+
+.day1-setup__you-marker {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #2d1909;
+  color: #fff0bc;
+  font-size: .4rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.day1-setup__role-help {
+  min-height: 1.25em;
+  color: #5e3a18;
+  font: 700 clamp(.72rem, 1.7vw, .92rem)/1.25 Survivant, Georgia, serif;
+  text-align: center;
+}
+
+.day1-setup__pulse {
+  min-height: 62px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+}
+
+.day1-setup__pulse-placeholder {
+  align-self: center;
+  color: #755127;
+  font: 700 clamp(.72rem, 1.7vw, .9rem)/1.25 Survivant, Georgia, serif;
+}
+
+.day1-setup__pulse-item {
+  min-width: 0;
+  flex: 1 1 0;
+  max-width: 230px;
+  display: grid;
+  grid-template-columns: 22px auto 1fr;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(94,57,21,.4);
+  border-radius: 10px;
+  background: rgba(255,247,217,.58);
+  color: #452811;
+  padding: 7px 9px;
+  cursor: pointer;
+  animation: day1PulseIn 280ms ease both;
+}
+
+.day1-setup__pulse-item > .day1-setup__icon {
+  width: 22px;
+  height: 22px;
+}
+
+.day1-setup__pulse-item.is-negative { color: #7d271c; }
+.day1-setup__pulse-item.is-watch { color: #5d4382; }
+.day1-setup__pulse-item > strong {
+  overflow: hidden;
+  font-size: clamp(.65rem, 1.4vw, .82rem);
+  text-align: left;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.day1-setup__prompt {
+  color: #66421d;
+  font: 700 clamp(.68rem, 1.6vw, .88rem)/1.2 Survivant, Georgia, serif;
+}
+
+.day1-setup__start {
+  min-width: min(42vw, 170px);
+  background: linear-gradient(color-mix(in srgb, var(--day1-tribe-color) 54%, #7a4a18), #3f250d);
+}
+
+.day1-setup__start:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  filter: grayscale(.55);
+}
+
+.day1-setup__tooltip {
+  position: sticky;
+  left: 50%;
+  bottom: 4px;
+  z-index: 10;
+  width: fit-content;
+  max-width: min(88vw, 520px);
+  margin: -4px auto 0;
+  padding: 8px 11px;
+  border: 1px solid #c99a50;
+  border-radius: 8px;
+  background: rgba(35, 20, 8, .95);
+  color: #fff0c8;
+  font: 700 .78rem/1.3 Survivant, Georgia, serif;
+  box-shadow: 0 5px 18px rgba(0,0,0,.42);
+}
+
+.day1-setup__error {
+  display: grid;
+  gap: 8px;
+  max-width: 440px;
+  padding: 24px;
+  border: 8px solid #4a2a0f;
+  border-radius: 18px;
+  background: #e8c482;
+  text-align: center;
+}
+
+@media (max-width: 650px) and (orientation: portrait) {
+  .day1-setup__board {
+    max-height: 96dvh;
+    padding: 13px;
+    border-width: 7px;
+    border-radius: 18px;
+  }
+
+  .day1-setup__tasks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .day1-setup__task {
+    min-height: clamp(90px, 13.4dvh, 118px);
+    grid-template-columns: 36px 1fr;
+    grid-template-rows: auto 1fr;
+    align-items: center;
+    justify-items: start;
+    padding: 8px;
+  }
+
+  .day1-setup__task:last-child {
+    grid-column: 1 / -1;
+    min-height: 78px;
+  }
+
+  .day1-setup__task-icon {
+    grid-row: 1 / 3;
+  }
+
+  .day1-setup__task-avatars {
+    justify-content: flex-start;
+  }
+
+  .day1-setup__pulse {
+    min-height: 54px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    overflow: visible;
+  }
+
+  .day1-setup__pulse-item {
+    min-width: 0;
+    max-width: none;
+    grid-template-columns: 18px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 2px 4px;
+    padding: 5px;
+  }
+
+  .day1-setup__pulse-item > .day1-setup__icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .day1-setup__pulse-item .day1-setup__pulse-avatars {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+
+  .day1-setup__pulse-item > strong {
+    grid-column: 1 / -1;
+    font-size: .57rem;
+    text-align: center;
+  }
+
+  .day1-setup__footer {
+    align-items: flex-end;
+  }
+
+  .day1-setup__prompt {
+    max-width: 47%;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .day1-setup {
+    padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+
+  .day1-setup__speaker {
+    width: min(36vw, 300px);
+  }
+
+  .day1-setup__speaker-skip {
+    width: min(36vw, 300px);
+  }
+
+  .day1-setup__leadership-options {
+    position: fixed;
+    right: 4vw;
+    bottom: 7dvh;
+    width: 42vw;
+    margin: 0;
+  }
+
+  .day1-setup__board {
+    width: min(96vw, 1080px);
+    max-height: 96dvh;
+    grid-template-rows: auto auto auto auto;
+    gap: 6px;
+    padding: 10px 14px;
+    border-width: 6px;
+  }
+
+  .day1-setup__tasks {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .day1-setup__task {
+    min-height: 98px;
+    padding: 6px;
+  }
+
+  .day1-setup__role-help {
+    display: none;
+  }
+
+  .day1-setup__pulse {
+    min-height: 46px;
+  }
+
+  .day1-setup__pulse-item {
+    padding-block: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day1-setup *,
+  .day1-setup *::before,
+  .day1-setup *::after,
+  .day1-checkpoint *,
+  .day1-checkpoint *::before,
+  .day1-checkpoint *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@keyframes day1Arrival {
+  0% { opacity: 0; transform: translateY(8px); }
+  35%, 75% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-5px); }
+}
+
+@keyframes day1LeaderSettle {
+  from { opacity: 0; transform: translateY(12px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes day1BoardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes day1PulseIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes day1AvatarPopulate {
+  from { opacity: 0; transform: translateY(4px) scale(.88); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes day1AmbientDrift {
+  from { transform: translate3d(-1.2%, 0, 0); }
+  to { transform: translate3d(1.2%, -1%, 0); }
+}
+
+/* The later task-simulation checkpoint keeps its existing consequence logic,
+   but no longer reuses the opening event's retired click-through beat frame. */
+.day1-checkpoint {
+  position: fixed;
+  inset: 0;
+  z-index: 8050;
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: radial-gradient(circle at 50% 35%, rgba(116, 77, 30, .3), transparent 44%), rgba(4, 8, 5, .9);
+  color: #2b190a;
+  font-family: Survivant, Georgia, serif;
+}
+
+.day1-checkpoint__card {
+  width: min(92vw, 560px);
+  display: grid;
+  gap: clamp(10px, 2.2vw, 16px);
+  padding: clamp(16px, 4vw, 26px);
+  border: 8px solid #4a2a0f;
+  border-radius: 20px;
+  background: linear-gradient(rgba(255, 244, 208, .88), rgba(216, 168, 92, .74)), #dfb66e;
+  box-shadow: 0 20px 60px rgba(0,0,0,.62), inset 0 0 0 2px #9c672b;
+  animation: day1BoardIn 260ms ease both;
+}
+
+.day1-checkpoint__eyebrow {
+  color: #6e451b;
+  font-size: clamp(.68rem, 2vw, .82rem);
+  letter-spacing: .14em;
+}
+
+.day1-checkpoint__speaker {
+  display: grid;
+  grid-template-columns: clamp(64px, 18vw, 92px) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.day1-checkpoint__portrait-crop {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 3px solid #72491e;
+  border-radius: 50%;
+  background: #24170c;
+  box-shadow: 0 4px 12px rgba(0,0,0,.32);
+}
+
+.day1-checkpoint__portrait {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transform: scale(var(--avatar-scale, 1.04));
+}
+
+.day1-checkpoint__speaker strong {
+  display: block;
+  font-size: clamp(1rem, 4vw, 1.35rem);
+  line-height: 1.05;
+}
+
+.day1-checkpoint__speaker p {
+  margin: 6px 0 0;
+  font-size: clamp(.9rem, 3.5vw, 1.08rem);
+  line-height: 1.3;
+}
+
+.day1-checkpoint__choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.day1-checkpoint__choices button {
+  min-height: 44px;
+  flex: 1 1 140px;
+  border: 1px solid rgba(255, 220, 147, .48);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: linear-gradient(#704417, #3d220c);
+  color: #fff1cc;
+  font: 800 clamp(.74rem, 2.8vw, .92rem)/1.1 Survivant, Georgia, serif;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3), inset 0 1px rgba(255,255,255,.15);
+}
+
+.day1-checkpoint__choices button:focus-visible {
+  outline: 3px solid #f5ce77;
+  outline-offset: 3px;
+}
+
+@media (orientation: landscape) and (max-height: 480px) {
+  .day1-checkpoint__card {
+    width: min(88vw, 680px);
+    padding: 12px 18px;
+    border-width: 6px;
+  }
+
+  .day1-checkpoint__speaker {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+}

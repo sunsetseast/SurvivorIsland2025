@@ -23,6 +23,15 @@ const AVATAR_PRESENTATION = {
   carolyn: { position: '50% 30%', scale: 1.05 }
 };
 
+// Measured from the transparent interior component of the 1024 × 1536
+// beat-avatar-ui.png asset: x 201–481, y 166–456. The square crop stays
+// inside that opening while the decorative frame renders above it.
+export const DAY1_SPEAKER_PORTRAIT_GEOMETRY = Object.freeze({
+  leftPercent: 19.63,
+  topPercent: 10.81,
+  widthPercent: 27.34
+});
+
 function sameId(a, b) {
   return a != null && b != null && String(a) === String(b);
 }
@@ -58,6 +67,7 @@ export default class Day1CampSetupUI {
     this.avatarResolver = avatarResolver;
     this.cleanupCallbacks = [];
     this.overlay = this.buildOverlay();
+    this.installFocusTrap();
   }
 
   buildOverlay() {
@@ -69,6 +79,9 @@ export default class Day1CampSetupUI {
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'day1-setup-title');
     overlay.style.setProperty('--day1-tribe-color', this.tribeColor);
+    overlay.style.setProperty('--day1-portrait-left', `${DAY1_SPEAKER_PORTRAIT_GEOMETRY.leftPercent}%`);
+    overlay.style.setProperty('--day1-portrait-top', `${DAY1_SPEAKER_PORTRAIT_GEOMETRY.topPercent}%`);
+    overlay.style.setProperty('--day1-portrait-size', `${DAY1_SPEAKER_PORTRAIT_GEOMETRY.widthPercent}%`);
     overlay.innerHTML = `
       <div class="day1-setup__scrim" aria-hidden="true"></div>
       <div class="day1-setup__stage" data-stage="arrival">
@@ -105,8 +118,46 @@ export default class Day1CampSetupUI {
           <div class="day1-setup__tooltip" role="tooltip" hidden></div>
         </div>
       </div>`;
+    const gameContainer = document.getElementById('game-container');
+    this.backgroundState = gameContainer ? {
+      element: gameContainer,
+      inert: gameContainer.inert,
+      ariaHidden: gameContainer.getAttribute('aria-hidden')
+    } : null;
+    if (gameContainer) {
+      gameContainer.inert = true;
+      gameContainer.setAttribute('aria-hidden', 'true');
+    }
+    document.body.classList.add('day1-setup-active');
     document.body.appendChild(overlay);
     return overlay;
+  }
+
+  installFocusTrap() {
+    const onKeyDown = event => {
+      if (event.key !== 'Tab') return;
+      const focusable = [...this.overlay.querySelectorAll('button:not([disabled]), [tabindex="0"]')]
+        .filter(element => !element.hidden && element.offsetParent !== null);
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    this.overlay.addEventListener('keydown', onKeyDown);
+    this.cleanupCallbacks.push(() => this.overlay?.removeEventListener('keydown', onKeyDown));
+  }
+
+  focus(selector) {
+    window.requestAnimationFrame?.(() => this.overlay?.querySelector(selector)?.focus?.());
   }
 
   member(id) {
@@ -170,9 +221,13 @@ export default class Day1CampSetupUI {
           const button = document.createElement('button');
           button.type = 'button';
           button.textContent = option.label;
-          button.addEventListener('click', () => resolve(option.key), { once: true });
+          button.addEventListener('click', () => {
+            options.querySelectorAll('button').forEach(candidate => { candidate.disabled = true; });
+            resolve(option.key);
+          }, { once: true });
           options.appendChild(button);
         });
+        this.focus('.day1-setup__leadership-options button');
       });
     }
 
@@ -190,6 +245,7 @@ export default class Day1CampSetupUI {
         finish();
       };
       skip.addEventListener('click', onSkip, { once: true });
+      this.focus('.day1-setup__speaker-skip');
       this.cleanupCallbacks.push(() => {
         clearTimeout(timer);
         skip.removeEventListener('click', onSkip);
@@ -249,16 +305,30 @@ export default class Day1CampSetupUI {
       tile.append(iconWrap, label, avatars);
 
       let holdTimer = null;
+      let held = false;
       const showTooltip = () => this.showTooltip(`${definition.title}: ${definition.description}`, tile);
       const clearHold = () => {
         if (holdTimer) clearTimeout(holdTimer);
         holdTimer = null;
       };
-      tile.addEventListener('pointerdown', () => { holdTimer = setTimeout(showTooltip, 480); });
+      tile.addEventListener('pointerdown', () => {
+        held = false;
+        holdTimer = setTimeout(() => {
+          held = true;
+          showTooltip();
+        }, 480);
+      });
       tile.addEventListener('pointerup', clearHold);
       tile.addEventListener('pointercancel', clearHold);
       tile.addEventListener('blur', () => this.hideTooltip());
-      tile.addEventListener('click', () => onSelect(roleKey));
+      tile.addEventListener('click', event => {
+        if (held && event.detail !== 0) {
+          held = false;
+          event.preventDefault();
+          return;
+        }
+        onSelect(roleKey);
+      });
       taskGrid.appendChild(tile);
     });
     const selected = DAY1_ROLE_DEFINITIONS[selectedRole] || DAY1_ROLE_DEFINITIONS.float;
@@ -344,9 +414,13 @@ export default class Day1CampSetupUI {
       render();
     };
     render();
+    this.focus(`.day1-setup__task[data-role="${suggestedRole}"]`);
 
     return new Promise(resolve => {
-      start.addEventListener('click', () => resolve(state), { once: true });
+      start.addEventListener('click', () => {
+        start.disabled = true;
+        resolve(state);
+      }, { once: true });
     });
   }
 
@@ -359,5 +433,11 @@ export default class Day1CampSetupUI {
   destroy() {
     this.cleanupCallbacks.splice(0).forEach(cleanup => cleanup());
     this.overlay?.remove();
+    if (this.backgroundState?.element) {
+      this.backgroundState.element.inert = Boolean(this.backgroundState.inert);
+      if (this.backgroundState.ariaHidden == null) this.backgroundState.element.removeAttribute('aria-hidden');
+      else this.backgroundState.element.setAttribute('aria-hidden', this.backgroundState.ariaHidden);
+    }
+    document.body.classList.remove('day1-setup-active');
   }
 }

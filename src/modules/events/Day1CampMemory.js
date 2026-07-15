@@ -17,6 +17,45 @@ function profileById(scan, id) {
   return scan?.profiles?.find(profile => sameId(profile.id, id)) || null;
 }
 
+function memberById(members, id) {
+  return (members || []).find(member => sameId(member?.id, id)) || null;
+}
+
+export function buildDay1NpcReference({ memory, speakerId, members = [] } = {}) {
+  if (!memory || speakerId == null) return null;
+  const playerId = memory.playerId;
+  const speaker = memberById(members, speakerId);
+  const leader = memberById(members, memory.operationalLeaderId);
+  const provider = memberById(members, memory.practicalProviderId);
+  const bondPeople = memory.strongestBond?.people || [];
+  const tensionPeople = memory.strongestTension?.people || [];
+
+  if (bondPeople.some(id => sameId(id, speakerId)) && bondPeople.some(id => sameId(id, playerId))) {
+    return 'You and I worked well together from the start.';
+  }
+  if (sameId(speakerId, memory.operationalLeaderId) && memory.leadershipAction === 'back_leader') {
+    return 'You backed me when everyone was deciding how to start camp.';
+  }
+  if (tensionPeople.some(id => sameId(id, speakerId))) {
+    const otherId = tensionPeople.find(id => !sameId(id, speakerId));
+    const other = memberById(members, otherId);
+    return `${displayName(other)} and I had friction over camp direction immediately.`;
+  }
+  if (provider && memory.assignments?.resources?.some(id => sameId(id, provider.id))) {
+    return `${displayName(provider)} took Resources, so everyone expected results.`;
+  }
+  if (leader) {
+    const controlling = ['command', 'forceful', 'chaotic'].includes(memory.leadershipStyle);
+    if (controlling && memory.leadershipStatus !== 'accepted') {
+      return `${displayName(leader)} took control of camp immediately. People noticed.`;
+    }
+    if (sameId(speaker?.id, leader.id)) {
+      return 'I set the first camp plan, and people followed it.';
+    }
+  }
+  return memory.firstImpression?.summary || null;
+}
+
 export function deriveDay1FirstImpression({ leadershipAction = 'automatic', playerRole, suggestedRole, playerProfile, leadership } = {}) {
   const role = DAY1_ROLE_DEFINITIONS[playerRole] || DAY1_ROLE_DEFINITIONS.float;
   const changedRole = Boolean(suggestedRole && playerRole && suggestedRole !== playerRole);
@@ -37,19 +76,21 @@ export function deriveDay1FirstImpression({ leadershipAction = 'automatic', play
       tags: ['first_impression', 'steady_support', 'team_player'],
       effects: { teamPlayer: 3, threat: -1, suspicion: -1, visibility: 0 }
     };
+  } else if (playerRole === 'resources' && playerProfile?.scores?.provider >= 65) {
+    result = {
+      key: 'provider', posture: 'useful_worker', label: 'Provider',
+      summary: changedRole
+        ? 'You volunteered for the survival job the tribe expected you to handle.'
+        : 'You accepted the job the tribe expects a provider to handle.',
+      tags: ['first_impression', 'provider_reputation', 'useful_worker', ...(changedRole ? ['volunteered'] : [])],
+      effects: { teamPlayer: 4, threat: 1, suspicion: 0, visibility: 2 }
+    };
   } else if (changedRole) {
     result = {
       key: 'team_player', posture: 'responsive_worker', label: 'Steps up',
       summary: `You left the suggested job and volunteered for ${role.label}.`,
       tags: ['first_impression', 'team_player', 'volunteered'],
       effects: { teamPlayer: 4, threat: 0, suspicion: 0, visibility: 1 }
-    };
-  } else if (playerRole === 'resources' && playerProfile?.scores?.provider >= 65) {
-    result = {
-      key: 'provider', posture: 'useful_worker', label: 'Provider',
-      summary: 'You accepted the job the tribe expects a provider to handle.',
-      tags: ['first_impression', 'provider_reputation', 'useful_worker'],
-      effects: { teamPlayer: 4, threat: 1, suspicion: 0, visibility: 2 }
     };
   } else if (playerRole === 'float') {
     const authentic = playerProfile?.tags?.includes('under_the_radar_survival')
@@ -113,6 +154,15 @@ export function resolveDay1SocialPulse({ scan, leadership, assignments, playerId
       }
     }
   });
+  const playerProfile = profileById(scan, playerId);
+  const playerRole = Object.entries(assignments || {}).find(([, ids]) => ids.some(id => sameId(id, playerId)))?.[0];
+  if (playerRole === 'float' && (playerProfile?.scores.social >= 72 || playerProfile?.tags.includes('quiet_influence'))) {
+    const partner = scan.profiles
+      .filter(profile => !sameId(profile.id, playerId))
+      .map(profile => ({ profile, score: pairCompatibility(playerProfile, profile) + playerProfile.scores.social * 0.12 }))
+      .sort((a, b) => b.score - a.score || String(a.profile.id).localeCompare(String(b.profile.id)))[0];
+    if (partner) rolePairs.push({ a: playerProfile, b: partner.profile, roleKey: 'float', score: partner.score });
+  }
   const bond = rolePairs.sort((a, b) => b.score - a.score || String(a.a.id).localeCompare(String(b.a.id)))[0];
   if (bond && bond.score >= 58) {
     pulses.push({
@@ -130,7 +180,6 @@ export function resolveDay1SocialPulse({ scan, leadership, assignments, playerId
     });
   }
 
-  const playerProfile = profileById(scan, playerId);
   if (impression?.key === 'provider') {
     pulses.push({
       type: 'reputation', label: 'Provider pressure', icon: 'watched', people: [playerId], tone: 'watch',
@@ -176,8 +225,8 @@ export function createCanonicalDay1CampMemory({ day = 1, phase = null, tribeId =
     operationalLeaderId: leadership?.topLeader?.id || null,
     leadershipStyle: leadership?.style || null,
     leadershipStatus: leadership?.leadershipStatus || 'accepted',
-    leadershipRivalId: leadership?.runnerUp?.id || null,
-    quietResistorId: leadership?.quietResistor?.id || null,
+    leadershipRivalId: leadership?.leadershipStatus === 'contested' ? leadership?.runnerUp?.id || null : null,
+    quietResistorId: leadership?.leadershipStatus === 'resisted' ? leadership?.quietResistor?.id || null : null,
     socialCenterId: leadership?.socialCenter?.id || null,
     practicalProviderId: leadership?.practicalProvider?.id || null,
     playerId: player?.id || null,
@@ -268,7 +317,10 @@ export function recordDay1CampOutcome({ gameManager, tribe, members, canonicalMe
     const personal = {
       ...canonicalMemory,
       perspective: 'npc',
-      personalHooks: canonicalMemory.futureHooks.filter(Boolean)
+      personalHooks: [
+        buildDay1NpcReference({ memory: canonicalMemory, speakerId: npcId, members }),
+        ...canonicalMemory.futureHooks
+      ].filter(Boolean)
     };
     socialMemory?.recordStructuredEvent?.({
       type: 'day1_camp_memory',
