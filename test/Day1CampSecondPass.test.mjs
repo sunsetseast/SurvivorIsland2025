@@ -302,6 +302,48 @@ test('opening lifecycle finalizes once, saves, creates tasks, cleans up, and wil
   }
 });
 
+test('camp entry leaves event ownership to CampScreen so Day 1 cannot deadlock before opening', async () => {
+  globalThis.window ||= {};
+  globalThis.document ||= { getElementById: () => null };
+  globalThis.localStorage ||= { getItem: () => null, setItem: () => {} };
+  const { canRunDay1FirstImpressions } = await import('../src/modules/events/Day1FirstImpressionsEvent.js');
+  const gameManagerSource = fs.readFileSync(path.resolve('src/modules/core/GameManager.js'), 'utf8');
+  const campScreenSource = fs.readFileSync(path.resolve('src/modules/screens/CampScreen.js'), 'utf8');
+  const members = tribe('Andrea', 'Boston Rob', 'Ozzy', 'Cirie', 'Sandra', 'Tony').map(member => ({ ...member }));
+  const player = members[0];
+  const gameTribe = { id: 'entry-regression', members };
+  const pendingGame = {
+    day: 1,
+    gamePhase: 'preChallenge',
+    flags: {},
+    campLog: [],
+    getPlayerTribe: () => gameTribe,
+    getPlayerSurvivor: () => player,
+    getCurrentDay: () => 1,
+    getGamePhase: () => 'preChallenge'
+  };
+
+  assert.equal(canRunDay1FirstImpressions(pendingGame).ok, true);
+  pendingGame.flags.campEventActive = true;
+  assert.equal(canRunDay1FirstImpressions(pendingGame).reason, 'camp_event_active');
+  assert.doesNotMatch(gameManagerSource, /canRunDay1FirstImpressions/);
+  assert.doesNotMatch(gameManagerSource, /Camp systems paused for pending camp event/);
+
+  const setupBody = campScreenSource.match(/setup\(data = \{\}\) \{([\s\S]*?)\n  \}\n\n  async runScriptedPostChallengeFlow/)?.[1] || '';
+  assert.equal((setupBody.match(/_startCampClockAfterDay1\(/g) || []).length, 1);
+  assert.doesNotMatch(setupBody, /this\.startCampClockTick\(\);\s*\}\s*this\._startCampClockAfterDay1/);
+});
+
+test('camp event completion uses one clock restart path', () => {
+  const campScreenSource = fs.readFileSync(path.resolve('src/modules/screens/CampScreen.js'), 'utf8');
+  const endedHandler = campScreenSource.match(/subscribe\(GameEvents\.CAMP_EVENT_ENDED, \(\{ eventId \}\) => \{([\s\S]*?)\n    \}\);/)?.[1] || '';
+  const resumeMethod = campScreenSource.match(/_resumeCampClock\(\) \{([\s\S]*?)\n  \}/)?.[1] || '';
+  assert.equal((endedHandler.match(/_resumeCampClock\(/g) || []).length, 1);
+  assert.match(resumeMethod, /this\.stopCampClockTick\(\)/);
+  assert.equal((resumeMethod.match(/startCampClockTick\(/g) || []).length, 1);
+  assert.doesNotMatch(endedHandler, /startDayClockTimer\(/);
+});
+
 test('failed task creation rolls back the plan and always releases the camp event flag', async () => {
   globalThis.window ||= {};
   globalThis.document ||= { getElementById: () => null };
