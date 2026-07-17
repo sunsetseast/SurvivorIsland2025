@@ -344,6 +344,106 @@ test('camp event completion uses one clock restart path', () => {
   assert.doesNotMatch(endedHandler, /startDayClockTimer\(/);
 });
 
+test('game initialization preserves lifecycle subscribers and camp completion advances the clock', async () => {
+  globalThis.window ||= {};
+  globalThis.window.setInterval ||= globalThis.setInterval;
+  globalThis.window.clearInterval ||= globalThis.clearInterval;
+  globalThis.window.setTimeout ||= globalThis.setTimeout;
+  globalThis.window.clearTimeout ||= globalThis.clearTimeout;
+  globalThis.HTMLElement ||= class HTMLElement {};
+  globalThis.document ||= {
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {}
+  };
+  globalThis.document.getElementById ||= () => null;
+  globalThis.document.querySelector ||= () => null;
+  globalThis.document.querySelectorAll ||= () => [];
+  globalThis.document.addEventListener ||= () => {};
+  globalThis.localStorage ||= { getItem: () => null, setItem: () => {} };
+
+  const [{ default: CampScreen }, { gameManager }, { default: timerManager }] = await Promise.all([
+    import('../src/modules/screens/CampScreen.js'),
+    import('../src/modules/core/GameManager.js'),
+    import('../src/modules/utils/TimerManager.js')
+  ]);
+  const gameManagerSource = fs.readFileSync(path.resolve('src/modules/core/GameManager.js'), 'utf8');
+  const player = { ...byName('Andrea') };
+  const gameTribe = { id: 'clock-regression', members: [player], shelter: 0 };
+  const snapshot = {
+    flags: gameManager.flags,
+    day: gameManager.day,
+    dayTimer: gameManager.dayTimer,
+    timeSpeed: gameManager.timeSpeed,
+    gamePhase: gameManager.gamePhase,
+    survivors: gameManager.survivors,
+    tribes: gameManager.tribes,
+    player: gameManager.player,
+    systems: gameManager.systems
+  };
+  const previousWindowCampScreen = globalThis.window.campScreen;
+  const originalSetInterval = timerManager.setInterval;
+  const originalClearInterval = timerManager.clearInterval;
+  let intervalCallback = null;
+  let intervalStarts = 0;
+  const screen = new CampScreen();
+
+  try {
+    Object.assign(gameManager, {
+      flags: { campEventActive: true, day1FirstImpressionsCompleted: true },
+      day: 1,
+      dayTimer: 7200,
+      timeSpeed: 8,
+      gamePhase: 'preChallenge',
+      survivors: [player],
+      tribes: [gameTribe],
+      player,
+      systems: {}
+    });
+    screen.isActive = true;
+    screen.currentView = 'tribeFlag';
+    screen.ensureClockUI = () => null;
+    screen.refreshTaskIconState = () => {};
+    screen.updateInventoryDisplay = () => {};
+
+    timerManager.clearInterval = () => true;
+    timerManager.setInterval = (id, callback) => {
+      assert.equal(id, 'campClockTick');
+      intervalCallback = callback;
+      intervalStarts += 1;
+      return id;
+    };
+
+    const subscriberCount = eventManager.getSubscriberCount(GameEvents.CAMP_EVENT_ENDED);
+    eventManager.publish(GameEvents.GAME_STARTED, { marker: 'old-history' });
+    eventManager.clearHistory();
+    assert.equal(eventManager.getHistory().length, 0);
+    assert.equal(eventManager.getSubscriberCount(GameEvents.CAMP_EVENT_ENDED), subscriberCount);
+    assert.match(gameManagerSource, /eventManager\.clearHistory\(\)/);
+    assert.doesNotMatch(gameManagerSource, /eventManager\.clear\(\)/);
+
+    eventManager.publish(GameEvents.CAMP_EVENT_ENDED, {
+      eventId: 'day1_first_impressions',
+      completed: true
+    });
+    await screen.clockStartPromise;
+    assert.equal(intervalStarts, 1);
+    assert.equal(typeof intervalCallback, 'function');
+
+    intervalCallback();
+    assert.equal(gameManager.dayTimer, 7192);
+  } finally {
+    screen.stopCampClockTick();
+    screen.unsubscribeFromCampEventStarted?.();
+    screen.unsubscribeFromCampEventEnded?.();
+    timerManager.setInterval = originalSetInterval;
+    timerManager.clearInterval = originalClearInterval;
+    Object.assign(gameManager, snapshot);
+    globalThis.window.campScreen = previousWindowCampScreen;
+  }
+});
+
 test('failed task creation rolls back the plan and always releases the camp event flag', async () => {
   globalThis.window ||= {};
   globalThis.document ||= { getElementById: () => null };

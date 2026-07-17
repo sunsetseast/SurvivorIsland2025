@@ -89,7 +89,10 @@ class GameManager {
     if (this.isInitialized) return;
 
     // Systems are registered/initialized in main.js; GameManager.initialize should not re-initialize them.
-    eventManager.clear();
+    // Screens and main.js register lifecycle listeners before GameManager.init.
+    // Reset only stale diagnostics; clearing subscribers here disconnects the
+    // camp-event completion listener that owns clock recovery.
+    eventManager.clearHistory();
     eventManager.setDebug(false);
     screenManager.initialize();
     this._attachTribalCompleteListener();
