@@ -153,17 +153,7 @@ export default class CampScreen {
       this.ensureClockUI();
 
       if (this.isActive) {
-        // Force the local clock state to resync after the cinematic "Continue" flow
-        // ends. In some cases the interval may have been cleared without toggling
-        // the CampScreen flag, leaving the guard in startCampClockTick() thinking
-        // a timer is still running.
-        this.clockRunning = false;
-        this.startCampClockTick();
-      }
-
-      if (eventId === 'day1_first_impressions') {
-        this.clockRunning = false;
-        this.startDayClockTimer();
+        this._resumeCampClock();
       }
 
       const survivors = gameManager.survivors;
@@ -189,6 +179,15 @@ export default class CampScreen {
     console.log('CampScreen initialized');
   }
 
+  _resumeCampClock() {
+    this.ensureClockUI();
+    if (!this.isActive || gameManager.flags?.campEventActive) return;
+    // Reset synchronously before the async start checks phase readiness. This
+    // guarantees one interval owner after an event, a skipped event, or reload.
+    this.stopCampClockTick();
+    void this.startCampClockTick();
+  }
+
   async _startCampClockAfterDay1() {
     // clock should already be visible, but be defensive:
     this.ensureClockUI();
@@ -197,20 +196,17 @@ export default class CampScreen {
     if (gate.ok) {
       const resultPromise = this._maybeRunDay1Event();
       resultPromise?.then?.(result => {
-        if (!result || result?.skipped || result?.error) {
-          this.ensureClockUI();
-          this.startCampClockTick();
-          this.startDayClockTimer();
+        // A thrown event still publishes CAMP_EVENT_ENDED in its finally block,
+        // which owns clock recovery. Only a gate skip needs a local fallback.
+        if (result?.skipped) {
+          this._resumeCampClock();
         }
       })?.catch?.(error => {
         console.error('[CampScreen] Day 1 promise rejected', error);
-        this.ensureClockUI();
-        this.startCampClockTick();
-        this.startDayClockTimer();
+        this._resumeCampClock();
       });
     } else {
-      this.startCampClockTick();
-      this.startDayClockTimer();
+      this._resumeCampClock();
     }
   }
 
@@ -288,10 +284,9 @@ export default class CampScreen {
 
     this.renderClockUI();
 
-    if (!gameManager.flags?.campEventActive) {
-      this.startCampClockTick();
-    }
-    this._startCampClockAfterDay1();
+    // This is the single Day 1 entry coordinator. It either starts the opening
+    // event or starts the clock when the event is not eligible.
+    void this._startCampClockAfterDay1();
   }
 
   async runScriptedPostChallengeFlow() {
@@ -443,18 +438,6 @@ export default class CampScreen {
         refreshMenuCard();
       }
 
-      // 🔥 5) Ensure the Day 1 cinematic still triggers when camp first loads
-      const normalizedTribeFlagView = normalizeCampViewKey(LocationKeys.TRIBE_FLAG);
-      if (
-        normalizedViewName === normalizedTribeFlagView &&
-        gameManager.day === 1 &&
-        gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
-        !gameManager.flags?.day1FirstImpressionsCompleted &&
-        !gameManager.flags?.day1FirstImpressionsDone &&
-        !this.day1EventRunning
-      ) {
-        this._startCampClockAfterDay1();
-      }
     }
   }
 
@@ -969,10 +952,7 @@ export default class CampScreen {
   }
 
   startDayClockTimer() {
-    if (gameManager.flags?.campEventActive || !this.isActive || this.clockRunning) return;
-
-    timerManager.clearInterval(CAMP_CLOCK_TIMER_ID);
-    this.startCampClockTick();
+    this._resumeCampClock();
   }
 
   renderClockUI() {

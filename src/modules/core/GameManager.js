@@ -19,7 +19,6 @@ import TaskSimulationSystem from '../systems/TaskSimulationSystem.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
 import { ConversationSystem } from '../systems/index.js';
-import { canRunDay1FirstImpressions } from '../events/Day1FirstImpressionsEvent.js';
 
 // Game states
 export const GameState = {
@@ -455,15 +454,6 @@ class GameManager {
       if (oldState !== GameState.CAMP) {
         this.systems?.idolSystem?.startNewCampPhase?.('enterCamp');
         this.systems?.idolSystem?.spawnInitialForAllTribes?.();
-      }
-
-      const gate = canRunDay1FirstImpressions?.(this);
-      const shouldBlockCampSystems = !!gate?.ok;
-
-      if (shouldBlockCampSystems) {
-        this.flags = this.flags || {};
-        this.flags.campEventActive = true;
-        console.info('[GameManager] Camp systems paused for pending camp event', gate);
       }
 
       // Notify all systems that the camp phase has begun
