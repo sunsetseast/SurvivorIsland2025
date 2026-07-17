@@ -199,6 +199,15 @@ class EventManager {
     this.subscribers = {};
     this.history = [];
   }
+
+  /**
+   * Clear recorded events without disconnecting long-lived lifecycle listeners.
+   * Startup uses this instead of clear() because screens subscribe before the
+   * GameManager finishes initializing.
+   */
+  clearHistory() {
+    this.history = [];
+  }
   
   /**
    * Set debug mode
