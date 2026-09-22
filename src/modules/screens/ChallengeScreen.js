@@ -4,6 +4,7 @@ import challengeManager from '../core/ChallengeManager.js';
 import ChallengeIntroView from '../views/ChallengeIntroView.js';
 import TribeChallengeView from '../views/TribeChallengeView.js';
 import IndividualChallengeView from '../views/IndividualChallengeView.js';
+import { normalizeChallengeResult } from '../core/ChallengeResult.js';
 
 export default class ChallengeScreen {
   constructor() {
@@ -124,27 +125,12 @@ export default class ChallengeScreen {
 
   // Method to handle challenge completion (called by views)
   completeChallenge(results = null) {
-    const playerTribe = gameManager.getPlayerTribe?.();
-    const playerTribeKey = playerTribe?.id ?? playerTribe?.tribeName ?? null;
-    const hasPlayerWinSignal = typeof results?.playerTribeWon === 'boolean';
-    const winningTribeKeys = Array.isArray(results?.winningTribeKeys)
-      ? results.winningTribeKeys
-      : results?.winningTribeKey != null
-        ? [results.winningTribeKey]
-        : [];
-    const playerTribeWon = hasPlayerWinSignal
-      ? results.playerTribeWon
-      : winningTribeKeys.some((key) => String(key) === String(playerTribeKey));
+    const canonicalResult = results && this.currentChallenge
+      ? normalizeChallengeResult(results, { challenge: this.currentChallenge, gameManager })
+      : null;
+    const playerTribeWon = Boolean(canonicalResult?.playerTribeWon);
 
-    if (results && this.currentChallenge) {
-      const canonicalResult = {
-        challengeKey: this.currentChallenge.day === 1 ? 'first_contact' : (results.challengeKey || this.currentChallenge.name || '').toLowerCase().replace(/\s+/g, '_'),
-        challengeName: this.currentChallenge.name,
-        challengeDay: this.currentChallenge.day,
-        playerTribeKey,
-        playerTribeWon,
-        ...results
-      };
+    if (canonicalResult) {
       challengeManager.storeChallengeResult(this.currentChallenge.day, canonicalResult);
       gameManager.lastChallengeResult = canonicalResult;
       gameManager.seasonEngine?.applyChallengeResult?.(canonicalResult);

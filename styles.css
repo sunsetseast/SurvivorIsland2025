@@ -1,3 +1,36 @@
+/* Scoped player elimination screen */
+#game-over-screen {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 5vw, 4rem);
+  background: radial-gradient(circle at top, #23445a 0%, #0d1d2b 62%, #08121b 100%);
+  color: #f6f1df;
+}
+
+#game-over-screen .game-over-card {
+  width: min(100%, 34rem);
+  padding: clamp(1.5rem, 6vw, 3rem);
+  border: 1px solid rgba(246, 241, 223, 0.22);
+  border-radius: 1.25rem;
+  background: rgba(9, 20, 31, 0.9);
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+#game-over-screen h1 { margin-top: 0; color: #f4c95d; }
+#game-over-screen p { line-height: 1.55; }
+#game-over-screen .primary-button {
+  min-height: 2.75rem;
+  margin-top: 1rem;
+  padding: 0.7rem 1.3rem;
+  border: 0;
+  border-radius: 999px;
+  background: #f4c95d;
+  color: #15202a;
+  font-weight: 700;
+  cursor: pointer;
+}
 /* Global Styles */
 html, body {
   margin: 0;

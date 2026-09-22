@@ -11,7 +11,8 @@ import {
   TribeDivisionScreen,
   CampScreen,
   ChallengeScreen,
-  TribalCouncilView
+  TribalCouncilView,
+  GameOverScreen
 } from './modules/screens/index.js';
 import * as systems from './modules/systems/index.js';
 import timerManager from './modules/utils/TimerManager.js';
@@ -63,6 +64,7 @@ function init() {
     tribalCouncilSystem
   });
   screenManager.registerScreen('tribal-council', tribalCouncilScreenInstance);
+  screenManager.registerScreen('game-over', new GameOverScreen());
 
   screenManager.initialize();
   screenManager.showScreen('welcome');

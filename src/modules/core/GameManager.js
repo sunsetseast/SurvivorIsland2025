@@ -85,6 +85,7 @@ class GameManager {
     this.systems.taskSimulationSystem = new TaskSimulationSystem(this);
     this._missingTrustSystemWarned = false;
     this._autoSaveInProgress = false;
+    this._terminalHandled = false;
     this.seasonEngine = new SeasonEngine(this, eventManager);
   }
 
@@ -184,7 +185,7 @@ class GameManager {
     const playerId = this.player?.id;
     const playerEliminated = Boolean(playerId && canonicalEntry.eliminatedId === playerId);
     if (playerEliminated) {
-      this.showGameOverScreen();
+      // eliminateSurvivor owns the idempotent terminal transition.
       return;
     }
 
@@ -411,6 +412,7 @@ class GameManager {
     this.dayTimer = 7200;
     this.timeSpeed = 8;
     this.seasonEngine?.reset();
+    this._terminalHandled = false;
     Object.values(this.systems).forEach(system => {
       if (system.reset) system.reset();
     });
@@ -923,6 +925,7 @@ class GameManager {
     const survivor = this.survivors.find(entry => entry.id === survivorId) || survivorOrId;
     if (!survivor) return;
 
+    if (survivor.isOut) return false;
     survivor.isOut = true;
 
     let sourceTribe = null;
@@ -934,7 +937,7 @@ class GameManager {
     });
 
     if (!sourceTribe) return false;
-    if (this.isMerged) this.jury.push(survivor);
+    if (this.isMerged && !this.jury.some(member => member.id === survivor.id)) this.jury.push(survivor);
 
     eventManager.publish(GameEvents.SURVIVOR_ELIMINATED, {
       eliminatedSurvivor: survivor,
@@ -943,7 +946,7 @@ class GameManager {
       reason,
       day: this.day
     });
-    if (survivor.isPlayer) this.setGameState(GameState.GAME_OVER);
+    if (survivor.isPlayer) this.showGameOverScreen();
     return true;
   }
 
@@ -1310,7 +1313,13 @@ class GameManager {
   }
 
   showGameOverScreen() {
+    if (this._terminalHandled) return false;
+    this._terminalHandled = true;
+    timerManager.clearAll();
+    this.dayTimer = 0;
+    this.gamePhase = GamePhase.NIGHT;
     this.setGameState(GameState.GAME_OVER);
+    return true;
   }
 
   // Calculate total fish for a survivor from individual fish types

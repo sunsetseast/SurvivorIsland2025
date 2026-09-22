@@ -187,6 +187,11 @@ class StrategyPhaseSystem {
   didPlayerTribeWinImmunity() {
     const day = gameManager.getCurrentDay?.() ?? gameManager.getDay?.() ?? gameManager.day;
     const result = challengeManager?.getChallengeResult?.(day);
+    // Individual immunity protects the contestant, not their tribe. They still
+    // need to strategize and attend the playable Tribal Council.
+    if (result?.challengeType === 'individual' || result?.playerWonIndividualImmunity || result?.individualWinnerId) {
+      return false;
+    }
     const winningKeys = new Set();
     const normalizedWinningKeys = new Set();
 

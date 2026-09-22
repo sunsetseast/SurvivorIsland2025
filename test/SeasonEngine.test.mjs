@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import SeasonEngine from '../src/modules/core/SeasonEngine.js';
+import { normalizeChallengeResult } from '../src/modules/core/ChallengeResult.js';
+import TribalCouncilSystem from '../src/modules/systems/TribalCouncilSystem.js';
+import timerManager from '../src/modules/utils/TimerManager.js';
 globalThis.window = globalThis.window || {};
 const { gameManager } = await import('../src/modules/core/GameManager.js');
 const { default: challengeManager } = await import('../src/modules/core/ChallengeManager.js');
@@ -25,6 +28,9 @@ function game({ tribeCount = 2, count = 18, mergeAt = 12 } = {}) {
     getPlayerTribe() { return this.tribes.find(tribe => tribe.members.some(member => member.isPlayer)); },
     _calculateTribeAttributes() { return {}; },
     initializeWaterPlanForTribe() {},
+     hasImmunity(member) {
+       return Boolean(member?.hasImmunity || member?.isImmune || member?.immunity?.individual);
+     },
     eliminateSurvivor(target) {
       target.isOut = true;
       this.tribes.forEach(tribe => { tribe.members = tribe.members.filter(member => member.id !== target.id); });
@@ -123,21 +129,28 @@ test('season state survives swap and merge serialization', () => {
   assert.equal(restored.seasonEngine.state.mergeCount, 1);
 });
 
-test('merged individual immunity still routes one elimination and clears temporary immunity', () => {
+test('merged individual immunity waits for visible Tribal before eliminating or completing', () => {
   const gm = game({ count: 6, mergeAt: 6 });
   gm.seasonEngine.merge();
   const winner = gm.survivors.find(member => member.isPlayer);
-  gm.seasonEngine.completeRound({
-    challengeResult: {
-      challengeDay: 1,
-      challengeType: 'individual',
-      individualWinnerId: winner.id,
-      playerTribeWon: true
-    }
-  });
-  assert.equal(gm.seasonEngine.getActivePlayerCount(), 5);
-  assert.equal(winner.hasImmunity, false);
-  assert.equal(gm.survivors.some(member => member.isOut && member.id !== winner.id), true);
+   const result = {
+     challengeDay: 1,
+     challengeType: 'individual',
+     individualWinnerId: winner.id,
+     playerTribeWon: false
+   };
+   gm.seasonEngine.applyChallengeResult(result);
+   assert.equal(gm.seasonEngine.completeRound({ challengeResult: result }), false);
+   assert.equal(gm.seasonEngine.getActivePlayerCount(), 6);
+   assert.equal(gm.day, 1);
+   assert.equal(winner.hasImmunity, true);
+   const eliminated = gm.survivors.find(member => member.id !== winner.id);
+   gm.eliminateSurvivor(eliminated);
+   assert.equal(gm.seasonEngine.completeRound({ challengeResult: result, elimination: eliminated }), true);
+   assert.equal(gm.seasonEngine.getActivePlayerCount(), 5);
+   assert.equal(gm.day, 2);
+   assert.equal(winner.hasImmunity, false);
+   assert.equal(gm.survivors.filter(member => member.isOut).length, 1);
 });
 
 test('individual immunity is active before Tribal and cleared after the round', () => {
@@ -232,4 +245,191 @@ test('merged state overrides an exact tribal calendar entry', () => {
   gameManager.isMerged = priorMerged;
   gameManager.tribes = priorTribes;
   gameManager.day = priorDay;
+});
+
+test('challenge normalization preserves First Contact and separates individual immunity', () => {
+  const gm = game();
+  const firstContact = normalizeChallengeResult({
+    challengeDay: 1, challengeKey: 'first_contact', challengeType: 'tribal',
+    winningTribeKeys: [1], playerTribeWon: true
+  }, { gameManager: gm });
+  assert.equal(firstContact.challengeKey, 'first_contact');
+  assert.equal(firstContact.playerTribeWon, true);
+  const individual = normalizeChallengeResult({
+    challengeDay: 2, challengeType: 'individual',
+    individualWinnerId: gm.player.id, playerTribeWon: true
+  }, { gameManager: gm });
+  assert.equal(individual.playerTribeWon, false);
+  assert.equal(individual.playerWonIndividualImmunity, true);
+});
+
+test('three-tribe challenge gives second-place player tribe immunity', () => {
+  const gm = game({ tribeCount: 3, count: 9 });
+  gm.player.isPlayer = false;
+  gm.tribes[1].members[0].isPlayer = true;
+  gm.player = gm.tribes[1].members[0];
+  const result = gm.seasonEngine.resolveChallenge({ random: () => 0.5 });
+  assert.deepEqual(result.winningTribeKeys, [1, 2]);
+  assert.equal(result.losingTribeKey, 3);
+  assert.equal(result.playerTribeWon, true);
+});
+
+test('merged player immunity starts strategy and does not auto-complete the round', async () => {
+  const gm = game({ count: 6, mergeAt: 6 });
+  gm.seasonEngine.merge();
+  const result = {
+    challengeDay: 1, challengeType: 'individual',
+    individualWinnerId: gm.player.id, playerWonIndividualImmunity: true
+  };
+  let strategyStarted = false;
+  gm.systems = { strategyPhaseSystem: {
+    startPostChallengePhase: async () => { strategyStarted = true; }
+  } };
+  await gm.systems.strategyPhaseSystem.startPostChallengePhase();
+  assert.equal(strategyStarted, true);
+  assert.equal(gm.seasonEngine.completeRound({ challengeResult: result }), false);
+  assert.equal(gm.day, 1);
+});
+
+test('merged NPC immunity winner is excluded from off-screen Tribal targets', () => {
+  const gm = game({ count: 8, mergeAt: 8 });
+  gm.seasonEngine.merge();
+  const winner = gm.survivors.find(member => !member.isPlayer);
+  const result = { challengeType: 'individual', individualWinnerId: winner.id };
+  gm.seasonEngine.applyChallengeResult(result);
+  const eliminated = gm.seasonEngine.resolveNpcTribal(gm.tribes[0]);
+  assert.notEqual(eliminated?.id, winner.id);
+  assert.equal(winner.isOut, undefined);
+});
+
+test('safe pre-merge round performs one off-screen elimination and advances once', () => {
+  const gm = game({ count: 8 });
+  const result = {
+    challengeDay: 1, challengeType: 'tribal',
+    winningTribeKeys: [1], losingTribeKey: 2, playerTribeWon: true
+  };
+  gm.seasonEngine.completeRound({ challengeResult: result });
+  assert.equal(gm.survivors.filter(member => member.isOut).length, 1);
+  assert.equal(gm.day, 2);
+  assert.equal(gm.seasonEngine.completeRound({ challengeResult: result }), false);
+  assert.equal(gm.survivors.filter(member => member.isOut).length, 1);
+  assert.equal(gm.day, 2);
+});
+
+test('player-unsafe pre-merge round waits for visible Tribal', () => {
+  const gm = game({ count: 8 });
+  const before = gm.seasonEngine.getActivePlayerCount();
+  const result = {
+    challengeDay: 1,
+    challengeType: 'tribal',
+    winningTribeKeys: [2],
+    losingTribeKey: 1,
+    playerTribeWon: false
+  };
+  assert.equal(gm.seasonEngine.completeRound({ challengeResult: result }), false);
+  assert.equal(gm.seasonEngine.getActivePlayerCount(), before);
+  assert.equal(gm.day, 1);
+  assert.deepEqual(gm.seasonEngine.state.completedRounds, []);
+});
+
+test('normal Tribal voting cannot target the individual immunity winner', () => {
+  const gm = game({ count: 6, mergeAt: 6 });
+  gm.seasonEngine.merge();
+  gm.getTribes = () => gm.tribes;
+  const winner = gm.survivors.find(member => !member.isPlayer);
+  gm.seasonEngine.applyChallengeResult({
+    challengeDay: 1,
+    challengeType: 'individual',
+    individualWinnerId: winner.id,
+    playerWonIndividualImmunity: false
+  });
+  const tribal = new TribalCouncilSystem(gm, events);
+  tribal.buildTribeContext(1);
+  tribal._scoreNpcTarget = (_voter, target) => target.id === winner.id ? 10000 : 1;
+  tribal.computeNpcVotes();
+  assert.equal(tribal.immunityHolderIds.has(winner.id), true);
+  assert.equal(tribal.initialVotes.some(vote => vote.targetId === winner.id), false);
+});
+
+test('player elimination performs one terminal transition and clears timers', () => {
+  const original = gameManager.createSavePayload();
+  const originalScreenUpdate = gameManager._updateScreenForState;
+  const originalWindowSetTimeout = window.setTimeout;
+  const originalWindowClearTimeout = window.clearTimeout;
+  window.setTimeout = globalThis.setTimeout;
+  window.clearTimeout = globalThis.clearTimeout;
+  const visitedStates = [];
+  gameManager._updateScreenForState = state => visitedStates.push(state);
+  gameManager.resetGameState();
+  const player = { id: 'terminal-player', name: 'Terminal Player', isPlayer: true };
+  const npc = { id: 'terminal-npc', name: 'NPC' };
+  gameManager.player = player;
+  gameManager.survivors = [player, npc];
+  gameManager.tribes = [{
+    id: 1,
+    tribeId: 1,
+    tribeName: 'Final',
+    members: [player, npc],
+    resources: { food: 50, water: 50, fire: 50, shelter: 50 }
+  }];
+  gameManager.isMerged = true;
+  gameManager.day = 9;
+  timerManager.setTimeout('terminal-test', () => {}, 60000);
+  assert.equal(gameManager.eliminateSurvivor(player, 'vote'), true);
+  assert.equal(gameManager.eliminateSurvivor(player, 'vote'), false);
+  assert.equal(gameManager.gameState, 'gameOver');
+  assert.equal(gameManager.gamePhase, 'night');
+  assert.equal(gameManager.dayTimer, 0);
+  assert.equal(gameManager.day, 9);
+  assert.equal(timerManager.getTimerCount(), 0);
+  assert.deepEqual(visitedStates, ['gameOver']);
+  gameManager._terminalHandled = false;
+  gameManager.restoreSavePayload(original);
+  gameManager._updateScreenForState = originalScreenUpdate;
+  window.setTimeout = originalWindowSetTimeout;
+  window.clearTimeout = originalWindowClearTimeout;
+});
+
+test('save/load preserves canonical challenge and individual immunity state', () => {
+  const gm = game({ count: 6, mergeAt: 6 });
+  gm.seasonEngine.merge();
+  const winner = gm.survivors.find(member => !member.isPlayer);
+  const result = normalizeChallengeResult({
+    challengeDay: 1, challengeType: 'individual', individualWinnerId: winner.id
+  }, { gameManager: gm });
+  gm.lastChallengeResult = result;
+  gm.seasonEngine.applyChallengeResult(result);
+  const payload = {
+    gameManager: {
+      isInitialized: true,
+      gameState: 'camp',
+      gamePhase: 'postChallenge',
+      day: gm.day,
+      dayTimer: 3600,
+      tribeCount: 1,
+      tribes: gm.tribes,
+      survivors: gm.survivors,
+      player: gm.player,
+      playerId: gm.player.id,
+      jury: [],
+      finalists: [],
+      winner: null,
+      mergeAt: gm.mergeAt,
+      isMerged: true,
+      isTribesShuffled: false,
+      flags: {},
+      state: {},
+      postChallengeMode: 'playable',
+      lastChallengeResult: result,
+      seasonEngine: gm.seasonEngine.serialize()
+    },
+    systems: {}
+  };
+  const originalUpdate = gameManager._updateScreenForState;
+  gameManager._updateScreenForState = () => {};
+  assert.equal(gameManager.restoreSavePayload(payload), true);
+  assert.equal(gameManager.lastChallengeResult.challengeType, 'individual');
+  assert.equal(gameManager.lastChallengeResult.individualWinnerId, winner.id);
+  assert.equal(gameManager.hasImmunity(winner.id), true);
+  gameManager._updateScreenForState = originalUpdate;
 });

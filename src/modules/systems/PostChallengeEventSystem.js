@@ -12,6 +12,7 @@ export default class PostChallengeEventSystem {
 
   buildQueue() {
     const result = this.challengeManager.getLastChallengeResult?.();
+    if (result?.challengeType === 'individual') return [];
     if (!result) {
       console.info('[PostChallengeEventSystem] queue build skipped: no challenge result found');
       return [];
@@ -46,14 +47,15 @@ export default class PostChallengeEventSystem {
       phase: this.gameManager?.gamePhase
     });
     const result = this.challengeManager.getLastChallengeResult?.();
-    const isDay1FirstContact = (result?.challengeDay === 1) || (result?.challengeKey === 'first_contact' && this.gameManager?.day === 1);
+    const isDay1FirstContact = result?.challengeType !== 'individual'
+      && ((result?.challengeDay === 1) || (result?.challengeKey === 'first_contact' && this.gameManager?.day === 1));
 
     if (isDay1FirstContact) {
       const journeyContext = JourneyReturnCampEvent.getPendingContext?.(this.gameManager);
       const hasPendingJourneyReturn = Boolean(journeyContext?.journeyerId);
       const playerWasJourneyer = Boolean(journeyContext?.isPlayerJourneyer || this.gameManager?.journey?.selection?.playerWasSelected);
 
-      if (result?.playerTribeWon) {
+        if (result?.challengeType !== 'individual' && result?.playerTribeWon) {
         if (!playerWasJourneyer) {
           await FirstWinEvent.runScripted({
             gameManager: this.gameManager,
@@ -155,7 +157,7 @@ export default class PostChallengeEventSystem {
       console.info('[PostChallengeEventSystem] event end', { eventName });
     }
 
-    if (result?.playerTribeWon) {
+    if (result?.challengeType !== 'individual' && result?.playerTribeWon) {
       console.info('[PostChallengeEventSystem] event queue complete after immunity win; ending post challenge phase');
       await this.gameManager.endPostChallengePhase();
       return;
