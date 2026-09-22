@@ -286,6 +286,11 @@ const TribeChallengeView = {
   },
 
   completeChallengeAndReturnToCamp(config) {
+    const configuredRandom = gameManager.gameSettings?.randomSource;
+    const resolved = gameManager.seasonEngine?.resolveChallenge?.({
+      day: gameManager.getDay(),
+      random: typeof configuredRandom === 'function' ? configuredRandom : Math.random
+    }) || {};
     // Store basic challenge completion result
     const result = {
       challengeKey: (config.name || 'tribe_challenge').toLowerCase().replace(/\s+/g, '_'),
@@ -293,7 +298,8 @@ const TribeChallengeView = {
       challengeDay: gameManager.getDay(),
       challengeType: config.type,
       playerTribeKey: gameManager.getPlayerTribe?.()?.id ?? null,
-      playerTribeWon: false,
+      ...resolved,
+      playerTribeWon: resolved.playerTribeWon ?? false,
       completed: true,
       completedAt: new Date().toISOString(),
       stagePerformance: {},

@@ -177,7 +177,42 @@ class ChallengeManager {
 
   // Get challenge configuration for a specific day
   getChallengeForDay(day) {
-    return this.challenges.get(day) || null;
+    const merged = Boolean(gameManager.isMerged
+      || gameManager.getTribes?.()?.filter(tribe => (
+        tribe?.members?.some(member => !member?.isOut)
+      )).length === 1);
+    if (merged) {
+      return {
+        type: 'individual',
+        name: 'Individual Immunity',
+        description: 'Compete for individual immunity and safety from Tribal Council.',
+        background: 'Assets/Screens/individual-challenge.png',
+        mechanics: 'combined',
+        reward: 'immunity',
+        generated: true
+      };
+    }
+    const exact = this.challenges.get(day);
+    if (exact) return exact;
+    return merged
+      ? {
+          type: 'individual',
+          name: 'Individual Immunity',
+          description: 'Compete for individual immunity and safety from Tribal Council.',
+          background: 'Assets/Screens/individual-challenge.png',
+          mechanics: 'combined',
+          reward: 'immunity',
+          generated: true
+        }
+      : {
+          type: 'tribal',
+          name: 'Immunity Challenge',
+          description: 'Compete as a tribe for immunity.',
+          background: 'Assets/Screens/challenge.png',
+          mechanics: 'teamwork',
+          reward: 'immunity',
+          generated: true
+        };
   }
 
   // Get current challenge based on game state
@@ -185,13 +220,7 @@ class ChallengeManager {
     const currentDay = gameManager.getDay();
     const challenge = this.getChallengeForDay(currentDay);
 
-    if (challenge) {
-      this.currentChallenge = {
-        day: currentDay,
-        ...challenge
-      };
-    }
-
+    this.currentChallenge = { day: currentDay, ...challenge };
     return this.currentChallenge;
   }
 
@@ -200,6 +229,7 @@ class ChallengeManager {
     const currentDay = gameManager.getDay();
     const allTribes = gameManager.getTribes();
     const activeTribeCount = allTribes?.filter(tribe => tribe.members.length > 0).length || 0;
+    if (gameManager.isMerged || activeTribeCount <= 1) return 'individual';
 
     // Check if we have a specific challenge configured
     const challengeConfig = this.getChallengeForDay(currentDay);
@@ -255,11 +285,6 @@ class ChallengeManager {
     const dayValue = day || gameManager.getCurrentDay?.() || gameManager.getDay?.() || gameManager.day || 1;
     if (this.challengeResults.has(dayValue)) {
       return this.challengeResults.get(dayValue);
-    }
-    for (let checkDay = dayValue - 1; checkDay >= 1; checkDay -= 1) {
-      if (this.challengeResults.has(checkDay)) {
-        return this.challengeResults.get(checkDay);
-      }
     }
     return null;
   }

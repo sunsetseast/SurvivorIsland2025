@@ -16,6 +16,7 @@ import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 import TaskSystem from '../systems/TaskSystem.js';
 import TaskSimulationSystem from '../systems/TaskSimulationSystem.js';
+import SeasonEngine from './SeasonEngine.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
 import { ConversationSystem } from '../systems/index.js';
@@ -67,6 +68,7 @@ class GameManager {
     this.tribalCouncilLog = [];
     this.state = {};
     this.postChallengeMode = 'playable';
+    this.lastChallengeResult = null;
     // Tracks whether the player stepped into an early leadership role (e.g., Day 1 First Impressions)
     // Set to true when those events mark the player as the top leader.
     this.flags.playerIsLeader = false;
@@ -83,6 +85,7 @@ class GameManager {
     this.systems.taskSimulationSystem = new TaskSimulationSystem(this);
     this._missingTrustSystemWarned = false;
     this._autoSaveInProgress = false;
+    this.seasonEngine = new SeasonEngine(this, eventManager);
   }
 
   initialize() {
@@ -132,6 +135,7 @@ class GameManager {
     if (!Array.isArray(this.tribalCouncilLog)) this.tribalCouncilLog = [];
 
     const canonicalEntry = this._buildTribalLogEntry(tribalSummary);
+    this.seasonEngine?.recordTribal?.(canonicalEntry);
     this.gameHistory.tribals.push(canonicalEntry);
     this.tribalCouncilLog.push(canonicalEntry);
 
@@ -153,8 +157,10 @@ class GameManager {
       });
     }
 
+    let eliminatedSurvivor = null;
     if (canonicalEntry.eliminatedId) {
-      const alreadyOut = this.survivors?.find(s => s.id === canonicalEntry.eliminatedId)?.isOut === true;
+      eliminatedSurvivor = this.survivors?.find(s => s.id === canonicalEntry.eliminatedId) || null;
+      const alreadyOut = eliminatedSurvivor?.isOut === true;
       if (alreadyOut) {
         console.warn('[GameManager] Skipping duplicate elimination; survivor already out', {
           eliminatedId: canonicalEntry.eliminatedId
@@ -177,16 +183,21 @@ class GameManager {
 
     const playerId = this.player?.id;
     const playerEliminated = Boolean(playerId && canonicalEntry.eliminatedId === playerId);
-    const juryInactive = !this.isMerged;
-
-    if (playerEliminated && juryInactive) {
+    if (playerEliminated) {
       this.showGameOverScreen();
       return;
     }
 
     this.consumeVotePenaltiesAfterTribal(canonicalEntry.membersAtTribal.map(member => member.id));
 
-    this.advanceDay();
+    this.advanceDay({ elimination: eliminatedSurvivor });
+    if (this.seasonEngine?.state?.endgameReached) {
+      this.gamePhase = 'endgame';
+      this.dayTimer = 0;
+      this.setGameState(GameState.CAMP);
+      this.requestAutoSave('endgameReached');
+      return;
+    }
     this.gamePhase = GamePhase.PRE_CHALLENGE;
     this.dayTimer = 7200;
     this.setGameState(GameState.CAMP);
@@ -354,6 +365,10 @@ class GameManager {
 
   startNewGame(settings = {}) {
     this.gameSettings = { ...this.gameSettings, ...settings };
+    if (Number.isFinite(settings.mergeAt)) {
+      this.mergeAt = settings.mergeAt;
+      this.seasonEngine.config.mergeAt = settings.mergeAt;
+    }
     this.tribeCount = this.gameSettings.tribeCount;
     this.resetGameState();
     this.survivors = GameData.getSurvivors().map(survivor => ({
@@ -395,6 +410,7 @@ class GameManager {
     this.gamePhase = GamePhase.PRE_GAME;
     this.dayTimer = 7200;
     this.timeSpeed = 8;
+    this.seasonEngine?.reset();
     Object.values(this.systems).forEach(system => {
       if (system.reset) system.reset();
     });
@@ -782,7 +798,13 @@ class GameManager {
     return this.day;
   }
 
-  advanceDay() {
+  advanceDay({ elimination = null, challengeResult = this.lastChallengeResult } = {}) {
+    if (this.seasonEngine) {
+      return this.seasonEngine.completeRound({
+        challengeResult,
+        elimination
+      });
+    }
     this.day++;
     this.resetTaskSimFlags({ reason: 'day' });
     this.updateTribeHealth();
@@ -805,7 +827,6 @@ class GameManager {
         this.gamePhase = 'tribalCouncil';
         break;
       case 'tribalCouncil':
-        this.day++;
         this.gamePhase = 'preChallenge';
         this.dayTimer = 7200;
         break;
@@ -821,9 +842,11 @@ class GameManager {
     this.flags = this.flags || {};
     this.flags.postChallengeScriptedComplete = true;
     this.postChallengeMode = 'playable';
-    this.day += 1;
     this.dayTimer = 7200;
     this.gamePhase = GamePhase.PRE_CHALLENGE;
+    this.seasonEngine?.completeRound({
+      challengeResult: this.lastChallengeResult
+    });
     console.info('[GameManager] Scripted post-challenge phase complete; advancing to next day', {
       day: this.day,
       gamePhase: this.gamePhase,
@@ -886,33 +909,11 @@ class GameManager {
   }
 
   checkForMerge() {
-    if (this.isMerged) return;
-    const total = this.tribes.reduce((sum, t) => sum + t.members.length, 0);
-    if (total <= this.mergeAt) {
-      this.mergeTribes();
-    } else if (!this.isTribesShuffled && this.tribeCount > 2 && total <= 14) {
-      this.shuffleTribes(2);
-    }
+    return this.seasonEngine?.maybeTransition();
   }
 
   mergeTribes() {
-    const allMembers = this.tribes.flatMap(t => t.members);
-    this.tribes = [{
-      id: 1,
-      tribeId: 1,
-      tribeName: "Merged Tribe",
-      tribeColor: "#FFC107",
-      members: allMembers,
-      resources: { fish: 50, fish1: 0, fish2: 0, fish3: 0, water: 75, fire: 100, shelter: 80 },
-      fire: 0,
-      shelter: 0,
-      immunityWins: 0,
-      rewardWins: 0,
-      attributes: this._calculateTribeAttributes(allMembers)
-    }];
-    this.tribes = this.tribes.map(tribe => this._normalizeTribeAliases(tribe));
-    this.isMerged = true;
-    eventManager.publish(GameEvents.TRIBES_MERGED, { mergedTribe: this.tribes[0] });
+    return this.seasonEngine?.merge();
   }
 
   eliminateSurvivor(survivorOrId, reason = 'vote') {
@@ -932,7 +933,7 @@ class GameManager {
       }
     });
 
-    if (!sourceTribe) return;
+    if (!sourceTribe) return false;
     if (this.isMerged) this.jury.push(survivor);
 
     eventManager.publish(GameEvents.SURVIVOR_ELIMINATED, {
@@ -943,6 +944,7 @@ class GameManager {
       day: this.day
     });
     if (survivor.isPlayer) this.setGameState(GameState.GAME_OVER);
+    return true;
   }
 
   consumeIdolForSurvivor(survivorId, context = {}) {
@@ -1100,7 +1102,9 @@ class GameManager {
         tribalCouncilLog: this.tribalCouncilLog,
         state: this.state,
         postChallengeMode: this.postChallengeMode,
-        gameSettings: this.gameSettings
+        lastChallengeResult: this.lastChallengeResult,
+        gameSettings: this.gameSettings,
+        seasonEngine: this.seasonEngine?.serialize?.()
       },
       systems: this._serializeSystemsForSave()
     });
@@ -1119,19 +1123,35 @@ class GameManager {
     this.dayTimer = Number.isFinite(data.dayTimer) ? data.dayTimer : 7200;
     this.timeSpeed = Number.isFinite(data.timeSpeed) ? data.timeSpeed : 8;
     this.tribeCount = Number.isFinite(data.tribeCount) ? data.tribeCount : this.tribeCount;
+    this.isMerged = Boolean(data.isMerged);
     this.tribes = Array.isArray(data.tribes) ? data.tribes : [];
     this.survivors = Array.isArray(data.survivors)
       ? data.survivors
       : this.tribes.flatMap(tribe => tribe?.members || []);
     this.survivors = this.survivors.map(survivor => ({ ...survivor, laziness: survivor?.laziness ?? 0 }));
-    this.player = data.player || this.survivors.find(survivor => survivor?.id === data.playerId || survivor?.isPlayer) || null;
+    const canonicalById = new Map(this.survivors.map(survivor => [String(survivor.id), survivor]));
+    this.tribes = this.tribes.map(tribe => {
+      const members = (tribe?.members || [])
+        .map(member => canonicalById.get(String(member?.id)))
+        .filter(member => member && !member.isOut);
+      members.forEach(member => {
+        member.tribeId = tribe.tribeId ?? tribe.id;
+        member.tribeName = tribe.tribeName ?? tribe.name;
+        member.tribeColor = tribe.tribeColor ?? tribe.color;
+      });
+      return { ...tribe, members };
+    }).filter(tribe => tribe.members.length > 0 || this.isMerged);
+    this.player = canonicalById.get(String(data.playerId || data.player?.id))
+      || this.survivors.find(survivor => survivor?.isPlayer)
+      || null;
+    if (this.player) this.player.isPlayer = true;
     this.journey = data.journey ?? null;
-    this.jury = Array.isArray(data.jury) ? data.jury : [];
+    this.jury = (Array.isArray(data.jury) ? data.jury : [])
+      .map(member => canonicalById.get(String(member?.id)) || member);
     this.finalists = Array.isArray(data.finalists) ? data.finalists : [];
     this.winner = data.winner ?? null;
     this.mergeAt = Number.isFinite(data.mergeAt) ? data.mergeAt : this.mergeAt;
     this.isTribesShuffled = Boolean(data.isTribesShuffled);
-    this.isMerged = Boolean(data.isMerged);
     this.flags = data.flags || { day1FirstImpressionsCompleted: false };
     this.campLog = Array.isArray(data.campLog) ? data.campLog : [];
     this.day1Memories = Array.isArray(data.day1Memories) ? data.day1Memories : [];
@@ -1139,7 +1159,14 @@ class GameManager {
     this.tribalCouncilLog = Array.isArray(data.tribalCouncilLog) ? data.tribalCouncilLog : [];
     this.state = data.state || {};
     this.postChallengeMode = data.postChallengeMode || 'playable';
+    this.lastChallengeResult = data.lastChallengeResult || null;
     this.gameSettings = { ...this.gameSettings, ...(data.gameSettings || {}) };
+    this.seasonEngine?.deserialize?.(data.seasonEngine);
+    const seasonValidation = this.seasonEngine?.validateSeasonState?.();
+    this.state.seasonValidation = seasonValidation || null;
+    if (seasonValidation && !seasonValidation.valid) {
+      console.warn('[GameManager] Restored save has season invariant issues', seasonValidation.diagnostics);
+    }
 
     (this.tribes || []).forEach(tribe => {
       this.initializeWaterPlanForTribe(tribe);

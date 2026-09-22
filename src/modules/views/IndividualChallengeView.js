@@ -168,10 +168,19 @@ const IndividualChallengeView = {
   },
 
   completeChallengeAndReturnToCamp(config) {
+    const player = gameManager.getPlayerSurvivor?.();
+    const active = gameManager.seasonEngine?.getActiveSurvivors?.() || [];
+    const ranked = [...active].sort((a, b) => (
+      Number(b.physical || 50) + Number(b.mental || 50) - Number(a.physical || 50) - Number(a.mental || 50)
+    ));
     // Store basic challenge completion result
     const result = {
       challengeName: config.name,
+      challengeDay: gameManager.getDay(),
       challengeType: config.type,
+      challengeKey: (config.name || 'individual_challenge').toLowerCase().replace(/\s+/g, '_'),
+      playerTribeWon: ranked[0]?.id === player?.id,
+      individualWinnerId: ranked[0]?.id || null,
       completed: true,
       completedAt: new Date().toISOString()
     };

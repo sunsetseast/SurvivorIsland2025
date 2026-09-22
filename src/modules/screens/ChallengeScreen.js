@@ -137,14 +137,17 @@ export default class ChallengeScreen {
       : winningTribeKeys.some((key) => String(key) === String(playerTribeKey));
 
     if (results && this.currentChallenge) {
-      challengeManager.storeChallengeResult(this.currentChallenge.day, {
+      const canonicalResult = {
         challengeKey: this.currentChallenge.day === 1 ? 'first_contact' : (results.challengeKey || this.currentChallenge.name || '').toLowerCase().replace(/\s+/g, '_'),
         challengeName: this.currentChallenge.name,
         challengeDay: this.currentChallenge.day,
         playerTribeKey,
         playerTribeWon,
         ...results
-      });
+      };
+      challengeManager.storeChallengeResult(this.currentChallenge.day, canonicalResult);
+      gameManager.lastChallengeResult = canonicalResult;
+      gameManager.seasonEngine?.applyChallengeResult?.(canonicalResult);
     }
 
     if (this.currentChallenge?.type === 'tribal') {
