@@ -130,6 +130,7 @@ export default class CampScreen {
     window.campScreen = this;
     this.day1EventRunning = false;
     this.clockRunning = false;
+    this.clockStartPromise = null;
     this.isActive = false;
     this.postChallengeInitPromise = null;
     this.isRunningScriptedPostChallenge = false;
@@ -181,11 +182,19 @@ export default class CampScreen {
 
   _resumeCampClock() {
     this.ensureClockUI();
-    if (!this.isActive || gameManager.flags?.campEventActive) return;
-    // Reset synchronously before the async start checks phase readiness. This
-    // guarantees one interval owner after an event, a skipped event, or reload.
+    if (!this.isActive || gameManager.flags?.campEventActive) return Promise.resolve(false);
+    if (this.clockRunning) return Promise.resolve(true);
+    if (this.clockStartPromise) return this.clockStartPromise;
+
+    // Reset synchronously, then retain the in-flight start so completion events
+    // and direct fallbacks cannot race two interval owners.
     this.stopCampClockTick();
-    void this.startCampClockTick();
+    this.clockStartPromise = Promise.resolve(this.startCampClockTick())
+      .then(() => this.clockRunning)
+      .finally(() => {
+        this.clockStartPromise = null;
+      });
+    return this.clockStartPromise;
   }
 
   async _startCampClockAfterDay1() {
@@ -238,6 +247,11 @@ export default class CampScreen {
     } finally {
       if (container) container.style.pointerEvents = '';
       this.day1EventRunning = false;
+      // CAMP_EVENT_ENDED normally resumes the clock. Keep a direct fallback so
+      // essential Day 1 progression does not depend on subscriber ordering.
+      if (!gameManager.flags?.campEventActive && this.isActive) {
+        void this._resumeCampClock();
+      }
     }
 
     return result;
@@ -805,6 +819,9 @@ export default class CampScreen {
     const postChallengeReady = await this.ensurePostChallengeClockReady('startCampClockTick');
     phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    if (gameManager.flags?.campEventActive || !this.isActive || this.clockRunning) {
+      return;
+    }
     if (phase === GamePhase.POST_CHALLENGE && (!postChallengeReady || timer <= 0)) {
       console.warn('[CampScreen] Blocked camp clock start; post-challenge timer is not ready', { phase, timer, postChallengeReady });
       return;
