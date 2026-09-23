@@ -80,6 +80,9 @@ test('a safe player round resolves an off-screen NPC tribal', () => {
   });
   assert.equal(gm.seasonEngine.getActivePlayerCount(), before - 1);
   assert.notEqual(gm.player.isOut, true);
+  const history = gm.seasonEngine.state.history.find(entry => entry.type === 'roundComplete');
+  assert.equal(history.eliminationType, 'off-screen-npc-tribal');
+  assert.equal(history.tribalMode, 'offscreen');
 });
 
 test('player-loss completion advances exactly once', () => {
@@ -107,6 +110,10 @@ test('a completed visible Tribal cannot cause a second elimination', () => {
   });
   assert.equal(gm.seasonEngine.getActivePlayerCount(), afterTribal);
   assert.equal(gm.day, 2);
+  const history = gm.seasonEngine.state.history.find(entry => entry.type === 'roundComplete');
+  assert.equal(history.eliminationType, 'vote');
+  assert.equal(history.tribalMode, 'visible');
+  assert.ok(history.attendees.includes(eliminated.id));
 });
 
 test('player elimination is terminal and marked out', () => {
@@ -151,6 +158,11 @@ test('merged individual immunity waits for visible Tribal before eliminating or 
    assert.equal(gm.day, 2);
    assert.equal(winner.hasImmunity, false);
    assert.equal(gm.survivors.filter(member => member.isOut).length, 1);
+   const history = gm.seasonEngine.state.history.find(entry => entry.type === 'roundComplete');
+   assert.ok(history.attendees.includes(winner.id));
+   assert.notEqual(history.eliminatedId, winner.id);
+   assert.equal(history.eliminationType, 'vote');
+   assert.equal(history.tribalMode, 'visible');
 });
 
 test('individual immunity is active before Tribal and cleared after the round', () => {
@@ -170,6 +182,9 @@ test('individual immunity is active before Tribal and cleared after the round', 
   gm.seasonEngine.completeRound({ challengeResult: result, elimination: eliminated });
   assert.equal(winner.hasImmunity, false);
   assert.equal(winner.isOut, undefined);
+  const history = gm.seasonEngine.state.history.find(entry => entry.type === 'roundComplete');
+  assert.ok(history.attendees.includes(winner.id));
+  assert.notEqual(history.eliminatedId, winner.id);
 });
 
 test('reaching the configured endgame stops ordinary day progression', () => {

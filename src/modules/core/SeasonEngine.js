@@ -270,6 +270,7 @@ export default class SeasonEngine {
     const token = String(challengeResult?.challengeDay ?? this.gameManager.day);
     if (this.state.completedRounds.includes(token)) return false;
     const result = challengeResult || {};
+    const visibleTribal = Boolean(elimination);
     let eliminated = elimination;
     const attendees = [];
     const winners = new Set((result.winningTribeKeys || (
@@ -279,9 +280,9 @@ export default class SeasonEngine {
       return false;
     }
     if (result.challengeType === 'individual' || this.gameManager.isMerged) {
-      const winner = this.applyChallengeResult(result);
+      this.applyChallengeResult(result);
       const mergedTribe = this.activeTribes[0];
-      attendees.push(...(mergedTribe?.members || []).filter(member => !member.isOut && member !== winner));
+      attendees.push(...(mergedTribe?.members || []).filter(member => !member.isOut));
       if (!eliminated && headless) {
         eliminated = this.resolveNpcTribal({
           ...(mergedTribe || {}),
@@ -306,6 +307,10 @@ export default class SeasonEngine {
       attendees.push(...(losing?.members || []).filter(member => !member.isOut));
       if (!eliminated) eliminated = this.resolveNpcTribal(losing);
     }
+    // Visible Tribal has already removed the eliminated voter from the active tribe.
+    if (visibleTribal && !attendees.some(member => String(member.id) === String(eliminated.id))) {
+      attendees.push(eliminated);
+    }
     this.state.completedRounds.push(token);
     const unsafeTribeId = eliminated
       ? eliminated.tribeId
@@ -320,7 +325,8 @@ export default class SeasonEngine {
       attendees: attendees.map(member => member.id),
       playerTribeWon: Boolean(result.playerTribeWon),
       eliminatedId: eliminated?.id || null,
-      eliminationType: eliminated ? (result.challengeType === 'individual' ? 'merged-tribal' : 'off-screen-npc-tribal') : null,
+      eliminationType: eliminated ? (visibleTribal ? 'vote' : 'off-screen-npc-tribal') : null,
+      tribalMode: eliminated ? (visibleTribal ? 'visible' : 'offscreen') : null,
       juryStatus: {
         started: Boolean(this.gameManager.isMerged),
         count: (this.gameManager.jury || []).length
