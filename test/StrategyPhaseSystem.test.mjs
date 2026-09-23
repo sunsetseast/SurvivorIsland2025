@@ -72,7 +72,10 @@ async function withGame(run) {
 test('player immunity keeps the player in strategy but out of NPC targets and target heat', async () => {
   await withGame(async members => {
     gameManager.isMerged = true;
-    members[0].hasImmunity = true;
+    gameManager.seasonEngine.applyChallengeResult({
+      challengeDay: 1, challengeType: 'individual', individualWinnerId: members[0].id
+    });
+    assert.equal(gameManager.hasImmunity(members[0]), true);
     strategy.seedNpcIntentTargetsForPhase();
     assert.equal(strategy.npcIntentTargets.size, 3);
     assert.equal([...strategy.npcIntentTargets.values()].includes(members[0].id), false);
@@ -90,7 +93,10 @@ test('NPC immunity excludes personal and alliance picks, NPC intent, and Tribal 
   await withGame(async members => {
     gameManager.isMerged = true;
     const immune = members[1];
-    immune.hasImmunity = true;
+    gameManager.seasonEngine.applyChallengeResult({
+      challengeDay: 1, challengeType: 'individual', individualWinnerId: immune.id
+    });
+    assert.equal(gameManager.hasImmunity(immune), true);
     const picks = [];
     let cancelPicker;
     const realPicker = strategy.buildAvatarGridPickerModal;
