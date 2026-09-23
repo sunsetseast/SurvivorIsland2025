@@ -179,8 +179,9 @@ const IndividualChallengeView = {
       challengeDay: gameManager.getDay(),
       challengeType: config.type,
       challengeKey: (config.name || 'individual_challenge').toLowerCase().replace(/\s+/g, '_'),
-      playerTribeWon: ranked[0]?.id === player?.id,
+      playerTribeWon: false,
       individualWinnerId: ranked[0]?.id || null,
+      playerWonIndividualImmunity: ranked[0]?.id === player?.id,
       completed: true,
       completedAt: new Date().toISOString()
     };

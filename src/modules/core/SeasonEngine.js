@@ -134,7 +134,14 @@ export default class SeasonEngine {
 
   resolveChallenge({ random = Math.random, day = this.gameManager.day } = {}) {
     const tribes = this.activeTribes;
-    if (tribes.length < 2) return { challengeDay: day, challengeType: 'individual', playerTribeWon: true };
+    if (tribes.length < 2) {
+      return {
+        challengeDay: day,
+        challengeType: 'individual',
+        playerTribeWon: false,
+        playerWonIndividualImmunity: false
+      };
+    }
     const score = tribe => {
       const members = tribe.members.filter(member => !member.isOut);
       const total = members.reduce((sum, member) => sum
@@ -146,15 +153,16 @@ export default class SeasonEngine {
     };
     const ranking = tribes.map(tribe => ({ tribe, score: score(tribe) }))
       .sort((a, b) => b.score - a.score);
-    const winner = ranking[0].tribe;
+    const winningRanking = tribes.length >= 3 ? ranking.slice(0, 2) : ranking.slice(0, 1);
+    const winner = winningRanking[0].tribe;
     const playerTribe = this.gameManager.getPlayerTribe?.();
     return {
       challengeDay: day, challengeType: 'tribal',
       winningTribeKey: idOf(winner),
-      winningTribeKeys: [idOf(winner)],
+      winningTribeKeys: winningRanking.map(entry => idOf(entry.tribe)),
       losingTribeKey: idOf(ranking[ranking.length - 1].tribe),
       playerTribeKey: idOf(playerTribe),
-      playerTribeWon: Boolean(playerTribe && idOf(playerTribe) === idOf(winner)),
+      playerTribeWon: Boolean(playerTribe && winningRanking.some(entry => idOf(entry.tribe) === idOf(playerTribe))),
       rankings: ranking.map(entry => ({ tribeKey: idOf(entry.tribe), score: entry.score })),
       completed: true
     };
@@ -163,7 +171,7 @@ export default class SeasonEngine {
   applyChallengeResult(result = {}) {
     if (result.challengeType !== 'individual' && !this.gameManager.isMerged) return null;
     const winnerId = result.individualWinnerId
-      || (result.playerTribeWon ? this.gameManager.player?.id : null);
+      || (result.playerWonIndividualImmunity ? this.gameManager.player?.id : null);
     const winner = this.activeSurvivors.find(member => String(member.id) === String(winnerId));
     if (!winner) return null;
     winner.hasImmunity = true;
@@ -212,7 +220,12 @@ export default class SeasonEngine {
     const tribe = unsafeTribe || this.activeTribes.find(candidate => (
       !candidate.members.some(member => member.isPlayer)
     ));
-    const candidates = (tribe?.members || []).filter(member => !member.isOut);
+    const candidates = (tribe?.members || []).filter(member => (
+      !member.isOut
+      && !member.isPlayer
+      && String(member.id) !== String(this.gameManager.player?.id)
+      && !this.gameManager.hasImmunity?.(member)
+    ));
     if (!candidates.length) return null;
     const alliances = this.gameManager.systems?.allianceSystem?.getAlliances?.() || [];
     const allianceSize = (member) => alliances.find(alliance => (
@@ -221,9 +234,15 @@ export default class SeasonEngine {
     const score = (member) => {
       const trust = Number(this.gameManager.getTrust?.(member.id) ?? member.trust ?? 50);
       const relationship = Number(member.relationships?.[this.gameManager.player?.id] ?? member.relationship ?? 50);
+      const intentPressure = (tribe?.members || []).reduce((total, voter) => {
+        if (voter.isOut || voter.id === member.id) return total;
+        const intent = this.gameManager.systems?.strategyPhaseSystem?.getNpcTargetIntent?.(voter.id);
+        return total + (String(intent?.targetId) === String(member.id) ? 8 : 0);
+      }, 0);
       return Number(member.threat ?? 50) * 1.4
         + Number(member.social ?? 50) * 0.2
-        - trust * 0.35 - relationship * 0.25 - allianceSize(member) * 2;
+        - trust * 0.35 - relationship * 0.25 - allianceSize(member) * 2
+        + intentPressure;
     };
     const target = [...candidates].sort((a, b) => score(b) - score(a))[0];
     this.gameManager.eliminateSurvivor(target, 'off-screen-npc-tribal');
@@ -247,37 +266,50 @@ export default class SeasonEngine {
     return true;
   }
 
-  completeRound({ challengeResult = null, elimination = null } = {}) {
+  completeRound({ challengeResult = null, elimination = null, headless = false } = {}) {
     const token = String(challengeResult?.challengeDay ?? this.gameManager.day);
     if (this.state.completedRounds.includes(token)) return false;
     const result = challengeResult || {};
+    const visibleTribal = Boolean(elimination);
     let eliminated = elimination;
     const attendees = [];
     const winners = new Set((result.winningTribeKeys || (
       result.winningTribeKey != null ? [result.winningTribeKey] : []
     )).map(String));
+    if ((result.challengeType === 'individual' || this.gameManager.isMerged) && !elimination && !headless && this.gameManager.player && !this.gameManager.player.isOut) {
+      return false;
+    }
     if (result.challengeType === 'individual' || this.gameManager.isMerged) {
-      const winner = this.applyChallengeResult(result);
+      this.applyChallengeResult(result);
       const mergedTribe = this.activeTribes[0];
-      attendees.push(...(mergedTribe?.members || []).filter(member => !member.isOut && member !== winner));
-      if (!eliminated) {
+      attendees.push(...(mergedTribe?.members || []).filter(member => !member.isOut));
+      if (!eliminated && headless) {
         eliminated = this.resolveNpcTribal({
           ...(mergedTribe || {}),
           members: attendees
         });
       }
-      this.clearChallengeImmunity();
+      if (eliminated) this.clearChallengeImmunity();
     } else if (winners.size) {
       const losing = this.activeTribes.find(tribe => (
         !winners.has(String(idOf(tribe)))
         && (result.losingTribeKey == null || String(idOf(tribe)) === String(result.losingTribeKey))
       )) || this.activeTribes.find(tribe => !winners.has(String(idOf(tribe))));
       attendees.push(...(losing?.members || []).filter(member => !member.isOut));
+      if (!eliminated && losing?.members?.some(member => (
+        !member.isOut && (member.isPlayer || String(member.id) === String(this.gameManager.player?.id))
+      ))) {
+        return false;
+      }
       if (!eliminated) eliminated = this.resolveNpcTribal(losing);
     } else if (result.playerTribeWon) {
       const losing = this.activeTribes.find(tribe => !tribe.members.some(member => member.isPlayer));
       attendees.push(...(losing?.members || []).filter(member => !member.isOut));
       if (!eliminated) eliminated = this.resolveNpcTribal(losing);
+    }
+    // Visible Tribal has already removed the eliminated voter from the active tribe.
+    if (visibleTribal && !attendees.some(member => String(member.id) === String(eliminated.id))) {
+      attendees.push(eliminated);
     }
     this.state.completedRounds.push(token);
     const unsafeTribeId = eliminated
@@ -293,7 +325,8 @@ export default class SeasonEngine {
       attendees: attendees.map(member => member.id),
       playerTribeWon: Boolean(result.playerTribeWon),
       eliminatedId: eliminated?.id || null,
-      eliminationType: eliminated ? (result.challengeType === 'individual' ? 'merged-tribal' : 'off-screen-npc-tribal') : null,
+      eliminationType: eliminated ? (visibleTribal ? 'vote' : 'off-screen-npc-tribal') : null,
+      tribalMode: eliminated ? (visibleTribal ? 'visible' : 'offscreen') : null,
       juryStatus: {
         started: Boolean(this.gameManager.isMerged),
         count: (this.gameManager.jury || []).length

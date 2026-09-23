@@ -187,6 +187,11 @@ class StrategyPhaseSystem {
   didPlayerTribeWinImmunity() {
     const day = gameManager.getCurrentDay?.() ?? gameManager.getDay?.() ?? gameManager.day;
     const result = challengeManager?.getChallengeResult?.(day);
+    // Individual immunity protects the contestant, not their tribe. They still
+    // need to strategize and attend the playable Tribal Council.
+    if (result?.challengeType === 'individual' || result?.playerWonIndividualImmunity || result?.individualWinnerId) {
+      return false;
+    }
     const winningKeys = new Set();
     const normalizedWinningKeys = new Set();
 
@@ -372,7 +377,7 @@ class StrategyPhaseSystem {
     const tribe = gameManager.getPlayerTribe();
     if (!tribe) return;
 
-    const options = tribe.members.filter((m) => !m.isPlayer);
+    const options = tribe.members.filter((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m));
     if (!options.length) return;
     if (this.activeModalId === 'personalTarget') return;
 
@@ -402,7 +407,7 @@ class StrategyPhaseSystem {
 
     return new Promise((resolve) => {
       const tribe = gameManager.getPlayerTribe();
-      const options = tribe?.members?.filter((m) => !m.isPlayer) || [];
+      const options = tribe?.members?.filter((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m)) || [];
       const modal = this.buildAvatarGridPickerModal({
         title: 'Lock your target',
         confirmLabel: 'Confirm Target',
@@ -461,7 +466,7 @@ class StrategyPhaseSystem {
         const targetRow = document.createElement('div');
         targetRow.className = 'strategy-entry-row';
         const resolveCurrentTargetId = () => this.allianceTargets.get(allianceKey);
-        const target = gameManager.survivors?.find((s) => s.id === resolveCurrentTargetId());
+        const target = gameManager.survivors?.find((s) => s.id === resolveCurrentTargetId() && this.isMemberAvailableForTargeting(s));
         const targetLabel = document.createElement('div');
         targetLabel.textContent = target ? `${target.firstName}` : 'No target chosen';
         targetRow.appendChild(targetLabel);
@@ -474,7 +479,7 @@ class StrategyPhaseSystem {
         keepBtn.addEventListener('click', () => {
           if (keepLoggedByAlliance.has(allianceKey)) return;
           keepLoggedByAlliance.add(allianceKey);
-          this.logFact({ type: 'allianceTargetConfirmed', allianceId: allianceKey, targetId: resolveCurrentTargetId() || null });
+          this.logFact({ type: 'allianceTargetConfirmed', allianceId: allianceKey, targetId: target?.id || null });
         });
 
         const changeBtn = document.createElement('button');
@@ -482,7 +487,7 @@ class StrategyPhaseSystem {
         changeBtn.className = 'rect-button alt';
         changeBtn.addEventListener('click', () => {
           const tribe = gameManager.getPlayerTribe();
-          const options = tribe?.members?.filter((m) => !m.isPlayer) || [];
+          const options = tribe?.members?.filter((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m)) || [];
           const picker = this.buildAvatarGridPickerModal({
             title: `Set target for ${alliance.name || 'alliance'}`,
             confirmLabel: 'Choose',
@@ -538,7 +543,7 @@ class StrategyPhaseSystem {
   }
 
   updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0, absoluteConfidence = null } = {}) {
-    if (!npcId || !targetId) return null;
+    if (!npcId || !this.isTargetIdAvailable(targetId)) return null;
     const priorMeta = this.npcIntentMeta.get(npcId) || { confidence: 0.5, reason: 'seed', updatedAt: Date.now() };
     const fallbackConfidence = (Number(priorMeta.confidence) || 0.5) + (Number(confidenceDelta) || 0);
     const seededConfidence = absoluteConfidence == null ? fallbackConfidence : Number(absoluteConfidence);
@@ -570,7 +575,7 @@ class StrategyPhaseSystem {
     const targetId = this.npcIntentTargets.get(npcId)
       || this.npcIntentTargets.get(String(npcId))
       || this.npcIntentTargets.get(Number(npcId));
-    if (!targetId) return null;
+    if (!this.isTargetIdAvailable(targetId)) return null;
     const meta = this.npcIntentMeta.get(npcId)
       || this.npcIntentMeta.get(String(npcId))
       || this.npcIntentMeta.get(Number(npcId))
@@ -588,7 +593,7 @@ class StrategyPhaseSystem {
     const tribe = gameManager.getPlayerTribe?.();
     if (!tribe) return 0;
 
-    const npcMembers = (tribe.members || []).filter((m) => m && !m.isPlayer && this.isMemberAvailableForTargeting(m));
+    const npcMembers = (tribe.members || []).filter((m) => m && !m.isPlayer && !m.isOut);
     if (!npcMembers.length) return 0;
 
     const pickThreatTargetForNpc = (npc) => {
@@ -615,7 +620,8 @@ class StrategyPhaseSystem {
 
     let seededCount = 0;
     npcMembers.forEach((npc) => {
-      const seededTargetId = this.personalTargetId || pickThreatTargetForNpc(npc);
+      const seededTargetId = this.isTargetIdAvailable(this.personalTargetId) && String(this.personalTargetId) !== String(npc.id)
+        ? this.personalTargetId : pickThreatTargetForNpc(npc);
       if (!seededTargetId) return;
       this.updateNpcIntentTarget(npc.id, seededTargetId, {
         reason: 'seed:startPhase',
@@ -632,7 +638,7 @@ class StrategyPhaseSystem {
   computeTribalTargetBoard() {
     const heatMap = {};
     const increment = (targetId, weight = 1) => {
-      if (!targetId) return;
+      if (!this.isTargetIdAvailable(targetId)) return;
       const key = String(targetId);
       heatMap[key] = (heatMap[key] || 0) + weight;
     };
@@ -764,7 +770,8 @@ class StrategyPhaseSystem {
     };
 
     const proposeTarget = (speaker) => {
-      return this.pickTargetForAction('SOFT_COUNTER', tribeMembers, speaker) || tribeMembers.find((m) => !m.isPlayer)?.id;
+      return this.pickTargetForAction('SOFT_COUNTER', tribeMembers, speaker)
+        || tribeMembers.find((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m))?.id;
     };
 
     const runDiscussion = (initial) => {
@@ -834,7 +841,7 @@ class StrategyPhaseSystem {
       speakBtn.className = 'rect-button';
       speakBtn.addEventListener('click', () => {
         actions.innerHTML = '';
-        const tribeOptions = tribeMembers.filter((m) => !m.isPlayer);
+        const tribeOptions = tribeMembers.filter((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m));
         const picker = this.buildAvatarGridPickerModal({
           title: 'Who do you pitch?',
           confirmLabel: 'Propose',
@@ -893,7 +900,7 @@ class StrategyPhaseSystem {
     pushDifferent.className = 'rect-button alt';
     pushDifferent.addEventListener('click', () => {
       const tribe = gameManager.getPlayerTribe();
-      const options = tribe?.members?.filter((m) => !m.isPlayer) || [];
+      const options = tribe?.members?.filter((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m)) || [];
       const picker = this.buildAvatarGridPickerModal({
         title: 'Who do you push?',
         confirmLabel: 'Push',
@@ -1206,7 +1213,14 @@ class StrategyPhaseSystem {
       || member.isOut
       || member.outOfGame
       || member.isOutOfGame
+      || gameManager.hasImmunity(member)
     );
+  }
+
+  isTargetIdAvailable(targetId) {
+    if (targetId == null) return false;
+    const member = gameManager.getPlayerTribe?.()?.members?.find((entry) => String(entry.id) === String(targetId));
+    return this.isMemberAvailableForTargeting(member);
   }
 
   calculateThreatScore(member) {
@@ -1234,7 +1248,7 @@ class StrategyPhaseSystem {
   logPlayerNameFloatedIfNeeded({ speaker, targetId, action } = {}) {
     if (!speaker || !targetId) return;
     const player = gameManager.getPlayerSurvivor?.();
-    if (!player || String(targetId) !== String(player.id)) return;
+    if (!player || !this.isMemberAvailableForTargeting(player) || String(targetId) !== String(player.id)) return;
 
     const trustSystem = gameManager?.systems?.trustSystem;
     const relationshipSystem = gameManager?.systems?.relationshipSystem;
@@ -1384,10 +1398,7 @@ class StrategyPhaseSystem {
     });
 
     if (this.playerTribeSafe) {
-      gameManager.day += 1;
-      gameManager.gamePhase = GamePhase.PRE_CHALLENGE;
-      gameManager.dayTimer = 7200;
-      eventManager.publish(GameEvents.GAME_PHASE_CHANGED, { phase: GamePhase.PRE_CHALLENGE });
+      gameManager.endPostChallengePhase();
       const existingClock = document.getElementById('camp-clock');
       if (existingClock) existingClock.remove();
       window.campScreen?.renderClockUI?.();
@@ -1414,6 +1425,9 @@ class StrategyPhaseSystem {
   }
 
   buildAvatarGridPickerModal({ title, confirmLabel, options, tribeColor = '#f5c76a', defaultSelection, onConfirm, onCancel }) {
+    options = (options || []).filter((member) => this.isMemberAvailableForTargeting(member));
+    defaultSelection = options.some((member) => String(member.id) === String(defaultSelection))
+      ? defaultSelection : options[0]?.id;
     const overlay = document.createElement('div');
     overlay.className = 'strategy-overlay';
 
@@ -1455,7 +1469,7 @@ class StrategyPhaseSystem {
         tile.addEventListener('click', () => {
           selectedId = opt.id;
           renderTiles();
-          confirmBtn.disabled = false;
+          confirmBtn.disabled = !this.isTargetIdAvailable(selectedId);
         });
 
         grid.appendChild(tile);
@@ -1466,9 +1480,9 @@ class StrategyPhaseSystem {
     buttons.className = 'strategy-actions';
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = confirmLabel;
-    confirmBtn.disabled = !selectedId;
+    confirmBtn.disabled = !this.isTargetIdAvailable(selectedId);
     confirmBtn.addEventListener('click', () => {
-      if (!selectedId) return;
+      if (!this.isTargetIdAvailable(selectedId)) return;
       onConfirm?.(selectedId);
       document.body.removeChild(overlay);
     });

@@ -10,3 +10,4 @@ export { default as TribeDivisionScreen } from './TribeDivisionScreen.js';
 export { default as CampScreen } from './CampScreen.js';
 export { default as ChallengeScreen } from './ChallengeScreen.js';
 export { default as TribalCouncilView } from './TribalCouncilView.js';
+export { default as GameOverScreen } from './GameOverScreen.js';
