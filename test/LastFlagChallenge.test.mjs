@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildChallengeArrival } from '../src/modules/core/ChallengeArrival.js';
-import LastFlagChallengeEngine from '../src/modules/core/LastFlagChallengeEngine.js';
+import LastFlagChallengeEngine, { planLastFlagSitOuts, selectLastFlagHeat2Tribe } from '../src/modules/core/LastFlagChallengeEngine.js';
 import { normalizeChallengeResult } from '../src/modules/core/ChallengeResult.js';
 import SeasonEngine from '../src/modules/core/SeasonEngine.js';
 globalThis.window = globalThis.window || {};
@@ -83,6 +83,109 @@ test('missing or stale prior Tribal does not invent an elimination', () => {
     assert.equal(scene.beats.some(beat => beat.reveal), false);
     assert.equal(scene.beats.some(beat => /undefined|Old/.test(beat.text)), false);
   }
+});
+
+test('Jeff names the drawn Heat 2 tribe before play without calling it an advantage', () => {
+  const { tribes, survivors, player } = fixtures(3);
+  const drawn = selectLastFlagHeat2Tribe(tribes, 2);
+  const scene = buildChallengeArrival({ day: 2, tribes, survivors });
+  const draw = scene.beats.find(beat => beat.title === 'The heat draw');
+  assert.ok(draw.text.includes(tribes.find(tribe => tribe.id === drawn).tribeName));
+  assert.match(draw.text, /Heat 2/);
+  assert.doesNotMatch(draw.text, /advantage|bye/i);
+  assert.equal(new LastFlagChallengeEngine({ tribes, playerId: player.id }).byeTribeKey, drawn);
+  assert.ok(scene.beats.indexOf(draw) < scene.beats.findIndex(beat => beat.title === 'Take your spots'));
+});
+
+test('player tribe sit-out choice equalizes lineups and never benches the player', () => {
+  const { tribes, player } = fixtures(2, { size: 4 });
+  tribes[0].members.push({ id: 'extra', firstName: 'Extra', mental: 20, puzzles: 1, focus: 1 });
+  const pending = planLastFlagSitOuts({ tribes, playerId: player.id });
+  assert.equal(pending.playerChoicesNeeded, 1);
+  assert.equal(pending.playerOptions.some(member => member.id === player.id), false);
+  assert.throws(() => new LastFlagChallengeEngine({ tribes, playerId: player.id }), /Choose/);
+  assert.throws(() => planLastFlagSitOuts({ tribes, playerId: player.id, playerSitOutIds: [player.id] }), /Invalid/);
+  const chosen = tribes[0].members[0].id;
+  const engine = new LastFlagChallengeEngine({ tribes, playerId: player.id, playerSitOutIds: [chosen] });
+  assert.deepEqual(engine.sitOutIds, [chosen]);
+  assert.deepEqual(Object.values(engine.lineups).map(ids => ids.length), [4, 4]);
+  assert.ok(engine.lineups['1'].includes(player.id));
+  assert.equal(engine.lineups['1'].includes(chosen), false);
+  const result = play(engine);
+  assert.deepEqual(result.sitOutIds, [chosen]);
+  assert.ok(result.contestantPerformance[player.id].turns > 0);
+  assert.ok(engine.moves.every(move => move.actorId !== chosen));
+});
+
+test('opponent sit-outs are deterministic and use the existing logic traits', () => {
+  const { tribes, player } = fixtures(2, { size: 4 });
+  tribes[1].members.push({ id: 'weak-fit', firstName: 'Weak', mental: 19, puzzles: 1, focus: 1 });
+  const a = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+  const b = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+  assert.deepEqual(a.sitOutIds, ['weak-fit']);
+  assert.deepEqual(a.sitOutIds, b.sitOutIds);
+  assert.deepEqual(Object.values(a.lineups).map(ids => ids.length), [4, 4]);
+  assert.ok(play(a).sitOutIds.includes('weak-fit'));
+  assert.ok(a.moves.every(move => move.actorId !== 'weak-fit'));
+});
+
+test('three uneven tribes field equal teams in both heats; out and sat players never act', () => {
+  const { tribes, player } = fixtures(3, { size: 3 });
+  tribes[0].members.push({ id: 'reserve-a', mental: 20, puzzles: 1, focus: 1 }, { id: 'reserve-b', mental: 25, puzzles: 2, focus: 2 });
+  tribes[1].members.push({ id: 'reserve-c', mental: 20, puzzles: 1, focus: 1 });
+  tribes[2].members.push({ id: 'voted-out', isOut: true });
+  const plan = planLastFlagSitOuts({ tribes, playerId: player.id, playerSitOutIds: ['reserve-a', 'reserve-b'] });
+  assert.deepEqual(plan.sitOutIds, ['reserve-a', 'reserve-b', 'reserve-c']);
+  const engine = new LastFlagChallengeEngine({ tribes, playerId: player.id, playerSitOutIds: ['reserve-a', 'reserve-b'] });
+  assert.deepEqual(Object.values(engine.lineups).map(ids => ids.length), [3, 3, 3]);
+  const result = play(engine);
+  assert.equal(result.heatResults.length, 2);
+  assert.ok(engine.moves.every(move => ![...result.sitOutIds, 'voted-out'].includes(move.actorId)));
+  assert.ok(result.contestantPerformance[player.id].turns > 0);
+});
+
+test('production-scale NPCs can discover a pattern and share it without making teammates perfect', () => {
+  const make = n => {
+    const strong = { id: `s${n}`, mental: 45, puzzles: 10, focus: 9, leader: 9,
+      teamPlayer: 85, gameplayStyle: 'Shadow Strategist' };
+    const mate = { id: `m${n}`, mental: 30, puzzles: 3, focus: 3,
+      leader: 3, teamPlayer: 55, gameplayStyle: 'Balanced', risk: 8 };
+    const player = { id: `p${n}`, mental: 32, puzzles: 5, focus: 5 };
+    const tribes = [{ id: 1, members: [strong, mate, { id: `o${n}` }] },
+      { id: 2, members: [{ id: `x${n}` }, player, { id: `z${n}` }] }];
+    const engine = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+    engine.heat.turnTribeKey = 1;
+    engine.heat.flagsRemaining = 10;
+    return engine;
+  };
+  for (const [id, follows] of [[11, true], [1, false]]) {
+    const engine = make(id), identical = make(id);
+    const callout = engine.advanceNpcTurn(), repeat = identical.advanceNpcTurn();
+    assert.equal(callout.taken, 2);
+    assert.equal(callout.recognizedPattern, true);
+    assert.match(callout.callout, /I see it/);
+    assert.deepEqual(callout, repeat, 'identical state gives the same decision and callout');
+    // Inspect the next teammate's reasoning on the same board after hearing the callout.
+    for (const copy of [engine, identical]) {
+      copy.heat.turnTribeKey = 1;
+      copy.heat.flagsRemaining = 10;
+      copy.heat.positions['1'] = 1;
+    }
+    const teamChoice = engine.chooseNpcMove();
+    assert.equal(engine.lastNpcDecision.followedPlan, follows);
+    if (follows) assert.equal(teamChoice, 2);
+    else assert.notEqual(teamChoice, 2);
+    identical.tribeAwareness['1'] = null;
+    const soloChoice = identical.chooseNpcMove();
+    assert.equal(identical.lastNpcDecision.followedPlan, false);
+    assert.notEqual(soloChoice, 2);
+  }
+  const weak = make(1);
+  weak.heat.positions['1'] = 1;
+  weak.heat.flagsRemaining = 10;
+  assert.notEqual(weak.chooseNpcMove(), 2);
+  assert.equal(weak.lastNpcDecision.recognized, false);
+  assert.equal(weak.advanceNpcTurn().callout, undefined, 'unaware teammates never issue informed callouts');
 });
 
 test('21 flags, legal actions, alternating teams and rotating actors', () => {
@@ -293,6 +396,141 @@ function findElement(root, predicate) {
   }
   return null;
 }
+
+function withChallengeScreen({ tribes, survivors, player }, run) {
+  const oldDocument = globalThis.document;
+  const keys = ['day', 'gamePhase', 'gameState', 'tribes', 'survivors', 'player', 'isMerged',
+    'gameHistory', 'seasonEngine', 'lastChallengeResult', 'advanceGamePhase', 'setGameState'];
+  const saved = Object.fromEntries(keys.map(key => [key, gameManager[key]]));
+  const previousResults = challengeManager.serialize();
+  const previousScreen = window.challengeScreen;
+  const container = fakeElement();
+  const screen = new ChallengeScreen();
+  try {
+    globalThis.document = {
+      createElement: fakeElement,
+      createTextNode: value => { const node = fakeElement('#text'); node.textContent = value; return node; },
+      getElementById: id => id === 'challenge-screen' ? container : null
+    };
+    gameManager.day = 2;
+    gameManager.gamePhase = 'challenge';
+    gameManager.tribes = tribes;
+    gameManager.survivors = survivors;
+    gameManager.player = player;
+    gameManager.isMerged = false;
+    gameManager.gameHistory = { tribals: [] };
+    gameManager.seasonEngine = { state: { history: [] }, applyChallengeResult() {} };
+    gameManager.advanceGamePhase = () => { gameManager.gamePhase = 'postChallenge'; };
+    gameManager.setGameState = state => { gameManager.gameState = state; };
+    screen.setup();
+    run(screen, container);
+  } finally {
+    screen.teardown();
+    for (const key of keys) gameManager[key] = saved[key];
+    challengeManager.deserialize(previousResults);
+    globalThis.document = oldDocument;
+    window.challengeScreen = previousScreen;
+  }
+}
+
+function advanceCeremony(screen, container) {
+  let guard = 0;
+  while (screen.currentView === 'challenge-intro' && guard++ < 12) {
+    const next = findElement(container, node => node.className === 'last-flag-button last-flag-next');
+    assert.ok(next, 'ceremony should offer a next beat');
+    next.click();
+  }
+  assert.equal(screen.currentView, 'last-flag-challenge');
+}
+
+test('Jeff offers the player an NPC sit-out choice and passes it to Last Flag', () => {
+  const cast = fixtures(2);
+  cast.tribes[0].members.push({ id: 'extra', firstName: 'Extra', mental: 20, puzzles: 1, focus: 1 });
+  cast.survivors = cast.tribes.flatMap(tribe => tribe.members);
+  withChallengeScreen(cast, (screen, container) => {
+    let guard = 0;
+    while (!findElement(container, node => node.textContent === 'Sitting out') && guard++ < 10) {
+      findElement(container, node => node.className === 'last-flag-button last-flag-next').click();
+    }
+    assert.ok(findElement(container, node => node.textContent === 'Sitting out'));
+    assert.equal(findElement(container, node => node.textContent === cast.player.firstName), null,
+      'player is not offered as a sit-out');
+    assert.equal(findElement(container, node => node.className === 'last-flag-button last-flag-next'), null,
+      'play cannot begin until a teammate is selected');
+    findElement(container, node => node.tag === 'button' && node.textContent === 'Extra').click();
+    assert.match(container.textContent, /Tribe 1 sits out: Extra/);
+    advanceCeremony(screen, container);
+    assert.deepEqual(screen.activeChallengeView.engine.sitOutIds, ['extra']);
+    assert.deepEqual(Object.values(screen.activeChallengeView.engine.lineups).map(ids => ids.length), [4, 4]);
+  });
+});
+
+test('Jeff announces deterministic opponent sit-out without asking the player to choose', () => {
+  const cast = fixtures(2);
+  cast.tribes[1].members.push({ id: 'weak-fit', firstName: 'Weak', mental: 19, puzzles: 1, focus: 1 });
+  cast.survivors = cast.tribes.flatMap(tribe => tribe.members);
+  withChallengeScreen(cast, (screen, container) => {
+    let guard = 0;
+    while (!findElement(container, node => node.textContent === 'Sitting out') && guard++ < 10) {
+      findElement(container, node => node.className === 'last-flag-button last-flag-next').click();
+    }
+    assert.match(container.textContent, /Tribe 2 sits out: Weak/);
+    assert.ok(findElement(container, node => node.className === 'last-flag-button last-flag-next'));
+    advanceCeremony(screen, container);
+    assert.deepEqual(screen.activeChallengeView.engine.sitOutIds, ['weak-fit']);
+  });
+});
+
+test('non-optimal player move receives neutral narration; only a real NPC callout appears', () => {
+  const cast = fixtures(2);
+  withChallengeScreen(cast, (screen, container) => {
+    advanceCeremony(screen, container);
+    const view = screen.activeChallengeView;
+    while (!view.engine.awaitingPlayer) view.afterMove(view.engine.advanceNpcTurn());
+    view.engine.heat.flagsRemaining = 10;
+    const move = view.engine.take(1, cast.player.id);
+    assert.equal(move.mistake, true);
+    view.afterMove(move);
+    const line = findElement(container, node => node.className === 'last-flag-commentary');
+    assert.equal(line.textContent, `${move.actorName} takes 1. 9 left.`);
+    assert.doesNotMatch(line.textContent, /call|mistake|wrong|pattern/i);
+    view.lastMove = { ...move, actorName: 'Strategist', recognizedPattern: true,
+      mistake: false, callout: '“I see it. Stay with me!”' };
+    view.render();
+    assert.match(findElement(container, node => node.className === 'last-flag-commentary').textContent, /Strategist: “I see it/);
+  });
+});
+
+test('Heat 2 resets board and commentary before its first contestant acts', () => {
+  const cast = fixtures(3);
+  withChallengeScreen(cast, (screen, container) => {
+    advanceCeremony(screen, container);
+    const view = screen.activeChallengeView;
+    const oldSetTimeout = globalThis.setTimeout, oldClearTimeout = globalThis.clearTimeout;
+    const pending = [];
+    try {
+      globalThis.setTimeout = fn => { pending.push(fn); return pending.length; };
+      globalThis.clearTimeout = () => {};
+      view.engine.heat.flagsRemaining = 1;
+      const actor = view.engine.currentActor;
+      const move = view.engine.take(1, actor.id);
+      view.afterMove(move);
+      assert.ok(view.heatPause);
+      assert.equal(view.engine.heat.flagsRemaining, 21);
+      pending.at(-1)();
+      assert.equal(view.heatPause, null);
+      assert.equal(view.lastMove, null);
+      assert.match(container.textContent, /21 FLAGS REMAINING/);
+      assert.equal(findElement(container, node => node.className === 'last-flag-commentary'), null);
+      assert.equal(view.engine.heat.index, 1);
+      assert.ok(view.engine.heat.tribeKeys.includes(view.engine.byeTribeKey));
+      assert.ok(view.engine.currentActor);
+    } finally {
+      globalThis.setTimeout = oldSetTimeout;
+      globalThis.clearTimeout = oldClearTimeout;
+    }
+  });
+});
 
 test('Round 2 ceremony flows directly into interactive play and canonical completion once', () => {
   const oldDocument = globalThis.document;

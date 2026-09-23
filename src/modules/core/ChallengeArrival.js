@@ -1,3 +1,5 @@
+import { selectLastFlagHeat2Tribe } from './LastFlagChallengeEngine.js';
+
 const keyOf = tribe => tribe?.tribeId ?? tribe?.id;
 const nameOf = tribe => tribe?.tribeName || tribe?.name || 'Tribe';
 
@@ -54,9 +56,17 @@ export function buildChallengeArrival({ day, tribes = [], survivors = [], season
     { title: 'Last Flag', text: 'Twenty-one flags. The tribes alternate. One contestant at a time, rotating through your lineup. Take one, two, or three flags on your turn. Take the last flag to win.', label: 'JEFF', action: 'The stakes' },
     { title: 'Immunity is on the line', text: activeTribes.length === 3
       ? 'Two tribes will be safe tonight. One tribe loses and goes to Tribal Council, where somebody will be voted out.'
-      : 'The winning tribe is safe tonight. Losers, Tribal Council, where somebody will be voted out.', label: 'JEFF', action: 'Take your spots' },
-    { title: 'Take your spots', text: 'Alright. Take your spots. Here we go.', label: 'JEFF', action: 'Start Last Flag' }
+      : 'The winning tribe is safe tonight. Losers, Tribal Council, where somebody will be voted out.', label: 'JEFF', action: 'Continue' }
   );
+  if (activeTribes.length === 3) {
+    const heat2 = activeTribes.find(tribe => String(keyOf(tribe)) === String(selectLastFlagHeat2Tribe(activeTribes, day)));
+    beats.push({ title: 'The heat draw', text: `${nameOf(heat2)} has been drawn to enter in Heat 2. The other two tribes play the opening heat; its loser faces ${nameOf(heat2)} on a fresh board.`, label: 'JEFF', action: 'Continue' });
+  }
+  if (Math.max(...activeTribes.map(tribe => (tribe.members || []).filter(member => !member.isOut).length))
+    > Math.min(...activeTribes.map(tribe => (tribe.members || []).filter(member => !member.isOut).length))) {
+    beats.push({ title: 'Sitting out', text: 'Uneven numbers. We’ll match the smallest tribe’s lineup. Extra players, you’re sitting somebody out of Last Flag.', label: 'JEFF', sitOut: true, action: 'Continue' });
+  }
+  beats.push({ title: 'Take your spots', text: 'Alright. Take your spots. Here we go.', label: 'JEFF', action: 'Start Last Flag' });
   return { arrivals, previous, beats };
 }
 

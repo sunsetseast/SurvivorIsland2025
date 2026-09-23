@@ -2,6 +2,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
 import { buildChallengeArrival } from '../core/ChallengeArrival.js';
+import { planLastFlagSitOuts } from '../core/LastFlagChallengeEngine.js';
 
 const ChallengeIntroView = {
   render(container, challengeConfig = null, onComplete = null) {
@@ -26,6 +27,7 @@ const ChallengeIntroView = {
     const config = challengeConfig || this.getDefaultConfig();
 
     if (config.day === 2 && config.challengeKey === 'last_flag') {
+      this.playerSitOutIds = [];
       this.lastFlagArrival = buildChallengeArrival({
         day: currentDay,
         tribes: allTribes,
@@ -101,13 +103,44 @@ const ChallengeIntroView = {
       reveal.appendChild(copy);
       scene.appendChild(reveal);
     }
+    if (beat.sitOut) {
+      const plan = planLastFlagSitOuts({
+        tribes: gameManager.getTribes(), playerId: gameManager.player.id,
+        day: config.day, playerSitOutIds: this.playerSitOutIds
+      });
+      const selected = createElement('div', { className: 'last-flag-sit-outs' });
+      for (const tribe of gameManager.getTribes()) {
+        const ids = plan.byTribe[String(tribe.tribeId ?? tribe.id)] || [];
+        if (!ids.length) continue;
+        const names = ids.map(id => tribe.members.find(member => String(member.id) === String(id)))
+          .filter(Boolean).map(member => member.firstName || member.name).join(', ');
+        selected.appendChild(createElement('p', {}, `${tribe.tribeName || tribe.name} sits out: ${names}`));
+      }
+      scene.appendChild(selected);
+      if (plan.playerChoicesNeeded) {
+        scene.appendChild(createElement('p', {}, `Choose ${plan.playerChoicesNeeded} teammate${plan.playerChoicesNeeded === 1 ? '' : 's'} to sit out. You will play.`));
+        const choices = createElement('div', { className: 'last-flag-sit-out-choices' });
+        for (const member of plan.playerOptions) {
+          choices.appendChild(createElement('button', {
+            type: 'button', className: 'last-flag-button',
+            onclick: () => {
+              this.playerSitOutIds.push(member.id);
+              this.renderLastFlagBeat(container, config);
+            }
+          }, member.firstName || member.name));
+        }
+        scene.appendChild(choices);
+        container.appendChild(scene);
+        return;
+      }
+    }
     scene.appendChild(createElement('button', {
       type: 'button', className: 'last-flag-button last-flag-next',
       onclick: () => {
         if (this.challengeStage === this.lastFlagArrival.beats.length - 1) {
           const done = this.onComplete;
           this.onComplete = null;
-          done?.();
+          done?.([...this.playerSitOutIds]);
         } else {
           this.challengeStage += 1;
           this.renderLastFlagBeat(container, config);

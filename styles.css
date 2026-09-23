@@ -35,6 +35,8 @@
 #challenge-screen .last-flag-reveal span { font-size: .7rem; letter-spacing: .13em; color: var(--gold); }
 #challenge-screen .last-flag-reveal strong { font-size: 1.55rem; }
 #challenge-screen .last-flag-reveal small { color: var(--tribe-color); }
+#challenge-screen .last-flag-sit-outs { width: min(100%, 43rem); padding: .5rem 1rem; border-radius: .7rem; background: rgba(5,18,22,.86); }
+#challenge-screen .last-flag-sit-out-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: .65rem; width: min(100%, 43rem); }
 #challenge-screen .last-flag-button { min-width: 8rem; min-height: 3.2rem; padding: .7rem 1rem; border: 1px solid #e6bc72; border-radius: .7rem; color: #16242a; background: linear-gradient(#ffdf9c, #d49a4c); font-size: 1.05rem; cursor: pointer; touch-action: manipulation; box-shadow: 0 5px 0 #8a5a29; }
 #challenge-screen .last-flag-button:disabled { filter: grayscale(1); opacity: .45; cursor: not-allowed; box-shadow: none; }
 #challenge-screen .last-flag-button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
