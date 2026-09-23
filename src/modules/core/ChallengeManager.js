@@ -28,8 +28,9 @@ class ChallengeManager {
 
     this.challenges.set(2, {
       type: 'tribal',
-      name: 'Building Bonds',
-      description: 'Test your tribe\'s teamwork and communication skills.',
+      challengeKey: 'last_flag',
+      name: 'Last Flag',
+      description: 'Take the final flag to win tribal immunity.',
       background: 'Assets/Screens/challenge.png',
       mechanics: 'teamwork',
       reward: 'immunity'
