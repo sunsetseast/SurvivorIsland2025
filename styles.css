@@ -1,4 +1,83 @@
 /* Scoped player elimination screen */
+/* Round 2: Last Flag and the challenge arrival ceremony. */
+#challenge-screen .last-flag-scene {
+  --gold: #f3d38d;
+  position: relative;
+  isolation: isolate;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  padding: max(1.2rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 2.5rem) max(1.5rem, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.65rem, 1.6vh, 1.1rem);
+  color: #f7f2e6;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(9, 22, 26, .86), rgba(14, 27, 31, .78) 52%, rgba(6, 14, 17, .93));
+}
+#challenge-screen .last-flag-scene h1 { font-size: clamp(2rem, 7vw, 3.6rem); letter-spacing: .1em; color: var(--gold); text-shadow: 0 3px 15px #000; }
+#challenge-screen .last-flag-scene p { color: #f7f2e6; }
+#challenge-screen .last-flag-overline, #challenge-screen .last-flag-speaker, #challenge-screen .last-flag-heat { color: var(--gold); font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; }
+#challenge-screen .last-flag-dialogue, #challenge-screen .last-flag-turn, #challenge-screen .last-flag-finish { background: rgba(7, 20, 25, .91); border: 1px solid rgba(243, 211, 141, .48); border-radius: 1rem; box-shadow: 0 12px 34px rgba(0,0,0,.32); }
+#challenge-screen .last-flag-dialogue { display: flex; align-items: center; gap: 1rem; width: min(100%, 42rem); padding: 1rem 1.3rem; text-align: left; }
+#challenge-screen .last-flag-dialogue p { line-height: 1.5; font-size: clamp(1rem, 2.6vw, 1.3rem); margin-top: .35rem; }
+#challenge-screen .last-flag-jeff { width: 5.5rem; height: 5.5rem; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--gold); }
+#challenge-screen .last-flag-arriving-tribe { width: min(100%, 43rem); border-left: 5px solid var(--tribe-color); border-radius: .7rem; background: rgba(5,18,22,.86); padding: .75rem; }
+#challenge-screen .last-flag-arriving-tribe > strong { color: var(--tribe-color); font-size: 1.35rem; }
+#challenge-screen .last-flag-arrival-lineup { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin-top: .6rem; }
+#challenge-screen .last-flag-arrival-person { display: grid; justify-items: center; gap: .2rem; min-width: 3.3rem; max-width: 4.5rem; font-size: .76rem; }
+#challenge-screen .last-flag-arrival-person img { width: 2.8rem; height: 2.8rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--tribe-color); }
+#challenge-screen .last-flag-reveal { display: flex; align-items: center; gap: 1rem; text-align: left; padding: .85rem 1.3rem; border: 1px solid var(--tribe-color); border-radius: .8rem; background: rgba(4,13,16,.94); }
+#challenge-screen .last-flag-reveal img { width: 4.6rem; height: 4.6rem; border-radius: 50%; object-fit: cover; }
+#challenge-screen .last-flag-reveal div { display: grid; gap: .2rem; }
+#challenge-screen .last-flag-reveal span { font-size: .7rem; letter-spacing: .13em; color: var(--gold); }
+#challenge-screen .last-flag-reveal strong { font-size: 1.55rem; }
+#challenge-screen .last-flag-reveal small { color: var(--tribe-color); }
+#challenge-screen .last-flag-button { min-width: 8rem; min-height: 3.2rem; padding: .7rem 1rem; border: 1px solid #e6bc72; border-radius: .7rem; color: #16242a; background: linear-gradient(#ffdf9c, #d49a4c); font-size: 1.05rem; cursor: pointer; touch-action: manipulation; box-shadow: 0 5px 0 #8a5a29; }
+#challenge-screen .last-flag-button:disabled { filter: grayscale(1); opacity: .45; cursor: not-allowed; box-shadow: none; }
+#challenge-screen .last-flag-button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+#challenge-screen .last-flag-next { margin-top: auto; }
+#challenge-screen .last-flag-sides { display: flex; gap: .8rem; width: min(100%, 43rem); }
+#challenge-screen .last-flag-side { flex: 1; display: grid; gap: .1rem; padding: .6rem; background: rgba(5,18,22,.86); border: 2px solid color-mix(in srgb, var(--tribe-color) 55%, transparent); border-radius: .7rem; }
+#challenge-screen .last-flag-side.active { border-color: var(--tribe-color); box-shadow: 0 0 18px color-mix(in srgb, var(--tribe-color) 35%, transparent); }
+#challenge-screen .last-flag-side strong { color: var(--tribe-color); font-size: clamp(1rem, 3vw, 1.4rem); }
+#challenge-screen .last-flag-side span { font-size: .62rem; letter-spacing: .08em; }
+#challenge-screen .last-flag-lineups { width: min(100%, 43rem); text-align: left; }
+#challenge-screen .last-flag-lineup-row { display: flex; gap: .35rem; overflow-x: auto; padding: .25rem 0 .4rem; scrollbar-width: thin; }
+#challenge-screen .last-flag-lineup-person { flex: none; padding: .3rem .5rem; font-size: .72rem; border-radius: 999px; border: 1px solid var(--tribe-color); background: rgba(5,18,22,.9); }
+#challenge-screen .last-flag-lineup-person.active { color: #17232a; background: var(--tribe-color); }
+#challenge-screen .last-flag-bye, #challenge-screen .last-flag-caption { font-size: .85rem; opacity: .86; }
+#challenge-screen .last-flag-board { width: min(100%, 43rem); padding: clamp(.7rem, 3vw, 1.2rem); border-radius: 1rem; background: linear-gradient(145deg, rgba(90,61,33,.98), rgba(31,27,21,.99)); border: 2px solid #bd9b6b; box-shadow: 0 15px 35px rgba(0,0,0,.4); }
+#challenge-screen .last-flag-count { font-size: clamp(1.6rem, 5vw, 2.4rem); color: #ffe3a3; margin-bottom: .5rem; }
+#challenge-screen .last-flag-flags { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: .35rem; }
+#challenge-screen .last-flag-pennant { height: clamp(1.65rem, 5vh, 2.5rem); position: relative; border-left: 3px solid #e2c9a0; justify-self: center; width: 1.6rem; }
+#challenge-screen .last-flag-pennant::after { content: ''; position: absolute; left: 0; top: .15rem; width: 1.3rem; height: 1rem; background: #d95c48; clip-path: polygon(0 0,100% 0,75% 50%,100% 100%,0 100%); box-shadow: 0 2px 4px #000; }
+#challenge-screen .last-flag-pennant.taken { opacity: .13; }
+#challenge-screen .last-flag-pennant.taken::after { display: none; }
+#challenge-screen .last-flag-turn { display: flex; align-items: center; gap: .75rem; width: min(100%, 43rem); padding: .65rem 1rem; border-color: var(--tribe-color); text-align: left; }
+#challenge-screen .last-flag-turn img { width: 3.4rem; height: 3.4rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--tribe-color); }
+#challenge-screen .last-flag-turn div { display: grid; gap: .1rem; }
+#challenge-screen .last-flag-turn strong { font-size: 1.4rem; }
+#challenge-screen .last-flag-choices { display: flex; justify-content: center; flex-wrap: wrap; gap: .75rem; width: 100%; }
+#challenge-screen .last-flag-wait, #challenge-screen .last-flag-commentary { min-height: 1.5rem; line-height: 1.4; }
+#challenge-screen .last-flag-moment, #challenge-screen .last-flag-finish { width: min(100%, 43rem); padding: clamp(1.4rem, 5vw, 2.5rem); margin: auto 0; line-height: 1.5; font-size: clamp(1.4rem, 5vw, 2rem); }
+#challenge-screen .last-flag-finish h2 { color: var(--gold); font-size: clamp(1.5rem, 5vw, 2.4rem); }
+#challenge-screen .last-flag-finish p { margin: .9rem 0; }
+@media (max-width: 480px) {
+  #challenge-screen .last-flag-jeff { width: 3.5rem; height: 3.5rem; }
+  #challenge-screen .last-flag-button { min-width: 6rem; flex: 1; }
+  #challenge-screen .last-flag-next { flex: none; width: min(100%, 18rem); }
+}
+@media (max-height: 600px) and (orientation: landscape) {
+  #challenge-screen .last-flag-scene { gap: .35rem; padding-top: .5rem; }
+  #challenge-screen .last-flag-pennant { height: 1.3rem; }
+  #challenge-screen .last-flag-board { padding: .45rem; }
+  #challenge-screen .last-flag-turn img { width: 2.5rem; height: 2.5rem; }
+}
+
+/* Scoped player elimination screen */
 #game-over-screen {
   min-height: 100%;
   display: grid;

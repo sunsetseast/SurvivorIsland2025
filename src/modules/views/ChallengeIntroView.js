@@ -1,6 +1,7 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
+import { buildChallengeArrival } from '../core/ChallengeArrival.js';
 
 const ChallengeIntroView = {
   render(container, challengeConfig = null, onComplete = null) {
@@ -24,6 +25,18 @@ const ChallengeIntroView = {
     // Use provided config or get default
     const config = challengeConfig || this.getDefaultConfig();
 
+    if (config.day === 2 && config.challengeKey === 'last_flag') {
+      this.lastFlagArrival = buildChallengeArrival({
+        day: currentDay,
+        tribes: allTribes,
+        survivors: gameManager.survivors,
+        seasonHistory: gameManager.seasonEngine?.state?.history,
+        tribalHistory: gameManager.gameHistory?.tribals
+      });
+      this.renderLastFlagBeat(container, config);
+      return;
+    }
+
     console.log('=== CHALLENGE INTRODUCTION ===');
     console.log('Challenge:', config.name);
     console.log('Day:', config.day);
@@ -40,6 +53,68 @@ const ChallengeIntroView = {
     } else {
       this.renderStandardIntro(container, config, playerTribe, allTribes, player);
     }
+  },
+
+  renderLastFlagBeat(container, config) {
+    clearChildren(container);
+    container.style.backgroundImage = `url('${config.background}')`;
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundPosition = 'center';
+    const beat = this.lastFlagArrival.beats[this.challengeStage];
+    if (!beat) return;
+
+    const scene = createElement('section', { className: 'last-flag-scene last-flag-arrival' });
+    scene.appendChild(createElement('div', { className: 'last-flag-overline' }, `DAY ${config.day} · TRIBAL IMMUNITY`));
+    scene.appendChild(createElement('h1', {}, beat.title));
+    const dialogue = createElement('div', { className: 'last-flag-dialogue' });
+    dialogue.appendChild(createElement('img', { src: 'Assets/jeff-screen.png', alt: 'Jeff', className: 'last-flag-jeff' }));
+    const line = createElement('div');
+    line.appendChild(createElement('span', { className: 'last-flag-speaker' }, beat.label));
+    line.appendChild(createElement('p', {}, beat.text));
+    dialogue.appendChild(line);
+    scene.appendChild(dialogue);
+
+    for (const tribe of beat.tribes || []) {
+      const card = createElement('div', { className: 'last-flag-arriving-tribe' });
+      card.style.setProperty('--tribe-color', tribe.color);
+      card.appendChild(createElement('strong', {}, tribe.name));
+      const lineup = createElement('div', { className: 'last-flag-arrival-lineup' });
+      for (const member of tribe.members) {
+        const person = createElement('div', { className: 'last-flag-arrival-person' });
+        if (member.portrait) person.appendChild(createElement('img', { src: member.portrait, alt: '' }));
+        person.appendChild(createElement('span', {}, member.name));
+        lineup.appendChild(person);
+      }
+      card.appendChild(lineup);
+      scene.appendChild(card);
+    }
+    if (beat.reveal) {
+      const reveal = createElement('div', { className: 'last-flag-reveal' });
+      reveal.style.setProperty('--tribe-color', beat.reveal.tribeColor);
+      if (beat.reveal.eliminatedPortrait) reveal.appendChild(createElement('img', {
+        src: beat.reveal.eliminatedPortrait, alt: beat.reveal.eliminatedName
+      }));
+      const copy = createElement('div');
+      copy.appendChild(createElement('span', {}, 'VOTED OUT LAST NIGHT'));
+      copy.appendChild(createElement('strong', {}, beat.reveal.eliminatedName));
+      copy.appendChild(createElement('small', {}, beat.reveal.tribeName));
+      reveal.appendChild(copy);
+      scene.appendChild(reveal);
+    }
+    scene.appendChild(createElement('button', {
+      type: 'button', className: 'last-flag-button last-flag-next',
+      onclick: () => {
+        if (this.challengeStage === this.lastFlagArrival.beats.length - 1) {
+          const done = this.onComplete;
+          this.onComplete = null;
+          done?.();
+        } else {
+          this.challengeStage += 1;
+          this.renderLastFlagBeat(container, config);
+        }
+      }
+    }, beat.action));
+    container.appendChild(scene);
   },
 
   renderSpecialIntro(container, config, playerTribe, allTribes, player) {

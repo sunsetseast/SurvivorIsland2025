@@ -4,6 +4,7 @@ import challengeManager from '../core/ChallengeManager.js';
 import ChallengeIntroView from '../views/ChallengeIntroView.js';
 import TribeChallengeView from '../views/TribeChallengeView.js';
 import IndividualChallengeView from '../views/IndividualChallengeView.js';
+import LastFlagView from '../views/LastFlagView.js';
 import { normalizeChallengeResult } from '../core/ChallengeResult.js';
 
 export default class ChallengeScreen {
@@ -11,11 +12,16 @@ export default class ChallengeScreen {
     this.container = null;
     this.currentView = null;
     this.currentChallenge = null;
+    this.activeChallengeView = null;
+    this.lastFlagCompletionSent = false;
   }
 
   setup() {
     console.log('ChallengeScreen setup');
     this.container = document.getElementById('challenge-screen');
+    this.activeChallengeView?.dispose();
+    this.activeChallengeView = null;
+    this.lastFlagCompletionSent = false;
 
     // Expose this instance globally for challenge views to access
     window.challengeScreen = this;
@@ -51,8 +57,12 @@ export default class ChallengeScreen {
   loadChallengeIntro() {
     // Show the challenge introduction first
     ChallengeIntroView.render(this.container, this.currentChallenge, () => {
-      // Once intro is complete, show RoleView before actual challenge
-      this.loadRoleView();
+      // The Day 1 role assignment belongs to First Contact alone.
+      if (this.currentChallenge.day === 2 && this.currentChallenge.challengeKey === 'last_flag') {
+        this.loadActualChallenge();
+      } else {
+        this.loadRoleView();
+      }
     });
     this.currentView = 'challenge-intro';
     console.log(`Loaded challenge introduction: ${this.currentChallenge.name}`);
@@ -79,6 +89,13 @@ export default class ChallengeScreen {
 
     const challengeType = this.currentChallenge.type;
     const challengeDay = this.currentChallenge.day;
+
+    if (challengeDay === 2 && this.currentChallenge.challengeKey === 'last_flag') {
+      this.activeChallengeView = new LastFlagView(this.container, this.currentChallenge, gameManager,
+        result => this.completeChallenge(result));
+      this.currentView = 'last-flag-challenge';
+      return;
+    }
 
     // Load specific challenge views based on day/name
     if (challengeDay === 1 || this.currentChallenge.name === 'First Contact') {
@@ -125,6 +142,10 @@ export default class ChallengeScreen {
 
   // Method to handle challenge completion (called by views)
   completeChallenge(results = null) {
+    if (this.currentChallenge?.challengeKey === 'last_flag') {
+      if (this.lastFlagCompletionSent || !this.activeChallengeView?.engine.completed || !results) return;
+      this.lastFlagCompletionSent = true;
+    }
     const canonicalResult = results && this.currentChallenge
       ? normalizeChallengeResult(results, { challenge: this.currentChallenge, gameManager })
       : null;
@@ -183,6 +204,8 @@ export default class ChallengeScreen {
 
   teardown() {
     console.log('ChallengeScreen teardown');
+    this.activeChallengeView?.dispose();
+    this.activeChallengeView = null;
     if (this.container) {
       clearChildren(this.container);
     }
@@ -191,6 +214,8 @@ export default class ChallengeScreen {
   }
 
   destroy() {
+    this.activeChallengeView?.dispose();
+    this.activeChallengeView = null;
     if (this.container) {
       clearChildren(this.container);
     }
