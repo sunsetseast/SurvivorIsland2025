@@ -14,6 +14,7 @@ export default class ChallengeScreen {
     this.currentChallenge = null;
     this.activeChallengeView = null;
     this.lastFlagCompletionSent = false;
+    this.lastFlagSitOutIds = [];
   }
 
   setup() {
@@ -22,6 +23,7 @@ export default class ChallengeScreen {
     this.activeChallengeView?.dispose();
     this.activeChallengeView = null;
     this.lastFlagCompletionSent = false;
+    this.lastFlagSitOutIds = [];
 
     // Expose this instance globally for challenge views to access
     window.challengeScreen = this;
@@ -56,9 +58,10 @@ export default class ChallengeScreen {
 
   loadChallengeIntro() {
     // Show the challenge introduction first
-    ChallengeIntroView.render(this.container, this.currentChallenge, () => {
+    ChallengeIntroView.render(this.container, this.currentChallenge, playerSitOutIds => {
       // The Day 1 role assignment belongs to First Contact alone.
       if (this.currentChallenge.day === 2 && this.currentChallenge.challengeKey === 'last_flag') {
+        this.lastFlagSitOutIds = playerSitOutIds;
         this.loadActualChallenge();
       } else {
         this.loadRoleView();
@@ -92,7 +95,7 @@ export default class ChallengeScreen {
 
     if (challengeDay === 2 && this.currentChallenge.challengeKey === 'last_flag') {
       this.activeChallengeView = new LastFlagView(this.container, this.currentChallenge, gameManager,
-        result => this.completeChallenge(result));
+        result => this.completeChallenge(result), this.lastFlagSitOutIds);
       this.currentView = 'last-flag-challenge';
       return;
     }

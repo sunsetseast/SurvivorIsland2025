@@ -4,12 +4,12 @@ import LastFlagChallengeEngine from '../core/LastFlagChallengeEngine.js';
 const keyMatches = (a, b) => String(a) === String(b);
 
 export default class LastFlagView {
-  constructor(container, config, gameManager, onComplete) {
+  constructor(container, config, gameManager, onComplete, playerSitOutIds = []) {
     this.container = container;
     this.gameManager = gameManager;
     this.onComplete = onComplete;
     this.engine = new LastFlagChallengeEngine({
-      tribes: gameManager.getTribes(), playerId: gameManager.player.id, day: config.day
+      tribes: gameManager.getTribes(), playerId: gameManager.player.id, day: config.day, playerSitOutIds
     });
     this.timer = null;
     this.disposed = false;
@@ -42,6 +42,7 @@ export default class LastFlagView {
       this.render();
       this.timer = setTimeout(() => {
         this.heatPause = null;
+        this.lastMove = null;
         this.render();
       }, 1700);
       return;
@@ -133,7 +134,7 @@ export default class LastFlagView {
     scene.appendChild(lineups);
     if (this.engine.byeTribeKey != null && heat.index === 0) {
       scene.appendChild(createElement('p', { className: 'last-flag-bye' },
-        `${this.tribe(this.engine.byeTribeKey).name} drew the bye and enters the second heat.`));
+        `${this.tribe(this.engine.byeTribeKey).name} was drawn to enter in Heat 2.`));
     }
 
     const board = createElement('div', { className: 'last-flag-board' });
@@ -161,9 +162,8 @@ export default class LastFlagView {
 
     if (this.lastMove) {
       const message = this.lastMove.finalMove ? `${this.lastMove.actorName} snatches the final flag!`
-        : this.lastMove.recognizedPattern ? `${this.lastMove.actorName}: “I think I see it.”`
-          : this.lastMove.mistake ? `${this.lastMove.actorName} takes ${this.lastMove.taken}. Their tribe calls out from the sidelines.`
-            : `${this.lastMove.actorName} takes ${this.lastMove.taken}. ${this.lastMove.remaining} left.`;
+        : this.lastMove.callout ? `${this.lastMove.actorName}: ${this.lastMove.callout}`
+          : `${this.lastMove.actorName} takes ${this.lastMove.taken}. ${this.lastMove.remaining} left.`;
       scene.appendChild(createElement('p', { className: 'last-flag-commentary', role: 'status' }, message));
     }
 
