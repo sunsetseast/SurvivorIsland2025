@@ -200,6 +200,33 @@ test('each three-tribe immunity slot produces two winners and one unsafe tribe',
   }
 });
 
+test('a completed three-tribe Last Flag result eliminates only the unsafe tribe through Season Engine', () => {
+  const { tribes, survivors, player } = fixtures(3, { size: 3 });
+  const challenge = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+  for (const winning of [1, 2]) {
+    challenge.heat.turnTribeKey = winning;
+    challenge.heat.flagsRemaining = 1;
+    challenge.take(1, challenge.currentActor.id);
+  }
+  const result = normalizeChallengeResult(challenge.getResult());
+  const gm = {
+    day: 2, tribes, survivors, player, isMerged: false, flags: {},
+    getPlayerTribe: () => tribes[0],
+    eliminateSurvivor(target) {
+      target.isOut = true;
+      tribes.forEach(tribe => { tribe.members = tribe.members.filter(member => member !== target); });
+    },
+    resetTaskSimFlags() {}, updateTribeHealth() {}, hasImmunity: () => false
+  };
+  const season = new SeasonEngine(gm, { publish() {} }, { mergeAt: 2, swapAt: 2 });
+  assert.equal(result.losingTribeKey, 3);
+  assert.equal(season.completeRound({ challengeResult: result }), true);
+  assert.deepEqual(survivors.filter(member => member.isOut).map(member => member.tribeId), [3]);
+  assert.equal(gm.day, 3);
+  assert.equal(season.completeRound({ challengeResult: result }), false);
+  assert.equal(survivors.filter(member => member.isOut).length, 1);
+});
+
 test('production-scale NPCs can discover a pattern and share it without making teammates perfect', () => {
   const make = n => {
     const strong = { id: `s${n}`, mental: 45, puzzles: 10, focus: 9, leader: 9,

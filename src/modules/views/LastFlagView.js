@@ -218,7 +218,7 @@ export default class LastFlagView {
       const message = this.lastMove.callout
         ? `${this.lastMove.actorName}: ${this.lastMove.callout}`
         : `JEFF: ${this.lastMove.actorName} takes ${this.lastMove.taken}. ${this.lastMove.remaining} left.`;
-      dock.appendChild(createElement('p', { className: 'last-flag-commentary', 'aria-live': 'polite' }, message));
+      dock.appendChild(createElement('p', { className: 'last-flag-commentary' }, message));
     } else {
       dock.appendChild(createElement('p', { className: 'last-flag-commentary' }, 'JEFF: Survivors ready? Go!'));
     }
