@@ -12,9 +12,30 @@ const activeMembers = tribe => (tribe?.members || []).filter(member => !member.i
 const same = (a, b) => String(a) === String(b);
 const seedFor = (tribes, day) => hash(`${day}|${tribes.map(tribe => `${tribeKey(tribe)}:${activeMembers(tribe).map(member => member.id).join(',')}`).join('|')}`);
 
-export function selectLastFlagHeat2Tribe(tribes, day = 2) {
-  const active = (tribes || []).filter(tribe => activeMembers(tribe).length);
-  return active.length === 3 ? tribeKey(active[hash(`${seedFor(active, day)}|bye`) % 3]) : null;
+// Estimate who can take the final flag with three different tribes rotating.
+// Each future contestant favors their own best move but sometimes deviates;
+// this is a small challenge-local evaluator, not the two-tribe remainder rule.
+export function evaluateThreeTribeTakes(remaining, actingIndex) {
+  const cache = new Map();
+  const project = (flags, turn) => {
+    const cacheKey = `${flags}:${turn}`;
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+    const options = [1, 2, 3].filter(take => take <= flags).map(take => {
+      if (take === flags) return [0, 1, 2].map(index => Number(index === turn));
+      return project(flags - take, (turn + 1) % 3);
+    });
+    const best = Math.max(...options.map(distribution => distribution[turn]));
+    const favorites = options.filter(distribution => Math.abs(distribution[turn] - best) < 1e-8);
+    const distribution = [0, 1, 2].map(index => options.reduce((sum, option) =>
+      sum + option[index] * (.25 / options.length + (favorites.includes(option) ? .75 / favorites.length : 0)), 0));
+    cache.set(cacheKey, distribution);
+    return distribution;
+  };
+  return [1, 2, 3].filter(take => take <= remaining).map(take => ({
+    take, chances: take === remaining
+      ? [0, 1, 2].map(index => Number(index === actingIndex))
+      : project(remaining - take, (actingIndex + 1) % 3)
+  }));
 }
 
 // Plan against every active tribe so the two heats use the same sized lineups.
@@ -94,9 +115,8 @@ export default class LastFlagChallengeEngine {
     this.lineups = Object.fromEntries(this.tribes.map(tribe => [String(tribe.key), lineup(
       tribe.members.filter(member => !this.sitOutIds.some(id => same(id, member.id))), playerId
     )]));
-    this.byeTribeKey = selectLastFlagHeat2Tribe(activeTribes, day);
-    const opening = this.tribes.filter(tribe => String(tribe.key) !== String(this.byeTribeKey));
-    this.heat = this.createHeat(opening.map(tribe => tribe.key), 0);
+    this.hasSecondHeat = this.tribes.length === 3;
+    this.heat = this.createHeat(this.tribes.map(tribe => tribe.key), 0);
     this.heatResults = [];
     this.moves = [];
     this.winningTribeKeys = [];
@@ -106,7 +126,7 @@ export default class LastFlagChallengeEngine {
   }
 
   createHeat(keys, index) {
-    const starter = hash(`${this.seed}|start|${index}|${keys.join(':')}`) % 2;
+    const starter = hash(`${this.seed}|start|${index}|${keys.join(':')}`) % keys.length;
     return {
       index, tribeKeys: [...keys], startingTribeKey: keys[starter],
       turnTribeKey: keys[starter], flagsRemaining: 21,
@@ -130,6 +150,22 @@ export default class LastFlagChallengeEngine {
 
   get legalTakes() {
     return this.completed ? [] : [1, 2, 3].filter(take => take <= this.heat.flagsRemaining);
+  }
+
+  get nextTribeKey() {
+    const keys = this.heat.tribeKeys;
+    return keys[(keys.findIndex(key => same(key, this.heat.turnTribeKey)) + 1) % keys.length];
+  }
+
+  bestTakes(heat, remaining) {
+    if (heat.tribeKeys.length === 2) {
+      const ideal = remaining % 4;
+      return ideal ? [ideal] : [];
+    }
+    const turn = heat.tribeKeys.findIndex(key => same(key, heat.turnTribeKey));
+    const moves = evaluateThreeTribeTakes(remaining, turn);
+    const best = Math.max(...moves.map(move => move.chances[turn]));
+    return moves.filter(move => Math.abs(move.chances[turn] - best) < 1e-8).map(move => move.take);
   }
 
   chooseNpcMove() {
@@ -157,7 +193,8 @@ export default class LastFlagChallengeEngine {
     const personalChance = Math.min(.98, recognition + (remaining <= 8 ? 0.2 : 0));
     const seesPattern = roll < personalChance;
     const followsPlan = !seesPattern && Boolean(plan) && roll < Math.min(.99, personalChance + sharedBoost);
-    const ideal = remaining % 4;
+    const best = this.bestTakes(this.heat, remaining);
+    const ideal = best.length ? best[hash(`${this.seed}|best|${this.heat.index}|${this.heat.moves.length}|${actor.id}|${remaining}`) % best.length] : 0;
     this.lastNpcDecision = {
       actorId: actor.id, heat: this.heat.index, turn: this.heat.moves.length,
       recognized: seesPattern && ideal > 0,
@@ -185,23 +222,25 @@ export default class LastFlagChallengeEngine {
     const heat = this.heat;
     const remainingBefore = heat.flagsRemaining;
     heat.flagsRemaining -= count;
-    const ideal = remainingBefore % 4;
+    const best = this.bestTakes(heat, remainingBefore);
+    const isStrong = best.includes(count);
+    const ideal = heat.tribeKeys.length === 2 ? remainingBefore % 4 : (best.length ? count : 0);
     const move = {
       heat: heat.index + 1, turn: heat.moves.length + 1,
       actorId: actor.id, actorName: actor.name, tribeKey: heat.turnTribeKey,
       taken: count, remaining: heat.flagsRemaining,
-      strongMove: heat.flagsRemaining === 0 || (ideal > 0 && count === ideal),
-      mistake: ideal > 0 && count !== ideal && remainingBefore > 3,
+      strongMove: heat.flagsRemaining === 0 || isStrong,
+      mistake: best.length > 0 && !isStrong && remainingBefore > 3,
       recognizedPattern: String(actor.id) !== String(this.playerId)
         && this.lastNpcDecision?.recognized === true
         && String(this.lastNpcDecision.actorId) === String(actor.id)
         && this.lastNpcDecision.heat === heat.index
         && this.lastNpcDecision.turn === heat.moves.length
-        && count === ideal,
+        && isStrong,
       followedPlan: this.lastNpcDecision?.followedPlan === true
         && same(this.lastNpcDecision.actorId, actor.id)
         && this.lastNpcDecision.heat === heat.index
-        && this.lastNpcDecision.turn === heat.moves.length && count === ideal,
+        && this.lastNpcDecision.turn === heat.moves.length && isStrong,
       finalMove: heat.flagsRemaining === 0
     };
     // Only an NPC who personally spotted the pattern can announce it.
@@ -211,7 +250,7 @@ export default class LastFlagChallengeEngine {
       const speaks = hash(`${this.seed}|speak|${heat.index}|${heat.moves.length}|${actor.id}`) / 4294967296
         < Math.min(.95, .15 + leader * .055 + teamwork * .003);
       if (speaks) {
-        move.callout = heat.flagsRemaining <= 12 && heat.flagsRemaining >= 4
+        move.callout = heat.tribeKeys.length === 2 && heat.flagsRemaining <= 12 && heat.flagsRemaining >= 4
           ? `“I see it. Leave them ${heat.flagsRemaining}!”` : '“I see it. Stay with me!”';
         this.tribeAwareness[String(heat.turnTribeKey)] = {
           sourceId: actor.id, strength: .12 + leader * .02 + teamwork * .0015
@@ -223,23 +262,24 @@ export default class LastFlagChallengeEngine {
     this.lastNpcDecision = null;
     heat.positions[String(heat.turnTribeKey)] += 1;
     if (move.finalMove) {
-      const loser = heat.tribeKeys.find(key => String(key) !== String(heat.turnTribeKey));
+      const remainingTribeKeys = heat.tribeKeys.filter(key => !same(key, heat.turnTribeKey));
       heat.winnerKey = heat.turnTribeKey;
       this.heatResults.push({
         heat: heat.index + 1, tribeKeys: [...heat.tribeKeys],
         startingTribeKey: heat.startingTribeKey,
-        winningTribeKey: heat.winnerKey, losingTribeKey: loser,
+        winningTribeKey: heat.winnerKey, remainingTribeKeys: [...remainingTribeKeys],
         finalActorId: actor.id, turns: heat.moves.length
       });
       this.winningTribeKeys.push(heat.winnerKey);
-      if (this.byeTribeKey != null && heat.index === 0) {
-        this.heat = this.createHeat([loser, this.byeTribeKey], 1);
+      if (this.hasSecondHeat && heat.index === 0) {
+        this.heat = this.createHeat(remainingTribeKeys, 1);
       } else {
-        this.losingTribeKey = loser;
+        this.losingTribeKey = remainingTribeKeys[0];
+        this.heatResults.at(-1).losingTribeKey = this.losingTribeKey;
         this.completed = true;
       }
     } else {
-      heat.turnTribeKey = heat.tribeKeys.find(key => String(key) !== String(heat.turnTribeKey));
+      heat.turnTribeKey = this.nextTribeKey;
     }
     return move;
   }

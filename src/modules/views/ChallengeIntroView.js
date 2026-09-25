@@ -2,7 +2,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
 import { buildChallengeArrival } from '../core/ChallengeArrival.js';
-import { planLastFlagSitOuts } from '../core/LastFlagChallengeEngine.js';
+import LastFlagChallengeEngine, { planLastFlagSitOuts } from '../core/LastFlagChallengeEngine.js';
 
 const ChallengeIntroView = {
   render(container, challengeConfig = null, onComplete = null) {
@@ -26,10 +26,10 @@ const ChallengeIntroView = {
     // Use provided config or get default
     const config = challengeConfig || this.getDefaultConfig();
 
-    if (config.day === 2 && config.challengeKey === 'last_flag') {
+    if (config.challengeKey === 'last_flag') {
       this.playerSitOutIds = [];
       this.lastFlagArrival = buildChallengeArrival({
-        day: currentDay,
+        day: config.day ?? currentDay,
         tribes: allTribes,
         survivors: gameManager.survivors,
         seasonHistory: gameManager.seasonEngine?.state?.history,
@@ -65,7 +65,7 @@ const ChallengeIntroView = {
     const beat = this.lastFlagArrival.beats[this.challengeStage];
     if (!beat) return;
 
-    const scene = createElement('section', { className: 'last-flag-scene last-flag-arrival' });
+    const scene = createElement('section', { className: `last-flag-scene last-flag-arrival ${beat.titleCard ? 'last-flag-title-card' : ''}` });
     scene.appendChild(createElement('div', { className: 'last-flag-overline' }, `DAY ${config.day} · TRIBAL IMMUNITY`));
     scene.appendChild(createElement('h1', {}, beat.title));
     const dialogue = createElement('div', { className: 'last-flag-dialogue' });
@@ -133,6 +133,31 @@ const ChallengeIntroView = {
         container.appendChild(scene);
         return;
       }
+    }
+    if (beat.lineup) {
+      const engine = new LastFlagChallengeEngine({
+        tribes: gameManager.getTribes(), playerId: gameManager.player.id,
+        day: config.day, playerSitOutIds: this.playerSitOutIds
+      });
+      const lineups = createElement('div', { className: 'last-flag-pregame-lineups' });
+      for (const tribe of engine.tribes) {
+        const card = createElement('div', { className: 'last-flag-pregame-tribe' });
+        card.style.setProperty('--tribe-color', tribe.color);
+        card.appendChild(createElement('strong', {}, tribe.name));
+        const people = createElement('div', { className: 'last-flag-pregame-people' });
+        for (const id of engine.lineups[String(tribe.key)]) {
+          const person = tribe.members.find(member => String(member.id) === String(id));
+          const tile = createElement('div', { className: 'last-flag-pregame-person' });
+          if (person.portrait) tile.appendChild(createElement('img', { src: person.portrait, alt: '' }));
+          tile.appendChild(createElement('span', {}, String(id) === String(engine.playerId) ? `YOU · ${person.name}` : person.name));
+          people.appendChild(tile);
+        }
+        card.appendChild(people);
+        const bench = engine.sitOutByTribe[String(tribe.key)] || [];
+        if (bench.length) card.appendChild(createElement('small', {}, `Sitting out: ${bench.map(id => tribe.members.find(member => String(member.id) === String(id))?.name).join(', ')}`));
+        lineups.appendChild(card);
+      }
+      scene.appendChild(lineups);
     }
     scene.appendChild(createElement('button', {
       type: 'button', className: 'last-flag-button last-flag-next',

@@ -60,7 +60,7 @@ export default class ChallengeScreen {
     // Show the challenge introduction first
     ChallengeIntroView.render(this.container, this.currentChallenge, playerSitOutIds => {
       // The Day 1 role assignment belongs to First Contact alone.
-      if (this.currentChallenge.day === 2 && this.currentChallenge.challengeKey === 'last_flag') {
+      if (this.currentChallenge.challengeKey === 'last_flag') {
         this.lastFlagSitOutIds = playerSitOutIds;
         this.loadActualChallenge();
       } else {
@@ -93,7 +93,7 @@ export default class ChallengeScreen {
     const challengeType = this.currentChallenge.type;
     const challengeDay = this.currentChallenge.day;
 
-    if (challengeDay === 2 && this.currentChallenge.challengeKey === 'last_flag') {
+    if (this.currentChallenge.challengeKey === 'last_flag') {
       this.activeChallengeView = new LastFlagView(this.container, this.currentChallenge, gameManager,
         result => this.completeChallenge(result), this.lastFlagSitOutIds);
       this.currentView = 'last-flag-challenge';
