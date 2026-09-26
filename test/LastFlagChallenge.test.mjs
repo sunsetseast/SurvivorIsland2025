@@ -158,6 +158,55 @@ test('the supplied art and fixed physical flag formation have one image coordina
   assert.ok(css.indexOf('.last-flag-scene {') < css.indexOf('.last-flag-game {'));
 });
 
+test('one authoritative Last Flag CSS system keeps PNG flags and the contained arena', () => {
+  const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  // Count only top-level rules; a future media-query override is not a second base system.
+  const topLevel = [];
+  let depth = 0, start = 0;
+  for (let index = 0; index < css.length; index += 1) {
+    if (css[index] === '{') {
+      if (depth === 0) topLevel.push(css.slice(start, index).trim());
+      depth += 1;
+    } else if (css[index] === '}') {
+      depth -= 1;
+      if (depth === 0) start = index + 1;
+    }
+  }
+  assert.equal(topLevel.filter(selector => selector === '#challenge-screen .last-flag-scene').length, 1);
+  const rules = selector => [...css.matchAll(new RegExp(
+    `#challenge-screen \\.${selector.replaceAll('.', '\\.')}\\s*\\{([^}]*)\\}`, 'g'
+  ))].map(match => match[1]);
+  const rule = selector => rules(selector)[0];
+  for (const selector of ['last-flag-arena-space', 'last-flag-arena', 'last-flag-board-art',
+    'last-flag-flags', 'last-flag-pennant', 'last-flag-pennant.taken',
+    'last-flag-result-scene', 'last-flag-finish', 'last-flag-result-art']) {
+    assert.ok(rule(selector), `${selector} remains styled`);
+  }
+  assert.match(rule('last-flag-scene'), /display:\s*flex/);
+  assert.match(rule('last-flag-game'), /display:\s*grid/);
+  assert.match(rule('last-flag-board-art'), /object-fit:\s*contain/);
+  assert.match(rule('last-flag-arena-space'), /container-type:\s*size/);
+  assert.match(rule('last-flag-flags'), /position:\s*absolute;\s*inset:\s*0/);
+  assert.match(rule('last-flag-pennant'), /position:\s*absolute;\s*left:\s*var\(--flag-x\);\s*top:\s*var\(--flag-y\)/);
+  assert.match(rule('last-flag-pennant'), /background:\s*var\(--flag-art\)/);
+  assert.match(rule('last-flag-pennant.taken'), /opacity:\s*0\b/);
+  assert.match(rule('last-flag-pennant.pulling'), /animation:\s*last-flag-pull/);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.last-flag-pennant\.pulling\s*\{\s*animation:\s*none/);
+  assert.match(rule('last-flag-result-art'), /object-fit:\s*cover/);
+  assert.doesNotMatch(rule('last-flag-finish'), /padding:|background:|border:/);
+  assert.ok(rules('last-flag-pennant').every(body => !/border-left:\s*3px solid|position:\s*relative/.test(body)));
+  assert.ok(rules('last-flag-finish').every(body => !/padding:|background:|border:/.test(body)));
+  assert.doesNotMatch(css, /\.last-flag-pennant::after\s*\{|\.last-flag-pennant\.taken::after\s*\{/);
+  assert.doesNotMatch(css, /\.last-flag-flags\s*\{[^}]*grid-template-columns:\s*repeat\(7/);
+  assert.doesNotMatch(css, /\.last-flag-dialogue\s*,\s*#challenge-screen\s+\.last-flag-turn\s*,\s*#challenge-screen\s+\.last-flag-finish/);
+  assert.doesNotMatch(css, /#challenge-screen\s+\.last-flag-board\s*\{/);
+  assert.doesNotMatch(css, /last-flag-field-(wide|portrait)\.png/);
+  assert.ok(css.indexOf('#challenge-screen .last-flag-scene {') < css.indexOf('#challenge-screen .last-flag-game {'));
+  const source = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /Last Flag and the challenge arrival ceremony/);
+});
+
 test('player tribe sit-out choice equalizes lineups and never benches the player', () => {
   const { tribes, player } = fixtures(2, { size: 4 });
   tribes[0].members.push({ id: 'extra', firstName: 'Extra', mental: 20, puzzles: 1, focus: 1 });
