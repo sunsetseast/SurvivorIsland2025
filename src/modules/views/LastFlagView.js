@@ -1,5 +1,6 @@
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import LastFlagChallengeEngine from '../core/LastFlagChallengeEngine.js';
+import { BOARD_FLAG_SLOTS, LAST_FLAG_BOARD_ART, lastFlagAsset } from '../core/LastFlagField.js';
 
 const same = (a, b) => String(a) === String(b);
 
@@ -16,9 +17,10 @@ export default class LastFlagView {
     this.disposed = false;
     this.completionSent = false;
     this.inputLocked = false;
-    this.heatPause = null;
     this.finalPause = false;
     this.lastMove = null;
+    this.animateTurn = null;
+    this.openingCut = true;
     this.render();
   }
 
@@ -34,11 +36,11 @@ export default class LastFlagView {
 
   turnToken() {
     const heat = this.engine.heat;
-    return `${heat.index}:${heat.moves.length}:${this.engine.currentActor?.id}`;
+    return `${heat.moves.length}:${this.engine.currentActor?.id}`;
   }
 
   take(count, token = this.turnToken()) {
-    if (this.disposed || this.inputLocked || this.heatPause || this.finalPause
+    if (this.disposed || this.inputLocked || this.finalPause
       || !this.engine.awaitingPlayer || token !== this.turnToken()) return;
     this.inputLocked = true;
     const move = this.engine.take(count, this.engine.currentActor.id);
@@ -49,24 +51,7 @@ export default class LastFlagView {
   afterMove(move) {
     if (!move || this.disposed) return;
     this.lastMove = move;
-    if (move.finalMove && !this.engine.completed) {
-      this.heatPause = { phase: 'immunity', result: this.engine.heatResults.at(-1) };
-      this.render();
-      this.timer = setTimeout(() => {
-        if (this.disposed) return;
-        this.heatPause.phase = 'second';
-        this.lastMove = null;
-        this.render();
-        this.timer = setTimeout(() => {
-          if (this.disposed) return;
-          this.heatPause = null;
-          this.lastMove = null;
-          this.inputLocked = false;
-          this.render();
-        }, 1250);
-      }, 1100);
-      return;
-    }
+    this.animateTurn = move.turn;
     if (this.engine.completed) {
       this.finalPause = true;
       this.render();
@@ -74,7 +59,7 @@ export default class LastFlagView {
         if (this.disposed) return;
         this.finalPause = false;
         this.render();
-      }, 750);
+      }, 1050);
       return;
     }
     this.inputLocked = false;
@@ -82,73 +67,64 @@ export default class LastFlagView {
   }
 
   scheduleNpc() {
-    if (this.disposed || this.engine.completed || this.engine.awaitingPlayer || this.heatPause) return;
+    if (this.disposed || this.engine.completed || this.engine.awaitingPlayer) return;
     this.timer = setTimeout(() => {
-      if (this.disposed || this.engine.awaitingPlayer || this.heatPause) return;
+      if (this.disposed || this.engine.awaitingPlayer || this.engine.completed) return;
       this.afterMove(this.engine.advanceNpcTurn());
     }, 840);
   }
 
   renderArena(heat) {
-    const arena = createElement('div', { className: 'last-flag-board' });
+    const arena = createElement('div', { className: 'last-flag-arena' });
+    arena.appendChild(createElement('img', { className: 'last-flag-board-art',
+      src: LAST_FLAG_BOARD_ART, alt: '',
+      onerror: event => { event.currentTarget.onerror = null; event.currentTarget.src = 'Assets/Screens/challenge.png'; }
+    }));
+    const flags = createElement('div', { className: 'last-flag-flags', role: 'img',
+      'aria-label': `${heat.flagsRemaining} of 21 flags remain` });
+    const removed = 21 - heat.flagsRemaining;
+    const pulling = this.animateTurn === this.lastMove?.turn ? this.lastMove?.taken || 0 : 0;
+    BOARD_FLAG_SLOTS.forEach((slot, i) => {
+      const newlyTaken = i >= removed - pulling && i < removed;
+      const flag = createElement('span', {
+        className: `last-flag-pennant ${i < removed ? 'taken' : ''} ${newlyTaken ? 'pulling' : ''}`.trim(),
+        'aria-hidden': 'true'
+      });
+      flag.style.setProperty('--flag-x', `${slot.x}%`);
+      flag.style.setProperty('--flag-y', `${slot.y}%`);
+      flag.style.setProperty('--flag-art', `url('${lastFlagAsset(this.engine.fieldFlagColor)}')`);
+      flag.style.setProperty('--pull-delay', `${(i - (removed - pulling)) * 95}ms`);
+      flag.setAttribute('data-ring', slot.ring);
+      flags.appendChild(flag);
+    });
+    arena.appendChild(flags);
     arena.appendChild(createElement('div', {
       className: 'last-flag-count', role: 'status', 'aria-live': 'polite'
     }, `${heat.flagsRemaining} ${heat.flagsRemaining === 1 ? 'FLAG' : 'FLAGS'} REMAINING`));
-    const flags = createElement('div', { className: 'last-flag-flags', role: 'img',
-      'aria-label': `${heat.flagsRemaining} of 21 flags remain` });
-    for (let i = 0; i < 21; i += 1) {
-      const row = Math.floor(i / 7), column = i % 7;
-      const flag = createElement('span', {
-        className: `last-flag-pennant ${i >= heat.flagsRemaining ? 'taken' : ''}`,
-        'aria-hidden': 'true'
-      });
-      flag.style.setProperty('--flag-x', `${9 + column * 13.5 + (row === 1 ? 2 : row === 2 ? -1 : 0)}%`);
-      flag.style.setProperty('--flag-y', `${20 + row * 23 + Math.abs(column - 3) * 1.9}%`);
-      flag.style.setProperty('--flag-tilt', `${(column - 3) * 2}deg`);
-      flags.appendChild(flag);
-    }
-    arena.appendChild(flags);
     return arena;
   }
 
-  renderInterlude(scene) {
-    const pause = this.heatPause;
-    if (pause.phase === 'second') {
-      scene.appendChild(createElement('h2', { className: 'last-flag-interlude-title' }, 'SECOND IMMUNITY'));
-      scene.appendChild(this.renderArena(this.engine.heat));
-      scene.appendChild(createElement('p', { className: 'last-flag-moment', role: 'status' },
-        `JEFF: ${pause.result.remainingTribeKeys.map(key => this.tribe(key).name).join(' and ')}, you are playing for the final immunity. Fresh flags. Take your spots!`));
-    } else {
-      scene.appendChild(createElement('div', { className: 'last-flag-interlude' }));
-      scene.appendChild(createElement('h2', { className: 'last-flag-interlude-title', role: 'status' },
-        `${this.tribe(pause.result.winningTribeKey).name.toUpperCase()} WINS IMMUNITY!`));
-      scene.appendChild(createElement('p', { className: 'last-flag-moment' },
-        `JEFF: ${this.tribe(pause.result.winningTribeKey).name} is safe. The other two tribes will play again for the second immunity.`));
-    }
-  }
-
   renderFinish(scene) {
-    if (this.finalPause) {
-      scene.appendChild(createElement('div', { className: 'last-flag-interlude' }));
-      scene.appendChild(createElement('h2', { className: 'last-flag-interlude-title', role: 'status' },
-        `${this.lastMove.actorName.toUpperCase()} TAKES THE FINAL FLAG!`));
-      return;
-    }
     const result = this.engine.getResult();
     const finish = createElement('div', { className: 'last-flag-finish' });
-    finish.appendChild(createElement('img', { src: 'Assets/jeff-screen.png', alt: 'Jeff', className: 'last-flag-finish-jeff' }));
-    finish.appendChild(createElement('span', { className: 'last-flag-speaker' }, 'JEFF · CHALLENGE RESULTS'));
-    finish.appendChild(createElement('h2', {}, 'IMMUNITY IS YOURS'));
-    for (const [index, key] of result.winningTribeKeys.entries()) {
+    finish.appendChild(createElement('img', { src: 'Assets/jeff-screen.png', alt: 'Jeff at the challenge', className: 'last-flag-result-art' }));
+    const speech = createElement('div', { className: 'last-flag-result-speech' });
+    speech.appendChild(createElement('span', { className: 'last-flag-speaker' }, 'JEFF · CHALLENGE RESULTS'));
+    speech.appendChild(createElement('h2', {}, result.winningTribeKeys.length === 2 ? 'TWO TRIBES WIN IMMUNITY' : 'IMMUNITY IS YOURS'));
+    const finalTribe = this.tribe(this.lastMove?.tribeKey ?? this.engine.moves.at(-1).tribeKey);
+    speech.appendChild(createElement('p', {}, result.winningTribeKeys.length === 2
+      ? `${finalTribe.name} takes the final flag — and loses Last Flag.`
+      : `${finalTribe.name} takes the final flag and wins immunity!`));
+    for (const key of result.winningTribeKeys) {
       const winner = this.tribe(key);
       const line = createElement('p', { className: 'last-flag-winner' },
-        `${winner.name} wins ${result.winningTribeKeys.length === 2 ? index === 0 ? 'the first' : 'the second' : 'tribal'} immunity!`);
+        `${winner.name} wins tribal immunity!`);
       line.style.setProperty('--tribe-color', winner.color);
-      finish.appendChild(line);
+      speech.appendChild(line);
     }
-    finish.appendChild(createElement('p', { className: 'last-flag-tribal' },
+    speech.appendChild(createElement('p', { className: 'last-flag-tribal' },
       `${this.tribe(result.losingTribeKey).name}, I’ll see you at Tribal Council tonight.`));
-    finish.appendChild(createElement('button', {
+    speech.appendChild(createElement('button', {
       type: 'button', className: 'last-flag-button last-flag-next',
       onclick: () => {
         if (this.completionSent || this.disposed) return;
@@ -156,6 +132,7 @@ export default class LastFlagView {
         this.onComplete(result);
       }
     }, 'CONTINUE'));
+    finish.appendChild(speech);
     scene.appendChild(finish);
   }
 
@@ -163,19 +140,13 @@ export default class LastFlagView {
     if (this.disposed) return;
     clearTimeout(this.timer);
     clearChildren(this.container);
-    this.container.style.backgroundImage = `url('${this.config.background || 'Assets/Screens/challenge.png'}')`;
-    this.container.style.backgroundSize = 'cover';
-    this.container.style.backgroundPosition = 'center';
-    const scene = createElement('section', { className: 'last-flag-scene last-flag-game' });
+    this.container.style.backgroundImage = '';
+    const scene = createElement('section', { className: `last-flag-scene last-flag-game ${this.openingCut ? 'last-flag-opening-cut' : ''} ${this.engine.completed && !this.finalPause ? 'last-flag-result-scene' : ''}`.trim() });
+    this.openingCut = false;
     scene.appendChild(createElement('div', { className: 'last-flag-overline' },
       `DAY ${this.config.day} · LAST FLAG · TRIBAL IMMUNITY`));
 
-    if (this.heatPause) {
-      this.renderInterlude(scene);
-      this.container.appendChild(scene);
-      return;
-    }
-    if (this.engine.completed) {
+    if (this.engine.completed && !this.finalPause) {
       this.renderFinish(scene);
       this.container.appendChild(scene);
       return;
@@ -186,14 +157,12 @@ export default class LastFlagView {
     const actingTribe = this.tribe(heat.turnTribeKey);
     const nextTribe = this.tribe(this.engine.nextTribeKey);
     scene.appendChild(createElement('div', { className: 'last-flag-heat' },
-      this.engine.hasSecondHeat ? heat.index === 0 ? 'FIRST IMMUNITY · THREE TRIBES' : 'SECOND IMMUNITY · TWO TRIBES'
-        : 'ONE IMMUNITY · TWO TRIBES'));
+      this.engine.tribes.length === 3 ? 'THREE TRIBES · LAST FLAG LOSES' : 'TWO TRIBES · LAST FLAG WINS'));
     const hud = createElement('div', { className: 'last-flag-sides', 'aria-label': 'Tribe status' });
     for (const tribe of this.engine.tribes) {
-      const immune = this.engine.winningTribeKeys.some(key => same(key, tribe.key));
       const active = same(tribe.key, heat.turnTribeKey);
       const next = same(tribe.key, nextTribe.key);
-      const status = immune ? 'IMMUNE' : active ? 'ACTIVE' : next ? 'NEXT' : 'WAITING';
+      const status = active ? 'ACTIVE' : next ? 'NEXT' : 'WAITING';
       const side = createElement('div', { className: `last-flag-side ${status.toLowerCase()}` });
       side.style.setProperty('--tribe-color', tribe.color);
       side.appendChild(createElement('strong', {}, tribe.name));
@@ -201,7 +170,17 @@ export default class LastFlagView {
       hud.appendChild(side);
     }
     scene.appendChild(hud);
-    scene.appendChild(this.renderArena(heat));
+    const arenaSpace = createElement('div', { className: 'last-flag-arena-space' });
+    arenaSpace.appendChild(this.renderArena(heat));
+    scene.appendChild(arenaSpace);
+    this.animateTurn = null;
+    if (this.finalPause) {
+      const loser = this.engine.tribes.length === 3;
+      scene.appendChild(createElement('h2', { className: 'last-flag-final-impact', role: 'status' },
+        `${this.lastMove.actorName.toUpperCase()} TAKES THE FINAL FLAG! ${loser ? `${actingTribe.name.toUpperCase()} LOSES!` : `${actingTribe.name.toUpperCase()} WINS IMMUNITY!`}`));
+      this.container.appendChild(scene);
+      return;
+    }
 
     const dock = createElement('div', { className: 'last-flag-dock' });
     const turn = createElement('div', { className: `last-flag-turn ${this.engine.awaitingPlayer ? 'player-turn' : ''}` });

@@ -1,192 +1,131 @@
-/* Last Flag uses the existing challenge art, with optional wide/portrait field layers. */
-#challenge-screen .last-flag-arrival {
-  background-image: linear-gradient(180deg, rgba(4, 17, 22, .42), rgba(5, 19, 24, .18) 48%, rgba(4, 12, 15, .75)),
-    url('Assets/Challenge/last-flag-field-portrait.png'),
-    url('Assets/Challenge/LastFlag/last-flag-intro.png'),
-    url('Assets/Screens/challenge.png');
-  background-size: cover;
-  background-position: center;
+/* Last Flag: the art and dynamic flags share each image's coordinate space. */
+#challenge-screen .last-flag-scene {
+  --gold: #f3d38d;
+  position: relative; isolation: isolate; width: 100%; height: 100%; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; gap: clamp(.35rem, 1.2vh, .8rem);
+  padding: max(.75rem, env(safe-area-inset-top)) clamp(.55rem, 2vw, 1.4rem) max(.75rem, env(safe-area-inset-bottom));
+  overflow-y: auto; color: #f7f2e6; text-align: center;
+  background-color: #0b1c21;
 }
-#challenge-screen .last-flag-arrival h1 { text-shadow: 0 3px 12px #000, 0 0 20px #162c33; }
+#challenge-screen .last-flag-scene > :not(.last-flag-site-art) { position: relative; z-index: 1; }
+#challenge-screen .last-flag-scene h1 { font-family: 'Survivant', sans-serif; font-size: clamp(2rem, 7vw, 3.6rem); letter-spacing: .1em; color: var(--gold); text-shadow: 0 3px 15px #000; }
+#challenge-screen .last-flag-scene p { color: #f7f2e6; }
+#challenge-screen .last-flag-overline, #challenge-screen .last-flag-speaker, #challenge-screen .last-flag-heat { color: var(--gold); font-size: clamp(.65rem, 1.6vw, .8rem); letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 2px 5px #000; }
+#challenge-screen .last-flag-dialogue, #challenge-screen .last-flag-turn { background: rgba(7,20,25,.87); border: 1px solid rgba(243,211,141,.48); border-radius: .8rem; box-shadow: 0 12px 34px rgba(0,0,0,.32); }
+#challenge-screen .last-flag-dialogue { display: flex; align-items: center; gap: .8rem; width: min(100%, 42rem); padding: .8rem 1rem; text-align: left; }
+#challenge-screen .last-flag-dialogue p { line-height: 1.4; font-size: clamp(.9rem, 2.6vw, 1.25rem); margin-top: .25rem; }
+#challenge-screen .last-flag-jeff { width: clamp(3.2rem, 10vh, 5.5rem); height: clamp(3.2rem, 10vh, 5.5rem); border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--gold); }
+#challenge-screen .last-flag-button { min-width: 6rem; min-height: 3rem; padding: .5rem .9rem; border: 1px solid #e6bc72; border-radius: .6rem; color: #16242a; background: linear-gradient(#ffdf9c, #d49a4c); font-size: 1rem; cursor: pointer; touch-action: manipulation; box-shadow: 0 4px 0 #8a5a29; }
+#challenge-screen .last-flag-button:disabled { filter: grayscale(1); opacity: .45; cursor: not-allowed; box-shadow: none; }
+#challenge-screen .last-flag-button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+#challenge-screen .last-flag-next { margin-top: auto; width: min(100%, 18rem); }
+
+/* Jeff's challenge site remains the same physical scene through the briefing. */
+#challenge-screen .last-flag-arrival { background: #0b1c21; justify-content: flex-start; container-type: size; }
+#challenge-screen .last-flag-site-art { position: absolute; z-index: 0; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(100cqw, 56.28cqh); aspect-ratio: 941 / 1672; pointer-events: none; }
+#challenge-screen .last-flag-site-art > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+#challenge-screen .last-flag-site-art::after { content: ''; position: absolute; z-index: 0; inset: 0; background: linear-gradient(180deg, rgba(2,12,17,.35), rgba(2,12,17,.02) 42%, rgba(2,12,17,.68)); }
+#challenge-screen .last-flag-cinematic-flags { position: absolute; z-index: 1; inset: 0; }
+#challenge-screen .last-flag-cinematic-flag { position: absolute; left: var(--flag-x); top: var(--flag-y); width: 4.4%; aspect-ratio: 2 / 3; background: var(--flag-art) center / contain no-repeat; transform: translate(-50%, -90%) scale(var(--flag-scale)); filter: drop-shadow(1px 3px 2px #41210a); }
 #challenge-screen .last-flag-title-card { justify-content: center; }
-#challenge-screen .last-flag-title-card h1 {
-  font-size: clamp(3.2rem, 12vw, 7rem);
-  letter-spacing: .16em;
-  text-shadow: 0 4px 18px #000, 0 0 35px #e0a856;
-}
-#challenge-screen .last-flag-title-card .last-flag-dialogue { width: auto; }
-#challenge-screen .last-flag-pregame-lineups {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
-  gap: .55rem;
-  width: min(100%, 54rem);
-}
-#challenge-screen .last-flag-pregame-tribe {
-  padding: .5rem;
-  border: 2px solid var(--tribe-color);
-  border-radius: .65rem;
-  background: rgba(5, 19, 22, .84);
-}
-#challenge-screen .last-flag-pregame-tribe > strong { color: var(--tribe-color); }
-#challenge-screen .last-flag-pregame-tribe small { display: block; margin-top: .25rem; font-size: .74rem; }
-#challenge-screen .last-flag-pregame-people {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; margin-top: .4rem;
-}
-#challenge-screen .last-flag-pregame-person {
-  display: grid; justify-items: center; gap: .15rem; max-width: 5rem; font-size: .7rem;
-}
-#challenge-screen .last-flag-pregame-person img {
-  width: 2.4rem; height: 2.4rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--tribe-color);
-}
+#challenge-screen .last-flag-title-card h1 { font-size: clamp(3rem, 12vw, 7rem); letter-spacing: .14em; text-shadow: 0 4px 18px #000, 0 0 35px #e0a856; }
+#challenge-screen .last-flag-arriving-tribe, #challenge-screen .last-flag-sit-outs, #challenge-screen .last-flag-pregame-tribe { background: rgba(5,18,22,.88); border-radius: .6rem; }
+#challenge-screen .last-flag-arriving-tribe { width: min(100%, 43rem); border-left: 5px solid var(--tribe-color); padding: .6rem; }
+#challenge-screen .last-flag-arriving-tribe > strong, #challenge-screen .last-flag-pregame-tribe > strong { color: var(--tribe-color); }
+#challenge-screen .last-flag-arrival-lineup, #challenge-screen .last-flag-pregame-people { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; margin-top: .3rem; }
+#challenge-screen .last-flag-arrival-person, #challenge-screen .last-flag-pregame-person { display: grid; justify-items: center; gap: .1rem; min-width: 2.5rem; max-width: 4.5rem; font-size: .7rem; }
+#challenge-screen .last-flag-arrival-person img, #challenge-screen .last-flag-pregame-person img { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--tribe-color); }
+#challenge-screen .last-flag-reveal { display: flex; align-items: center; gap: .8rem; padding: .7rem 1rem; border: 1px solid var(--tribe-color); border-radius: .7rem; background: rgba(4,13,16,.94); }
+#challenge-screen .last-flag-reveal img { width: 4rem; height: 4rem; border-radius: 50%; object-fit: cover; }
+#challenge-screen .last-flag-reveal div { display: grid; gap: .15rem; text-align: left; }
+#challenge-screen .last-flag-reveal span { font-size: .7rem; letter-spacing: .1em; color: var(--gold); }
+#challenge-screen .last-flag-reveal strong { font-size: 1.45rem; }
+#challenge-screen .last-flag-reveal small { color: var(--tribe-color); }
+#challenge-screen .last-flag-sit-outs { width: min(100%, 43rem); padding: .45rem; }
+#challenge-screen .last-flag-sit-out-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+#challenge-screen .last-flag-pregame-lineups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr)); gap: .4rem; width: min(100%, 52rem); }
+#challenge-screen .last-flag-pregame-tribe { padding: .45rem; border: 2px solid var(--tribe-color); }
+#challenge-screen .last-flag-pregame-tribe small { display: block; margin-top: .2rem; font-size: .72rem; }
+
+/* The board image determines the arena's aspect ratio; all overlays use it. */
 #challenge-screen .last-flag-game {
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-  justify-items: center;
-  gap: clamp(.15rem, 1vh, .55rem);
-  padding: max(.4rem, env(safe-area-inset-top)) clamp(.4rem, 2vw, 1.2rem) max(.4rem, env(safe-area-inset-bottom));
-  overflow: hidden;
-  background-image: linear-gradient(180deg, rgba(3, 13, 18, .55), transparent 25%, transparent 55%, rgba(4, 14, 18, .68)),
-    url('Assets/Challenge/last-flag-field-portrait.png'),
-    url('Assets/Challenge/LastFlag/last-flag-board.png'),
-    url('Assets/Screens/challenge.png');
-  background-size: cover;
-  background-position: center;
+  display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  justify-items: center; gap: clamp(.1rem, .6vh, .4rem); overflow: hidden;
+  padding: max(.25rem, env(safe-area-inset-top)) clamp(.35rem, 1.5vw, 1rem) max(.25rem, env(safe-area-inset-bottom));
+  background: radial-gradient(circle at center, #24444a, #071a20 75%);
 }
-#challenge-screen .last-flag-game .last-flag-overline {
-  font-size: clamp(.64rem, 1.7vw, .8rem); text-shadow: 0 2px 5px #000;
-}
-#challenge-screen .last-flag-game .last-flag-heat {
-  padding: .2rem .7rem; border-radius: 99px; background: rgba(7, 23, 26, .76);
-  font-size: clamp(.67rem, 1.7vw, .85rem);
-}
-#challenge-screen .last-flag-game .last-flag-sides {
-  width: min(100%, 49rem); justify-content: center; gap: .35rem;
-}
-#challenge-screen .last-flag-game .last-flag-side {
-  flex: 1; display: flex; align-items: center; justify-content: space-between; gap: .25rem;
-  min-width: 0; padding: .28rem .45rem; background: rgba(5, 18, 22, .78);
-  border-width: 1px; border-radius: .4rem;
-}
-#challenge-screen .last-flag-game .last-flag-side strong {
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: clamp(.75rem, 2.1vw, 1rem);
-}
-#challenge-screen .last-flag-side.active { background: color-mix(in srgb, var(--tribe-color) 23%, rgba(5,18,22,.9)); }
-#challenge-screen .last-flag-side.immune { border-color: var(--gold); background: rgba(84, 60, 21, .88); }
-#challenge-screen .last-flag-side.immune span { color: #ffe3a3; }
-#challenge-screen .last-flag-game .last-flag-board {
-  position: relative; min-height: 0; height: 100%; width: min(100%, 50rem); padding: 0;
-  border: 0; border-radius: 0; background: none; box-shadow: none;
-}
-#challenge-screen .last-flag-game .last-flag-count {
-  position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 2;
-  width: max-content; max-width: 100%; padding: .15rem .7rem; margin: 0;
-  font-family: 'Survivant', sans-serif; font-size: clamp(1.15rem, 3.3vw, 2rem);
-  color: #fff0c1; background: rgba(7, 22, 25, .75); border-radius: .4rem; text-shadow: 0 2px 5px #000;
-}
-#challenge-screen .last-flag-game .last-flag-flags { position: absolute; inset: 0; display: block; }
-#challenge-screen .last-flag-game .last-flag-pennant {
-  position: absolute; left: var(--flag-x); top: var(--flag-y);
-  width: clamp(1.9rem, 5vw, 3.3rem); height: clamp(2.5rem, 9vh, 5rem);
-  border: 0; background: url('Assets/Challenge/LastFlag/flag-red.png') center / contain no-repeat;
-  transform: translate(-50%, -50%) rotate(var(--flag-tilt));
-  filter: drop-shadow(2px 5px 2px rgba(35, 19, 8, .48));
-  transition: opacity .32s ease, transform .32s ease;
-}
-#challenge-screen .last-flag-game .last-flag-pennant::after { display: none; }
-#challenge-screen .last-flag-game .last-flag-pennant.taken {
-  opacity: 0; transform: translate(-50%, -22%) rotate(65deg); pointer-events: none;
-}
-#challenge-screen .last-flag-dock {
-  width: min(100%, 54rem); display: grid; justify-items: center; gap: .25rem;
-  padding: .35rem .55rem; border: 1px solid rgba(232, 202, 148, .35); border-radius: .7rem;
-  background: linear-gradient(180deg, rgba(6, 20, 25, .88), rgba(4, 16, 20, .96));
-}
-#challenge-screen .last-flag-game .last-flag-turn {
-  width: 100%; padding: .15rem .3rem; border: 0; background: none; box-shadow: none;
-}
-#challenge-screen .last-flag-game .last-flag-turn img { width: clamp(2rem, 5vh, 3rem); height: clamp(2rem, 5vh, 3rem); }
-#challenge-screen .last-flag-game .last-flag-turn strong {
-  color: var(--tribe-color); font-size: clamp(.95rem, 2.8vw, 1.35rem);
-}
-#challenge-screen .last-flag-game .last-flag-turn.player-turn strong { color: #ffe2a0; }
-#challenge-screen .last-flag-game .last-flag-commentary {
-  min-height: 1.2rem; margin: 0; font-size: clamp(.72rem, 1.8vw, .92rem);
-}
-#challenge-screen .last-flag-game .last-flag-choices { gap: .5rem; }
-#challenge-screen .last-flag-game .last-flag-choices .last-flag-button {
-  flex: 1; min-width: 0; min-height: 3rem; padding: .25rem .4rem; font-family: 'Survivant', sans-serif;
-}
-#challenge-screen .last-flag-game .last-flag-wait { min-height: 3rem; margin: 0; display: grid; place-items: center; font-size: .8rem; }
-#challenge-screen .last-flag-game .last-flag-lineups {
-  width: 100%; display: flex; justify-content: center; gap: .6rem; overflow: hidden;
-}
-#challenge-screen .last-flag-game .last-flag-lineup-row {
-  flex: 1; min-width: 0; align-items: center; justify-content: center;
-  overflow: hidden; padding: 0; border-top: 1px solid var(--tribe-color);
-}
-#challenge-screen .last-flag-game .last-flag-lineup-row > strong {
-  color: var(--tribe-color); font-size: .65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-#challenge-screen .last-flag-game .last-flag-lineup-person {
-  display: flex; align-items: center; gap: .2rem; overflow: hidden; min-width: 0;
-  max-width: 5.6rem; border: 0; background: none; padding: .08rem;
-}
-#challenge-screen .last-flag-game .last-flag-lineup-person.up-next { color: #ffe1a0; }
-#challenge-screen .last-flag-lineup-person img {
-  flex: none; width: 1.3rem; height: 1.3rem; border-radius: 50%; object-fit: cover;
-}
+#challenge-screen .last-flag-opening-cut { animation: last-flag-cut .35s ease-out both; }
+@keyframes last-flag-cut { from { opacity: .35; } to { opacity: 1; } }
+#challenge-screen .last-flag-heat { padding: .15rem .6rem; border-radius: 99px; background: rgba(7,23,26,.8); }
+#challenge-screen .last-flag-sides { display: flex; gap: .35rem; width: min(100%, 50rem); }
+#challenge-screen .last-flag-side { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: .2rem; padding: .25rem .4rem; background: rgba(5,18,22,.86); border: 1px solid var(--tribe-color); border-radius: .4rem; }
+#challenge-screen .last-flag-side.active { background: color-mix(in srgb, var(--tribe-color) 28%, #07161a); box-shadow: 0 0 12px var(--tribe-color); }
+#challenge-screen .last-flag-side strong { color: var(--tribe-color); font-size: clamp(.72rem, 2vw, 1rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#challenge-screen .last-flag-side span { font-size: .6rem; letter-spacing: .06em; }
+#challenge-screen .last-flag-arena-space { grid-row: 4; width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; container-type: size; }
+#challenge-screen .last-flag-arena { position: relative; width: min(100cqw, 56.28cqh, 45rem); aspect-ratio: 941 / 1672; overflow: hidden; box-shadow: 0 10px 32px #0008; }
+#challenge-screen .last-flag-board-art { display: block; width: 100%; height: 100%; object-fit: contain; }
+#challenge-screen .last-flag-flags { position: absolute; inset: 0; }
+#challenge-screen .last-flag-pennant { position: absolute; left: var(--flag-x); top: var(--flag-y); width: 6.3%; aspect-ratio: 2 / 3; background: var(--flag-art) center / contain no-repeat; transform: translate(-50%, -90%); filter: drop-shadow(1px 2px 2px #41210a); }
+#challenge-screen .last-flag-pennant.taken { opacity: 0; pointer-events: none; }
+#challenge-screen .last-flag-pennant.pulling { animation: last-flag-pull .36s ease-in var(--pull-delay) both; }
+@keyframes last-flag-pull { 0% { opacity: 1; transform: translate(-50%, -90%) rotate(0); } 35% { opacity: 1; transform: translate(-50%, -112%) rotate(-8deg); } 100% { opacity: 0; transform: translate(-50%, -130%) rotate(22deg); } }
+#challenge-screen .last-flag-count { position: absolute; z-index: 1; left: 50%; top: 14%; transform: translateX(-50%); width: max-content; max-width: 95%; padding: .15rem .55rem; border-radius: .4rem; background: rgba(7,22,25,.84); color: #fff0c1; font-family: 'Survivant', sans-serif; font-size: clamp(1rem, 3vw, 1.8rem); text-shadow: 0 2px 5px #000; }
+#challenge-screen .last-flag-dock { width: min(100%, 54rem); display: grid; justify-items: center; gap: .15rem; padding: .25rem .5rem; border: 1px solid rgba(232,202,148,.4); border-radius: .6rem; background: rgba(4,16,20,.94); }
+#challenge-screen .last-flag-turn { display: flex; align-items: center; gap: .5rem; width: 100%; padding: .1rem .2rem; border: 0; background: none; box-shadow: none; text-align: left; }
+#challenge-screen .last-flag-turn img { width: clamp(2rem, 5vh, 3rem); height: clamp(2rem, 5vh, 3rem); border-radius: 50%; object-fit: cover; border: 2px solid var(--tribe-color); }
+#challenge-screen .last-flag-turn div { display: grid; gap: .05rem; }
+#challenge-screen .last-flag-turn strong { color: var(--tribe-color); font-size: clamp(.95rem, 2.6vw, 1.3rem); }
+#challenge-screen .last-flag-turn.player-turn strong { color: #ffe2a0; }
+#challenge-screen .last-flag-commentary { margin: 0; min-height: 1.1rem; font-size: clamp(.72rem, 1.7vw, .9rem); }
+#challenge-screen .last-flag-choices { display: flex; gap: .4rem; width: 100%; }
+#challenge-screen .last-flag-choices .last-flag-button { flex: 1; min-width: 0; min-height: 3rem; padding: .25rem; font-family: 'Survivant', sans-serif; }
+#challenge-screen .last-flag-wait { min-height: 3rem; margin: 0; display: grid; place-items: center; font-size: .8rem; }
+#challenge-screen .last-flag-lineups { width: 100%; display: flex; justify-content: center; gap: .45rem; overflow: hidden; }
+#challenge-screen .last-flag-lineup-row { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: .2rem; overflow: hidden; border-top: 1px solid var(--tribe-color); }
+#challenge-screen .last-flag-lineup-row > strong { color: var(--tribe-color); font-size: .65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#challenge-screen .last-flag-lineup-person { display: flex; align-items: center; gap: .2rem; min-width: 0; max-width: 5.6rem; padding: .08rem; font-size: .7rem; overflow: hidden; }
+#challenge-screen .last-flag-lineup-person.up-next { color: #ffe1a0; }
+#challenge-screen .last-flag-lineup-person img { flex: none; width: 1.3rem; height: 1.3rem; border-radius: 50%; object-fit: cover; }
 #challenge-screen .last-flag-lineup-person span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#challenge-screen .last-flag-game .last-flag-interlude-title {
-  align-self: end; max-width: 100%; color: #ffdd93; text-shadow: 0 4px 16px #000;
-  font-family: 'Survivant', sans-serif; font-size: clamp(1.5rem, 5vw, 3rem);
-}
-#challenge-screen .last-flag-game .last-flag-interlude { grid-row: 2 / 4; width: 100%; }
-#challenge-screen .last-flag-game .last-flag-moment {
-  width: min(100%, 43rem); margin: auto; padding: .9rem; border-radius: .65rem;
-  background: rgba(5, 18, 23, .91); font-size: clamp(.95rem, 2.5vw, 1.4rem);
-}
-#challenge-screen .last-flag-game .last-flag-finish {
-  grid-row: 2 / -1; display: grid; justify-items: center; gap: .4rem; align-content: center;
-  width: min(100%, 36rem); margin: auto; padding: clamp(.7rem, 3vh, 1.6rem);
-}
-#challenge-screen .last-flag-finish-jeff {
-  width: clamp(3rem, 11vh, 5rem); height: clamp(3rem, 11vh, 5rem);
-  border-radius: 50%; border: 2px solid var(--gold); object-fit: cover;
-}
-#challenge-screen .last-flag-game .last-flag-finish h2 {
-  margin: 0; font-family: 'Survivant', sans-serif; font-size: clamp(1.3rem, 5vw, 2.2rem);
-}
-#challenge-screen .last-flag-game .last-flag-finish p { margin: .1rem 0; font-size: clamp(.83rem, 2.5vw, 1.25rem); }
-#challenge-screen .last-flag-finish .last-flag-winner { color: var(--tribe-color); }
-#challenge-screen .last-flag-finish .last-flag-next { margin-top: .4rem; }
-@media (orientation: landscape) {
-  #challenge-screen .last-flag-arrival {
-    background-image: linear-gradient(180deg, rgba(4,17,22,.42), rgba(4,12,15,.75)),
-      url('Assets/Challenge/last-flag-field-wide.png'),
-      url('Assets/Challenge/LastFlag/last-flag-intro.png'),
-      url('Assets/Screens/challenge.png');
-  }
-  #challenge-screen .last-flag-game {
-    background-image: linear-gradient(180deg, rgba(3,13,18,.6), transparent 35%, rgba(4,14,18,.73)),
-      url('Assets/Challenge/last-flag-field-wide.png'),
-      url('Assets/Challenge/LastFlag/last-flag-board.png'),
-      url('Assets/Screens/challenge.png');
-  }
-}
+#challenge-screen .last-flag-final-impact { grid-row: 5; align-self: center; width: min(100%, 40rem); padding: .5rem; background: rgba(7,20,25,.9); color: var(--gold); font-family: 'Survivant', sans-serif; font-size: clamp(1rem, 4vw, 2rem); }
+
+/* The result is a cut back to Jeff, followed by the canonical Continue. */
+#challenge-screen .last-flag-result-scene { display: grid; grid-template-rows: auto minmax(0, 1fr); background: #091b21; overflow: hidden; }
+#challenge-screen .last-flag-finish { position: relative; grid-row: 2; width: min(100%, 52rem); height: 100%; min-height: 0; overflow: hidden; }
+#challenge-screen .last-flag-result-art { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+#challenge-screen .last-flag-finish::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 20%, rgba(3,12,16,.97) 87%); }
+#challenge-screen .last-flag-result-speech { position: absolute; z-index: 1; inset: auto .4rem max(.5rem, env(safe-area-inset-bottom)); display: grid; justify-items: center; gap: .25rem; }
+#challenge-screen .last-flag-result-speech h2 { margin: 0; color: var(--gold); font-family: 'Survivant', sans-serif; font-size: clamp(1.2rem, 4vw, 2.4rem); }
+#challenge-screen .last-flag-result-speech p { margin: 0; line-height: 1.3; font-size: clamp(.8rem, 2vw, 1.2rem); text-shadow: 0 2px 4px #000; }
+#challenge-screen .last-flag-result-speech .last-flag-winner { color: var(--tribe-color); font-weight: bold; }
+#challenge-screen .last-flag-result-speech .last-flag-tribal { margin-top: .25rem; }
+#challenge-screen .last-flag-result-speech .last-flag-next { margin-top: .35rem; }
+
 @media (max-width: 480px) {
-  #challenge-screen .last-flag-game .last-flag-lineup-person:not(.up-next) { display: none; }
-  #challenge-screen .last-flag-game .last-flag-side span { font-size: .56rem; }
+  #challenge-screen .last-flag-jeff { width: 3.5rem; height: 3.5rem; }
+  #challenge-screen .last-flag-lineup-person:not(.up-next) { display: none; }
+  #challenge-screen .last-flag-side span { font-size: .54rem; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
-  #challenge-screen .last-flag-game { gap: .1rem; padding-top: max(.2rem, env(safe-area-inset-top)); }
-  #challenge-screen .last-flag-game .last-flag-lineups { display: none; }
-  #challenge-screen .last-flag-game .last-flag-dock { padding: .1rem .4rem; }
-  #challenge-screen .last-flag-game .last-flag-turn img { width: 1.8rem; height: 1.8rem; }
-  #challenge-screen .last-flag-game .last-flag-choices .last-flag-button { min-height: 2.75rem; }
-  #challenge-screen .last-flag-game .last-flag-pennant { height: clamp(1.5rem, 10vh, 2.6rem); }
+  #challenge-screen .last-flag-arrival { gap: .25rem; padding: .25rem .5rem; }
+  #challenge-screen .last-flag-arrival-lineup, #challenge-screen .last-flag-pregame-people { gap: .15rem; }
+  #challenge-screen .last-flag-arrival-person img, #challenge-screen .last-flag-pregame-person img { width: 1.6rem; height: 1.6rem; }
+  #challenge-screen .last-flag-game { grid-template-columns: minmax(0,1fr) minmax(15rem, 38%); grid-template-rows: auto auto minmax(0,1fr); }
+  #challenge-screen .last-flag-game .last-flag-overline { grid-column: 1 / -1; }
+  #challenge-screen .last-flag-heat { grid-row: 2; grid-column: 2; }
+  #challenge-screen .last-flag-sides { grid-row: 2; grid-column: 1; }
+  #challenge-screen .last-flag-arena-space { grid-row: 3; grid-column: 1; }
+  #challenge-screen .last-flag-dock, #challenge-screen .last-flag-final-impact { grid-row: 3; grid-column: 2; align-self: center; }
+  #challenge-screen .last-flag-lineups { display: none; }
+  #challenge-screen .last-flag-dock { padding: .2rem; }
+  #challenge-screen .last-flag-result-scene { display: grid; grid-template-columns: 1fr; grid-template-rows: auto minmax(0,1fr); }
+  #challenge-screen .last-flag-finish { grid-column: 1; }
+  #challenge-screen .last-flag-result-speech { right: .7rem; left: auto; width: min(56%, 25rem); }
 }
 @media (prefers-reduced-motion: reduce) {
-  #challenge-screen .last-flag-pennant { transition: none; }
+  #challenge-screen .last-flag-pennant.pulling { animation: none; }
+  #challenge-screen .last-flag-opening-cut { animation: none; }
 }
 
 /* Scoped player elimination screen */

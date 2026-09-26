@@ -3,6 +3,7 @@ import gameManager from '../core/GameManager.js';
 import screenManager from '../core/ScreenManager.js';
 import { buildChallengeArrival } from '../core/ChallengeArrival.js';
 import LastFlagChallengeEngine, { planLastFlagSitOuts } from '../core/LastFlagChallengeEngine.js';
+import { CINEMATIC_FLAG_SLOTS, LAST_FLAG_INTRO_ART, lastFlagAsset, selectLastFlagFieldColor } from '../core/LastFlagField.js';
 
 const ChallengeIntroView = {
   render(container, challengeConfig = null, onComplete = null) {
@@ -59,13 +60,29 @@ const ChallengeIntroView = {
 
   renderLastFlagBeat(container, config) {
     clearChildren(container);
-    container.style.backgroundImage = `url('${config.background}')`;
-    container.style.backgroundSize = 'cover';
-    container.style.backgroundPosition = 'center';
+    container.style.backgroundImage = '';
     const beat = this.lastFlagArrival.beats[this.challengeStage];
     if (!beat) return;
 
     const scene = createElement('section', { className: `last-flag-scene last-flag-arrival ${beat.titleCard ? 'last-flag-title-card' : ''}` });
+    const site = createElement('div', { className: 'last-flag-site-art', 'aria-hidden': 'true' });
+    site.appendChild(createElement('img', { src: LAST_FLAG_INTRO_ART, alt: '',
+      onerror: event => { event.currentTarget.onerror = null; event.currentTarget.src = 'Assets/Screens/challenge.png'; }
+    }));
+    if (beat.lineup) {
+      const color = selectLastFlagFieldColor(gameManager.getTribes(), config.day);
+      const formation = createElement('div', { className: 'last-flag-cinematic-flags' });
+      for (const slot of CINEMATIC_FLAG_SLOTS) {
+        const flag = createElement('span', { className: 'last-flag-cinematic-flag' });
+        flag.style.setProperty('--flag-x', `${slot.x}%`);
+        flag.style.setProperty('--flag-y', `${slot.y}%`);
+        flag.style.setProperty('--flag-scale', slot.scale);
+        flag.style.setProperty('--flag-art', `url('${lastFlagAsset(color)}')`);
+        formation.appendChild(flag);
+      }
+      site.appendChild(formation);
+    }
+    scene.appendChild(site);
     scene.appendChild(createElement('div', { className: 'last-flag-overline' }, `DAY ${config.day} · TRIBAL IMMUNITY`));
     scene.appendChild(createElement('h1', {}, beat.title));
     const dialogue = createElement('div', { className: 'last-flag-dialogue' });
