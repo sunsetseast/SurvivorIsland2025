@@ -30,8 +30,8 @@ class ChallengeManager {
       type: 'tribal',
       challengeKey: 'last_flag',
       name: 'Last Flag',
-      description: 'Take the final flag to win tribal immunity.',
-      background: 'Assets/Screens/challenge.png',
+      description: 'Twenty-one flags decide tribal immunity.',
+      background: 'Assets/Challenge/LastFlag/last-flag-intro.png',
       mechanics: 'teamwork',
       reward: 'immunity'
     });
