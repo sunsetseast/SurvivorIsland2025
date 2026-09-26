@@ -54,6 +54,8 @@
   padding: max(.25rem, env(safe-area-inset-top)) clamp(.35rem, 1.5vw, 1rem) max(.25rem, env(safe-area-inset-bottom));
   background: radial-gradient(circle at center, #24444a, #071a20 75%);
 }
+#challenge-screen .last-flag-opening-cut { animation: last-flag-cut .35s ease-out both; }
+@keyframes last-flag-cut { from { opacity: .35; } to { opacity: 1; } }
 #challenge-screen .last-flag-heat { padding: .15rem .6rem; border-radius: 99px; background: rgba(7,23,26,.8); }
 #challenge-screen .last-flag-sides { display: flex; gap: .35rem; width: min(100%, 50rem); }
 #challenge-screen .last-flag-side { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: .2rem; padding: .25rem .4rem; background: rgba(5,18,22,.86); border: 1px solid var(--tribe-color); border-radius: .4rem; }
@@ -123,6 +125,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   #challenge-screen .last-flag-pennant.pulling { animation: none; }
+  #challenge-screen .last-flag-opening-cut { animation: none; }
 }
 
 /* Scoped player elimination screen */

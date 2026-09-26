@@ -664,6 +664,8 @@ test('the ceremony stages title reveal and all participating lineups before Surv
     assert.ok(cinematicFlags.every(flag => flag.style['--flag-art'] === introColor));
     advanceCeremony(screen, container);
     assert.equal(screen.activeChallengeView.engine.heat.tribeKeys.length, 3);
+    assert.ok(findElement(container, node => node.className?.includes('last-flag-opening-cut')));
+    assert.match(container.textContent, /Survivors ready\? Go!/);
     assert.ok(findElement(container, node => node.attributes.src === LAST_FLAG_BOARD_ART));
     const boardFlags = findElements(container, node => node.className?.includes('last-flag-pennant'));
     assert.equal(boardFlags.length, 21);

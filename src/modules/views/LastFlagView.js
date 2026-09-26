@@ -20,6 +20,7 @@ export default class LastFlagView {
     this.finalPause = false;
     this.lastMove = null;
     this.animateTurn = null;
+    this.openingCut = true;
     this.render();
   }
 
@@ -140,7 +141,8 @@ export default class LastFlagView {
     clearTimeout(this.timer);
     clearChildren(this.container);
     this.container.style.backgroundImage = '';
-    const scene = createElement('section', { className: `last-flag-scene last-flag-game ${this.engine.completed && !this.finalPause ? 'last-flag-result-scene' : ''}` });
+    const scene = createElement('section', { className: `last-flag-scene last-flag-game ${this.openingCut ? 'last-flag-opening-cut' : ''} ${this.engine.completed && !this.finalPause ? 'last-flag-result-scene' : ''}`.trim() });
+    this.openingCut = false;
     scene.appendChild(createElement('div', { className: 'last-flag-overline' },
       `DAY ${this.config.day} · LAST FLAG · TRIBAL IMMUNITY`));
 
