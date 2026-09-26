@@ -1,5 +1,3 @@
-import { selectLastFlagHeat2Tribe } from './LastFlagChallengeEngine.js';
-
 const keyOf = tribe => tribe?.tribeId ?? tribe?.id;
 const nameOf = tribe => tribe?.tribeName || tribe?.name || 'Tribe';
 
@@ -42,7 +40,7 @@ export function buildChallengeArrival({ day, tribes = [], survivors = [], season
     }))
   });
   const arrivals = ordered.map(arrival);
-  const beats = [{ title: 'Challenge beach', text: 'Jeff waits at the challenge course. The tribes are on their way.', label: 'JEFF', action: 'Bring them in' }];
+  const beats = [{ title: 'Challenge beach', text: 'Jeff is waiting at the challenge site. Come on in!', label: 'JEFF', action: 'Bring them in' }];
   if (previous) {
     const safe = arrivals.slice(0, -1);
     beats.push({ title: 'The tribes arrive', text: `${safe.map(tribe => tribe.name).join(' and ')} — come on in!`, label: 'JEFF', tribes: safe, action: 'Next' });
@@ -52,21 +50,22 @@ export function buildChallengeArrival({ day, tribes = [], survivors = [], season
     beats.push({ title: 'The tribes arrive', text: 'Come on in, guys!', label: 'JEFF', tribes: arrivals, action: 'Continue' });
   }
   beats.push(
-    { title: 'Today’s challenge', text: 'Ready to get to today’s immunity challenge?', label: 'JEFF', action: 'Hear the rules' },
-    { title: 'Last Flag', text: 'Twenty-one flags. The tribes alternate. One contestant at a time, rotating through your lineup. Take one, two, or three flags on your turn. Take the last flag to win.', label: 'JEFF', action: 'The stakes' },
+    { title: 'Today’s challenge', text: 'Ready to get to today’s immunity challenge?', label: 'JEFF', action: 'The stakes' },
     { title: 'Immunity is on the line', text: activeTribes.length === 3
-      ? 'Two tribes will be safe tonight. One tribe loses and goes to Tribal Council, where somebody will be voted out.'
-      : 'The winning tribe is safe tonight. Losers, Tribal Council, where somebody will be voted out.', label: 'JEFF', action: 'Continue' }
+      ? 'Two tribes will earn immunity. The one left without it goes to Tribal Council tonight.'
+      : 'One tribe wins immunity. The other goes to Tribal Council tonight.', label: 'JEFF', action: 'Hear the rules' },
+    { title: 'The rules', text: activeTribes.length === 3
+      ? 'Twenty-one flags. All three tribes rotate turns, one contestant at a time. Take one, two, or three. The tribe taking the final flag wins immunity and steps out. The other two start again with twenty-one flags for the second immunity.'
+      : 'Twenty-one flags. Tribes alternate turns, rotating contestants through their lineups. Take one, two, or three. The tribe taking the final flag wins immunity.', label: 'JEFF', action: 'Continue' }
   );
-  if (activeTribes.length === 3) {
-    const heat2 = activeTribes.find(tribe => String(keyOf(tribe)) === String(selectLastFlagHeat2Tribe(activeTribes, day)));
-    beats.push({ title: 'The heat draw', text: `${nameOf(heat2)} has been drawn to enter in Heat 2. The other two tribes play the opening heat; its loser faces ${nameOf(heat2)} on a fresh board.`, label: 'JEFF', action: 'Continue' });
-  }
   if (Math.max(...activeTribes.map(tribe => (tribe.members || []).filter(member => !member.isOut).length))
     > Math.min(...activeTribes.map(tribe => (tribe.members || []).filter(member => !member.isOut).length))) {
     beats.push({ title: 'Sitting out', text: 'Uneven numbers. We’ll match the smallest tribe’s lineup. Extra players, you’re sitting somebody out of Last Flag.', label: 'JEFF', sitOut: true, action: 'Continue' });
   }
-  beats.push({ title: 'Take your spots', text: 'Alright. Take your spots. Here we go.', label: 'JEFF', action: 'Start Last Flag' });
+  beats.push(
+    { title: 'LAST FLAG', text: 'The last flag wins immunity.', label: 'JEFF', titleCard: true, action: 'Take your spots' },
+    { title: 'Survivors Ready?', text: 'These are your lineups. Stay sharp. Survivors ready? Go!', label: 'JEFF', lineup: true, action: 'Start Last Flag' }
+  );
   return { arrivals, previous, beats };
 }
 

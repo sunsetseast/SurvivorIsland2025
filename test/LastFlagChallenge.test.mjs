@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildChallengeArrival } from '../src/modules/core/ChallengeArrival.js';
-import LastFlagChallengeEngine, { planLastFlagSitOuts, selectLastFlagHeat2Tribe } from '../src/modules/core/LastFlagChallengeEngine.js';
+import LastFlagChallengeEngine, { planLastFlagSitOuts, evaluateThreeTribeTakes } from '../src/modules/core/LastFlagChallengeEngine.js';
 import { normalizeChallengeResult } from '../src/modules/core/ChallengeResult.js';
 import SeasonEngine from '../src/modules/core/SeasonEngine.js';
 globalThis.window = globalThis.window || {};
@@ -52,7 +52,7 @@ test('last completed Tribal supplies the reveal and the returning tribe enters l
   assert.equal(scene.previous.mode, 'offscreen');
   assert.equal(scene.arrivals.at(-1).members.some(member => member.id === eliminated.id), false);
   assert.equal(scene.beats.find(beat => beat.reveal)?.reveal?.eliminatedName, 'Sarah');
-  assert.ok(scene.beats.findIndex(beat => beat.reveal) < scene.beats.findIndex(beat => beat.title === 'Last Flag'));
+  assert.ok(scene.beats.findIndex(beat => beat.reveal) < scene.beats.findIndex(beat => beat.title === 'LAST FLAG'));
 });
 
 test('visible player Tribal uses canonical day-one history and reveals to the safe tribe', () => {
@@ -85,16 +85,16 @@ test('missing or stale prior Tribal does not invent an elimination', () => {
   }
 });
 
-test('Jeff names the drawn Heat 2 tribe before play without calling it an advantage', () => {
+test('Jeff explains all-three opening heat, title, lineups, and Survivors Ready without a draw', () => {
   const { tribes, survivors, player } = fixtures(3);
-  const drawn = selectLastFlagHeat2Tribe(tribes, 2);
   const scene = buildChallengeArrival({ day: 2, tribes, survivors });
-  const draw = scene.beats.find(beat => beat.title === 'The heat draw');
-  assert.ok(draw.text.includes(tribes.find(tribe => tribe.id === drawn).tribeName));
-  assert.match(draw.text, /Heat 2/);
-  assert.doesNotMatch(draw.text, /advantage|bye/i);
-  assert.equal(new LastFlagChallengeEngine({ tribes, playerId: player.id }).byeTribeKey, drawn);
-  assert.ok(scene.beats.indexOf(draw) < scene.beats.findIndex(beat => beat.title === 'Take your spots'));
+  assert.equal(scene.beats.some(beat => /drawn|bye|heat draw/i.test(beat.title + beat.text)), false);
+  assert.match(scene.beats.find(beat => beat.title === 'The rules').text, /All three tribes/);
+  assert.ok(scene.beats.find(beat => beat.title === 'LAST FLAG')?.titleCard);
+  assert.ok(scene.beats.find(beat => beat.title === 'Survivors Ready?')?.lineup);
+  assert.ok(scene.beats.findIndex(beat => beat.title === 'Immunity is on the line')
+    < scene.beats.findIndex(beat => beat.title === 'The rules'));
+  assert.equal(new LastFlagChallengeEngine({ tribes, playerId: player.id }).heat.tribeKeys.length, 3);
 });
 
 test('player tribe sit-out choice equalizes lineups and never benches the player', () => {
@@ -137,11 +137,94 @@ test('three uneven tribes field equal teams in both heats; out and sat players n
   const plan = planLastFlagSitOuts({ tribes, playerId: player.id, playerSitOutIds: ['reserve-a', 'reserve-b'] });
   assert.deepEqual(plan.sitOutIds, ['reserve-a', 'reserve-b', 'reserve-c']);
   const engine = new LastFlagChallengeEngine({ tribes, playerId: player.id, playerSitOutIds: ['reserve-a', 'reserve-b'] });
+  const originalLineups = structuredClone(engine.lineups);
   assert.deepEqual(Object.values(engine.lineups).map(ids => ids.length), [3, 3, 3]);
+  while (engine.heat.index === 0) {
+    if (engine.awaitingPlayer) engine.take(1, player.id);
+    else engine.advanceNpcTurn();
+  }
+  assert.deepEqual(engine.lineups, originalLineups, 'Heat 2 keeps the same participant roster');
+  assert.deepEqual(engine.sitOutIds, plan.sitOutIds);
   const result = play(engine);
   assert.equal(result.heatResults.length, 2);
   assert.ok(engine.moves.every(move => ![...result.sitOutIds, 'voted-out'].includes(move.actorId)));
   assert.ok(result.contestantPerformance[player.id].turns > 0);
+});
+
+test('three-tribe NPCs evaluate cyclic opponents rather than using two-side remainders', () => {
+  const options = evaluateThreeTribeTakes(6, 0);
+  assert.ok(options.find(option => option.take === 1).chances[0]
+    > options.find(option => option.take === 2).chances[0],
+  'taking one is better in this three-tribe position although two is the two-side choice');
+  const player = { id: 'p0', mental: 25 };
+  const strong = { id: 's0', mental: 45, puzzles: 10, focus: 9, leader: 9,
+    teamPlayer: 85, gameplayStyle: 'Shadow Strategist' };
+  const weak = { id: 'w0', mental: 25, puzzles: 2, focus: 2, gameplayStyle: 'Wildcard', risk: 9 };
+  const tribes = [{ id: 1, members: [strong, weak] }, { id: 2, members: [player, { id: 'o0' }] },
+    { id: 3, members: [{ id: 'x0' }, { id: 'y0' }] }];
+  const engine = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+  const identical = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+  for (const game of [engine, identical]) {
+    game.heat.turnTribeKey = 1;
+    game.heat.flagsRemaining = 6;
+  }
+  assert.equal(engine.chooseNpcMove(), 1);
+  assert.equal(engine.lastNpcDecision.recognized, true);
+  assert.equal(identical.chooseNpcMove(), engine.chooseNpcMove());
+  engine.heat.positions['1'] = 1;
+  assert.equal(engine.chooseNpcMove(), 3);
+  assert.equal(engine.lastNpcDecision.recognized, false);
+  assert.equal(engine.take(3, weak.id).callout, undefined);
+});
+
+test('each three-tribe immunity slot produces two winners and one unsafe tribe', () => {
+  for (const first of [1, 2, 3]) {
+    for (const second of [1, 2, 3].filter(key => key !== first)) {
+      const { tribes, player } = fixtures(3);
+      const engine = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+      engine.heat.turnTribeKey = first;
+      engine.heat.flagsRemaining = 1;
+      engine.take(1, engine.currentActor.id);
+      assert.deepEqual(engine.winningTribeKeys, [first]);
+      assert.equal(engine.heat.flagsRemaining, 21);
+      assert.equal(engine.heat.tribeKeys.includes(first), false);
+      engine.heat.turnTribeKey = second;
+      engine.heat.flagsRemaining = 1;
+      engine.take(1, engine.currentActor.id);
+      const result = engine.getResult();
+      assert.deepEqual(result.winningTribeKeys, [first, second]);
+      assert.equal(result.losingTribeKey, [1, 2, 3].find(key => key !== first && key !== second));
+      assert.equal(result.playerTribeWon, first === 1 || second === 1);
+      assert.equal(engine.take(1, result.finalActorId), null);
+    }
+  }
+});
+
+test('a completed three-tribe Last Flag result eliminates only the unsafe tribe through Season Engine', () => {
+  const { tribes, survivors, player } = fixtures(3, { size: 3 });
+  const challenge = new LastFlagChallengeEngine({ tribes, playerId: player.id });
+  for (const winning of [1, 2]) {
+    challenge.heat.turnTribeKey = winning;
+    challenge.heat.flagsRemaining = 1;
+    challenge.take(1, challenge.currentActor.id);
+  }
+  const result = normalizeChallengeResult(challenge.getResult());
+  const gm = {
+    day: 2, tribes, survivors, player, isMerged: false, flags: {},
+    getPlayerTribe: () => tribes[0],
+    eliminateSurvivor(target) {
+      target.isOut = true;
+      tribes.forEach(tribe => { tribe.members = tribe.members.filter(member => member !== target); });
+    },
+    resetTaskSimFlags() {}, updateTribeHealth() {}, hasImmunity: () => false
+  };
+  const season = new SeasonEngine(gm, { publish() {} }, { mergeAt: 2, swapAt: 2 });
+  assert.equal(result.losingTribeKey, 3);
+  assert.equal(season.completeRound({ challengeResult: result }), true);
+  assert.deepEqual(survivors.filter(member => member.isOut).map(member => member.tribeId), [3]);
+  assert.equal(gm.day, 3);
+  assert.equal(season.completeRound({ challengeResult: result }), false);
+  assert.equal(survivors.filter(member => member.isOut).length, 1);
 });
 
 test('production-scale NPCs can discover a pattern and share it without making teammates perfect', () => {
@@ -282,10 +365,18 @@ test('two-tribe result is canonical and the last move cannot finish twice', () =
   assert.equal(engine.getResult().finalActorId, result.finalActorId);
 });
 
-test('three-tribe heats grant two immunities, reset flags, and keep the bye fair', () => {
+test('all three tribes cycle in Heat 1, then two non-winning tribes play for second immunity', () => {
   const { tribes, player } = fixtures(3);
   const engine = new LastFlagChallengeEngine({ tribes, playerId: player.id });
-  assert.equal(engine.heat.tribeKeys.includes(engine.byeTribeKey), false);
+  assert.deepEqual(engine.heat.tribeKeys, [1, 2, 3]);
+  assert.equal('byeTribeKey' in engine, false);
+  const cycle = [engine.heat.turnTribeKey];
+  for (let i = 0; i < 5; i += 1) {
+    const actor = engine.currentActor;
+    assert.ok(engine.take(1, actor.id));
+    cycle.push(engine.heat.turnTribeKey);
+  }
+  assert.deepEqual(cycle.slice(0, 3), cycle.slice(3, 6));
   let firstHeat;
   while (!firstHeat) {
     if (engine.awaitingPlayer) engine.take(1, player.id);
@@ -293,20 +384,24 @@ test('three-tribe heats grant two immunities, reset flags, and keep the bye fair
     firstHeat = engine.heatResults[0];
   }
   assert.equal(engine.heat.flagsRemaining, 21);
-  assert.ok(engine.heat.tribeKeys.some(key => String(key) === String(firstHeat.losingTribeKey)));
-  assert.ok(engine.heat.tribeKeys.some(key => String(key) === String(engine.byeTribeKey)));
+  assert.equal(engine.heat.tribeKeys.length, 2);
+  assert.deepEqual(engine.heat.tribeKeys, firstHeat.remainingTribeKeys);
+  assert.ok(!engine.heat.tribeKeys.includes(firstHeat.winningTribeKey));
+  assert.equal(engine.currentActor.id, engine.lineups[String(engine.heat.turnTribeKey)][0]);
   const result = play(engine);
   assert.equal(result.heatResults.length, 2);
   assert.equal(new Set(result.winningTribeKeys.map(String)).size, 2);
   assert.equal(tribes.filter(tribe => result.winningTribeKeys.some(key => String(key) === String(tribe.id))).length, 2);
   assert.equal(tribes.filter(tribe => String(tribe.id) === String(result.losingTribeKey)).length, 1);
   assert.ok(result.contestantPerformance[player.id].turns > 0);
-  const byes = new Set(Array.from({ length: 12 }, (_, index) => {
+  assert.ok(engine.moves.filter(move => move.heat === 2).every(move => move.tribeKey !== firstHeat.winningTribeKey));
+  assert.ok(result.winningTribeKeys.every(key => key !== result.losingTribeKey));
+  const starters = new Set(Array.from({ length: 12 }, (_, index) => {
     const varied = fixtures(3);
     varied.tribes[0].members[0].id = `variant-${index}`;
-    return new LastFlagChallengeEngine({ tribes: varied.tribes, playerId: varied.player.id }).byeTribeKey;
+    return new LastFlagChallengeEngine({ tribes: varied.tribes, playerId: varied.player.id }).heat.startingTribeKey;
   }));
-  assert.ok(byes.size > 1, 'bye is determined by cast and round, never assigned permanently');
+  assert.ok(starters.size > 1, 'the starter varies with cast and round rather than player status');
 });
 
 test('different player decisions diverge and a forced position can pay off', () => {
@@ -397,7 +492,7 @@ function findElement(root, predicate) {
   return null;
 }
 
-function withChallengeScreen({ tribes, survivors, player }, run) {
+function withChallengeScreen({ tribes, survivors, player }, run, { day = 2 } = {}) {
   const oldDocument = globalThis.document;
   const keys = ['day', 'gamePhase', 'gameState', 'tribes', 'survivors', 'player', 'isMerged',
     'gameHistory', 'seasonEngine', 'lastChallengeResult', 'advanceGamePhase', 'setGameState'];
@@ -412,7 +507,7 @@ function withChallengeScreen({ tribes, survivors, player }, run) {
       createTextNode: value => { const node = fakeElement('#text'); node.textContent = value; return node; },
       getElementById: id => id === 'challenge-screen' ? container : null
     };
-    gameManager.day = 2;
+    gameManager.day = day;
     gameManager.gamePhase = 'challenge';
     gameManager.tribes = tribes;
     gameManager.survivors = survivors;
@@ -442,6 +537,44 @@ function advanceCeremony(screen, container) {
   }
   assert.equal(screen.currentView, 'last-flag-challenge');
 }
+
+test('Last Flag remains scheduled for day 2 yet its ceremony and routing work on a later tribal day', () => {
+  assert.equal(challengeManager.challenges.get(2).challengeKey, 'last_flag');
+  const previous = challengeManager.challenges.get(4);
+  challengeManager.challenges.set(4, { ...challengeManager.challenges.get(2) });
+  try {
+    withChallengeScreen(fixtures(), (screen, container) => {
+      assert.match(container.textContent, /DAY 4/);
+      advanceCeremony(screen, container);
+      assert.equal(screen.currentView, 'last-flag-challenge');
+      assert.equal(screen.activeChallengeView.engine.day, 4);
+      assert.match(container.textContent, /DAY 4 · LAST FLAG/);
+      const result = play(screen.activeChallengeView.engine);
+      assert.equal(result.challengeDay, 4);
+      assert.equal(result.challengeKey, 'last_flag');
+    }, { day: 4 });
+  } finally {
+    challengeManager.challenges.set(4, previous);
+  }
+});
+
+test('the ceremony stages title reveal and all participating lineups before Survivors Ready', () => {
+  withChallengeScreen(fixtures(3), (screen, container) => {
+    let steps = 0;
+    while (!findElement(container, node => node.className?.includes('last-flag-title-card')) && steps++ < 10) {
+      findElement(container, node => node.className === 'last-flag-button last-flag-next').click();
+    }
+    assert.ok(findElement(container, node => node.textContent === 'LAST FLAG'));
+    findElement(container, node => node.className === 'last-flag-button last-flag-next').click();
+    assert.ok(findElement(container, node => node.textContent === 'Survivors Ready?'));
+    const pregame = findElement(container, node => node.className === 'last-flag-pregame-lineups');
+    assert.ok(pregame);
+    assert.equal(pregame.children.length, 3);
+    assert.match(pregame.textContent, /YOU/);
+    advanceCeremony(screen, container);
+    assert.equal(screen.activeChallengeView.engine.heat.tribeKeys.length, 3);
+  });
+});
 
 test('Jeff offers the player an NPC sit-out choice and passes it to Last Flag', () => {
   const cast = fixtures(2);
@@ -481,6 +614,57 @@ test('Jeff announces deterministic opponent sit-out without asking the player to
   });
 });
 
+test('take controls are legal only on the current player turn and ignore repeated activation', () => {
+  withChallengeScreen(fixtures(), (screen, container) => {
+    advanceCeremony(screen, container);
+    const view = screen.activeChallengeView;
+    while (!view.engine.awaitingPlayer) {
+      assert.equal(findElement(container, node => node.textContent === 'TAKE 1'), null);
+      view.afterMove(view.engine.advanceNpcTurn());
+    }
+    view.engine.heat.flagsRemaining = 2;
+    view.render();
+    const takeOne = findElement(container, node => node.textContent === 'TAKE 1');
+    const takeTwo = findElement(container, node => node.textContent === 'TAKE 2');
+    const takeThree = findElement(container, node => node.textContent === 'TAKE 3');
+    assert.ok(takeOne && takeTwo && takeThree);
+    assert.equal(takeThree.disabled, true);
+    const before = view.engine.moves.length;
+    takeOne.click();
+    takeOne.click();
+    assert.equal(view.engine.moves.length, before + 1);
+    assert.equal(view.engine.heat.flagsRemaining, 1);
+    assert.equal(findElement(container, node => node.textContent === 'TAKE 1'), null);
+  });
+});
+
+test('Jeff result ceremony sends one canonical result to ChallengeScreen on Continue', () => {
+  withChallengeScreen(fixtures(3), (screen, container) => {
+    advanceCeremony(screen, container);
+    const view = screen.activeChallengeView;
+    for (const winning of [view.engine.heat.tribeKeys[0], view.engine.heat.tribeKeys[1]]) {
+      view.engine.heat.turnTribeKey = winning;
+      view.engine.heat.flagsRemaining = 1;
+      view.afterMove(view.engine.take(1, view.engine.currentActor.id));
+      view.heatPause = null; // Advance the staged Jeff announcement in this DOM test.
+    }
+    view.finalPause = false;
+    view.render();
+    assert.match(container.textContent, /IMMUNITY IS YOURS/);
+    assert.match(container.textContent, /first immunity/i);
+    assert.match(container.textContent, /second immunity/i);
+    assert.match(container.textContent, /Tribal Council/);
+    let applied = 0;
+    gameManager.seasonEngine.applyChallengeResult = () => { applied += 1; };
+    const button = findElement(container, node => node.textContent === 'CONTINUE');
+    button.click();
+    button.click();
+    assert.equal(applied, 1);
+    assert.equal(gameManager.gameState, 'camp');
+    assert.equal(challengeManager.getChallengeResult(2).winningTribeKeys.length, 2);
+  });
+});
+
 test('non-optimal player move receives neutral narration; only a real NPC callout appears', () => {
   const cast = fixtures(2);
   withChallengeScreen(cast, (screen, container) => {
@@ -492,7 +676,7 @@ test('non-optimal player move receives neutral narration; only a real NPC callou
     assert.equal(move.mistake, true);
     view.afterMove(move);
     const line = findElement(container, node => node.className === 'last-flag-commentary');
-    assert.equal(line.textContent, `${move.actorName} takes 1. 9 left.`);
+    assert.equal(line.textContent, `JEFF: ${move.actorName} takes 1. 9 left.`);
     assert.doesNotMatch(line.textContent, /call|mistake|wrong|pattern/i);
     view.lastMove = { ...move, actorName: 'Strategist', recognizedPattern: true,
       mistake: false, callout: '“I see it. Stay with me!”' };
@@ -518,12 +702,15 @@ test('Heat 2 resets board and commentary before its first contestant acts', () =
       assert.ok(view.heatPause);
       assert.equal(view.engine.heat.flagsRemaining, 21);
       pending.at(-1)();
+      assert.equal(view.heatPause.phase, 'second');
+      assert.match(container.textContent, /SECOND IMMUNITY/);
+      pending.at(-1)();
       assert.equal(view.heatPause, null);
       assert.equal(view.lastMove, null);
       assert.match(container.textContent, /21 FLAGS REMAINING/);
-      assert.equal(findElement(container, node => node.className === 'last-flag-commentary'), null);
+      assert.doesNotMatch(findElement(container, node => node.className === 'last-flag-commentary').textContent, /final flag/i);
       assert.equal(view.engine.heat.index, 1);
-      assert.ok(view.engine.heat.tribeKeys.includes(view.engine.byeTribeKey));
+      assert.equal(view.engine.heat.tribeKeys.length, 2);
       assert.ok(view.engine.currentActor);
     } finally {
       globalThis.setTimeout = oldSetTimeout;
@@ -584,7 +771,9 @@ test('Round 2 ceremony flows directly into interactive play and canonical comple
     }
     assert.ok(playerTurns > 0);
     assert.ok(view.engine.completed);
-    findElement(container, node => node.textContent === 'Return to camp').click();
+    view.finalPause = false;
+    view.render();
+    findElement(container, node => node.textContent === 'CONTINUE').click();
     assert.equal(gameManager.gameState, 'camp');
     assert.equal(gameManager.gamePhase, 'postChallenge');
     assert.equal(challengeManager.getChallengeResult(2)?.challengeKey, 'last_flag');
