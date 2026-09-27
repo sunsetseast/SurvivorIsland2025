@@ -17,6 +17,7 @@ import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 import TaskSystem from '../systems/TaskSystem.js';
 import TaskSimulationSystem from '../systems/TaskSimulationSystem.js';
 import SeasonEngine from './SeasonEngine.js';
+import { sameSurvivorId } from '../utils/SurvivorIds.js';
 
 // ⭐ SAFE SINGLETON IMPORT — NO circular dependency
 import { ConversationSystem } from '../systems/index.js';
@@ -133,16 +134,30 @@ class GameManager {
   handleTribalCouncilComplete(tribalSummary = {}) {
     const completionKey = `${tribalSummary.createdAt ?? tribalSummary.day ?? this.day}:${tribalSummary.attendingTribeId ?? ''}`;
     this._completedTribalKeys ||= new Set();
-    if (this._completedTribalKeys.has(completionKey)) return;
-    this._completedTribalKeys.add(completionKey);
+    this._tribalCompletionInFlight ||= new Set();
+    if (this._completedTribalKeys.has(completionKey) || this._tribalCompletionInFlight.has(completionKey)) return;
+    this._tribalCompletionInFlight.add(completionKey);
+    try {
+      this._processTribalCouncilComplete(tribalSummary);
+      this._completedTribalKeys.add(completionKey);
+    } finally {
+      this._tribalCompletionInFlight.delete(completionKey);
+    }
+  }
+
+  _processTribalCouncilComplete(tribalSummary) {
     if (!this.gameHistory) this.gameHistory = { tribals: [] };
     if (!Array.isArray(this.gameHistory.tribals)) this.gameHistory.tribals = [];
     if (!Array.isArray(this.tribalCouncilLog)) this.tribalCouncilLog = [];
 
     const canonicalEntry = this._buildTribalLogEntry(tribalSummary);
+    if (canonicalEntry.eliminatedId != null
+      && !this.survivors?.some(member => sameSurvivorId(member.id, canonicalEntry.eliminatedId))) {
+      throw new Error(`Tribal eliminated survivor ${canonicalEntry.eliminatedId} is missing`);
+    }
     this.seasonEngine?.recordTribal?.(canonicalEntry);
-    this.gameHistory.tribals.push(canonicalEntry);
-    this.tribalCouncilLog.push(canonicalEntry);
+    if (!this.gameHistory.tribals.some(entry => entry.id === canonicalEntry.id)) this.gameHistory.tribals.push(canonicalEntry);
+    if (!this.tribalCouncilLog.some(entry => entry.id === canonicalEntry.id)) this.tribalCouncilLog.push(canonicalEntry);
 
     this._debugTribal('handleTribalCouncilComplete', {
       day: canonicalEntry.day,
@@ -163,8 +178,9 @@ class GameManager {
     }
 
     let eliminatedSurvivor = null;
-    if (canonicalEntry.eliminatedId) {
-      eliminatedSurvivor = this.survivors?.find(s => s.id === canonicalEntry.eliminatedId) || null;
+    if (canonicalEntry.eliminatedId != null) {
+      eliminatedSurvivor = this.survivors?.find(s => sameSurvivorId(s.id, canonicalEntry.eliminatedId)) || null;
+      if (!eliminatedSurvivor) throw new Error(`Tribal eliminated survivor ${canonicalEntry.eliminatedId} is missing`);
       const alreadyOut = eliminatedSurvivor?.isOut === true;
       if (alreadyOut) {
         console.warn('[GameManager] Skipping duplicate elimination; survivor already out', {
@@ -174,7 +190,9 @@ class GameManager {
         const reason = canonicalEntry.resolutionType === 'FIRE_MAKING' ? 'fire-making'
           : canonicalEntry.resolutionType === 'ROCKS' ? 'rocks'
             : canonicalEntry.resolutionType === 'AUTOMATIC_DEADLOCK' ? 'deadlock' : 'vote';
-        this.eliminateSurvivor(canonicalEntry.eliminatedId, reason);
+        if (this.eliminateSurvivor(eliminatedSurvivor, reason) === false) {
+          throw new Error(`Tribal could not eliminate survivor ${canonicalEntry.eliminatedId}`);
+        }
       }
     }
 
@@ -190,7 +208,7 @@ class GameManager {
     });
 
     const playerId = this.player?.id;
-    const playerEliminated = Boolean(playerId && canonicalEntry.eliminatedId === playerId);
+    const playerEliminated = sameSurvivorId(playerId, canonicalEntry.eliminatedId);
     if (playerEliminated) {
       // eliminateSurvivor owns the idempotent terminal transition.
       return;
@@ -228,11 +246,12 @@ class GameManager {
     const attendingTribeId = tribalSummary.attendingTribeId ?? tribalSummary.tribeId ?? null;
     const tribe = tribes.find(candidate => String(candidate?.tribeId ?? candidate?.id) === String(attendingTribeId)) || null;
     const getName = (id) => {
-      if (!id) return null;
-      return survivors.find(member => member.id === id)?.name
-        || tribe?.members?.find(member => member.id === id)?.name
+      if (id == null) return null;
+      return survivors.find(member => sameSurvivorId(member.id, id))?.name
+        || tribe?.members?.find(member => sameSurvivorId(member.id, id))?.name
         || id;
     };
+    const nativeId = id => survivors.find(member => sameSurvivorId(member.id, id))?.id ?? id;
 
     const membersAtTribal = (tribalSummary.membersAtTribal && tribalSummary.membersAtTribal.length > 0)
       ? tribalSummary.membersAtTribal.map(member => ({
@@ -244,7 +263,7 @@ class GameManager {
         .map(member => ({ id: member.id, name: member.name || getName(member.id) || member.id }));
 
     return {
-      id: `tribal_${tribalSummary.createdAt || Date.now()}`,
+      id: `tribal_${tribalSummary.createdAt ?? `${tribalSummary.day ?? this.day}_${attendingTribeId ?? ''}`}`,
       day: tribalSummary.day ?? this.day,
       attendingTribeId,
       tribeName: tribe?.tribeName || tribe?.name || null,
@@ -297,7 +316,7 @@ class GameManager {
       revoteTally: tribalSummary.revoteCounts ? { ...(tribalSummary.revoteCounts || {}) } : (tribalSummary.revoteTally ? { ...(tribalSummary.revoteTally || {}) } : null),
       decidingCounts: tribalSummary.decidingCounts ? { ...(tribalSummary.decidingCounts || {}) } : (tribalSummary.decidingTally ? { ...(tribalSummary.decidingTally || {}) } : null),
       decidingTally: tribalSummary.decidingCounts ? { ...(tribalSummary.decidingCounts || {}) } : (tribalSummary.decidingTally ? { ...(tribalSummary.decidingTally || {}) } : null),
-      eliminatedId: tribalSummary.eliminatedId || null,
+      eliminatedId: nativeId(tribalSummary.eliminatedId) ?? null,
       eliminatedName: tribalSummary.eliminatedName || getName(tribalSummary.eliminatedId) || null,
       wasTie: Boolean(tribalSummary.wasTie),
       initialTie: Boolean(tribalSummary.initialTie),
@@ -316,6 +335,9 @@ class GameManager {
       deadlockCasualtyId: tribalSummary.deadlockCasualtyId || null,
       fireMakingOccurred: Boolean(tribalSummary.fireMakingOccurred),
       fireMakingParticipants: [...(tribalSummary.fireMakingParticipants || [])],
+      fireMakingRounds: (tribalSummary.fireMakingRounds || []).map(round => ({
+        ...round, participants: [...(round.participants || [])]
+      })),
       fireMakingWinnerId: tribalSummary.fireMakingWinnerId || null,
       revoteOccurred: Boolean(tribalSummary.revoteOccurred),
       wasRockDraw: Boolean(tribalSummary.rockDrawOccurred),
@@ -721,8 +743,8 @@ class GameManager {
   }
 
   hasLostVote(survivorIdOrObj) {
-    const survivor = typeof survivorIdOrObj === 'string'
-      ? this.survivors.find(entry => entry.id === survivorIdOrObj)
+    const survivor = typeof survivorIdOrObj !== 'object'
+      ? this.survivors.find(entry => sameSurvivorId(entry.id, survivorIdOrObj))
       : survivorIdOrObj;
 
     if (!survivor) return false;
@@ -747,8 +769,8 @@ class GameManager {
   }
 
   hasVote(survivorIdOrObj) {
-    const survivor = typeof survivorIdOrObj === 'string'
-      ? this.survivors.find(entry => entry.id === survivorIdOrObj)
+    const survivor = typeof survivorIdOrObj !== 'object'
+      ? this.survivors.find(entry => sameSurvivorId(entry.id, survivorIdOrObj))
       : survivorIdOrObj;
 
     if (!survivor) return false;
@@ -757,8 +779,8 @@ class GameManager {
   }
 
   canPlayShotInTheDark(survivorIdOrObj) {
-    const survivor = typeof survivorIdOrObj === 'string'
-      ? this.survivors.find(entry => entry.id === survivorIdOrObj)
+    const survivor = typeof survivorIdOrObj !== 'object'
+      ? this.survivors.find(entry => sameSurvivorId(entry.id, survivorIdOrObj))
       : survivorIdOrObj;
 
     if (!survivor || this.hasVote(survivor) !== true) return false;
@@ -787,8 +809,8 @@ class GameManager {
   }
 
   hasImmunity(survivorIdOrObj) {
-    const survivor = typeof survivorIdOrObj === 'string'
-      ? this.survivors.find(entry => entry.id === survivorIdOrObj)
+    const survivor = typeof survivorIdOrObj !== 'object'
+      ? this.survivors.find(entry => sameSurvivorId(entry.id, survivorIdOrObj))
       : survivorIdOrObj;
 
     if (!survivor) return false;
@@ -946,25 +968,18 @@ class GameManager {
   }
 
   eliminateSurvivor(survivorOrId, reason = 'vote') {
-    const survivorId = typeof survivorOrId === 'string' ? survivorOrId : survivorOrId?.id;
-    if (!survivorId) return;
-
-    const survivor = this.survivors.find(entry => entry.id === survivorId) || survivorOrId;
-    if (!survivor) return;
-
+    const survivorId = survivorOrId && typeof survivorOrId === 'object' ? survivorOrId.id : survivorOrId;
+    if (survivorId == null) return false;
+    const survivor = this.survivors.find(entry => sameSurvivorId(entry.id, survivorId));
+    if (!survivor) return false;
     if (survivor.isOut) return false;
-    survivor.isOut = true;
-
-    let sourceTribe = null;
-    this.tribes.forEach(tribe => {
-      if (tribe.members.some(member => member.id === survivorId)) {
-        sourceTribe = sourceTribe || tribe;
-        tribe.members = tribe.members.filter(member => member.id !== survivorId);
-      }
-    });
-
+    const sourceTribe = this.tribes.find(tribe => tribe.members.some(member => sameSurvivorId(member.id, survivor.id)));
     if (!sourceTribe) return false;
-    if (this.isMerged && !this.jury.some(member => member.id === survivor.id)) this.jury.push(survivor);
+    survivor.isOut = true;
+    this.tribes.forEach(tribe => {
+      tribe.members = tribe.members.filter(member => !sameSurvivorId(member.id, survivor.id));
+    });
+    if (this.isMerged && !this.jury.some(member => sameSurvivorId(member.id, survivor.id))) this.jury.push(survivor);
 
     eventManager.publish(GameEvents.SURVIVOR_ELIMINATED, {
       eliminatedSurvivor: survivor,
@@ -978,10 +993,12 @@ class GameManager {
   }
 
   consumeIdolForSurvivor(survivorId, context = {}) {
-    if (!survivorId) return false;
+    if (survivorId == null) return false;
 
     const idolSystem = this.systems?.idolSystem;
-    const inventory = idolSystem?.survivorInventories?.get?.(survivorId);
+    const nativeId = this.survivors.find(member => sameSurvivorId(member.id, survivorId))?.id ?? survivorId;
+    const inventory = idolSystem?.survivorInventories?.get?.(nativeId)
+      || idolSystem?.survivorInventories?.get?.(String(nativeId));
     const idolToUse = inventory?.idols?.find(idol => !idol?.isUsed && !idol?.played);
     if (!idolToUse) {
       return false;
@@ -999,7 +1016,7 @@ class GameManager {
     }
 
     eventManager.publish(GameEvents.IDOL_PLAYED, {
-      survivorId,
+      survivorId: nativeId,
       idolId: idolToUse.id,
       tribeId,
       day: this.day,
@@ -1437,7 +1454,7 @@ class GameManager {
     if (!Array.isArray(attendeeIds) || !this.survivors) return;
 
     attendeeIds.forEach(id => {
-      const survivor = this.survivors.find(s => s.id === id);
+      const survivor = this.survivors.find(s => sameSurvivorId(s.id, id));
       if (survivor?.votePenalty?.type === 'LOST_VOTE_JOURNEY' && survivor.votePenalty.pending === true) {
         survivor.hasVote = true;
         survivor.votePenalty = null;

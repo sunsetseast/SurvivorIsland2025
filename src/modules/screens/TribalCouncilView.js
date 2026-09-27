@@ -2,6 +2,7 @@ import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import TribalBeatRunner from './TribalBeatRunner.js';
 import TribalQuestionEngine from '../systems/TribalQuestionEngine.js';
+import { TRIBAL_CONSENSUS_REFUSAL } from '../systems/TribalCouncilSystem.js';
 import { assignTribalSeats, getTribalSeat, TRIBAL_ART_WIDTH, TRIBAL_ART_HEIGHT } from './TribalSceneLayout.js';
 import { planVoteReveals } from './TribalVoteRevealPlan.js';
 import { TRIBAL_PACING, tribalMotionDelay } from './TribalPacing.js';
@@ -448,14 +449,19 @@ export default class TribalCouncilView {
           customRender: content => this._renderDeadlockContent(content),
           button: { label: this.tribalSummary?.playerCanDecideConsensus ? 'CONFIRM DECISION' : 'HEAR DECISION',
             disabled: () => this.tribalSummary?.playerCanDecideConsensus && !this.playerConsensusTarget,
-            onClick: controls => this._resolvePendingDeadlock(controls) } });
+            onClick: controls => this._resolvePendingDeadlock(controls) },
+          secondaryActions: this.tribalSummary?.playerCanRefuseConsensus
+            ? [{ label: 'DO NOT AGREE', onClick: controls => this._resolvePendingDeadlock(controls, { refuse: true }) }] : [] });
         if (this.tribalSummary?.tribalState === 'DEADLOCK_DISCUSSION') return beats;
 
         const method = this.tribalSummary?.resolutionType;
         beats.push({ id: 'deadlock-outcome', background: `${ASSET_BASE}/voteread.png`, textPos: 'top',
           text: this.tribalSummary?.deadlockConsensusReached
             ? `The tribe agrees. ${this.getTribalName(this.tribalSummary.deadlockDecisionTargetId)} is leaving.`
-            : 'The tribe cannot agree. The tied survivors are safe from the deadlock consequence.',
+            : method === 'ROCKS' ? 'The tribe cannot agree. The tied survivors are safe. The eligible survivors will draw rocks.'
+              : method === 'AUTOMATIC_DEADLOCK' ? 'The tribe cannot agree. Only one survivor is exposed.'
+                : method === 'FIRE_MAKING' ? 'The tribe cannot agree. With nobody eligible to draw rocks, fire will break the tie.'
+                  : 'The tribe cannot agree.',
           canSkipAfterMs: TRIBAL_PACING.deadlockHold, button: { label: 'CONTINUE' } });
         if (method === 'ROCKS') {
           beats.push({ id: 'rocks-intro', background: `${ASSET_BASE}/voteread.png`,
@@ -470,11 +476,18 @@ export default class TribalCouncilView {
             text: `${this.getTribalName(this.tribalSummary.deadlockCasualtyId)} is the only unprotected survivor outside the tie. There is no rock to draw.`,
             textPos: 'top', canSkipAfterMs: TRIBAL_PACING.deadlockHold, button: { label: 'CONTINUE' } });
         } else if (method === 'FIRE_MAKING') {
-          const names = this.tribalSummary.fireMakingParticipants.map(id => this.getTribalName(id)).join(' and ');
+          const names = this.tribalSummary.fireMakingParticipants.map(id => this.getTribalName(id)).join(', ');
           beats.push({ id: 'fire-intro', background: `${ASSET_BASE}/voteread.png`,
             text: `No one can draw rocks. ${names} will make fire to break the tie.`, textPos: 'top',
-            canSkipAfterMs: TRIBAL_PACING.fireReveal, button: { label: 'MAKE FIRE' } },
-          { id: 'fire-hold', background: `${ASSET_BASE}/urn.png`,
+            canSkipAfterMs: TRIBAL_PACING.fireReveal, button: { label: 'MAKE FIRE' } });
+          (this.tribalSummary.fireMakingRounds || []).slice(0, -1).forEach((round, index) => beats.push(
+            { id: `fire-hold-${index}`, background: `${ASSET_BASE}/urn.png`,
+              text: 'The flames rise.', textPos: 'center', pauseMs: TRIBAL_PACING.fireReveal, autoAdvance: true },
+            { id: `fire-round-${index}`, background: `${ASSET_BASE}/voteread.png`,
+              text: `${this.getTribalName(round.winnerId)} is safe. ${this.getTribalName(round.eliminatedId)} faces the next fire.`,
+              textPos: 'top', pauseMs: TRIBAL_PACING.fireReveal, autoAdvance: true }
+          ));
+          beats.push({ id: 'fire-hold', background: `${ASSET_BASE}/urn.png`,
             text: 'The flames rise.', textPos: 'center', pauseMs: TRIBAL_PACING.fireReveal, autoAdvance: true },
           { id: 'fire-result', background: `${ASSET_BASE}/voteread.png`,
             text: `${this.getTribalName(this.tribalSummary.fireMakingWinnerId)} wins. ${this.getTribalName(this.result.eliminatedId)} loses fire-making.`,
@@ -936,9 +949,9 @@ export default class TribalCouncilView {
     controls.setBeats(beats, { index: nextIndex >= 0 ? nextIndex : 0 });
   }
 
-  _resolvePendingDeadlock(controls) {
+  _resolvePendingDeadlock(controls, { refuse = false } = {}) {
     const resolved = this.tribalCouncilSystem.resolveDeadlockConsensus({
-      playerChoiceTargetId: this.playerConsensusTarget
+      playerChoiceTargetId: refuse ? TRIBAL_CONSENSUS_REFUSAL : this.playerConsensusTarget
     });
     if (!resolved?.decisionResolved) return;
     this.tribalSummary = resolved;
@@ -972,9 +985,13 @@ export default class TribalCouncilView {
 
   _renderRevoteVotingContent(content) {
     const tiedIds = this.tribalSummary?.revoteTargetIds || this.tribalSummary?.tiedCandidateIds || [];
-    const tiedTargets = tiedIds
+    const playerId = this.gameManager.getPlayerSurvivor?.()?.id;
+    const legalIds = this.tribalCouncilSystem?.getLegalRevoteTargetIds?.(
+      playerId, this.tribalSummary?.playerRevoteTargetIds ?? tiedIds)
+      ?? this.tribalSummary?.playerRevoteTargetIds ?? [];
+    const tiedTargets = legalIds
       .map(id => this.getSurvivorById(id))
-      .filter(Boolean);
+      .filter(member => member && !member.isOut && String(member.id) !== String(playerId));
 
     const votingText = this.playerRevote
       ? `YOUR REVOTE: ${this.getTribalName(this.playerRevote)}. You can change it before casting.`
@@ -1080,12 +1097,11 @@ export default class TribalCouncilView {
   _getRevoteExcludedVoters() {
     const excluded = new Set();
     const members = this.tribalSummary?.membersAtTribal || [];
-    const tiedIds = new Set((this.tribalSummary?.zeroValidVotes ? [] : this.tribalSummary?.tiedCandidateIds || []).map(id => String(id)));
     const revoteEligibleIds = new Set((this.tribalSummary?.revoteEligibleVoterIds || []).map(id => String(id)));
     members.forEach(member => {
       const key = String(member.id);
       const name = this.getTribalName(member);
-      if (tiedIds.has(key) || !revoteEligibleIds.has(key)) excluded.add(name);
+      if (!revoteEligibleIds.has(key)) excluded.add(name);
     });
     return [...excluded];
   }

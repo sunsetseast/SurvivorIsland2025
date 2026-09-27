@@ -7,6 +7,7 @@ import TribalCouncilView from '../src/modules/screens/TribalCouncilView.js';
 import tribalEvents, { GameEvents } from '../src/modules/core/EventManager.js';
 import { TRIBAL_SEAT_LAYOUTS, assignTribalSeats, getTribalSeat } from '../src/modules/screens/TribalSceneLayout.js';
 import { decisiveVoteIndex, planVoteReveals } from '../src/modules/screens/TribalVoteRevealPlan.js';
+import { resolveFireMaking, resolveMultiWayFireMaking } from '../src/modules/systems/TribalDeadlock.js';
 
 function survivor(id, { isPlayer = false, hasImmunity = false, advantages = {} } = {}) {
   return {
@@ -586,9 +587,11 @@ test('revote portraits, reversible selection and preview share the ballot-flow l
     members[1].name = 'A'; members[2].name = 'B';
     const game = buildGame(members);
     const tribal = new TribalCouncilSystem(game, eventManager);
+    tribal.buildTribeContext('tribe-1');
     const view = new TribalCouncilView({ gameManager: game, tribalCouncilSystem: tribal });
     view.attendingTribeId = 'tribe-1';
-    view.tribalSummary = { initialTie: true, tiedCandidateIds: ['a', 'b'], revoteTargetIds: ['a', 'b'], playerCanRevote: true };
+    view.tribalSummary = { initialTie: true, tiedCandidateIds: ['a', 'b'], revoteTargetIds: ['a', 'b'],
+      playerRevoteTargetIds: ['a', 'b'], playerCanRevote: true };
     view.beatRunner = { currentIndex: 0, goTo() {} };
     const root = new FakeElement('div');
     const render = () => { root.children = []; view._renderRevoteVotingContent(root); return root.children[0]; };
@@ -842,4 +845,178 @@ test('player revote enters the real deadlock beat, then the consensus outcome be
   assert.equal(navigation.beats[navigation.options.index].id, 'deadlock-outcome');
   assert.ok(navigation.beats.some(beat => beat.id === 'snuff'));
   assert.equal(view.playerConsensusTarget, null);
+});
+
+test('ordinary three-way tie excludes every tied contestant from revote', () => {
+  const members = ['player', 'a', 'b', 'c', 'd', 'e'].map(id => survivor(id, { isPlayer: id === 'player' }));
+  const game = buildGame(members);
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  const desired = { a: 'b', b: 'c', c: 'a', d: 'b', e: 'c' };
+  tribal._scoreNpcTarget = (voter, target) => target.id === desired[voter.id] ? 10 : 0;
+  tribal.registerPlayerVote('player', 'a');
+  const pending = tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  assert.deepEqual(pending.tiedCandidateIds.sort(), ['a', 'b', 'c']);
+  assert.deepEqual(pending.revoteEligibleVoterIds.sort(), ['d', 'e', 'player']);
+  assert.deepEqual(pending.playerRevoteTargetIds.sort(), ['a', 'b', 'c']);
+  const deadlock = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  assert.deepEqual(deadlock.revoteVotes.map(vote => vote.voterId).sort(), ['d', 'e', 'player']);
+  assert.deepEqual(deadlock.deadlockTiedCandidateIds.sort(), ['a', 'b', 'c']);
+});
+
+test('unequal voting power in a larger tie admits only tied contestants retaining a vote', () => {
+  const members = ['player', 'a', 'b', 'c', 'd', 'e', 'f'].map(id => survivor(id, { isPlayer: id === 'player' }));
+  members.find(member => member.id === 'a').hasVote = false;
+  const game = buildGame(members); game.hasLostVote = member => member.id === 'a';
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  const desired = { b: 'c', c: 'a', d: 'b', e: 'b', f: 'c' };
+  tribal._scoreNpcTarget = (voter, target) => target.id === desired[voter.id] ? 10 : 0;
+  tribal.registerPlayerVote('player', 'a');
+  const pending = tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  assert.deepEqual(pending.tiedCandidateIds.sort(), ['a', 'b', 'c']);
+  assert.ok(pending.revoteEligibleVoterIds.includes('b'));
+  assert.ok(pending.revoteEligibleVoterIds.includes('c'));
+  assert.ok(!pending.revoteEligibleVoterIds.includes('a'));
+  tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  assert.ok(tribal.revoteVotes.some(vote => vote.voterId === 'b'));
+  assert.ok(tribal.revoteVotes.some(vote => vote.voterId === 'c'));
+  assert.ok(tribal.revoteVotes.every(vote => vote.voterId !== 'a'));
+});
+
+test('a tied player with vote power sees only legal revote portraits and is not labelled NOT VOTING', () => {
+  const members = [survivor('player', { isPlayer: true }), survivor('a'), survivor('b')];
+  members.forEach(member => { member.name = member.id.toUpperCase(); });
+  members[1].hasVote = false;
+  const game = buildGame(members); game.hasLostVote = member => member.id === 'a';
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  tribal._scoreNpcTarget = (voter, target) => voter.id === 'b' && target.id === 'player' ? 10 : 0;
+  tribal.registerPlayerVote('player', 'a');
+  const summary = tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  assert.deepEqual(summary.playerRevoteTargetIds, ['a']);
+  const view = new TribalCouncilView({ gameManager: game, tribalCouncilSystem: tribal });
+  view.attendingTribeId = 'tribe-1'; view.tribalSummary = summary;
+  assert.deepEqual(view._getRevoteExcludedVoters(), ['A']); // Only the voteless tied contestant.
+  class FakeElement {
+    constructor(tag) { this.tag = tag; this.children = []; this.listeners = {}; this.style = {}; this.textContent = ''; }
+    appendChild(child) { this.children.push(child); return child; }
+    addEventListener(name, callback) { this.listeners[name] = callback; }
+    setAttribute() {}
+    removeAttribute() {}
+  }
+  const oldDocument = globalThis.document;
+  globalThis.document = { createElement: tag => new FakeElement(tag),
+    createTextNode: value => Object.assign(new FakeElement('#text'), { textContent: value }) };
+  try {
+    const root = new FakeElement('div');
+    view._renderRevoteVotingContent(root);
+    const portraits = root.children[0].children[1].children;
+    assert.equal(portraits.length, 1);
+    assert.equal(portraits[0].children.at(-1).textContent, 'A');
+  } finally { globalThis.document = oldDocument; }
+  assert.equal(tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'player' }), summary);
+});
+
+test('low-risk NPC can concede to avoid rocks while a high-risk NPC holds its target', () => {
+  for (const [risk, shouldConcede] of [[1, true], [10, false]]) {
+    const { game, tribal } = tiedRevote();
+    game.survivors.find(member => member.id === 'c').risk = risk;
+    tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+    const result = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
+    assert.equal(result.deadlockConsensusReached, shouldConcede);
+    assert.equal(result.resolutionType, shouldConcede ? 'DEADLOCK_CONSENSUS' : 'ROCKS');
+  }
+});
+
+test('player refusal is a real deadlock decision and is resolved only once', () => {
+  const { tribal } = tiedRevote();
+  const pending = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  assert.equal(pending.playerCanRefuseConsensus, true);
+  const result = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'REFUSE_CONSENSUS' });
+  assert.equal(result.deadlockConsensusReached, false);
+  assert.ok(result.consensusChoices.some(choice => choice.voterId === 'player' && choice.refused && choice.targetId === null));
+  assert.equal(result.resolutionType, 'ROCKS');
+  assert.equal(tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'b' }), result);
+});
+
+test('three-way zero-rock deadlock uses only two-person fire duels and keeps complete history', () => {
+  const members = ['player', 'a', 'b', 'c', 'd', 'e'].map(id => survivor(id, { isPlayer: id === 'player' }));
+  const game = buildGame(members);
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  const desired = { a: 'b', b: 'c', c: 'a', d: 'b', e: 'c' };
+  tribal._scoreNpcTarget = (voter, target) => target.id === desired[voter.id] ? 10 : 0;
+  tribal.registerPlayerVote('player', 'a');
+  tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  const pending = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  for (const id of ['player', 'd', 'e']) tribal.idolProtectedIds.add(id);
+  const oldRandom = Math.random; Math.random = () => 0.5;
+  try {
+    const result = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
+    assert.equal(result.resolutionType, 'FIRE_MAKING');
+    assert.deepEqual(result.fireMakingParticipants.sort(), ['a', 'b', 'c']);
+    assert.equal(result.fireMakingRounds.length, 2);
+    assert.ok(result.fireMakingRounds.every(round => round.participants.length === 2));
+    assert.equal(result.initialVotes.length, pending.initialVotes.length);
+    assert.equal(result.revoteVotes.length, pending.revoteVotes.length);
+    assert.equal(tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'b' }), result);
+    const view = new TribalCouncilView({ gameManager: game, tribalCouncilSystem: tribal });
+    view.attendingTribeId = 'tribe-1'; view.tribalSummary = result; view.result = result;
+    const beats = view._buildPostVoteBeats();
+    assert.ok(beats.some(beat => beat.id === 'fire-round-0'));
+    assert.match(beats.find(beat => beat.id === 'deadlock-outcome').text, /fire will break the tie/);
+    assert.doesNotMatch(beats.find(beat => beat.id === 'deadlock-outcome').text, /tied survivors are safe/i);
+  } finally { Math.random = oldRandom; }
+});
+
+test('firemaking skill dominates support, but bounded luck permits an upset', () => {
+  const skilled = { id: 2, firemaking: 8, focus: 5, dexterity: 5, fortitude: 5, physical: 1 };
+  const weaker = { id: 3, firemaking: 6, focus: 5, dexterity: 5, fortitude: 5, physical: 99 };
+  assert.equal(resolveFireMaking([skilled, weaker], () => 0.5).winnerId, '2');
+  const sequence = [0, 1];
+  const upset = resolveFireMaking([skilled, weaker], () => sequence.shift());
+  assert.equal(upset.winnerId, '3');
+  assert.deepEqual(upset.participants, ['2', '3']);
+  assert.equal(upset.eliminatedId, '2');
+  assert.equal(resolveFireMaking([skilled, weaker, { id: 4 }]), null);
+  assert.equal(resolveFireMaking([skilled, skilled]), null);
+  const participants = [skilled, weaker, { id: 4, firemaking: 5 }];
+  const first = resolveMultiWayFireMaking(participants, () => 0.5);
+  const second = resolveMultiWayFireMaking(participants, () => 0.5);
+  assert.deepEqual(first, second);
+  assert.equal(first.rounds.length, 2);
+  assert.ok(first.rounds.every(round => round.participants.length === 2));
+});
+
+test('three-way deadlock can end in a unanimous decision among the full tied group', () => {
+  const members = ['player', 'a', 'b', 'c', 'd', 'e'].map(id => survivor(id, { isPlayer: id === 'player' }));
+  members.find(member => member.id === 'player').risk = 10;
+  members.filter(member => ['d', 'e'].includes(member.id)).forEach(member => { member.risk = 1; });
+  const game = buildGame(members);
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  const desired = { a: 'b', b: 'c', c: 'a', d: 'b', e: 'c' };
+  tribal._scoreNpcTarget = (voter, target) => target.id === desired[voter.id] ? 10 : 0;
+  tribal.registerPlayerVote('player', 'a');
+  tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  const pending = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  assert.deepEqual(pending.deadlockTiedCandidateIds.sort(), ['a', 'b', 'c']);
+  const resolved = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
+  assert.equal(resolved.deadlockConsensusReached, true);
+  assert.equal(resolved.deadlockDecisionTargetId, 'a');
+  assert.equal(resolved.eliminatedId, 'a');
+  assert.equal(resolved.fireMakingOccurred, false);
+  assert.equal(resolved.rockDrawOccurred, false);
+  assert.equal(resolved.consensusChoices.length, 3);
+});
+
+test('deadlock view offers a real refusal action only when the player can decide', () => {
+  const { game, tribal } = tiedRevote();
+  const pending = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  const view = new TribalCouncilView({ gameManager: game, tribalCouncilSystem: tribal });
+  view.attendingTribeId = 'tribe-1'; view.tribalSummary = pending; view.result = pending;
+  const beat = view._buildPostVoteBeats().find(entry => entry.id === 'deadlock-discussion');
+  assert.equal(beat.secondaryActions[0].label, 'DO NOT AGREE');
+  let next;
+  beat.secondaryActions[0].onClick({ setBeats: (beats, options) => { next = beats[options.index]; } });
+  assert.equal(view.tribalSummary.deadlockConsensusReached, false);
+  assert.equal(view.tribalSummary.resolutionType, 'ROCKS');
+  assert.equal(next.id, 'deadlock-outcome');
+  assert.match(next.text, /tied survivors are safe/i);
 });

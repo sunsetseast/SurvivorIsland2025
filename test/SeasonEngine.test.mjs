@@ -508,7 +508,7 @@ test('GameManager commits a canonical deadlock summary only once', () => {
   fake.gameHistory = { tribals: [] }; fake.tribalCouncilLog = [];
   fake.systems = {};
   fake.seasonEngine = { recordTribal: () => { tally.history++; }, state: {} };
-  fake.eliminateSurvivor = () => { tally.elimination++; survivorOut.isOut = true; };
+  fake.eliminateSurvivor = () => { tally.elimination++; survivorOut.isOut = true; return true; };
   fake.advanceDay = () => { tally.day++; };
   fake.consumeVotePenaltiesAfterTribal = () => {};
   fake.requestAutoSave = () => {};

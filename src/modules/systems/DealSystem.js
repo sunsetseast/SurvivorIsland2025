@@ -1,5 +1,6 @@
 import { generateId } from '../utils/CommonUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
+import { sameSurvivorId } from '../utils/SurvivorIds.js';
 
 export const DealTypes = {
   VOTE_TOGETHER: 'VOTE_TOGETHER',
@@ -322,47 +323,47 @@ class DealSystem {
   }
 
   processTribalOutcome(tribalSummary = {}, gameManager = this.gameManager) {
-    const membersAtTribal = new Set((tribalSummary.membersAtTribal || []).map(member => member.id));
+    const membersAtTribal = new Set((tribalSummary.membersAtTribal || []).map(member => String(member.id)));
     if (!membersAtTribal.size) return;
 
     const decidingVotes = tribalSummary.revoteOccurred
       ? (tribalSummary.revoteVotes || [])
       : (tribalSummary.initialVotes || tribalSummary.votes || []);
-    const votesByVoter = new Map(decidingVotes.map(vote => [vote.voterId, vote.targetId]));
+    const votesByVoter = new Map(decidingVotes.map(vote => [String(vote.voterId), vote.targetId]));
     const activeStatuses = new Set([DealStatus.PROPOSED, DealStatus.ACCEPTED]);
     const activeDeals = Object.values(this.dealsById).filter(deal => activeStatuses.has(deal?.status));
 
     activeDeals.forEach(deal => {
       const [partyAId, partyBId] = deal.parties || [];
       if (!partyAId || !partyBId) return;
-      if (!membersAtTribal.has(partyAId) || !membersAtTribal.has(partyBId)) return;
+      if (!membersAtTribal.has(String(partyAId)) || !membersAtTribal.has(String(partyBId))) return;
 
-      const aVote = votesByVoter.get(partyAId);
-      const bVote = votesByVoter.get(partyBId);
+      const aVote = votesByVoter.get(String(partyAId));
+      const bVote = votesByVoter.get(String(partyBId));
       const terms = deal.terms || {};
 
       if (deal.type === DealTypes.VOTE_TOGETHER) {
         const requiredTargetId = terms.targetId ?? null;
-        if (requiredTargetId) {
-          if (aVote && aVote !== requiredTargetId) {
+        if (requiredTargetId != null) {
+          if (aVote != null && !sameSurvivorId(aVote, requiredTargetId)) {
             this.breakDeal(deal.id, partyAId, 'VOTE_TOGETHER target not honored');
             return;
           }
-          if (bVote && bVote !== requiredTargetId) {
+          if (bVote != null && !sameSurvivorId(bVote, requiredTargetId)) {
             this.breakDeal(deal.id, partyBId, 'VOTE_TOGETHER target not honored');
             return;
           }
-          if (aVote === requiredTargetId && bVote === requiredTargetId) {
+          if (sameSurvivorId(aVote, requiredTargetId) && sameSurvivorId(bVote, requiredTargetId)) {
             this.completeDeal(deal.id, null, 'VOTE_TOGETHER target honored');
           }
           return;
         }
 
-        if (aVote && bVote && aVote !== bVote) {
+        if (aVote != null && bVote != null && !sameSurvivorId(aVote, bVote)) {
           this.breakDeal(deal.id, null, 'VOTE_TOGETHER alignment failed');
           return;
         }
-        if (aVote && bVote && aVote === bVote) {
+        if (aVote != null && bVote != null && sameSurvivorId(aVote, bVote)) {
           this.completeDeal(deal.id, null, 'VOTE_TOGETHER alignment held');
         }
         return;
@@ -373,27 +374,27 @@ class DealSystem {
         const protectedForA = protectedId || partyBId;
         const protectedForB = protectedId || partyAId;
 
-        if (aVote && aVote === protectedForA) {
+        if (sameSurvivorId(aVote, protectedForA)) {
           this.breakDeal(deal.id, partyAId, 'Protection promise broken');
           return;
         }
-        if (bVote && bVote === protectedForB) {
+        if (sameSurvivorId(bVote, protectedForB)) {
           this.breakDeal(deal.id, partyBId, 'Protection promise broken');
           return;
         }
 
-        if (aVote && bVote) {
+        if (aVote != null && bVote != null) {
           this.completeDeal(deal.id, null, 'Protection promise honored');
         }
         return;
       }
 
       if (deal.type === DealTypes.FINAL_TWO || deal.type === 'FINAL_THREE') {
-        if (aVote && aVote === partyBId) {
+        if (sameSurvivorId(aVote, partyBId)) {
           this.breakDeal(deal.id, partyAId, 'Final pact broken by direct vote');
           return;
         }
-        if (bVote && bVote === partyAId) {
+        if (sameSurvivorId(bVote, partyAId)) {
           this.breakDeal(deal.id, partyBId, 'Final pact broken by direct vote');
           return;
         }
