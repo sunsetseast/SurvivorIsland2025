@@ -273,7 +273,9 @@ class GameManager {
         voterName: vote.voterName || getName(vote.voterId),
         targetId: vote.targetId,
         targetName: vote.targetName || getName(vote.targetId),
-        nullified: vote.nullified ?? vote.wasNullified ?? false
+        nullified: vote.nullified ?? vote.wasNullified ?? false,
+        phase: vote.phase || 'initial',
+        ...(vote.roundIndex != null ? { roundIndex: vote.roundIndex } : {})
       })),
       initialVotes: (tribalSummary.initialVotes || tribalSummary.votes || [])
         .filter(vote => vote.phase !== 'revote')
@@ -290,8 +292,14 @@ class GameManager {
         voterName: vote.voterName || getName(vote.voterId),
         targetId: vote.targetId,
         targetName: vote.targetName || getName(vote.targetId),
-        nullified: vote.nullified ?? vote.wasNullified ?? false
+        nullified: vote.nullified ?? vote.wasNullified ?? false,
+        phase: 'revote',
+        ...(vote.roundIndex != null ? { roundIndex: vote.roundIndex } : {})
       })),
+      tiebreakRounds: (tribalSummary.tiebreakRounds || []).map(round => ({ ...round,
+        tiedIds: [...(round.tiedIds || [])], eligibleVoterIds: [...(round.eligibleVoterIds || [])],
+        leaders: [...(round.leaders || [])], counts: { ...(round.counts || {}) },
+        votes: (round.votes || []).map(vote => ({ ...vote })) })),
       rockDrawEligible: (tribalSummary.rockDrawEligible || []).map(entry => ({
         id: entry.id || entry,
         name: entry.name || getName(entry.id || entry) || 'Unknown'
@@ -330,6 +338,11 @@ class GameManager {
       deadlockConsensusReached: Boolean(tribalSummary.deadlockConsensusReached),
       deadlockDecisionTargetId: tribalSummary.deadlockDecisionTargetId || null,
       deadlockTiedCandidateIds: [...(tribalSummary.deadlockTiedCandidateIds || [])],
+      currentDeadlockTiedIds: [...(tribalSummary.currentDeadlockTiedIds || [])],
+      releasedFromTieIds: [...(tribalSummary.releasedFromTieIds || [])],
+      deadlockRounds: (tribalSummary.deadlockRounds || []).map(round => ({ ...round,
+        tiedIds: [...(round.tiedIds || [])], decisionMakerIds: [...(round.decisionMakerIds || [])],
+        choices: (round.choices || []).map(choice => ({ ...choice })) })),
       consensusDecisionMakerIds: [...(tribalSummary.consensusDecisionMakerIds || [])],
       consensusChoices: (tribalSummary.consensusChoices || []).map(choice => ({ ...choice })),
       deadlockCasualtyId: tribalSummary.deadlockCasualtyId || null,

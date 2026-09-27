@@ -542,8 +542,10 @@ class StrategyPhaseSystem {
     this.beatIntervalId = setInterval(() => this.runStrategyBeat(), 12000);
   }
 
-  updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0, absoluteConfidence = null } = {}) {
+  updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0, absoluteConfidence = null,
+    lateVolatility = false } = {}) {
     if (!npcId || !this.isTargetIdAvailable(targetId)) return null;
+    const previousTargetId = this.getNpcTargetIntent(npcId)?.targetId;
     const priorMeta = this.npcIntentMeta.get(npcId) || { confidence: 0.5, reason: 'seed', updatedAt: Date.now() };
     const fallbackConfidence = (Number(priorMeta.confidence) || 0.5) + (Number(confidenceDelta) || 0);
     const seededConfidence = absoluteConfidence == null ? fallbackConfidence : Number(absoluteConfidence);
@@ -566,6 +568,13 @@ class StrategyPhaseSystem {
       reason,
       confidence: meta.confidence,
     });
+    if (lateVolatility && previousTargetId != null && String(previousTargetId) !== String(targetId)) {
+      // Only an actual late target switch can stage a Live Tribal. The target
+      // names stay private; the visible event is the late scramble itself.
+      this.strategyFacts.push({ type: 'lateTargetSwitch', speakerId: npcId,
+        fromTargetId: previousTargetId, toTargetId: targetId, severity: .75,
+        source: reason, timestamp: Date.now() });
+    }
     window.debugBanner?.('NPC-INTENT', `${npcName} -> ${targetName} (${meta.confidence.toFixed(2)})`);
     return meta;
   }
@@ -1372,6 +1381,7 @@ class StrategyPhaseSystem {
             this.updateNpcIntentTarget(npc.id, targetId, {
               reason: `npcScramble:${action}`,
               confidenceDelta: 0.06,
+              lateVolatility: true,
             });
           }
         }

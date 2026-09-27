@@ -237,3 +237,23 @@ test('completion without a timestamp has a stable retry key, and invalid IDs can
   assert.equal(invalid.gameHistory.tribals.length, 0);
   assert.equal(invalid._completedTribalKeys.has('9876:1'), false);
 });
+
+test('canonical Tribal history preserves every narrowed revote round without replacing compatibility ballots', () => {
+  const { gm } = numericGame();
+  const first = { voterId: 1, targetId: '2', phase: 'initial', wasNullified: false };
+  const second = { voterId: 4, targetId: '2', phase: 'revote', roundIndex: 0, wasNullified: false };
+  const third = { voterId: 3, targetId: '2', phase: 'revote', roundIndex: 1, wasNullified: false };
+  const rounds = [
+    { index: 0, tiedIds: ['2', '3', '4'], eligibleVoterIds: ['1'], leaders: ['2', '3'],
+      counts: { 2: 1, 3: 1 }, votes: [second] },
+    { index: 1, tiedIds: ['2', '3'], eligibleVoterIds: ['1', '4'], leaders: ['2'],
+      counts: { 2: 2 }, votes: [third] }
+  ];
+  const entry = gm._buildTribalLogEntry({ day: 3, attendingTribeId: 1,
+    membersAtTribal: gm.survivors, votes: [first, second, third], initialVotes: [first],
+    revoteVotes: [second, third], tiebreakRounds: rounds, eliminatedId: '2', resolutionType: 'REVOTE' });
+  assert.equal(entry.votes.length, 3);
+  assert.deepEqual(entry.revoteVotes.map(vote => vote.roundIndex), [0, 1]);
+  assert.deepEqual(entry.tiebreakRounds.map(round => round.tiedIds), [['2', '3', '4'], ['2', '3']]);
+  assert.equal(entry.eliminatedName, 'Contestant 2');
+});
