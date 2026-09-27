@@ -1,4 +1,5 @@
 import { clearChildren } from '../utils/DOMUtils.js';
+import { TRIBAL_PACING, tribalMotionDelay } from './TribalPacing.js';
 
 export default class TribalBeatRunner {
   constructor({ container, beats = [], renderBeat, onCue } = {}) {
@@ -96,9 +97,9 @@ export default class TribalBeatRunner {
 
     this.updateAdvanceState = this.renderBeat(beat, {
       index: this.currentIndex,
-      next: () => this.next(),
-      goTo: (index) => this.goTo(index),
-      setBeats: (beats, options) => this.setBeats(beats, options),
+      next: () => this.getCurrentBeat() === beat && this.next(),
+      goTo: (index) => { if (this.getCurrentBeat() === beat) this.goTo(index); },
+      setBeats: (beats, options) => { if (this.getCurrentBeat() === beat) this.setBeats(beats, options); },
       getCurrentBeat: () => this.getCurrentBeat(),
       canAdvance: () => this.canAdvance(),
       metadata: {
@@ -114,7 +115,10 @@ export default class TribalBeatRunner {
     });
 
     if (runOnEnter) {
-      const skipDelay = Number(beat.canSkipAfterMs) || 0;
+      const skipDelay = beat.parchment?.show
+        ? Math.max(tribalMotionDelay(Number(beat.canSkipAfterMs) || 0),
+          tribalMotionDelay(TRIBAL_PACING.parchmentRaise) + tribalMotionDelay(TRIBAL_PACING.parchmentReadMin))
+        : tribalMotionDelay(Number(beat.canSkipAfterMs) || 0);
       if (skipDelay > 0) {
         this.skipUnlockTimer = setTimeout(() => {
           if (this.getCurrentBeat() !== beat) return;
@@ -123,9 +127,12 @@ export default class TribalBeatRunner {
         }, skipDelay);
       }
 
-      if (beat.autoAdvance) {
-        const pauseMs = Math.max(Number(beat.pauseMs) || 0, skipDelay, 300);
-        this.autoAdvanceTimer = setTimeout(() => this.next({ force: true }), pauseMs);
+      if (beat.autoAdvance && !beat.requiresDecision) {
+        const pauseMs = Math.max(tribalMotionDelay(Number(beat.pauseMs) || 0), skipDelay,
+          tribalMotionDelay(TRIBAL_PACING.minimumAutoHold));
+        this.autoAdvanceTimer = setTimeout(() => {
+          if (this.getCurrentBeat() === beat) this.next({ force: true });
+        }, pauseMs);
       }
     }
   }

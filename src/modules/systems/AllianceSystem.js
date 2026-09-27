@@ -494,7 +494,7 @@ class AllianceSystem {
 
 
   processPostTribalFallout(tribalSummary = {}, gameManager = this.gameManager) {
-    const decidingVotes = tribalSummary.revoteOccurred && !tribalSummary.rockDrawOccurred
+    const decidingVotes = tribalSummary.revoteOccurred
       ? (tribalSummary.revoteVotes || [])
       : (tribalSummary.initialVotes || tribalSummary.votes || []);
     if (!decidingVotes.length) return;

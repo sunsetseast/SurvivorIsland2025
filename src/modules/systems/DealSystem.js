@@ -325,7 +325,7 @@ class DealSystem {
     const membersAtTribal = new Set((tribalSummary.membersAtTribal || []).map(member => member.id));
     if (!membersAtTribal.size) return;
 
-    const decidingVotes = tribalSummary.revoteOccurred && !tribalSummary.rockDrawOccurred
+    const decidingVotes = tribalSummary.revoteOccurred
       ? (tribalSummary.revoteVotes || [])
       : (tribalSummary.initialVotes || tribalSummary.votes || []);
     const votesByVoter = new Map(decidingVotes.map(vote => [vote.voterId, vote.targetId]));

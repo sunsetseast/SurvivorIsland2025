@@ -475,3 +475,52 @@ test('save/load preserves canonical challenge and individual immunity state', ()
   assert.equal(gameManager.hasImmunity(winner.id), true);
   gameManager._updateScreenForState = originalUpdate;
 });
+
+test('visible deadlock resolution history distinguishes consensus, rocks, automatic casualty and fire', () => {
+  for (const [resolutionType, eliminationType] of [
+    ['DEADLOCK_CONSENSUS', 'consensus'], ['ROCKS', 'rocks'],
+    ['AUTOMATIC_DEADLOCK', 'deadlock'], ['FIRE_MAKING', 'fire-making']
+  ]) {
+    const gm = game({ count: 8, mergeAt: 4 });
+    const eliminated = gm.survivors.find(member => !member.isPlayer);
+    assert.equal(gm.seasonEngine.recordTribal({ day: 1, attendingTribeId: 1,
+      membersAtTribal: [gm.player, eliminated], eliminatedId: eliminated.id, resolutionType }), true);
+    assert.equal(gm.seasonEngine.state.history.find(entry => entry.type === 'tribal').eliminationType, eliminationType);
+    gm.eliminateSurvivor(eliminated);
+    assert.equal(gm.seasonEngine.completeRound({ challengeResult: { challengeDay: 1, challengeType: 'tribal',
+      playerTribeWon: false }, elimination: eliminated, tribalResolutionType: resolutionType }), true);
+    assert.equal(gm.seasonEngine.state.history.find(entry => entry.type === 'roundComplete').eliminationType, eliminationType);
+    assert.equal(gm.seasonEngine.completeRound({ challengeResult: { challengeDay: 1 }, elimination: eliminated,
+      tribalResolutionType: resolutionType }), false);
+    assert.equal(gm.day, 2);
+  }
+});
+
+test('GameManager commits a canonical deadlock summary only once', () => {
+  const survivorOut = survivor('a', 1);
+  const fake = Object.create(gameManager);
+  const tally = { elimination: 0, day: 0, history: 0 };
+  fake.day = 3;
+  fake.survivors = [survivor('player', 1, { isPlayer: true }), survivorOut];
+  fake.player = fake.survivors[0];
+  fake.tribes = [{ id: 1, tribeId: 1, members: fake.survivors }];
+  fake.getTribes = () => fake.tribes;
+  fake.gameHistory = { tribals: [] }; fake.tribalCouncilLog = [];
+  fake.systems = {};
+  fake.seasonEngine = { recordTribal: () => { tally.history++; }, state: {} };
+  fake.eliminateSurvivor = () => { tally.elimination++; survivorOut.isOut = true; };
+  fake.advanceDay = () => { tally.day++; };
+  fake.consumeVotePenaltiesAfterTribal = () => {};
+  fake.requestAutoSave = () => {};
+  fake.setGameState = () => {};
+  const summary = { createdAt: 12345, day: 3, attendingTribeId: 1,
+    membersAtTribal: fake.survivors, eliminatedId: 'a', resolutionType: 'FIRE_MAKING',
+    fireMakingOccurred: true, fireMakingParticipants: ['player', 'a'], fireMakingWinnerId: 'player',
+    initialVotes: [{ voterId: 'player', targetId: 'a' }], revoteVotes: [] };
+  fake.handleTribalCouncilComplete(summary);
+  fake.handleTribalCouncilComplete({ ...summary });
+  assert.deepEqual(tally, { elimination: 1, day: 1, history: 1 });
+  assert.equal(fake.gameHistory.tribals.length, 1);
+  assert.equal(fake.gameHistory.tribals[0].fireMakingWinnerId, 'player');
+  assert.equal(fake.gameHistory.tribals[0].resolutionType, 'FIRE_MAKING');
+});
