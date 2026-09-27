@@ -52,15 +52,6 @@ export default class TribalQuestionEngine {
   }
 
   getOpeningLine(context = this.createContext()) {
-    const primary = this._getMember(context.primaryTargetId, context.members);
-    const player = context.player;
-
-    if (context.playerNameWasFloated || context.playerHeat >= 2) {
-      return `${this._name(player)}, tonight your name has been in the air. At Tribal, a name can become a plan very quickly.`;
-    }
-    if (primary) {
-      return `${this._name(primary)} has carried a lot of heat into this fire. The question is whether the easy vote is ever really easy.`;
-    }
     return 'Tonight, the fire brings every promise, every rumor, and every uneasy silence into the open.';
   }
 
@@ -85,12 +76,12 @@ export default class TribalQuestionEngine {
         ? secondary
         : state.members.find(member => !this._idsEqual(member.id, player?.id));
 
-    if (player && (state.playerNameWasFloated || state.playerHeat >= 2)) {
+    if (player && state.playerNameWasFloated) {
       add(this._playerQuestion({
         id: 'player-name-mentioned',
         topic: 'player_name_thrown_out',
         severity: 3,
-        questionText: `${this._name(player)}, your name came up before anyone sat down. Do you hear that as danger, or as people trying to make you panic?`,
+        questionText: `${this._name(player)}, when you hear your name, how do you decide what to believe?`,
         counterpart,
         ally: playerAlly,
         state
@@ -103,7 +94,7 @@ export default class TribalQuestionEngine {
         topic: 'obvious_boot',
         severity: this._heatSeverity(primary.id, state),
         focus: primary,
-        questionText: `${this._name(primary)}, your name has been attached to this vote all day. Is the tribe voting on certainty, or are people hiding behind an easy answer?`,
+        questionText: `${this._name(primary)}, how much can anyone really know about where the votes are going tonight?`,
         state
       }));
     }
@@ -128,7 +119,7 @@ export default class TribalQuestionEngine {
           topic: 'alliance_cracks',
           severity: 2,
           focus,
-          questionText: `${this._name(focus)}, can anyone honestly say tonight is about loyalty when every alliance has a backup plan?`,
+          questionText: `${this._name(focus)}, what does loyalty mean when someone from this tribe is leaving tonight?`,
           state
         }));
       }
@@ -173,7 +164,7 @@ export default class TribalQuestionEngine {
       }));
     }
 
-    if (secondary && primary && Math.abs(this._heat(primary.id, state) - this._heat(secondary.id, state)) <= 1) {
+    if (secondary && primary && state.facts.some(fact => /split|swing|uncertain/i.test(String(fact?.type || '')))) {
       const focus = player || secondary;
       add(this._idsEqual(focus?.id, player?.id)
         ? this._playerQuestion({
@@ -209,32 +200,22 @@ export default class TribalQuestionEngine {
       }));
     }
 
-    const fallbackFocus = state.members.find(member => !this._idsEqual(member.id, player?.id)) || player;
-    while (questions.length < Math.min(3, maxQuestions) && fallbackFocus) {
-      const fallbackLines = [
-        `${this._name(fallbackFocus)}, everybody says trust matters. Is that still true when the vote is only a few minutes away?`,
-        `${this._name(fallbackFocus)}, is this vote about what happened at the challenge, or about who people are afraid to face later?`,
-        `${this._name(fallbackFocus)}, can a tribe ever call a vote simple when nobody is willing to say a name with confidence?`
-      ];
-      add(this._npcQuestion({
-        id: `trust-fallback-${questions.length + 1}`,
-        topic: `trust_paranoia_${questions.length + 1}`,
-        severity: 1,
-        focus: fallbackFocus,
-        questionText: fallbackLines[questions.length % fallbackLines.length],
-        state
-      }));
+    if (!questions.length && state.members.length) {
+      const focus = state.members.find(member => !this._idsEqual(member.id, player?.id)) || player;
+      add(this._npcQuestion({ id: 'trust', topic: 'trust', severity: 1, focus,
+        questionText: `${this._name(focus)}, what does trust mean this close to a vote?`, state }));
     }
 
-    return questions.slice(0, Math.max(3, Math.min(6, Number(maxQuestions) || 5)));
+    const limit = Math.min(Math.max(1, Number(maxQuestions) || 5),
+      state.members.length <= 3 ? 2 : state.members.length <= 6 ? 3 : state.members.length <= 9 ? 4 : 5);
+    return questions.slice(0, limit);
   }
 
   generateLiveTribalMoment({ attendingTribeId = null, context = null } = {}) {
     const state = context || this.createContext({ attendingTribeId });
     const [first, second] = state.rankedHeat;
-    const closeVote = first && second && first.heat > 0 && Math.abs(first.heat - second.heat) <= 1;
-    const playerUnderPressure = state.playerHeat >= 2 || state.playerNameWasFloated;
-    if (!closeVote && !playerUnderPressure) return null;
+    const lateVolatility = state.facts.some(fact => /late.*(switch|flip|scramble|whisper)|liveTribal|lastMinute/i.test(String(fact?.type || '')));
+    if (!lateVolatility) return null;
 
     const player = state.player;
     const counterpart = this._getMember(second?.id, state.members)
@@ -343,38 +324,38 @@ export default class TribalQuestionEngine {
     const option = (id, label, text, effects) => ({ id, label, text, effects: this._normalizeEffects(effects) });
 
     const base = [
-      option('deflect', 'Deflect', 'You keep the answer broad and refuse to give the fire a new name.', {
+      option('deflect', 'Keep it open', 'You keep the answer broad and refuse to give the fire a new name.', {
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
       }),
-      option('honest', 'Be Honest', 'You acknowledge the pressure without giving away your vote.', {
+      option('honest', 'Acknowledge it', 'You acknowledge the pressure without giving away your vote.', {
         trust: allyId ? [{ survivorId: allyId, delta: 1 }] : [],
         relationship: allyId ? [{ survivorId: allyId, delta: 1 }] : [],
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
       }),
-      option('call-out', 'Call Someone Out', `You put ${this._name(counterpart)} under the spotlight.`, {
+      option('call-out', 'Say who worries you', `You put ${this._name(counterpart)} under the spotlight.`, {
         targetHeat: counterpartId ? [{ survivorId: counterpartId, delta: 1 }] : [],
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 2 }],
         threat: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
       }),
-      option('quiet', 'Stay Quiet', 'You let the silence do the work and reveal nothing new.', {
+      option('quiet', 'Let the silence sit', 'You let the silence do the work and reveal nothing new.', {
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
       })
     ];
 
     if (responseSet === 'alliance') {
-      base[1] = option('reassure-alliance', 'Reassure Alliance', 'You publicly steady the people you came in with.', {
+      base[1] = option('reassure-alliance', 'Stand by your people', 'You publicly steady the people you came in with.', {
         trust: allyId ? [{ survivorId: allyId, delta: 2 }] : [],
         relationship: allyId ? [{ survivorId: allyId, delta: 1 }] : [],
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
       });
     }
     if (responseSet === 'idol') {
-      base[1] = option('play-dumb', 'Play Dumb', 'You dismiss the idol talk and keep your body language even.', {
+      base[1] = option('play-dumb', 'Brush it off', 'You dismiss the idol talk and keep your body language even.', {
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
       });
     }
     if (responseSet === 'swing') {
-      base[1] = option('make-pitch', 'Make a Pitch', `You make the case for ${this._name(counterpart)} without confirming your vote.`, {
+      base[1] = option('make-pitch', 'Make your case', `You make the case for ${this._name(counterpart)} without confirming your vote.`, {
         targetHeat: counterpartId ? [{ survivorId: counterpartId, delta: 1 }] : [],
         threat: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
       });
@@ -384,11 +365,11 @@ export default class TribalQuestionEngine {
         option('stay-seated', 'Stay Seated', 'You hold your position and refuse to chase the whispers.', {
           suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
         }),
-        option('press-swing', 'Press the Swing', `You quietly make one last case against ${this._name(counterpart)}.`, {
+        option('press-swing', 'Talk to someone', `You quietly make one last case against ${this._name(counterpart)}.`, {
           targetHeat: counterpartId ? [{ survivorId: counterpartId, delta: 1 }] : [],
           suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
         }),
-        option('lock-ally', 'Reassure an Ally', 'You use the moment to lock in someone you trust.', {
+        option('lock-ally', 'Check in with an ally', 'You use the moment to lock in someone you trust.', {
           trust: allyId ? [{ survivorId: allyId, delta: 2 }] : [],
           relationship: allyId ? [{ survivorId: allyId, delta: 1 }] : []
         })
