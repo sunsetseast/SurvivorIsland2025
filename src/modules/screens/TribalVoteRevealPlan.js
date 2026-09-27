@@ -20,6 +20,19 @@ export function decisiveVoteIndex(votes = [], { mustEstablishTie = false } = {})
 }
 
 export function planVoteReveals(votes = [], options = {}) {
-  const decisiveIndex = decisiveVoteIndex(votes, options);
-  return decisiveIndex < 0 ? [...votes] : votes.slice(0, decisiveIndex + 1);
+  let ordered = [...votes];
+  const firstDecision = decisiveVoteIndex(ordered, options);
+  // Finish the public idol/SITD nullifications before the decisive valid name.
+  // The canonical queue and vote history are never mutated by this presentation plan.
+  if (firstDecision >= 0 && ordered.slice(firstDecision + 1).some(vote => vote.wasNullified)) {
+    const trailingNullified = ordered.slice(firstDecision + 1).filter(vote => vote.wasNullified);
+    ordered = [
+      ...ordered.slice(0, firstDecision),
+      ...trailingNullified,
+      ordered[firstDecision],
+      ...ordered.slice(firstDecision + 1).filter(vote => !vote.wasNullified)
+    ];
+  }
+  const decisiveIndex = decisiveVoteIndex(ordered, options);
+  return decisiveIndex < 0 ? ordered : ordered.slice(0, decisiveIndex + 1);
 }

@@ -11,6 +11,17 @@ export default class TribalCouncilSystem {
     this.eventManager = eventManager;
     this.tribalNumber = 0;
     this.resetSessionState();
+    this.sessionStatus = 'idle';
+  }
+
+  beginSession() {
+    this.resetSessionState();
+    this.sessionStatus = 'active';
+  }
+
+  endSession() {
+    this.resetSessionState();
+    this.sessionStatus = 'idle';
   }
 
   resetSessionState({ preservePlayerChoices = false } = {}) {
@@ -37,6 +48,7 @@ export default class TribalCouncilSystem {
     this.idolHolderIds = new Set();
     this.idolProtectedIds = new Set();
     this.initialTie = false;
+    this.zeroValidVotes = false;
     this.revoteOccurred = false;
     this.rockDrawOccurred = false;
     this.forcedResolution = false;
@@ -46,6 +58,8 @@ export default class TribalCouncilSystem {
   }
 
   runPreMergeTribal(options = {}) {
+    if (this.sessionStatus === 'resolved') return this.latestSummary;
+    if (this.sessionStatus === 'idle') this.sessionStatus = 'active';
     const { attendingTribeId = null } = options;
     this.resetSessionState({ preservePlayerChoices: true });
 
@@ -93,7 +107,10 @@ export default class TribalCouncilSystem {
       : [];
 
     const initialTie = tiedCandidates.length > 1;
+    const zeroValidVotes = initialHighest === 0;
     this.initialTie = initialTie;
+    this.zeroValidVotes = zeroValidVotes;
+    const revoteTargetIds = zeroValidVotes ? this._getVoidRevoteTargetIds() : tiedCandidates;
     let revoteOccurred = false;
     let decidingCounts = initialCounts;
     let revoteEligibleVoterIds = [];
@@ -104,13 +121,14 @@ export default class TribalCouncilSystem {
     let tribalState = 'FINAL_VOTE';
     let decisionResolved = true;
 
-    if (!initialTie) {
+    if (!initialTie && !zeroValidVotes) {
       this.eliminatedId = tiedCandidates[0] || null;
+    } else if (zeroValidVotes && !revoteTargetIds.length) {
+      tribalState = 'NO_ELIMINATION';
     } else {
-      this.initialTie = true;
-      revoteEligibleVoterIds = this._getRevoteEligibleVoterIds(tiedCandidates);
+      revoteEligibleVoterIds = this._getRevoteEligibleVoterIds(tiedCandidates, { voidVote: zeroValidVotes });
       const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
-      const playerCanRevote = revoteEligibleVoterIds.includes(playerId);
+      const playerCanRevote = revoteEligibleVoterIds.includes(playerId) && revoteTargetIds.some(id => id !== playerId);
 
       if (playerCanRevote) {
         revotePendingPlayerChoice = true;
@@ -118,13 +136,13 @@ export default class TribalCouncilSystem {
         decisionResolved = false;
         decidingCounts = null;
       } else {
-        const resolution = this._resolveRevoteFlow({ tiedCandidateIds: tiedCandidates, playerChoiceTargetId: null });
+        const resolution = this._resolveRevoteFlow({ tiedCandidateIds: revoteTargetIds, playerChoiceTargetId: null, voidVote: zeroValidVotes });
         revoteOccurred = resolution.revoteOccurred;
         decidingCounts = resolution.decidingCounts;
         rockDrawOccurred = resolution.rockDrawOccurred;
         rockDrawEligible = resolution.rockDrawEligible;
         rockDrawEliminatedId = resolution.rockDrawEliminatedId;
-        tribalState = rockDrawOccurred ? 'ROCKS_DRAW' : 'FINAL_VOTE';
+        tribalState = !this.eliminatedId ? 'NO_ELIMINATION' : rockDrawOccurred ? 'ROCKS_DRAW' : 'FINAL_VOTE';
       }
     }
 
@@ -184,11 +202,14 @@ export default class TribalCouncilSystem {
       })),
       wasTie: this.initialTie,
       initialTie,
+      zeroValidVotes,
+      revoteReason: zeroValidVotes ? 'VOID_VOTE' : initialTie ? 'TIE' : null,
+      revoteTargetIds,
       revoteOccurred,
       revotePendingPlayerChoice,
       tribalState,
       decisionResolved,
-      playerCanRevote: revoteEligibleVoterIds.includes(this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id)),
+      playerCanRevote: revotePendingPlayerChoice,
       revoteEligibleVoterIds,
       revoteVotes: this.revoteVotes.map(vote => ({
         ...vote,
@@ -207,6 +228,7 @@ export default class TribalCouncilSystem {
 
     tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
     this.latestSummary = tribalSummary;
+    this.sessionStatus = decisionResolved ? 'resolved' : 'active';
 
     this._debug('runPreMergeTribal resolved', {
       initialTie,
@@ -222,16 +244,17 @@ export default class TribalCouncilSystem {
   resolveRevoteWithPlayerChoice({ playerChoiceTargetId = null } = {}) {
     // Reuse the unresolved session. A missing, immune, or invented choice must
     // never silently proceed to NPC votes/rocks or create another Tribal number.
-    if (!this.initialTie || this.revoteOccurred) return this.latestSummary;
-    const resolvedTiedIds = this._getCurrentTiedCandidateIds();
+    if ((!this.initialTie && !this.zeroValidVotes) || this.revoteOccurred || this.sessionStatus !== 'active'
+      || this.latestSummary?.tribalState !== 'REVOTE_PENDING' || !this.latestSummary?.playerCanRevote) return this.latestSummary;
+    const resolvedTiedIds = this.zeroValidVotes ? this._getVoidRevoteTargetIds() : this._getCurrentTiedCandidateIds();
     const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
-    const canRevote = this._getRevoteEligibleVoterIds(resolvedTiedIds).includes(playerId);
+    const canRevote = this._getRevoteEligibleVoterIds(resolvedTiedIds, { voidVote: this.zeroValidVotes }).includes(playerId);
     const validChoice = resolvedTiedIds.some(id => this._idsEqual(id, playerChoiceTargetId))
-      && !this.immunityHolderIds.has(this._normalizeId(playerChoiceTargetId));
+      && !this._isProtected(playerChoiceTargetId) && !this._idsEqual(playerId, playerChoiceTargetId);
     if (!resolvedTiedIds.length || (canRevote && !validChoice)) return this.latestSummary;
 
     const initialCounts = this.buildVoteTally(this.initialVotes.filter(vote => vote.phase === 'initial'));
-    const resolution = this._resolveRevoteFlow({ tiedCandidateIds: resolvedTiedIds, playerChoiceTargetId });
+    const resolution = this._resolveRevoteFlow({ tiedCandidateIds: resolvedTiedIds, playerChoiceTargetId, voidVote: this.zeroValidVotes });
     this.revealQueue = this._buildRevealQueue({ initialVotes: this.initialVotes, revoteVotes: this.revoteVotes });
 
     const day = this.gameManager.getDay?.() ?? null;
@@ -265,9 +288,12 @@ export default class TribalCouncilSystem {
       voteOrder: this.revealQueue.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
       wasTie: this.initialTie,
       initialTie: this.initialTie,
+      zeroValidVotes: this.zeroValidVotes,
+      revoteReason: this.zeroValidVotes ? 'VOID_VOTE' : 'TIE',
+      revoteTargetIds: resolvedTiedIds,
       revoteOccurred: true,
       revotePendingPlayerChoice: false,
-      tribalState: 'FINAL_VOTE',
+      tribalState: !this.eliminatedId ? 'NO_ELIMINATION' : resolution.rockDrawOccurred ? 'ROCKS_DRAW' : 'FINAL_VOTE',
       decisionResolved: true,
       playerCanRevote: false,
       revoteEligibleVoterIds: resolution.revoteEligibleVoterIds,
@@ -283,6 +309,7 @@ export default class TribalCouncilSystem {
 
     tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
     this.latestSummary = tribalSummary;
+    this.sessionStatus = 'resolved';
     return tribalSummary;
   }
 
@@ -489,7 +516,9 @@ export default class TribalCouncilSystem {
       const shouldPlay = projectedVotes >= 2 || paranoia >= 0.75 || trustSignal <= 0.3;
 
       if (shouldPlay) {
-        this.idolRegistrations.push({ playedById: survivor.id, playedOnId: survivor.id });
+        if (!this.idolRegistrations.some(play => this._idsEqual(play.playedById, survivor.id))) {
+          this.idolRegistrations.push({ playedById: survivor.id, playedOnId: survivor.id });
+        }
       }
     }
 
@@ -567,21 +596,32 @@ export default class TribalCouncilSystem {
       .map(([id]) => id);
   }
 
-  _getRevoteEligibleVoterIds(tiedCandidateIds = []) {
-    const tiedSet = new Set((tiedCandidateIds || []).map(id => this._normalizeId(id)));
+  _isProtected(id) {
+    const normalized = this._normalizeId(id);
+    return this.immunityHolderIds.has(normalized) || this.idolProtectedIds.has(normalized);
+  }
+
+  _getVoidRevoteTargetIds() {
+    return this.eligibleTargets.filter(member => !member.isOut && !this._isProtected(member.id))
+      .map(member => this._normalizeId(member.id));
+  }
+
+  _getRevoteEligibleVoterIds(tiedCandidateIds = [], { voidVote = false } = {}) {
+    const tiedSet = new Set((voidVote ? [] : tiedCandidateIds || []).map(id => this._normalizeId(id)));
     return this.voters
       .filter(voter => (
         !voter.isOut
         && !tiedSet.has(this._normalizeId(voter.id))
         && !this.lostVoteIds.has(this._normalizeId(voter.id))
         && !this.sitdUsers.has(this._normalizeId(voter.id))
+        && this.gameManager.hasVote?.(voter) === true
       ))
       .map(voter => this._normalizeId(voter.id));
   }
 
-  _resolveRevoteFlow({ tiedCandidateIds = [], playerChoiceTargetId = null } = {}) {
+  _resolveRevoteFlow({ tiedCandidateIds = [], playerChoiceTargetId = null, voidVote = false } = {}) {
     this.revoteOccurred = true;
-    const revoteResult = this.runRevote(tiedCandidateIds, { playerChoiceTargetId });
+    const revoteResult = this.runRevote(tiedCandidateIds, { playerChoiceTargetId, voidVote });
     let decidingCounts = this.buildVoteTally(this.revoteVotes.filter(vote => vote.phase === 'revote'));
     let rockDrawOccurred = false;
     let rockDrawEligible = [];
@@ -589,10 +629,10 @@ export default class TribalCouncilSystem {
 
     if (revoteResult.eliminatedId) {
       this.eliminatedId = revoteResult.eliminatedId;
-    } else {
+    } else if (revoteResult.leaders.length > 1) {
       this.rockDrawOccurred = true;
       rockDrawOccurred = true;
-      const rockResult = this.runRockDraw(tiedCandidateIds);
+      const rockResult = this.runRockDraw(revoteResult.leaders);
       rockDrawEligible = rockResult.eligible;
       rockDrawEliminatedId = rockResult.eliminatedId;
       this.forcedResolution = Boolean(rockResult.forcedResolution);
@@ -610,17 +650,19 @@ export default class TribalCouncilSystem {
     };
   }
 
-  runRevote(tiedCandidateIds, { playerChoiceTargetId = null } = {}) {
+  runRevote(tiedCandidateIds, { playerChoiceTargetId = null, voidVote = false } = {}) {
     const revoteRecords = [];
     const revoters = this.voters.filter(voter => (
-      !tiedCandidateIds.some(id => this._idsEqual(id, voter.id))
+      (voidVote || !tiedCandidateIds.some(id => this._idsEqual(id, voter.id)))
       && !voter.isOut
       && !this.lostVoteIds.has(this._normalizeId(voter.id))
       && !this.sitdUsers.has(this._normalizeId(voter.id))
+      && this.gameManager.hasVote?.(voter) === true
     ));
 
     for (const voter of revoters) {
-      const candidates = tiedCandidateIds.filter(id => !this.immunityHolderIds.has(this._normalizeId(id)));
+      const candidates = tiedCandidateIds.filter(id => !this._isProtected(id) && !this._idsEqual(id, voter.id)
+        && this.eligibleTargets.some(target => !target.isOut && this._idsEqual(target.id, id)));
       if (candidates.length === 0) continue;
 
       let selected = candidates[0];
@@ -654,6 +696,7 @@ export default class TribalCouncilSystem {
 
     return {
       eliminatedId: leaders.length === 1 ? leaders[0] : null,
+      leaders,
       records: revoteRecords,
       eligibleVoterIds: revoters.map(voter => this._normalizeId(voter.id))
     };
@@ -672,10 +715,10 @@ export default class TribalCouncilSystem {
     ));
 
     if (eligible.length === 0) {
-      console.error('[TribalCouncilSystem] Rock draw had zero eligible players. Forcing random elimination among tied players.');
+      // Everyone is safe at a deadlock; never take immunity away to force a boot.
       return {
         eligible: [],
-        eliminatedId: tiedCandidateIds[Math.floor(Math.random() * tiedCandidateIds.length)] || null,
+        eliminatedId: null,
         forcedResolution: true
       };
     }
@@ -691,7 +734,7 @@ export default class TribalCouncilSystem {
   _recordVote(voterId, targetId, wasRevote = false, targetCollection = this.voteRecords, phase = 'initial') {
     if (!voterId || !targetId) return null;
     // Safety: immune survivors cannot receive valid votes.
-    if (this.immunityHolderIds.has(this._normalizeId(targetId))) return null;
+    if (this.immunityHolderIds.has(this._normalizeId(targetId)) || (wasRevote && this._isProtected(targetId))) return null;
     const record = {
       voterId,
       targetId,

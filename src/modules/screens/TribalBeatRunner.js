@@ -10,6 +10,7 @@ export default class TribalBeatRunner {
     this.advanceUnlocked = true;
     this.autoAdvanceTimer = null;
     this.skipUnlockTimer = null;
+    this.updateAdvanceState = null;
   }
 
   start(index = 0) {
@@ -93,7 +94,7 @@ export default class TribalBeatRunner {
       this.advanceUnlocked = !Number.isFinite(Number(beat.canSkipAfterMs)) || Number(beat.canSkipAfterMs) <= 0;
     }
 
-    this.renderBeat(beat, {
+    this.updateAdvanceState = this.renderBeat(beat, {
       index: this.currentIndex,
       next: () => this.next(),
       goTo: (index) => this.goTo(index),
@@ -118,7 +119,7 @@ export default class TribalBeatRunner {
         this.skipUnlockTimer = setTimeout(() => {
           if (this.getCurrentBeat() !== beat) return;
           this.advanceUnlocked = true;
-          this._renderCurrent({ runOnEnter: false });
+          this.updateAdvanceState?.();
         }, skipDelay);
       }
 
@@ -146,5 +147,6 @@ export default class TribalBeatRunner {
     if (this.skipUnlockTimer) clearTimeout(this.skipUnlockTimer);
     this.autoAdvanceTimer = null;
     this.skipUnlockTimer = null;
+    this.updateAdvanceState = null;
   }
 }

@@ -116,6 +116,33 @@ test('a completed visible Tribal cannot cause a second elimination', () => {
   assert.ok(history.attendees.includes(eliminated.id));
 });
 
+test('a completed no-elimination visible Tribal advances once without an off-screen boot', () => {
+  const gm = game({ count: 8, mergeAt: 4 });
+  const result = { challengeDay: 1, challengeType: 'tribal', winningTribeKeys: [2], losingTribeKey: 1, playerTribeWon: false };
+  const before = gm.seasonEngine.getActivePlayerCount();
+  assert.equal(gm.seasonEngine.completeRound({ challengeResult: result }), false);
+  assert.equal(gm.seasonEngine.completeRound({ challengeResult: result, visibleTribalCompleted: true }), true);
+  assert.equal(gm.day, 2);
+  assert.equal(gm.seasonEngine.getActivePlayerCount(), before);
+  assert.equal(gm.seasonEngine.completeRound({ challengeResult: result, visibleTribalCompleted: true }), false);
+  assert.equal(gm.day, 2);
+  const history = gm.seasonEngine.state.history.find(entry => entry.type === 'roundComplete');
+  assert.equal(history.eliminatedId, null);
+  assert.equal(history.tribalMode, 'visible');
+});
+
+test('a merged no-elimination Tribal clears individual immunity and advances once', () => {
+  const gm = game({ count: 6, mergeAt: 6 });
+  gm.seasonEngine.merge();
+  const result = { challengeDay: 1, challengeType: 'individual', individualWinnerId: gm.player.id };
+  gm.seasonEngine.applyChallengeResult(result);
+  assert.equal(gm.player.hasImmunity, true);
+  assert.equal(gm.seasonEngine.completeRound({ challengeResult: result, visibleTribalCompleted: true }), true);
+  assert.equal(gm.player.hasImmunity, false);
+  assert.equal(gm.day, 2);
+  assert.equal(gm.seasonEngine.getActivePlayerCount(), 6);
+});
+
 test('player elimination is terminal and marked out', () => {
   const gm = game({ count: 6 });
   gm.eliminateSurvivor(gm.player);
