@@ -4,7 +4,9 @@
  */
 
 import { GameEvents } from '../core/EventManager.js';
-import { eligibleRockDrawers, resolveFireMaking } from './TribalDeadlock.js';
+import { eligibleRockDrawers, resolveFireMaking, resolveMultiWayFireMaking } from './TribalDeadlock.js';
+
+export const TRIBAL_CONSENSUS_REFUSAL = 'REFUSE_CONSENSUS';
 
 export default class TribalCouncilSystem {
   constructor(gameManager, eventManager) {
@@ -58,6 +60,7 @@ export default class TribalCouncilSystem {
     this.deadlockDecisionTargetId = null;
     this.resolutionType = null;
     this.fireMakingParticipants = [];
+    this.fireMakingRounds = [];
     this.fireMakingWinnerId = null;
     this.deadlockCasualtyId = null;
     this.revoteOccurred = false;
@@ -135,6 +138,7 @@ export default class TribalCouncilSystem {
     let revotePendingPlayerChoice = false;
     let tribalState = 'FINAL_VOTE';
     let decisionResolved = true;
+    const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
 
     if (!initialTie && !zeroValidVotes) {
       this.eliminatedId = tiedCandidates[0] || null;
@@ -142,8 +146,9 @@ export default class TribalCouncilSystem {
       tribalState = 'NO_ELIMINATION';
     } else {
       revoteEligibleVoterIds = this._getRevoteEligibleVoterIds(tiedCandidates, { voidVote: zeroValidVotes });
-      const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
-      const playerCanRevote = revoteEligibleVoterIds.includes(playerId) && revoteTargetIds.some(id => id !== playerId);
+      const playerRevoteTargetIds = revoteEligibleVoterIds.includes(playerId)
+        ? this.getLegalRevoteTargetIds(playerId, revoteTargetIds) : [];
+      const playerCanRevote = playerRevoteTargetIds.length > 0;
 
       if (playerCanRevote) {
         revotePendingPlayerChoice = true;
@@ -229,6 +234,7 @@ export default class TribalCouncilSystem {
       decisionResolved,
       playerCanRevote: revotePendingPlayerChoice,
       revoteEligibleVoterIds,
+      playerRevoteTargetIds: revotePendingPlayerChoice ? this.getLegalRevoteTargetIds(playerId, revoteTargetIds) : [],
       revoteVotes: this.revoteVotes.map(vote => ({
         ...vote,
         voterName: getName(vote.voterId),
@@ -268,8 +274,8 @@ export default class TribalCouncilSystem {
     const resolvedTiedIds = this.zeroValidVotes ? this._getVoidRevoteTargetIds() : this._getCurrentTiedCandidateIds();
     const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
     const canRevote = this._getRevoteEligibleVoterIds(resolvedTiedIds, { voidVote: this.zeroValidVotes }).includes(playerId);
-    const validChoice = resolvedTiedIds.some(id => this._idsEqual(id, playerChoiceTargetId))
-      && !this._isProtected(playerChoiceTargetId) && !this._idsEqual(playerId, playerChoiceTargetId);
+    const validChoice = this.getLegalRevoteTargetIds(playerId, resolvedTiedIds)
+      .some(id => this._idsEqual(id, playerChoiceTargetId));
     if (!resolvedTiedIds.length || (canRevote && !validChoice)) return this.latestSummary;
 
     const initialCounts = this.buildVoteTally(this.initialVotes.filter(vote => vote.phase === 'initial'));
@@ -317,6 +323,7 @@ export default class TribalCouncilSystem {
       decisionResolved: !resolution.deadlockPending,
       playerCanRevote: false,
       revoteEligibleVoterIds: resolution.revoteEligibleVoterIds,
+      playerRevoteTargetIds: [],
       revoteVotes: this.revoteVotes.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
       rockDrawOccurred: resolution.rockDrawOccurred,
       wentToRocks: resolution.rockDrawOccurred,
@@ -636,9 +643,10 @@ export default class TribalCouncilSystem {
     const tiedWithVote = this.voters.filter(voter => tiedSet.has(this._normalizeId(voter.id))
       && !voter.isOut && !this.lostVoteIds.has(this._normalizeId(voter.id))
       && !this.sitdUsers.has(this._normalizeId(voter.id)) && this.gameManager.hasVote?.(voter) === true);
-    // In a two-way tie the usual two forced votes cancel. If one contestant
-    // lost their vote, the other's forced ballot must actually be cast.
-    const tiedCancel = !voidVote && tiedSet.size === 2 && tiedWithVote.length === 2;
+    // Equal voting power among tied contestants cancels their forced ballots,
+    // regardless of tie size. Unequal power leaves the tied voters who still
+    // hold a ballot eligible (including the modern lost-vote exception).
+    const tiedCancel = !voidVote && (tiedWithVote.length === 0 || tiedWithVote.length === tiedSet.size);
     return this.voters
       .filter(voter => (
         !voter.isOut
@@ -648,6 +656,12 @@ export default class TribalCouncilSystem {
         && this.gameManager.hasVote?.(voter) === true
       ))
       .map(voter => this._normalizeId(voter.id));
+  }
+
+  getLegalRevoteTargetIds(playerId, targetIds = this.latestSummary?.revoteTargetIds || []) {
+    return targetIds.filter(id => !this._idsEqual(id, playerId) && !this._isProtected(id)
+      && this.eligibleTargets.some(member => !member.isOut && this._idsEqual(member.id, id)))
+      .map(id => this._normalizeId(id));
   }
 
   _resolveRevoteFlow({ tiedCandidateIds = [], playerChoiceTargetId = null, voidVote = false } = {}) {
@@ -726,12 +740,7 @@ export default class TribalCouncilSystem {
   }
 
   runRockDraw(tiedCandidateIds) {
-    const protectedIds = [
-      ...this.immunityHolderIds,
-      ...this.idolProtectedIds,
-      ...this.shotResults.filter(result => result.success).map(result => this._normalizeId(result.playerId))
-    ];
-    const eligible = eligibleRockDrawers(this.eligibleTargets, tiedCandidateIds, protectedIds);
+    const eligible = this._getDeadlockRockPool(tiedCandidateIds);
 
     if (eligible.length === 0) {
       return {
@@ -749,6 +758,13 @@ export default class TribalCouncilSystem {
     };
   }
 
+  _getDeadlockRockPool(tiedIds) {
+    return eligibleRockDrawers(this.eligibleTargets, tiedIds, [
+      ...this.immunityHolderIds, ...this.idolProtectedIds,
+      ...this.shotResults.filter(result => result.success).map(result => this._normalizeId(result.playerId))
+    ]);
+  }
+
   _getConsensusDecisionMakerIds(tiedIds) {
     const tied = new Set(tiedIds.map(id => this._normalizeId(id)));
     return this.voters.filter(voter => !voter.isOut && !tied.has(this._normalizeId(voter.id))
@@ -758,15 +774,38 @@ export default class TribalCouncilSystem {
       .map(voter => this._normalizeId(voter.id));
   }
 
-  _scoreConsensusTarget(voter, target) {
+  _scoreConsensusTarget(voter, target, { pressureTargetId = null, rockPool = [] } = {}) {
     const revote = this.revoteVotes.find(vote => this._idsEqual(vote.voterId, voter.id));
     const initial = this.initialVotes.find(vote => this._idsEqual(vote.voterId, voter.id));
     const trust = Number(this.gameManager.getTrust?.(voter.id, target.id));
+    const rawRisk = Number(voter.risk ?? voter.traits?.risk ?? 5);
+    const risk = Number.isFinite(rawRisk) ? Math.max(0, Math.min(10, rawRisk)) : 5;
+    const selfExposed = rockPool.some(id => this._idsEqual(id, voter.id));
+    const allyExposed = !selfExposed && rockPool.some(id => this._inSameAlliance(id, voter.id));
+    const concessionPressure = (selfExposed ? 8 : allyExposed ? 5 : 0) * (1 - risk / 12);
     return (this._idsEqual(revote?.targetId, target.id) ? 4 : 0)
       + (this._idsEqual(initial?.targetId, target.id) ? 2 : 0)
       + (Number.isFinite(trust) ? (100 - trust) / 100 : 0.5)
       + this._getIntentConfidence(voter, target)
-      - (this._inSameAlliance(voter.id, target.id) ? 1 : 0);
+      - (this._inSameAlliance(voter.id, target.id) ? 1 : 0)
+      + (this._idsEqual(pressureTargetId, target.id) ? concessionPressure : 0);
+  }
+
+  _consensusPressureTarget(tiedIds, playerChoiceTargetId) {
+    const preferences = new Map(tiedIds.map(id => [id, 0]));
+    const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
+    for (const id of this.consensusDecisionMakerIds) {
+      const voter = this._findSurvivorById(id);
+      const prior = this.revoteVotes.find(vote => this._idsEqual(vote.voterId, id))
+        || this.initialVotes.find(vote => this._idsEqual(vote.voterId, id));
+      const target = id === playerId && tiedIds.some(tied => this._idsEqual(tied, playerChoiceTargetId))
+        ? playerChoiceTargetId : prior?.targetId;
+      const matched = tiedIds.find(tied => this._idsEqual(tied, target));
+      const rawRisk = Number(voter?.risk ?? 5);
+      const risk = Number.isFinite(rawRisk) ? Math.max(0, Math.min(10, rawRisk)) : 5;
+      if (matched != null) preferences.set(matched, preferences.get(matched) + 1 + risk / 20);
+    }
+    return [...preferences].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0]?.[0] || null;
   }
 
   _deadlockSummaryFields() {
@@ -780,9 +819,12 @@ export default class TribalCouncilSystem {
       consensusDecisionMakerIds: [...this.consensusDecisionMakerIds],
       consensusChoices: this.consensusChoices.map(choice => ({ ...choice })),
       playerCanDecideConsensus: this.deadlockOccurred && this.consensusDecisionMakerIds.includes(playerId),
+      playerCanRefuseConsensus: this.deadlockOccurred && this.consensusDecisionMakerIds.includes(playerId)
+        && (this._getDeadlockRockPool(this.deadlockTiedCandidateIds).length > 0 || this.deadlockTiedCandidateIds.length >= 2),
       resolutionType: this.resolutionType,
       fireMakingOccurred: Boolean(this.fireMakingWinnerId),
       fireMakingParticipants: [...this.fireMakingParticipants],
+      fireMakingRounds: this.fireMakingRounds.map(round => ({ ...round, participants: [...round.participants] })),
       fireMakingWinnerId: this.fireMakingWinnerId,
       deadlockCasualtyId: this.deadlockCasualtyId
     };
@@ -793,20 +835,24 @@ export default class TribalCouncilSystem {
     const tiedIds = this.deadlockTiedCandidateIds;
     const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
     const playerParticipates = this.consensusDecisionMakerIds.includes(playerId);
-    if (playerParticipates && !tiedIds.some(id => this._idsEqual(id, playerChoiceTargetId))) return this.latestSummary;
+    const playerRefuses = playerParticipates && playerChoiceTargetId === TRIBAL_CONSENSUS_REFUSAL;
+    if (playerParticipates && !playerRefuses && !tiedIds.some(id => this._idsEqual(id, playerChoiceTargetId))) return this.latestSummary;
+    const rockPool = this._getDeadlockRockPool(tiedIds);
+    const pressureTargetId = this._consensusPressureTarget(tiedIds, playerChoiceTargetId);
 
     this.consensusChoices = this.consensusDecisionMakerIds.map(id => {
-      if (id === playerId && playerParticipates) return { voterId: id, targetId: this._normalizeId(playerChoiceTargetId) };
+      if (id === playerId && playerParticipates) return { voterId: id,
+        targetId: playerRefuses ? null : this._normalizeId(playerChoiceTargetId), refused: playerRefuses };
       const voter = this._findSurvivorById(id);
       const targetId = [...tiedIds].sort((a, b) => {
-        const scoreA = this._scoreConsensusTarget(voter, this._findSurvivorById(a));
-        const scoreB = this._scoreConsensusTarget(voter, this._findSurvivorById(b));
+        const scoreA = this._scoreConsensusTarget(voter, this._findSurvivorById(a), { pressureTargetId, rockPool });
+        const scoreB = this._scoreConsensusTarget(voter, this._findSurvivorById(b), { pressureTargetId, rockPool });
         return scoreB - scoreA || String(a).localeCompare(String(b));
       })[0];
       return { voterId: id, targetId };
     });
 
-    const unanimous = this.consensusChoices.length > 0
+    const unanimous = !playerRefuses && this.consensusChoices.length > 0
       && this.consensusChoices.every(choice => choice.targetId === this.consensusChoices[0].targetId);
     this.deadlockConsensusReached = unanimous;
     if (unanimous) {
@@ -814,9 +860,6 @@ export default class TribalCouncilSystem {
       this.eliminatedId = this.deadlockDecisionTargetId;
       this.resolutionType = 'DEADLOCK_CONSENSUS';
     } else {
-      const protectedIds = [...this.immunityHolderIds, ...this.idolProtectedIds,
-        ...this.shotResults.filter(result => result.success).map(result => this._normalizeId(result.playerId))];
-      const rockPool = eligibleRockDrawers(this.eligibleTargets, tiedIds, protectedIds);
       if (rockPool.length >= 2) {
         const draw = this.runRockDraw(tiedIds);
         this.rockDrawOccurred = true;
@@ -830,9 +873,11 @@ export default class TribalCouncilSystem {
         this.resolutionType = 'AUTOMATIC_DEADLOCK';
       } else {
         const participants = tiedIds.map(id => this._findSurvivorById(id));
-        const fire = resolveFireMaking(participants);
+        const fire = participants.length === 2 ? resolveFireMaking(participants)
+          : resolveMultiWayFireMaking(participants);
         if (fire) {
           this.fireMakingParticipants = fire.participants;
+          this.fireMakingRounds = fire.rounds || [fire];
           this.fireMakingWinnerId = fire.winnerId;
           this.eliminatedId = fire.eliminatedId;
           this.resolutionType = 'FIRE_MAKING';

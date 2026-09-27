@@ -1,4 +1,5 @@
 import { GameEvents } from './EventManager.js';
+import { sameSurvivorId } from '../utils/SurvivorIds.js';
 
 export const DEFAULT_SEASON_CONFIG = Object.freeze({
   startingPlayers: 18,
@@ -259,7 +260,8 @@ export default class SeasonEngine {
       challengeType: summary.challengeType || (this.gameManager.isMerged ? 'individual' : 'tribal'),
       unsafeTribe: summary.attendingTribeId ?? summary.tribeId ?? null,
       attendees: (summary.membersAtTribal || []).map(member => member.id || member),
-      eliminatedId: summary.eliminatedId || null,
+      eliminatedId: this.gameManager.survivors?.find(member => sameSurvivorId(member.id, summary.eliminatedId))?.id
+        ?? summary.eliminatedId ?? null,
       eliminationType: summary.eliminatedId ? this._tribalEliminationType(summary.resolutionType) : null,
       resolutionType: summary.resolutionType || null,
       juryStatus: { started: Boolean(this.gameManager.isMerged), count: (this.gameManager.jury || []).length }

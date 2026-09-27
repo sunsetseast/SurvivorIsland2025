@@ -1,5 +1,6 @@
 import { generateId } from '../utils/CommonUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
+import { sameSurvivorId } from '../utils/SurvivorIds.js';
 
 const ALLIANCE_TYPES = {
   CORE: 'core',
@@ -499,9 +500,9 @@ class AllianceSystem {
       : (tribalSummary.initialVotes || tribalSummary.votes || []);
     if (!decidingVotes.length) return;
 
-    const attendees = new Set((tribalSummary.membersAtTribal || []).map(member => member.id));
+    const attendees = new Set((tribalSummary.membersAtTribal || []).map(member => String(member.id)));
     const activeAlliances = this.getAlliances().filter(alliance => (
-      (alliance.memberIds || []).some(memberId => attendees.has(memberId))
+      (alliance.memberIds || []).some(memberId => attendees.has(String(memberId)))
     ));
 
     activeAlliances.forEach(alliance => {
@@ -509,13 +510,13 @@ class AllianceSystem {
         alliance.cohesion = this.computeCohesion(alliance);
       }
 
-      const memberVotes = decidingVotes.filter(vote => alliance.memberIds.includes(vote.voterId));
+      const memberVotes = decidingVotes.filter(vote => alliance.memberIds.some(id => sameSurvivorId(id, vote.voterId)));
       if (!memberVotes.length) return;
 
       let cohesionPenalty = 0;
 
       memberVotes.forEach(vote => {
-        if (alliance.memberIds.includes(vote.targetId)) {
+        if (alliance.memberIds.some(id => sameSurvivorId(id, vote.targetId))) {
           cohesionPenalty += 3;
         }
       });
@@ -527,7 +528,7 @@ class AllianceSystem {
       const majorityTarget = Object.entries(voteFrequency).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
       if (majorityTarget) {
         memberVotes.forEach(vote => {
-          if (vote.targetId !== majorityTarget) {
+          if (!sameSurvivorId(vote.targetId, majorityTarget)) {
             cohesionPenalty += 1;
           }
         });
