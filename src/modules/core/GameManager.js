@@ -191,7 +191,7 @@ class GameManager {
 
     this.consumeVotePenaltiesAfterTribal(canonicalEntry.membersAtTribal.map(member => member.id));
 
-    this.advanceDay({ elimination: eliminatedSurvivor });
+    this.advanceDay({ elimination: eliminatedSurvivor, visibleTribalCompleted: canonicalEntry.tribalState === 'NO_ELIMINATION' });
     if (this.seasonEngine?.state?.endgameReached) {
       this.gamePhase = 'endgame';
       this.dayTimer = 0;
@@ -293,6 +293,10 @@ class GameManager {
       eliminatedName: tribalSummary.eliminatedName || getName(tribalSummary.eliminatedId) || null,
       wasTie: Boolean(tribalSummary.wasTie),
       initialTie: Boolean(tribalSummary.initialTie),
+      zeroValidVotes: Boolean(tribalSummary.zeroValidVotes),
+      revoteReason: tribalSummary.revoteReason || null,
+      revoteTargetIds: [...(tribalSummary.revoteTargetIds || [])],
+      tribalState: tribalSummary.tribalState || null,
       revoteOccurred: Boolean(tribalSummary.revoteOccurred),
       wasRockDraw: Boolean(tribalSummary.rockDrawOccurred),
       forcedResolution: Boolean(tribalSummary.forcedResolution),
@@ -800,11 +804,12 @@ class GameManager {
     return this.day;
   }
 
-  advanceDay({ elimination = null, challengeResult = this.lastChallengeResult } = {}) {
+  advanceDay({ elimination = null, challengeResult = this.lastChallengeResult, visibleTribalCompleted = false } = {}) {
     if (this.seasonEngine) {
       return this.seasonEngine.completeRound({
         challengeResult,
-        elimination
+        elimination,
+        visibleTribalCompleted
       });
     }
     this.day++;
