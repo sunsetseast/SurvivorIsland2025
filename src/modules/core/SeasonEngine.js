@@ -260,13 +260,20 @@ export default class SeasonEngine {
       unsafeTribe: summary.attendingTribeId ?? summary.tribeId ?? null,
       attendees: (summary.membersAtTribal || []).map(member => member.id || member),
       eliminatedId: summary.eliminatedId || null,
-      eliminationType: summary.eliminatedId ? 'vote' : null,
+      eliminationType: summary.eliminatedId ? this._tribalEliminationType(summary.resolutionType) : null,
+      resolutionType: summary.resolutionType || null,
       juryStatus: { started: Boolean(this.gameManager.isMerged), count: (this.gameManager.jury || []).length }
     });
     return true;
   }
 
-  completeRound({ challengeResult = null, elimination = null, headless = false, visibleTribalCompleted = false } = {}) {
+  _tribalEliminationType(type) {
+    return { ROCKS: 'rocks', AUTOMATIC_DEADLOCK: 'deadlock', FIRE_MAKING: 'fire-making',
+      DEADLOCK_CONSENSUS: 'consensus' }[type] || 'vote';
+  }
+
+  completeRound({ challengeResult = null, elimination = null, headless = false, visibleTribalCompleted = false,
+    tribalResolutionType = null } = {}) {
     const token = String(challengeResult?.challengeDay ?? this.gameManager.day);
     if (this.state.completedRounds.includes(token)) return false;
     const result = challengeResult || {};
@@ -325,7 +332,8 @@ export default class SeasonEngine {
       attendees: attendees.map(member => member.id),
       playerTribeWon: Boolean(result.playerTribeWon),
       eliminatedId: eliminated?.id || null,
-      eliminationType: eliminated ? (visibleTribal ? 'vote' : 'off-screen-npc-tribal') : null,
+      eliminationType: eliminated ? (visibleTribal ? this._tribalEliminationType(tribalResolutionType) : 'off-screen-npc-tribal') : null,
+      resolutionType: tribalResolutionType,
       tribalMode: visibleTribalCompleted ? 'visible' : eliminated ? (visibleTribal ? 'visible' : 'offscreen') : null,
       juryStatus: {
         started: Boolean(this.gameManager.isMerged),

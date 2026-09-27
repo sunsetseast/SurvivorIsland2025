@@ -131,6 +131,10 @@ class GameManager {
 
 
   handleTribalCouncilComplete(tribalSummary = {}) {
+    const completionKey = `${tribalSummary.createdAt ?? tribalSummary.day ?? this.day}:${tribalSummary.attendingTribeId ?? ''}`;
+    this._completedTribalKeys ||= new Set();
+    if (this._completedTribalKeys.has(completionKey)) return;
+    this._completedTribalKeys.add(completionKey);
     if (!this.gameHistory) this.gameHistory = { tribals: [] };
     if (!Array.isArray(this.gameHistory.tribals)) this.gameHistory.tribals = [];
     if (!Array.isArray(this.tribalCouncilLog)) this.tribalCouncilLog = [];
@@ -167,7 +171,10 @@ class GameManager {
           eliminatedId: canonicalEntry.eliminatedId
         });
       } else {
-        this.eliminateSurvivor(canonicalEntry.eliminatedId, 'vote');
+        const reason = canonicalEntry.resolutionType === 'FIRE_MAKING' ? 'fire-making'
+          : canonicalEntry.resolutionType === 'ROCKS' ? 'rocks'
+            : canonicalEntry.resolutionType === 'AUTOMATIC_DEADLOCK' ? 'deadlock' : 'vote';
+        this.eliminateSurvivor(canonicalEntry.eliminatedId, reason);
       }
     }
 
@@ -191,7 +198,8 @@ class GameManager {
 
     this.consumeVotePenaltiesAfterTribal(canonicalEntry.membersAtTribal.map(member => member.id));
 
-    this.advanceDay({ elimination: eliminatedSurvivor, visibleTribalCompleted: canonicalEntry.tribalState === 'NO_ELIMINATION' });
+    this.advanceDay({ elimination: eliminatedSurvivor, visibleTribalCompleted: canonicalEntry.tribalState === 'NO_ELIMINATION',
+      tribalResolutionType: canonicalEntry.resolutionType });
     if (this.seasonEngine?.state?.endgameReached) {
       this.gamePhase = 'endgame';
       this.dayTimer = 0;
@@ -297,6 +305,18 @@ class GameManager {
       revoteReason: tribalSummary.revoteReason || null,
       revoteTargetIds: [...(tribalSummary.revoteTargetIds || [])],
       tribalState: tribalSummary.tribalState || null,
+      resolutionType: tribalSummary.resolutionType || null,
+      deadlockOccurred: Boolean(tribalSummary.deadlockOccurred),
+      deadlockConsensusRequired: Boolean(tribalSummary.deadlockConsensusRequired),
+      deadlockConsensusReached: Boolean(tribalSummary.deadlockConsensusReached),
+      deadlockDecisionTargetId: tribalSummary.deadlockDecisionTargetId || null,
+      deadlockTiedCandidateIds: [...(tribalSummary.deadlockTiedCandidateIds || [])],
+      consensusDecisionMakerIds: [...(tribalSummary.consensusDecisionMakerIds || [])],
+      consensusChoices: (tribalSummary.consensusChoices || []).map(choice => ({ ...choice })),
+      deadlockCasualtyId: tribalSummary.deadlockCasualtyId || null,
+      fireMakingOccurred: Boolean(tribalSummary.fireMakingOccurred),
+      fireMakingParticipants: [...(tribalSummary.fireMakingParticipants || [])],
+      fireMakingWinnerId: tribalSummary.fireMakingWinnerId || null,
       revoteOccurred: Boolean(tribalSummary.revoteOccurred),
       wasRockDraw: Boolean(tribalSummary.rockDrawOccurred),
       forcedResolution: Boolean(tribalSummary.forcedResolution),
@@ -804,12 +824,14 @@ class GameManager {
     return this.day;
   }
 
-  advanceDay({ elimination = null, challengeResult = this.lastChallengeResult, visibleTribalCompleted = false } = {}) {
+  advanceDay({ elimination = null, challengeResult = this.lastChallengeResult, visibleTribalCompleted = false,
+    tribalResolutionType = null } = {}) {
     if (this.seasonEngine) {
       return this.seasonEngine.completeRound({
         challengeResult,
         elimination,
-        visibleTribalCompleted
+        visibleTribalCompleted,
+        tribalResolutionType
       });
     }
     this.day++;

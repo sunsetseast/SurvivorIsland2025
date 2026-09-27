@@ -4,6 +4,7 @@ import TribalBeatRunner from './TribalBeatRunner.js';
 import TribalQuestionEngine from '../systems/TribalQuestionEngine.js';
 import { assignTribalSeats, getTribalSeat, TRIBAL_ART_WIDTH, TRIBAL_ART_HEIGHT } from './TribalSceneLayout.js';
 import { planVoteReveals } from './TribalVoteRevealPlan.js';
+import { TRIBAL_PACING, tribalMotionDelay } from './TribalPacing.js';
 
 const ASSET_BASE = 'Assets/TribalCouncil';
 
@@ -23,6 +24,7 @@ export default class TribalCouncilView {
     this.revealTimer = null;
     this.sitdUsed = false;
     this.playerRevote = null;
+    this.playerConsensusTarget = null;
     this.attendingTribeId = null;
     this.isCompleting = false;
     this.root = null;
@@ -57,6 +59,7 @@ export default class TribalCouncilView {
     this.sitdConfirmPending = false;
     this.sitdUsed = false;
     this.playerRevote = null;
+    this.playerConsensusTarget = null;
     this.questionResponses = new Map();
     this.questionResponseLog = [];
 
@@ -135,8 +138,9 @@ export default class TribalCouncilView {
         textPos: 'top',
         jeff: null,
         mood: 'tense',
-        pauseMs: 500,
-        canSkipAfterMs: 260,
+        pauseMs: TRIBAL_PACING.arrivalHold,
+        canSkipAfterMs: TRIBAL_PACING.arrivalHold - 350,
+        autoAdvance: true,
         button: { label: 'CONTINUE' }
       },
       {
@@ -146,7 +150,8 @@ export default class TribalCouncilView {
         stoolsData: alive,
         sceneMode: 'wide',
         mood: 'tense',
-        button: { label: 'CONTINUE' }
+        pauseMs: TRIBAL_PACING.seatingHold,
+        autoAdvance: true
       },
       {
         id: 'jeff-opening',
@@ -157,22 +162,34 @@ export default class TribalCouncilView {
         textPos: 'top',
         jeff: { img: `${ASSET_BASE}/Jeff.png` },
         mood: 'watchful',
+        canSkipAfterMs: TRIBAL_PACING.openingHold,
         button: { label: 'LET\'S TALK' }
       },
       ...this._buildQuestionBeats(alive),
       ...(this.liveTribalMoment ? [this._buildLiveTribalBeat(alive)] : []),
       {
+        id: 'discussion-settle', background: this._resolveTribalBackground(alive.length),
+        showStools: true, stoolsData: alive, sceneMode: 'wide',
+        pauseMs: TRIBAL_PACING.discussionTransition, autoAdvance: true
+      },
+      {
         id: 'vote-intro',
         background: `${ASSET_BASE}/votewalk.jpeg`,
-        text: 'The fire has heard enough. It is time to vote.',
+        text: 'It is time to vote.',
         textPos: 'center',
         mood: 'decisive',
-        button: { label: 'Vote' }
+        canSkipAfterMs: TRIBAL_PACING.openingHold,
+        button: { label: 'VOTE' }
+      },
+      {
+        id: 'voting-walk', background: `${ASSET_BASE}/votewalk.jpeg`,
+        pauseMs: TRIBAL_PACING.voteWalk, autoAdvance: true
       },
       {
         id: 'voting-booth',
         background: `${ASSET_BASE}/votingbooth.png`,
         textPos: 'top',
+        requiresDecision: true,
         button: {
           label: 'CONTINUE',
           onClick: () => this._handleVotingContinue(),
@@ -186,18 +203,26 @@ export default class TribalCouncilView {
       {
         id: 'votes-collected',
         background: `${ASSET_BASE}/urn.png`,
-        text: 'The votes are in. Jeff goes to retrieve the urn.',
+        text: 'The votes are in.',
         textPos: 'top',
-        button: { label: 'CONTINUE' }
+        pauseMs: TRIBAL_PACING.votesCollected, autoAdvance: true
+      },
+      {
+        id: 'urn-away', background: `${ASSET_BASE}/urn.png`,
+        text: 'Jeff goes to retrieve and tally the votes.', textPos: 'top',
+        pauseMs: TRIBAL_PACING.urnAway, autoAdvance: true
       },
       {
         id: 'urn-return', background: `${ASSET_BASE}/urn.png`,
-        text: 'Jeff returns with the urn.', textPos: 'top', button: { label: 'CONTINUE' }
+        text: 'Jeff returns with the urn.', textPos: 'top',
+        pauseMs: TRIBAL_PACING.urnReturn, autoAdvance: true
       },
       {
         id: 'idol-window',
         background: `${ASSET_BASE}/nowisthetime.png`,
         textPos: 'top',
+        requiresDecision: true,
+        canSkipAfterMs: TRIBAL_PACING.idolPrompt,
         customRender: (content, controls) => this._renderIdolContent(content, controls),
         button: { label: this.tribalCouncilSystem?.playerHasIdol?.(this.gameManager.getPlayerSurvivor?.()?.id)
           ? 'KEEP IDOL / CONTINUE' : 'CONTINUE', onClick: (controls) => this._transitionToReadVotes(controls) }
@@ -217,6 +242,7 @@ export default class TribalCouncilView {
       cameraTargetIds: question.focusSurvivorId ? [question.focusSurvivorId] : [],
       reactionTargetIds: (question.reactions || []).map(reaction => reaction.survivorId),
       customRender: (content) => this._renderQuestionContent(content, question),
+      requiresDecision: true,
       button: {
         label: index === this.tribalQuestions.length - 1 && !this.liveTribalMoment ? 'MOVE TO THE VOTE' : 'CONTINUE',
         disabled: () => question.responseOptions?.length > 0 && !this.questionResponses.has(question.id)
@@ -236,6 +262,7 @@ export default class TribalCouncilView {
       mood: 'chaotic',
       cameraTargetIds: moment?.focusSurvivorId ? [moment.focusSurvivorId] : [],
       customRender: (content) => this._renderQuestionContent(content, moment, { live: true }),
+      requiresDecision: true,
       button: {
         label: 'SETTLE BACK IN',
         disabled: () => !this.questionResponses.has(moment?.id)
@@ -347,6 +374,7 @@ export default class TribalCouncilView {
         textPos: 'top',
         jeff: this.tribalSummary?.jeffCommentary?.votesRevealingIntroLine ? { img: `${ASSET_BASE}/Jeff.png` } : null,
         mood: 'suspense',
+        canSkipAfterMs: TRIBAL_PACING.openingHold,
         button: { label: 'READ VOTES' }
       },
       ...this._buildVoteRevealBeats((this.tribalSummary?.voteOrder || []).filter(v => v.phase !== 'revote'), 'initial', { mustEstablishTie: Boolean(this.tribalSummary?.initialTie) })
@@ -358,6 +386,7 @@ export default class TribalCouncilView {
       beats.push({ id: this.tribalSummary?.zeroValidVotes ? 'void-vote-announcement' : 'tie-announcement',
         background: `${ASSET_BASE}/voteread.png`,
         text: 'There is no legal way to resolve another ballot tonight.', textPos: 'top',
+        canSkipAfterMs: TRIBAL_PACING.tieHold,
         button: { label: 'CONTINUE' } });
     }
     if ((this.tribalSummary?.initialTie || this.tribalSummary?.zeroValidVotes) && !noRevotePossible) {
@@ -370,7 +399,13 @@ export default class TribalCouncilView {
             : this.tribalSummary?.jeffCommentary?.tieLine || 'WE ARE TIED. THAT MEANS WE VOTE AGAIN, AND ONLY FOR THE TIED PLAYERS.',
           textPos: 'top',
           mood: 'shock',
+          canSkipAfterMs: TRIBAL_PACING.tieHold,
           button: { label: 'CONTINUE' }
+        },
+        {
+          id: 'tie-hold', background: this._resolveTribalBackground(this.tribalSummary?.membersAtTribal?.length),
+          showStools: true, stoolsData: (this._getAttendingTribe()?.members || []).filter(member => !member.isOut),
+          sceneMode: 'wide', pauseMs: TRIBAL_PACING.tieHold, autoAdvance: true
         },
         {
           id: 'revote-intro',
@@ -378,7 +413,9 @@ export default class TribalCouncilView {
           text: voidVote ? 'A new ballot begins. Anyone without a vote tonight still cannot vote.'
             : this.tribalSummary?.jeffCommentary?.revoteIntroLine || 'THIS REVOTE IS YOUR CHANCE TO SHOW WHERE YOU TRULY STAND.',
           textPos: 'top',
-          button: { label: this.tribalSummary?.playerCanRevote ? 'VOTE NOW' : 'CONTINUE' },
+          ...(this.tribalSummary?.playerCanRevote
+            ? { button: { label: 'VOTE NOW' }, requiresDecision: true }
+            : { pauseMs: TRIBAL_PACING.voteWalk, autoAdvance: true }),
           customRender: (content) => this._renderRevoteContext(content)
         }
       ];
@@ -389,6 +426,7 @@ export default class TribalCouncilView {
           background: `${ASSET_BASE}/votingbooth.png`,
           textPos: 'top',
           customRender: (content) => this._renderRevoteVotingContent(content),
+          requiresDecision: true,
           button: {
             label: 'CAST REVOTE',
             disabled: () => !this.playerRevote,
@@ -400,33 +438,48 @@ export default class TribalCouncilView {
       tieBeats.push(...this._buildVoteRevealBeats((this.tribalSummary?.voteOrder || []).filter(v => v.phase === 'revote'), 'revote'));
       beats.push(...tieBeats);
 
-      if (this.tribalSummary?.rockDrawOccurred && this.tribalSummary?.rockDrawEliminatedId) {
-        const eliminatedName = this.getTribalName(this.tribalSummary?.rockDrawEliminatedId);
-        beats.push(
-          {
-            id: 'deadlock-discussion',
-            background: `${ASSET_BASE}/voteread.png`,
-            text: 'The revote is still tied. The tied survivors are safe; everyone else who is unprotected will draw rocks.',
-            textPos: 'top',
-            mood: 'deadlock',
-            button: { label: 'CONTINUE' }
-          },
-          {
-            id: 'rocks-intro',
-            background: `${ASSET_BASE}/voteread.png`,
-            text: this.tribalSummary?.jeffCommentary?.rocksIntroLine || 'WE ARE DEADLOCKED. WE ARE GOING TO ROCKS.',
-            textPos: 'top',
-            button: { label: 'REVEAL ROCKS' },
-            customRender: (content) => this._renderRockList(content)
-          },
-          {
-            id: 'rocks-result',
-            background: `${ASSET_BASE}/snuff.jpeg`,
-            text: `${eliminatedName} DREW THE BAD ROCK.`,
-            textPos: 'center',
-            button: { label: 'CONTINUE' }
-          }
-        );
+      if (this.tribalSummary?.deadlockOccurred) {
+        beats.push({ id: 'revote-deadlock-announcement', background: `${ASSET_BASE}/voteread.png`,
+          text: 'The revote is still tied. There will be no more voting.', textPos: 'top',
+          canSkipAfterMs: TRIBAL_PACING.deadlockHold, button: { label: 'DISCUSS' } });
+        beats.push({ id: 'deadlock-discussion', background: this._resolveTribalBackground(this.tribalSummary?.membersAtTribal?.length),
+          showStools: true, stoolsData: (this._getAttendingTribe()?.members || []).filter(member => !member.isOut),
+          sceneMode: 'wide', mood: 'deadlock', requiresDecision: true,
+          customRender: content => this._renderDeadlockContent(content),
+          button: { label: this.tribalSummary?.playerCanDecideConsensus ? 'CONFIRM DECISION' : 'HEAR DECISION',
+            disabled: () => this.tribalSummary?.playerCanDecideConsensus && !this.playerConsensusTarget,
+            onClick: controls => this._resolvePendingDeadlock(controls) } });
+        if (this.tribalSummary?.tribalState === 'DEADLOCK_DISCUSSION') return beats;
+
+        const method = this.tribalSummary?.resolutionType;
+        beats.push({ id: 'deadlock-outcome', background: `${ASSET_BASE}/voteread.png`, textPos: 'top',
+          text: this.tribalSummary?.deadlockConsensusReached
+            ? `The tribe agrees. ${this.getTribalName(this.tribalSummary.deadlockDecisionTargetId)} is leaving.`
+            : 'The tribe cannot agree. The tied survivors are safe from the deadlock consequence.',
+          canSkipAfterMs: TRIBAL_PACING.deadlockHold, button: { label: 'CONTINUE' } });
+        if (method === 'ROCKS') {
+          beats.push({ id: 'rocks-intro', background: `${ASSET_BASE}/voteread.png`,
+            text: 'The unprotected survivors will draw rocks.', textPos: 'top',
+            customRender: content => this._renderRockList(content),
+            canSkipAfterMs: TRIBAL_PACING.rockReveal, button: { label: 'REVEAL ROCKS' } },
+          { id: 'rocks-result', background: `${ASSET_BASE}/snuff.jpeg`,
+            text: `${this.getTribalName(this.tribalSummary.rockDrawEliminatedId)} has the bad rock.`, textPos: 'center',
+            canSkipAfterMs: TRIBAL_PACING.deadlockHold, button: { label: 'CONTINUE' } });
+        } else if (method === 'AUTOMATIC_DEADLOCK') {
+          beats.push({ id: 'automatic-deadlock', background: `${ASSET_BASE}/voteread.png`,
+            text: `${this.getTribalName(this.tribalSummary.deadlockCasualtyId)} is the only unprotected survivor outside the tie. There is no rock to draw.`,
+            textPos: 'top', canSkipAfterMs: TRIBAL_PACING.deadlockHold, button: { label: 'CONTINUE' } });
+        } else if (method === 'FIRE_MAKING') {
+          const names = this.tribalSummary.fireMakingParticipants.map(id => this.getTribalName(id)).join(' and ');
+          beats.push({ id: 'fire-intro', background: `${ASSET_BASE}/voteread.png`,
+            text: `No one can draw rocks. ${names} will make fire to break the tie.`, textPos: 'top',
+            canSkipAfterMs: TRIBAL_PACING.fireReveal, button: { label: 'MAKE FIRE' } },
+          { id: 'fire-hold', background: `${ASSET_BASE}/urn.png`,
+            text: 'The flames rise.', textPos: 'center', pauseMs: TRIBAL_PACING.fireReveal, autoAdvance: true },
+          { id: 'fire-result', background: `${ASSET_BASE}/voteread.png`,
+            text: `${this.getTribalName(this.tribalSummary.fireMakingWinnerId)} wins. ${this.getTribalName(this.result.eliminatedId)} loses fire-making.`,
+            textPos: 'top', canSkipAfterMs: TRIBAL_PACING.deadlockHold, button: { label: 'CONTINUE' } });
+        }
       }
     }
 
@@ -445,6 +498,7 @@ export default class TribalCouncilView {
       text: this.result?.jeffCommentary?.snuffLine || `${eliminatedName}, THE TRIBE HAS SPOKEN.`,
       textPos: 'center',
       mood: 'final',
+      canSkipAfterMs: TRIBAL_PACING.snuffHold,
       button: { label: 'CONTINUE' }
     });
 
@@ -453,6 +507,7 @@ export default class TribalCouncilView {
       background: `${ASSET_BASE}/snuff.jpeg`,
       text: `${eliminatedName} leaves Tribal Council. The tribe returns to camp.`,
       textPos: 'top',
+      canSkipAfterMs: TRIBAL_PACING.exitHold,
       button: { label: this._shouldShowDebugSummary() ? 'REVIEW SUMMARY' : 'RETURN TO CAMP',
         onClick: () => (this._shouldShowDebugSummary() ? this.renderDebugSummary() : this.finish()) }
     });
@@ -507,8 +562,10 @@ export default class TribalCouncilView {
         textPos: 'parchment',
         jeffLine,
         mood: revealIndex >= totalReveals - 1 ? 'peak-suspense' : 'suspense',
-        pauseMs: revealIndex >= totalReveals - 1 ? 1050 : 650,
-        canSkipAfterMs: revealIndex >= totalReveals - 1 ? 800 : 420,
+        canSkipAfterMs: vote.wasNullified ? TRIBAL_PACING.voteNullified
+          : revealIndex === totalReveals ? TRIBAL_PACING.voteDecisive
+            : leadersAfter.length > 1 || leadersBefore.length > 1 ? TRIBAL_PACING.voteTense
+              : TRIBAL_PACING.voteNormal,
         reactionLines: this._shouldShowDebugSummary() ? this._getVoteReactionLines({ vote, countsAfter, phase, revealIndex, totalReveals }) : [],
         parchment: {
           show: true,
@@ -601,7 +658,7 @@ export default class TribalCouncilView {
       this.revealTimer = setTimeout(() => {
         if (scene.isConnected) delayedRevealElements.forEach(element => element.classList.add('is-visible'));
         this.revealTimer = null;
-      }, 400);
+      }, tribalMotionDelay(TRIBAL_PACING.parchmentRaise));
     }
     return () => {
       const button = actions?.lastElementChild;
@@ -696,6 +753,8 @@ export default class TribalCouncilView {
       disabled: !this.selectedVote, onclick: () => {
         if (!this.tribalCouncilSystem.registerPlayerVote(player.id, this.selectedVote)) return;
         this.playerVote = this.selectedVote;
+        const beat = this.beatRunner.getCurrentBeat?.();
+        if (beat) beat.canSkipAfterMs = TRIBAL_PACING.ballotConfirmation;
         this.beatRunner.goTo(this.beatRunner.currentIndex, { force: true });
       } }, 'CAST VOTE'));
     const canPlaySitd = this.gameManager.canPlayShotInTheDark?.(player) === true
@@ -713,6 +772,8 @@ export default class TribalCouncilView {
             this.sitdUsed = true;
             this.playerVote = null;
             this.selectedVote = null;
+            const beat = this.beatRunner.getCurrentBeat?.();
+            if (beat) beat.canSkipAfterMs = TRIBAL_PACING.ballotConfirmation;
             this.beatRunner.goTo(this.beatRunner.currentIndex, { force: true });
           } }, 'SACRIFICE VOTE')
         ]));
@@ -753,13 +814,14 @@ export default class TribalCouncilView {
       const target = this.getTribalName(play.playedOnId);
       beats.push({ id: `idol-play-${beats.length}`, background: `${ASSET_BASE}/nowisthetime.png`,
         text: `${holder} stands and plays a hidden immunity idol for ${target}. Jeff confirms it is valid. Any votes cast for ${target} will not count.`,
-        textPos: 'top', button: { label: 'CONTINUE' } });
+        textPos: 'top', canSkipAfterMs: TRIBAL_PACING.advantageReveal, button: { label: 'CONTINUE' } });
     }
     for (const result of this.tribalSummary?.shotResults || []) {
       if (!result.consumed) continue;
       beats.push({ id: `sitd-result-${beats.length}`, background: `${ASSET_BASE}/voteread.png`,
         text: `${this.getTribalName(result.playerId)} played Shot in the Dark. ${result.success ? 'SAFE — votes against them do not count.' : 'NOT SAFE — their vote was sacrificed.'}`,
-        textPos: 'center', sceneMode: 'advantage', button: { label: 'CONTINUE' } });
+        textPos: 'center', sceneMode: 'advantage', canSkipAfterMs: TRIBAL_PACING.advantageReveal,
+        button: { label: 'CONTINUE' } });
     }
     return beats;
   }
@@ -864,13 +926,48 @@ export default class TribalCouncilView {
       tiedCandidateIds: this.tribalSummary?.tiedCandidateIds || [],
       playerChoiceTargetId: this.playerRevote
     });
-    if (!resolved?.decisionResolved) return;
+    if (!resolved || (resolved.tribalState !== 'DEADLOCK_DISCUSSION' && !resolved.decisionResolved)) return;
     this.tribalSummary = resolved;
     this.result = this.tribalSummary;
     this.playerRevote = null;
     const beats = this._buildPostVoteBeats();
-    const nextIndex = beats.findIndex(beat => String(beat?.id || '').startsWith('revote-vote-') || beat?.id === 'rocks-intro' || beat?.id === 'snuff' || beat?.id === 'no-elimination');
+    const nextIndex = beats.findIndex(beat => String(beat?.id || '').startsWith('revote-vote-')
+      || beat?.id === 'revote-deadlock-announcement' || beat?.id === 'snuff' || beat?.id === 'no-elimination');
     controls.setBeats(beats, { index: nextIndex >= 0 ? nextIndex : 0 });
+  }
+
+  _resolvePendingDeadlock(controls) {
+    const resolved = this.tribalCouncilSystem.resolveDeadlockConsensus({
+      playerChoiceTargetId: this.playerConsensusTarget
+    });
+    if (!resolved?.decisionResolved) return;
+    this.tribalSummary = resolved;
+    this.result = resolved;
+    this.playerConsensusTarget = null;
+    const beats = this._buildPostVoteBeats();
+    const index = beats.findIndex(beat => beat.id === 'deadlock-outcome');
+    controls.setBeats(beats, { index: index >= 0 ? index : 0 });
+  }
+
+  _renderDeadlockContent(content) {
+    const summary = this.tribalSummary || {};
+    const tied = (summary.deadlockTiedCandidateIds || []).map(id => this.getSurvivorById(id)).filter(Boolean);
+    const decisionMakers = (summary.consensusDecisionMakerIds || []).map(id => this.getTribalName(id));
+    const flow = createElement('div', { className: 'tribal-ballot-flow' });
+    flow.appendChild(createElement('div', { className: 'tribal-dialogue' },
+      `${tied.map(member => this.getTribalName(member)).join(' or ')}: the group must unanimously decide who leaves. If they cannot agree, the deadlock has a consequence.`));
+    flow.appendChild(createElement('div', { className: 'tribal-subtext' },
+      `DECISION-MAKERS: ${decisionMakers.join(', ') || 'NONE'}`));
+    if (summary.tribalState === 'DEADLOCK_DISCUSSION' && summary.playerCanDecideConsensus) {
+      flow.appendChild(createElement('div', { className: 'tribal-dialogue' }, 'Who are you willing to send home?'));
+      this._renderPortraitChoices(flow, tied, this.playerConsensusTarget, member => {
+        this.playerConsensusTarget = member.id;
+        this.beatRunner.goTo(this.beatRunner.currentIndex, { force: true });
+      });
+      flow.appendChild(createElement('div', { className: 'tribal-ballot-preview' }, this.playerConsensusTarget
+        ? this.getTribalName(this.playerConsensusTarget) : 'YOUR DECISION'));
+    }
+    content.appendChild(flow);
   }
 
   _renderRevoteVotingContent(content) {

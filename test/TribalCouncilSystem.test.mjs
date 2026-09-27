@@ -220,8 +220,10 @@ test('initial tie waits for an eligible player revote, then preserves complete b
   assert.equal(resolved.revoteOccurred, true);
   assert.equal(resolved.initialVotes.length, 4);
   assert.equal(resolved.votes.length, 6);
-  assert.equal(resolved.rockDrawOccurred, true);
-  assert.deepEqual(resolved.rockDrawEligible.map(member => member.id).sort(), ['c', 'player']);
+  assert.equal(resolved.tribalState, 'DEADLOCK_DISCUSSION');
+  assert.equal(resolved.decisionResolved, false);
+  assert.equal(resolved.rockDrawOccurred, false);
+  assert.deepEqual(resolved.consensusDecisionMakerIds.sort(), ['c', 'player']);
 });
 
 test('reveal planner stops only after a unique outcome is locked; ties and nullified votes stay honest', () => {
@@ -495,9 +497,13 @@ test('a resolved rock draw is stable and cannot reroll on a repeat resolution pr
   Math.random = () => { draws += 1; return 0; };
   let result;
   try {
-    result = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+    const deadlock = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+    assert.equal(deadlock.tribalState, 'DEADLOCK_DISCUSSION');
+    assert.equal(draws, 0);
+    result = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
     assert.equal(result.rockDrawOccurred, true);
     const count = draws;
+    assert.equal(tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'b' }), result);
     assert.equal(tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'b' }), result);
     assert.equal(tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' }), result);
     assert.equal(draws, count);
@@ -600,4 +606,240 @@ test('revote portraits, reversible selection and preview share the ballot-flow l
     assert.equal(tribal.revoteVotes.length, 0);
     assert.match(render().children[2].textContent, /B/);
   } finally { globalThis.document = oldDocument; }
+});
+
+function tiedRevote({ protectedIds = [], lostVoteIds = [], playerVote = 'a' } = {}) {
+  const members = ['player', 'a', 'b', 'c'].map(id => survivor(id, {
+    isPlayer: id === 'player', hasImmunity: protectedIds.includes(id)
+  }));
+  const game = buildGame(members);
+  game.hasLostVote = member => lostVoteIds.includes(member.id);
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  const desired = { a: 'b', b: 'a', c: 'b' };
+  tribal._scoreNpcTarget = (voter, target) => target.id === desired[voter.id] ? 10 : 0;
+  tribal.registerPlayerVote('player', playerVote);
+  const initial = tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  assert.equal(initial.tribalState, 'REVOTE_PENDING');
+  return { game, tribal, initial };
+}
+
+test('a revote may settle the tie without opening deadlock', () => {
+  const { tribal, initial } = tiedRevote();
+  // The other revoter votes b; the player can send b home without consensus.
+  const resolved = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'b' });
+  assert.equal(resolved.tribalState, 'FINAL_VOTE');
+  assert.equal(resolved.resolutionType, 'REVOTE');
+  assert.equal(resolved.eliminatedId, 'b');
+  assert.equal(resolved.deadlockOccurred, false);
+  assert.equal(resolved.initialVotes.length, initial.initialVotes.length);
+  assert.equal(resolved.revoteVotes.length, 2);
+});
+
+test('consensus is a real pending choice and a unanimous decision avoids rocks', () => {
+  const { tribal, initial } = tiedRevote();
+  const pending = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  assert.equal(pending.tribalState, 'DEADLOCK_DISCUSSION');
+  assert.equal(pending.eliminatedId, null);
+  assert.equal(tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' }), pending);
+  assert.equal(tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'outsider' }), pending);
+  assert.equal(tribal.resolveDeadlockConsensus(), pending);
+  assert.equal(tribal.tribalNumber, 1);
+  const result = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'b' });
+  assert.equal(result.deadlockConsensusReached, true);
+  assert.equal(result.deadlockDecisionTargetId, 'b');
+  assert.equal(result.eliminatedId, 'b');
+  assert.equal(result.resolutionType, 'DEADLOCK_CONSENSUS');
+  assert.equal(result.rockDrawOccurred, false);
+  assert.deepEqual(result.consensusChoices.map(choice => choice.targetId), ['b', 'b']);
+  assert.equal(result.initialVotes.length, initial.initialVotes.length);
+  assert.equal(result.revoteVotes.length, 2);
+  assert.equal(tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' }), result);
+  assert.equal(tribal.tribalNumber, 1);
+});
+
+test('failed consensus draws only eligible rocks; exactly one is an automatic casualty', () => {
+  const { tribal } = tiedRevote();
+  tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  const originalRandom = Math.random;
+  let draws = 0;
+  Math.random = () => { draws++; return 0; };
+  try {
+    const rocks = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
+    assert.equal(rocks.resolutionType, 'ROCKS');
+    assert.deepEqual(rocks.rockDrawEligible.map(entry => entry.id).sort(), ['c', 'player']);
+    assert.equal(rocks.eliminatedId, 'player');
+    const firstDraws = draws;
+    assert.equal(tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' }), rocks);
+    assert.equal(tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'b' }), rocks);
+    assert.equal(draws, firstDraws);
+  } finally { Math.random = originalRandom; }
+
+  // Protect a decision-maker after the ballots, as an idol/SITD would.
+  const single = tiedRevote();
+  single.tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  single.tribal.idolProtectedIds.add('player');
+  const automatic = single.tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
+  assert.equal(automatic.resolutionType, 'AUTOMATIC_DEADLOCK');
+  assert.equal(automatic.eliminatedId, 'c');
+  assert.equal(automatic.rockDrawOccurred, false);
+});
+
+test('zero rock drawers break the deadlock by reproducible fire-making', () => {
+  const { tribal } = tiedRevote();
+  const pending = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  tribal.idolProtectedIds.add('player');
+  tribal.shotResults.push({ playerId: 'c', success: true });
+  const originalRandom = Math.random;
+  let draws = 0;
+  Math.random = () => { draws++; return 0.25; };
+  try {
+    const result = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
+    assert.equal(result.resolutionType, 'FIRE_MAKING');
+    assert.deepEqual(result.fireMakingParticipants.sort(), ['a', 'b']);
+    assert.equal(result.fireMakingOccurred, true);
+    assert.ok(result.fireMakingParticipants.includes(result.fireMakingWinnerId));
+    assert.ok(result.fireMakingParticipants.includes(result.eliminatedId));
+    assert.notEqual(result.eliminatedId, result.fireMakingWinnerId);
+    assert.equal(result.rockDrawOccurred, false);
+    assert.equal(result.initialVotes.length, pending.initialVotes.length);
+    assert.equal(result.revoteVotes.length, pending.revoteVotes.length);
+    assert.equal(draws, 2);
+    assert.equal(tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'b' }), result);
+    assert.equal(draws, 2);
+  } finally { Math.random = originalRandom; }
+});
+
+test('a tied contestant retains a forced revote when the other tied contestant lost their vote', () => {
+  const members = [survivor('player', { isPlayer: true }), survivor('a'), survivor('b')];
+  members[1].hasVote = false;
+  const game = buildGame(members);
+  game.hasLostVote = member => member.id === 'a';
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  tribal._scoreNpcTarget = (voter, target) => voter.id === 'b' && target.id === 'player' ? 10 : 0;
+  assert.equal(tribal.registerPlayerVote('player', 'a'), true);
+  const pending = tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  assert.equal(pending.tribalState, 'REVOTE_PENDING');
+  assert.deepEqual(pending.revoteEligibleVoterIds.sort(), ['b', 'player']);
+  assert.equal(tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'player' }), pending);
+  const result = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  assert.ok(result.revoteVotes.some(vote => vote.voterId === 'player' && vote.targetId === 'a'));
+  assert.ok(result.revoteVotes.every(vote => vote.voterId !== 'a'));
+  assert.equal(result.revoteOccurred, true);
+});
+
+test('deadlock presentation follows the last revote parchment and precedes consequence and snuff', () => {
+  const { game, tribal } = tiedRevote();
+  const pending = tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  const view = new TribalCouncilView({ gameManager: game, tribalCouncilSystem: tribal });
+  view.attendingTribeId = 'tribe-1'; view.allPlayers = game.survivors;
+  view.tribalSummary = pending; view.result = pending;
+  let ids = view._buildPostVoteBeats().map(beat => beat.id);
+  assert.ok(ids.indexOf('revote-vote-1') < ids.indexOf('revote-deadlock-announcement'));
+  assert.ok(ids.indexOf('revote-deadlock-announcement') < ids.indexOf('deadlock-discussion'));
+  assert.ok(!ids.includes('snuff'));
+  const resolved = tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'a' });
+  view.tribalSummary = resolved; view.result = resolved;
+  ids = view._buildPostVoteBeats().map(beat => beat.id);
+  assert.ok(ids.indexOf('deadlock-discussion') < ids.indexOf('deadlock-outcome'));
+  assert.ok(ids.indexOf('deadlock-outcome') < ids.indexOf('rocks-intro'));
+  assert.ok(ids.indexOf('rocks-result') < ids.indexOf('snuff'));
+});
+
+test('a tied revote with no remaining ballots still enters deadlock instead of returning to camp', () => {
+  const { tribal } = tiedRevote();
+  const pending = tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  // Simulate penalties that leave both decision-makers without a revote.
+  tribal.lostVoteIds.add('player'); tribal.lostVoteIds.add('c');
+  const result = tribal._resolveRevoteFlow({ tiedCandidateIds: pending.tiedCandidateIds });
+  assert.equal(result.deadlockPending, true);
+  assert.deepEqual(tribal.deadlockTiedCandidateIds.sort(), ['a', 'b']);
+  assert.deepEqual(tribal.consensusDecisionMakerIds, []);
+});
+
+test('arrival, booth, urn and idol beats follow the deliberate ritual order', () => {
+  const game = buildGame([survivor('player', { isPlayer: true }), survivor('a'), survivor('b')]);
+  const view = new TribalCouncilView({ gameManager: game, tribalCouncilSystem: new TribalCouncilSystem(game, eventManager) });
+  view.attendingTribeId = 'tribe-1'; view.tribalQuestions = [];
+  view.sessionJeffCommentary = {}; view.tribalContext = {};
+  const beats = view._buildPreVoteBeats();
+  const ids = beats.map(beat => beat.id);
+  assert.deepEqual(ids, ['arrival', 'seating', 'jeff-opening', 'discussion-settle', 'vote-intro',
+    'voting-walk', 'voting-booth', 'votes-collected', 'urn-away', 'urn-return', 'idol-window']);
+  for (const id of ['arrival', 'seating', 'discussion-settle', 'voting-walk', 'votes-collected',
+    'urn-away', 'urn-return']) assert.equal(beats.find(beat => beat.id === id).autoAdvance, true);
+  assert.equal(beats.find(beat => beat.id === 'voting-booth').requiresDecision, true);
+  assert.equal(beats.find(beat => beat.id === 'idol-window').requiresDecision, true);
+});
+
+test('a decisive parchment gets a longer hold than early votes and nullified parchments', async () => {
+  const { TRIBAL_PACING } = await import('../src/modules/screens/TribalPacing.js');
+  const game = buildGame([survivor('player', { isPlayer: true }), survivor('a'), survivor('b')]);
+  const view = new TribalCouncilView({ gameManager: game });
+  view.attendingTribeId = 'tribe-1'; view.allPlayers = game.survivors;
+  const votes = ['a', 'b', 'a', 'a'].map(targetId => ({ targetId }));
+  const beats = view._buildVoteRevealBeats(votes);
+  assert.equal(beats[0].canSkipAfterMs, TRIBAL_PACING.voteNormal);
+  assert.equal(beats.at(-1).canSkipAfterMs, TRIBAL_PACING.voteDecisive);
+  assert.ok(beats.at(-1).canSkipAfterMs > beats[0].canSkipAfterMs);
+  assert.ok(beats.every(beat => beat.canSkipAfterMs > TRIBAL_PACING.parchmentRaise));
+  const nullified = view._buildVoteRevealBeats([{ targetId: 'b', wasNullified: true }, { targetId: 'a' }]);
+  assert.equal(nullified[0].canSkipAfterMs, TRIBAL_PACING.voteNullified);
+});
+
+test('NPC-only tied revote waits for consensus and excludes a player without a vote', () => {
+  const members = ['player', 'a', 'b', 'c', 'd'].map(id => survivor(id, { isPlayer: id === 'player' }));
+  members[0].hasVote = false;
+  const game = buildGame(members);
+  game.hasLostVote = member => member.id === 'player';
+  const tribal = new TribalCouncilSystem(game, eventManager);
+  const desired = { a: 'b', b: 'a', c: 'a', d: 'b' };
+  tribal._scoreNpcTarget = (voter, target) => target.id === desired[voter.id] ? 10 : 0;
+  const pending = tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' });
+  assert.equal(pending.tribalState, 'DEADLOCK_DISCUSSION');
+  assert.equal(pending.playerCanDecideConsensus, false);
+  assert.deepEqual(pending.consensusDecisionMakerIds.sort(), ['c', 'd']);
+  assert.ok(pending.revoteVotes.every(vote => vote.voterId !== 'player'));
+  assert.equal(pending.revoteVotes.length, 2);
+  assert.equal(tribal.tribalNumber, 1);
+  const resolved = tribal.resolveDeadlockConsensus();
+  assert.equal(resolved.deadlockConsensusReached, false);
+  assert.equal(resolved.resolutionType, 'ROCKS');
+  assert.ok(resolved.rockDrawEligible.some(entry => entry.id === 'player'));
+  assert.equal(tribal.runPreMergeTribal({ attendingTribeId: 'tribe-1' }), resolved);
+});
+
+test('completed deadlock state and player consensus choice clear at session end', () => {
+  const { tribal } = tiedRevote();
+  tribal.resolveRevoteWithPlayerChoice({ playerChoiceTargetId: 'a' });
+  tribal.resolveDeadlockConsensus({ playerChoiceTargetId: 'b' });
+  tribal.endSession();
+  assert.equal(tribal.latestSummary, null);
+  assert.equal(tribal.deadlockOccurred, false);
+  assert.deepEqual(tribal.consensusChoices, []);
+  assert.deepEqual(tribal.revoteVotes, []);
+  assert.deepEqual(tribal.fireMakingParticipants, []);
+  assert.equal(tribal.resolutionType, null);
+  assert.equal(tribal.tribalNumber, 1);
+});
+
+test('player revote enters the real deadlock beat, then the consensus outcome beat', () => {
+  const { game, tribal, initial } = tiedRevote();
+  const view = new TribalCouncilView({ gameManager: game, tribalCouncilSystem: tribal });
+  view.attendingTribeId = 'tribe-1'; view.allPlayers = game.survivors;
+  view.tribalSummary = initial; view.result = initial;
+  view.playerRevote = 'a';
+  let navigation;
+  const controls = { setBeats: (beats, options) => { navigation = { beats, options }; } };
+  view._resolvePendingRevote(controls);
+  assert.equal(view.tribalSummary.tribalState, 'DEADLOCK_DISCUSSION');
+  assert.equal(view.playerRevote, null);
+  assert.equal(navigation.beats[navigation.options.index].id, 'revote-vote-0');
+  assert.ok(navigation.beats.some(beat => beat.id === 'deadlock-discussion'));
+  assert.ok(!navigation.beats.some(beat => beat.id === 'snuff'));
+  view.playerConsensusTarget = 'b';
+  view._resolvePendingDeadlock(controls);
+  assert.equal(view.tribalSummary.resolutionType, 'DEADLOCK_CONSENSUS');
+  assert.equal(navigation.beats[navigation.options.index].id, 'deadlock-outcome');
+  assert.ok(navigation.beats.some(beat => beat.id === 'snuff'));
+  assert.equal(view.playerConsensusTarget, null);
 });
