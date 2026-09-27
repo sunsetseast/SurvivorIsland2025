@@ -47,7 +47,6 @@ export default class TribalCouncilSystem {
   runPreMergeTribal(options = {}) {
     const { attendingTribeId = null } = options;
     this.resetSessionState({ preservePlayerChoices: true });
-    this.tribalNumber += 1;
 
     this.buildTribeContext(attendingTribeId);
     const day = this.gameManager.getDay?.() ?? null;
@@ -75,6 +74,7 @@ export default class TribalCouncilSystem {
     if (playerVoteRequirement) {
       return this._buildPlayerVoteRequiredSummary({ day, membersAtTribal, attendingTribeId: attendingTribeIdResolved });
     }
+    this.tribalNumber += 1;
 
     for (const voter of this.voters) {
       if (!voter.isPlayer) continue;
@@ -352,12 +352,15 @@ export default class TribalCouncilSystem {
   }
 
   registerPlayerVote(voterId, targetId) {
-    const voter = this._findSurvivorById(voterId) || voterId;
-    if (!this.gameManager.hasVote?.(voter) || this.lostVoteIds.has(this._normalizeId(voterId))) {
-      return false;
-    }
     const normalizedVoterId = this._normalizeId(voterId);
-    this.playerVotes.set(normalizedVoterId, targetId);
+    const voter = this._findSurvivorById(voterId);
+    const tribe = (this.gameManager.getTribes?.() || this.gameManager.tribes || [])
+      .find(entry => (entry.members || []).some(member => this._idsEqual(member.id, voterId) && member.isPlayer));
+    const target = (tribe?.members || []).find(member => this._idsEqual(member.id, targetId));
+    if (!voter?.isPlayer || voter.isOut || !this.gameManager.hasVote?.(voter)
+      || this._hasLostVote(voter) || this.lostVoteIds.has(normalizedVoterId)
+      || !target || target.isOut || this._idsEqual(target.id, voterId) || this._hasImmunity(target)) return false;
+    this.playerVotes.set(normalizedVoterId, this._normalizeId(target.id));
     if (this.sitdUsers.has(normalizedVoterId)) {
       this.sitdUsers.delete(normalizedVoterId);
     }
@@ -380,8 +383,14 @@ export default class TribalCouncilSystem {
   }
 
   registerIdolPlay(playedById, playedOnId) {
-    this.idolRegistrations = this.idolRegistrations.filter(play => play.playedById !== playedById);
-    this.idolRegistrations.push({ playedById, playedOnId });
+    const tribe = this.currentTribe || (this.gameManager.getTribes?.() || this.gameManager.tribes || [])
+      .find(entry => (entry.members || []).some(member => this._idsEqual(member.id, playedById)));
+    const holder = (tribe?.members || []).find(member => this._idsEqual(member.id, playedById) && !member.isOut);
+    const target = (tribe?.members || []).find(member => this._idsEqual(member.id, playedOnId) && !member.isOut);
+    if (!holder || !target || !this._hasIdol(holder)) return false;
+    this.idolRegistrations = this.idolRegistrations.filter(play => !this._idsEqual(play.playedById, playedById));
+    this.idolRegistrations.push({ playedById: holder.id, playedOnId: target.id });
+    return true;
   }
 
   playerHasIdol(playerId) {
@@ -447,6 +456,7 @@ export default class TribalCouncilSystem {
       });
 
       if (!isSafe) continue;
+      this.idolProtectedIds.add(this._normalizeId(playerId));
 
       for (const record of this.voteRecords) {
         if (this._idsEqual(record.targetId, playerId) && !record.wasNullified) {
@@ -492,7 +502,7 @@ export default class TribalCouncilSystem {
       }
 
       const protectedId = play.playedOnId;
-      this.idolProtectedIds.add(protectedId);
+      this.idolProtectedIds.add(this._normalizeId(protectedId));
       let nullifiedVotesCount = 0;
 
       for (const record of this.voteRecords) {
@@ -644,9 +654,14 @@ export default class TribalCouncilSystem {
   }
 
   runRockDraw(tiedCandidateIds) {
+    const protectedIds = new Set([
+      ...this.immunityHolderIds,
+      ...this.idolProtectedIds,
+      ...this.shotResults.filter(result => result.success).map(result => this._normalizeId(result.playerId))
+    ]);
     const eligible = this.eligibleTargets.filter(member => (
       !member.isOut
-      && !this.immunityHolderIds.has(this._normalizeId(member.id))
+      && !protectedIds.has(this._normalizeId(member.id))
       && !tiedCandidateIds.some(id => this._idsEqual(id, member.id))
     ));
 
@@ -823,11 +838,6 @@ export default class TribalCouncilSystem {
     }
 
     return withNullified;
-  }
-
-  _getFirstName(rawName = '') {
-    const first = String(rawName || '').trim().split(/\s+/)[0];
-    return first ? first.toUpperCase() : 'UNKNOWN';
   }
 
   _scoreNpcTarget(voter, target) {
