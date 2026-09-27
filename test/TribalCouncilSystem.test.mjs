@@ -209,6 +209,10 @@ test('initial tie waits for an eligible player revote, then preserves complete b
   assert.equal(pending.revotePendingPlayerChoice, true);
   assert.equal(pending.revoteVotes.length, 0);
   assert.equal(pending.initialVotes.length, 4);
+  const rejected = tribal.resolveRevoteWithPlayerChoice({ tiedCandidateIds: ['player', 'c'], playerChoiceTargetId: 'c' });
+  assert.equal(rejected.tribalState, 'REVOTE_PENDING');
+  assert.equal(tribal.revoteVotes.length, 0);
+  assert.equal(tribal.tribalNumber, 1);
   const resolved = tribal.resolveRevoteWithPlayerChoice({ tiedCandidateIds: pending.tiedCandidateIds, playerChoiceTargetId: 'a' });
   assert.equal(resolved.revoteVotes.find(vote => vote.voterId === 'player').targetId, 'a');
   assert.equal(resolved.revoteOccurred, true);

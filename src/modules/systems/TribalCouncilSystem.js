@@ -42,6 +42,7 @@ export default class TribalCouncilSystem {
     this.forcedResolution = false;
     this.eliminatedId = null;
     this.majorityThreshold = 0;
+    this.latestSummary = null;
   }
 
   runPreMergeTribal(options = {}) {
@@ -205,6 +206,7 @@ export default class TribalCouncilSystem {
     };
 
     tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
+    this.latestSummary = tribalSummary;
 
     this._debug('runPreMergeTribal resolved', {
       initialTie,
@@ -217,13 +219,16 @@ export default class TribalCouncilSystem {
     return tribalSummary;
   }
 
-  resolveRevoteWithPlayerChoice({ tiedCandidateIds = [], playerChoiceTargetId = null } = {}) {
-    const resolvedTiedIds = (Array.isArray(tiedCandidateIds) && tiedCandidateIds.length)
-      ? tiedCandidateIds
-      : this._getCurrentTiedCandidateIds();
-    if (!resolvedTiedIds.length) {
-      return this.runPreMergeTribal({ attendingTribeId: this.currentTribe?.tribeId ?? this.currentTribe?.id ?? null });
-    }
+  resolveRevoteWithPlayerChoice({ playerChoiceTargetId = null } = {}) {
+    // Reuse the unresolved session. A missing, immune, or invented choice must
+    // never silently proceed to NPC votes/rocks or create another Tribal number.
+    if (!this.initialTie || this.revoteOccurred) return this.latestSummary;
+    const resolvedTiedIds = this._getCurrentTiedCandidateIds();
+    const playerId = this._normalizeId(this.gameManager.getPlayerSurvivor?.()?.id);
+    const canRevote = this._getRevoteEligibleVoterIds(resolvedTiedIds).includes(playerId);
+    const validChoice = resolvedTiedIds.some(id => this._idsEqual(id, playerChoiceTargetId))
+      && !this.immunityHolderIds.has(this._normalizeId(playerChoiceTargetId));
+    if (!resolvedTiedIds.length || (canRevote && !validChoice)) return this.latestSummary;
 
     const initialCounts = this.buildVoteTally(this.initialVotes.filter(vote => vote.phase === 'initial'));
     const resolution = this._resolveRevoteFlow({ tiedCandidateIds: resolvedTiedIds, playerChoiceTargetId });
@@ -277,6 +282,7 @@ export default class TribalCouncilSystem {
     };
 
     tribalSummary.jeffCommentary = this.generateJeffCommentary(tribalSummary);
+    this.latestSummary = tribalSummary;
     return tribalSummary;
   }
 
