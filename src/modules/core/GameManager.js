@@ -135,17 +135,21 @@ class GameManager {
     const completionKey = `${tribalSummary.createdAt ?? tribalSummary.day ?? this.day}:${tribalSummary.attendingTribeId ?? ''}`;
     this._completedTribalKeys ||= new Set();
     this._tribalCompletionInFlight ||= new Set();
+    this._tribalCompletionStages ||= new Map();
     if (this._completedTribalKeys.has(completionKey) || this._tribalCompletionInFlight.has(completionKey)) return;
     this._tribalCompletionInFlight.add(completionKey);
     try {
-      this._processTribalCouncilComplete(tribalSummary);
+      const stages = this._tribalCompletionStages.get(completionKey) || {};
+      this._tribalCompletionStages.set(completionKey, stages);
+      this._processTribalCouncilComplete(tribalSummary, stages);
       this._completedTribalKeys.add(completionKey);
+      this._tribalCompletionStages.delete(completionKey);
     } finally {
       this._tribalCompletionInFlight.delete(completionKey);
     }
   }
 
-  _processTribalCouncilComplete(tribalSummary) {
+  _processTribalCouncilComplete(tribalSummary, completionStages = {}) {
     if (!this.gameHistory) this.gameHistory = { tribals: [] };
     if (!Array.isArray(this.gameHistory.tribals)) this.gameHistory.tribals = [];
     if (!Array.isArray(this.tribalCouncilLog)) this.tribalCouncilLog = [];
@@ -196,11 +200,19 @@ class GameManager {
       }
     }
 
-    if (this.systems.dealConsequencesSystem?.initialize) {
-      this.systems.dealConsequencesSystem.initialize();
+    // A later autosave can fail after social fallout has already mutated trust or
+    // cohesion. Retrying that completion must resume after completed side effects.
+    if (!completionStages.dealsProcessed) {
+      if (this.systems.dealConsequencesSystem?.initialize) {
+        this.systems.dealConsequencesSystem.initialize();
+      }
+      this.systems.dealSystem?.processTribalOutcome?.(canonicalEntry, this);
+      completionStages.dealsProcessed = true;
     }
-    this.systems.dealSystem?.processTribalOutcome?.(canonicalEntry, this);
-    this.systems.allianceSystem?.processPostTribalFallout?.(canonicalEntry, this);
+    if (!completionStages.allianceProcessed) {
+      this.systems.allianceSystem?.processPostTribalFallout?.(canonicalEntry, this);
+      completionStages.allianceProcessed = true;
+    }
     this.requestAutoSave('tribalCouncilComplete');
     this._debugTribal('Tribal consequences processed', {
       dealsProcessed: Boolean(this.systems.dealSystem?.processTribalOutcome),
