@@ -114,3 +114,15 @@ test('reduced-motion parchment still appears before its action unlocks', async (
     globalThis.window = previousWindow;
   }
 });
+
+test('BeatRunner delivers speaker and reaction cues once per beat to the view', () => {
+  const root = container(); const cues = [];
+  const runner = new TribalBeatRunner({ container: root,
+    beats: [{ id: 'speaker', cameraTargetIds: ['a'], reactionTargetIds: ['b'], mood: 'watchful' },
+      { id: 'reaction', reactionTargetIds: ['b'] }],
+    renderBeat: () => { root.appendChild({}); }, onCue: cue => cues.push(cue) });
+  runner.start(); runner.next();
+  assert.deepEqual(cues.map(cue => [cue.beat.id, cue.cameraTargetIds, cue.reactionTargetIds]),
+    [['speaker', ['a'], ['b']], ['reaction', [], ['b']]]);
+  runner.destroy();
+});
