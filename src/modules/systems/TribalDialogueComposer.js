@@ -9,8 +9,13 @@ export function composeNpcAnswer({ speaker, topic, mood, knowledge, strategy, me
   const intent = strategy?.getNpcTargetIntent?.(speaker?.id);
   const guarded = deception > honesty || style.includes('shadow') || style.includes('charmer');
   const danger = knowledge?.perceivedDanger(speaker) ?? 0;
+  const personalFacts = knowledge?.factsFor(speaker?.id) || [];
+  const hasAllies = Boolean(knowledge?.getKnownAllies(speaker?.id)?.length);
+  const hasPromise = personalFacts.some(fact => ['rememberedPromise', 'deal'].includes(fact.type));
+  const hasBetrayal = personalFacts.some(fact => fact.type === 'rememberedBetrayal');
+  const discoveredLie = personalFacts.some(fact => fact.type === 'discoveredLie');
   const seed = `${day}:${speaker?.id}:${topic}`;
-  const known = (knowledge?.factsFor(speaker?.id) || []).find(fact => fact.subjectId
+  const known = personalFacts.find(fact => fact.subjectId
     && fact.subjectId !== String(speaker?.id) && ['NAME_MENTION', 'targetProposed', 'rumor', 'previousElimination'].includes(fact.type));
   const named = members.find(member => String(member.id) === known?.subjectId);
   const framing = style.includes('power') || Number(speaker?.aggression) >= 7
@@ -40,6 +45,15 @@ export function composeNpcAnswer({ speaker, topic, mood, knowledge, strategy, me
     big_threat: ['Winning together and living together are different things.',
       'Strength can make you valuable and vulnerable.']
   };
+  if (topic === 'alliance_cracks' && (hasAllies || hasPromise)) topical.alliance_cracks = guarded
+    ? ['I have heard promises, but tonight is when they have to mean something.',
+      'People know what they said to me. I am listening to what they say now.']
+    : ['I have people I trust. I still have to make my own decision.',
+      'Commitments matter to me, especially when this gets uncomfortable.'];
+  if (topic === 'tribal_history' && (hasBetrayal || discoveredLie)) topical.tribal_history = [
+    'Trust gets harder after somebody lets you down.',
+    'I remember what was said to me. Tonight tells me what it was worth.'
+  ];
   const reference = named ? ` What ${first(named)} said has stayed with me.` : '';
   const opening = topical[topic] ? choose(topical[topic], seed) : choose(framing, seed);
   const line = `${opening} ${choose(stance, `${seed}:stance`)}${reference}`;

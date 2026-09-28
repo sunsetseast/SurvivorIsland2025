@@ -38,6 +38,7 @@ export default class TribalCouncilView {
     this.liveTribalMoment = null;
     this.questionResponses = new Map();
     this.questionResponseLog = [];
+    this.visibleLiveRecorded = new Set();
     this.currentCue = null;
   }
 
@@ -64,6 +65,7 @@ export default class TribalCouncilView {
     this.playerConsensusTarget = null;
     this.questionResponses = new Map();
     this.questionResponseLog = [];
+    this.visibleLiveRecorded = new Set();
 
     const playerTribe = this.gameManager.getPlayerTribe?.();
     this.attendingTribeId = data?.attendingTribeId ?? data?.tribeId ?? playerTribe?.tribeId ?? playerTribe?.id ?? null;
@@ -175,6 +177,15 @@ export default class TribalCouncilView {
           whisperTargetIds: this.liveTribalMoment.liveParticipants,
           reactionTargetIds: this.liveTribalMoment.liveParticipants,
           text: 'A quiet conversation starts across the fire.', textPos: 'top',
+          onEnter: () => {
+            const participants = this.liveTribalMoment.liveParticipants || [];
+            if (participants.length < 2 || this.visibleLiveRecorded.has(this.liveTribalMoment.id)) return;
+            this.visibleLiveRecorded.add(this.liveTribalMoment.id);
+            this.gameManager?.systems?.socialMemorySystem?.recordStructuredEvent?.({
+              type: 'visibleLiveWhisper', speakerId: participants[0],
+              data: { public: true, participants }, day: this.gameManager?.getDay?.(), phase: 'tribalCouncil'
+            });
+          },
           pauseMs: TRIBAL_PACING.discussionTransition, autoAdvance: true },
         this._buildLiveTribalBeat(alive),
         { id: 'live-settles', background: this._resolveTribalBackground(alive.length),
@@ -356,8 +367,25 @@ export default class TribalCouncilView {
     });
     this.tribalContext = this.questionEngine.createContext({ attendingTribeId: this.attendingTribeId });
     const follow = this.questionEngine.createFollowUp(question, response, this.tribalContext);
+    if (!follow && response.id === 'distance-ally' && response.subjectId && this.beatRunner) {
+      const id = `tribal-reaction-${question.id}-distance`;
+      if (!this.beatRunner.beats.some(beat => beat.id === id)) {
+        const alive = (this._getAttendingTribe()?.members || []).filter(member => !member.isOut);
+        const reaction = { id, background: this._resolveTribalBackground(alive.length),
+          showStools: true, stoolsData: alive, sceneMode: 'reaction',
+          reactionTargetIds: [response.subjectId], stoolHighlightId: response.subjectId,
+          pauseMs: TRIBAL_PACING.discussionTransition, autoAdvance: true };
+        const index = this.beatRunner.currentIndex;
+        this.beatRunner.setBeats([...this.beatRunner.beats.slice(0, index + 1), reaction,
+          ...this.beatRunner.beats.slice(index + 1)], { index, autoRender: false });
+      }
+    }
     if (follow && this.beatRunner && !this.beatRunner.beats.some(beat => beat.id === `tribal-question-${follow.id}`)) {
       const alive = (this._getAttendingTribe()?.members || []).filter(member => !member.isOut);
+      const reaction = { id: `tribal-reaction-${follow.id}`, background: this._resolveTribalBackground(alive.length),
+        showStools: true, stoolsData: alive, sceneMode: 'reaction',
+        reactionTargetIds: [follow.reactionWitnessId], stoolHighlightId: follow.reactionWitnessId,
+        pauseMs: TRIBAL_PACING.discussionTransition, autoAdvance: true };
       const beat = { id: `tribal-question-${follow.id}`, background: this._resolveTribalBackground(alive.length),
         showStools: true, stoolsData: alive, stoolHighlightId: follow.focusSurvivorId,
         sceneMode: 'focus', jeff: { img: `${ASSET_BASE}/Jeff.png` },
@@ -366,7 +394,7 @@ export default class TribalCouncilView {
         customRender: content => this._renderQuestionContent(content, follow),
         button: { label: 'CONTINUE' } };
       const index = this.beatRunner.currentIndex;
-      this.beatRunner.setBeats([...this.beatRunner.beats.slice(0, index + 1), beat,
+      this.beatRunner.setBeats([...this.beatRunner.beats.slice(0, index + 1), reaction, beat,
         ...this.beatRunner.beats.slice(index + 1)], { index, autoRender: false });
     }
     this.beatRunner?.goTo(this.beatRunner.currentIndex, { force: true });
@@ -1173,6 +1201,10 @@ export default class TribalCouncilView {
           `Public facts: ${(snapshot?.publicFacts || []).map(fact => fact.type).join(', ') || 'none'}`,
           `Player private facts: ${(snapshot?.privateFacts || []).map(fact => fact.type).join(', ') || 'none'}`,
           `Player rumors: ${(snapshot?.rumors || []).map(fact => fact.type).join(', ') || 'none'}`,
+          `Known alliances: ${(snapshot?.knownAlliances || []).map(fact => fact.subjectId).join(', ') || 'none'}`,
+          `Known deals: ${(snapshot?.knownDeals || []).map(fact => `${fact.details?.dealType}:${fact.targetId}`).join(', ') || 'none'}`,
+          `Promises / betrayals / discovered lies: ${(snapshot?.rememberedPromises || []).length} / ${(snapshot?.knownBetrayals || []).length} / ${(snapshot?.discoveredLies || []).length}`,
+          `Danger factors: ${(snapshot?.dangerBreakdown?.factors || []).map(factor => `${factor.type}:${factor.delta.toFixed(2)}`).join(', ') || 'none'}`,
           `Perceived danger: ${snapshot?.perceivedDanger ?? 'unknown'}; actual votes against player: ${initialVotes.filter(vote => String(vote.targetId) === String(playerId)).length}`,
           `Question plan: ${this.tribalQuestions.map(question => `${question.topic}:${question.focusSurvivorId}`).join(', ')}`,
           `Live signal: ${this.liveTribalMoment?.liveSignal?.type || 'none'}`
