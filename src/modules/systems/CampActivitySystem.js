@@ -53,7 +53,7 @@ export default class CampActivitySystem {
   get locations() { return this.gm.systems?.npcLocationSystem; }
   get memory() { return this.gm.systems?.socialMemorySystem; }
   get phase() { return `${this.gm.day || 1}:preChallenge`; }
-  get active() { return this.phaseId === this.phase; }
+  get active() { return this.gm.gamePhase === 'preChallenge' && this.phaseId === this.phase; }
   absent(s) {
     const absent = this.gm.flags?.absentFromCampIds;
     return !s || s.isOut || (absent instanceof Set ? [...absent].some(id => same(id, s.id)) :

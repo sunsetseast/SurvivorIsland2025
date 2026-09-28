@@ -331,3 +331,10 @@ test('quiet idol search does not gain arbitrary suspicion through repeated taps'
   assert.equal(witnessedHuntSuspicion({ witnesses: 0, repeatVisits: 5, seconds: 1500 }), 0);
   assert.ok(witnessedHuntSuspicion({ witnesses: 2, repeatVisits: 5, seconds: 1500 }) > 0);
 });
+
+test('living camp reputation rules end when the phase changes', () => {
+  const { gm, activity } = fixture();
+  activity.ensureStarted(); assert.equal(activity.active, true);
+  gm.gamePhase = 'postChallenge';
+  assert.equal(activity.active, false);
+});
