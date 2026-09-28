@@ -125,7 +125,8 @@ class NpcLocationSystem {
 
   deserialize(snapshot) {
     const tribe = gameManager.getPlayerTribe?.();
-    const eligible = new Set((tribe?.members || []).filter(s => s && !s.isPlayer && !s.isOut)
+    const eligible = new Set((tribe?.members || []).filter(s => s && !s.isPlayer && !s.isOut &&
+      !isMarkedAbsent(gameManager.flags?.absentFromCampIds, s.id))
       .map(s => String(s.id)));
     this.locations = {};
     this.locationSinceTimer = {};
@@ -170,6 +171,10 @@ class NpcLocationSystem {
 
     if (gameManager.flags?.campEventActive) {
       dbg("Camp event active — skipping location assignment");
+      return;
+    }
+    if ((phase === 'preChallenge' || phase === 'pre') && gameManager.systems?.campActivitySystem?.active) {
+      gameManager.systems.campActivitySystem.ensureStarted();
       return;
     }
 
@@ -481,7 +486,7 @@ class NpcLocationSystem {
     this.meetingReservations[key] = {
       location: normalized,
       reason,
-      expiresAt: Date.now() + ttlMs
+      expiresAt: (gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 0) - ttlMs / 1000
     };
     this.updateNpcLocation(npcId, normalized, { reason });
     return normalized;
@@ -496,6 +501,7 @@ class NpcLocationSystem {
 
   advanceRoaming({ currentTime = null, phase = null, currentView = null } = {}) {
     if (gameManager.flags?.campEventActive) return;
+    if ((phase === 'preChallenge' || phase === 'pre') && gameManager.systems?.campActivitySystem?.active) return;
     const timer = Number.isFinite(currentTime) ? currentTime : (gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? null);
     if (!Number.isFinite(timer)) return;
     if (this.lastRoamTimer == null) {
@@ -512,7 +518,7 @@ class NpcLocationSystem {
     const tribe = gameManager.getPlayerTribe();
     const absentSet = gameManager.flags?.absentFromCampIds;
     const moved = [];
-    const npcs = (tribe?.members || []).filter(member => member && !member.isPlayer && !isMarkedAbsent(absentSet, member.id));
+    const npcs = (tribe?.members || []).filter(member => member && !member.isPlayer && !member.isOut && !isMarkedAbsent(absentSet, member.id));
     const normalizedCurrentView = normalizeLocationKey(currentView);
 
     npcs.forEach(npc => {
@@ -594,7 +600,8 @@ class NpcLocationSystem {
     const key = String(npcId);
     const reservation = this.meetingReservations[key];
     if (!reservation) return false;
-    if (reservation.expiresAt && reservation.expiresAt < Date.now()) {
+    if (Number.isFinite(reservation.expiresAt) &&
+        (gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 0) < reservation.expiresAt) {
       delete this.meetingReservations[key];
       return false;
     }

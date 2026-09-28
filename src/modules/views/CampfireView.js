@@ -11,7 +11,6 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { createNpcIcon } from "../ui/NpcIcon.js";
 /* ---------------------------------------------------------------- */
 
 function loadCampView(locationKey) {
@@ -24,7 +23,6 @@ function loadCampView(locationKey) {
 const CAMPFIRE_CLEANUP_SELECTORS = [
   '#campfire-action-popup',
   '#campfire-message',
-  '.npc-icon-container',
   '#food-stockpile-banner',
   '#food-quantity-overlay',
   '#food-contribution-overlay',
@@ -202,7 +200,6 @@ export default function renderCampfire(container) {
 
   /* ⭐ NEW NPC RENDERING CALL ------------------------------------- */
   try {
-    renderNPCsAtCampfire(container);
   } catch (error) {
     console.warn('[CampfireView] NPC render crashed', error);
   }
@@ -378,33 +375,3 @@ function ensureCampfireStockpileBanner(container, tribe) {
 }
 
 /* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR CAMPFIRE ---------------- */
-function renderNPCsAtCampfire(container) {
-  // Remove old NPC container
-  const old = container.querySelector(".npc-icon-container");
-  if (old) old.remove();
-
-  // Create fresh icon container
-  const npcContainer = document.createElement("div");
-  npcContainer.classList.add("npc-icon-container");
-
-  // Get NPCs located at CampfireView
-  let survivorsHere = [];
-  try {
-    survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.CAMPFIRE) || [];
-  } catch (e) {
-    console.warn('[CampfireView] NPC render failed', e);
-    survivorsHere = [];
-  }
-
-  survivorsHere.forEach(survivor => {
-    const icon = createNpcIcon(survivor, () => {
-      console.log("Clicked NPC:", survivor.name);
-      // TODO: conversationUI.startConversation(survivor);
-    });
-
-    npcContainer.appendChild(icon);
-  });
-
-  container.appendChild(npcContainer);
-}
-/* ---------------------------------------------------------------- */

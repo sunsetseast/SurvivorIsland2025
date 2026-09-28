@@ -323,12 +323,12 @@ class IdolSystem {
       const visitsKey = `${this.currentCampPhaseId}:${survivorId}:${safeLocationKey}`;
       const repeatVisits = this.huntVisits.get(visitsKey) || 0;
       const locations = this.gameManager.systems?.npcLocationSystem;
-      const witnessedHere = locations?.getSurvivorsAtLocation?.(safeLocationKey)?.length || 0;
-      const departure = typeof window !== 'undefined' ? window.campScreen?.currentView : null;
-      const seenLeaving = departure && departure !== safeLocationKey
-        ? (locations?.getSurvivorsAtLocation?.(departure)?.length || 0) : 0;
-      const witnesses = isNpc ? 0 : witnessedHere + seenLeaving;
-      const addedSuspicion = isNpc ? settings.suspicion : witnessedHuntSuspicion({
+      const witnessedHere = (locations?.getSurvivorsAtLocation?.(safeLocationKey) || [])
+        .filter(member => String(member.id) !== String(survivorId)).map(member => String(member.id));
+      const departed = this.gameManager.systems?.campActivitySystem?.departureWitnesses?.(
+        survivorId, this.gameManager.dayTimer + (isNpc ? 0 : settings.timeCost)) || [];
+      const witnesses = new Set([...witnessedHere, ...departed.map(String)]).size;
+      const addedSuspicion = isNpc ? (this.gameManager.systems?.campActivitySystem?.active ? 0 : settings.suspicion) : witnessedHuntSuspicion({
         witnesses, repeatVisits, priorSuspicion: survivor.suspicion || 0, seconds: settings.timeCost
       });
       survivor.suspicion = Math.min(100, (survivor.suspicion || 0) + addedSuspicion);

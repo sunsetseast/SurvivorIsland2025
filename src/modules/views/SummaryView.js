@@ -18,7 +18,7 @@ const RESOURCE_LABELS = {
 };
 
 function displayNameById(id, tribe, playerId) {
-  const survivor = tribe?.members?.find(member => member.id === id);
+  const survivor = tribe?.members?.find(member => String(member.id) === String(id));
   if (!survivor) return 'Someone';
   return survivor.id === playerId ? 'You' : survivor.firstName || 'Someone';
 }
@@ -365,13 +365,13 @@ function findLatestEndOfPhaseReport(campLog, day) {
 }
 
 function normalizeCampSocialChanges() {
-  if (!window.campSocialChanges) return null;
+  if (!gameManager.campSocialChanges) return null;
   const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts', 'reliability'];
   const normalized = {};
 
   buckets.forEach(key => {
-    normalized[key] = Array.isArray(window.campSocialChanges[key])
-      ? window.campSocialChanges[key]
+    normalized[key] = Array.isArray(gameManager.campSocialChanges[key])
+      ? gameManager.campSocialChanges[key]
       : [];
   });
 
@@ -636,6 +636,7 @@ export default function renderSummary(container) {
 
   const campLog = Array.isArray(gameManager.campLog) ? gameManager.campLog : [];
   const currentDay = gameManager.getCurrentDay?.() ?? gameManager.day ?? 1;
+  const living = gameManager.systems?.campActivitySystem?.active;
 
   const recapEntry = [...campLog].reverse().find(entry => entry?.id === 'day1_first_impressions');
   if (recapEntry && currentDay === 1) {
@@ -644,13 +645,13 @@ export default function renderSummary(container) {
   }
 
   const midpointReport = findLatestCheckpointReport(campLog, currentDay);
-  if (midpointReport) {
+  if (midpointReport && !living) {
     const reportSection = renderCheckpointReportSection(midpointReport, playerTribe, 'Midpoint Checkpoint');
     if (reportSection) summaryContent.appendChild(reportSection);
   }
 
   const endReport = findLatestEndOfPhaseReport(campLog, currentDay);
-  if (endReport && endReport !== midpointReport) {
+  if (endReport && endReport !== midpointReport && !living) {
     const endSection = renderCheckpointReportSection(endReport, playerTribe, 'End of Camp Results');
     if (endSection) summaryContent.appendChild(endSection);
   }
@@ -659,7 +660,7 @@ export default function renderSummary(container) {
     if (!entry) return false;
     if (entry.day != null && entry.day !== currentDay) return false;
     if (entry.id === 'day1_first_impressions') return false;
-    if (entry.type === 'checkpoint_report') return false;
+    if (entry.type === 'checkpoint_report' || living && entry.source === 'camp_activity') return false;
     if (entry.type === 'task_results' || entry.type === 'end_phase_report') return false;
     if (entry.isCinematicEventSummary) return false;
     return true;
@@ -684,6 +685,19 @@ export default function renderSummary(container) {
   }
   if (socialRecap) {
     summaryContent.appendChild(socialRecap);
+  }
+  if (living) {
+    const observations = gameManager.systems?.socialMemorySystem?.getCampObservations?.(gameManager.player?.id,
+      { day: currentDay }) || [];
+    const seen = [...new Set(observations.filter(entry => entry.origin !== 'hearsay' &&
+      entry.actorId !== gameManager.player?.id).slice(-5).map(entry => {
+        const name = displayNameById(entry.actorId, playerTribe, gameManager.player?.id);
+        if (entry.type === 'work') return `${name} spent time contributing to camp.`;
+        if (entry.type === 'absence') return `${name} was seen away from camp.`;
+        if (entry.type === 'seen_together') return `${name} found time to talk with someone.`;
+        return null;
+      }).filter(Boolean))];
+    if (seen.length) summaryContent.appendChild(createElement('p', {}, seen.join(' ')));
   }
   wrapper.appendChild(title);
   wrapper.appendChild(summaryContent);
@@ -769,7 +783,7 @@ export default function renderSummary(container) {
         gameManager.advanceGamePhase();
       }
       gameManager.setGameState('challenge');
-      window.campSocialChanges = {
+      gameManager.campSocialChanges = {
         relationship: [],
         trust: [],
         suspicion: [],

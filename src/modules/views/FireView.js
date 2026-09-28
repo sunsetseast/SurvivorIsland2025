@@ -2413,19 +2413,6 @@ export default function renderFireView(container) {
       });
       pendingFirewoodCost = 0;
 
-      // Award teamPlayer points to player for each other tribe member
-      const tribe = gameManager.getPlayerTribe();
-      if (tribe && tribe.members) {
-        const otherCount = tribe.members.filter(m => m.id !== player.id).length;
-        if (otherCount > 0) {
-          if (!player.teamPlayer) {
-            player.teamPlayer = 0;
-          }
-          player.teamPlayer += otherCount;
-          showTeamPlayerEffect(otherCount);
-        }
-      }
-
       // Remove the minigame UI container
       const gameUIEl = document.getElementById('fire-game-ui');
       if (gameUIEl) gameUIEl.remove();
@@ -2509,40 +2496,6 @@ export default function renderFireView(container) {
       }
 
       addDebugBanner('Fire successfully built!', 'orange', 200);
-    }
-
-    function showTeamPlayerEffect(amount) {
-      const effect = document.createElement('div');
-      effect.className = 'team-player-hit-effect';
-      effect.style.position = 'fixed';
-      effect.style.left = '50%';
-      effect.style.top = '50%';
-      effect.style.transform = 'translate(-50%, -50%)';
-      effect.style.fontSize = '28px';
-      effect.style.fontWeight = 'bold';
-      effect.style.color = '#10b981';
-      effect.style.zIndex = '9999';
-      effect.style.display = 'flex';
-      effect.style.alignItems = 'center';
-      effect.style.gap = '10px';
-      effect.style.pointerEvents = 'none';
-      // <-- no inline animation property, CSS will handle it via .team-player-hit-effect -->
-
-      const plus = document.createElement('span');
-      plus.textContent = `+${amount}`;
-
-      const icon = document.createElement('img');
-      icon.src = 'Assets/Resources/teamPlayer.png';
-      icon.style.height = '28px';
-      icon.style.width = 'auto';
-
-      effect.appendChild(plus);
-      effect.appendChild(icon);
-      document.body.appendChild(effect);
-
-      setTimeout(() => {
-        effect.remove();
-      }, 2500);
     }
 
     // --- 9) Start the minigame loop ---

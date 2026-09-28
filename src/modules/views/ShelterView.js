@@ -884,13 +884,12 @@ function resolveBuildOutcome(style, partner) {
   let shelterAfter = shelterBefore;
   let narration;
   let relationshipDelta = 0;
-  let teamPlayerDelta = 0;
+  const teamPlayerDelta = 0;
 
   if (success) {
     shelterAfter = Math.min(MAX_SHELTER_LEVEL, shelterBefore + 1);
     const wentSmooth = relationshipScore > 65 || style === 'together';
     relationshipDelta = wentSmooth ? 4 : 2;
-    teamPlayerDelta = wentSmooth ? 10 : 8;
     narration = style === 'lead'
       ? `You call the shots and ${partner.firstName} follows your plan, adjusting on the fly. The frame tightens fast and the tribe notices.`
       : style === 'npc_lead'
@@ -898,7 +897,6 @@ function resolveBuildOutcome(style, partner) {
         : `You and ${partner.firstName} trade ideas and fall into a rhythm, passing lashings and beams without words. Teamwork makes the walls sturdier.`;
   } else {
     relationshipDelta = relationshipScore < 35 ? -6 : -3;
-    teamPlayerDelta = -5;
     narration = style === 'lead'
       ? `${partner.firstName} bristles under your calls and you push back. The lashings slip, tension spikes, and the shelter doesn't improve.`
       : style === 'npc_lead'
@@ -919,9 +917,6 @@ function resolveBuildOutcome(style, partner) {
   if (gameManager.systems?.relationshipSystem) {
     gameManager.systems.relationshipSystem.changeRelationship(player.id, partner.id, relationshipDelta);
   }
-  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-  player.teamPlayer = clamp((player.teamPlayer || 50) + teamPlayerDelta, 0, 100);
-  partner.teamPlayer = clamp((partner.teamPlayer || 50) + teamPlayerDelta, 0, 100);
 
   const newShelterLevel = Math.min(MAX_SHELTER_LEVEL, success ? shelterAfter : shelterBefore);
   tribe.shelter = newShelterLevel;
@@ -939,14 +934,6 @@ function resolveBuildOutcome(style, partner) {
     secondsSpent,
     successChance
   });
-
-  if (teamPlayerDelta !== 0) {
-    activityTracker.trackTeamPlayerPoints(
-      Math.max(teamPlayerDelta, 0),
-      Math.max(-teamPlayerDelta, 0),
-      `Shelter building with ${partner.firstName}`
-    );
-  }
 
   showParchmentPopup(narration + (success ? `\n\nShelter level: ${newShelterLevel}/${MAX_SHELTER_LEVEL}` : '\n\nNo upgrade this time.' ));
   logShelterBuild(

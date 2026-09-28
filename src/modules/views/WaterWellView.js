@@ -12,7 +12,6 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { createNpcIcon } from "../ui/NpcIcon.js";
 /* ------------------------------------------------------------- */
 
 export default function renderWaterWell(container) {
@@ -62,7 +61,6 @@ export default function renderWaterWell(container) {
 
   /* ⭐ ADD NPC ICONS HERE -------------------------------------- */
   try {
-    renderNPCsAtWaterWell(container);
   } catch (error) {
     console.warn('[WaterWellView] NPC render crashed', error);
   }
@@ -210,40 +208,6 @@ export default function renderWaterWell(container) {
     target.appendChild(effect);
 
     setTimeout(() => effect.remove(), 2000);
-  }
-
-  function showTeamPlayerEffect(target, amount) {
-    const effect = document.createElement('div');
-    effect.className = 'team-player-hit-effect';
-    effect.style.position = 'absolute';
-    effect.style.left = '50%';
-    effect.style.top = '58%';
-    effect.style.transform = 'translate(-50%, -50%)';
-    effect.style.fontSize = '28px';
-    effect.style.fontWeight = 'bold';
-    effect.style.color = '#10b981';
-    effect.style.zIndex = '2000';
-    effect.style.display = 'flex';
-    effect.style.alignItems = 'center';
-    effect.style.gap = '10px';
-    effect.style.pointerEvents = 'none';
-    effect.style.animation = 'teamPing 2.5s ease-out forwards';
-
-    const plus = document.createElement('span');
-    plus.textContent = `+${amount}`;
-
-    const icon = document.createElement('img');
-    icon.src = 'Assets/Resources/teamPlayer.png';
-    icon.style.height = '28px';
-    icon.style.width = 'auto';
-
-    effect.appendChild(plus);
-    effect.appendChild(icon);
-    target.appendChild(effect);
-
-    setTimeout(() => {
-      effect.remove();
-    }, 2500);
   }
 
   function showYourselfParchment() {
@@ -415,6 +379,8 @@ export default function renderWaterWell(container) {
     // Canteens restore individual hydration; the extra filled containers are
     // the tribe's potable supply, shared with NPC water runs and daily upkeep.
     gameManager.addToStockpile(tribe, 'water', 10);
+    gameManager.campLog.push({ type: 'camp_contribute', actorId: player.id, resource: 'water',
+      resources: { water: 10 }, amount: 10, day: gameManager.day, secondsSpent: totalSeconds });
     gameManager.taskSystem?.recordResourceGain?.(player.id, 'water', 10, 'water_well', tribe);
 
     activityTracker.trackWaterGathering(100, true);
@@ -424,24 +390,7 @@ export default function renderWaterWell(container) {
       'getWater'
     );
 
-    if (otherMembersCount > 0) {
-      if (typeof player.teamPlayer !== 'number') {
-        player.teamPlayer = 50;
-      }
-      player.teamPlayer += otherMembersCount;
-
-      import('../utils/MenuUtils.js').then(({ refreshMenuCard }) => {
-        refreshMenuCard();
-      });
-    }
-
     showWaterEffect(container);
-
-    if (otherMembersCount > 0) {
-      setTimeout(() => {
-        showTeamPlayerEffect(container, otherMembersCount);
-      }, 300);
-    }
 
     setTimeout(() => {
       showTribeParchment();
@@ -501,23 +450,3 @@ export default function renderWaterWell(container) {
 }
 
 /* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR WATER WELL ----------- */
-function renderNPCsAtWaterWell(container) {
-  const old = container.querySelector(".npc-icon-container");
-  if (old) old.remove();
-
-  const npcContainer = document.createElement("div");
-  npcContainer.classList.add("npc-icon-container");
-
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.WATER_WELL);
-
-  survivorsHere.forEach(survivor => {
-    const icon = createNpcIcon(survivor, () => {
-      console.log("Clicked NPC at Water Well:", survivor.name);
-      // TODO: Dialogue system later
-    });
-
-    npcContainer.appendChild(icon);
-  });
-
-  container.appendChild(npcContainer);
-}

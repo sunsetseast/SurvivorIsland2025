@@ -10,6 +10,7 @@ import eventManager, { GameEvents } from "../core/EventManager.js";
 import { createElement } from "../utils/DOMUtils.js";
 import { LocationKeys } from "../core/LocationKeys.js";
 import { normalizeLocationKey } from "../locations/LocationUtils.js";
+import { physicalCampLocation } from '../systems/CampActivitySystem.js';
 
 // Use your existing debug banner (CampScreen has it globally)
 const dbg = window.debugBanner || function(){};
@@ -18,6 +19,13 @@ const isMarkedAbsent = (absentSet, survivorId) => {
     if (!absentSet) return false;
     if (Array.isArray(absentSet)) return absentSet.some(id => String(id) === String(survivorId));
     return typeof absentSet.has === 'function' && (absentSet.has(survivorId) || absentSet.has(String(survivorId)));
+};
+const ACTIVITY_LABELS = {
+    gather_firewood: 'collecting firewood', gather_bamboo: 'cutting bamboo', gather_food: 'finding food',
+    collect_water: 'fetching water', fish: 'fishing', build_fire: 'working on fire',
+    build_shelter: 'building shelter', tend_fire: 'tending fire', rest: 'resting',
+    socialize: 'talking', strategy_conversation: 'talking quietly', idol_hunt: 'looking around',
+    travel: 'passing through', observe: 'watching camp', idle_at_camp: 'around camp'
 };
 
 class NpcAutoRenderer {
@@ -103,7 +111,8 @@ class NpcAutoRenderer {
         layer.innerHTML = "";
 
         // Get NPCs at this location
-        const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(viewName) || [];
+        const place = physicalCampLocation(viewName) || viewName;
+        const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(place) || [];
         const absentSet = gameManager.flags?.absentFromCampIds;
         const filtered = survivorsHere.filter(s => !s.isOut && !isMarkedAbsent(absentSet, s.id));
 
@@ -138,6 +147,7 @@ class NpcAutoRenderer {
         });
 
         filtered.forEach(survivor => {
+            const label = survivor.campActivity?.location === place ? ACTIVITY_LABELS[survivor.campActivity.type] : null;
             const baseStyle = `
                 width: 55px;
                 height: 55px;
@@ -155,14 +165,15 @@ class NpcAutoRenderer {
             const icon = createElement("button", {
                 className: "npc-icon",
                 type: 'button',
-                'aria-label': `Talk to ${survivor.firstName || survivor.name}`,
+                'aria-label': `Talk to ${survivor.firstName || survivor.name}${label ? `, ${label}` : ''}`,
+                title: `${survivor.firstName || survivor.name}${label ? ` · ${label}` : ''}`,
                 dataset: { npcId: String(survivor.id) },
                 style: `
                     ${baseStyle}
                 `
             });
 
-            const currentViewName = viewName;
+            const currentViewName = place;
 
             icon.addEventListener("click", () => {
                 eventManager.publish(GameEvents.NPC_CONFRONTATION, {
@@ -193,7 +204,12 @@ class NpcAutoRenderer {
                 });
             }
 
-            iconContainer.appendChild(icon);
+            if (label && !isTribeFlagView) {
+                const row = createElement('div', { style: 'display: flex; align-items: center; gap: 7px; pointer-events: none;' });
+                row.appendChild(icon);
+                row.appendChild(createElement('span', { style: 'color: white; background: rgba(20,32,30,.78); border-radius: 6px; padding: 3px 7px; font-size: 12px; max-width: 118px;' }, label));
+                iconContainer.appendChild(row);
+            } else iconContainer.appendChild(icon);
         });
 
         layer.appendChild(iconContainer);

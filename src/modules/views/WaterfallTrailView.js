@@ -10,7 +10,6 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { createNpcIcon } from "../ui/NpcIcon.js";
 /* ------------------------------------------------------------- */
 
 export default function renderWaterfallTrail(container) {
@@ -106,33 +105,9 @@ export default function renderWaterfallTrail(container) {
   }
 
   /* ⭐ NEW: NPC Rendering for this view ------------------------- */
-  renderNPCsAtWaterfallTrail(container);
   /* ------------------------------------------------------------- */
 
   addDebugBanner('Waterfall Trail view rendered!', 'dodgerblue', 170);
 }
 
 /* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR WATERFALL TRAIL ------- */
-function renderNPCsAtWaterfallTrail(container) {
-  // Remove old NPC container
-  const old = container.querySelector(".npc-icon-container");
-  if (old) old.remove();
-
-  const npcContainer = document.createElement("div");
-  npcContainer.classList.add("npc-icon-container");
-
-  // Get NPCs whose location is "WaterfallTrailView"
-  const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(LocationKeys.WATERFALL_TRAIL);
-
-  survivorsHere.forEach(survivor => {
-    const icon = createNpcIcon(survivor, () => {
-      console.log("Clicked NPC at Waterfall Trail:", survivor.name);
-      // TODO: Conversation UI later
-    });
-
-    npcContainer.appendChild(icon);
-  });
-
-  container.appendChild(npcContainer);
-}
-/* ------------------------------------------------------------- */

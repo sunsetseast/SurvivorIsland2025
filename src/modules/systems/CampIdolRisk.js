@@ -4,7 +4,7 @@ export function witnessedHuntSuspicion({ witnesses = 0, repeatVisits = 0, priorS
   // A quiet first search can pass unnoticed; repeated absences and witnesses
   // make even a secluded search harder to explain.
   return Math.min(12, Math.max(0, Math.round(
-    (visible ? 2 + Math.min(3, visible) : 0) + Math.min(3, repeat) +
+    (visible ? 2 + Math.min(3, visible) + Math.min(3, repeat) : 0) +
     (seconds >= 900 && visible ? 1 : 0) + (priorSuspicion >= 50 ? 1 : 0)
   )));
 }

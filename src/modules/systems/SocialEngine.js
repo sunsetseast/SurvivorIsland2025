@@ -21,16 +21,17 @@ const NORMALIZED_LOCATION_KEYS = {
 };
 import npcLocationSystem from "./NpcLocationSystem.js";
 import socialMemorySystem from "./SocialMemorySystem.js";
+import { physicalCampLocation } from './CampActivitySystem.js';
 
 class NpcIntentPlanner {
     constructor() {
         this.phaseType = "pre";
-        this.globalApproachCooldownMs = 45000;
-        this.lastApproachAt = 0;
+        this.globalApproachCooldownSeconds = 300;
+        this.lastApproachAt = null;
         this.phaseBeatCounts = { pre: 0, post: 0 };
         this.perPhaseCaps = { pre: 2, post: 3 };
         this.perNpcCooldowns = new Map();
-        this.perNpcCooldownRangeMs = [60000, 120000];
+        this.perNpcCooldownRangeSeconds = [600, 900];
         this.perDayNpcApproachCap = 2;
         this.dayStamp = null;
         this.chatterKeys = new Set();
@@ -113,7 +114,7 @@ class NpcIntentPlanner {
         const phase = this._normalizePhase(phaseType || this.phaseType);
         this._syncDayState();
         if ((this.phaseBeatCounts[phase] || 0) >= (this.perPhaseCaps[phase] || 0)) return false;
-        if (Date.now() - this.lastApproachAt < this.globalApproachCooldownMs) return false;
+        if (Number.isFinite(this.lastApproachAt) && this._campClock() - this.lastApproachAt < this.globalApproachCooldownSeconds) return false;
         const baseChance = phase === "post" ? 0.7 : 0.6;
         return Math.random() < baseChance;
     }
@@ -127,7 +128,10 @@ class NpcIntentPlanner {
             gameManager.getCurrentTribeMembers?.() ||
             gameManager.getPlayerTribe?.()?.members ||
             gameManager.survivors || [];
-        const candidates = tribeMembers.filter(npc => npc && npc.id && npc.id !== player.id && !npc.isPlayer);
+        const absent = gameManager.flags?.absentFromCampIds;
+        const candidates = tribeMembers.filter(npc => npc && npc.id && npc.id !== player.id && !npc.isPlayer && !npc.isOut &&
+          !(absent instanceof Set ? [...absent].some(id => String(id) === String(npc.id)) :
+            (absent || []).some?.(id => String(id) === String(npc.id))));
 
         return candidates
             .map(npc => this._planIntentForNpc(npc, { phase, player, currentView }))
@@ -143,7 +147,8 @@ class NpcIntentPlanner {
         const dayValue = this._getCurrentDay();
         const memorySystem = gameManager.systems?.socialMemorySystem || socialMemorySystem;
         const locationSystem = gameManager.systems?.npcLocationSystem || npcLocationSystem;
-        const resolvedView = currentView || window?.campScreen?.currentView || null;
+        const rawView = currentView || window?.campScreen?.currentView || null;
+        const resolvedView = physicalCampLocation(rawView) || rawView;
         const intents = this.planPhaseIntents({ phaseType: phase, currentView: resolvedView });
 
         let intentsToConsider = intents;
@@ -160,7 +165,7 @@ class NpcIntentPlanner {
 
         const filtered = intentsToConsider.filter(intent => {
             const npcCooldown = this.perNpcCooldowns.get(intent.npcId);
-            if (npcCooldown && npcCooldown > Date.now()) return false;
+            if (npcCooldown && npcCooldown > this._campClock()) return false;
             const counters = memorySystem?.getDailyCounters?.(intent.npcId, dayValue) || { playerTalks: 0 };
             if ((counters.playerTalks || 0) >= this.perDayNpcApproachCap) return false;
             return true;
@@ -181,12 +186,12 @@ class NpcIntentPlanner {
         }
 
         const targetName = this._resolveName(picked.targetId);
-        const now = Date.now();
+        const now = this._campClock();
         this.lastApproachAt = now;
         this.phaseBeatCounts[phase] = (this.phaseBeatCounts[phase] || 0) + 1;
         this.perNpcCooldowns.set(
             picked.npcId,
-            now + this._randomInRange(this.perNpcCooldownRangeMs[0], this.perNpcCooldownRangeMs[1])
+            now + this._randomInRange(this.perNpcCooldownRangeSeconds[0], this.perNpcCooldownRangeSeconds[1])
         );
         memorySystem?.incrementDailyCounter?.(picked.npcId, "playerTalks", dayValue);
 
@@ -197,7 +202,8 @@ class NpcIntentPlanner {
             targetId: picked.targetId,
             targetName,
             day: dayValue,
-            phase
+            phase,
+            campTime: gameManager.dayTimer
         });
 
         if (picked.location) {
@@ -251,14 +257,14 @@ class NpcIntentPlanner {
             reasons.push(`alliance target ${this._resolveName(targetId) || targetId}`);
         }
 
-        const whoTargetsPlayer = memorySystem?.getWhoIsTargeting?.(player.id) || [];
+        const whoTargetsPlayer = memorySystem?.getKnownTargeters?.(npc.id, player.id) || [];
         const npcTargetsPlayer = whoTargetsPlayer.includes(npc.id);
         if (npcTargetsPlayer) {
             reasons.push("target chatter mentions you");
         }
 
         if (!targetId && Math.random() < 0.45) {
-            const recentMentions = memorySystem?.getMostMentionedNamesRecently?.(3, 2) || [];
+            const recentMentions = memorySystem?.getKnownNamesRecently?.(npc.id, 3, 2) || [];
             const suggestedTarget = this._resolveMentionTarget(recentMentions, [npc.id, player.id]);
             if (suggestedTarget) {
                 const alreadyDiscussed = memorySystem?.hasTalkedAboutTargetRecently?.(npc.id, suggestedTarget, 1);
@@ -269,7 +275,7 @@ class NpcIntentPlanner {
             }
         }
 
-        const recentIntelAboutPlayer = memorySystem?.getRecentIntelAbout?.(player.id, 4) || [];
+        const recentIntelAboutPlayer = memorySystem?.getRecentKnownIntelAbout?.(npc.id, player.id, 4) || [];
         if (recentIntelAboutPlayer.length) {
             reasons.push("recent intel about you");
         }
@@ -926,6 +932,25 @@ class NpcIntentPlanner {
 
     _getCurrentDay() {
         return gameManager.getCurrentDay?.() || gameManager.day || 1;
+    }
+
+    _campClock() {
+        const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
+        return this._getCurrentDay() * 20000 + (phase === 'postChallenge' ? 10000 : 0) +
+            Math.max(0, 7200 - (gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 7200));
+    }
+    serialize() {
+        return { phaseType: this.phaseType, lastApproachAt: this.lastApproachAt,
+            phaseBeatCounts: this.phaseBeatCounts, perNpcCooldowns: [...this.perNpcCooldowns],
+            dayStamp: this.dayStamp, chatterKeys: [...this.chatterKeys] };
+    }
+    deserialize(payload) {
+        this.phaseType = this._normalizePhase(payload?.phaseType || 'pre');
+        this.lastApproachAt = Number.isFinite(payload?.lastApproachAt) ? payload.lastApproachAt : null;
+        this.phaseBeatCounts = payload?.phaseBeatCounts || { pre: 0, post: 0 };
+        this.perNpcCooldowns = new Map(payload?.perNpcCooldowns || []);
+        this.dayStamp = payload?.dayStamp ?? null;
+        this.chatterKeys = new Set(payload?.chatterKeys || []);
     }
 
     _randomInRange(min, max) {

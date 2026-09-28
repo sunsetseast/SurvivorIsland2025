@@ -711,7 +711,7 @@ export default class TaskSystem {
     if (!tribe || !task?.assignees?.length) return;
     if (task.deadline === 'none' && task.meta?.rewardApplied) return;
 
-    const teamPlayerDelta = task.rewards?.teamPlayer || 0;
+    const teamPlayerDelta = this.gameManager?.systems?.campActivitySystem?.active ? 0 : (task.rewards?.teamPlayer || 0);
     const threatDelta = task.rewards?.threat || 0;
     if (teamPlayerDelta === 0 && threatDelta === 0) return;
 
@@ -729,8 +729,9 @@ export default class TaskSystem {
 
   applyPenalties(tribe, task, { zeroProgress = false } = {}) {
     if (!tribe || !task?.assignees?.length) return;
-    const baseTeamPlayer = task.penalties?.teamPlayer || 0;
-    const suspicionPenalty = zeroProgress ? (task.penalties?.suspicion || 0) : 0;
+    const active = this.gameManager?.systems?.campActivitySystem?.active;
+    const baseTeamPlayer = active ? 0 : (task.penalties?.teamPlayer || 0);
+    const suspicionPenalty = active ? 0 : zeroProgress ? (task.penalties?.suspicion || 0) : 0;
     const teamPlayerDelta = baseTeamPlayer;
     if (teamPlayerDelta === 0 && suspicionPenalty === 0) return;
 
