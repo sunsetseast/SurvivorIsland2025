@@ -1,5 +1,5 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
-import { GameState, GamePhase } from '../core/GameManager.js';
+import { gameManager, GameState, GamePhase } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import { createElement, clearChildren } from '../utils/DOMUtils.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
@@ -8,6 +8,7 @@ import socialEngine from './SocialEngine.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import { DealTypes } from './DealSystem.js';
 import { buildDay1NpcReference } from '../events/Day1CampMemory.js';
+import { physicalCampLocation } from './CampActivitySystem.js';
 
 // DEV NOTE (ConversationSystem)
 // - NPC stances: computed per exchange from relationship, paranoia, gameplay style, and risk.
@@ -134,21 +135,18 @@ const PRE_CHALLENGE_PERSONAL_SHARES = [];
 const PRE_CHALLENGE_INTEL_LIBRARY = {};
 
 function ensureCampSocialChanges() {
-  if (!window.campSocialChanges) {
-    window.campSocialChanges = {};
-  }
+  gameManager.campSocialChanges ||= {};
 
   const buckets = ['relationship', 'trust', 'suspicion', 'deals', 'gossip', 'memory', 'voteShifts', 'reliability'];
   buckets.forEach(key => {
-    if (!Array.isArray(window.campSocialChanges[key])) {
-      window.campSocialChanges[key] = [];
+    if (!Array.isArray(gameManager.campSocialChanges[key])) {
+      gameManager.campSocialChanges[key] = [];
     }
   });
 
-  return window.campSocialChanges;
+  return gameManager.campSocialChanges;
 }
 
-ensureCampSocialChanges();
 
 function recordExposedMention({
   target = null,
@@ -232,6 +230,13 @@ class ConversationSystem {
     this.convoContext = this._createConvoContext();
   }
 
+  _campGameplayTimestamp() {
+    if (this.gameManager?.gameState !== GameState.CAMP) return Date.now();
+    return ((this.gameManager.day || 1) * 20000 +
+      (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE ? 10000 : 0) +
+      Math.max(0, 7200 - (this.gameManager.dayTimer ?? 7200))) * 1000;
+  }
+
   _createConvoContext() {
     return {
       lastVoteReadTargetId: null,
@@ -266,14 +271,14 @@ class ConversationSystem {
       this.convoContext.lastVoteReadNpcAgreed = npcAgreed;
     }
     this._bumpConvoTurn();
-    this.convoContext.lastVoteReadTimestamp = Date.now();
+    this.convoContext.lastVoteReadTimestamp = this._campGameplayTimestamp();
   }
 
   _isVoteReadContextFresh() {
     const ctx = this.convoContext;
     if (!ctx?.lastVoteReadTargetId || !ctx?.lastVoteReadTimestamp) return false;
-    const ageMs = Date.now() - ctx.lastVoteReadTimestamp;
-    return ageMs <= 180000;
+    const ageMs = this._campGameplayTimestamp() - ctx.lastVoteReadTimestamp;
+    return ageMs >= 0 && ageMs <= 180000;
   }
 
   initialize() {
@@ -282,6 +287,13 @@ class ConversationSystem {
     eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, this._handleCampViewLoaded.bind(this));
     eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, this._pauseForCampEvent.bind(this));
     eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, this._resumeAfterCampEvent.bind(this));
+    eventManager.subscribe('camp:timeAdvanced', ({ before, after, phase }) => {
+      const key = `${this.gameManager.day}:pre:mid`;
+      if (phase !== GamePhase.PRE_CHALLENGE || before <= 4800 || after > 4800 ||
+          this._lastCampInvitationKey === key) return;
+      this._lastCampInvitationKey = key;
+      if (!this.gameManager.flags?.campEventActive) this._scheduleMeetingInvitation(phase, 'midPhase');
+    });
     if (typeof window !== 'undefined') {
       window.runConversationQA = () => this._runConversationQA();
       window.ConversationSystem = window.ConversationSystem || {};
@@ -1278,9 +1290,12 @@ class ConversationSystem {
    */
   startNpcConversation(survivor, type, options = {}) {
     if (!survivor || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
-    const view = typeof window !== 'undefined' ? window.campScreen?.currentView : null;
+    const rawView = typeof window !== 'undefined' ? window.campScreen?.currentView : null;
+    const view = physicalCampLocation(rawView) || rawView;
     const locations = this.gameManager.systems?.npcLocationSystem;
     if (view && locations?.phaseAssigned && locations.getLocation(survivor.id) !== view && !options.context?.scripted) {
+      if (this.gameManager.systems?.campActivitySystem?.active &&
+          !this.gameManager.systems.campActivitySystem.approachPlayer(survivor, view)) return;
       locations.reserveNpcForMeeting?.(survivor.id, view, { reason: 'npc_approach' });
       this.gameManager.campLog ||= [];
       this.gameManager.campLog.push({ type: 'camp_npc_approach', day: this.gameManager.day,
@@ -1329,7 +1344,7 @@ class ConversationSystem {
     };
 
     const beginConversation = () => {
-      this._logConversationStart({ initiator, phase: normalizedPhase });
+      this._logConversationStart({ initiator, phase: normalizedPhase, survivor, location });
       this._validateConversationTreeOnStart({
         player: this.gameManager.getPlayerSurvivor?.(),
         npc: survivor,
@@ -1358,7 +1373,8 @@ class ConversationSystem {
     if (!survivor) return;
 
     const normalizedPhase = this._normalizePhase(phase);
-    const location = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
+    const requested = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
+    const location = physicalCampLocation(requested) || requested;
     const locations = this.gameManager.systems?.npcLocationSystem;
     if (location && locations?.phaseAssigned && locations.getLocation(npcId)
       && locations.getLocation(npcId) !== location && !context.scripted && !context.forceMeeting) return;
@@ -1413,13 +1429,17 @@ class ConversationSystem {
       memoryLog: this._memoryLog,
       npcMemory: this.npcMemory,
       debugStructuredConvo: this.debugStructuredConvo,
-      debugConvo: this.debugConvo
+      debugConvo: this.debugConvo,
+      lastCampInvitationKey: this._lastCampInvitationKey || null,
+      lastCampIntroKey: this._lastCampIntroKey || null
     }));
   }
 
   deserialize(payload) {
     this.reset();
     if (!payload || typeof payload !== 'object') {
+      this._lastCampInvitationKey = null;
+      this._lastCampIntroKey = null;
       this.moods = new Map();
       this._memoryLog = [];
       this.npcMemory = {};
@@ -1427,6 +1447,8 @@ class ConversationSystem {
     }
 
     this.moods = new Map(Array.isArray(payload.moods) ? payload.moods : []);
+    this._lastCampInvitationKey = payload.lastCampInvitationKey || null;
+    this._lastCampIntroKey = payload.lastCampIntroKey || null;
     this._memoryLog = Array.isArray(payload.memoryLog) ? payload.memoryLog : [];
     this.npcMemory = payload.npcMemory && typeof payload.npcMemory === 'object' ? payload.npcMemory : {};
     this.debugStructuredConvo = Boolean(payload.debugStructuredConvo);
@@ -1435,6 +1457,8 @@ class ConversationSystem {
 
   _handleNpcConfrontation({ survivor, location }) {
     if (!this._isInCamp() || !survivor || this.gameManager.flags?.campEventActive) return;
+    const positions = this.gameManager.systems?.npcLocationSystem;
+    if (positions?.phaseAssigned && positions.getLocation(survivor.id) !== location) return;
 
     const normalizedLocation = this._normalizeLocationKey(location);
     const pending = this.pendingMeetings.find(
@@ -1461,6 +1485,8 @@ class ConversationSystem {
       return;
     }
 
+    if (this.gameManager.gamePhase === GamePhase.PRE_CHALLENGE)
+      this.gameManager.systems?.campActivitySystem?.beginConversation?.(survivor, { location });
     this._showTopicSelection(survivor, location);
   }
 
@@ -1533,12 +1559,22 @@ class ConversationSystem {
   _queuePhaseInvitations(phase) {
     if (this.gameManager.flags?.campEventActive) return;
     const phaseType = this._normalizePhase(phase);
-    socialEngine?.runOffscreenNpcChatter?.({ phaseType, beatId: 'phaseIntro' });
+    const activity = this.gameManager.systems?.campActivitySystem;
+    if (phase === GamePhase.PRE_CHALLENGE) {
+      activity?.ensureStarted?.();
+      const introKey = `${this.gameManager.day}:pre:intro`;
+      if (this._lastCampIntroKey === introKey) return;
+      this._lastCampIntroKey = introKey;
+    }
+    if (!(phase === GamePhase.PRE_CHALLENGE && activity?.active))
+      socialEngine?.runOffscreenNpcChatter?.({ phaseType, beatId: 'phaseIntro' });
     this._scheduleMeetingInvitation(phase, 'phaseIntro');
 
     if (this.midPhaseTimerId) {
       timerManager.clearTimeout(this.midPhaseTimerId);
     }
+
+    if (phase === GamePhase.PRE_CHALLENGE) return;
 
     this.midPhaseTimerId = timerManager.setTimeout(
       `conversation-mid-${phase}-${this.gameManager.day}`,
@@ -1559,7 +1595,10 @@ class ConversationSystem {
     const plannedIntent = socialEngine?.shouldTriggerBeatNow?.({ phaseType })
       ? socialEngine?.pickBestIntentForPlayer?.({ phaseType, currentView })
       : null;
-    const npc = plannedIntent?.npcId ? this._getSurvivorById(plannedIntent.npcId) : this._pickConversationNpc();
+    const candidate = plannedIntent?.npcId ? this._getSurvivorById(plannedIntent.npcId) : null;
+    const activityDriven = phase === GamePhase.PRE_CHALLENGE && this.gameManager.systems?.campActivitySystem?.active;
+    const busy = candidate?.campActivity && !['idle_at_camp', 'rest', 'socialize', 'observe'].includes(candidate.campActivity.type);
+    const npc = activityDriven && busy ? this._pickConversationNpc() : candidate || this._pickConversationNpc();
     if (!npc) return;
 
     const locationSystem = this.gameManager.systems?.npcLocationSystem || null;
@@ -1570,7 +1609,8 @@ class ConversationSystem {
       currentView
     }) || plannedIntent?.location || fallbackLocation;
     const normalizedLocation = this._normalizeLocationKey(location);
-    const reservedLocation = locationSystem?.reserveNpcForMeeting?.(npc.id, normalizedLocation, {
+    const reservedLocation = activityDriven ? (locationSystem?.getLocation?.(npc.id) || normalizedLocation) :
+      locationSystem?.reserveNpcForMeeting?.(npc.id, normalizedLocation, {
       reason: 'conversation_meeting',
       ttlMs: type === 'phaseIntro' ? 240000 : 180000
     }) || normalizedLocation;
@@ -1600,7 +1640,12 @@ class ConversationSystem {
   _pickConversationNpc() {
     const tribe = this.gameManager.getPlayerTribe?.() || null;
     const survivors = tribe?.members || this.gameManager.survivors || [];
-    const candidates = survivors.filter(s => !s.isPlayer);
+    const absent = this.gameManager.flags?.absentFromCampIds;
+    const candidates = survivors.filter(s => !s.isPlayer && !s.isOut &&
+      !(absent instanceof Set ? [...absent].some(id => String(id) === String(s.id)) :
+        (absent || []).some?.(id => String(id) === String(s.id))) &&
+      !(this.gameManager.systems?.campActivitySystem?.active && s.campActivity &&
+        !['idle_at_camp', 'rest', 'socialize', 'observe'].includes(s.campActivity.type)));
     if (candidates.length === 0) return null;
 
     const sorted = [...candidates].sort((a, b) => {
@@ -2990,7 +3035,14 @@ class ConversationSystem {
     return { topicId: pickedTopic.id, nodeId: pickedNode.id, payload: { topic: pickedTopic, node: pickedNode } };
   }
 
-  _logConversationStart({ initiator, phase }) {
+  _logConversationStart({ initiator, phase, survivor = null, location = null }) {
+    if (this.gameManager.gamePhase === GamePhase.PRE_CHALLENGE && this._normalizePhase(phase) === 'pre') {
+      const npc = survivor || this._getSurvivorById?.(this.state?.npcId);
+      this.gameManager.systems?.campActivitySystem?.beginConversation?.(npc, {
+        location: location || this.activeConversationContext?.location || this.state?.context?.location ||
+          (typeof window !== 'undefined' ? window.campScreen?.currentView : null)
+      });
+    }
     if (!this.debugConvo) return;
     console.log('[CONVO-DEBUG] NEW TREE ACTIVE', { initiator, phase });
   }
@@ -7808,14 +7860,14 @@ class ConversationSystem {
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
     this.activeConversationContext = conversationContext;
     if (initiator === 'npc') {
-      this._logConversationStart({ initiator, phase });
+      this._logConversationStart({ initiator, phase, survivor, location });
       this._startNpcInitiatedConversation({
         player: this.gameManager.getPlayerSurvivor?.(),
         npc: survivor,
         context: conversationContext
       });
     } else {
-      this._logConversationStart({ initiator, phase });
+      this._logConversationStart({ initiator, phase, survivor, location });
       this._showTopicSelection(survivor, location);
     }
   }
@@ -9601,6 +9653,14 @@ class ConversationSystem {
         }
       }
 
+      if (this.gameManager.gamePhase === GamePhase.PRE_CHALLENGE) {
+        const topics = [activeSession?.intent, activeSession?.topic, this.state?.topic,
+          this.state?.lastIntent, this.activeConversationContext?.intent].filter(Boolean).join(' ');
+        this.gameManager.systems?.campActivitySystem?.finishConversation?.({
+          turns: Math.min(8, activeSession?.turnIndex || activeSession?.history?.length || this.state?.history?.length || 0),
+          strategy: /strateg|vote|alliance|target|warning|idol|deal|gossip|rumor|name/i.test(topics)
+        });
+      }
       this.activeConversation = null;
       this._resetConvoContext();
       this.activeConversationContext = null;
@@ -10164,7 +10224,8 @@ class ConversationSystem {
     const isDanger = dangerTopics.has(topic);
     const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(npc?.id, targetId) : false;
     const lastDisclosure = npcMemory?.lastDisclosureByKind?.[topic] || 0;
-    const fatigue = repeated || (Date.now() - lastDisclosure < 120000);
+    const sinceDisclosure = this._campGameplayTimestamp() - lastDisclosure;
+    const fatigue = repeated || (sinceDisclosure >= 0 && sinceDisclosure < 120000);
 
     const trustFactor = trustScore / 100;
     const pressureFactor = Math.max(0, Math.min(1, pressureLevel));
@@ -10238,7 +10299,7 @@ class ConversationSystem {
 
     const confidence = Math.max(0.05, Math.min(0.95, trustFactor + (mode === 'truth' ? 0.2 : mode === 'lie' ? -0.2 : -0.05)));
     if (npcMemory) {
-      npcMemory.lastDisclosureByKind = { ...(npcMemory.lastDisclosureByKind || {}), [topic]: Date.now() };
+      npcMemory.lastDisclosureByKind = { ...(npcMemory.lastDisclosureByKind || {}), [topic]: this._campGameplayTimestamp() };
     }
 
     return { mode, confidence, claimedTarget, trueTarget, detail };
@@ -10793,10 +10854,10 @@ class ConversationSystem {
           .filter(s => s.firstName !== survivor.firstName && !s.isPlayer)
           .map(s => s.firstName);
         const lastDisclosure = npcMemory?.lastDisclosureByKind?.[responseOption.disclosureKind] || null;
-        const now = Date.now();
+        const now = this._campGameplayTimestamp();
         const lastAskedAt = npcMemory?.lastIntentAsked?.[responseOption.disclosureKind] || 0;
         const trustScore = this._getTrustScore(survivor, player);
-        const isRepeat = !!(lastDisclosure && now - lastAskedAt < 1000 * 60 * 10);
+        const isRepeat = !!(lastDisclosure && now >= lastAskedAt && now - lastAskedAt < 1000 * 60 * 10);
         let disclosure = null;
         let claimTarget = null;
         let outcome = null;
@@ -11959,7 +12020,7 @@ class ConversationSystem {
         : npcLine;
       npcMemory.lastQuestionTag = questionTag;
       npcMemory.lastAnswerTag = trustedName || null;
-      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), trust: Date.now() };
+      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), trust: this._campGameplayTimestamp() };
     } else {
       playerLine = (playerLine || '')
         .replace('{npc}', survivor.firstName)
@@ -14379,7 +14440,7 @@ class ConversationSystem {
       }
     }
     if (npcMemory) {
-      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), askIntel: Date.now() };
+      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), askIntel: this._campGameplayTimestamp() };
     }
 
     const payload = targetName
@@ -14647,7 +14708,7 @@ class ConversationSystem {
       }
     }
     if (npcMemory && subTopic === 'idol') {
-      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), idol: Date.now() };
+      npcMemory.lastIntentAsked = { ...(npcMemory.lastIntentAsked || {}), idol: this._campGameplayTimestamp() };
     }
 
     const payload = context.skipIntel

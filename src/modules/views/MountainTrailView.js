@@ -9,7 +9,6 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { createNpcIcon } from "../ui/NpcIcon.js";
 /* ------------------------------------------------------------ */
 
 function loadCampView(locationKey) {
@@ -226,38 +225,9 @@ export default function renderMountainTrail(container) {
   }
 
   /* ⭐ NEW NPC RENDERING -------------------------------------------------- */
-  renderNPCsAtMountainTrail(uiLayer);
   /* ---------------------------------------------------------------------- */
 
   addDebugBanner('Mountain Trail view rendered!', 'sienna', 170);
 }
 
 /* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR THIS LOCATION ------------------ */
-function renderNPCsAtMountainTrail(uiLayer) {
-  const old = uiLayer.querySelector(".npc-icon-container");
-  if (old) old.remove();
-
-  const npcContainer = document.createElement("div");
-  npcContainer.classList.add("npc-icon-container");
-
-  let survivorsHere = [];
-  try {
-    survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.MOUNTAIN_TRAIL) || [];
-  } catch (e) {
-    console.warn('[MountainTrailView] NPC render failed', e);
-    survivorsHere = [];
-  }
-
-  survivorsHere.forEach(survivor => {
-    if (!survivor) return;
-    const icon = createNpcIcon(survivor, () => {
-      console.log("Clicked NPC:", survivor.name);
-      // TODO: conversation UI
-    });
-
-    npcContainer.appendChild(icon);
-  });
-
-  uiLayer.appendChild(npcContainer);
-}
-/* ---------------------------------------------------------------------- */

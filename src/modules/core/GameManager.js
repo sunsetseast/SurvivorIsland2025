@@ -16,6 +16,7 @@ import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 import TaskSystem from '../systems/TaskSystem.js';
 import TaskSimulationSystem from '../systems/TaskSimulationSystem.js';
+import CampActivitySystem from '../systems/CampActivitySystem.js';
 import { normalizeCampState, syncCampResources, safeCampAmount } from '../systems/CampState.js';
 import { advanceCampNeeds } from '../systems/CampTime.js';
 import SeasonEngine from './SeasonEngine.js';
@@ -67,6 +68,7 @@ class GameManager {
     this.isMerged = false;
     this.flags = { day1FirstImpressionsCompleted: false };
     this.campLog = [];
+    this.campSocialChanges = {};
     this.gameHistory = { tribals: [] };
     this.tribalCouncilLog = [];
     this.state = {};
@@ -87,6 +89,7 @@ class GameManager {
     this.timeSpeed = 8;       // countdown rate per tick
     this.taskSystem = new TaskSystem(this);
     this.systems.taskSimulationSystem = new TaskSimulationSystem(this);
+    this.systems.campActivitySystem = new CampActivitySystem(this);
     this._missingTrustSystemWarned = false;
     this._autoSaveInProgress = false;
     this._terminalHandled = false;
@@ -1118,12 +1121,18 @@ class GameManager {
     const before = this.dayTimer;
     this.dayTimer = Math.max(0, before - amount);
     if (this.gamePhase === GamePhase.PRE_CHALLENGE) {
-      advanceCampNeeds(this, before - this.dayTimer);
+      const activity = this.systems?.campActivitySystem;
+      const block = activity?.beginPlayerBlock?.(before, this.dayTimer, payload);
+      if (activity && !this.flags?.campEventActive)
+        activity.advance(before, this.dayTimer, elapsed => advanceCampNeeds(this, elapsed));
+      else advanceCampNeeds(this, before - this.dayTimer);
+      activity?.finishPlayerBlock?.(block);
       if (before > 3600 && this.dayTimer <= 3600) {
         const report = this.runTaskSimCheckpoint('mid', { triggerDramaEvent: true });
         if (report?.uiIntent) eventManager.publish('camp:checkpoint', { report });
       }
       if (before > 0 && this.dayTimer === 0) this.finalizePreImmunityCamp();
+      eventManager.publish('camp:timeAdvanced', { before, after: this.dayTimer, phase: this.gamePhase });
     }
     updateCampClockUI(this.dayTimer, this.getDay());
     if (this.systems?.idolSystem?.isDebugMode?.()) {
@@ -1138,6 +1147,7 @@ class GameManager {
 
   finalizePreImmunityCamp() {
     if (this.gamePhase !== GamePhase.PRE_CHALLENGE) return null;
+    this.systems?.campActivitySystem?.finalize?.();
     const report = this.runTaskSimCheckpoint('end', { triggerDramaEvent: false });
     if (report) this.taskSystem?.ingestCampLogForTribe?.(this, this.getPlayerTribe());
     return report;
@@ -1187,6 +1197,7 @@ class GameManager {
         dayTimer: this.dayTimer,
         timeSpeed: this.timeSpeed,
         campNeedElapsed: this.campNeedElapsed,
+        campSocialChanges: this.campSocialChanges,
         tribeCount: this.tribeCount,
         tribes: this.tribes,
         survivors: this.survivors,
@@ -1263,6 +1274,7 @@ class GameManager {
     if (Array.isArray(this.flags.absentFromCampIds)) this.flags.absentFromCampIds = new Set(this.flags.absentFromCampIds);
     this.flags.campEventActive = false; // DOM-driven event overlays are not restorable.
     this.campLog = Array.isArray(data.campLog) ? data.campLog : [];
+    this.campSocialChanges = data.campSocialChanges && typeof data.campSocialChanges === 'object' ? data.campSocialChanges : {};
     this.day1Memories = Array.isArray(data.day1Memories) ? data.day1Memories : [];
     this.gameHistory = data.gameHistory || { tribals: [] };
     this.tribalCouncilLog = Array.isArray(data.tribalCouncilLog) ? data.tribalCouncilLog : [];

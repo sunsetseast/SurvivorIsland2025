@@ -935,12 +935,100 @@ class SocialMemorySystem {
         pushToNpc(to);
     }
 
-    recordConversationIntent({ npcId, withId = null, intent, targetId = null, targetName = null, day = null, phase = null }) {
+    // The event is owned by its participants and direct witnesses. A witness
+    // knows the visible meeting, not the private words. Repetition merges into
+    // bounded impressions; the concrete trail is capped per owner.
+    recordCampObservation({ id, actorId, participantIds = [], witnessIds = [], type, location,
+        day, campTime, detail = '', visibility = 'visible' } = {}) {
+        if (!id || actorId == null || !type) return [];
+        const owners = new Map([[String(actorId), 'participant']]);
+        for (const owner of participantIds) if (owner != null) owners.set(String(owner), 'participant');
+        for (const owner of witnessIds) if (owner != null && !owners.has(String(owner))) owners.set(String(owner), 'witness');
+        for (const [ownerId, origin] of owners) {
+            this.initNPC(ownerId);
+            const mem = this.memory[ownerId];
+            mem.campObservations ||= []; mem.campImpressions ||= {};
+            if (mem.campObservations.some(entry => entry.id === id)) continue;
+            mem.campObservations.push({ id, actorId, participantIds: [...participantIds], type, location,
+                day, campTime, origin, sourceId: origin === 'participant' ? actorId : null,
+                confidence: origin === 'participant' ? 1 : visibility === 'inference' ? 0.55 : 0.85,
+                visibility, detail: visibility === 'private' && origin === 'witness' ? '' : detail });
+            if (mem.campObservations.length > 48) mem.campObservations.splice(0, mem.campObservations.length - 48);
+            if (String(ownerId) === String(actorId)) continue;
+            const patterns = mem.campImpressions[String(actorId)] ||= {};
+            const pattern = patterns[type] ||= { count: 0, confidence: 0, lastDay: day };
+            pattern.count = Math.min(20, pattern.count + 1);
+            pattern.confidence = Math.min(1, pattern.confidence + (origin === 'witness' ? 0.17 : 0.1));
+            pattern.lastDay = day;
+            const contrary = type === 'work' ? patterns.role_neglect : type === 'role_neglect' ? patterns.work : null;
+            if (contrary) { contrary.count = Math.max(0, contrary.count - 1); contrary.confidence = Math.max(0, contrary.confidence - 0.15); }
+        }
+        return [...owners.keys()];
+    }
+
+    shareCampObservation({ fromId, toId, observationId } = {}) {
+        if (fromId == null || toId == null || !observationId) return false;
+        this.initNPC(fromId); this.initNPC(toId);
+        const known = this.memory[fromId].campObservations?.find(entry => entry.id === observationId);
+        if (!known) return false;
+        const mem = this.memory[toId]; mem.campObservations ||= [];
+        if (mem.campObservations.some(entry => entry.id === observationId)) return false;
+        mem.campObservations.push({ ...known, origin: 'hearsay', sourceId: fromId,
+            confidence: Math.min(0.55, known.confidence * 0.65), detail: known.visibility === 'private' ? '' : known.detail });
+        if (mem.campObservations.length > 48) mem.campObservations.shift();
+        if (['absence', 'work', 'role_neglect'].includes(known.type)) {
+            mem.campImpressions ||= {};
+            const patterns = mem.campImpressions[String(known.actorId)] ||= {};
+            const pattern = patterns[known.type] ||= { count: 0, confidence: 0, lastDay: known.day };
+            pattern.count = Math.min(20, pattern.count + 0.5);
+            pattern.confidence = Math.min(0.6, pattern.confidence + 0.07);
+            pattern.lastDay = known.day;
+        }
+        return true;
+    }
+
+    getCampObservations(ownerId, { day = null } = {}) {
+        if (ownerId == null) return [];
+        this.initNPC(ownerId);
+        return (this.memory[ownerId].campObservations || []).filter(entry => day == null || entry.day === day);
+    }
+    getCampImpression(ownerId, subjectId, type) {
+        if (ownerId == null || subjectId == null) return null;
+        this.initNPC(ownerId);
+        const patterns = this.memory[ownerId].campImpressions?.[String(subjectId)] || {};
+        return type ? patterns[type] || null : patterns;
+    }
+    getKnownTargeters(ownerId, subjectId) {
+        if (ownerId == null || subjectId == null) return [];
+        this.initNPC(ownerId);
+        return [...new Set((this.memory[ownerId].intelEvents || [])
+            .filter(entry => entry.type === 'target' && String(entry.about) === String(subjectId))
+            .map(entry => entry.from).filter(id => id != null))];
+    }
+    getRecentKnownIntelAbout(ownerId, subjectId, limit = 4) {
+        if (ownerId == null || subjectId == null) return [];
+        this.initNPC(ownerId);
+        return (this.memory[ownerId].intelEvents || []).filter(entry => String(entry.about) === String(subjectId)).slice(-limit);
+    }
+    getKnownNamesRecently(ownerId, limit = 3, daysBack = 2) {
+        if (ownerId == null) return [];
+        this.initNPC(ownerId);
+        const today = window.gameManager?.day || 1, counts = new Map();
+        for (const entry of this.memory[ownerId].intelEvents || []) {
+            if (entry.day != null && entry.day < today - daysBack) continue;
+            for (const id of Array.isArray(entry.about) ? entry.about : [entry.about])
+                if (id != null) counts.set(String(id), (counts.get(String(id)) || 0) + 1);
+        }
+        return [...counts].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id, count]) => ({ id, count }));
+    }
+
+    recordConversationIntent({ npcId, withId = null, intent, targetId = null, targetName = null, day = null, phase = null, campTime = null }) {
         if (npcId == null) return;
         this.initNPC(npcId);
         const entry = {
             day: day || window.gameManager?.getCurrentDay?.() || 1,
             phase: phase || window.gameManager?.getGamePhase?.() || null,
+            campTime: campTime ?? window.gameManager?.dayTimer ?? null,
             withId,
             intent,
             targetId,

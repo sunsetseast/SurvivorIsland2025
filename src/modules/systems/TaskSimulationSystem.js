@@ -57,15 +57,25 @@ export default class TaskSimulationSystem {
     gm.taskSystem?.createDay1TasksFromPlan?.(tribe, null, { force: false });
 
     const report = this.buildCheckpointReportBase(checkpoint, tribe);
-    this.simulateGatherPass(checkpoint, tribe, report);
-    this.simulateWaterPlan(checkpoint, tribe, report);
-    this.simulateNpcIdolHunts(checkpoint, tribe, report);
-    if (checkpoint === 'end') {
-      this.simulateBuildPass(checkpoint, tribe, report);
-      this.applyFloatAssistCredits(report, tribe);
-    } else {
+    if (gm.systems?.campActivitySystem?.active) {
+      gm.systems.campActivitySystem.ingestNewCampLog();
+      report.contributions = (gm.campLog || []).filter(entry => entry?.source === 'camp_activity' && entry?.day === gm.day)
+        .map(entry => ({ survivorId: entry.actorId, role: entry.role, resource: entry.resource,
+          amount: entry.amount || 0, source: 'camp_activity' }));
+      report.stockpileAfter = this.cloneStockpile(gm.ensureStockpileExists?.(tribe) || tribe.stockpile);
       this.populateMidpointSnapshots(tribe, report);
-      this.evaluateMidpointIntent(report, tribe);
+      if (checkpoint === 'mid') this.evaluateMidpointIntent(report, tribe);
+    } else {
+      this.simulateGatherPass(checkpoint, tribe, report);
+      this.simulateWaterPlan(checkpoint, tribe, report);
+      this.simulateNpcIdolHunts(checkpoint, tribe, report);
+      if (checkpoint === 'end') {
+        this.simulateBuildPass(checkpoint, tribe, report);
+        this.applyFloatAssistCredits(report, tribe);
+      } else {
+        this.populateMidpointSnapshots(tribe, report);
+        this.evaluateMidpointIntent(report, tribe);
+      }
     }
     this.finalizeCheckpoint(report, tribe, { triggerDramaEvent });
 
@@ -630,12 +640,16 @@ export default class TaskSimulationSystem {
     const roleIds = assignments[roleKey] || [];
     if (!roleIds.length) return [];
 
+    const effort = this.gameManager?.systems?.campActivitySystem?.effort || {};
+    if (this.gameManager?.systems?.campActivitySystem?.active &&
+        roleIds.every(id => (effort[id] || 0) >= 180)) return [];
+
     const scored = roleIds.map((id, index) => {
       const survivor = tribe ? this.getSurvivorById(tribe, id) : null;
       const teamPlayer = Number.isFinite(survivor?.teamPlayer) ? survivor.teamPlayer : 50;
       return {
         id,
-        amount: this.getContributionAmount(report, id, resource),
+        amount: this.getContributionAmount(report, id, resource) + (effort[id] || 0) / 180,
         teamPlayer,
         index
       };

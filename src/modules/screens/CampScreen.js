@@ -28,6 +28,7 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import { runDay1FirstImpressions, canRunDay1FirstImpressions, runPart2FromCheckpointReport } from '../events/Day1FirstImpressionsEvent.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import PostChallengeEventSystem from '../systems/PostChallengeEventSystem.js';
+import { physicalCampLocation, routeBetween } from '../systems/CampActivitySystem.js';
 
 const CAMP_CLOCK_TIMER_ID = 'campClockTick';
 const TASK_ICON_HIDDEN_VIEWS = new Set();
@@ -158,7 +159,9 @@ export default class CampScreen {
 
       const survivors = gameManager.survivors;
       const phaseKey = gameManager.gamePhase === GamePhase.POST_CHALLENGE ? 'post' : 'pre';
-      gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors, gameManager.gamePhase);
+      if (gameManager.gamePhase === GamePhase.PRE_CHALLENGE && gameManager.systems?.campActivitySystem?.active)
+        gameManager.systems.campActivitySystem.ensureStarted();
+      else gameManager.systems?.npcLocationSystem?.assignLocationsForPhase?.(survivors, gameManager.gamePhase);
       gameManager.systems?.socialEngine?.resetForNewPhase?.(phaseKey);
 
       if (this.currentView === LocationKeys.SHELTER && this.isActive) {
@@ -386,6 +389,20 @@ export default class CampScreen {
     window.previousCampViewRaw = this.currentView || null;
     window.currentCampViewRequested = viewName;
     this.currentView = normalizedViewName;
+    const player = gameManager.getPlayerSurvivor?.();
+    const from = physicalCampLocation(window.previousCampView);
+    const to = physicalCampLocation(normalizedViewName);
+    if (player && to) {
+      if (this.isActive && gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
+          !gameManager.flags?.campEventActive && from && from !== to) {
+        const steps = routeBetween(from, to);
+        if (steps.length && [LocationKeys.JUNGLE_TRAIL, LocationKeys.ROCKY_SHORE,
+          LocationKeys.WATERFALL_TRAIL, LocationKeys.MOUNTAIN_TRAIL].includes(to))
+          gameManager.systems?.campActivitySystem?.recordDeparture?.(player, from);
+        if (steps.length) gameManager.consumeCampTime(steps.length * 30, { source: 'camp_travel' });
+      }
+      player.location = to;
+    }
 
     this.ensureTaskIcon();
     this.closeTaskOverlay();

@@ -10,7 +10,6 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 /* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
 import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { createNpcIcon } from "../ui/NpcIcon.js";
 /* ------------------------------------------------------------ */
 
 export default function renderJungleTrail(container) {
@@ -239,37 +238,9 @@ export default function renderJungleTrail(container) {
   }
 
   /* ⭐ NEW NPC RENDERING -------------------------------------- */
-  renderNPCsAtJungleTrail(uiLayer);
   /* ----------------------------------------------------------- */
 
   addDebugBanner('Jungle Trail view rendered!', 'green', 170);
 }
 
 /* ⭐⭐ NEW: NPC RENDER FUNCTION ---------------------------------- */
-function renderNPCsAtJungleTrail(uiLayer) {
-  const old = uiLayer.querySelector(".npc-icon-container");
-  if (old) old.remove();
-
-  const npcContainer = document.createElement("div");
-  npcContainer.classList.add("npc-icon-container");
-
-  let survivorsHere = [];
-  try {
-    survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.JUNGLE_TRAIL) || [];
-  } catch (error) {
-    console.warn('[JungleTrailView] NPC render failed', error);
-    survivorsHere = [];
-  }
-
-  survivorsHere.forEach(survivor => {
-    if (!survivor) return;
-    const icon = createNpcIcon(survivor, () => {
-      console.log(`Clicked NPC: ${survivor.name}`);
-      // TODO: trigger conversation UI
-    });
-    npcContainer.appendChild(icon);
-  });
-
-  uiLayer.appendChild(npcContainer);
-}
-/* -------------------------------------------------------------- */

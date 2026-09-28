@@ -253,11 +253,10 @@ export function createCanonicalDay1CampMemory({ day = 1, phase = null, tribeId =
   };
 }
 
-function addCampSocialChange(bucket, entry) {
-  if (typeof window === 'undefined') return;
-  window.campSocialChanges = window.campSocialChanges || {};
-  window.campSocialChanges[bucket] = Array.isArray(window.campSocialChanges[bucket]) ? window.campSocialChanges[bucket] : [];
-  window.campSocialChanges[bucket].push(entry);
+function addCampSocialChange(gameManager, bucket, entry) {
+  const changes = gameManager.campSocialChanges ||= {};
+  changes[bucket] = Array.isArray(changes[bucket]) ? changes[bucket] : [];
+  changes[bucket].push(entry);
 }
 
 function changePair(gameManager, aId, bId, relationshipDelta, trustDelta, reason) {
@@ -267,11 +266,11 @@ function changePair(gameManager, aId, bId, relationshipDelta, trustDelta, reason
   if (relationshipDelta && relationships?.getRelationship && relationships?.setRelationship) {
     const current = relationships.getRelationship(aId, bId)?.value ?? 50;
     relationships.setRelationship(aId, bId, clamp(current + relationshipDelta));
-    addCampSocialChange('relationship', { from: aId, to: bId, amount: relationshipDelta, reason });
+    addCampSocialChange(gameManager, 'relationship', { from: aId, to: bId, amount: relationshipDelta, reason });
   }
   if (trustDelta && trust?.changeTrust) {
     trust.changeTrust(aId, bId, trustDelta, reason);
-    addCampSocialChange('trust', { from: aId, to: bId, amount: trustDelta, reason });
+    addCampSocialChange(gameManager, 'trust', { from: aId, to: bId, amount: trustDelta, reason });
   }
 }
 
@@ -280,7 +279,7 @@ export function applyDay1CampConsequences({ gameManager, player, impression, soc
   player.teamPlayer = clamp((player.teamPlayer ?? 50) + (effects.teamPlayer || 0));
   player.suspicion = clamp((player.suspicion ?? 0) + (effects.suspicion || 0));
   player.threat = clamp((player.threat ?? 5) + (effects.threat || 0), 0, 10);
-  if (effects.suspicion) addCampSocialChange('suspicion', { with: player.id, amount: effects.suspicion, reason: 'day1_first_impression' });
+  if (effects.suspicion) addCampSocialChange(gameManager, 'suspicion', { with: player.id, amount: effects.suspicion, reason: 'day1_first_impression' });
   socialPulse.forEach(pulse => {
     if (pulse.people?.length < 2) return;
     if (pulse.type === 'bond') changePair(gameManager, pulse.people[0], pulse.people[1], 4, 3, 'day1_early_bond');
@@ -360,6 +359,6 @@ export function recordDay1CampOutcome({ gameManager, tribe, members, canonicalMe
   const existingIndex = gameManager.campLog.findIndex(entry => entry?.id === summaryEntry.id);
   if (existingIndex >= 0) gameManager.campLog[existingIndex] = summaryEntry;
   else gameManager.campLog.push(summaryEntry);
-  addCampSocialChange('memory', { with: canonicalMemory.operationalLeaderId, tags: canonicalMemory.tags, summary: text });
+  addCampSocialChange(gameManager, 'memory', { with: canonicalMemory.operationalLeaderId, tags: canonicalMemory.tags, summary: text });
   return summaryEntry;
 }
