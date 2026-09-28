@@ -33,6 +33,10 @@ test('secret idol ownership and target-board heat cannot alter Jeff questions or
   const before = plan(); const mood = engine.getMood(members[1], { context: engine.createContext() });
   members[1].hasIdol = true;
   gm.flags = { tribalTargetBoard: { primaryTargetId: 'a', heatMap: { a: 99 } } };
+  const privateIdol = new TribalKnowledgeModel(gm, members).facts.find(fact => fact.type === 'ownIdol');
+  assert.equal(privateIdol.subjectId, 'a');
+  assert.equal(new TribalKnowledgeModel(gm, members).knows('b', privateIdol), false);
+  assert.equal(new TribalKnowledgeModel(gm, members).jeffCanReference(privateIdol), false);
   assert.deepEqual(plan(), before);
   assert.deepEqual(engine.getMood(members[1], { context: engine.createContext() }), mood);
   members[1].hasIdol = false; members[2].hasIdol = true;
@@ -183,7 +187,7 @@ test('explicit late switch stages one stable Live Tribal; close heat and regex-l
     toTargetId: 'c', severity: .75, source: 'npcScramble' });
   const first = engine.generateLiveTribalMoment({ attendingTribeId: 'tribe' });
   assert.deepEqual(engine.generateLiveTribalMoment({ attendingTribeId: 'tribe' }), first);
-  assert.deepEqual(first.liveParticipants, ['a']);
+  assert.deepEqual(first.liveParticipants, ['a', 'b']);
   assert.equal(first.responseOptions.length, 0); // Player did not witness a private target choice.
   const view = new TribalCouncilView({ gameManager: gm });
   view.attendingTribeId = 'tribe'; view.liveTribalMoment = first;

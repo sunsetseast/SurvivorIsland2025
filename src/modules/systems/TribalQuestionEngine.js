@@ -254,19 +254,26 @@ export default class TribalQuestionEngine {
     const counterpart = this._getMember(signal.toTargetId, state.members)
       || state.members.find(member => !this._idsEqual(member.id, player?.id));
     if (!player) return null;
+    const actor = this._getMember(signal.speakerId, state.members);
+    if (!actor) return null;
+    const recipient = state.members.filter(member => !this._idsEqual(member.id, actor.id)
+      && (signal.toPlayer === true || !this._idsEqual(member.id, player.id)))
+      .sort((a, b) => (Number(this.gameManager?.getTrust?.(actor.id, b.id)) || 50)
+        - (Number(this.gameManager?.getTrust?.(actor.id, a.id)) || 50)
+        || this._normalizeId(a.id).localeCompare(this._normalizeId(b.id)))[0];
 
     const involved = this._idsEqual(signal.speakerId, player.id) || signal.toPlayer === true;
     const moment = this._playerQuestion({
       id: 'live-tribal-tension',
       topic: 'live_tribal_tension',
       severity: 3,
-      questionText: `${this._name(this._getMember(signal.speakerId, state.members))} crosses the fire for a quiet conversation. Others notice the shift.`,
+      questionText: `${this._name(actor)} leans toward ${this._name(recipient)} for a quiet conversation. Others notice the shift.`,
       counterpart,
       ally: null,
       state,
       responseSet: 'live'
     });
-    moment.liveParticipants = [signal.speakerId].filter(Boolean);
+    moment.liveParticipants = [actor.id, recipient?.id].filter(Boolean);
     moment.liveSignal = signal;
     moment.focusSurvivorId = signal.speakerId;
     if (!involved) moment.responseOptions = [];

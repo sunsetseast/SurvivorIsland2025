@@ -62,6 +62,13 @@ export default class TribalKnowledgeModel {
         visibility: entry.data?.public === true ? 'PUBLIC' : 'PRIVATE', source: 'memory', day: entry.day });
     }
     for (const member of this.members) {
+      const inventory = gm?.systems?.idolSystem?.survivorInventories?.get?.(member.id)
+        || gm?.systems?.idolSystem?.survivorInventories?.get?.(id(member.id));
+      if (member.hasIdol || member.advantages?.idol || member.advantages?.hasIdol
+        || inventory?.idols?.some(item => !item.isUsed && !item.played)) {
+        this.add({ type: 'ownIdol', subjectId: member.id, visibility: 'PRIVATE',
+          knownTo: [member.id], source: 'inventory' });
+      }
       if (gm?.hasImmunity?.(member) || member.hasImmunity) {
         this.add({ type: 'individualImmunity', subjectId: member.id, visibility: 'PUBLIC', source: 'challenge' });
       }
