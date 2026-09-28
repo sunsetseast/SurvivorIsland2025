@@ -9,14 +9,17 @@ import { getRandomInt, shuffleArray } from "../utils/CommonUtils.js";
 import eventManager from "../core/EventManager.js";
 import { LocationKeys } from "../core/LocationKeys.js";
 import { isCoreCampLocation, normalizeLocationKey } from "../locations/LocationUtils.js";
+import { CAMP_WORK_LOCATIONS } from './CampState.js';
 
 // Safe debug helper – uses global debugBanner if it exists
 const dbg = (typeof window.debugBanner === "function") ? window.debugBanner : () => {};
 
 function isMarkedAbsent(absentSet, survivorId) {
   if (!absentSet) return false;
-  return absentSet.has(survivorId) || absentSet.has(String(survivorId));
+  if (Array.isArray(absentSet)) return absentSet.some(id => String(id) === String(survivorId));
+  return typeof absentSet.has === 'function' && (absentSet.has(survivorId) || absentSet.has(String(survivorId)));
 }
+
 
 export const CAMP_LOCATION_WEIGHTS = {
   [LocationKeys.BEACH]: 4,
@@ -115,6 +118,50 @@ class NpcLocationSystem {
     dbg("NpcLocationSystem reset");
   }
 
+  serialize() {
+    return { locations: { ...this.locations }, locationSinceTimer: { ...this.locationSinceTimer },
+      lastRoamTimer: this.lastRoamTimer, lastPhaseUsed: this.lastPhaseUsed };
+  }
+
+  deserialize(snapshot) {
+    const tribe = gameManager.getPlayerTribe?.();
+    const eligible = new Set((tribe?.members || []).filter(s => s && !s.isPlayer && !s.isOut)
+      .map(s => String(s.id)));
+    this.locations = {};
+    this.locationSinceTimer = {};
+    for (const [id, location] of Object.entries(snapshot?.locations || {})) {
+      const normalized = normalizeLocationKey(location);
+      if (!eligible.has(id) || !isCoreCampLocation(normalized)) continue;
+      this.locations[id] = normalized;
+      const since = snapshot.locationSinceTimer?.[id];
+      this.locationSinceTimer[id] = Number.isFinite(since) ? since : gameManager.dayTimer;
+      const survivor = tribe.members.find(member => String(member.id) === id);
+      survivor.location = normalized;
+      if (survivor.campActivity && survivor.campActivity.location !== normalized) survivor.campActivity = null;
+    }
+    for (const survivor of tribe?.members || []) {
+      if (!survivor.isPlayer && !this.locations[survivor.id]) survivor.campActivity = null;
+    }
+    this.lastRoamTimer = Number.isFinite(snapshot?.lastRoamTimer) ? snapshot.lastRoamTimer : gameManager.dayTimer;
+    this.lastPhaseUsed = snapshot?.lastPhaseUsed || gameManager.gamePhase;
+    this.phaseAssigned = Object.keys(this.locations).length > 0;
+    this.meetingReservations = {};
+  }
+
+  assignCampWork(tribe, timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer) {
+    const assignments = gameManager.systems?.taskSimulationSystem?.getAssignmentsFromPlanOrTasks?.(gameManager, tribe) || {};
+    for (const [role, location] of Object.entries(CAMP_WORK_LOCATIONS)) {
+      for (const id of assignments[role] || []) {
+        const npc = tribe?.members?.find(s => String(s.id) === String(id) && !s.isPlayer && !s.isOut);
+        if (!npc || isMarkedAbsent(gameManager.flags?.absentFromCampIds, id)) continue;
+        npc.campActivity = { type: role, location, startedAt: timer, endsAt: Math.max(0, timer - 900) };
+        this.locations[npc.id] = location;
+        npc.location = location;
+        this.locationSinceTimer[npc.id] = timer;
+      }
+    }
+  }
+
   /**
    * MAIN ENTRY – assign locations for the current camp phase
    */
@@ -152,7 +199,8 @@ class NpcLocationSystem {
     }
 
     // Only NPCs FROM PLAYER'S TRIBE and not marked absent
-    const npcs = roster.filter(s => !s.isPlayer && !isMarkedAbsent(absentSet, s.id));
+    const memberIds = new Set((tribe.members || []).map(s => String(s.id)));
+    const npcs = roster.filter(s => s && memberIds.has(String(s.id)) && !s.isPlayer && !s.isOut && !isMarkedAbsent(absentSet, s.id));
     roster.forEach((npc) => {
       if (!npc?.isPlayer && isMarkedAbsent(absentSet, npc.id)) {
         npc.location = null;
@@ -177,6 +225,8 @@ class NpcLocationSystem {
     }
 
     this._refineAssignments(shuffled);
+    if (phase === 'preChallenge' || phase === 'pre') this.assignCampWork(tribe, this.lastRoamTimer);
+    else npcs.forEach(npc => { npc.campActivity = null; });
 
     // Check for confrontations
     this._evaluatePotentialConfrontations(shuffled);
@@ -467,6 +517,8 @@ class NpcLocationSystem {
 
     npcs.forEach(npc => {
       if (this._isReservedForMeeting(npc.id)) return;
+      if (npc.campActivity && timer > npc.campActivity.endsAt) return;
+      if (npc.campActivity) npc.campActivity = null;
       const from = normalizeLocationKey(this.locations[npc.id]) || LocationKeys.SHELTER;
       const neighbors = this.getAdjacentLocations(from).filter(isCoreCampLocation);
       if (!neighbors.length) return;
@@ -501,7 +553,7 @@ class NpcLocationSystem {
 
     for (let s of tribe.members) {
       const assignedLocation = normalizeLocationKey(this.locations[s.id]);
-      if (!s.isPlayer && !isMarkedAbsent(absentSet, s.id) && assignedLocation === canonicalLocation) {
+      if (!s.isPlayer && !s.isOut && !isMarkedAbsent(absentSet, s.id) && assignedLocation === canonicalLocation) {
         results.push(s);
       }
     }

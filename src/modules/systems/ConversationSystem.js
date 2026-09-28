@@ -1278,6 +1278,14 @@ class ConversationSystem {
    */
   startNpcConversation(survivor, type, options = {}) {
     if (!survivor || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
+    const view = typeof window !== 'undefined' ? window.campScreen?.currentView : null;
+    const locations = this.gameManager.systems?.npcLocationSystem;
+    if (view && locations?.phaseAssigned && locations.getLocation(survivor.id) !== view && !options.context?.scripted) {
+      locations.reserveNpcForMeeting?.(survivor.id, view, { reason: 'npc_approach' });
+      this.gameManager.campLog ||= [];
+      this.gameManager.campLog.push({ type: 'camp_npc_approach', day: this.gameManager.day,
+        actorId: survivor.id, location: view, narration: `${survivor.firstName || survivor.name} came over to talk.` });
+    }
     this.startConversation({
       npcId: survivor.id,
       phase: options.context?.phase || this._getConversationPhase(),
@@ -1351,6 +1359,9 @@ class ConversationSystem {
 
     const normalizedPhase = this._normalizePhase(phase);
     const location = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
+    const locations = this.gameManager.systems?.npcLocationSystem;
+    if (location && locations?.phaseAssigned && locations.getLocation(npcId)
+      && locations.getLocation(npcId) !== location && !context.scripted && !context.forceMeeting) return;
     const seededContext = {
       ...context,
       initiator: 'player',

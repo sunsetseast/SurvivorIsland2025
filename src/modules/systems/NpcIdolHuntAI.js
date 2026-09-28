@@ -203,13 +203,7 @@ const NpcIdolHuntAI = {
       npcLocationSystem?.updateNpcLocation?.(npcSurvivor.id, normalizedLocation, { reason: 'idol_hunt' });
     }
 
-    if (travelTime > 0 && gameManager.consumeCampTime) {
-      gameManager.consumeCampTime(travelTime, {
-        source: 'npc_idol_travel',
-        npcId: npcSurvivor.id,
-        locationKey: normalizedLocation
-      });
-    }
+    // Offscreen travel is concurrent with player activity.
 
     const result = idolSystem.attemptIntentionalHunt(npcSurvivor.id, normalizedLocation, mode, { isNpc: true });
     updateHuntMemory(npcSurvivor, normalizedLocation);

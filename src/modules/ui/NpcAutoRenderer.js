@@ -16,7 +16,8 @@ const dbg = window.debugBanner || function(){};
 
 const isMarkedAbsent = (absentSet, survivorId) => {
     if (!absentSet) return false;
-    return absentSet.has(survivorId) || absentSet.has(String(survivorId));
+    if (Array.isArray(absentSet)) return absentSet.some(id => String(id) === String(survivorId));
+    return typeof absentSet.has === 'function' && (absentSet.has(survivorId) || absentSet.has(String(survivorId)));
 };
 
 class NpcAutoRenderer {
@@ -41,31 +42,6 @@ class NpcAutoRenderer {
             const layer = this.ensureNpcLayer();
             if (layer) {
                 layer.innerHTML = "";
-            }
-        });
-
-        eventManager.subscribe(GameEvents.CAMP_EVENT_ENDED, () => {
-            if (gameManager.flags?.campEventActive) return;
-
-            const npcSystem = gameManager?.systems?.npcLocationSystem || npcLocationSystem;
-            if (!gameManager || !npcSystem?.assignLocationsForPhase) {
-                console.warn?.("NpcAutoRenderer: NPC location system unavailable after camp event");
-            } else {
-                const currentPhase = gameManager?.getGamePhase?.()
-                    || gameManager?.gamePhase
-                    || this.lastKnownPhase
-                    || "preChallenge";
-
-                try {
-                    npcSystem.assignLocationsForPhase(gameManager?.survivors, currentPhase);
-                } catch (error) {
-                    console.warn?.("NpcAutoRenderer: Failed to assign NPC locations after camp event", error);
-                }
-            }
-
-            const viewName = window.campScreen?.currentView || this.lastViewName;
-            if (viewName) {
-                this.renderFor(viewName);
             }
         });
 
@@ -129,7 +105,7 @@ class NpcAutoRenderer {
         // Get NPCs at this location
         const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(viewName) || [];
         const absentSet = gameManager.flags?.absentFromCampIds;
-        const filtered = absentSet ? survivorsHere.filter(s => !isMarkedAbsent(absentSet, s.id)) : survivorsHere;
+        const filtered = survivorsHere.filter(s => !s.isOut && !isMarkedAbsent(absentSet, s.id));
 
         console.log('[NpcAutoRenderer] renderFor', viewName, 'NPC count:', filtered.length);
 
@@ -176,8 +152,10 @@ class NpcAutoRenderer {
                 pointer-events: auto;
             `;
 
-            const icon = createElement("div", {
+            const icon = createElement("button", {
                 className: "npc-icon",
+                type: 'button',
+                'aria-label': `Talk to ${survivor.firstName || survivor.name}`,
                 dataset: { npcId: String(survivor.id) },
                 style: `
                     ${baseStyle}

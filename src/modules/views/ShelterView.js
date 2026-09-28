@@ -2,6 +2,8 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
+import { shelterBuildOdds } from '../systems/ShelterBuildRules.js';
+import { syncCampResources } from '../systems/CampState.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
@@ -861,19 +863,18 @@ function resolveBuildOutcome(style, partner) {
   }
 
   const baseMinutes = 18;
-  const relationshipScore = gameManager.systems?.relationshipSystem?.getRelationship?.(player.id, partner.id)?.score ?? 0;
+  const relationshipScore = gameManager.systems?.relationshipSystem?.getRelationship?.(player.id, partner.id)?.value ?? 50;
   const leadershipBoost = style === 'lead' && isPlayerDay1Leader(player, tribe) ? -3 : 0;
   const lazinessPenalty = ((player.laziness || 0) + (partner.laziness || 0)) / 40;
-  const relationshipFactor = -relationshipScore / 120; // better relationship reduces time
+  const relationshipFactor = -(relationshipScore - 50) / 25; // better teamwork finishes sooner
   const teamworkBonus = style === 'together' ? -2 : style === 'npc_lead' ? 1 : 0;
   const randomSwing = getRandomInt(-120, 180) / 60; // +/- 2-3 minutes
 
   let actualMinutes = baseMinutes + leadershipBoost + lazinessPenalty + relationshipFactor + teamworkBonus + randomSwing;
   actualMinutes = Math.max(8, Math.min(28, actualMinutes));
 
-  const performanceScore = 0.7 - lazinessPenalty / 8 + (relationshipScore / 200) + (isPlayerDay1Leader(player, tribe) ? 0.05 : 0);
-  const styleBias = style === 'lead' ? 0.05 : style === 'npc_lead' ? -0.05 : 0.02;
-  const successChance = Math.min(0.92, Math.max(0.45, 0.7 + performanceScore + styleBias + (getRandomInt(-8, 8) / 100)));
+  const successChance = shelterBuildOdds({ player, partner, relationshipValue: relationshipScore,
+    style, leader: isPlayerDay1Leader(player, tribe) });
   const success = Math.random() < successChance;
 
   gameManager.consumeFromStockpile?.(tribe, 'bamboo', BAMBOO_REQUIRED);
@@ -887,7 +888,7 @@ function resolveBuildOutcome(style, partner) {
 
   if (success) {
     shelterAfter = Math.min(MAX_SHELTER_LEVEL, shelterBefore + 1);
-    const wentSmooth = relationshipScore > 20 || style === 'together';
+    const wentSmooth = relationshipScore > 65 || style === 'together';
     relationshipDelta = wentSmooth ? 4 : 2;
     teamPlayerDelta = wentSmooth ? 10 : 8;
     narration = style === 'lead'
@@ -896,7 +897,7 @@ function resolveBuildOutcome(style, partner) {
         ? `${partner.firstName} sketches their plan and you prop beams, plug gaps, and back them up. Their design clicks and the shelter takes shape.`
         : `You and ${partner.firstName} trade ideas and fall into a rhythm, passing lashings and beams without words. Teamwork makes the walls sturdier.`;
   } else {
-    relationshipDelta = relationshipScore < -20 ? -6 : -3;
+    relationshipDelta = relationshipScore < 35 ? -6 : -3;
     teamPlayerDelta = -5;
     narration = style === 'lead'
       ? `${partner.firstName} bristles under your calls and you push back. The lashings slip, tension spikes, and the shelter doesn't improve.`
@@ -924,6 +925,7 @@ function resolveBuildOutcome(style, partner) {
 
   const newShelterLevel = Math.min(MAX_SHELTER_LEVEL, success ? shelterAfter : shelterBefore);
   tribe.shelter = newShelterLevel;
+  syncCampResources(tribe);
   updateShelterVisuals(newShelterLevel);
   updateStockpileValuesUI(tribe);
   window.refreshMenuCard?.();

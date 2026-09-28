@@ -147,7 +147,6 @@ class NpcIntentPlanner {
         const intents = this.planPhaseIntents({ phaseType: phase, currentView: resolvedView });
 
         let intentsToConsider = intents;
-        let usedNearbyFilter = false;
         if (resolvedView && typeof locationSystem?.getSurvivorsAtLocation === "function") {
             const nearby = locationSystem.getSurvivorsAtLocation(resolvedView) || [];
             const nearbyIds = new Set(
@@ -156,25 +155,7 @@ class NpcIntentPlanner {
                     .filter(id => id != null)
                     .map(id => String(id))
             );
-            if (nearbyIds.size > 0) {
-                const filteredNearby = intents.filter(intent => nearbyIds.has(String(intent.npcId)));
-                if (filteredNearby.length > 0) {
-                    intentsToConsider = filteredNearby;
-                    usedNearbyFilter = true;
-                }
-            }
-        }
-
-        if (!usedNearbyFilter && resolvedView) {
-            intentsToConsider = intents.map(intent => {
-                const reasons = Array.isArray(intent.reasons) ? [...intent.reasons] : [];
-                reasons.push("NPC was not nearby — conversation felt more forced.");
-                return {
-                    ...intent,
-                    urgency: this._clamp01((intent.urgency ?? 0) - 0.15),
-                    reasons
-                };
-            });
+            if (locationSystem.phaseAssigned) intentsToConsider = intents.filter(intent => nearbyIds.has(String(intent.npcId)));
         }
 
         const filtered = intentsToConsider.filter(intent => {
