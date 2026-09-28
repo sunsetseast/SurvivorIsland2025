@@ -173,9 +173,12 @@ test('a public denial inserts one follow-up beat without regenerating a previous
   view._selectQuestionResponse(question, response);
   view._selectQuestionResponse(question, response);
   assert.deepEqual(runner.beats.map(beat => beat.id),
-    ['tribal-question-tribe-state', 'tribal-question-tribe-state-follow-up', 'vote-intro']);
+    ['tribal-question-tribe-state', 'tribal-reaction-tribe-state-follow-up',
+      'tribal-question-tribe-state-follow-up', 'vote-intro']);
   assert.equal(view.questionResponseLog.length, 1);
-  assert.match(runner.beats[1].customRender.toString(), /_renderQuestionContent/);
+  assert.equal(runner.beats[1].sceneMode, 'reaction');
+  assert.deepEqual(runner.beats[1].reactionTargetIds, ['b']);
+  assert.match(runner.beats[2].customRender.toString(), /_renderQuestionContent/);
 });
 
 test('explicit late switch stages one stable Live Tribal; close heat and regex-like fact names do not', () => {
@@ -205,7 +208,8 @@ test('Live Tribal player action only strengthens a witnessed, unstable intent', 
   gm.systems.strategyPhaseSystem.updateNpcIntentTarget = (...args) => updates.push(args);
   const engine = new TribalQuestionEngine(gm);
   const live = engine.generateLiveTribalMoment({ attendingTribeId: 'tribe' });
-  assert.equal(live.responseOptions.length, 3);
+  assert.equal(live.responseOptions.length, 2);
+  assert.equal(live.responseOptions.some(option => option.id === 'lock-ally'), false);
   engine.applyResponse(live, live.responseOptions.find(option => option.id === 'press-swing'));
   assert.deepEqual(updates[0].slice(0, 2), ['a', 'c']);
   assert.equal(updates[0][2].reason, 'liveTribalPlayerPitch');

@@ -4,6 +4,7 @@
  */
 import TribalKnowledgeModel from './TribalKnowledgeModel.js';
 import { composeNpcAnswer } from './TribalDialogueComposer.js';
+import { normalizedThreat } from './TribalThreat.js';
 export default class TribalQuestionEngine {
   constructor(gameManager) {
     this.gameManager = gameManager;
@@ -60,15 +61,12 @@ export default class TribalQuestionEngine {
     const player = state.player;
     const primary = this._getMember(state.primaryTargetId, state.members);
     const secondary = this._getMember(state.secondaryTargetId, state.members);
+    const playerAlly = this._credibleAlly(player, state);
     const playerAlliance = state.alliances.find(alliance => (alliance.memberIds || []).some(id => this._idsEqual(id, player?.id)));
-    const playerAlly = (playerAlliance?.memberIds || [])
-      .map(id => this._getMember(id, state.members))
-      .find(member => member && !this._idsEqual(member.id, player?.id));
     const counterpart = primary && !this._idsEqual(primary.id, player?.id)
       ? primary
       : secondary && !this._idsEqual(secondary.id, player?.id)
-        ? secondary
-        : state.members.find(member => !this._idsEqual(member.id, player?.id));
+        ? secondary : null;
 
     const others = state.members.filter(member => !this._idsEqual(member.id, player?.id));
     const day = Number(this.gameManager?.getDay?.() ?? 1);
@@ -107,12 +105,14 @@ export default class TribalQuestionEngine {
       }));
     }
 
+    // Only an observable alliance may prompt Jeff. Private ties still inform
+    // the contestant's answer choices in any otherwise justified question.
     if (playerAlliance && player) {
       add(this._playerQuestion({
         id: 'alliance-pressure',
         topic: 'alliance_cracks',
         severity: 2,
-        questionText: `${this._name(player)}, alliances are useful right up until the moment self-preservation takes over. How solid is the group you came here trusting?`,
+        questionText: `${this._name(player)}, how do you decide whom to trust when this vote puts promises to the test?`,
         counterpart: playerAlly || counterpart,
         ally: playerAlly,
         state,
@@ -201,7 +201,7 @@ export default class TribalQuestionEngine {
         id: 'loyalty-or-survival',
         topic: 'loyalty_vs_survival',
         severity: 1,
-        questionText: `${this._name(player)}, is tonight's vote about honoring a promise, or proving you can survive when promises stop protecting you?`,
+        questionText: `${this._name(player)}, when a vote gets difficult, how do you weigh loyalty against your own survival?`,
         counterpart,
         ally: playerAlly,
         state,
@@ -251,8 +251,7 @@ export default class TribalQuestionEngine {
     if (!signal) return null;
 
     const player = state.player;
-    const counterpart = this._getMember(signal.toTargetId, state.members)
-      || state.members.find(member => !this._idsEqual(member.id, player?.id));
+    const counterpart = this._getMember(signal.toTargetId, state.members);
     if (!player) return null;
     const actor = this._getMember(signal.speakerId, state.members);
     if (!actor) return null;
@@ -263,13 +262,15 @@ export default class TribalQuestionEngine {
         || this._normalizeId(a.id).localeCompare(this._normalizeId(b.id)))[0];
 
     const involved = this._idsEqual(signal.speakerId, player.id) || signal.toPlayer === true;
+    const ally = this._credibleAlly(player, state);
     const moment = this._playerQuestion({
       id: 'live-tribal-tension',
       topic: 'live_tribal_tension',
       severity: 3,
-      questionText: `${this._name(actor)} leans toward ${this._name(recipient)} for a quiet conversation. Others notice the shift.`,
+      questionText: recipient ? `${this._name(actor)} leans toward ${this._name(recipient)} for a quiet conversation. Others notice the shift.`
+        : `${this._name(actor)} glances across the fire as the plan begins to shift.`,
       counterpart,
-      ally: null,
+      ally,
       state,
       responseSet: 'live'
     });
@@ -285,10 +286,8 @@ export default class TribalQuestionEngine {
     if (!survivor) return { id: 'calm', label: 'Calm' };
 
     const danger = state.knowledge?.perceivedDanger(survivor) ?? 0;
-    const protectedByAlliance = state.alliances.some(alliance => (
-      (alliance.memberIds || []).filter(id => state.members.some(member => this._idsEqual(member.id, id))).length >= 2
-      && (alliance.memberIds || []).some(id => this._idsEqual(id, survivor.id))
-    ));
+    const protectedByAlliance = state.knowledge?.getKnownAllies(survivor.id).some(ally =>
+      Number(this.gameManager?.getTrust?.(survivor.id, ally.id) ?? 50) >= 60);
 
     if (danger >= .65) return { id: 'paranoid', label: 'Paranoid' };
     if (danger >= .4) return { id: 'nervous', label: 'Nervous' };
@@ -303,6 +302,11 @@ export default class TribalQuestionEngine {
     if (!player?.id || !response?.effects) return { applied: false, summary: '' };
 
     const effects = response.effects;
+    const members = this._getTribe(null)?.members?.filter(member => !member.isOut) || [];
+    const knowledge = new TribalKnowledgeModel(this.gameManager, members);
+    const doubtsReassurance = listenerId => response.id === 'reassure-alliance'
+      && knowledge.factsFor(listenerId).some(fact => fact.type === 'discoveredLie'
+        && this._idsEqual(fact.actorId, player.id));
     const applyToSurvivor = (entries, callback) => {
       (entries || []).forEach(entry => {
         const survivor = this._getSurvivor(entry?.survivorId);
@@ -312,9 +316,11 @@ export default class TribalQuestionEngine {
     };
 
     applyToSurvivor(effects.trust, (survivor, delta) => {
+      if (delta > 0 && doubtsReassurance(survivor.id)) return;
       this.gameManager?.changeTrust?.(player.id, survivor.id, Math.max(-3, Math.min(3, delta)), `tribal:${question?.topic || 'response'}:${response.id}`);
     });
     applyToSurvivor(effects.relationship, (survivor, delta) => {
+      if (delta > 0 && doubtsReassurance(survivor.id)) return;
       this.gameManager?.systems?.relationshipSystem?.changeRelationship?.(player.id, survivor.id, delta);
     });
     applyToSurvivor(effects.suspicion, (survivor, delta) => {
@@ -322,23 +328,28 @@ export default class TribalQuestionEngine {
     });
     applyToSurvivor(effects.threat, (survivor, delta) => {
       const key = Number.isFinite(Number(survivor.threatScore)) ? 'threatScore' : 'threat';
-      survivor[key] = this._clamp((Number(survivor[key]) || this._threat(survivor)) + delta);
+      // Production threat is 0–10; the optional threatScore is 0–100.
+      survivor[key] = Math.max(0, Math.min(key === 'threat' ? 10 : 100,
+        (Number(survivor[key]) || 0) + (key === 'threat' ? delta / 10 : delta)));
     });
     (effects.targetHeat || []).forEach(entry => this._changeTargetHeat(entry?.survivorId, entry?.delta));
 
-    const members = this._getTribe(null)?.members?.filter(member => !member.isOut) || [];
-    const knowledge = new TribalKnowledgeModel(this.gameManager, members);
     const subjectId = response.subjectId;
     if (response.id === 'deny-target' && subjectId) {
       for (const listener of members.filter(member => !this._idsEqual(member.id, player.id))) {
-        const knowsContradiction = knowledge.factsFor(listener.id).some(fact =>
-          fact.type === 'playerStrategizedWithNpc' && this._idsEqual(fact.actorId, player.id)
-          && this._idsEqual(fact.subjectId, subjectId));
-        if (knowsContradiction) this.gameManager?.changeTrust?.(player.id, listener.id, -3, 'tribal:knownContradiction');
+        const knowsContradiction = this._knowsContradiction(knowledge, listener.id, player.id, subjectId);
+        if (knowsContradiction) {
+          const hasPromise = knowledge.factsFor(listener.id).some(fact => fact.type === 'rememberedPromise'
+            && this._idsEqual(fact.actorId, player.id));
+          // TrustSystem uses a symmetric pair key. The listener-specific decision
+          // is whom to change, not a directional trust edge.
+          this.gameManager?.changeTrust?.(player.id, listener.id, -3, 'tribal:knownContradiction');
+          if (hasPromise) this.gameManager?.systems?.relationshipSystem?.changeRelationship?.(player.id, listener.id, -1);
+        }
       }
     }
     const memory = this.gameManager?.systems?.socialMemorySystem;
-    if (['call-out', 'deny-target', 'reassure-alliance'].includes(response.id) && subjectId) {
+    if (['call-out', 'deny-target', 'reassure-alliance', 'distance-ally'].includes(response.id) && subjectId) {
       memory?.recordStructuredEvent?.({ type: `tribal_${response.id}`, speakerId: player.id,
         subjectId, data: { public: true }, day: this.gameManager?.getDay?.(), phase: 'tribalCouncil' });
     }
@@ -359,16 +370,16 @@ export default class TribalQuestionEngine {
     if (!question || !response || response.id !== 'deny-target' || !response.subjectId) return null;
     const counterpart = this._getMember(response.subjectId, context.members);
     if (!counterpart) return null;
-    const remembers = member => context.knowledge.factsFor(member.id).some(fact =>
-      fact.type === 'playerStrategizedWithNpc' && this._idsEqual(fact.subjectId, counterpart.id)
-      && this._idsEqual(fact.actorId, context.playerId));
+    const remembers = member => this._knowsContradiction(context.knowledge, member.id, context.playerId, counterpart.id);
     // A listener who remembers the private pitch can visibly react. Jeff asks
     // about that reaction, not about a private conversation he could not know.
     const witness = context.members.find(member => !this._idsEqual(member.id, context.playerId) && remembers(member));
-    const focus = witness || counterpart;
+    if (!witness) return null;
+    const focus = witness;
     const follow = this._npcQuestion({ id: `${question.id}-follow-up`, topic: 'public_denial', severity: 2,
       focus, questionText: `${this._name(focus)}, you reacted. How does that answer land with you?`, state: context });
-    if (witness) follow.npcAnswer = `${this._name(focus)}: “I remember that conversation differently.”`;
+    follow.npcAnswer = `${this._name(focus)}: “I remember that conversation differently.”`;
+    follow.reactionWitnessId = witness.id;
     follow.reactions = context.player ? [{ survivorId: context.player.id, cue: 'glance' }] : [];
     return follow;
   }
@@ -412,30 +423,39 @@ export default class TribalQuestionEngine {
       option('deflect', 'Stay vague', 'I can only speak for the conversations I had.', {
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
       }),
-      option('honest', 'Admit concern', 'I have heard my name. I would be foolish to ignore that.', {
+      option('honest', 'Admit uncertainty', 'There is enough uncertainty here that I am listening carefully.', {
         trust: allyId ? [{ survivorId: allyId, delta: 1 }] : [],
         relationship: allyId ? [{ survivorId: allyId, delta: 1 }] : [],
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
       }),
-      option('call-out', `Name ${this._name(counterpart)}`, `${this._name(counterpart)} has been talking to people. I want to know where they stand.`, {
+      ...(counterpart ? [option('call-out', `Name ${this._name(counterpart)}`, `${this._name(counterpart)} has been talking to people. I want to know where they stand.`, {
         targetHeat: counterpartId ? [{ survivorId: counterpartId, delta: 1 }] : [],
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 2 }],
         threat: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
-      }),
-      option('deny-target', `Deny targeting ${this._name(counterpart)}`, `I have not been pushing ${this._name(counterpart)}'s name.`, {
+      })] : []),
+      ...(counterpart ? [option('deny-target', `Deny targeting ${this._name(counterpart)}`, `I have not been pushing ${this._name(counterpart)}'s name.`, {
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
-      })
+      })] : [option('own-choice', 'Own your decision', 'I will be accountable for the name I write down.', {
+        threat: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
+      })])
     ];
-    base[2].subjectId = counterpartId;
-    base[3].subjectId = counterpartId;
+    if (counterpart) { base[2].subjectId = counterpartId; base[3].subjectId = counterpartId; }
 
-    if (responseSet === 'alliance') {
-      base[1] = option('reassure-alliance', 'Stand by your people', 'I still trust the people who got me here.', {
+    if (ally && ['alliance', 'survival'].includes(responseSet)) {
+      base[1] = option('reassure-alliance', `Stand by ${this._name(ally)}`, `I trust ${this._name(ally)}. We have looked out for each other.`, {
         trust: allyId ? [{ survivorId: allyId, delta: 2 }] : [],
         relationship: allyId ? [{ survivorId: allyId, delta: 1 }] : [],
         suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
       });
       base[1].subjectId = allyId;
+      if (responseSet === 'survival') {
+        base[3] = option('distance-ally', `Distance from ${this._name(ally)}`,
+          `I respect ${this._name(ally)}, but tonight I have to make my own decision.`, {
+            trust: [{ survivorId: allyId, delta: -2 }],
+            relationship: [{ survivorId: allyId, delta: -1 }]
+          });
+        base[3].subjectId = allyId;
+      }
     }
     if (responseSet === 'idol') {
       base[1] = option('play-dumb', 'Brush it off', 'I cannot plan my whole game around a rumor.', {
@@ -453,14 +473,14 @@ export default class TribalQuestionEngine {
         option('stay-seated', 'Stay Seated', 'I am going to let people show me where they stand.', {
           suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: -1 }]
         }),
-        option('press-swing', 'Talk to someone', `You quietly make one last case against ${this._name(counterpart)}.`, {
+        ...(counterpart ? [option('press-swing', 'Talk to someone', `You quietly make one last case against ${this._name(counterpart)}.`, {
           targetHeat: counterpartId ? [{ survivorId: counterpartId, delta: 1 }] : [],
           suspicion: [{ survivorId: this.gameManager?.getPlayerSurvivor?.()?.id, delta: 1 }]
-        }),
-        option('lock-ally', 'Check in with an ally', 'You use the moment to lock in someone you trust.', {
+        })] : []),
+        ...(ally ? [option('lock-ally', `Check in with ${this._name(ally)}`, `You quietly check in with ${this._name(ally)}.`, {
           trust: allyId ? [{ survivorId: allyId, delta: 2 }] : [],
           relationship: allyId ? [{ survivorId: allyId, delta: 1 }] : []
-        })
+        })] : [])
       ];
     }
 
@@ -491,7 +511,8 @@ export default class TribalQuestionEngine {
       : candidates.find(member => state.knowledge?.factsFor(member.id)
         .some(fact => this._idsEqual(fact.subjectId, focus?.id)));
     const second = candidates.find(member => !this._idsEqual(member.id, first?.id)
-      && state.knowledge?.factsFor(member.id).some(fact => this._idsEqual(fact.subjectId, focus?.id)));
+      && (state.knowledge?.getKnownAllies(first?.id).some(ally => this._idsEqual(ally.id, member.id))
+        || state.knowledge?.factsFor(member.id).some(fact => this._idsEqual(fact.subjectId, focus?.id))));
     if (first) reactions.push({ survivorId: first.id, cue: 'glance' });
     if (second) reactions.push({ survivorId: second.id, cue: 'concern' });
     return reactions;
@@ -532,12 +553,34 @@ export default class TribalQuestionEngine {
   }
 
   _threat(member) {
-    const direct = Number(member?.threatScore ?? member?.threat);
-    if (Number.isFinite(direct) && direct > 0) return direct > 1 ? direct : direct * 100;
-    const stats = [member?.physical, member?.mental, member?.social]
-      .map(value => Number(value))
-      .filter(Number.isFinite);
-    return stats.length ? stats.reduce((total, value) => total + value, 0) / stats.length : 50;
+    return normalizedThreat(member);
+  }
+
+  _knowsContradiction(knowledge, listenerId, playerId, subjectId) {
+    return knowledge.factsFor(listenerId).some(fact =>
+      ['playerStrategizedWithNpc', 'targetRequest'].includes(fact.type)
+      && this._idsEqual(fact.actorId, playerId) && this._idsEqual(fact.subjectId, subjectId));
+  }
+
+  _credibleAlly(player, state) {
+    if (!player) return null;
+    const knowledge = state.knowledge;
+    const allies = knowledge.getKnownAllies(player.id);
+    const deals = knowledge.getKnownDeals(player.id).filter(fact => fact.details?.status === 'ACCEPTED');
+    const candidates = state.members.filter(member => !this._idsEqual(member.id, player.id) && !member.isOut)
+      .map(member => {
+        const alliance = allies.some(ally => this._idsEqual(ally.id, member.id));
+        const deal = deals.some(fact => fact.details?.parties?.some(id => this._idsEqual(id, member.id)));
+        const trust = Number(this.gameManager?.getTrust?.(player.id, member.id) ?? 50);
+        const relationship = Number(this.gameManager?.systems?.relationshipSystem?.getRelationship?.(player.id, member.id)?.value ?? 50);
+        const cooperation = knowledge.factsFor(player.id).some(fact =>
+          ['rememberedPromise', 'playerStrategizedWithNpc'].includes(fact.type)
+          && (this._idsEqual(fact.actorId, member.id) || this._idsEqual(fact.knownTo?.[1], member.id)));
+        return { member, alliance, deal, trust, relationship, cooperation,
+          score: (alliance ? 100 : 0) + (deal ? 35 : 0) + trust + relationship / 2 + (cooperation ? 12 : 0) };
+      }).filter(entry => (entry.alliance || entry.deal || entry.cooperation || entry.trust >= 68 || entry.relationship >= 72)
+        && entry.trust >= 38);
+    return candidates.sort((a, b) => b.score - a.score || this._normalizeId(a.member.id).localeCompare(this._normalizeId(b.member.id)))[0]?.member || null;
   }
 
   _name(survivor) {
