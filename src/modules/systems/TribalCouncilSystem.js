@@ -380,6 +380,11 @@ export default class TribalCouncilSystem {
     const player = this.voters.find(member => member?.isPlayer);
     if (!player?.id || !this.gameManager.hasVote?.(player)) return null;
 
+    // A player cannot cast a ballot if every other attending survivor is immune.
+    // The rest of the tribe may still vote, so this must not stall resolution.
+    if (!this.eligibleTargets.some(target => !target.isOut && !this._idsEqual(target.id, player.id)
+      && !this._hasImmunity(target))) return null;
+
     const playerId = this._normalizeId(player.id);
     if (this.sitdUsers.has(playerId) || this.playerVotes.has(playerId)) return null;
 
@@ -479,7 +484,8 @@ export default class TribalCouncilSystem {
     const npcs = this.voters.filter(voter => !voter.isPlayer);
 
     for (const voter of npcs) {
-      if (this.sitdUsers.has(this._normalizeId(voter.id)) || this.lostVoteIds.has(this._normalizeId(voter.id))) {
+      if (this.gameManager.hasVote?.(voter) === false
+        || this.sitdUsers.has(this._normalizeId(voter.id)) || this.lostVoteIds.has(this._normalizeId(voter.id))) {
         continue;
       }
 
@@ -1170,6 +1176,7 @@ export default class TribalCouncilSystem {
     if (!allianceSystem || typeof allianceSystem.getAllAlliances !== 'function') return false;
     const alliances = allianceSystem.getAllAlliances() || [];
     return alliances.some(alliance => {
+      if (alliance.active === false) return false;
       const members = (alliance.members || alliance.memberIds || []).map(memberId => this._normalizeId(memberId));
       return members.includes(this._normalizeId(id1)) && members.includes(this._normalizeId(id2));
     });

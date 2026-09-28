@@ -135,6 +135,42 @@ test('a failed completion can retry without poisoning the key, duplicating histo
   assert.equal(gm._completedTribalKeys.has(`${summary.createdAt}:1`), true);
 });
 
+test('failure after alliance fallout retries without applying the cohesion penalty twice', () => {
+  const { gm, summary } = resolveNumeric('normal');
+  const alliance = { id: 'retry-fallout', memberIds: [2, 3], cohesion: 100, notes: '' };
+  const alliances = new AllianceSystem(gm);
+  alliances.getAlliances = () => [alliance];
+  alliances._publish = () => {};
+  gm.systems.allianceSystem = alliances;
+  let saves = 0;
+  gm.requestAutoSave = () => { if (++saves === 1) throw Error('temporary save failure'); };
+  assert.throws(() => gm.handleTribalCouncilComplete(summary), /temporary save failure/);
+  const cohesionAfterFirstAttempt = alliance.cohesion;
+  assert.ok(cohesionAfterFirstAttempt < 100);
+  gm.handleTribalCouncilComplete(summary);
+  assert.equal(alliance.cohesion, cohesionAfterFirstAttempt);
+  assert.equal(gm.gameHistory.tribals.length, 1);
+  assert.equal(gm.day, 4);
+  gm.handleTribalCouncilComplete(summary);
+  assert.equal(alliance.cohesion, cohesionAfterFirstAttempt);
+});
+
+test('an alliance-stage failure does not replay already completed deal fallout', () => {
+  const { gm, summary } = resolveNumeric('normal');
+  let deals = 0;
+  let alliances = 0;
+  gm.systems.dealSystem = { processTribalOutcome() { deals++; } };
+  gm.systems.allianceSystem = { processPostTribalFallout() {
+    if (++alliances === 1) throw Error('temporary alliance failure');
+  } };
+  assert.throws(() => gm.handleTribalCouncilComplete(summary), /temporary alliance failure/);
+  gm.handleTribalCouncilComplete(summary);
+  assert.equal(deals, 1);
+  assert.equal(alliances, 2);
+  assert.equal(gm.day, 4);
+  assert.equal(gm.gameHistory.tribals.length, 1);
+});
+
 test('deal voting and protection terms compare native and ballot IDs without false results', () => {
   const gm = { systems: {} };
   const deals = new DealSystem(gm);

@@ -174,8 +174,14 @@ export default class TribalKnowledgeModel {
       if (self(fact) && fact.type === 'tribal_distance-ally'
         && closeTo(fact.actorId)) distancing += .16 * recency(fact);
       if (self(fact) && fact.type === 'tribal_deny-target' && liarKnown(fact.actorId)) lies += .13 * recency(fact);
-      if (self(fact) && fact.type === 'tribal_reassure-alliance'
-        && !liarKnown(fact.actorId)) reassurance -= .07 * recency(fact);
+      if (self(fact) && fact.type === 'tribal_reassure-alliance') {
+        const speakerTrust = Number(this.gameManager?.getTrust?.(survivor.id, fact.actorId) ?? 50);
+        // A promise from an ally can calm someone; a rival or a known liar cannot.
+        const credibility = liarKnown(fact.actorId) || speakerTrust < 40 ? 0
+          : closeTo(fact.actorId) && speakerTrust >= 60 ? 1
+            : speakerTrust >= 70 ? .55 : .15;
+        reassurance -= .07 * credibility * recency(fact);
+      }
       if (fact.type === 'visibleLiveWhisper') {
         const participants = fact.details?.participants || [];
         const allyInWhisper = participants.some(person => ownAllies.some(ally => sameSurvivorId(ally.id, person)));

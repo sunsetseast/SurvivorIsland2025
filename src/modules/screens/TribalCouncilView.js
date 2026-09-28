@@ -221,7 +221,7 @@ export default class TribalCouncilView {
           onClick: () => this._handleVotingContinue(),
           disabled: () => {
             const hasVote = this.gameManager.hasVote?.(this.gameManager.getPlayerSurvivor?.()) === true;
-            return hasVote && !this.playerVote && !this.sitdUsed;
+            return hasVote && this._getVoteTargets().length > 0 && !this.playerVote && !this.sitdUsed;
           }
         },
         customRender: (content) => this._renderVotingContent(content)
@@ -848,23 +848,29 @@ export default class TribalCouncilView {
         : 'Your vote has been cast. Fold the parchment and return to your seat.'));
       return;
     }
-    wrap.appendChild(createElement('div', { className: 'tribal-dialogue' }, 'Choose a name. You can change it until you cast your vote.'));
-    this._renderPortraitChoices(wrap, this._getVoteTargets(), this.selectedVote, member => {
-      this.selectedVote = member.id;
-      this.sitdConfirmPending = false;
-      this.beatRunner.goTo(this.beatRunner.currentIndex, { force: true });
-    });
-    const preview = createElement('div', { className: 'tribal-ballot-preview' }, this.selectedVote
-      ? this.getTribalName(this.selectedVote) : 'YOUR BALLOT');
-    wrap.appendChild(preview);
-    wrap.appendChild(createElement('button', { className: 'rect-button tribal-cast-vote', type: 'button',
-      disabled: !this.selectedVote, onclick: () => {
-        if (!this.tribalCouncilSystem.registerPlayerVote(player.id, this.selectedVote)) return;
-        this.playerVote = this.selectedVote;
-        const beat = this.beatRunner.getCurrentBeat?.();
-        if (beat) beat.canSkipAfterMs = TRIBAL_PACING.ballotConfirmation;
+    const targets = this._getVoteTargets();
+    if (targets.length) {
+      wrap.appendChild(createElement('div', { className: 'tribal-dialogue' }, 'Choose a name. You can change it until you cast your vote.'));
+      this._renderPortraitChoices(wrap, targets, this.selectedVote, member => {
+        this.selectedVote = member.id;
+        this.sitdConfirmPending = false;
         this.beatRunner.goTo(this.beatRunner.currentIndex, { force: true });
-      } }, 'CAST VOTE'));
+      });
+      const preview = createElement('div', { className: 'tribal-ballot-preview' }, this.selectedVote
+        ? this.getTribalName(this.selectedVote) : 'YOUR BALLOT');
+      wrap.appendChild(preview);
+      wrap.appendChild(createElement('button', { className: 'rect-button tribal-cast-vote', type: 'button',
+        disabled: !this.selectedVote, onclick: () => {
+          if (!this.tribalCouncilSystem.registerPlayerVote(player.id, this.selectedVote)) return;
+          this.playerVote = this.selectedVote;
+          const beat = this.beatRunner.getCurrentBeat?.();
+          if (beat) beat.canSkipAfterMs = TRIBAL_PACING.ballotConfirmation;
+          this.beatRunner.goTo(this.beatRunner.currentIndex, { force: true });
+        } }, 'CAST VOTE'));
+    } else {
+      wrap.appendChild(createElement('div', { className: 'tribal-dialogue' },
+        'No one else can receive your vote tonight. Return to your seat when you are ready.'));
+    }
     const canPlaySitd = this.gameManager.canPlayShotInTheDark?.(player) === true
       && player?.shotInTheDarkAvailable !== false;
     if (canPlaySitd) {
@@ -937,7 +943,7 @@ export default class TribalCouncilView {
   _handleVotingContinue() {
     const player = this.gameManager.getPlayerSurvivor?.();
     const hasVote = this.gameManager.hasVote?.(player) === true;
-    if (hasVote && !this.playerVote && !this.sitdUsed) return;
+    if (hasVote && this._getVoteTargets().length > 0 && !this.playerVote && !this.sitdUsed) return;
     this.beatRunner.next();
   }
 
