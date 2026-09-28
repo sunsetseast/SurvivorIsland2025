@@ -18,6 +18,7 @@ export default function renderTreeMail(container) {
   container.style.backgroundSize = 'cover';
   container.style.backgroundPosition = 'center';
   container.style.backgroundRepeat = 'no-repeat';
+  const timerExpired = gameManager.getDayTimer() <= 0;
 
   const wrapper = createElement('div', {
     className: 'treemail-wrapper',
@@ -37,20 +38,22 @@ export default function renderTreeMail(container) {
     style: `
       color: white;
       text-shadow: 2px 2px 4px black;
-      font-size: 1.8rem;
+      font-size: clamp(1.1rem, 4vw, 1.8rem);
+      line-height: 1.45;
+      max-width: min(90vw, 640px);
       font-family: 'Survivant', sans-serif;
       text-align: center;
       padding: 20px;
       z-index: 2;
     `
-  }, 'Tree Mail: A clue to your next challenge appears...');
+  }, timerExpired
+    ? 'Tree Mail! The tribe gathers as the seal is broken. “The sun climbs high, the tide rolls in; stand with your tribe, and fight to win.” No one knows what awaits at the challenge.'
+    : 'The Tree Mail post is quiet for now.');
 
   wrapper.appendChild(message);
   container.appendChild(wrapper);
 
   // Check if timer has run out
-  const currentTimer = gameManager.getDayTimer();
-  const timerExpired = currentTimer <= 0;
 
   // --- Action Bar Buttons ---
   const actionButtons = document.getElementById('action-buttons');
@@ -58,7 +61,7 @@ export default function renderTreeMail(container) {
     clearChildren(actionButtons);
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', { type: 'button', 'aria-label': alt,
         style: `
           width: 240px;
           height: 135px;
@@ -87,7 +90,7 @@ export default function renderTreeMail(container) {
     };
 
     const createTreeMailButton = () => {
-      const buttonWrapper = createElement('div', {
+      const buttonWrapper = createElement('button', { type: 'button', 'aria-label': 'Read Tree Mail and review camp',
         className: 'tree-mail-button-wrapper',
         style: `
           width: 240px;
@@ -146,10 +149,6 @@ export default function renderTreeMail(container) {
       // Add click handler
       buttonWrapper.addEventListener('click', () => {
         console.log('Tree Mail button clicked - loading summary view');
-        if (!gameManager.flags?.taskSimEndCompleted) {
-          gameManager.runTaskSimCheckpoint?.('end', { triggerDramaEvent: false });
-          gameManager.taskSystem?.ingestCampLogForTribe?.(gameManager, gameManager.getPlayerTribe?.());
-        }
         window.campScreen.loadView(LocationKeys.SUMMARY);
       });
 

@@ -6,6 +6,7 @@
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { generateId, getRandomInt } from '../utils/CommonUtils.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import { witnessedHuntSuspicion } from './CampIdolRisk.js';
 
 export const ELIGIBLE_IDOL_LOCATIONS = [
   LocationKeys.BEACH,
@@ -124,6 +125,7 @@ class IdolSystem {
     this.tribeClueStates = new Map();
     this.survivorInventories = new Map();
     this.casualSearchCounts = new Map();
+    this.huntVisits = new Map();
     this.currentCampPhaseId = null;
     this.initialSpawnCompleted = false;
     this.debugMode = false;
@@ -140,6 +142,7 @@ class IdolSystem {
     this.tribeClueStates.clear();
     this.survivorInventories.clear();
     this.casualSearchCounts.clear();
+    this.huntVisits.clear();
     this.currentCampPhaseId = null;
     this.initialSpawnCompleted = false;
     this.debugForceFind = { idol: false, clue: false };
@@ -151,6 +154,7 @@ class IdolSystem {
       tribeClueStates: Array.from(this.tribeClueStates.entries()),
       survivorInventories: Array.from(this.survivorInventories.entries()),
       casualSearchCounts: Array.from(this.casualSearchCounts.entries()),
+      huntVisits: Array.from(this.huntVisits.entries()),
       currentCampPhaseId: this.currentCampPhaseId,
       initialSpawnCompleted: this.initialSpawnCompleted,
       debugMode: this.debugMode
@@ -165,6 +169,7 @@ class IdolSystem {
     this.tribeClueStates = new Map(Array.isArray(payload.tribeClueStates) ? payload.tribeClueStates : []);
     this.survivorInventories = new Map(Array.isArray(payload.survivorInventories) ? payload.survivorInventories : []);
     this.casualSearchCounts = new Map(Array.isArray(payload.casualSearchCounts) ? payload.casualSearchCounts : []);
+    this.huntVisits = new Map(Array.isArray(payload.huntVisits) ? payload.huntVisits : []);
     this.currentCampPhaseId = payload.currentCampPhaseId ?? null;
     this.initialSpawnCompleted = Boolean(payload.initialSpawnCompleted);
     this.setDebugMode(Boolean(payload.debugMode));
@@ -194,6 +199,7 @@ class IdolSystem {
   startNewCampPhase(reason = '') {
     this.currentCampPhaseId = this._buildCampPhaseId();
     this.casualSearchCounts.clear();
+    this.huntVisits.clear();
     return {
       ok: true,
       reason,
@@ -302,7 +308,7 @@ class IdolSystem {
       this._incrementCasualSearch(survivorId, safeLocationKey);
     }
 
-    if (this.gameManager.consumeCampTime) {
+    if (!isNpc && this.gameManager.consumeCampTime) {
       this.gameManager.consumeCampTime(settings.timeCost, {
         source: isNpc ? 'npc_idol_hunt' : 'player_idol_hunt',
         survivorId,
@@ -314,7 +320,19 @@ class IdolSystem {
     }
 
     if (mode === 'aggressive') {
-      survivor.suspicion = (survivor.suspicion || 0) + settings.suspicion;
+      const visitsKey = `${this.currentCampPhaseId}:${survivorId}:${safeLocationKey}`;
+      const repeatVisits = this.huntVisits.get(visitsKey) || 0;
+      const locations = this.gameManager.systems?.npcLocationSystem;
+      const witnessedHere = locations?.getSurvivorsAtLocation?.(safeLocationKey)?.length || 0;
+      const departure = typeof window !== 'undefined' ? window.campScreen?.currentView : null;
+      const seenLeaving = departure && departure !== safeLocationKey
+        ? (locations?.getSurvivorsAtLocation?.(departure)?.length || 0) : 0;
+      const witnesses = isNpc ? 0 : witnessedHere + seenLeaving;
+      const addedSuspicion = isNpc ? settings.suspicion : witnessedHuntSuspicion({
+        witnesses, repeatVisits, priorSuspicion: survivor.suspicion || 0, seconds: settings.timeCost
+      });
+      survivor.suspicion = Math.min(100, (survivor.suspicion || 0) + addedSuspicion);
+      this.huntVisits.set(visitsKey, repeatVisits + 1);
     }
 
     const idolState = this.tribeIdolStates.get(tribeId);

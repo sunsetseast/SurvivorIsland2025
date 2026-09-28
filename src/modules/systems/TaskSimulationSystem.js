@@ -1,11 +1,12 @@
 import { clamp, getRandomInt, shuffleArray } from '../utils/CommonUtils.js';
 import { GamePhase } from '../core/GameManager.js';
 import NpcIdolHuntAI from './NpcIdolHuntAI.js';
+import { LocationKeys } from '../core/LocationKeys.js';
+import { CAMP_WORK_LOCATIONS } from './CampState.js';
+import { MAX_FIRE_LEVEL, MAX_SHELTER_LEVEL, syncCampResources } from './CampState.js';
 
 const SHELTER_REQUIREMENTS = { bamboo: 5, palms: 1 };
 const FIRE_REQUIREMENTS = { firewood: 10 };
-const MAX_SHELTER_LEVEL = 4;
-const MAX_FIRE_LEVEL = 3;
 
 const DEFAULT_DELTAS = {
   bamboo: 0,
@@ -405,6 +406,13 @@ export default class TaskSimulationSystem {
   addContribution(survivorId, role, resource, amount, report, tribe) {
     const gm = this.gameManager;
     if (!amount || amount <= 0) return;
+    const worker = this.getSurvivorById(tribe, survivorId);
+    const workLocation = CAMP_WORK_LOCATIONS[role];
+    if (worker && !worker.isPlayer && workLocation) {
+      gm.systems?.npcLocationSystem?.updateNpcLocation?.(survivorId, workLocation, { reason: 'camp_work' });
+      const now = gm.getDayTimer?.() ?? gm.dayTimer ?? 0;
+      worker.campActivity = { type: role, location: workLocation, startedAt: now, endsAt: Math.max(0, now - 600) };
+    }
     const stockpileKey = resource === 'coconut' ? 'coconuts' : resource;
     const safeResource = stockpileKey === 'coconut' ? 'coconuts' : stockpileKey;
 
@@ -496,6 +504,7 @@ export default class TaskSimulationSystem {
 
     if (buildType === 'shelter') tribe.shelter = afterValue;
     if (buildType === 'fire') tribe.fire = afterValue;
+    syncCampResources(tribe);
 
     const entry = {
       type: buildType === 'shelter' ? 'camp_shelter_build' : 'camp_fire_build',
@@ -793,7 +802,10 @@ export default class TaskSimulationSystem {
 
   getSurvivorById(tribe, survivorId) {
     if (!tribe?.members) return null;
-    return tribe.members.find(member => String(member.id) === String(survivorId)) || null;
+    const absent = this.gameManager?.flags?.absentFromCampIds;
+    return tribe.members.find(member => !member.isOut &&
+      !(absent?.has?.(member.id) || absent?.has?.(String(member.id))) &&
+      String(member.id) === String(survivorId)) || null;
   }
 
   getWorkMultiplier(survivor) {
@@ -853,7 +865,7 @@ export default class TaskSimulationSystem {
     const currentWater = tribe.resources?.water ?? 0;
     const isLow = currentWater <= 35;
     if ((!plan.assigneeIds || plan.assigneeIds.length === 0) && isLow) {
-      const candidates = shuffleArray(tribe.members || []);
+      const candidates = shuffleArray((tribe.members || []).filter(member => !member.isPlayer && !member.isOut));
       plan.assigneeIds = candidates.slice(0, Math.min(2, candidates.length)).map(member => member.id);
     }
 
@@ -863,22 +875,20 @@ export default class TaskSimulationSystem {
     const waterRuns = [];
     assignees.forEach(id => {
       const survivor = this.getSurvivorById(tribe, id);
-      if (!survivor) return;
+      if (!survivor || survivor.isPlayer) return;
+      gm.systems?.npcLocationSystem?.updateNpcLocation?.(id, LocationKeys.WATER_WELL, { reason: 'collect_water' });
+      survivor.campActivity = { type: 'water', location: LocationKeys.WATER_WELL,
+        startedAt: gm.getDayTimer?.() ?? gm.dayTimer,
+        endsAt: Math.max(0, (gm.getDayTimer?.() ?? gm.dayTimer ?? 0) - 180) };
       const effort = this.getWorkMultiplier(survivor);
       const amount = clamp(this.rollAmount(2, 5, effort), 1, 8);
       if (amount <= 0) return;
 
       this.addContribution(id, 'water', 'water', amount, report, tribe);
-      tribe.resources = tribe.resources || {};
-      tribe.resources.water = Math.min((tribe.resources.water || 0) + amount * 2, 100);
       if (Number.isFinite(survivor.rest)) {
         survivor.rest = Math.max(0, survivor.rest - 1);
       }
-      gm.consumeCampTime?.(180, {
-        source: 'water_run',
-        survivorId: id,
-        checkpoint
-      });
+      // NPC work runs in parallel with the player, not on the player's clock.
 
       waterRuns.push({ survivorId: id, amount });
     });

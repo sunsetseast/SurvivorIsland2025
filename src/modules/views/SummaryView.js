@@ -48,6 +48,7 @@ function formatResourceList(resources = {}) {
 
 function formatCampLogBody(entry, tribe, playerId) {
   if (entry.text) return entry.text;
+  if (entry.type === 'camp_responsibility_met' || entry.type === 'camp_npc_approach') return entry.narration || '';
   if (entry.type === 'camp_contribute' && entry.resources) {
     const name = displayNameById(entry.actorId, tribe, playerId);
     const pieces = formatResourceList(entry.resources);
@@ -276,7 +277,7 @@ function renderCheckpointReportSection(report, tribe, heading) {
   if (report.teamPlayerDeltas?.length) {
     const lines = report.teamPlayerDeltas.map(delta => {
       const name = displayNameById(delta.survivorId, tribe, playerId);
-      return `${name} saw team player change ${delta.delta >= 0 ? '+' : ''}${delta.delta}.`;
+      return delta.delta >= 0 ? `${name} helped carry the camp's workload.` : `${name} left some work for the others.`;
     });
     section.appendChild(createElement('div', { style: { color: '#2b190a', marginBottom: '10px' } }, lines.join(' ')));
   }
@@ -285,7 +286,7 @@ function renderCheckpointReportSection(report, tribe, heading) {
     const lines = report.relationshipDeltasProposed.map(delta => {
       const fromName = displayNameById(delta.fromId, tribe, playerId);
       const toName = displayNameById(delta.toId, tribe, playerId);
-      return `${fromName} and ${toName} shifted by ${delta.delta >= 0 ? '+' : ''}${delta.delta}.`;
+      return delta.delta >= 0 ? `${fromName} and ${toName} seemed closer after working together.` : `There was tension between ${fromName} and ${toName}.`;
     });
     section.appendChild(createElement('div', { style: { color: '#2b190a', marginBottom: '10px' } }, lines.join(' ')));
   }
@@ -477,7 +478,7 @@ function buildSocialRecapSection() {
   addCategory('Relationship Changes', relationshipChanges, change => {
     const delta = change.amount || 0;
     const deltaText = delta >= 0 ? `+${delta}` : `${delta}`;
-    return `${change.with} relationship shift (${change.context || 'camp'}: ${deltaText}).`;
+    return delta >= 0 ? `You and ${change.with} seemed closer after ${change.context || 'camp'}.` : `${change.with} seemed more distant after ${change.context || 'camp'}.`;
   });
 
   addCategory('Trust Changes', trustChanges, change => {
@@ -487,11 +488,11 @@ function buildSocialRecapSection() {
     const isPlayerChange = (withId && withId === playerId) || (playerName && change.with === playerName);
     if (isPlayerChange) {
       const target = change.target || change.about;
-      if (target) return `Your trust in ${target} shifted (${deltaText}).`;
-      return `Your trust shifted (${deltaText}).`;
+      if (target) return `You felt ${delta >= 0 ? 'more' : 'less'} sure about ${target}.`;
+      return `You felt ${delta >= 0 ? 'more' : 'less'} trusting.`;
     }
     const direction = delta >= 0 ? 'trusts you more' : 'trusts you less';
-    return `${change.with} ${direction} (${deltaText}).`;
+    return `${change.with} ${direction}.`;
   });
 
   addCategory('Suspicion', suspicionChanges, change => {
@@ -501,10 +502,10 @@ function buildSocialRecapSection() {
     const isPlayerChange = (withId && withId === playerId) || (playerName && change.with === playerName);
     if (isPlayerChange) {
       const target = change.target || change.about;
-      if (target) return `You grew more suspicious of ${target} (${deltaText}).`;
-      return `Your suspicion changed (${deltaText}).`;
+      if (target) return `You grew ${delta >= 0 ? 'more' : 'less'} suspicious of ${target}.`;
+      return `Your suspicions ${delta >= 0 ? 'grew' : 'eased'}.`;
     }
-    return `Suspicion ${delta >= 0 ? 'rose' : 'fell'}: ${change.with} (${deltaText}).`;
+    return `${change.with} seemed ${delta >= 0 ? 'more' : 'less'} suspicious.`;
   });
 
   const mentionEntries = (socialLog.memory || []).filter(m => m && (m.type === 'mention' || m.type === 'strategic_context'));
@@ -616,7 +617,7 @@ export default function renderSummary(container) {
       border-bottom: 2px solid white;
       padding-bottom: 10px;
     `
-  }, `Day 1 Summary - ${playerTribe.name} Tribe`);
+  }, `Day ${gameManager.getCurrentDay?.() ?? gameManager.day ?? 1} Camp - ${playerTribe.name} Tribe`);
 
   const summaryContent = createElement('div', {
     style: `
@@ -637,7 +638,7 @@ export default function renderSummary(container) {
   const currentDay = gameManager.getCurrentDay?.() ?? gameManager.day ?? 1;
 
   const recapEntry = [...campLog].reverse().find(entry => entry?.id === 'day1_first_impressions');
-  if (recapEntry) {
+  if (recapEntry && currentDay === 1) {
     const recapSection = renderCinematicRecap(recapEntry);
     if (recapSection) summaryContent.appendChild(recapSection);
   }
@@ -656,6 +657,7 @@ export default function renderSummary(container) {
 
   const highlightEntries = campLog.filter(entry => {
     if (!entry) return false;
+    if (entry.day != null && entry.day !== currentDay) return false;
     if (entry.id === 'day1_first_impressions') return false;
     if (entry.type === 'checkpoint_report') return false;
     if (entry.type === 'task_results' || entry.type === 'end_phase_report') return false;
@@ -693,7 +695,7 @@ export default function renderSummary(container) {
     clearChildren(actionButtons);
 
     const createButton = (text, onClick) => {
-      const button = createElement('div', {
+      const button = createElement('button', { type: 'button',
         style: `
           background-image: url('Assets/Buttons/blank.png');
           background-size: contain;
@@ -705,6 +707,7 @@ export default function renderSummary(container) {
           align-items: center;
           justify-content: center;
           cursor: pointer;
+          border: 0;
           transition: transform 0.1s ease;
           font-family: 'Survivant', sans-serif;
           font-size: 1rem;
@@ -728,7 +731,7 @@ export default function renderSummary(container) {
     };
 
     // Add continue button at the bottom
-    const continueButton = createElement('div', {
+    const continueButton = createElement('button', { type: 'button',
       style: `
           background-image: url('Assets/Buttons/blank.png');
           background-size: contain;
@@ -740,6 +743,7 @@ export default function renderSummary(container) {
           align-items: center;
           justify-content: center;
           cursor: pointer;
+          border: 0;
           transition: transform 0.1s ease;
           font-family: 'Survivant', sans-serif;
           font-size: 1rem;

@@ -25,7 +25,6 @@ import renderSummary from '../views/SummaryView.js';
 import renderPostChallengeSummaryView from '../views/PostChallengeSummaryView.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
-import npcAutoRenderer from '../ui/NpcAutoRenderer.js';
 import { runDay1FirstImpressions, canRunDay1FirstImpressions, runPart2FromCheckpointReport } from '../events/Day1FirstImpressionsEvent.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import PostChallengeEventSystem from '../systems/PostChallengeEventSystem.js';
@@ -173,6 +172,9 @@ export default class CampScreen {
         viewName: this.currentView,
         container: getElement('camp-content')
       });
+    });
+    this.unsubscribeFromCampCheckpoint = eventManager.subscribe('camp:checkpoint', ({ report }) => {
+      if (this.isActive && report?.uiIntent) runPart2FromCheckpointReport?.(report);
     });
   }
 
@@ -441,13 +443,7 @@ export default class CampScreen {
       });
       safeDebug('CAMP VIEW LOADED', normalizedViewName);
 
-      // 🔥 3) Force NPC renderer AFTER DOM exists
-      // (this is the critical step — without this, you see nothing)
-      if (npcAutoRenderer && typeof npcAutoRenderer.renderFor === 'function') {
-        npcAutoRenderer.renderFor(normalizedViewName);
-      }
-
-      // 🔥 4) Update menu stats
+      // Update menu stats. The CAMP_VIEW_LOADED subscriber owns NPC rendering.
       if (typeof refreshMenuCard === 'function') {
         refreshMenuCard();
       }
@@ -456,6 +452,8 @@ export default class CampScreen {
   }
 
   triggerTreeMailEvent() {
+    gameManager.finalizePreImmunityCamp?.();
+    if (document.getElementById('tree-mail-overlay')) return;
     const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
     console.log('[CampScreen] Time ran out - triggering Tree Mail event', { phase, timer, reason: 'camp timer reached 0 outside POST_CHALLENGE' });
@@ -478,9 +476,11 @@ export default class CampScreen {
     treeMailOverlay.style.transition = 'opacity 0.5s ease';
 
     // Create the large tree mail icon
-    const treeMailIcon = document.createElement('img');
-    treeMailIcon.src = 'Assets/Resources/treeMail.png';
-    treeMailIcon.alt = 'Tree Mail';
+    const treeMailIcon = document.createElement('button');
+    treeMailIcon.type = 'button';
+    treeMailIcon.setAttribute('aria-label', 'Read Tree Mail');
+    treeMailIcon.style.background = "transparent url('Assets/Resources/treeMail.png') center / contain no-repeat";
+    treeMailIcon.style.border = '0';
     treeMailIcon.style.width = '200px';
     treeMailIcon.style.height = '200px';
     treeMailIcon.style.objectFit = 'contain';
@@ -513,6 +513,8 @@ export default class CampScreen {
     icon.style.animation = 'none';
     icon.style.cursor = 'pointer';
     icon.style.transition = 'all 0.5s ease';
+    overlay.style.pointerEvents = 'none';
+    icon.style.pointerEvents = 'auto';
     icon.style.filter = 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))';
 
     // Add click handler to navigate to tree mail
@@ -557,10 +559,11 @@ export default class CampScreen {
 
     let icon = document.getElementById('task-icon');
     if (!icon) {
-      icon = document.createElement('img');
+      icon = document.createElement('button');
       icon.id = 'task-icon';
-      icon.src = 'Assets/task-icon.png';
-      icon.alt = 'Tasks';
+      icon.type = 'button';
+      icon.setAttribute('aria-label', 'Camp responsibilities');
+      icon.style.backgroundImage = "url('Assets/task-icon.png')";
       icon.addEventListener('click', () => this.toggleTaskOverlay());
       container.appendChild(icon);
     }
@@ -571,6 +574,9 @@ export default class CampScreen {
     if (!overlay) {
       overlay = document.createElement('div');
       overlay.id = 'task-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'Camp responsibilities');
       overlay.style.display = 'none';
       overlay.addEventListener('click', event => {
         if (event.target === overlay) {
@@ -589,8 +595,10 @@ export default class CampScreen {
         panel.appendChild(line);
       });
 
-      const closeHit = document.createElement('div');
+      const closeHit = document.createElement('button');
       closeHit.id = 'task-close-hit';
+      closeHit.type = 'button';
+      closeHit.setAttribute('aria-label', 'Close camp responsibilities');
       closeHit.addEventListener('click', () => this.closeTaskOverlay());
       panel.appendChild(closeHit);
 
@@ -643,6 +651,11 @@ export default class CampScreen {
       requestAnimationFrame(() => panel.classList.add('task-panel-open'));
     }
     this.taskOverlayOpen = true;
+    overlay.onkeydown = event => {
+      if (event.key === 'Escape') { event.preventDefault(); this.closeTaskOverlay(); }
+      if (event.key === 'Tab') { event.preventDefault(); panel?.querySelector('#task-close-hit')?.focus?.(); }
+    };
+    panel?.querySelector('#task-close-hit')?.focus?.();
   }
 
   closeTaskOverlay() {
@@ -653,7 +666,9 @@ export default class CampScreen {
     setTimeout(() => {
       overlay.style.display = 'none';
     }, 150);
+    const wasOpen = this.taskOverlayOpen;
     this.taskOverlayOpen = false;
+    if (wasOpen) document.getElementById('task-icon')?.focus?.();
   }
 
   renderTasksIntoOverlay() {
@@ -678,7 +693,7 @@ export default class CampScreen {
         const check = document.createElement('div');
         check.className = 'task-claim-check';
         check.textContent = '✓';
-        check.title = 'Claim task reward';
+        check.title = 'Contribution noticed';
         check.addEventListener('click', event => {
           event.stopPropagation();
           this.handleClaimTask(taskForLine.id);
@@ -691,9 +706,7 @@ export default class CampScreen {
   handleClaimTask(taskId) {
     const result = gameManager.taskSystem?.claimTaskForPlayer?.(gameManager, taskId);
     if (result?.ok) {
-      const message = result.rewardText && result.rewardText.length
-        ? `Task Complete: ${result.task?.title}\nYour reward: ${result.rewardText}`
-        : 'Task Claimed!';
+      const message = 'Your contribution was noticed around camp.';
       gameManager.systems?.dialogueSystem?.showNotification?.(message, 'success');
     } else {
       gameManager.systems?.dialogueSystem?.showNotification?.('Unable to claim task.', 'warning');
@@ -833,12 +846,6 @@ export default class CampScreen {
     console.info('[CampScreen] Camp clock ticking started', { phase, timer });
     window.debugBanner?.('CLOCK START', `${phase} | t:${timer}`);
 
-    // 🕒 Track last time water, hunger, and rest were decreased
-    let lastWaterTick = gameManager.getDayTimer();
-    let lastHungerTick = gameManager.getDayTimer();
-    let lastRestTick = gameManager.getDayTimer();
-    let lastShelterLevel = gameManager.getPlayerTribe()?.shelter || 0;
-
     timerManager.setInterval(CAMP_CLOCK_TIMER_ID, () => {
       if (gameManager.flags?.campEventActive) {
         return;
@@ -852,17 +859,6 @@ export default class CampScreen {
         phase: gameManager.getGamePhase?.() || gameManager.gamePhase,
         currentView: this.currentView
       });
-
-      if (
-        gameManager.gamePhase !== GamePhase.POST_CHALLENGE &&
-        currentTime <= 3600 &&
-        !gameManager.flags?.taskSimMidCompleted
-      ) {
-        const report = gameManager.runTaskSimCheckpoint?.('mid', { triggerDramaEvent: true });
-        if (report?.uiIntent) {
-          runPart2FromCheckpointReport?.(report);
-        }
-      }
 
       // Check if time has run out
       if (currentTime <= 0) {
@@ -909,57 +905,7 @@ export default class CampScreen {
         return;
       }
 
-      if (gameManager.gamePhase !== GamePhase.POST_CHALLENGE) {
-        // Track if any stats changed to update health
-        let statsChanged = false;
-
-        // If at least 300 seconds (5 in-game minutes) have passed - water decrease
-        if (lastWaterTick - currentTime >= 300) {
-          lastWaterTick = currentTime;
-          gameManager.decreaseWaterForAll(1);
-          statsChanged = true;
-          console.log('Water decreased for all survivors (5 in-game minutes passed)');
-        }
-
-        // If at least 360 seconds (6 in-game minutes) have passed - hunger decrease
-        if (lastHungerTick - currentTime >= 360) {
-          lastHungerTick = currentTime;
-          gameManager.decreaseHungerForAll(1);
-          statsChanged = true;
-          console.log('Hunger decreased for all survivors (6 in-game minutes passed)');
-        }
-
-        // Dynamic rest deduction based on shelter level
-        // Level 0: 240 seconds (4 min), Level 5: 840 seconds (14 min)
-        // Linear progression: 240 + (shelterLevel * 120)
-        const playerTribe = gameManager.getPlayerTribe();
-        const currentShelterLevel = playerTribe ? (playerTribe.shelter || 0) : 0;
-
-        // Recalculate rest tick if shelter level changed
-        if (currentShelterLevel !== lastShelterLevel) {
-          lastRestTick = currentTime;
-          lastShelterLevel = currentShelterLevel;
-          console.log(`Shelter level changed to ${currentShelterLevel}, rest interval now ${240 + (currentShelterLevel * 120)} seconds`);
-        }
-
-        const restInterval = 240 + (currentShelterLevel * 120); // 120 seconds per shelter level
-
-        // Only deduct if enough time has passed AND we haven't already deducted at this time
-        if (lastRestTick - currentTime >= restInterval && lastRestTick !== currentTime) {
-          lastRestTick = currentTime;
-          gameManager.decreaseRestForAll(1);
-          statsChanged = true;
-          console.log(`Rest decreased for all survivors (${restInterval} seconds passed, shelter level ${currentShelterLevel})`);
-        }
-
-        // Update health calculations for all survivors if any stats changed
-        if (statsChanged) {
-          gameManager.updateHealthForAll();
-        }
-
-        // Update UI display if inventory is open
-        this.updateInventoryDisplay();
-      }
+      if (gameManager.gamePhase !== GamePhase.POST_CHALLENGE) this.updateInventoryDisplay();
     }, 1000);
   }
 

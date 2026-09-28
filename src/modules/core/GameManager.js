@@ -16,6 +16,8 @@ import socialMemorySystem from '../systems/SocialMemorySystem.js';
 import strategyPhaseSystem from '../systems/StrategyPhaseSystem.js';
 import TaskSystem from '../systems/TaskSystem.js';
 import TaskSimulationSystem from '../systems/TaskSimulationSystem.js';
+import { normalizeCampState, syncCampResources, safeCampAmount } from '../systems/CampState.js';
+import { advanceCampNeeds } from '../systems/CampTime.js';
 import SeasonEngine from './SeasonEngine.js';
 import { sameSurvivorId } from '../utils/SurvivorIds.js';
 
@@ -81,6 +83,7 @@ class GameManager {
     };
     this.systems = {};
     this.dayTimer = 7200;     // 2 hours in seconds
+    this.campNeedElapsed = { water: 0, hunger: 0, rest: 0 };
     this.timeSpeed = 8;       // countdown rate per tick
     this.taskSystem = new TaskSystem(this);
     this.systems.taskSimulationSystem = new TaskSimulationSystem(this);
@@ -482,6 +485,7 @@ class GameManager {
     this.gamePhase = GamePhase.PRE_GAME;
     this.dayTimer = 7200;
     this.timeSpeed = 8;
+    this.campNeedElapsed = { water: 0, hunger: 0, rest: 0 };
     this.seasonEngine?.reset();
     this._terminalHandled = false;
     Object.values(this.systems).forEach(system => {
@@ -495,28 +499,30 @@ class GameManager {
       firewood: 0,
       bamboo: 0,
       palms: 0,
-      water: 0,
+      water: safeCampAmount(tribe.resources?.water),
       coconuts: 0,
       fish1: 0,
       fish2: 0,
       fish3: 0
     };
+    normalizeCampState(tribe);
     return tribe.stockpile;
   }
 
   addToStockpile(tribe, type, amount = 0) {
-    if (!tribe || !type || typeof amount !== 'number') return 0;
+    if (!tribe || !type || !Number.isFinite(amount)) return 0;
     const stockpile = this.ensureStockpileExists(tribe);
     const safeAmount = Math.max(0, amount);
     if (stockpile[type] === undefined) {
       stockpile[type] = 0;
     }
-    stockpile[type] += safeAmount;
+    stockpile[type] = safeCampAmount(stockpile[type]) + safeAmount;
+    if (type === 'water') syncCampResources(tribe);
     return stockpile[type];
   }
 
   consumeFromStockpile(tribe, type, amount = 0) {
-    if (!tribe || !type || typeof amount !== 'number') return false;
+    if (!tribe || !type || !Number.isFinite(amount)) return false;
     const stockpile = this.ensureStockpileExists(tribe);
     const safeAmount = Math.max(0, amount);
     if (stockpile[type] === undefined) {
@@ -525,7 +531,8 @@ class GameManager {
     if (stockpile[type] < safeAmount) {
       return false;
     }
-    stockpile[type] = Math.max(0, stockpile[type] - safeAmount);
+    stockpile[type] = Math.max(0, safeCampAmount(stockpile[type]) - safeAmount);
+    if (type === 'water') syncCampResources(tribe);
     return true;
   }
 
@@ -626,7 +633,7 @@ class GameManager {
         name: tribeName,
         color: tribeColor,
         members,
-        resources: { fish: 0, fish1: 0, fish2: 0, fish3: 0, water: 50, fire: 75, shelter: 60 },
+        resources: { fish: 0, fish1: 0, fish2: 0, fish3: 0, water: 50, fire: 0, shelter: 0 },
         fire: 0,
         shelter: 0,
         immunityWins: 0,
@@ -639,6 +646,7 @@ class GameManager {
         member.tribeColor = tribe.tribeColor;
       });
 
+      normalizeCampState(tribe);
       this.initializeWaterPlanForTribe(tribe);
       return tribe;
     });
@@ -946,6 +954,7 @@ class GameManager {
   }
 
   _publishPhaseChange() {
+    this.campNeedElapsed = { water: 0, hunger: 0, rest: 0 };
     if (
       this.gameState === GameState.CAMP &&
       (this.gamePhase === GamePhase.PRE_CHALLENGE || this.gamePhase === GamePhase.POST_CHALLENGE)
@@ -962,8 +971,9 @@ class GameManager {
 
   updateTribeHealth() {
     this.tribes.forEach(tribe => {
+      normalizeCampState(tribe);
       tribe.members.forEach(member => {
-        if (member.isPlayer) return;
+        if (member.isPlayer || member.isOut) return;
         let healthChange = -5;
         const { food, water, fire, shelter } = tribe.resources;
         if (food > 50) healthChange += 2;
@@ -977,10 +987,8 @@ class GameManager {
           change: healthChange
         });
       });
-      tribe.resources.food = Math.max(0, tribe.resources.food - 15);
-      tribe.resources.water = Math.max(0, tribe.resources.water - 10);
-      tribe.resources.fire = Math.max(0, tribe.resources.fire - 5);
-      tribe.resources.shelter = Math.max(0, tribe.resources.shelter - 3);
+      tribe.resources.food = Math.max(0, safeCampAmount(tribe.resources.food) - 15);
+      this.consumeFromStockpile(tribe, 'water', Math.min(10, tribe.stockpile.water));
     });
   }
 
@@ -1055,6 +1063,7 @@ class GameManager {
     if (!this.survivors) return;
 
     this.survivors.forEach(survivor => {
+      if (survivor.isOut) return;
       if (typeof survivor.water === 'number') {
         survivor.water = Math.max(0, survivor.water - amount);
       }
@@ -1065,6 +1074,7 @@ class GameManager {
     if (!this.survivors) return;
 
     this.survivors.forEach(survivor => {
+      if (survivor.isOut) return;
       if (typeof survivor.hunger === 'number') {
         survivor.hunger = Math.max(0, survivor.hunger - amount);
       }
@@ -1075,6 +1085,7 @@ class GameManager {
     if (!this.survivors) return;
 
     this.survivors.forEach(survivor => {
+      if (survivor.isOut) return;
       if (typeof survivor.rest === 'number') {
         survivor.rest = Math.max(0, survivor.rest - amount);
       }
@@ -1090,18 +1101,30 @@ class GameManager {
   }
 
   decreaseDayTimer() {
-    this.dayTimer = Math.max(0, this.dayTimer - this.timeSpeed);
-    return this.dayTimer;
+    return this.advanceCampTime(this.timeSpeed, { source: 'clock' });
   }
 
   deductTime(seconds) {
-    this.dayTimer = Math.max(0, this.dayTimer - seconds);
+    return this.advanceCampTime(seconds, { source: 'action' });
   }
 
   consumeCampTime(seconds, payload = {}) {
-    const amount = Math.max(0, Number(seconds) || 0);
-    if (!amount) return;
-    this.dayTimer = Math.max(0, this.dayTimer - amount);
+    return this.advanceCampTime(seconds, payload);
+  }
+
+  advanceCampTime(seconds, payload = {}) {
+    const amount = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+    if (!amount) return this.dayTimer;
+    const before = this.dayTimer;
+    this.dayTimer = Math.max(0, before - amount);
+    if (this.gamePhase === GamePhase.PRE_CHALLENGE) {
+      advanceCampNeeds(this, before - this.dayTimer);
+      if (before > 3600 && this.dayTimer <= 3600) {
+        const report = this.runTaskSimCheckpoint('mid', { triggerDramaEvent: true });
+        if (report?.uiIntent) eventManager.publish('camp:checkpoint', { report });
+      }
+      if (before > 0 && this.dayTimer === 0) this.finalizePreImmunityCamp();
+    }
     updateCampClockUI(this.dayTimer, this.getDay());
     if (this.systems?.idolSystem?.isDebugMode?.()) {
       console.debug('[GameManager] Camp time consumed', {
@@ -1110,6 +1133,14 @@ class GameManager {
         ...payload
       });
     }
+    return this.dayTimer;
+  }
+
+  finalizePreImmunityCamp() {
+    if (this.gamePhase !== GamePhase.PRE_CHALLENGE) return null;
+    const report = this.runTaskSimCheckpoint('end', { triggerDramaEvent: false });
+    if (report) this.taskSystem?.ingestCampLogForTribe?.(this, this.getPlayerTribe());
+    return report;
   }
 
   getCurrentDay() {
@@ -1155,6 +1186,7 @@ class GameManager {
         day: this.day,
         dayTimer: this.dayTimer,
         timeSpeed: this.timeSpeed,
+        campNeedElapsed: this.campNeedElapsed,
         tribeCount: this.tribeCount,
         tribes: this.tribes,
         survivors: this.survivors,
@@ -1167,7 +1199,8 @@ class GameManager {
         mergeAt: this.mergeAt,
         isTribesShuffled: this.isTribesShuffled,
         isMerged: this.isMerged,
-        flags: this.flags,
+        flags: { ...this.flags, absentFromCampIds: this.flags?.absentFromCampIds instanceof Set
+          ? Array.from(this.flags.absentFromCampIds) : this.flags?.absentFromCampIds },
         campLog: this.campLog,
         day1Memories: this.day1Memories,
         gameHistory: this.gameHistory,
@@ -1194,6 +1227,8 @@ class GameManager {
     this.day = Number.isFinite(data.day) ? data.day : 1;
     this.dayTimer = Number.isFinite(data.dayTimer) ? data.dayTimer : 7200;
     this.timeSpeed = Number.isFinite(data.timeSpeed) ? data.timeSpeed : 8;
+    this.campNeedElapsed = Object.fromEntries(['water', 'hunger', 'rest'].map(key => [key,
+      Number.isFinite(data.campNeedElapsed?.[key]) ? Math.max(0, data.campNeedElapsed[key]) : 0]));
     this.tribeCount = Number.isFinite(data.tribeCount) ? data.tribeCount : this.tribeCount;
     this.isMerged = Boolean(data.isMerged);
     this.tribes = Array.isArray(data.tribes) ? data.tribes : [];
@@ -1211,7 +1246,7 @@ class GameManager {
         member.tribeName = tribe.tribeName ?? tribe.name;
         member.tribeColor = tribe.tribeColor ?? tribe.color;
       });
-      return { ...tribe, members };
+      return normalizeCampState({ ...tribe, members });
     }).filter(tribe => tribe.members.length > 0 || this.isMerged);
     this.player = canonicalById.get(String(data.playerId || data.player?.id))
       || this.survivors.find(survivor => survivor?.isPlayer)
@@ -1225,6 +1260,8 @@ class GameManager {
     this.mergeAt = Number.isFinite(data.mergeAt) ? data.mergeAt : this.mergeAt;
     this.isTribesShuffled = Boolean(data.isTribesShuffled);
     this.flags = data.flags || { day1FirstImpressionsCompleted: false };
+    if (Array.isArray(this.flags.absentFromCampIds)) this.flags.absentFromCampIds = new Set(this.flags.absentFromCampIds);
+    this.flags.campEventActive = false; // DOM-driven event overlays are not restorable.
     this.campLog = Array.isArray(data.campLog) ? data.campLog : [];
     this.day1Memories = Array.isArray(data.day1Memories) ? data.day1Memories : [];
     this.gameHistory = data.gameHistory || { tribals: [] };

@@ -7,10 +7,6 @@ import { createElement, clearChildren, addDebugBanner } from '../utils/index.js'
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
-/* ⭐ NEW IMPORTS FOR NPC ICON SYSTEM -------------------------------- */
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { createNpcIcon } from "../ui/NpcIcon.js";
-/* ------------------------------------------------------------------- */
 
 function loadCampView(locationKey) {
   if (window.campScreen?.loadView) {
@@ -146,7 +142,9 @@ export default function renderBeach(container) {
     clearChildren(actionButtons);
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button',
+        'aria-label': alt,
         style: `
           width: 140px;
           height: 80px;
@@ -155,6 +153,8 @@ export default function renderBeach(container) {
           align-items: center;
           overflow: hidden;
           cursor: pointer;
+          border: 0;
+          background: transparent;
         `
       });
 
@@ -196,39 +196,5 @@ export default function renderBeach(container) {
     actionButtons.appendChild(rightButton);
   }
 
-  /* ⭐ NEW NPC RENDERING LOGIC -------------------------------------- */
-  renderNPCsAtBeach(container);
-  /* ---------------------------------------------------------------- */
-
   addDebugBanner('Beach view rendered!', 'deepskyblue', 170);
 }
-
-/* ⭐⭐ NEW FUNCTION ADDED: Renders NPC Icons for BeachView ----------- */
-function renderNPCsAtBeach(container) {
-  try {
-    // Remove old NPC container if it exists
-    const old = container.querySelector(".npc-icon-container");
-    if (old) old.remove();
-
-    const npcContainer = document.createElement("div");
-    npcContainer.classList.add("npc-icon-container");
-
-    // Fetch survivors located at BeachView
-    const survivorsHere = npcLocationSystem?.getSurvivorsAtLocation?.(LocationKeys.BEACH) || [];
-
-    survivorsHere.forEach(survivor => {
-      if (!survivor) return;
-      const icon = createNpcIcon(survivor, () => {
-        console.log("Clicked NPC:", survivor.name);
-        // TODO: Launch conversation UI
-        // conversationUI.startConversation(survivor);
-      });
-      npcContainer.appendChild(icon);
-    });
-
-    container.appendChild(npcContainer);
-  } catch (e) {
-    console.warn('[BeachView] NPC render failed', e);
-  }
-}
-/* ------------------------------------------------------------------- */

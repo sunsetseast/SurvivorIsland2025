@@ -15,6 +15,8 @@ import { updateCampClockUI } from '../utils/ClockUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import { openContributionOverlay } from '../ui/ContributionOverlay.js';
+import { MAX_FIRE_LEVEL, syncCampResources } from '../systems/CampState.js';
+import { firewoodCost, payForFireAttempt } from '../systems/FireAttemptRules.js';
 
 let currentActionMode = null;
 let fireRoot = null;
@@ -1587,13 +1589,11 @@ export default function renderFireView(container) {
   function handleMakeFireTap() {
     const { tribe, count } = getFirewoodStockpile();
     if (!tribe) return;
-    if (count < 10) {
+    if (count < firewoodCost(tribe.fire)) {
       showInsufficientFirewoodParchment(10);
     } else {
-      // Deduct 10 firewood and show effect
-      gameManager.consumeFromStockpile?.(tribe, 'firewood', 10);
-      pendingFirewoodCost = 10;
-      showFirewoodEffect(10);
+      pendingFirewoodCost = payForFireAttempt(gameManager, tribe);
+      showFirewoodEffect(pendingFirewoodCost);
       ensureFoodStockpileBanner(getFireRoot(), tribe);
       // Then show instructions to start minigame
       showFireInstructions(false); // false = normal speed
@@ -1607,21 +1607,13 @@ export default function renderFireView(container) {
     const currentFireLevel = playerTribe ? playerTribe.fire : 0;
 
     // Determine cost based on current fire level
-    let requiredFirewood;
-    if (currentFireLevel === 1) {
-      requiredFirewood = 20; // Fire 1 → Fire 2
-    } else if (currentFireLevel === 2) {
-      requiredFirewood = 30; // Fire 2 → Fire 3 (max)
-    } else {
-      requiredFirewood = 20; // Default fallback
-    }
+    const requiredFirewood = firewoodCost(currentFireLevel);
 
     if (count < requiredFirewood) {
       showInsufficientFirewoodParchment(requiredFirewood);
     } else {
       // Deduct required firewood and show effect
-      gameManager.consumeFromStockpile?.(tribe, 'firewood', requiredFirewood);
-      pendingFirewoodCost = requiredFirewood;
+      pendingFirewoodCost = payForFireAttempt(gameManager, tribe);
       showFirewoodEffect(requiredFirewood);
       ensureFoodStockpileBanner(getFireRoot(), tribe);
       // Then show instructions to start minigame at faster speed
@@ -1925,6 +1917,16 @@ export default function renderFireView(container) {
     document.body.appendChild(failureOverlay);
     failureOverlay.addEventListener('click', () => {
       failureOverlay.style.display = 'none';
+      const tribe = gameManager.getPlayerTribe();
+      const cost = payForFireAttempt(gameManager, tribe);
+      if (!cost) {
+        window.campScreen?.loadView?.(LocationKeys.FIRE);
+        showInsufficientFirewoodParchment(firewoodCost(tribe?.fire || 0));
+        return;
+      }
+      pendingFirewoodCost = cost;
+      showFirewoodEffect(cost);
+      ensureFoodStockpileBanner(getFireRoot(), tribe);
       restartGame();
     });
 
@@ -2384,13 +2386,14 @@ export default function renderFireView(container) {
       if (playerTribe) {
         if (isFastMode) {
           // Tending fire increases by 1 level
-          playerTribe.fire = Math.min(3, playerTribe.fire + 1);
+          playerTribe.fire = Math.min(MAX_FIRE_LEVEL, playerTribe.fire + 1);
           newFireLevel = playerTribe.fire;
         } else {
           // Making fire sets to level 1
           playerTribe.fire = 1;
           newFireLevel = 1;
         }
+        syncCampResources(playerTribe);
       }
 
       // Track fire building success

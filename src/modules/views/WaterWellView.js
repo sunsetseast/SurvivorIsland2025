@@ -393,7 +393,7 @@ export default function renderWaterWell(container) {
     if (!tribe || !tribe.members || !player) return;
 
     const allFull = tribe.members.every(member => (member.water || 0) >= MAX_WATER);
-    if (allFull) {
+    if (allFull && gameManager.ensureStockpileExists(tribe).water >= 50) {
       console.log('All tribe members already have max water.');
       waterPopup.style.display = 'none';
       return;
@@ -412,6 +412,10 @@ export default function renderWaterWell(container) {
     tribe.members.forEach(member => {
       member.water = Math.min(MAX_WATER, (member.water || 0) + 100);
     });
+    // Canteens restore individual hydration; the extra filled containers are
+    // the tribe's potable supply, shared with NPC water runs and daily upkeep.
+    gameManager.addToStockpile(tribe, 'water', 10);
+    gameManager.taskSystem?.recordResourceGain?.(player.id, 'water', 10, 'water_well', tribe);
 
     activityTracker.trackWaterGathering(100, true);
     gameManager.systems?.idolSystem?.attemptIncidentalFind?.(
