@@ -1240,6 +1240,9 @@ class GameManager {
     this.timeSpeed = Number.isFinite(data.timeSpeed) ? data.timeSpeed : 8;
     this.campNeedElapsed = Object.fromEntries(['water', 'hunger', 'rest'].map(key => [key,
       Number.isFinite(data.campNeedElapsed?.[key]) ? Math.max(0, data.campNeedElapsed[key]) : 0]));
+    this.campNeedElapsed.restByTribe = Object.fromEntries(Object.entries(data.campNeedElapsed?.restByTribe || {})
+      .filter(([id, value]) => id && Number.isFinite(value) && value >= 0)
+      .map(([id, value]) => [id, value]));
     this.tribeCount = Number.isFinite(data.tribeCount) ? data.tribeCount : this.tribeCount;
     this.isMerged = Boolean(data.isMerged);
     this.tribes = Array.isArray(data.tribes) ? data.tribes : [];

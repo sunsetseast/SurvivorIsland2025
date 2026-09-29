@@ -689,20 +689,12 @@ class SocialMemorySystem {
         });
     }
 
-    recordIntel({ from, kind, claimedTarget = null, outcome = "evade", day = 1, verified = false }) {
-        if (from) {
-            this.initNPC(from);
-        }
-
-        const keys = Object.keys(this.memory);
-        if (keys.length === 0 && from) {
-            keys.push(from);
-        }
+    recordIntel({ from, to = null, kind, claimedTarget = null, outcome = "evade", day = 1, verified = false }) {
 
         const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
         const entry = { from, kind, claimedTarget, outcome, day: dayValue, verified };
 
-        keys.forEach(npcId => {
+        [...new Set([from, to].filter(id => id != null))].forEach(npcId => {
             this.initNPC(npcId);
             this.memory[npcId].intel = this.memory[npcId].intel || [];
             this.memory[npcId].intel.push(entry);
@@ -712,7 +704,7 @@ class SocialMemorySystem {
             type: kind === 'targetClaim' ? 'target' : 'gossip',
             about: claimedTarget || null,
             from,
-            to: null,
+            to,
             day: dayValue,
             phase: window.gameManager?.getGamePhase?.(),
             confidence: outcome === 'truth' ? 70 : outcome === 'lie' ? 30 : 45,
@@ -720,24 +712,15 @@ class SocialMemorySystem {
         });
     }
 
-    recordNamedIntel({ about, context, from, day, confidence = null, phase = null, shortText = null }) {
+    recordNamedIntel({ about, context, from, to = null, day, confidence = null, phase = null, shortText = null }) {
         if (!about || !context) return;
         const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
         const entry = { about, context, from: from || 'Unknown', day: dayValue };
-        let keys = Object.keys(this.memory || {});
-
-        if (keys.length === 0) {
-            const survivors = window.gameManager?.survivors || [];
-            if (survivors.length) {
-                survivors.forEach(s => this.initNPC(s.id));
-            } else if (from) {
-                keys.push(from);
-            }
-        }
-
-        keys = Object.keys(this.memory || {});
-
-        keys.forEach(npcId => {
+        const gm = typeof window !== 'undefined' ? window.gameManager : null;
+        const speaker = gm?.survivors?.find(s => String(s.id) === String(from) || s.firstName === from) ||
+            (from === 'Player' ? gm?.player : null);
+        const sourceId = speaker?.id || (this.memory[from] ? from : null);
+        [...new Set([sourceId, to].filter(id => id != null))].forEach(npcId => {
             this.initNPC(npcId);
             this.memory[npcId].namedIntel = this.memory[npcId].namedIntel || [];
             this.memory[npcId].namedIntel.push(entry);
@@ -758,13 +741,22 @@ class SocialMemorySystem {
         this.recordIntelEvent({
             type: typeMap[context] || 'gossip',
             about,
-            from,
-            to: null,
+            from: sourceId,
+            to,
             day: dayValue,
             phase: phase || window.gameManager?.getGamePhase?.() || null,
             confidence,
             shortText: shortText || `${from || 'Someone'} mentioned ${about} (${context}).`
         });
+        if (to != null && sourceId != null && gm?.gamePhase === 'preChallenge') {
+            const subject = gm.survivors?.find(s => String(s.id) === String(about) || s.firstName === about);
+            if (subject) this.recordCampClaim({ id: `named:${dayValue}:${this.intelEvents.length}`,
+                speakerId: sourceId, listenerIds: [to], subjectId: subject.id,
+                topic: context === 'idol_suspicion' ? 'idol_suspicion' : context,
+                stance: context === 'idol_suspicion' ? 'possible' : 'mentioned',
+                confidence: typeof confidence === 'number' ? confidence / 100 : 0.55,
+                day: dayValue, campTime: gm.dayTimer, salience: context === 'target' || context === 'warning' ? 'high' : 'medium' });
+        }
     }
 
     recordConfrontation(npcId, withWho, tone = "tense") {
@@ -948,12 +940,15 @@ class SocialMemorySystem {
             this.initNPC(ownerId);
             const mem = this.memory[ownerId];
             mem.campObservations ||= []; mem.campImpressions ||= {};
+            mem.lastCampDecayDay ??= day;
             if (mem.campObservations.some(entry => entry.id === id)) continue;
+            const salience = ['betrayal', 'confirmed_lie', 'public_conflict', 'promise', 'idol_search_seen'].includes(type) ? 'high' :
+                ['absence', 'role_neglect', 'seen_together'].includes(type) ? 'medium' : 'low';
             mem.campObservations.push({ id, actorId, participantIds: [...participantIds], type, location,
                 day, campTime, origin, sourceId: origin === 'participant' ? actorId : null,
                 confidence: origin === 'participant' ? 1 : visibility === 'inference' ? 0.55 : 0.85,
-                visibility, detail: visibility === 'private' && origin === 'witness' ? '' : detail });
-            if (mem.campObservations.length > 48) mem.campObservations.splice(0, mem.campObservations.length - 48);
+                salience, visibility, detail: visibility === 'private' && origin === 'witness' ? '' : detail });
+            this.pruneCampObservations(mem);
             if (String(ownerId) === String(actorId)) continue;
             const patterns = mem.campImpressions[String(actorId)] ||= {};
             const pattern = patterns[type] ||= { count: 0, confidence: 0, lastDay: day };
@@ -974,8 +969,9 @@ class SocialMemorySystem {
         const mem = this.memory[toId]; mem.campObservations ||= [];
         if (mem.campObservations.some(entry => entry.id === observationId)) return false;
         mem.campObservations.push({ ...known, origin: 'hearsay', sourceId: fromId,
+            sourceChain: [...(known.sourceChain || []), fromId].slice(-5),
             confidence: Math.min(0.55, known.confidence * 0.65), detail: known.visibility === 'private' ? '' : known.detail });
-        if (mem.campObservations.length > 48) mem.campObservations.shift();
+        this.pruneCampObservations(mem);
         if (['absence', 'work', 'role_neglect'].includes(known.type)) {
             mem.campImpressions ||= {};
             const patterns = mem.campImpressions[String(known.actorId)] ||= {};
@@ -985,6 +981,134 @@ class SocialMemorySystem {
             pattern.lastDay = known.day;
         }
         return true;
+    }
+
+    pruneCampObservations(mem) {
+        while (mem.campObservations.length > 48) {
+            const disposable = mem.campObservations.findIndex(entry => entry.salience !== 'high');
+            mem.campObservations.splice(disposable < 0 ? 0 : disposable, 1);
+        }
+    }
+
+    // A camp claim is owned by its speaker and actual listeners. The speaker's
+    // knowledge of a deliberate lie never crosses to a listener by implication.
+    recordCampClaim({ id, speakerId, listenerIds = [], subjectId, topic, stance,
+        origin = 'participant', sourceId = null, confidence = 0.8, day = 1, campTime = null,
+        salience = 'medium', truthfulness = null } = {}) {
+        if (!id || speakerId == null || subjectId == null || !topic || !stance) return false;
+        const owners = [speakerId, ...listenerIds];
+        let added = false;
+        for (const ownerId of new Set(owners.map(String))) {
+            this.initNPC(ownerId);
+            const mem = this.memory[ownerId]; mem.campClaims ||= [];
+            mem.lastCampDecayDay ??= day;
+            if (mem.campClaims.some(entry => entry.id === id)) continue;
+            const speaker = String(ownerId) === String(speakerId);
+            const entry = { id, speakerId, subjectId, topic, stance, day, campTime, salience,
+                origin: speaker ? origin : 'hearsay', sourceId: speaker ? sourceId : speakerId,
+                sourceChain: speaker ? [speakerId] : [sourceId, speakerId].filter(Boolean),
+                confidence: speaker ? Math.min(1, confidence) : this.campClaimConfidence(ownerId, speakerId, confidence),
+                ...(speaker && truthfulness != null ? { truthfulness } : {}) };
+            this.addOwnedCampClaim(mem, entry);
+            added = true;
+        }
+        return added;
+    }
+
+    campClaimConfidence(ownerId, sourceId, original) {
+        this.initNPC(ownerId);
+        const gm = typeof window !== 'undefined' ? window.gameManager : null;
+        const trust = gm?.getTrust?.(ownerId, sourceId) ?? 50;
+        const reliability = this.memory[ownerId].campSourceReliability?.[String(sourceId)] ?? 0.75;
+        return Math.max(0.05, Math.min(0.7, original * (0.38 + trust / 250) * reliability));
+    }
+
+    addOwnedCampClaim(mem, entry) {
+        mem.campClaims ||= []; mem.campSourceReliability ||= {};
+        if (entry.origin === 'firsthand') for (const prior of mem.campClaims) {
+            if (prior.sourceId == null || prior.origin !== 'hearsay' ||
+                String(prior.subjectId) !== String(entry.subjectId) || prior.topic !== entry.topic ||
+                prior.stance !== entry.stance) continue;
+            const key = String(prior.sourceId);
+            mem.campSourceReliability[key] = Math.min(1, (mem.campSourceReliability[key] ?? 0.75) + 0.05);
+            prior.challenged = false;
+        }
+        const opposites = { yes: ['no'], no: ['yes'], possible: ['unlikely'],
+            unlikely: ['possible', 'searching'], searching: ['unlikely', 'denied'],
+            mentioned: ['denied'], denied: ['mentioned', 'searching'],
+            warned: ['denied'] };
+        const contradicts = mem.campClaims.filter(previous => entry.truthfulness !== false &&
+            String(previous.subjectId) === String(entry.subjectId) && previous.topic === entry.topic &&
+            (opposites[previous.stance]?.includes(entry.stance) || opposites[entry.stance]?.includes(previous.stance)) &&
+            previous.confidence > 0.15);
+        for (const prior of contradicts) {
+            prior.challenged = true;
+            prior.confidence = Math.max(0.05, prior.confidence * (entry.origin === 'firsthand' ? 0.4 : 0.78));
+            // Only direct evidence can discredit a source; conflicting rumors are uncertainty.
+            if (entry.origin === 'firsthand' && prior.sourceId != null) {
+                const key = String(prior.sourceId);
+                mem.campSourceReliability[key] = Math.max(0.2, (mem.campSourceReliability[key] ?? 0.75) - 0.18);
+            }
+        }
+        entry.contradicts = contradicts.map(previous => previous.id).slice(-4);
+        mem.campClaims.push(entry);
+        while (mem.campClaims.length > 40) {
+            const low = mem.campClaims.findIndex(claim => claim.salience !== 'high');
+            mem.campClaims.splice(low < 0 ? 0 : low, 1);
+        }
+    }
+
+    shareCampClaim({ fromId, toId, claimId } = {}) {
+        if (fromId == null || toId == null || String(fromId) === String(toId)) return false;
+        this.initNPC(fromId); this.initNPC(toId);
+        const known = (this.memory[fromId].campClaims || []).find(claim => claim.id === claimId);
+        if (!known || this.memory[toId].campClaims?.some(claim => claim.id === claimId)) return false;
+        const confidence = Math.min(known.confidence * 0.72,
+            this.campClaimConfidence(toId, fromId, known.confidence));
+        this.addOwnedCampClaim(this.memory[toId], { ...known, origin: 'hearsay', sourceId: fromId,
+            sourceChain: [...(known.sourceChain || []), fromId].slice(-5), confidence,
+            truthfulness: undefined, challenged: false });
+        return true;
+    }
+
+    getCampClaims(ownerId, { subjectId = null, topic = null } = {}) {
+        if (ownerId == null) return [];
+        this.initNPC(ownerId);
+        return (this.memory[ownerId].campClaims || []).filter(entry =>
+            (subjectId == null || String(entry.subjectId) === String(subjectId)) &&
+            (topic == null || entry.topic === topic));
+    }
+
+    getCampSourceReliability(ownerId, sourceId) {
+        if (ownerId == null || sourceId == null) return 0.75;
+        this.initNPC(ownerId);
+        return this.memory[ownerId].campSourceReliability?.[String(sourceId)] ?? 0.75;
+    }
+
+    // Called at the start of a new camp day, and safe to call more than once.
+    advanceCampMemoryDay(day) {
+        if (!Number.isInteger(day)) return;
+        for (const mem of Object.values(this.memory)) {
+            const dated = [...(mem.campObservations || []), ...(mem.campClaims || [])]
+                .map(entry => entry.day).filter(Number.isInteger);
+            const prior = Number.isInteger(mem.lastCampDecayDay) ? mem.lastCampDecayDay :
+                (dated.length ? Math.min(day, ...dated) : day);
+            const days = Math.max(0, day - prior);
+            if (!days) { mem.lastCampDecayDay = day; continue; }
+            mem.campObservations = (mem.campObservations || []).filter(entry =>
+                entry.salience === 'high' || day - (entry.day || day) <= (entry.salience === 'medium' ? 5 : 2));
+            for (const entry of mem.campObservations) if (entry.salience !== 'high')
+                entry.confidence = Math.max(0.05, entry.confidence * Math.pow(entry.salience === 'medium' ? 0.88 : 0.7, days));
+            mem.campClaims = (mem.campClaims || []).filter(entry =>
+                entry.salience === 'high' || day - (entry.day || day) <= (entry.salience === 'medium' ? 8 : 3));
+            for (const entry of mem.campClaims) if (entry.salience !== 'high')
+                entry.confidence = Math.max(0.05, entry.confidence * Math.pow(entry.salience === 'medium' ? 0.92 : 0.7, days));
+            for (const patterns of Object.values(mem.campImpressions || {})) for (const pattern of Object.values(patterns)) {
+                pattern.count = Math.max(0, pattern.count - days * 0.35);
+                pattern.confidence = Math.max(0, pattern.confidence * Math.pow(0.9, days));
+            }
+            mem.lastCampDecayDay = day;
+        }
     }
 
     getCampObservations(ownerId, { day = null } = {}) {
@@ -1018,6 +1142,11 @@ class SocialMemorySystem {
             if (entry.day != null && entry.day < today - daysBack) continue;
             for (const id of Array.isArray(entry.about) ? entry.about : [entry.about])
                 if (id != null) counts.set(String(id), (counts.get(String(id)) || 0) + 1);
+        }
+        for (const claim of this.memory[ownerId].campClaims || []) {
+            if (claim.day < today - daysBack || claim.confidence < 0.2) continue;
+            const key = String(claim.subjectId);
+            counts.set(key, (counts.get(key) || 0) + 1);
         }
         return [...counts].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id, count]) => ({ id, count }));
     }
@@ -1075,21 +1204,26 @@ class SocialMemorySystem {
         return removed;
     }
 
-    getRecentIntelAbout(survivorId, limit = 6) {
+    getRecentIntelAbout(survivorId, limit = 6, ownerId = null) {
         if (survivorId == null) return [];
         const compare = String(survivorId);
         const gm = window.gameManager;
         const resolved = gm?.survivors?.find?.((s) => String(s.id) === compare || s.firstName === survivorId);
         const compareAlt = resolved ? String(resolved.id) : null;
+        const compareName = resolved?.firstName || null;
         const resolveMatch = (about) => {
             if (about == null) return false;
             if (Array.isArray(about)) {
-                return about.some((item) => String(item) === compare || (compareAlt && String(item) === compareAlt));
+                return about.some((item) => String(item) === compare ||
+                    (compareAlt && String(item) === compareAlt) || (compareName && String(item) === compareName));
             }
-            return String(about) === compare || (compareAlt && String(about) === compareAlt);
+            return String(about) === compare || (compareAlt && String(about) === compareAlt) ||
+                (compareName && String(about) === compareName);
         };
-        return [...this.intelEvents]
-            .filter((entry) => resolveMatch(entry.about))
+        const source = ownerId == null ? this.intelEvents : (this.memory[String(ownerId)]?.intelEvents || []);
+        return [...source]
+            .filter((entry) => resolveMatch(entry.about) && (ownerId == null || gm?.gamePhase !== 'preChallenge' ||
+                entry.day == null || entry.day >= (gm?.day || 1) - 3))
             .sort((a, b) => (b.day || 0) - (a.day || 0))
             .slice(0, limit);
     }
