@@ -737,6 +737,8 @@ class NpcIntentPlanner {
     runOffscreenNpcChatter({ phaseType, beatId = null } = {}) {
         if (gameManager.flags?.campEventActive) return;
         const phase = this._normalizePhase(phaseType || this.phaseType);
+        // Pre-immunity conversations are resolved by the timed camp activities.
+        if (phase === 'pre' && gameManager.systems?.campActivitySystem?.active) return;
         const dayValue = this._getCurrentDay();
         const chatterKey = `${dayValue}-${phase}-${beatId || "phase"}`;
         if (this.chatterKeys.has(chatterKey)) return;
@@ -809,6 +811,7 @@ class NpcIntentPlanner {
                         about: targetName,
                         context: type === "name_thrown_out" ? "name_thrown_out" : "heard_rumor",
                         from: speaker.firstName || "Unknown",
+                        to: listener.id,
                         day: dayValue,
                         phase,
                         confidence
@@ -820,6 +823,7 @@ class NpcIntentPlanner {
                         about: targetName,
                         context: "target",
                         from: speaker.firstName || "Unknown",
+                        to: listener.id,
                         day: dayValue,
                         phase,
                         confidence
@@ -841,6 +845,7 @@ class NpcIntentPlanner {
                         about: targetName,
                         context: "alliance",
                         from: speaker.firstName || "Unknown",
+                        to: listener.id,
                         day: dayValue,
                         phase,
                         confidence
@@ -852,6 +857,7 @@ class NpcIntentPlanner {
                         about: targetName,
                         context: "warning",
                         from: speaker.firstName || "Unknown",
+                        to: listener.id,
                         day: dayValue,
                         phase,
                         confidence

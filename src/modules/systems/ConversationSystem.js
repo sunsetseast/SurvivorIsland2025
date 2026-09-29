@@ -11121,6 +11121,7 @@ class ConversationSystem {
 
         this._recordMention({
           speaker: 'Player',
+          listenerId: survivor.id,
           about: pick.firstName,
           context: 'counter_target',
           tone: 'truthful'
@@ -11150,6 +11151,7 @@ class ConversationSystem {
 
         this._recordMention({
           speaker: survivor.firstName,
+          listenerId: player?.id,
           about: pick.firstName,
           context: 'counter_target',
           tone: mapToneFromOutcome(reaction.outcome)
@@ -14390,7 +14392,7 @@ class ConversationSystem {
       confidence = Math.max(10, confidence - 5);
       context.skipIntel = true;
     } else if (targetName) {
-      const intel = this._getBestIntelForTarget(targetId, targetName);
+      const intel = this._getBestIntelForTarget(targetId, targetName, survivor.id);
       if (intel?.type === 'idol') {
         intelContext = 'idol_suspicion';
         responseLine = this._npcDoes(survivor, 'lowers', 'lower', `their voice. "I keep hearing ${targetName} might have an idol."`);
@@ -14402,7 +14404,8 @@ class ConversationSystem {
         responseLine = this._npcDoes(survivor, 'watches', 'watch', `the camp. "Names are floating and ${targetName} keeps coming up."`);
       } else {
         intelContext = 'heard_rumor';
-        responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"I\'m hearing ${targetName}\'s name more than once."`);
+        responseLine = this._npcDoes(survivor, 'shrugs', 'shrug', `"I haven\'t heard anything solid about ${targetName}."`);
+        context.skipIntel = true;
       }
 
       if (targetRel > 70) {
@@ -14878,7 +14881,7 @@ class ConversationSystem {
     const targetName = context.topicPerson || 'someone';
     const targetId = context.topicId || this._getSurvivorByName(targetName)?.id || null;
     const memory = this.gameManager.systems?.socialMemorySystem;
-    const recentIntel = memory?.getRecentIntelAbout?.(targetId || targetName, 3) || [];
+    const recentIntel = memory?.getRecentIntelAbout?.(targetId || targetName, 3, survivor.id) || [];
     const npcMentioned = recentIntel.some(entry => entry.from === survivor.id || entry.fromName === survivor.firstName);
     const baseStance = this._computeNpcStance({ npc: survivor, player, intent: POST_PHASE_INTENTS.verify_story, subjectId: targetId, context });
     const approachOutcome = this._resolveApproachInfluence({
@@ -15287,7 +15290,7 @@ class ConversationSystem {
     }
 
     const memory = this.gameManager.systems?.socialMemorySystem;
-    const recent = memory?.getMostMentionedNamesRecently?.(3, 2) || [];
+    const recent = memory?.getKnownNamesRecently?.(survivor.id, 3, 2) || [];
     const pool = recent
       .map(entry => this._getSurvivorById(entry.id) || this._getSurvivorByName(entry.id))
       .filter(s => s && !s.isPlayer && s.id !== survivor.id);
@@ -15297,16 +15300,27 @@ class ConversationSystem {
       return { targetId: pick.id || null, targetName: pick.firstName };
     }
 
+    if (this.gameManager.systems?.campActivitySystem?.active) return { targetId: null, targetName: null };
+
     const fallback = this._pickTargetName(survivor, context);
     const fallbackSurvivor = this._getSurvivorByName(fallback);
     return { targetId: fallbackSurvivor?.id || null, targetName: fallback || null };
   }
 
-  _getBestIntelForTarget(targetId, targetName) {
+  _getBestIntelForTarget(targetId, targetName, ownerId = null) {
     const memory = this.gameManager.systems?.socialMemorySystem;
     if (!memory) return null;
     const idKey = targetId != null ? String(targetId) : null;
-    const intel = memory.getRecentIntelAbout?.(idKey || targetName) || [];
+    const intel = memory.getRecentIntelAbout?.(idKey || targetName, 6, ownerId) || [];
+    if (!intel.length && ownerId != null) {
+      const subjectId = idKey || this._getSurvivorByName(targetName)?.id;
+      const claim = memory.getCampClaims?.(ownerId, { subjectId })
+        ?.filter(entry => entry.confidence >= 0.2 && !entry.challenged)
+        .sort((a, b) => (b.day || 0) - (a.day || 0))[0];
+      if (claim) return { type: claim.topic === 'idol_suspicion' ? 'idol' :
+        claim.topic === 'alliance' ? 'alliance' : claim.topic === 'target' || claim.topic === 'warning' ? 'target' : 'gossip',
+        about: claim.subjectId, from: claim.sourceId, confidence: claim.confidence * 100 };
+    }
     if (!intel.length) return null;
     const top = intel[0];
     if (top.type === 'alliance' && targetId) {
@@ -15611,7 +15625,7 @@ class ConversationSystem {
     return this.moods.get(npcId) || 'neutral';
   }
 
-  _recordMention({ speaker, about, context, tone = 'unknown', dayOverride }) {
+  _recordMention({ speaker, listenerId = null, about, context, tone = 'unknown', dayOverride }) {
     if (!about && context !== 'vague_vote') return;
     const socialLog = ensureCampSocialChanges();
     const entry = {
@@ -15636,6 +15650,9 @@ class ConversationSystem {
     const memory = this.gameManager.systems?.socialMemorySystem;
     if (memory && typeof memory.recordNamedIntel === 'function' && about) {
       memory.recordNamedIntel({
+        to: listenerId ?? (speaker === 'Player'
+          ? (this.nodeSession?.npcId || this.activeConversation?.npcId || this.state?.npc?.id || null)
+          : this.gameManager.getPlayerSurvivor?.()?.id || null),
         about,
         context,
         from: entry.speaker,
@@ -16258,14 +16275,15 @@ class ConversationSystem {
     };
 
     if (topicName) {
+      const listenerId = speakerName === survivor.firstName ? playerId : survivor.id;
       if (intent === 'hardStrategy' || intent === 'lightStrategy') {
-        this._recordMention({ speaker: speakerName, about: topicName, context: 'pushed_target', tone: 'truthful' });
+        this._recordMention({ speaker: speakerName, listenerId, about: topicName, context: 'pushed_target', tone: 'truthful' });
       } else if (intent === 'warning' || intent === POST_PHASE_INTENTS.plant_seed) {
-        this._recordMention({ speaker: speakerName, about: topicName, context: 'warned_about', tone: 'truthful' });
+        this._recordMention({ speaker: speakerName, listenerId, about: topicName, context: 'warned_about', tone: 'truthful' });
       } else if (intent === 'gossip') {
-        this._recordMention({ speaker: speakerName, about: topicName, context: 'gossip', tone: 'unknown' });
+        this._recordMention({ speaker: speakerName, listenerId, about: topicName, context: 'gossip', tone: 'unknown' });
       } else if (intent === 'deal') {
-        this._recordMention({ speaker: speakerName, about: topicName, context: 'deal_proposed', tone: mapToneFromOutcome(dealOutcome?.status) });
+        this._recordMention({ speaker: speakerName, listenerId, about: topicName, context: 'deal_proposed', tone: mapToneFromOutcome(dealOutcome?.status) });
       }
     } else if (intent === 'lightStrategy' || intent === 'hardStrategy') {
       this._recordStrategicContext({ speaker: speakerName, context: 'vague_vote' });
@@ -16342,6 +16360,7 @@ class ConversationSystem {
         }
         if (targetLabel) {
           memory.recordNamedIntel?.({
+            to: speakerName === survivor.firstName ? playerId : survivor.id,
             about: targetLabel,
             context: 'target',
             from: speakerName,
@@ -16368,6 +16387,7 @@ class ConversationSystem {
       case 'warning':
         if (targetLabel) {
           memory.recordNamedIntel?.({
+            to: speakerName === survivor.firstName ? playerId : survivor.id,
             about: targetLabel,
             context: 'warning',
             from: speakerName,
@@ -16444,6 +16464,7 @@ class ConversationSystem {
         }
         if (targetLabel) {
           memory.recordNamedIntel?.({
+            to: speakerName === survivor.firstName ? playerId : survivor.id,
             about: targetLabel,
             context: 'idol_suspicion',
             from: speakerName,
@@ -16495,6 +16516,7 @@ class ConversationSystem {
       case 'softStrategy':
         if (targetLabel && Math.random() < 0.6) {
           memory.recordNamedIntel?.({
+            to: speakerName === survivor.firstName ? playerId : survivor.id,
             about: targetLabel,
             context: 'name_thrown_out',
             from: speakerName,
@@ -16631,6 +16653,7 @@ class ConversationSystem {
         }
         if (intent === 'targeting' && targetLabel) {
           memory.recordNamedIntel?.({
+            to: speakerName === survivor.firstName ? playerId : survivor.id,
             about: targetLabel,
             context: 'target',
             from: speakerName,
@@ -16641,6 +16664,7 @@ class ConversationSystem {
         }
         if (intent === 'warning' && targetLabel) {
           memory.recordNamedIntel?.({
+            to: speakerName === survivor.firstName ? playerId : survivor.id,
             about: targetLabel,
             context: 'warning',
             from: speakerName,
@@ -16665,6 +16689,7 @@ class ConversationSystem {
 
     const logNamed = (name, contextOverride = contextTag) => {
       memory.recordNamedIntel?.({
+        to: payload.toId || playerId || survivorId,
         about: name,
         context: contextOverride,
         from: payload.fromName || 'Unknown',

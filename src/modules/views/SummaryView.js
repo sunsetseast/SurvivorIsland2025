@@ -687,7 +687,8 @@ export default function renderSummary(container) {
     summaryContent.appendChild(socialRecap);
   }
   if (living) {
-    const observations = gameManager.systems?.socialMemorySystem?.getCampObservations?.(gameManager.player?.id,
+    const memory = gameManager.systems?.socialMemorySystem;
+    const observations = memory?.getCampObservations?.(gameManager.player?.id,
       { day: currentDay }) || [];
     const seen = [...new Set(observations.filter(entry => entry.origin !== 'hearsay' &&
       entry.actorId !== gameManager.player?.id).slice(-5).map(entry => {
@@ -698,6 +699,16 @@ export default function renderSummary(container) {
         return null;
       }).filter(Boolean))];
     if (seen.length) summaryContent.appendChild(createElement('p', {}, seen.join(' ')));
+    const told = (memory?.getCampClaims?.(gameManager.player?.id) || [])
+      .filter(claim => claim.day === currentDay && claim.origin === 'hearsay' && claim.sourceId != null)
+      .slice(-3).map(claim => {
+        const source = displayNameById(claim.sourceId, playerTribe, gameManager.player?.id);
+        const subject = displayNameById(claim.subjectId, playerTribe, gameManager.player?.id);
+        if (claim.topic === 'idol_suspicion') return `${source} raised a question about ${subject} and an idol.`;
+        if (claim.topic === 'target' || claim.topic === 'warning') return `${source} brought up ${subject}'s name.`;
+        return null;
+      }).filter(Boolean);
+    if (told.length) summaryContent.appendChild(createElement('p', {}, [...new Set(told)].join(' ')));
   }
   wrapper.appendChild(title);
   wrapper.appendChild(summaryContent);
