@@ -19,14 +19,22 @@ export function getCampBehaviorProfile(survivor = {}) {
     riskTolerance: r('risk'),
     confrontationDrive: r('aggression'), // strategic pressure, never physical aggression
     honesty: r('honesty'),
+    deception: r('deception'), // effectiveness of delivery, independent of willingness to lie
     advantageSharing: r('idolshare'),
     fireSkill: r('firemaking') * .8 + r('focus') * .1 + r('dexterity') * .1,
     fishingSkill: r('fishing') * .85 + r('dexterity') * .1 + r('endurance') * .05,
     gatheringSkill: r('strength') * .4 + r('endurance') * .3 + workDrive * .3,
-    // Leadership is organization, not construction skill. No invented campcraft rating.
-    shelterSkill: r('strength') * .45 + r('dexterity') * .25 + workDrive * .3
+    // Construction expertise dominates; neither leadership nor effort substitutes
+    // for knowing how to build. A reluctant skilled builder retains their ability.
+    shelterSkill: r('campcraft') * .75 + r('dexterity') * .1 + r('strength') * .1 + workDrive * .05
   });
 }
+
+export const campLieAttemptChance = profile => (.003 + (1 - profile.honesty) * .077)
+  * (.5 + profile.riskTolerance * .5);
+// Apply to truthful and false delivery alike: listeners do not receive a hidden
+// truth flag or magically detect a lie from a poor deception rating.
+export const campStatementConfidence = (base, profile) => base * (.7 + profile.deception * .3);
 
 export function campWorkSkill(survivor, type) {
   const profile = getCampBehaviorProfile(survivor);

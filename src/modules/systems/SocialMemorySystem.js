@@ -1063,9 +1063,13 @@ class SocialMemorySystem {
             prior.confidence = Math.max(0.05, prior.confidence * (entry.origin === 'firsthand' ? 0.4 : 0.78));
             if (campEvidenceRank(prior) === campEvidenceRank(entry)) entry.challenged = true;
             // Only direct evidence can discredit a source; conflicting rumors are uncertainty.
-            if (entry.origin === 'firsthand' && entry.confidence >= .7 && prior.sourceId != null) {
+            if (entry.origin === 'firsthand' && entry.confidence >= .7 && prior.sourceId != null && !prior.sourceContradictionApplied) {
                 const key = String(prior.sourceId);
                 mem.campSourceReliability[key] = Math.max(0.2, (mem.campSourceReliability[key] ?? 0.75) - 0.18);
+                prior.sourceContradictionApplied = true;
+                const gm = typeof window !== 'undefined' ? window.gameManager : null;
+                gm?.systems?.trustSystem?.changeTrust?.(entry.ownerId ?? this.findCampMemoryOwner(mem),
+                    prior.sourceId, -2, 'camp_contradicted_statement');
             }
         }
         entry.contradicts = contradicts.map(previous => previous.id).slice(-4);
@@ -1075,17 +1079,24 @@ class SocialMemorySystem {
         }
     }
 
-    shareCampClaim({ fromId, toId, claimId } = {}) {
+    findCampMemoryOwner(mem) {
+        return Object.keys(this.memory).find(id => this.memory[id] === mem);
+    }
+
+    shareCampClaim({ fromId, toId, claimId, delivery = 1 } = {}) {
         if (fromId == null || toId == null || String(fromId) === String(toId)) return false;
         this.initNPC(fromId); this.initNPC(toId);
         const known = (this.memory[fromId].campClaims || []).find(claim => claim.id === claimId);
         if (!known || this.memory[toId].campClaims?.some(claim => claim.id === claimId)) return false;
-        const confidence = Math.min(.55, campEvidenceConfidence(known) * 0.72,
-            this.campClaimConfidence(toId, fromId, known.confidence));
-        this.addOwnedCampClaim(this.memory[toId], { ...known, origin: 'hearsay', sourceId: fromId,
-            sourceChain: [...(known.sourceChain || []), fromId].slice(-5), confidence,
+        const direct = campProvenance(known) === 'firsthand' ||
+            String(known.speakerId) === String(fromId) && known.origin !== 'hearsay';
+        const credibility = Number.isFinite(delivery) ? Math.max(.7, Math.min(1, delivery)) : 1;
+        const confidence = Math.min(direct ? .8 : .55, campEvidenceConfidence(known) * (direct ? 1 : .72),
+            this.campClaimConfidence(toId, fromId, known.confidence)) * credibility;
+        this.addOwnedCampClaim(this.memory[toId], { ...known, origin: direct ? 'direct_statement' : 'hearsay', sourceId: fromId,
+            sourceChain: direct ? [fromId] : [...(known.sourceChain || []), fromId].slice(-5), confidence,
             truthfulness: undefined, evidenceOrigin: campProvenance(known) === 'inference' ? 'inference' : undefined,
-            challenged: Boolean(known.challenged) });
+            challenged: Boolean(known.challenged), sourceContradictionApplied: undefined });
         return true;
     }
 

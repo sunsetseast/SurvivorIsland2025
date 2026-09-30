@@ -4,6 +4,7 @@ import { MAX_FIRE_LEVEL, MAX_SHELTER_LEVEL, isNeededCampContribution, syncCampRe
 import { resolveNpcCampExchange } from './CampSocialResolution.js';
 import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { getCampBehaviorProfile, campWorkSkill, campBuildSuccessChance } from './CampBehaviorProfile.js';
+import { refreshNpcCampNeeds } from './CampSustenance.js';
 export { physicalCampLocation } from '../locations/LocationUtils.js';
 
 const WORK = Object.freeze({
@@ -24,6 +25,8 @@ const VIEW_WORK = {
 };
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const same = (a, b) => a != null && b != null && String(a) === String(b);
+const WORK_BALANCE = Object.freeze({ routine: .05, shortage: 2.4, assigned: 1.4,
+  coveredResponsibility: .05, exhaustedMultiplier: .5, restRecovery: 6 });
 export function routeBetween(from, to) {
   if (!from || !to || from === to) return [];
   const queue = [[from]], seen = new Set([from]);
@@ -101,20 +104,26 @@ export default class CampActivitySystem {
     const need = {
       gather_firewood: isNeededCampContribution(tribe, 'firewood'),
       gather_bamboo: isNeededCampContribution(tribe, 'bamboo'),
-      gather_food: isNeededCampContribution(tribe, 'coconuts'),
+      gather_food: isNeededCampContribution(tribe, 'coconuts') || isNeededCampContribution(tribe, 'palms'),
       collect_water: isNeededCampContribution(tribe, 'water'),
       fish: isNeededCampContribution(tribe, 'fish1'),
       build_fire: (tribe.fire || 0) < MAX_FIRE_LEVEL && supply.firewood >= 10,
       build_shelter: (tribe.shelter || 0) < MAX_SHELTER_LEVEL && supply.bamboo >= 5 && supply.palms >= 1,
-      tend_fire: (tribe.fire || 0) > 0 && (tribe.fire || 0) < MAX_FIRE_LEVEL
+      tend_fire: (tribe.fire || 0) > 0 && (tribe.fire || 0) < MAX_FIRE_LEVEL && supply.firewood >= 4
     };
-    const choices = Object.entries(WORK).map(([type, rule]) => ({ type, location: rule.location,
-      weight: ['build_fire', 'build_shelter'].includes(type) && !need[type] ? 0 :
-        (0.2 + (need[type] ? 2.2 : 0) + (role === rule.role || role === 'float' && need[type] ? 1.4 : 0)) *
-        (0.55 + profile.workDrive * 1.2) *
+    const rested = clamp((npc.rest ?? 75) / 100, 0, 1);
+    const workCondition = WORK_BALANCE.exhaustedMultiplier + rested * (1 - WORK_BALANCE.exhaustedMultiplier);
+    const choices = Object.entries(WORK).map(([type, rule]) => {
+      const responsibility = role === rule.role ? (need[type] ? WORK_BALANCE.assigned : WORK_BALANCE.coveredResponsibility) :
+        role === 'float' && need[type] ? WORK_BALANCE.assigned : 0;
+      return { type, location: rule.location,
+        weight: ['build_fire', 'build_shelter', 'tend_fire'].includes(type) && !need[type] ? 0 :
+        ((need[type] ? WORK_BALANCE.shortage : WORK_BALANCE.routine) + responsibility) *
+        (0.55 + profile.workDrive * 1.2) * workCondition *
         (type === 'fish' ? .25 + profile.fishingSkill * 1.6 :
           ['build_fire', 'tend_fire'].includes(type) ? .6 + profile.fireSkill * .8 : .7 + campWorkSkill(npc, type) * .6) *
-        (need[type] ? .8 + profile.leadershipDrive * .4 : 1) }));
+        (need[type] ? .8 + profile.leadershipDrive * .4 : 1) };
+    });
     for (const choice of choices) {
       const partner = this.npcs().find(other => !same(other.id, npc.id) &&
         other.campActivity?.type === choice.type && other.campActivity.location === choice.location &&
@@ -138,8 +147,13 @@ export default class CampActivitySystem {
       (s.isPlayer ? physicalCampLocation(globalThis.window?.campScreen?.currentView || s.location) :
         this.locations?.getLocation?.(s.id)) === LocationKeys.JUNGLE_TRAIL).length;
     const shortages = Object.values(need).filter(Boolean).length;
+    // Only personal/public availability is consulted. Another contestant's
+    // secret idol find is not an AI input. Exhausted legal searches are blocked
+    // by the same per-location limit as IdolSystem, before committing camp time.
+    const searches = this.gm.systems?.idolSystem?.getCasualSearchCount?.(npc.id, LocationKeys.JUNGLE_TRAIL) || 0;
+    const maySearch = this.gm.gameSettings?.enableIdols !== false && !npc.hasIdol && searches < 2;
     choices.push({ type: 'idol_hunt', location: LocationKeys.JUNGLE_TRAIL,
-      weight: this.gm.gameSettings?.enableIdols === false ? 0 : (.04 + profile.idolDrive ** 2 * 1.15) *
+      weight: !maySearch ? 0 : (.04 + profile.idolDrive ** 2 * 1.15) *
         (observers ? .35 + profile.riskTolerance * .5 : 1.15) * (shortages >= 4 ? .8 : 1) });
     choices.push({ type: 'observe', location: this.locations?.getLocation?.(npc.id) || LocationKeys.BEACH,
       weight: .1 + profile.paranoiaDrive * .8 });
@@ -169,7 +183,7 @@ export default class CampActivitySystem {
     const duration = plan.duration || (plan.type === 'travel' ? 45 : WORK[plan.type]?.duration ||
       (plan.type === 'idol_hunt' ? 510 : plan.type === 'rest' ? 360 : 240));
     const activity = { id: `${this.phase}:${this.nextId++}`, actorId: actor.id, type: plan.type,
-      location: plan.location, startedAt: now, endsAt: Math.max(0, now - duration), duration,
+      location: plan.location, startedAt: now, endsAt: now - duration, duration,
       role: this.roleOf(actor), targetId: plan.targetId || null, socialPurpose: plan.socialPurpose || null,
       route: plan.route || null,
       goal: plan.goal || null, privacy: ['strategy_conversation', 'idol_hunt'].includes(plan.type) ? 'private' : 'visible',
@@ -264,7 +278,7 @@ export default class CampActivitySystem {
         resolveNpcCampExchange({ gm: this.gm, memory: this.memory, speaker: actor, listener: partner,
           activity, random: this.random });
       }
-    } else if (activity.type === 'rest') actor.rest = clamp((actor.rest ?? 50) + 2, 0, 100);
+    } else if (activity.type === 'rest') actor.rest = clamp((actor.rest ?? 50) + WORK_BALANCE.restRecovery, 0, 100);
     else if (activity.type === 'idol_hunt') {
       this.gm.systems?.idolSystem?.attemptIntentionalHunt?.(actor.id, activity.location, 'casual', { isNpc: true });
       this.observe({ actor, type: 'absence', location: activity.location, activityId: activity.id,
@@ -289,6 +303,10 @@ export default class CampActivitySystem {
           confidence: 0.9, salience: 'high', day: this.gm.day, campTime: at });
       }
     }
+    if (activity.type !== 'travel' && !activity.external) {
+      refreshNpcCampNeeds(this.gm, actor, activity.location);
+      if (companion) refreshNpcCampNeeds(this.gm, companion, activity.location);
+    }
     if (companion && !companion.campActivity && at > 0) this.chooseNext(companion, at);
     return true;
   }
@@ -296,7 +314,8 @@ export default class CampActivitySystem {
     const tribe = this.tribe, rule = WORK[activity.type];
     const stock = this.gm.ensureStockpileExists?.(tribe) || tribe.stockpile;
     const skill = campWorkSkill(actor, activity.type);
-    const needed = rule.resource ? isNeededCampContribution(tribe, rule.resource) :
+    const needed = rule.resource ? isNeededCampContribution(tribe, rule.resource) ||
+      activity.type === 'gather_food' && isNeededCampContribution(tribe, 'palms') :
       (activity.type.includes('fire') ? (tribe.fire || 0) < MAX_FIRE_LEVEL : (tribe.shelter || 0) < MAX_SHELTER_LEVEL);
     let amount = 0;
     if (rule.resource) {
@@ -306,6 +325,12 @@ export default class CampActivitySystem {
         id: activity.id, activityId: activity.id, actorId: actor.id, role: activity.role,
         resource: rule.resource, resources: { [rule.resource]: amount }, amount, day: this.gm.day,
         campTime: at, source: 'camp_activity' });
+      // Beach foraging also supplies needed roof material. The previous block
+      // engine could gather bamboo forever while a missing palm blocked shelter.
+      if (activity.type === 'gather_food' && isNeededCampContribution(tribe, 'palms')) {
+        this.gm.addToStockpile?.(tribe, 'palms', 1);
+        this.gm.campLog.at(-1).resources.palms = 1;
+      }
     } else {
       const fire = activity.type.includes('fire'), key = fire ? 'fire' : 'shelter';
       const cost = fire ? { firewood: activity.type === 'tend_fire' ? 4 : 10 } : { bamboo: 5, palms: 1 };

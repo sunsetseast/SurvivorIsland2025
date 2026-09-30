@@ -273,7 +273,13 @@ class AllianceSystem {
     }
 
     this.alliances = Array.isArray(payload.alliances)
-      ? payload.alliances.map(alliance => this._normalizeAlliance(alliance))
+      ? payload.alliances.map(alliance => {
+        const restored = this._normalizeAlliance(alliance);
+        // Cohesion includes earned/fallout consequences, not just today's
+        // relationship average. Reloading must not recompute those away.
+        if (Number.isFinite(alliance.cohesion)) restored.cohesion = Math.max(0, Math.min(100, alliance.cohesion));
+        return restored;
+      })
       : [];
 
     this.commitments = new Map();
