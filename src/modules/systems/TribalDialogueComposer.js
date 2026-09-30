@@ -12,8 +12,10 @@ export function composeNpcAnswer({ speaker, topic, mood, knowledge, strategy, me
   const personalFacts = knowledge?.factsFor(speaker?.id) || [];
   const hasAllies = Boolean(knowledge?.getKnownAllies(speaker?.id)?.length);
   const hasPromise = personalFacts.some(fact => ['rememberedPromise', 'deal'].includes(fact.type));
-  const hasBetrayal = personalFacts.some(fact => fact.type === 'rememberedBetrayal');
-  const discoveredLie = personalFacts.some(fact => fact.type === 'discoveredLie');
+  const hasBetrayal = personalFacts.some(fact => fact.type === 'rememberedBetrayal' ||
+    fact.type === 'campObservation' && fact.details?.topic === 'betrayal');
+  const discoveredLie = personalFacts.some(fact => fact.type === 'discoveredLie' ||
+    fact.type === 'campObservation' && fact.details?.topic === 'confirmed_lie' && fact.confidence >= .7);
   const seed = `${day}:${speaker?.id}:${topic}`;
   const known = personalFacts.find(fact => fact.subjectId
     && fact.subjectId !== String(speaker?.id) && ['NAME_MENTION', 'targetProposed', 'rumor', 'previousElimination'].includes(fact.type));
@@ -45,6 +47,14 @@ export function composeNpcAnswer({ speaker, topic, mood, knowledge, strategy, me
     big_threat: ['Winning together and living together are different things.',
       'Strength can make you valuable and vulnerable.']
   };
+  const campBelief = personalFacts.filter(fact => fact.type === 'campClaim' &&
+    fact.details?.topic === 'idol_suspicion' && !fact.details?.challenged && fact.confidence >= .2 &&
+    !['unlikely', 'denied', 'no'].includes(fact.details?.stance))
+    .sort((a, b) => b.confidence - a.confidence)[0];
+  if (topic === 'idol_paranoia' && campBelief) topical.idol_paranoia =
+    campBelief.details.provenance === 'firsthand'
+      ? ['I have seen someone searching. That does not tell me what they found.']
+      : ['I have heard talk about someone searching. Talk is not proof of an idol.'];
   if (topic === 'alliance_cracks' && (hasAllies || hasPromise)) topical.alliance_cracks = guarded
     ? ['I have heard promises, but tonight is when they have to mean something.',
       'People know what they said to me. I am listening to what they say now.']

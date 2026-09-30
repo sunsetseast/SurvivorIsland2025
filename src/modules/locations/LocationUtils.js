@@ -84,3 +84,17 @@ export function isCoreCampLocation(key) {
 }
 
 export { CORE_CAMP_LOCATIONS };
+
+// UI minigames are subviews of physical island locations. All presence/privacy
+// consumers use this mapping, independent of the activity engine or DOM.
+export function physicalCampLocation(view) {
+  const key = normalizeLocationKey(view);
+  const subviews = {
+    [LocationKeys.FIREWOOD]: LocationKeys.JUNGLE_TRAIL,
+    [LocationKeys.BAMBOO]: LocationKeys.JUNGLE_TRAIL,
+    [LocationKeys.SHAKE]: LocationKeys.BEACH,
+    [LocationKeys.FISHING]: LocationKeys.ROCKY_SHORE,
+    [LocationKeys.FIRE]: LocationKeys.CAMPFIRE
+  };
+  return subviews[key] || (CORE_CAMP_LOCATIONS.has(key) ? key : null);
+}

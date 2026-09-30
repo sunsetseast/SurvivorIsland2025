@@ -1,4 +1,5 @@
 import { sameSurvivorId } from '../utils/SurvivorIds.js';
+import { ownedCampKnowledge, CAMP_EVIDENCE_RANK } from './CampKnowledge.js';
 
 const id = value => value == null ? '' : String(value);
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -62,6 +63,23 @@ export default class TribalKnowledgeModel {
         source: 'strategy', day: fact.day });
     }
     const memory = gm?.systems?.socialMemorySystem;
+    for (const member of this.members.filter(s => !s.isOut)) {
+      for (const entry of ownedCampKnowledge(memory, member.id, gm?.getDay?.() ?? gm?.day ?? 1)) {
+        if (!['target', 'warning', 'idol_suspicion', 'idol_possession', 'idol_search_seen', 'absence',
+          'seen_together', 'betrayal', 'confirmed_lie', 'promise', 'public_conflict', 'role_neglect'].includes(entry.topic)) continue;
+        this.add({ type: entry.kind === 'claim' ? 'campClaim' : 'campObservation',
+          subjectId: entry.subjectId, actorId: entry.speakerId,
+          // Even a visible camp event belongs only to actual witnesses. Jeff's
+          // PUBLIC channel is not a shortcut for querying private camp memory.
+          visibility: entry.provenance === 'firsthand' || entry.provenance === 'direct_statement' ? 'PRIVATE' : 'RUMOR',
+          knownTo: [member.id], confidence: entry.confidence * entry.recency * (entry.challenged ? .4 : 1),
+          source: 'campMemory', day: entry.day,
+          details: { ownerId: member.id, topic: entry.topic, stance: entry.stance,
+            provenance: entry.provenance, sourceId: entry.sourceId, sourceChain: entry.sourceChain,
+            campTime: entry.campTime, challenged: entry.challenged, recency: entry.recency,
+            visibility: entry.visibility } });
+      }
+    }
     const relevantEvents = new Set(['playerStrategizedWithNpc', 'NAME_MENTION', 'PLOT_PACKET',
       'ACCUSATION_LOGGED', 'playerBlamedSurvivor', 'playerDefendedSurvivor', 'playerCalledThreat',
       'player_planted_idol_rumor', 'tribal_call-out', 'tribal_deny-target',
@@ -163,12 +181,22 @@ export default class TribalKnowledgeModel {
       && Number(fact.day) < currentDay ? .25 : 1;
     let mentions = 0; let callouts = 0; let distancing = 0; let reassurance = 0;
     let betrayals = 0; let lies = 0; let whispers = 0;
+    const campClaims = new Map();
+    for (const fact of facts.filter(f => f.type === 'campClaim')) {
+      const key = `${fact.subjectId}:${fact.details.topic}`, prior = campClaims.get(key);
+      if (!prior || CAMP_EVIDENCE_RANK[fact.details.provenance] > CAMP_EVIDENCE_RANK[prior.details.provenance] ||
+        fact.details.provenance === prior.details.provenance && fact.confidence > prior.confidence) campClaims.set(key, fact);
+    }
     for (const fact of facts) {
       if (self(fact) && ['playerNameFloated', 'rumor', 'NAME_MENTION', 'targetProposed',
         'targetResponse', 'npcIntentTargetUpdated', 'targetRequest', 'heardGossip',
         'social_MENTION', 'social_CONFRONTATION'].includes(fact.type)) {
         mentions += (['heardGossip', 'social_MENTION'].includes(fact.type) ? .09 : .18)
           * fact.confidence * recency(fact);
+      }
+      if (self(fact) && fact.type === 'campClaim' && campClaims.get(`${fact.subjectId}:${fact.details.topic}`) === fact &&
+        ['target', 'warning'].includes(fact.details?.topic)) {
+        if (!['denied', 'no', 'protect'].includes(fact.details.stance)) mentions += .18 * fact.confidence;
       }
       if (self(fact) && fact.type === 'tribal_call-out') callouts += .26 * recency(fact);
       if (self(fact) && fact.type === 'tribal_distance-ally'

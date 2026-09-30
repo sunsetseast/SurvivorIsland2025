@@ -9,6 +9,7 @@ import { LocationKeys } from '../core/LocationKeys.js';
 import { DealTypes } from './DealSystem.js';
 import { buildDay1NpcReference } from '../events/Day1CampMemory.js';
 import { physicalCampLocation } from './CampActivitySystem.js';
+import { campEvidenceRank, campEvidenceConfidence } from './CampKnowledge.js';
 
 // DEV NOTE (ConversationSystem)
 // - NPC stances: computed per exchange from relationship, paranoia, gameplay style, and risk.
@@ -15316,10 +15317,12 @@ class ConversationSystem {
       const subjectId = idKey || this._getSurvivorByName(targetName)?.id;
       const claim = memory.getCampClaims?.(ownerId, { subjectId })
         ?.filter(entry => entry.confidence >= 0.2 && !entry.challenged)
-        .sort((a, b) => (b.day || 0) - (a.day || 0))[0];
+        .sort((a, b) => campEvidenceRank(b) - campEvidenceRank(a) || (b.day || 0) - (a.day || 0) ||
+          (a.campTime ?? Infinity) - (b.campTime ?? Infinity))[0];
       if (claim) return { type: claim.topic === 'idol_suspicion' ? 'idol' :
         claim.topic === 'alliance' ? 'alliance' : claim.topic === 'target' || claim.topic === 'warning' ? 'target' : 'gossip',
-        about: claim.subjectId, from: claim.sourceId, confidence: claim.confidence * 100 };
+        about: claim.subjectId, from: claim.sourceId, confidence: campEvidenceConfidence(claim) * 100,
+        provenance: claim.origin };
     }
     if (!intel.length) return null;
     const top = intel[0];

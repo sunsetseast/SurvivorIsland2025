@@ -2,6 +2,9 @@ import { LocationKeys } from '../core/LocationKeys.js';
 import { ISLAND_LOCATION_GRAPH } from './NpcLocationSystem.js';
 import { MAX_FIRE_LEVEL, MAX_SHELTER_LEVEL, isNeededCampContribution, syncCampResources } from './CampState.js';
 import { resolveNpcCampExchange } from './CampSocialResolution.js';
+import { physicalCampLocation } from '../locations/LocationUtils.js';
+import { getCampBehaviorProfile, campWorkSkill, campBuildSuccessChance } from './CampBehaviorProfile.js';
+export { physicalCampLocation } from '../locations/LocationUtils.js';
 
 const WORK = Object.freeze({
   gather_firewood: { location: LocationKeys.JUNGLE_TRAIL, resource: 'firewood', role: 'wood', duration: 420 },
@@ -13,13 +16,6 @@ const WORK = Object.freeze({
   build_shelter: { location: LocationKeys.SHELTER, role: 'shelter', duration: 480 },
   tend_fire: { location: LocationKeys.CAMPFIRE, role: 'fire', duration: 300 }
 });
-const VIEW_LOCATION = {
-  [LocationKeys.FIREWOOD]: LocationKeys.JUNGLE_TRAIL,
-  [LocationKeys.BAMBOO]: LocationKeys.JUNGLE_TRAIL,
-  [LocationKeys.SHAKE]: LocationKeys.BEACH,
-  [LocationKeys.FISHING]: LocationKeys.ROCKY_SHORE,
-  [LocationKeys.FIRE]: LocationKeys.CAMPFIRE
-};
 const VIEW_WORK = {
   [LocationKeys.FIREWOOD]: 'gather_firewood', [LocationKeys.BAMBOO]: 'gather_bamboo',
   [LocationKeys.SHAKE]: 'gather_food', [LocationKeys.FISHING]: 'fish',
@@ -28,7 +24,6 @@ const VIEW_WORK = {
 };
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const same = (a, b) => a != null && b != null && String(a) === String(b);
-export const physicalCampLocation = view => VIEW_LOCATION[view] || (ISLAND_LOCATION_GRAPH[view] ? view : null);
 export function routeBetween(from, to) {
   if (!from || !to || from === to) return [];
   const queue = [[from]], seen = new Set([from]);
@@ -90,11 +85,10 @@ export default class CampActivitySystem {
   }
   scoreChoices(npc) {
     const tribe = this.tribe, supply = tribe.stockpile || {}, role = this.roleOf(npc);
-    const traits = `${(npc.personalityTraits || []).join(' ')} ${npc.gameplayStyle || ''}`.toLowerCase();
-    const ethic = clamp((npc.workEthic ?? 50) / 100, 0, 1);
+    const profile = getCampBehaviorProfile(npc);
     const urgent = (this.memory?.getNpcConversationIntents?.(npc.id, { day: this.gm.day, limit: 4 })?.length || 0) +
       (this.memory?.getCampClaims?.(npc.id)?.filter(claim => claim.salience === 'high' &&
-        claim.day === this.gm.day && !claim.challenged).length || 0);
+        claim.day === this.gm.day && !claim.challenged && claim.confidence >= .2 && claim.truthfulness !== false).length || 0);
     const allies = this.npcs().filter(s => !same(s.id, npc.id)).map(s => ({ s,
       score: (this.gm.getTrust?.(npc.id, s.id) ?? 50) +
         (this.gm.systems?.allianceSystem?.areAllied?.(npc.id, s.id) ? 25 : 0) +
@@ -117,7 +111,10 @@ export default class CampActivitySystem {
     const choices = Object.entries(WORK).map(([type, rule]) => ({ type, location: rule.location,
       weight: ['build_fire', 'build_shelter'].includes(type) && !need[type] ? 0 :
         (0.2 + (need[type] ? 2.2 : 0) + (role === rule.role || role === 'float' && need[type] ? 1.4 : 0)) *
-        (0.55 + ethic * 1.2) * (/lazy/.test(traits) ? 0.68 : /hardwork|provider|leader/.test(traits) ? 1.18 : 1) }));
+        (0.55 + profile.workDrive * 1.2) *
+        (type === 'fish' ? .25 + profile.fishingSkill * 1.6 :
+          ['build_fire', 'tend_fire'].includes(type) ? .6 + profile.fireSkill * .8 : .7 + campWorkSkill(npc, type) * .6) *
+        (need[type] ? .8 + profile.leadershipDrive * .4 : 1) }));
     for (const choice of choices) {
       const partner = this.npcs().find(other => !same(other.id, npc.id) &&
         other.campActivity?.type === choice.type && other.campActivity.location === choice.location &&
@@ -125,24 +122,32 @@ export default class CampActivitySystem {
         (this.gm.getTrust?.(npc.id, other.id) ?? 50) >= 45);
       if (partner) {
         choice.targetId = partner.id;
-        choice.socialPurpose = (urgent || /strategic/.test(traits)) && this.random() < 0.28 ? 'strategy' : 'social';
+        choice.socialPurpose = this.random() < (urgent ? .18 + profile.strategyDrive * .2 : profile.strategyDrive * .16) ? 'strategy' : 'social';
         choice.weight *= 1.2;
       }
     }
     choices.push({ type: 'rest', location: this.locations?.getLocation?.(npc.id) || LocationKeys.SHELTER,
-      weight: 0.5 + (1 - clamp((npc.rest ?? 75) / 100, 0, 1)) * 5 + (/lazy/.test(traits) ? 0.5 : 0) });
+      weight: 0.5 + (1 - clamp((npc.rest ?? 75) / 100, 0, 1)) * 5 + (1 - profile.workDrive) * .5 });
     choices.push({ type: 'socialize', location: availableAlly ? this.locations?.getLocation?.(availableAlly.s.id) : LocationKeys.BEACH,
-      targetId: availableAlly?.s.id, weight: availableAlly ? 0.7 + availableAlly.score / 100 * 1.4 + (/\bsocial\b/.test(traits) ? 1.1 : 0) - (/loner|independent/.test(traits) ? 0.45 : 0) : 0 });
+      targetId: availableAlly?.s.id, weight: availableAlly ? (.4 + availableAlly.score / 100 * 1.4) * (.5 + profile.socialDrive) : 0 });
     choices.push({ type: 'strategy_conversation', location: availableAlly ? this.locations?.getLocation?.(availableAlly.s.id) : LocationKeys.SHELTER,
-      targetId: availableAlly?.s.id, weight: availableAlly ? 0.2 + Math.min(3, urgent * 1.4) + (/strategic|loyal/.test(traits) && urgent ? 0.8 : 0) : 0 });
+      targetId: availableAlly?.s.id, weight: availableAlly ? .2 + profile.strategyDrive * .65 +
+        Math.min(3, urgent * (.5 + profile.strategyDrive * .7 + profile.paranoiaDrive * .4)) *
+        (.7 + profile.riskTolerance * .3 + profile.confrontationDrive * .2) : 0 });
+    const observers = this.members().filter(s => !same(s.id, npc.id) &&
+      (s.isPlayer ? physicalCampLocation(globalThis.window?.campScreen?.currentView || s.location) :
+        this.locations?.getLocation?.(s.id)) === LocationKeys.JUNGLE_TRAIL).length;
+    const shortages = Object.values(need).filter(Boolean).length;
     choices.push({ type: 'idol_hunt', location: LocationKeys.JUNGLE_TRAIL,
-      weight: this.gm.gameSettings?.enableIdols === false ? 0 : /idol.hunt/.test(traits) ? 0.95 : 0.12 });
+      weight: this.gm.gameSettings?.enableIdols === false ? 0 : (.04 + profile.idolDrive ** 2 * 1.15) *
+        (observers ? .35 + profile.riskTolerance * .5 : 1.15) * (shortages >= 4 ? .8 : 1) });
     choices.push({ type: 'observe', location: this.locations?.getLocation?.(npc.id) || LocationKeys.BEACH,
-      weight: /paranoid/.test(traits) ? 0.9 : 0.25 });
+      weight: .1 + profile.paranoiaDrive * .8 });
     const suspect = allies.map(({ s }) => ({ s, count: this.memory?.getCampImpression?.(npc.id, s.id, 'absence')?.count || 0 }))
       .sort((a, b) => b.count - a.count)[0];
     if (suspect?.count >= 2) choices.push({ type: 'investigate', location: this.locations?.getLocation?.(suspect.s.id),
-      targetId: suspect.s.id, weight: (0.4 + Math.min(1, suspect.count * 0.2)) * (/paranoid/.test(traits) ? 1.65 : 1) });
+      targetId: suspect.s.id, weight: (0.4 + Math.min(1, suspect.count * 0.2)) *
+        (.35 + profile.paranoiaDrive * 1.3) * (.8 + profile.confrontationDrive * .2) });
     choices.push({ type: 'idle_at_camp', location: LocationKeys.BEACH, weight: 0.35 });
     return choices.filter(c => c.location && c.weight > 0);
   }
@@ -201,7 +206,8 @@ export default class CampActivitySystem {
         ['warning', 'targeting', 'vote_pitch', 'alliance_pitch'].includes(i.intent) &&
         Number.isFinite(i.campTime) && i.campTime <= current.startedAt &&
         i.campTime < (this.lastUrgentTime[npc.id] ?? Infinity)) || [];
-      if (!urgent.length || this.random() >= 0.7) continue;
+      const profile = getCampBehaviorProfile(npc);
+      if (!urgent.length || this.random() >= .35 + profile.strategyDrive * .2 + profile.confrontationDrive * .15) continue;
       this.lastUrgentTime[npc.id] = urgent.at(-1).campTime;
       this.interrupt(npc, 'urgent_information', before);
       const ally = this.npcs().find(s => !same(s.id, npc.id) && this.gm.systems?.allianceSystem?.areAllied?.(npc.id, s.id));
@@ -289,7 +295,7 @@ export default class CampActivitySystem {
   resolveWork(actor, activity, at) {
     const tribe = this.tribe, rule = WORK[activity.type];
     const stock = this.gm.ensureStockpileExists?.(tribe) || tribe.stockpile;
-    const skill = clamp(((actor.workEthic ?? 50) + (actor.survivalSkill ?? 50)) / 200, 0, 1);
+    const skill = campWorkSkill(actor, activity.type);
     const needed = rule.resource ? isNeededCampContribution(tribe, rule.resource) :
       (activity.type.includes('fire') ? (tribe.fire || 0) < MAX_FIRE_LEVEL : (tribe.shelter || 0) < MAX_SHELTER_LEVEL);
     let amount = 0;
@@ -307,7 +313,8 @@ export default class CampActivitySystem {
       if ((tribe[key] || 0) < max && Object.entries(cost).every(([res, n]) => stock[res] >= n)) {
         for (const [res, n] of Object.entries(cost)) this.gm.consumeFromStockpile(tribe, res, n);
         const before = tribe[key] || 0;
-        if (this.random() < 0.65 + skill * 0.23) tribe[key] = Math.min(max, before + 1);
+        if (this.random() < campBuildSuccessChance(actor, activity.type,
+          { responsible: this.roleOf(actor) === rule.role })) tribe[key] = Math.min(max, before + 1);
         syncCampResources(tribe); amount = tribe[key] > before ? 1 : 0;
         this.gm.campLog.push({ type: `camp_${key}_build`, id: activity.id, activityId: activity.id,
           actorId: actor.id, success: Boolean(amount), [`${key}Before`]: before, [`${key}After`]: tribe[key],

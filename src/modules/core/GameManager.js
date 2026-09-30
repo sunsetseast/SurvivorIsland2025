@@ -451,7 +451,7 @@ class GameManager {
     this.resetGameState();
     this.survivors = GameData.getSurvivors().map(survivor => ({
       ...survivor,
-      laziness: survivor.laziness ?? 0
+      laziness: survivor.laziness ?? 5
     }));
 
     // ⭐ Reinitialize ConversationSystem for the new game
@@ -1249,7 +1249,7 @@ class GameManager {
     this.survivors = Array.isArray(data.survivors)
       ? data.survivors
       : this.tribes.flatMap(tribe => tribe?.members || []);
-    this.survivors = this.survivors.map(survivor => ({ ...survivor, laziness: survivor?.laziness ?? 0 }));
+    this.survivors = this.survivors.map(survivor => ({ ...survivor, laziness: survivor?.laziness ?? 5 }));
     const canonicalById = new Map(this.survivors.map(survivor => [String(survivor.id), survivor]));
     this.tribes = this.tribes.map(tribe => {
       const members = (tribe?.members || [])

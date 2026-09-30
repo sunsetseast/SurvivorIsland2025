@@ -3,6 +3,8 @@
 // Manages memory of social events for NPCs
 // ===============================
 
+import { campEvidenceRank, campEvidenceConfidence, campProvenance } from './CampKnowledge.js';
+
 class SocialMemorySystem {
     constructor() {
         this.memory = {};
@@ -985,9 +987,15 @@ class SocialMemorySystem {
 
     pruneCampObservations(mem) {
         while (mem.campObservations.length > 48) {
-            const disposable = mem.campObservations.findIndex(entry => entry.salience !== 'high');
-            mem.campObservations.splice(disposable < 0 ? 0 : disposable, 1);
+            mem.campObservations.splice(this.leastUsefulCampEvidence(mem.campObservations), 1);
         }
+    }
+
+    leastUsefulCampEvidence(entries) {
+        const ordinary = entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry.salience !== 'high');
+        const pool = ordinary.length ? ordinary : entries.map((entry, index) => ({ entry, index }));
+        return pool.sort((a, b) => campEvidenceRank(a.entry) - campEvidenceRank(b.entry) ||
+            campEvidenceConfidence(a.entry) - campEvidenceConfidence(b.entry))[0].index;
     }
 
     // A camp claim is owned by its speaker and actual listeners. The speaker's
@@ -1005,9 +1013,11 @@ class SocialMemorySystem {
             if (mem.campClaims.some(entry => entry.id === id)) continue;
             const speaker = String(ownerId) === String(speakerId);
             const entry = { id, speakerId, subjectId, topic, stance, day, campTime, salience,
-                origin: speaker ? origin : 'hearsay', sourceId: speaker ? sourceId : speakerId,
-                sourceChain: speaker ? [speakerId] : [sourceId, speakerId].filter(Boolean),
-                confidence: speaker ? Math.min(1, confidence) : this.campClaimConfidence(ownerId, speakerId, confidence),
+                origin: speaker ? origin : 'direct_statement', sourceId: speaker ? sourceId : speakerId,
+                ...(origin === 'inference' ? { evidenceOrigin: 'inference' } : {}),
+                sourceChain: speaker ? [speakerId] : [sourceId, speakerId].filter(id => id != null),
+                confidence: speaker ? campEvidenceConfidence({ origin, confidence, topic }) :
+                    this.campClaimConfidence(ownerId, speakerId, confidence),
                 ...(speaker && truthfulness != null ? { truthfulness } : {}) };
             this.addOwnedCampClaim(mem, entry);
             added = true;
@@ -1020,13 +1030,13 @@ class SocialMemorySystem {
         const gm = typeof window !== 'undefined' ? window.gameManager : null;
         const trust = gm?.getTrust?.(ownerId, sourceId) ?? 50;
         const reliability = this.memory[ownerId].campSourceReliability?.[String(sourceId)] ?? 0.75;
-        return Math.max(0.05, Math.min(0.7, original * (0.38 + trust / 250) * reliability));
+        return Math.max(0.05, Math.min(0.8, original, original * (0.55 + trust / 250) * reliability));
     }
 
     addOwnedCampClaim(mem, entry) {
         mem.campClaims ||= []; mem.campSourceReliability ||= {};
         if (entry.origin === 'firsthand') for (const prior of mem.campClaims) {
-            if (prior.sourceId == null || prior.origin !== 'hearsay' ||
+            if (prior.sourceId == null || !['hearsay', 'direct_statement'].includes(prior.origin) ||
                 String(prior.subjectId) !== String(entry.subjectId) || prior.topic !== entry.topic ||
                 prior.stance !== entry.stance) continue;
             const key = String(prior.sourceId);
@@ -1042,10 +1052,18 @@ class SocialMemorySystem {
             (opposites[previous.stance]?.includes(entry.stance) || opposites[entry.stance]?.includes(previous.stance)) &&
             previous.confidence > 0.15);
         for (const prior of contradicts) {
+            if (campEvidenceRank(prior) > campEvidenceRank(entry)) {
+                // Hearing the same weak rumor repeatedly cannot erase what this
+                // person saw. It does create uncertainty about the new claim.
+                entry.challenged = true;
+                entry.confidence = Math.max(0.05, entry.confidence * .55);
+                continue;
+            }
             prior.challenged = true;
             prior.confidence = Math.max(0.05, prior.confidence * (entry.origin === 'firsthand' ? 0.4 : 0.78));
+            if (campEvidenceRank(prior) === campEvidenceRank(entry)) entry.challenged = true;
             // Only direct evidence can discredit a source; conflicting rumors are uncertainty.
-            if (entry.origin === 'firsthand' && prior.sourceId != null) {
+            if (entry.origin === 'firsthand' && entry.confidence >= .7 && prior.sourceId != null) {
                 const key = String(prior.sourceId);
                 mem.campSourceReliability[key] = Math.max(0.2, (mem.campSourceReliability[key] ?? 0.75) - 0.18);
             }
@@ -1053,8 +1071,7 @@ class SocialMemorySystem {
         entry.contradicts = contradicts.map(previous => previous.id).slice(-4);
         mem.campClaims.push(entry);
         while (mem.campClaims.length > 40) {
-            const low = mem.campClaims.findIndex(claim => claim.salience !== 'high');
-            mem.campClaims.splice(low < 0 ? 0 : low, 1);
+            mem.campClaims.splice(this.leastUsefulCampEvidence(mem.campClaims), 1);
         }
     }
 
@@ -1063,11 +1080,12 @@ class SocialMemorySystem {
         this.initNPC(fromId); this.initNPC(toId);
         const known = (this.memory[fromId].campClaims || []).find(claim => claim.id === claimId);
         if (!known || this.memory[toId].campClaims?.some(claim => claim.id === claimId)) return false;
-        const confidence = Math.min(known.confidence * 0.72,
+        const confidence = Math.min(.55, campEvidenceConfidence(known) * 0.72,
             this.campClaimConfidence(toId, fromId, known.confidence));
         this.addOwnedCampClaim(this.memory[toId], { ...known, origin: 'hearsay', sourceId: fromId,
             sourceChain: [...(known.sourceChain || []), fromId].slice(-5), confidence,
-            truthfulness: undefined, challenged: false });
+            truthfulness: undefined, evidenceOrigin: campProvenance(known) === 'inference' ? 'inference' : undefined,
+            challenged: Boolean(known.challenged) });
         return true;
     }
 
@@ -1151,7 +1169,7 @@ class SocialMemorySystem {
         return [...counts].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id, count]) => ({ id, count }));
     }
 
-    recordConversationIntent({ npcId, withId = null, intent, targetId = null, targetName = null, day = null, phase = null, campTime = null }) {
+    recordConversationIntent({ npcId, withId = null, intent, targetId = null, targetName = null, day = null, phase = null, campTime = null, urgency = 0, salience = 'medium' }) {
         if (npcId == null) return;
         this.initNPC(npcId);
         const entry = {
@@ -1161,7 +1179,9 @@ class SocialMemorySystem {
             withId,
             intent,
             targetId,
-            targetName
+            targetName,
+            urgency,
+            salience
         };
         this.memory[npcId].conversationIntents = this.memory[npcId].conversationIntents || [];
         this.memory[npcId].conversationIntents.push(entry);
