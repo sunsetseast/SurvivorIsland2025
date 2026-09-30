@@ -141,6 +141,9 @@ test('legacy owned memories preserve promise, betrayal, gossip and discovered-li
 test('public Tribal callout changes idol perception without ever reading secret ballots', t => {
   const { gm, members, knowledge } = productionGame(t);
   const holder = members[1]; holder.hasIdol = true; holder.suspicion = 70;
+  // Hold risk constant to test the public information gate independently of
+  // the cast's separately calibrated willingness to accept strategic risk.
+  holder.risk = 7;
   const engine = new TribalQuestionEngine(gm);
   const baseline = decideNpcIdolPlay(holder, knowledge());
   const bystanderBefore = knowledge().perceivedDanger(members[3]);

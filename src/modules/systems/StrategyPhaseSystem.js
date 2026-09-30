@@ -2,6 +2,7 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import { gameManager, GamePhase, GameState } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import { campTargetPreference } from './CampKnowledge.js';
 
 /**
  * StrategyPhaseSystem
@@ -611,26 +612,24 @@ class StrategyPhaseSystem {
       );
       if (!candidates.length) return null;
 
-      let best = null;
-      let bestScore = -Infinity;
       const relationshipSystem = gameManager?.systems?.relationshipSystem;
-      candidates.forEach((candidate) => {
+      const weighted = candidates.map((candidate) => {
         const threatScore = ((Number(candidate.physical) || 50) + (Number(candidate.mental) || 50)) / 2;
         const relationshipValue = this.resolveRelationshipValue(relationshipSystem, npc.id, candidate.id);
-        const score = threatScore + (100 - relationshipValue);
-        if (score > bestScore) {
-          best = candidate;
-          bestScore = score;
-        }
+        // Camp beliefs are a bounded preference, alongside the existing threat
+        // and relationship inputs. An owned pitch never forces a vote.
+        const score = threatScore + (100 - relationshipValue) + this.campPreference(npc.id, candidate.id) * 12;
+        return { candidate, weight: Math.exp(Math.min(200, score) / 35) };
       });
-
-      return best?.id || null;
+      let roll = Math.random() * weighted.reduce((n, entry) => n + entry.weight, 0);
+      return (weighted.find(entry => (roll -= entry.weight) <= 0) || weighted.at(-1))?.candidate.id ?? null;
     };
 
     let seededCount = 0;
     npcMembers.forEach((npc) => {
-      const seededTargetId = this.isTargetIdAvailable(this.personalTargetId) && String(this.personalTargetId) !== String(npc.id)
-        ? this.personalTargetId : pickThreatTargetForNpc(npc);
+      // The player's private picker is not an NPC disclosure. NPCs enter the
+      // phase with their own preferences and what they actually heard at camp.
+      const seededTargetId = pickThreatTargetForNpc(npc);
       if (!seededTargetId) return;
       this.updateNpcIntentTarget(npc.id, seededTargetId, {
         reason: 'seed:startPhase',
@@ -642,6 +641,11 @@ class StrategyPhaseSystem {
 
     window.debugBanner?.('NPC-SEED', `${seededCount} intents seeded`);
     return seededCount;
+  }
+
+  campPreference(ownerId, targetId) {
+    return campTargetPreference(gameManager.systems?.socialMemorySystem, ownerId, targetId,
+      gameManager.getCurrentDay?.() ?? gameManager.day ?? 1);
   }
 
   computeTribalTargetBoard() {
@@ -1181,7 +1185,7 @@ class StrategyPhaseSystem {
     );
 
     const weightedCandidates = others.map((candidate) => {
-      let weight = 1;
+      let weight = 1 + this.campPreference(speaker.id, candidate.id) * .5;
       if (candidate.isPlayer && !playerGateOpen) {
         weight *= 0.15;
       }

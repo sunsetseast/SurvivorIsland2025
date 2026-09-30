@@ -700,7 +700,7 @@ export default function renderSummary(container) {
       }).filter(Boolean))];
     if (seen.length) summaryContent.appendChild(createElement('p', {}, seen.join(' ')));
     const told = (memory?.getCampClaims?.(gameManager.player?.id) || [])
-      .filter(claim => claim.day === currentDay && claim.origin === 'hearsay' && claim.sourceId != null)
+      .filter(claim => claim.day === currentDay && ['direct_statement', 'hearsay'].includes(claim.origin) && claim.sourceId != null)
       .slice(-3).map(claim => {
         const source = displayNameById(claim.sourceId, playerTribe, gameManager.player?.id);
         const subject = displayNameById(claim.subjectId, playerTribe, gameManager.player?.id);

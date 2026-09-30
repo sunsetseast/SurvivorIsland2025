@@ -6,6 +6,7 @@
 import { ELIGIBLE_IDOL_LOCATIONS } from './IdolSystem.js';
 import npcLocationSystem from './NpcLocationSystem.js';
 import { isCoreCampLocation, normalizeLocationKey } from '../locations/LocationUtils.js';
+import { getCampBehaviorProfile } from './CampBehaviorProfile.js';
 
 const STYLE_MODIFIERS = {
   'Shadow Strategist': { urge: 0.15, casualBias: 0.75, avoidAggressiveWhenSuspicious: true },
@@ -69,11 +70,11 @@ function computeUrgeScore(npc, context, idolSystem) {
   const style = npc.gameplayStyle || npc.playStyle || 'Competitive';
   const modifiers = STYLE_MODIFIERS[style] || { urge: 0, casualBias: 0.6 };
 
-  const idolHunt = normalize(npc.idolhunt);
-  const paranoia = normalize(npc.paratend || npc.paranoia);
-  const awareness = normalize(npc.awareness);
-  const aggression = normalize(npc.aggression);
-  const laziness = normalize(npc.laziness);
+  const profile = getCampBehaviorProfile(npc);
+  const idolHunt = profile.idolDrive;
+  const paranoia = profile.paranoiaDrive;
+  const awareness = normalize(npc.awareness ?? 5, 10);
+  const aggression = profile.confrontationDrive;
   const suspicion = normalize(npc.idolSuspicion ?? npc.suspicion);
   const threat = normalize(npc.threat || npc.threatLevel || npc.challengeThreat);
 
@@ -82,7 +83,6 @@ function computeUrgeScore(npc, context, idolSystem) {
 
   let urge = 0.12 + idolHunt * 0.35 + paranoia * 0.22 + awareness * 0.1 + threat * 0.2;
   urge += aggression * 0.1;
-  urge -= laziness * 0.25;
   urge -= suspicion * 0.15;
 
   if (hasActiveClue) {
@@ -124,9 +124,11 @@ function decideHuntMode(npc, context, idolSystem) {
 
   let casualBias = modifiers.casualBias ?? 0.6;
   const suspicion = normalize(npc.idolSuspicion ?? npc.suspicion);
-  const aggression = normalize(npc.aggression);
+  const profile = getCampBehaviorProfile(npc);
+  const aggression = profile.confrontationDrive;
 
   casualBias -= aggression * 0.3;
+  casualBias += (.5 - profile.riskTolerance) * .15;
   casualBias += suspicion * 0.2;
 
   if (modifiers.avoidAggressiveWhenSuspicious && suspicion > 0.5) {

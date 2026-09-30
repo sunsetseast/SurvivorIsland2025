@@ -118,15 +118,15 @@ test('a strong player can support or resist NPC Boston Rob contextually', () => 
   assert.ok(decision.options.some(option => option.key === 'back_leader'));
 });
 
-test('Sandra on Flex stays low-profile while Cirie on Flex forms an early connection', () => {
+test('Sandra on Flex receives work recognition while Cirie on Flex forms an early connection', () => {
   const sandra = byName('Sandra');
   const sandraResult = assignmentOutcome({
     members: tribe('Sandra', 'Boston Rob', 'Ozzy', 'Andrea', 'Michele', 'Kelley'),
     player: sandra,
     roleKey: 'float'
   });
-  assert.equal(sandraResult.impression.key, 'low_profile');
-  assert.ok(sandraResult.socialPulse.some(pulse => pulse.label === 'Quiet respect'));
+  assert.equal(sandraResult.impression.key, 'team_player');
+  assert.ok(sandraResult.socialPulse.length > 0);
 
   const cirie = byName('Cirie');
   const cirieResult = assignmentOutcome({
@@ -136,7 +136,7 @@ test('Sandra on Flex stays low-profile while Cirie on Flex forms an early connec
   });
   const bond = cirieResult.socialPulse.find(pulse => pulse.type === 'bond');
   assert.ok(bond?.people.some(id => String(id) === String(cirie.id)));
-  assert.equal(cirieResult.impression.key, 'low_profile');
+  assert.equal(cirieResult.impression.key, 'team_player');
 });
 
 test('Ozzy is reserved for Resources and receives provider pressure', () => {

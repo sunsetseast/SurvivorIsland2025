@@ -133,7 +133,7 @@ test('a purposeful private block can pass an owned warning; an intentional lie s
   assert.equal(resolveNpcCampExchange({ gm, memory, speaker: a, listener: b,
     activity, random: () => 0 }).type, 'pitch');
   assert.equal(memory.getCampClaims('b', { topic: 'target' })[0].sourceId, 'a');
-  a.personalityTraits = ['deceptive'];
+  a.honesty = 2;
   memory.recordCampClaim({ id: 'own', speakerId: 'a', subjectId: 'r', topic: 'idol_suspicion',
     stance: 'possible', day: 1 });
   const lie = resolveNpcCampExchange({ gm, memory, speaker: a, listener: b,
@@ -143,17 +143,17 @@ test('a purposeful private block can pass an owned warning; an intentional lie s
   assert.equal(memory.getCampClaims('b').find(claim => claim.id === 'cover:claim').truthfulness, undefined);
   assert.equal(memory.getCampClaims('c').length, 0);
   const snapshot = JSON.parse(JSON.stringify(memory.serialize())); memory.deserialize(snapshot);
-  assert.equal(memory.getCampClaims('b').find(claim => claim.id === 'cover:claim').origin, 'hearsay');
+  assert.equal(memory.getCampClaims('b').find(claim => claim.id === 'cover:claim').origin, 'direct_statement');
 });
 
 test('personality and owned experience tilt choices without fixing a single outcome', () => {
   const { activity, a, b, gm, tribe } = camp();
   const weight = (type, actor = a) => activity.scoreChoices(actor).find(choice => choice.type === type)?.weight || 0;
   const work = weight('gather_firewood'), social = weight('socialize');
-  a.personalityTraits = ['lazy', 'social'];
+  a.laziness = 9; a.connections = 9; a.likeability = 9;
   assert.ok(weight('gather_firewood') < work);
   assert.ok(weight('socialize') > social);
-  a.personalityTraits = ['paranoid', 'strategic'];
+  a.paratend = 9; a.bigmove = 9;
   memory.recordCampObservation({ id: 'leaving1', actorId: 'b', witnessIds: ['a'], type: 'absence', day: 1 });
   memory.recordCampObservation({ id: 'leaving2', actorId: 'b', witnessIds: ['a'], type: 'absence', day: 1 });
   assert.ok(weight('investigate') > 0);
