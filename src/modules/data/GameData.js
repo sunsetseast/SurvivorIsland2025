@@ -61,6 +61,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 10,
     laziness: 1,
     firemaking: 9,
+    campcraft: 8,
     avatarUrl: 'Assets/Avatars/ozzy.jpeg'
   },
   {
@@ -117,6 +118,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 7,
     laziness: 3,
     firemaking: 3,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/jay.jpeg'
   },
   {
@@ -173,6 +175,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 5,
     laziness: 1,
     firemaking: 6,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/natalie.jpeg'
   },
   {
@@ -229,6 +232,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 6,
     laziness: 2,
     firemaking: 10,
+    campcraft: 9,
     avatarUrl: 'Assets/Avatars/bostonrob.jpeg'
   },
   {
@@ -285,6 +289,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 5,
     laziness: 3,
     firemaking: 5,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/andrea.jpeg'
   },
   {
@@ -341,6 +346,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 5,
     laziness: 2,
     firemaking: 6,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/jeremy.jpeg'
   },
   {
@@ -397,6 +403,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 5,
     laziness: 2,
     firemaking: 6,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/yul.jpeg'
   },
   {
@@ -453,6 +460,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 5,
     laziness: 1,
     firemaking: 6,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/kim.jpeg'
   },
   {
@@ -509,6 +517,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 3,
     laziness: 3,
     firemaking: 9,
+    campcraft: 7,
     avatarUrl: 'Assets/Avatars/tony.jpeg'
   },
   {
@@ -565,6 +574,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 4,
     laziness: 5,
     firemaking: 2,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/cirie.jpeg'
   },
   {
@@ -621,6 +631,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 7,
     laziness: 3,
     firemaking: 5,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/sandra.jpeg'
   },
   {
@@ -677,6 +688,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 5,
     laziness: 3,
     firemaking: 5,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/kelley.jpeg'
   },
   {
@@ -733,6 +745,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 4,
     laziness: 4,
     firemaking: 6,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/parvati.jpeg'
   },
   {
@@ -789,6 +802,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 4,
     laziness: 3,
     firemaking: 6,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/michele.jpeg'
   },
   {
@@ -845,6 +859,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 6,
     laziness: 1,
     firemaking: 10,
+    campcraft: 10,
     avatarUrl: 'Assets/Avatars/wendell.jpeg'
   },
   {
@@ -901,6 +916,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 5,
     laziness: 5,
     firemaking: 7,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/tyson.jpeg'
   },
   {
@@ -957,6 +973,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 4,
     laziness: 4,
     firemaking: 7,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/carolyn.jpeg'
   },
   {
@@ -1013,6 +1030,7 @@ const DEFAULT_SURVIVORS = [
     fishing: 3,
     laziness: 6,
     firemaking: 5,
+    campcraft: 5,
     avatarUrl: 'Assets/Avatars/russell.jpeg'
   },
 ].map(survivor => ({
