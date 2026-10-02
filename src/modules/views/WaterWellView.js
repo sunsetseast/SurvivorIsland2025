@@ -2,7 +2,7 @@
  * @module WaterWellView
  * Renders the water well screen inside the Camp Phase
  */
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { updateCampClockUI } from '../utils/ClockUtils.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
@@ -10,13 +10,7 @@ import { MAX_WATER } from '../data/GameData.js';
 import activityTracker from '../utils/ActivityTracker.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
-/* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-/* ------------------------------------------------------------- */
-
 export default function renderWaterWell(container) {
-  console.log('renderWaterWell() called');
-  addDebugBanner('renderWaterWell() called', 'dodgerblue', 40);
 
   clearChildren(container);
   container.style.backgroundImage = "url('Assets/Screens/water-well.png')";
@@ -39,6 +33,7 @@ export default function renderWaterWell(container) {
   });
 
   const message = createElement('div', {
+    className: 'camp-location-intro',
     id: 'water-well-message',
     style: `
       color: white;
@@ -58,13 +53,6 @@ export default function renderWaterWell(container) {
 
   setTimeout(() => message.style.opacity = '0', 3000);
   setTimeout(() => message.remove(), 4000);
-
-  /* ⭐ ADD NPC ICONS HERE -------------------------------------- */
-  try {
-  } catch (error) {
-    console.warn('[WaterWellView] NPC render crashed', error);
-  }
-  /* ------------------------------------------------------------ */
 
   function showWaterInfoPopup() {
     const infoPopup = createElement('div', {
@@ -403,8 +391,10 @@ export default function renderWaterWell(container) {
     actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 260px;
           height: 150px;
           display: inline-block;
@@ -445,8 +435,4 @@ export default function renderWaterWell(container) {
     actionButtons.appendChild(centerButton);
     actionButtons.appendChild(rightButton);
   }
-
-  addDebugBanner('Water Well view rendered!', 'dodgerblue', 170);
 }
-
-/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR WATER WELL ----------- */

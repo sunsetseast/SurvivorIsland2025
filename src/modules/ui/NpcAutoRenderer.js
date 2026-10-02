@@ -1,296 +1,247 @@
-/**
- * @module NpcAutoRenderer
- * Automatically injects NPC icons into ANY Camp View that loads.
- * Works with new location keys and CampScreen’s CAMP_VIEW_LOADED event.
- */
-window.debugBanner = window.debugBanner || function(){};
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-import { gameManager } from "../core/index.js";
-import eventManager, { GameEvents } from "../core/EventManager.js";
-import { createElement } from "../utils/DOMUtils.js";
-import { LocationKeys } from "../core/LocationKeys.js";
-import { normalizeLocationKey } from "../locations/LocationUtils.js";
-import { physicalCampLocation } from '../systems/CampActivitySystem.js';
+import npcLocationSystem from '../systems/NpcLocationSystem.js';
+import { gameManager } from '../core/index.js';
+import eventManager, { GameEvents } from '../core/EventManager.js';
+import { createElement } from '../utils/index.js';
+import { normalizeLocationKey, physicalCampLocation } from '../locations/LocationUtils.js';
+import CampInteractionSystem from '../systems/CampInteractionSystem.js';
+import { campGroups, clusterPortraitLayout, campObservationLine, LOCATION_MOOD } from './CampPresentation.js';
 
-// Use your existing debug banner (CampScreen has it globally)
-const dbg = window.debugBanner || function(){};
-
-const isMarkedAbsent = (absentSet, survivorId) => {
-    if (!absentSet) return false;
-    if (Array.isArray(absentSet)) return absentSet.some(id => String(id) === String(survivorId));
-    return typeof absentSet.has === 'function' && (absentSet.has(survivorId) || absentSet.has(String(survivorId)));
-};
-const ACTIVITY_LABELS = {
-    gather_firewood: 'collecting firewood', gather_bamboo: 'cutting bamboo', gather_food: 'finding food',
-    collect_water: 'fetching water', fish: 'fishing', build_fire: 'working on fire',
-    build_shelter: 'building shelter', tend_fire: 'tending fire', rest: 'resting',
-    socialize: 'talking', strategy_conversation: 'talking quietly', idol_hunt: 'looking around',
-    travel: 'passing through', observe: 'watching camp', idle_at_camp: 'around camp'
-};
-
-class NpcAutoRenderer {
-    constructor() {
-        this.initialized = false;
-        this.lastKnownPhase = null;
+// One renderer owns every physical camp location. Layout/labels are projected
+// from semantic state; only transient DOM/focus lives here.
+export class NpcAutoRenderer {
+  constructor(gm = null) {
+    this._gm = gm; this.initialized = false; this.lastViewName = null;
+    this.signature = null; this.seenNarration = new Set(); this.unsubscribers = [];
+    this.sheet = null; this.lastBeatAt = Infinity;
+  }
+  get gm() { return this._gm || gameManager; }
+  initialize() {
+    if (this.initialized) return;
+    this.initialized = true;
+    this.interactions = new CampInteractionSystem(this.gm);
+    this.gm.systems.campInteractionSystem = this.interactions;
+    const on = (event, fn) => this.unsubscribers.push(eventManager.subscribe(event, fn));
+    const resize = () => {
+      if (this.resizeFrame) return;
+      this.resizeFrame = requestAnimationFrame(() => { this.resizeFrame = null; this.signature = null; this.refresh(); });
+    };
+    globalThis.window?.addEventListener?.('resize', resize);
+    this.unsubscribers.push(() => globalThis.window?.removeEventListener?.('resize', resize));
+    on(GameEvents.CAMP_VIEW_LOADED, ({ viewName }) => {
+      this.closeSheet(false); this.lastViewName = normalizeLocationKey(viewName); this.renderFor(this.lastViewName);
+    });
+    on('npc:locationUpdated', () => this.refresh());
+    on('camp:timeAdvanced', () => { this.refresh(); this.narrate(); });
+    on(GameEvents.CAMP_EVENT_STARTED, () => { this.closeSheet(false); this.clear(); });
+    on(GameEvents.GAME_STATE_CHANGED, ({ newState }) => { if (newState !== 'camp') { this.closeSheet(false); this.clear(); } });
+    on(GameEvents.GAME_PHASE_CHANGED, () => { this.closeSheet(false); this.refresh(); });
+    on(GameEvents.GAME_LOADED, () => {
+      this.closeSheet(false); this.interactions.watching = null; this.signature = null;
+      // Rebuild groups, but do not replay old live announcements after reload.
+      this.seenNarration = new Set(this.ownedObservations().map(e => e.id));
+      this.refresh();
+    });
+    on(GameEvents.TRIBES_CREATED, () => {
+      (this.gm.systems.npcLocationSystem || npcLocationSystem).assignLocations(this.gm.gamePhase || 'preChallenge');
+    });
+  }
+  clear() {
+    document.getElementById('npc-layer')?.replaceChildren(); this.signature = null;
+  }
+  refresh() {
+    if (this.sheet?.groupId) {
+      const groups = campGroups(this.gm, this.lastViewName);
+      if (!groups.some(g => g.id === this.sheet.groupId && g.activityId === this.sheet.activityId)) this.closeSheet();
     }
-
-    initialize() {
-        if (this.initialized) return;
-        this.initialized = true;
-
-        dbg("NpcAutoRenderer INITIALIZED");
-
-        // 🟢 Listen for camp view changes
-        eventManager.subscribe(GameEvents.CAMP_VIEW_LOADED, ({ viewName }) => {
-            dbg("Event: CAMP_VIEW_LOADED received by NpcAutoRenderer", viewName);
-            this.renderFor(viewName);
-        });
-
-        eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, () => {
-            const layer = this.ensureNpcLayer();
-            if (layer) {
-                layer.innerHTML = "";
-            }
-        });
-
-        eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, ({ phase }) => {
-            this.lastKnownPhase = phase;
-        });
-
-        eventManager.subscribe("npc:locationUpdated", () => {
-            if (this.lastViewName) {
-                this.renderFor(this.lastViewName);
-            }
-        });
-
-        // 🟢 Listen for tribe creation → assign NPC locations
-        eventManager.subscribe(GameEvents.TRIBES_CREATED, () => {
-            const tribe = gameManager.getPlayerTribe();
-            dbg("Event: TRIBES_CREATED", { tribe });
-
-            if (tribe) {
-                npcLocationSystem.assignLocationsForPhase(tribe.members, gameManager?.getGamePhase?.() || gameManager?.gamePhase);
-                dbg("NpcAutoRenderer triggered NPC location assignment", tribe.members);
-            }
-        });
+    if (this.lastViewName && this.gm.gameState === 'camp') this.renderFor(this.lastViewName);
+  }
+  renderFor(viewName) {
+    this.lastViewName = normalizeLocationKey(viewName);
+    const camp = document.getElementById('camp-content');
+    if (!camp) return;
+    const place = physicalCampLocation(this.lastViewName);
+    if (!place || this.gm.flags?.campEventActive) { this.clear(); return; }
+    let layer = camp.querySelector('#npc-layer');
+    if (!layer) { layer = createElement('div', { id: 'npc-layer' }); camp.appendChild(layer); this.signature = null; }
+    this.npcLayer = layer;
+    const groups = this.interactions?.available ? this.interactions.seeGroups(this.lastViewName) : campGroups(this.gm, this.lastViewName);
+    const departures = this.interactions?.recentDepartures() || [];
+    const width = Math.min(350, Math.max(180, (camp.clientWidth || 375) - 24));
+    const handsOn = this.lastViewName !== place;
+    const minigame = handsOn || place === 'tribeFlag';
+    const expanded = this.expandedMinigameView === this.lastViewName;
+    const signature = JSON.stringify({ groups, departures: departures.map(e => e.id), width, minigame, expanded });
+    if (signature === this.signature && layer.firstChild) return;
+    const focusKey = layer.contains(document.activeElement) ? document.activeElement?.dataset?.focusKey : null;
+    const scrollTop = layer.querySelector('.camp-presence')?.scrollTop || 0;
+    this.signature = signature;
+    layer.replaceChildren();
+    const rail = createElement('section', { className: `npc-icon-container camp-presence ${minigame ? `minigame ${expanded ? 'expanded' : 'collapsed'}` : ''}`, 'aria-label': 'People nearby',
+      dataset: { location: place }, style: { '--camp-tribe-color': this.gm.getPlayerTribe?.()?.color || this.gm.getPlayerTribe?.()?.tribeColor || '#d7b36c' } });
+    const header = createElement('div', { className: 'camp-presence-heading' }, LOCATION_MOOD[place] || 'Nearby');
+    if (minigame) {
+      const toggle = this.action(`People nearby · ${groups.reduce((n,g) => n + g.members.length, 0)}`, 'nearby-toggle', () => {
+        this.expandedMinigameView = expanded ? null : this.lastViewName; this.signature = null; this.refresh();
+      });
+      toggle.setAttribute('aria-expanded', String(expanded)); header.replaceChildren(toggle);
     }
-
-    /**
-     * Called by CampScreen after the view is loaded.
-     */
-    renderFor(viewName) {
-        const normalizedViewName = this.normalizeViewName(viewName);
-        dbg("NpcAutoRenderer.renderFor()", normalizedViewName);
-
-        this.lastViewName = normalizedViewName;
-
-        const layer = this.ensureNpcLayer();
-        if (!layer) {
-            dbg("❌ No #camp-content container found");
-            return;
-        }
-
-        layer.innerHTML = "";
-
-        if (gameManager.flags?.campEventActive) {
-            return;
-        }
-
-        this.renderNPCs(normalizedViewName, layer);
+    rail.appendChild(header);
+    rail.appendChild(createElement('p', { className: 'camp-observable-beat', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }));
+    layer.appendChild(rail);
+    const contentWidth = rail.clientWidth - 2 * (parseFloat(getComputedStyle(rail).paddingLeft) || 0);
+    const clusters = createElement('div', { className: 'camp-clusters' });
+    const groupWidth = Math.min(150, Math.max(120, (contentWidth - 12) / 2));
+    for (const group of groups) {
+      const cardWidth = group.members.length > 1 ? contentWidth : groupWidth;
+      const card = createElement('article', { className: `camp-cluster ${group.engaged ? 'engaged' : 'nearby'} ${group.privacy === 'private' ? 'quiet' : ''}`,
+        style: { width: `${cardWidth}px` }, dataset: { groupId: group.id } });
+      const layout = clusterPortraitLayout(group.members.length, cardWidth);
+      const portraits = createElement('div', { className: 'camp-portraits', style: { height: `${layout.height}px` } });
+      group.members.forEach((member, index) => {
+        const box = layout.boxes[index];
+        const holder = createElement('div', { className: `camp-person ${member.travelling ? 'travelling' : ''}`,
+          style: { left: `${box.x}px`, top: `${box.y}px` } });
+        const button = createElement('button', { type: 'button', className: 'npc-icon camp-portrait',
+          'aria-label': `${member.name}: ${member.label}. ${handsOn ? 'Nearby' : group.social ? 'Approach group' : 'Talk'}`,
+          disabled: handsOn || member.busy, dataset: { npcId: member.id, focusKey: `portrait:${member.id}` } });
+        const initial = () => createElement('span', { className: 'camp-portrait-initial', 'aria-hidden': 'true' }, member.name.slice(0,1));
+        if (member.avatarUrl) {
+          const image = createElement('img', { src: member.avatarUrl, alt: '', loading: 'lazy' });
+          image.addEventListener('error', () => button.replaceChildren(initial()), { once: true });
+          button.appendChild(image);
+        } else button.appendChild(initial());
+        button.addEventListener('click', () => group.social ? this.openGroup(group) : this.talk(member, group));
+        holder.appendChild(button);
+        holder.appendChild(createElement('span', { className: 'camp-person-name' }, member.name));
+        portraits.appendChild(holder);
+      });
+      card.appendChild(portraits);
+      card.appendChild(createElement('p', { className: 'camp-activity-label' },
+        group.social ? `${group.privacy === 'private' ? '◌ ' : ''}${group.label}` : group.members[0].label));
+      const actions = createElement('div', { className: 'camp-context-actions' });
+      if (!handsOn && group.social && this.interactions?.available) {
+        actions.appendChild(this.action('Approach', `group:${group.id}`, () => this.openGroup(group)));
+      } else if (!handsOn && group.members[0].helpView && this.interactions?.available) {
+        const member = group.members[0];
+        actions.appendChild(this.action('Help', `help:${member.id}`, () => {
+          if (!this.interactions.visible(member.id)) return;
+          window.campScreen?.loadView?.(member.helpView);
+        }));
+      }
+      card.appendChild(actions); clusters.appendChild(card);
     }
-
-    /**
-     * Internal icon renderer.
-     */
-    renderNPCs(viewName, layer) {
-        if (!layer) {
-            dbg("❌ renderNPCs called with NO layer");
-            return;
-        }
-
-        layer.innerHTML = "";
-
-        // Get NPCs at this location
-        const place = physicalCampLocation(viewName) || viewName;
-        const survivorsHere = npcLocationSystem.getSurvivorsAtLocation(place) || [];
-        const absentSet = gameManager.flags?.absentFromCampIds;
-        const filtered = survivorsHere.filter(s => !s.isOut && !isMarkedAbsent(absentSet, s.id));
-
-        console.log('[NpcAutoRenderer] renderFor', viewName, 'NPC count:', filtered.length);
-
-        dbg("NPCs at location", {
-            viewName,
-            survivors: survivorsHere,
-            locationMap: { ...npcLocationSystem.locations }
-        });
-
-        if (filtered.length === 0) {
-            dbg("No survivors found for view", viewName);
-            return;
-        }
-
-        const isTribeFlagView = viewName === LocationKeys.TRIBE_FLAG;
-        const iconContainer = createElement("div", {
-            className: "npc-icon-container",
-            style: `
-                position: absolute;
-                top: ${isTribeFlagView ? "0" : "14px"};
-                left: ${isTribeFlagView ? "0" : "14px"};
-                display: ${isTribeFlagView ? "block" : "flex"};
-                flex-direction: column;
-                gap: 10px;
-                width: ${isTribeFlagView ? "100%" : "auto"};
-                height: ${isTribeFlagView ? "100%" : "auto"};
-                z-index: 999;
-                pointer-events: none;
-            `
-        });
-
-        filtered.forEach(survivor => {
-            const label = survivor.campActivity?.location === place ? ACTIVITY_LABELS[survivor.campActivity.type] : null;
-            const baseStyle = `
-                width: 55px;
-                height: 55px;
-                border-radius: 50%;
-                border: 3px solid white;
-                box-shadow: 0 0 6px rgba(0,0,0,0.65);
-                cursor: pointer;
-                background: rgba(0,0,0,0.25);
-                background-image: url('${survivor.avatarUrl}');
-                background-size: cover;
-                background-position: center;
-                pointer-events: auto;
-            `;
-
-            const icon = createElement("button", {
-                className: "npc-icon",
-                type: 'button',
-                'aria-label': `Talk to ${survivor.firstName || survivor.name}${label ? `, ${label}` : ''}`,
-                title: `${survivor.firstName || survivor.name}${label ? ` · ${label}` : ''}`,
-                dataset: { npcId: String(survivor.id) },
-                style: `
-                    ${baseStyle}
-                `
-            });
-
-            const currentViewName = place;
-
-            icon.addEventListener("click", () => {
-                eventManager.publish(GameEvents.NPC_CONFRONTATION, {
-                    survivor,
-                    location: currentViewName
-                });
-            });
-
-            if (isTribeFlagView) {
-                const positions = [
-                    { top: "16%", left: "6%" },
-                    { bottom: "20%", left: "6%" },
-                    { top: "16%", right: "6%" },
-                    { bottom: "20%", right: "6%" },
-                    { bottom: "8%", left: "22%" },
-                    { bottom: "8%", right: "22%" }
-                ];
-                const base = positions[iconContainer.childElementCount % positions.length];
-                const stackIndex = Math.floor(iconContainer.childElementCount / positions.length);
-                const offset = stackIndex * 6;
-                Object.assign(icon.style, {
-                    position: "absolute",
-                    top: base.top ?? "auto",
-                    bottom: base.bottom ?? "auto",
-                    left: base.left ?? "auto",
-                    right: base.right ?? "auto",
-                    transform: `translate(${offset}px, ${offset}px)`
-                });
-            }
-
-            if (label && !isTribeFlagView) {
-                const row = createElement('div', { style: 'display: flex; align-items: center; gap: 7px; pointer-events: none;' });
-                row.appendChild(icon);
-                row.appendChild(createElement('span', { style: 'color: white; background: rgba(20,32,30,.78); border-radius: 6px; padding: 3px 7px; font-size: 12px; max-width: 118px;' }, label));
-                iconContainer.appendChild(row);
-            } else iconContainer.appendChild(icon);
-        });
-
-        layer.appendChild(iconContainer);
-        this.renderDebugOverlay(viewName, filtered, layer);
-
-        dbg("NPC ICONS RENDERED", { count: filtered.length, viewName });
+    if (!groups.length) clusters.appendChild(createElement('p', { className: 'camp-empty' }, 'A quiet moment here.'));
+    rail.appendChild(clusters);
+    if (departures.length && !handsOn) {
+      const routes = createElement('div', { className: 'camp-departures' });
+      for (const entry of departures) {
+        const person = this.interactions.person(entry.actorId);
+        routes.appendChild(this.action(`Follow ${person.firstName}`, `follow:${entry.id}`, () => {
+          const result = this.interactions.follow(entry); this.refresh(); this.showResult(result.text);
+        }));
+      }
+      rail.insertBefore(routes, clusters);
     }
-
-    normalizeViewName(viewName) {
-        if (!viewName || typeof viewName !== "string") {
-            return viewName;
-        }
-
-        const normalized = normalizeLocationKey(viewName);
-        if (normalized) {
-            return normalized;
-        }
-
-        if (/view$/i.test(viewName)) {
-            const currentView = window?.campScreen?.currentView;
-            if (currentView) {
-                return currentView;
-            }
-        }
-
-        return viewName;
+    rail.scrollTop = scrollTop;
+    if (focusKey) {
+      const next = [...layer.querySelectorAll('[data-focus-key]')].find(e => e.dataset.focusKey === focusKey) ||
+        layer.querySelector('button:not(:disabled)') || document.querySelector('.camp-nav-button');
+      next?.focus({ preventScroll: true });
     }
-
-    renderDebugOverlay(viewName, survivorsHere, layer) {
-        const idolSystem = gameManager.systems?.idolSystem;
-        const isDebug = idolSystem?.isDebugMode?.() === true;
-        if (!isDebug || !layer) return;
-
-        const overlay = createElement("div", {
-            className: "npc-debug-overlay",
-            style: `
-                position: absolute;
-                bottom: 8px;
-                left: 8px;
-                background: rgba(0, 0, 0, 0.6);
-                color: #fff;
-                font-size: 12px;
-                padding: 6px 8px;
-                border-radius: 6px;
-                z-index: 1000;
-                pointer-events: none;
-                max-width: 240px;
-                line-height: 1.3;
-            `
-        });
-
-        const rendered = survivorsHere.map(survivor => {
-            const loc = normalizeLocationKey(npcLocationSystem.locations?.[survivor.id]) || "unknown";
-            return `${survivor.firstName || survivor.id} (${loc})`;
-        });
-
-        overlay.innerText = `View: ${viewName}\nNPCs: ${rendered.join(", ") || "none"}`;
-        layer.appendChild(overlay);
+  }
+  action(text, key, callback) {
+    const button = createElement('button', { type: 'button', className: 'camp-context-button', dataset: { focusKey: key } }, text);
+    button.addEventListener('click', callback); return button;
+  }
+  talk(member, group, context = {}) {
+    this.closeSheet(false);
+    if (this.gm.systems.campActivitySystem?.active) {
+      if (!this.interactions.visible(member.id)) return;
+      this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: member.id, phase: 'pre', context: { location: group.location, ...context } });
+    } else {
+      const survivor = this.gm.getPlayerTribe?.()?.members.find(p => String(p.id) === String(member.id));
+      eventManager.publish(GameEvents.NPC_CONFRONTATION, { survivor, location: group.location });
     }
-
-    ensureNpcLayer() {
-        const camp = document.getElementById("camp-content");
-        if (!camp) {
-            return null;
-        }
-
-        let layer = camp.querySelector("#npc-layer");
-        if (!layer) {
-            layer = document.createElement("div");
-            layer.id = "npc-layer";
-            layer.style.position = "absolute";
-            layer.style.inset = "0";
-            layer.style.zIndex = "55";
-            layer.style.pointerEvents = "none";
-            camp.style.position = camp.style.position || "relative";
-            camp.appendChild(layer);
-        }
-
-        return layer;
+  }
+  openGroup(group) {
+    if (!this.interactions?.available) return;
+    if (this.lastNarrationPhase !== this.gm.systems.campActivitySystem.phaseId) {
+      this.lastNarrationPhase = this.gm.systems.campActivitySystem.phaseId; this.lastBeatAt = Infinity;
     }
+    const names = group.members.map(p => p.name).join(' & ');
+    this.openSheet(names, `${group.label}. You can walk over, linger nearby, or leave.`, [
+      ['Approach', () => {
+        const result = this.interactions.approach(group); this.refresh();
+        this.openSheet(names, result.text, [
+          ...(result.join ? [['Join conversation', () => {
+            this.closeSheet(false); this.interactions.join(group, result.context); this.refresh();
+          }]] : result.relocated ? [] : [['Talk', () => this.talk(group.members[0], group, { interruptedGroup: true, observedPrivacy: group.privacy })]]),
+          ['Leave', () => this.closeSheet()]
+        ]);
+        if (result.join && this.sheet) { this.sheet.groupId = group.id; this.sheet.activityId = group.activityId; }
+      }],
+      ['Watch nearby · 1 minute', () => {
+        const result = this.interactions.watch(group); this.refresh(); this.showResult(result.text);
+      }],
+      ['Leave', () => this.closeSheet()]
+    ]);
+    if (this.sheet) { this.sheet.groupId = group.id; this.sheet.activityId = group.activityId; }
+  }
+  openSheet(title, body, actions) {
+    const previous = this.sheet?.returnFocus || document.activeElement;
+    this.closeSheet(false);
+    const dialog = createElement('dialog', { className: 'camp-encounter-sheet', 'aria-labelledby': 'camp-encounter-title' });
+    dialog.appendChild(createElement('h2', { id: 'camp-encounter-title' }, title));
+    dialog.appendChild(createElement('p', {}, body));
+    const buttons = createElement('div', { className: 'camp-sheet-actions' });
+    for (const [label, callback] of actions) buttons.appendChild(this.action(label, label, callback));
+    dialog.appendChild(buttons);
+    dialog.addEventListener('cancel', event => { event.preventDefault(); this.closeSheet(); });
+    dialog.addEventListener('click', event => { if (event.target === dialog) {
+      const b = dialog.getBoundingClientRect(); if (event.clientX < b.left || event.clientX > b.right || event.clientY < b.top || event.clientY > b.bottom) this.closeSheet();
+    } });
+    document.body.appendChild(dialog); this.sheet = { dialog, returnFocus: previous };
+    dialog.showModal(); buttons.querySelector('button')?.focus();
+  }
+  showResult(text) { this.openSheet('Around camp', text, [['Back to camp', () => this.closeSheet()]]); }
+  closeSheet(restoreFocus = true) {
+    if (!this.sheet) return;
+    const { dialog, returnFocus } = this.sheet; this.sheet = null;
+    dialog.close(); dialog.remove();
+    if (restoreFocus) {
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+      else (this.npcLayer?.querySelector('button:not(:disabled)') || document.querySelector('.camp-nav-button'))?.focus({ preventScroll: true });
+    }
+  }
+  ownedObservations() {
+    return this.gm.systems.socialMemorySystem?.getCampObservations?.(this.gm.getPlayerSurvivor?.()?.id, { day: this.gm.day }) || [];
+  }
+  narrate() {
+    if (!this.interactions?.available) return;
+    const name = id => this.gm.getPlayerTribe()?.members.find(p => String(p.id) === String(id))?.firstName || 'Someone';
+    const pending = this.ownedObservations().filter(e => !this.seenNarration.has(e.id));
+    for (const e of pending) this.seenNarration.add(e.id);
+    if (this.seenNarration.size > 150) this.seenNarration = new Set(this.ownedObservations().map(e => e.id));
+    const priority = e => ['idol_search_seen', 'conversation_guarded', 'overheard_name', 'overheard_fragment', 'overheard_statement', 'public_conflict'].includes(e.type) ? 3 :
+      e.type === 'departed' && (e.participantIds?.length || (this.gm.systems.socialMemorySystem.getCampImpression(this.gm.player?.id, e.actorId, 'absence')?.count || 0) >= 2) ? 2 :
+      e.type === 'seen_together' || e.type === 'arrived' ? 1 : 0;
+    const beat = pending.filter(e => e.origin !== 'hearsay' && priority(e) > 0 &&
+      e.campTime - this.gm.dayTimer < 180).sort((a, b) => priority(b) - priority(a))[0];
+    if (!beat || priority(beat) < 3 && this.lastBeatAt - this.gm.dayTimer < 120) return;
+    const heardClaim = beat.type === 'overheard_statement' && this.gm.systems.socialMemorySystem.getCampClaims(this.gm.player?.id)
+      .find(claim => claim.acquisition === 'overheard' && String(claim.sourceId) === String(beat.actorId) &&
+        String(claim.subjectId) === String(beat.subjectId) && claim.campTime === beat.campTime);
+    const text = heardClaim ? this.interactions.statementText({firstName:name(beat.actorId)}, heardClaim) : campObservationLine(beat, name);
+    if (text) {
+      const node = this.npcLayer?.querySelector('.camp-observable-beat');
+      if (node) node.textContent = text;
+      this.lastBeatAt = this.gm.dayTimer;
+    }
+  }
+  dispose() {
+    this.closeSheet(false); this.unsubscribers.forEach(unsubscribe => unsubscribe());
+    this.unsubscribers = []; this.initialized = false;
+    if (this.resizeFrame) cancelAnimationFrame(this.resizeFrame); this.resizeFrame = null; this.clear();
+  }
 }
-
-const npcAutoRenderer = new NpcAutoRenderer();
-export default npcAutoRenderer;
+export default new NpcAutoRenderer();

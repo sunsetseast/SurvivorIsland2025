@@ -4,14 +4,10 @@
  * with a fading message similar to JungleTrailView.
  */
 
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
-
-/* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-/* ---------------------------------------------------------------- */
 
 function loadCampView(locationKey) {
   if (window.campScreen?.loadView) {
@@ -70,8 +66,6 @@ function cleanupCampfireUI() {
 }
 
 export default function renderCampfire(container) {
-  console.log('renderCampfire() called');
-  addDebugBanner('renderCampfire() called', 'orangered', 40);
 
   cleanupCampfireUI();
   clearChildren(container);
@@ -115,6 +109,7 @@ export default function renderCampfire(container) {
 
   // Message with fade-out styling
   const message = createElement('div', {
+    className: 'camp-location-intro',
     id: 'campfire-message',
     style: `
       color: white;
@@ -198,13 +193,6 @@ export default function renderCampfire(container) {
     }
   });
 
-  /* ⭐ NEW NPC RENDERING CALL ------------------------------------- */
-  try {
-  } catch (error) {
-    console.warn('[CampfireView] NPC render crashed', error);
-  }
-  /* -------------------------------------------------------------- */
-
   // Fade out after 3 seconds
   const fadeTimeout = setTimeout(() => {
     const msgEl = document.getElementById('campfire-message');
@@ -229,8 +217,10 @@ export default function renderCampfire(container) {
     actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 260px;
           height: 150px;
           display: inline-block;
@@ -259,7 +249,6 @@ export default function renderCampfire(container) {
     };
 
   const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
-    console.log('Up button clicked - returning to Tribe Flag');
     loadCampView(LocationKeys.TRIBE_FLAG);
   });
 
@@ -268,7 +257,6 @@ export default function renderCampfire(container) {
     });
 
   const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-    console.log('Down button clicked - loading Shelter');
     loadCampView(LocationKeys.SHELTER);
   });
 
@@ -276,8 +264,6 @@ export default function renderCampfire(container) {
     actionButtons.appendChild(blankButton);
     actionButtons.appendChild(downButton);
   }
-
-  addDebugBanner('Campfire view rendered!', 'orangered', 170);
 }
 
 function ensureCampfireStockpileBanner(container, tribe) {
@@ -373,5 +359,3 @@ function ensureCampfireStockpileBanner(container, tribe) {
   banner.appendChild(row);
   container.appendChild(banner);
 }
-
-/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR CAMPFIRE ---------------- */

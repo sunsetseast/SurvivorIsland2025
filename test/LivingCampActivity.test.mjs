@@ -291,7 +291,8 @@ test('GameManager save restores activity, owned memory, and completed checkpoint
     const restored = gameManager.getPlayerTribe().members.find(s => s.id === 'w');
     assert.equal(restored.campActivity.id, pending);
     assert.equal(locations.getLocation('w'), restored.campActivity.location);
-    assert.equal(memory.getCampObservations('p')[0].id, 'important');
+    // Observed travel may precede this memory; preserve ownership, not an array position.
+    assert.ok(memory.getCampObservations('p').some(entry => entry.id === 'important'));
     assert.equal(gameManager.flags.taskSimMidCompleted, true);
     assert.equal(gameManager.campSocialChanges.relationship[0].with, 'Charlie');
     const existing = new Set(gameManager.campLog.map(entry => entry.activityId).filter(Boolean));

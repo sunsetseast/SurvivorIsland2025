@@ -1,0 +1,77 @@
+/* Existing art remains the stage. Nearby people form distinct, compact groups. */
+#npc-layer { position:absolute; inset:0; z-index:55; pointer-events:none; }
+#npc-layer .camp-presence { position:absolute; top:120px; right:18px; left:auto; width:min(350px,calc(100% - 24px)); max-height:calc(100% - 230px); overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; display:block; padding:10px; box-sizing:border-box; pointer-events:auto; border-radius:28px 12px 24px 14px; color:#fff6d6; background:linear-gradient(145deg,rgba(29,35,19,.72),rgba(23,29,17,.5)); border:1px solid rgba(231,214,164,.35); box-shadow:0 5px 22px #0004; font-family:Arial,sans-serif; }
+.camp-presence-heading { font-family:Survivant,sans-serif; font-size:1rem; text-align:center; padding:0 0 6px; }
+.camp-clusters { display:flex; flex-wrap:wrap; gap:12px; justify-content:space-around; align-items:flex-start; }
+.camp-cluster { flex:0 1 auto; max-width:100%; min-width:0; border-radius:22px; padding:4px 0 8px; box-sizing:border-box; }
+.camp-cluster.engaged { background:#101e1466; border:1px solid #ead9af50; }
+.camp-cluster.quiet { border-style:dashed; }
+.camp-portraits { position:relative; width:100%; }
+.camp-person { position:absolute; width:56px; height:80px; text-align:center; animation:camp-arrival .24s ease-out; }
+#npc-layer .camp-portrait { display:block; width:56px; height:56px; padding:0; overflow:hidden; border-radius:50%; border:2px solid var(--camp-tribe-color,#d7b36c); background:#2d301e; cursor:pointer; transition:transform .18s ease; }
+.camp-portrait img { display:block; width:100%; height:100%; object-fit:cover; }
+.camp-portrait:focus-visible, .camp-context-button:focus-visible { outline:3px solid #fff6ae; outline-offset:3px; }
+.camp-portrait:disabled { opacity:.8; cursor:default; }
+.camp-person-name { display:block; font-size:12px; line-height:16px; margin-top:3px; white-space:nowrap; text-shadow:0 1px 3px #000; }
+.camp-person.travelling { border-bottom:1px dotted #ffeec499; }
+.camp-activity-label { margin:0 7px 6px; line-height:1.35; text-align:center; font-size:13px; overflow-wrap:anywhere; }
+.camp-context-actions, .camp-departures { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; }
+.camp-context-button { min-height:44px; min-width:60px; max-width:100%; padding:8px 12px; border-radius:16px; border:1px solid #d8c28a; background:#423824; color:#fff8dc; font:inherit; font-size:14px; cursor:pointer; }
+.camp-empty { font-size:13px; font-style:italic; text-align:center; }
+.camp-departures { padding-top:8px; border-top:1px solid #ead9af40; }
+.camp-observable-beat { font-size:13px; line-height:1.45; margin:8px 0 0; }
+.camp-observable-beat:empty { display:none; }
+.camp-encounter-sheet { z-index:10000; width:min(420px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; box-sizing:border-box; padding:24px; background:#f5deb3; color:#332519; border:2px solid #bc9b61; border-radius:24px 14px; box-shadow:0 16px 60px #0008; font-family:Arial,sans-serif; }
+.camp-encounter-sheet::backdrop { background:#07140b9e; }
+.camp-encounter-sheet h2 { font-family:Survivant,sans-serif; font-size:1.5rem; margin:0 0 12px; }
+.camp-encounter-sheet p { line-height:1.5; }
+.camp-sheet-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.camp-sheet-actions .camp-context-button { flex:1 1 130px; }
+.camp-human-recap h3 { margin:16px 0 8px; color:#4a2c0a; font-family:Survivant,sans-serif; }
+.camp-human-recap ul { padding-left:22px; margin:0; }
+@keyframes camp-arrival { from { opacity:0; transform:translateX(7px); } to { opacity:1; transform:none; } }
+@media (max-width:600px) {
+  #npc-layer .camp-presence { top:auto; right:12px; bottom:92px; max-height:38dvh; padding:8px; }
+  /* Keep the existing shared-supply banner clear of the nearby people rail. */
+  #camp-content #campfire-stockpile-banner { top:240px; bottom:auto !important; }
+  .camp-clusters { gap:8px; }
+  .camp-person-name { font-size:12px; }
+  #camp-action-bar #action-buttons { gap:6px; height:70px; }
+  #camp-action-bar #action-buttons > .camp-nav-button { flex:1 1 0; min-width:44px; width:auto !important; max-width:130px; height:70px !important; padding:0; }
+  .summary-wrapper { padding:12px !important; box-sizing:border-box; }
+  .summary-wrapper > div { padding:16px !important; max-width:100%; box-sizing:border-box; }
+}
+@media (max-height:500px) and (min-width:601px) {
+  #npc-layer .camp-presence { top:70px; right:12px; max-height:calc(100% - 158px); width:300px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .camp-person { animation:none; }
+  #npc-layer .camp-portrait { transition:none; }
+}
+/* Scope text against the older universal font and brown paragraph styles. */
+#npc-layer .camp-presence * { font-family:Arial,sans-serif; }
+#npc-layer .camp-presence-heading { font-family:Survivant,sans-serif; }
+#npc-layer .camp-activity-label, #npc-layer .camp-observable-beat, #npc-layer .camp-empty { color:#fff4d4; text-shadow:0 1px 3px #000; }
+#npc-layer .camp-person-name { color:#fff8dc; font-weight:600; width:68px; margin-left:-6px; white-space:normal; }
+.camp-encounter-sheet { position:fixed; inset:0; margin:auto; height:fit-content; }
+.camp-encounter-sheet p, .camp-encounter-sheet button, .camp-human-recap li { font-family:Arial,sans-serif; }
+#camp-content .camp-location-intro { position:absolute; left:100px; right:390px; top:76px; padding:12px !important; font-size:clamp(1rem,2vw,1.5rem) !important; pointer-events:none; }
+@media (max-width:600px) {
+  #camp-content .camp-location-intro { left:18px; right:18px; top:150px; font-size:1.1rem !important; }
+}
+@media (max-height:500px) and (min-width:601px) {
+  #camp-content .camp-location-intro { left:90px; right:330px; top:72px; font-size:1rem !important; }
+}
+/* Human minigames keep their stage clear; nearby activity is expandable. */
+#npc-layer .camp-presence.minigame.collapsed { width:auto; max-width:240px; max-height:100px; }
+.camp-presence.minigame.collapsed .camp-clusters, .camp-presence.minigame.collapsed .camp-departures, .camp-presence.minigame.collapsed .camp-observable-beat { display:none; }
+.camp-presence.minigame .camp-presence-heading { padding:0; }
+@media (prefers-reduced-motion:reduce) {
+  #camp-content .camp-location-intro { transition:none !important; }
+  .camp-encounter-sheet *, #npc-layer .camp-context-button { transition:none; }
+}
+#npc-layer .camp-context-button:hover, .camp-encounter-sheet .camp-context-button:hover { transform:none; background:#59492d; }
+@media (prefers-reduced-motion:reduce) {
+  #npc-layer .camp-portrait:hover { transform:none; }
+}
+.camp-portrait-initial { display:flex; width:100%; height:100%; align-items:center; justify-content:center; font-size:24px; color:#fff8dc; }

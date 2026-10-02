@@ -3,13 +3,9 @@
  * Renders the Mountain Trail screen inside the Camp Phase
  */
 
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
-
-/* ⭐ NEW IMPORTS FOR NPC SYSTEM ------------------------------- */
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-/* ------------------------------------------------------------ */
 
 function loadCampView(locationKey) {
   if (window.campScreen?.loadView) {
@@ -19,8 +15,6 @@ function loadCampView(locationKey) {
 }
 
 export default function renderMountainTrail(container) {
-  console.log('renderMountainTrail() called');
-  addDebugBanner('renderMountainTrail() called', 'sienna', 40);
 
   clearChildren(container);
 
@@ -168,8 +162,10 @@ export default function renderMountainTrail(container) {
     actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 260px;
           height: 150px;
           display: inline-block;
@@ -223,11 +219,4 @@ export default function renderMountainTrail(container) {
     actionButtons.appendChild(centerButton);
     actionButtons.appendChild(downButton);
   }
-
-  /* ⭐ NEW NPC RENDERING -------------------------------------------------- */
-  /* ---------------------------------------------------------------------- */
-
-  addDebugBanner('Mountain Trail view rendered!', 'sienna', 170);
 }
-
-/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR THIS LOCATION ------------------ */

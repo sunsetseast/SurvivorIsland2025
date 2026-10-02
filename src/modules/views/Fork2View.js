@@ -3,13 +3,11 @@
  * Renders another fork in the trail inside the Camp Phase
  */
 
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderFork2(container) {
-  console.log('renderFork2() called');
-  addDebugBanner('renderFork2() called', 'mediumorchid', 40);
 
   clearChildren(container);
 
@@ -53,8 +51,10 @@ export default function renderFork2(container) {
     clearChildren(actionButtons);
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 260px;
           height: 150px;
           display: inline-block;
@@ -81,17 +81,14 @@ export default function renderFork2(container) {
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      console.log('Left button clicked - returning to Jungle Trail');
       window.campScreen.loadView(LocationKeys.JUNGLE_TRAIL);
     });
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-      console.log('Down button clicked - returning to Mountain Trail');
       window.campScreen.loadView(LocationKeys.MOUNTAIN_TRAIL);
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - returning to Shelter');
       window.campScreen.loadView(LocationKeys.SHELTER);
     });
 
@@ -99,6 +96,4 @@ export default function renderFork2(container) {
     actionButtons.appendChild(downButton);
     actionButtons.appendChild(rightButton);
   }
-
-  addDebugBanner('Fork2 view rendered!', 'mediumorchid', 170);
 }

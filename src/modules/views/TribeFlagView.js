@@ -3,7 +3,7 @@
  * Renders the tribe flag screen inside the Camp Phase
  */
 
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import screenManager from '../core/ScreenManager.js';
 import { createSurvivorCard } from '../ui/SurvivorCardFactory.js';
@@ -11,8 +11,6 @@ import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderTribeFlag(container) {
-  console.log('renderTribeFlag() called');
-  addDebugBanner('renderTribeFlag() called', 'teal', 40);
 
   clearChildren(container);
   const loadCampView = (locationKey) => {
@@ -37,20 +35,16 @@ export default function renderTribeFlag(container) {
   const playerSurvivor = gameManager.getPlayerSurvivor();
   if (!playerSurvivor) {
     console.error('TribeFlagView: No player survivor found.');
-    addDebugBanner('No player survivor found', 'red', 100);
     return;
   }
-  addDebugBanner(`Player: ${playerSurvivor.firstName}`, 'green', 100);
 
   const playerTribe = gameManager.tribes.find(tribe =>
     tribe.members.some(m => m.id === playerSurvivor.id)
   );
   if (!playerTribe) {
     console.error('TribeFlagView: Player tribe not found.');
-    addDebugBanner('Player tribe not found', 'orange', 130);
     return;
   }
-  addDebugBanner(`Tribe found: ${playerTribe.name}`, 'blue', 130);
 
   const wrapper = createElement('div', {
     className: 'tribe-wrapper',
@@ -221,8 +215,10 @@ export default function renderTribeFlag(container) {
     clearChildren(actionButtons);
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 260px;
           height: 150px;
           display: inline-block;
@@ -251,7 +247,6 @@ export default function renderTribeFlag(container) {
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      console.log('Left button clicked');
       loadCampView(LocationKeys.BEACH);
     });
 
@@ -260,7 +255,6 @@ export default function renderTribeFlag(container) {
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - loading Campfire');
       loadCampView(LocationKeys.CAMPFIRE);
     });
 
@@ -268,6 +262,4 @@ export default function renderTribeFlag(container) {
     actionButtons.appendChild(blankButton);
     actionButtons.appendChild(rightButton);
   }
-
-  addDebugBanner('Tribe flag view rendered!', 'limegreen', 170);
 }

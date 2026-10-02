@@ -3,7 +3,7 @@
  * Renders the beach screen inside the Camp Phase
  */
 
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
@@ -16,8 +16,6 @@ function loadCampView(locationKey) {
 }
 
 export default function renderBeach(container) {
-  console.log('renderBeach() called');
-  addDebugBanner('renderBeach() called', 'skyblue', 40);
 
   clearChildren(container);
 
@@ -41,6 +39,7 @@ export default function renderBeach(container) {
   });
 
   const message = createElement('div', {
+    className: 'camp-location-intro',
     style: `
       color: white;
       text-shadow: 2px 2px 4px black;
@@ -143,6 +142,7 @@ export default function renderBeach(container) {
 
     const createIconButton = (src, alt, onClick) => {
       const wrapper = createElement('button', {
+        className: 'camp-nav-button',
         type: 'button',
         'aria-label': alt,
         style: `
@@ -178,7 +178,6 @@ export default function renderBeach(container) {
     };
 
     const upButton = createIconButton('Assets/Buttons/up.png', 'Up', () => {
-      console.log('Up button clicked - going to Rocky Shore');
       loadCampView(LocationKeys.ROCKY_SHORE);
     });
 
@@ -187,7 +186,6 @@ export default function renderBeach(container) {
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - returning to Tribe Flag');
       loadCampView(LocationKeys.TRIBE_FLAG);
     });
 
@@ -195,6 +193,4 @@ export default function renderBeach(container) {
     actionButtons.appendChild(blankButton);
     actionButtons.appendChild(rightButton);
   }
-
-  addDebugBanner('Beach view rendered!', 'deepskyblue', 170);
 }
