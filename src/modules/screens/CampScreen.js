@@ -142,6 +142,7 @@ export default class CampScreen {
 
     this.unsubscribeFromCampEventStarted = eventManager.subscribe(GameEvents.CAMP_EVENT_STARTED, ({ eventId }) => {
       gameManager.flags.campEventActive = true;
+      gameManager.systems?.campInteractionSystem?.missDepartures();
       this.stopCampClockTick();
 
       const campContent = getElement('camp-content');
@@ -349,7 +350,8 @@ export default class CampScreen {
     if (clock) clock.remove();
   }
 
-  loadView(viewName, { travelPaid = false } = {}) {
+  loadView(viewName, { travelPaid = false, help = null } = {}) {
+    this.campHelp = help; // Only a transient entry hint; never part of a save.
     const viewContainer = getElement('camp-content');
     const normalizedViewName = normalizeCampViewKey(viewName);
     const actionButtons = document.getElementById('action-buttons');
@@ -392,6 +394,7 @@ export default class CampScreen {
     const player = gameManager.getPlayerSurvivor?.();
     const from = physicalCampLocation(window.previousCampView);
     const to = physicalCampLocation(normalizedViewName);
+    gameManager.systems?.campInteractionSystem?.leaveLocation(from, to);
     if (player && to) {
       if (this.isActive && gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
           !gameManager.flags?.campEventActive && !travelPaid && from && from !== to) {

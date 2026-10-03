@@ -25,7 +25,7 @@ export function activityPrivacy(activity) {
 }
 export function visibleActivityLabel(activity, companions = []) {
   if (!activity) return 'Around camp';
-  if (activity.type === 'travel') return `Heading toward ${placeName(activity.route?.[0] || activity.location)}`;
+  if (activity.type === 'travel') return `Heading toward ${placeName(activity.location)}`;
   const work = LABELS[activity.type];
   if (activity.socialPurpose && work) return `${work} together`;
   if (isSocialActivity(activity)) return activityPrivacy(activity) === 'private' ? 'Talking quietly' :
@@ -39,12 +39,30 @@ export function eligibleCampMember(gm, person) {
 export function playerPlace(gm, view) {
   return physicalCampLocation(view || gm.getPlayerSurvivor?.()?.location);
 }
+// Runtime locations identify route destinations early. Keep that contract,
+// but a traveler is not yet an arrived, talkable portrait at that destination.
+export function physicallyPresent(person, positions, place) {
+  return positions?.getLocation?.(person.id) === place && person.campActivity?.type !== 'travel';
+}
+export function publicCampCue(group, tribe) {
+  if (!group.social || group.privacy !== 'public') return null;
+  const supplies = tribe?.stockpile || {};
+  if ((supplies.water || 0) < (tribe?.members?.length || 1)) return '“Water’s getting low.”';
+  if ((supplies.firewood || 0) < 10) return '“We need more wood.”';
+  if (!(tribe?.fire > 0)) return '“We still need to get the fire going.”';
+  if ((tribe?.shelter || 0) < 3) return '“There’s still work to do on the shelter.”';
+  return null;
+}
+export function activityCue(activity) {
+  return ({ build_shelter: '⚒', fish: '⌁', build_fire: '♨', tend_fire: '♨', collect_water: '◒',
+    gather_firewood: '⚒', gather_bamboo: '⚒', rest: '·', strategy_conversation: '◌' })[activity?.type] || null;
+}
 export function campGroups(gm, view) {
   const place = playerPlace(gm, view);
   if (!place || gm.flags?.campEventActive) return [];
   const positions = gm.systems?.npcLocationSystem;
   const visible = (gm.getPlayerTribe?.()?.members || []).filter(person => !person.isPlayer &&
-    eligibleCampMember(gm, person) && positions?.getLocation?.(person.id) === place);
+    eligibleCampMember(gm, person) && physicallyPresent(person, positions, place));
   const currentActivity = person => gm.gamePhase === 'preChallenge' ? person.campActivity : null;
   const sets = visible.map(person => [person]);
   // Link only people actually engaged in the same block/shared work, not every
@@ -71,6 +89,7 @@ export function campGroups(gm, view) {
       helpView: HELP_VIEWS[currentActivity(p)?.type] || null,
       busy: currentActivity(p)?.interruptible === false,
       travelling: currentActivity(p)?.type === 'travel' }));
+    for (const member of members) member.cue = activityCue(currentActivity(people.find(p => sameId(p.id, member.id))));
     return { id: people.map(p => String(p.id)).sort().join(':'), location: place, privacy, engaged,
       social: engaged && isSocialActivity(activity), activityId: activity?.id,
       label: visibleActivityLabel(activity, engaged ? [] : []), members };
@@ -79,7 +98,7 @@ export function campGroups(gm, view) {
 // Used by the renderer, and testable without DOM. Boxes flow in an offset arc;
 // wrapping keeps portraits separate at phone widths, including large groups.
 export function clusterPortraitLayout(count, width = 300) {
-  const size = 56, gap = 12, inset = 8;
+  const size = 56, gap = 24, inset = 8; // Leave room for readable contestant names.
   const usable = Math.max(size + inset * 2, width);
   const columns = Math.max(1, Math.min(count || 1, Math.floor((usable - inset * 2 + gap) / (size + gap))));
   const rows = Math.ceil(count / columns);

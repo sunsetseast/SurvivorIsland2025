@@ -6,8 +6,10 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { interactionQa } from './LivingCampInteractionQA.mjs';
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const browsers = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const browserName = process.env.CAMP_QA_BROWSER || 'chromium';
 const root = fileURLToPath(new URL('../',import.meta.url));
 const output = process.env.CAMP_QA_OUTPUT || '/tmp/living-camp-rendered-qa';
 fs.mkdirSync(output,{recursive:true});
@@ -18,7 +20,7 @@ const server = http.createServer((req,res)=>{
   res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-const browser = await chromium.launch({headless:true, ...(process.env.CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--disable-gpu']} : {})});
+const browser = await browsers[browserName].launch({headless:true, ...(browserName === 'chromium' && process.env.CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--disable-gpu']} : {})});
 const errors = [], checks = [];
 try {
   const page = await browser.newPage();
@@ -40,6 +42,7 @@ try {
         return {rail:{x:b.x,y:b.y,w:b.width,h:b.height},overflow:rail.scrollWidth>rail.clientWidth+1,buttons,boxes,layers:document.querySelectorAll('#npc-layer').length};
       });
       assert.equal(geometry.layers,1);
+      assert.ok(await page.locator('.camp-location-intro').evaluate(e=>e.getBoundingClientRect().top>=document.querySelector('#camp-clock').getBoundingClientRect().bottom),'location identity clears production clock');
       assert.ok(!geometry.overflow,`${view} ${count}: horizontal rail overflow`);
       assert.ok(geometry.rail.x>=0 && geometry.rail.y>=0 && geometry.rail.x+geometry.rail.w<=viewport.width+1 && geometry.rail.y+geometry.rail.h<=viewport.height,`${view} rail bounds`);
       if (view === 'campfire') {
@@ -97,9 +100,16 @@ try {
   assert.ok(await page.evaluate(()=>Boolean(window.campQa.activity.conversation)),'existing dialogue starts');
   assert.equal(await page.evaluate(()=>window.campQa.activity.conversation.groupIds.length),1);
   assert.equal(await page.evaluate(()=>window.campQa.gm.systems.conversationSystem.activeConversationContext.groupParticipantIds.length),2);
+  assert.ok(await page.locator('#conversation-overlay').evaluate(d=>d.contains(document.activeElement)));
   await page.screenshot({path:path.join(output,'joined-conversation-375.png')});
-  await page.evaluate(()=>window.campQa.gm.systems.conversationSystem.closeConversation('rendered_qa'));
+  await page.setViewportSize({width:844,height:390});
+  const endChat=page.getByRole('button',{name:'End chat',exact:true});
+  const endBounds=await endChat.boundingBox();assert.ok(endBounds.y+endBounds.height<=390,'joined conversation exit fits landscape');
+  await page.screenshot({path:path.join(output,'joined-conversation-844.png')});
+  await endChat.click();
   assert.equal(await page.evaluate(()=>window.campQa.activity.conversation),null);
+  assert.ok(await page.evaluate(()=>document.activeElement!==document.body));
+  await page.setViewportSize({width:375,height:812});
   // A minigame subview stays physically normalized, with its NPC rail closed.
   await page.evaluate(()=>{window.campQa.scene('jungleTrail',3);window.campQa.screen.loadView('firewood',{travelPaid:true});});
   assert.equal(await page.locator('.camp-presence.minigame.collapsed').count(),1);
@@ -111,7 +121,8 @@ try {
   await page.setViewportSize({width:1280,height:800});
   await page.waitForTimeout(100);
   assert.ok(await page.locator('.camp-presence').evaluate(e=>e.scrollWidth<=e.clientWidth+1));
-    assert.deepEqual(errors,[],'uncaught page errors');
-  fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({browser:browser.version(),scenes:checks.length,viewports,errors,interactionChecks:['dialog focus/Escape','watch time','semantic paired travel','follow time','save/load groups','reduced motion','existing group dialogue','minigame collapsed presence','live resize']},null,2));
-  console.log(JSON.stringify({scenes:checks.length,errors,output}));
+  const playtests = await interactionQa(page,output);
+  assert.deepEqual(errors,[],'uncaught page errors');
+  fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({browserName,browser:browser.version(),scenes:checks.length+32,viewports,errors,playtests,interactionChecks:['dialog focus/Escape','watch time','semantic paired travel','follow time','save/load groups','reduced motion','existing group dialogue','minigame collapsed presence','live resize','timed stale approach','missed follow reload','narration dwell/queue/reload','stable portraits','orientation focus','Help fishing/shelter/fire','actual tribe water time/idempotence']},null,2));
+  console.log(JSON.stringify({scenes:checks.length+32,errors,output}));
 } finally {await browser.close();server.close();}

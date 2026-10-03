@@ -726,7 +726,11 @@ function startBuildFlow() {
   const pid = String(player.id);
   const normalizedAssignments = assignments.map(String);
   const isAssigned = normalizedAssignments.includes(pid);
-  if (!isAssigned) {
+  const help = window.campScreen?.campHelp;
+  const helper = help?.location === LocationKeys.SHELTER && tribe.members.find(member =>
+    String(member.id) === String(help.npcId) && !member.isOut && member.campActivity?.id === help.activityId &&
+    member.campActivity?.type === 'build_shelter' && gameManager.systems?.npcLocationSystem?.getLocation(member.id) === LocationKeys.SHELTER);
+  if (!isAssigned && !helper) {
     const partners = normalizedAssignments
       .map(id => tribe.members.find(m => String(m.id) === id))
       .filter(Boolean)
@@ -752,7 +756,7 @@ function startBuildFlow() {
   const partnerFromAssignments = partnerId
     ? tribe.members.find(m => String(m.id) === partnerId || m.id === partnerId)
     : null;
-  const partner = partnerFromAssignments || pickCoBuilder(tribe, player, normalizedAssignments);
+  const partner = helper || partnerFromAssignments || pickCoBuilder(tribe, player, normalizedAssignments);
   showApproachChoices(partner);
 }
 
