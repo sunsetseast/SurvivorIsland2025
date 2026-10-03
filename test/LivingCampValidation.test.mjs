@@ -150,7 +150,7 @@ test('late unfinished work cannot be shortened into a full outcome at Tree Mail'
 test('search limits/disabled idols stop impossible blocks, while social risk still suppresses legal opportunities', () => quiet(() => {
   const s = makeLivingCampQa(), a = actor(s,'Tony');
   const available = weight(s,a,'idol_hunt'); assert.ok(available > 0);
-  window.campScreen.currentView = L.FIREWOOD;
+  window.campScreen.currentView = L.FIREWOOD; s.gm.player.location = L.JUNGLE_TRAIL;
   assert.ok(weight(s,a,'idol_hunt') < available);
   const idols = s.gm.systems.idolSystem;
   // Use the production count key/method, without depending on a hidden find.

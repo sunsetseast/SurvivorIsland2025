@@ -8,7 +8,8 @@ import socialEngine from './SocialEngine.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import { DealTypes } from './DealSystem.js';
 import { buildDay1NpcReference } from '../events/Day1CampMemory.js';
-import { physicalCampLocation } from './CampActivitySystem.js';
+import { physicalCampLocation } from '../locations/LocationUtils.js';
+import { isCampPhysicallyPresent } from '../locations/CampPresence.js';
 import { campEvidenceRank, campEvidenceConfidence } from './CampKnowledge.js';
 
 // DEV NOTE (ConversationSystem)
@@ -1294,7 +1295,7 @@ class ConversationSystem {
     const rawView = typeof window !== 'undefined' ? window.campScreen?.currentView : null;
     const view = physicalCampLocation(rawView) || rawView;
     const locations = this.gameManager.systems?.npcLocationSystem;
-    if (view && locations?.phaseAssigned && locations.getLocation(survivor.id) !== view && !options.context?.scripted) {
+    if (view && locations?.phaseAssigned && !isCampPhysicallyPresent(survivor, locations, view, this.gameManager) && !options.context?.scripted) {
       if (this.gameManager.systems?.campActivitySystem?.active &&
           !this.gameManager.systems.campActivitySystem.approachPlayer(survivor, view)) return;
       locations.reserveNpcForMeeting?.(survivor.id, view, { reason: 'npc_approach' });
@@ -1345,6 +1346,9 @@ class ConversationSystem {
     };
 
     const beginConversation = () => {
+      if (this.gameManager.systems?.campActivitySystem?.active &&
+        (!isCampPhysicallyPresent(survivor, this.gameManager.systems.npcLocationSystem, location, this.gameManager) ||
+         !isCampPhysicallyPresent(this.gameManager.getPlayerSurvivor?.(), this.gameManager.systems.npcLocationSystem, location, this.gameManager))) return;
       this._logConversationStart({ initiator, phase: normalizedPhase, survivor, location });
       this._validateConversationTreeOnStart({
         player: this.gameManager.getPlayerSurvivor?.(),
@@ -1378,7 +1382,10 @@ class ConversationSystem {
     const location = physicalCampLocation(requested) || requested;
     const locations = this.gameManager.systems?.npcLocationSystem;
     if (location && locations?.phaseAssigned && locations.getLocation(npcId)
-      && locations.getLocation(npcId) !== location && !context.scripted && !context.forceMeeting) return;
+      && !isCampPhysicallyPresent(survivor, locations, location, this.gameManager) && !context.scripted && !context.forceMeeting) return;
+    if (this.gameManager.systems?.campActivitySystem?.active &&
+      (!isCampPhysicallyPresent(survivor, locations, location, this.gameManager) ||
+       !isCampPhysicallyPresent(this.gameManager.getPlayerSurvivor?.(), locations, location, this.gameManager))) return;
     const seededContext = {
       ...context,
       initiator: 'player',
@@ -1459,7 +1466,7 @@ class ConversationSystem {
   _handleNpcConfrontation({ survivor, location }) {
     if (!this._isInCamp() || !survivor || this.gameManager.flags?.campEventActive) return;
     const positions = this.gameManager.systems?.npcLocationSystem;
-    if (positions?.phaseAssigned && positions.getLocation(survivor.id) !== location) return;
+    if (positions?.phaseAssigned && !isCampPhysicallyPresent(survivor, positions, location, this.gameManager)) return;
 
     const normalizedLocation = this._normalizeLocationKey(location);
     const pending = this.pendingMeetings.find(
@@ -7859,6 +7866,9 @@ class ConversationSystem {
     survivor,
     { isPurpose = false, meeting = null, location = null, context = {} } = {}
   ) {
+    if (this.gameManager.systems?.campActivitySystem?.active &&
+      !isCampPhysicallyPresent(survivor, this.gameManager.systems.npcLocationSystem,
+        location || context.location || globalThis.window?.campScreen?.currentView, this.gameManager)) return;
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });

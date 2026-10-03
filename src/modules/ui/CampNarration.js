@@ -20,6 +20,16 @@ export function narrationBeat(entry, owned, name, playerId) {
       text = `${name(entry.actorId)} has headed toward ${placeName(entry.location)} more than once.`;
     } else if (entry.participantIds?.length) priority = 2;
   }
+  if (entry.type === 'arrived' && entry.origin === 'witness') {
+    const departed = owned.filter(e => e.type === 'departed' && e.origin === 'witness' && sameId(e.actorId, entry.actorId));
+    const followed = departed.some(e => owned.some(attempt => attempt.type === 'followed' &&
+      attempt.id.startsWith(`${e.id}:follow:`) && attempt.campTime >= entry.campTime && attempt.campTime - entry.campTime <= NARRATION.lifetimeSeconds));
+    if (entry.participantIds?.length || followed || departed.length >= 2) {
+      priority = entry.participantIds?.length ? 2 : 1;
+      const people = [name(entry.actorId), ...(entry.participantIds || []).map(name)].join(' and ');
+      text = `${people} ${entry.participantIds?.length ? 'walk up' : 'walks up'} from ${placeName(entry.fromLocation)}.`;
+    }
+  }
   return priority && text ? { id: entry.id, key, priority, text, campTime: entry.campTime } : null;
 }
 

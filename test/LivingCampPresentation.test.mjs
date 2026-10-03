@@ -371,3 +371,16 @@ test('accepted approach guard survives observation pruning and JSON reload on th
   const before=s.gm.dayTimer;
   assert.ok(s.interactions.approach(group).join);assert.equal(s.gm.dayTimer,before);
 });
+
+test('public cue variants stay stable per activity and dedupe each shared topic locally',async()=>{
+  const {publicCampCues}=await import('../src/modules/ui/CampPresentation.js');
+  const tribe={members:[{},{}],stockpile:{water:0,firewood:20},fire:3,shelter:3,secretTarget:'Hidden',idolLocation:'Hidden'};
+  const groups=Array.from({length:3},(_,i)=>({id:`group-${i}`,activityId:`activity-${i}`,social:true,privacy:'public'}));
+  const cues=publicCampCues(groups,tribe);assert.equal(cues.filter(Boolean).length,1);
+  assert.deepEqual(publicCampCues(structuredClone(groups),tribe),cues);
+  assert.deepEqual(publicCampCues(groups,{...tribe,secretTarget:'SomeoneElse',idolLocation:'Elsewhere'}),cues);
+  assert.ok(cues.filter(Boolean).every(c=>/water|well/i.test(c) && !/Hidden|SomeoneElse|idol/.test(c)));
+  assert.ok(publicCampCues(groups.map(g=>({...g,privacy:'private'})),tribe).every(c=>c===null));
+  const variants=new Set();for(let i=0;i<12;i++) variants.add(publicCampCues([{...groups[0],activityId:`variant-${i}`}],tribe)[0]);
+  assert.ok(variants.size>=2,'deterministic variety across blocks');
+});

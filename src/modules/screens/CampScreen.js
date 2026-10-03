@@ -402,7 +402,14 @@ export default class CampScreen {
         if (steps.length && [LocationKeys.JUNGLE_TRAIL, LocationKeys.ROCKY_SHORE,
           LocationKeys.WATERFALL_TRAIL, LocationKeys.MOUNTAIN_TRAIL].includes(to))
           gameManager.systems?.campActivitySystem?.recordDeparture?.(player, from);
-        if (steps.length) gameManager.consumeCampTime(steps.length * 30, { source: 'camp_travel' });
+        if (steps.length) {
+          const living = gameManager.systems?.campActivitySystem;
+          living?.ensureStarted();
+          const travel = living?.start(player, { type: 'travel', location: to,
+            duration: steps.length * 30, external: true });
+          try { gameManager.consumeCampTime(steps.length * 30, { source: 'camp_travel' }); }
+          finally { living?.finishPlayerBlock(travel); }
+        }
       }
       player.location = to;
     }

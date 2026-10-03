@@ -129,7 +129,9 @@ test('shortage, role, exhaustion, allies and strategy pressure change bounded ch
 
 test('private talk has participants and visible witnesses but no omniscient contents', () => {
   const { gm, player, worker, witness, activity, positions } = fixture();
-  activity.ensureStarted(); positions.x = LocationKeys.WATER_WELL; positions.w = LocationKeys.WATER_WELL;
+  activity.ensureStarted();
+  activity.start(witness, { type: 'rest', location: LocationKeys.WATER_WELL });
+  activity.start(worker, { type: 'rest', location: LocationKeys.WATER_WELL });
   window.campScreen.currentView = LocationKeys.WATER_WELL;
   activity.observe({ actor: player, type: 'seen_together', participants: [worker.id],
     location: LocationKeys.WATER_WELL, activityId: 'meeting', at: gm.dayTimer,

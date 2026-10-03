@@ -32,3 +32,14 @@ test('hearsay/routine life never enters queue; repeated witnessed direction esca
   const third=entry('three','departed',{actorId:'Tony',campTime:999});owned.push(third);
   q.ingest(owned,make,999,5500);assert.equal(q.advance(999,5500),null);
 });
+
+test('only owned witnessed meaningful arrivals become restrained cues; ordinary/hearsay arrivals stay visual',()=>{
+  const pair=entry('arrival','arrived',{actorId:'Jeremy',participantIds:['Parvati'],location:'waterWell',fromLocation:'beach'});
+  const beat=project(pair);assert.equal(beat.priority,2);assert.match(beat.text,/Jeremy and Parvati walk up from the beach/);
+  assert.equal(project({...pair,origin:'hearsay'}),null);
+  assert.equal(project({...pair,participantIds:[]}),null);
+  const owned=[entry('depart','departed',{actorId:'Jeremy'}),entry('depart:follow:player','followed',{actorId:'player'}),{...pair,participantIds:[]}];
+  assert.ok(narrationBeat(owned[2],owned,id=>id,'player'));
+  const q=new CampNarrationQueue();q.reset(owned);q.ingest(owned,e=>narrationBeat(e,owned,id=>id,'player'),1000,0);
+  assert.equal(q.advance(1000,0),null,'reload never replays arrival');
+});

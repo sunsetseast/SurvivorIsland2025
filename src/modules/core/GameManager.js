@@ -1297,7 +1297,10 @@ class GameManager {
     });
 
     const systemsState = normalized.systems || {};
-    Object.entries(this.systems || {}).forEach(([name, system]) => {
+    // Camp activities validate restored route companions and owned movement
+    // memories; restore their location/memory dependencies first.
+    Object.entries(this.systems || {}).sort(([a], [b]) =>
+      Number(a === 'campActivitySystem') - Number(b === 'campActivitySystem')).forEach(([name, system]) => {
       if (typeof system?.deserialize !== 'function') return;
       try {
         system.deserialize(systemsState[name] ?? null);

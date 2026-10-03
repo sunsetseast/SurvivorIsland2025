@@ -1,9 +1,10 @@
 // Player encounters use existing activities, clock and owned SocialMemory.
 // Transient watching/sheets are never saved; received evidence is semantic.
+import { eligibleCampMember, isCampPhysicallyPresent } from '../locations/CampPresence.js';
 import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { ISLAND_LOCATION_GRAPH } from './NpcLocationSystem.js';
 import { routeBetween } from './CampActivitySystem.js';
-import { campGroups, eligibleCampMember, physicallyPresent, playerPlace, sameId, visibleActivityLabel, placeName } from '../ui/CampPresentation.js';
+import { campGroups, playerPlace, sameId, visibleActivityLabel, placeName } from '../ui/CampPresentation.js';
 const clamp = n => Math.max(0, Math.min(1, n));
 export const APPROACH_SECONDS = 45;
 export function overhearingChance({ privacy = 'private', awareness = 5, occupied = false, near = false, location } = {}) {
@@ -23,13 +24,15 @@ export default class CampInteractionSystem {
   get available() { return this.gm.gameState === 'camp' && this.living?.active && !this.gm.flags?.campEventActive && this.gm.dayTimer > 0 && this.place !== 'treeMail'; }
   person(id) { return this.living?.members?.().find(p => sameId(id, p.id)); }
   visible(id) { return this.available && eligibleCampMember(this.gm, this.person(id)) &&
-    physicallyPresent(this.person(id), this.gm.systems.npcLocationSystem, this.place); }
+    isCampPhysicallyPresent(this.player, this.gm.systems.npcLocationSystem, this.place, this.gm) &&
+    isCampPhysicallyPresent(this.person(id), this.gm.systems.npcLocationSystem, this.place, this.gm); }
   observe({ id, actorId, type, location = this.place, participantIds = [], subjectId = null, detail = '', witnessOnly = false }) {
     return this.memory?.recordCampObservation?.({ id, actorId, participantIds, witnessIds: [this.player.id],
       type, location, subjectId, day: this.gm.day, campTime: this.gm.dayTimer, visibility: 'visible', detail, witnessOnly });
   }
   seeGroups(view = this.getView()) {
     const groups = campGroups(this.gm, view);
+    if (!isCampPhysicallyPresent(this.player, this.gm.systems.npcLocationSystem, playerPlace(this.gm, view), this.gm)) return groups;
     for (const group of groups) {
       const actor = this.person(group.members[0].id), a = actor?.campActivity;
       if (!a?.id || !this.available) continue;
@@ -43,7 +46,9 @@ export default class CampInteractionSystem {
   // Called only after an actual resolved exchange. claimId refers to the
   // statement just received by its participant, never a hidden intention.
   hearExchange({ speaker, listener, activity, claimId, observationId }) {
-    if (!this.available || this.place !== physicalCampLocation(activity.location) ||
+    if (!this.available || !isCampPhysicallyPresent(this.player, this.gm.systems.npcLocationSystem, activity.location, this.gm) ||
+      !isCampPhysicallyPresent(speaker, this.gm.systems.npcLocationSystem, activity.location, this.gm) ||
+      !isCampPhysicallyPresent(listener, this.gm.systems.npcLocationSystem, activity.location, this.gm) || this.place !== physicalCampLocation(activity.location) ||
       sameId(this.player.id, speaker.id) || sameId(this.player.id, listener.id)) return null;
     const id = `${activity.id}:heard:${this.player.id}`;
     if (this.memory.getCampObservations(this.player.id).some(e => e.id === id)) return null;
@@ -96,7 +101,7 @@ export default class CampInteractionSystem {
       this.gm.consumeCampTime(60, { source: 'camp_watch', activityType: 'watch', locationKey: this.place });
       heard = this.watching.text;
     } finally { this.watching = null; }
-    return { text: heard || 'You stay nearby for a minute. Their words are hard to make out.' };
+    return { text: heard || (group.privacy === 'private' ? 'You linger nearby for a minute. They keep their voices low.' : 'You hang around for a minute, but can’t make out much.') };
   }
   approach(group) {
     if (!this.available || !this.currentGroup(group) || !group?.members.every(p => this.visible(p.id))) return { text: 'They have moved on.', join: false };
@@ -126,8 +131,7 @@ export default class CampInteractionSystem {
         if (person && !person.campActivity) this.living.start(person, { type: 'idle_at_camp', location: group.location, duration: 90 });
       const companion = group.members.length === 2 && this.person(group.members[1].id);
       const quieter = (ISLAND_LOCATION_GRAPH[group.location] || []).find(place =>
-        !this.living.members().some(person => person.isPlayer ? this.place === place :
-          this.gm.systems.npcLocationSystem.getLocation(person.id) === place));
+        !this.living.members().some(person => isCampPhysicallyPresent(person, this.gm.systems.npcLocationSystem, place, this.gm)));
       if (companion && quieter && this.random() < .25 && this.living.moveTogether(lead, companion, quieter))
         return { text: 'They go quiet, then head down the path together.', join: false, guarded: true, relocated: true };
       return { text: 'Their conversation trails off as you get closer.', join: false, guarded: true };
@@ -151,7 +155,7 @@ export default class CampInteractionSystem {
     const owned = this.memory?.getCampObservations?.(this.player?.id, { day: this.gm.day }) || [];
     for (const e of owned.filter(e => e.type === 'departed' && e.origin === 'witness')) {
       if (!this.available || this.place !== e.fromLocation || !eligibleCampMember(this.gm, this.person(e.actorId)) ||
-          this.gm.systems.npcLocationSystem.getLocation(e.actorId) === e.fromLocation || e.campTime - this.gm.dayTimer > 180)
+          isCampPhysicallyPresent(this.person(e.actorId), this.gm.systems.npcLocationSystem, e.fromLocation, this.gm) || e.campTime - this.gm.dayTimer > 180)
         e.followMissed = true;
     }
     if (!this.available) return [];
@@ -180,12 +184,12 @@ export default class CampInteractionSystem {
     if (this.memory.getCampObservations(this.player.id).some(e => e.id === id)) return { text: 'They have already moved on.' };
     const target = this.person(entry.actorId);
     this.observe({ id, actorId: this.player.id, type: 'followed', location: entry.location });
-    this.player.location = entry.location;
-    // Set physical presence before passing time. It is also used by bystander
-    // checks while other activity blocks resolve during this walk.
-    this.navigate(entry.location);
+    // The timed following block is in transit, so events resolving during
+    // the walk cannot become destination evidence. Navigate once time is paid.
     this.gm.consumeCampTime(120, { source: 'camp_follow', activityType: 'follow', locationKey: entry.location });
-    if (!this.available || !eligibleCampMember(this.gm, target) || target.campActivity?.type === 'travel') return { text: 'You lose sight of them.' };
+    if (!this.available) return { text: 'You lose sight of them.' };
+    this.navigate(entry.location);
+    if (!eligibleCampMember(this.gm, target) || !isCampPhysicallyPresent(target, this.gm.systems.npcLocationSystem, target.location, this.gm)) return { text: 'You lose sight of them.' };
     const location = this.gm.systems.npcLocationSystem.getLocation(target.id);
     if (!location || (location !== entry.location && (!routeBetween(entry.location, location).length || routeBetween(entry.location, location).length > 2)) || this.random() > .55 + clamp((this.player.awareness ?? 5) / 10) * .25)
       return { text: `You lose sight of ${target.firstName} beyond ${placeName(entry.location)}.` };

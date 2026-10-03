@@ -10,7 +10,7 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderBambooView(container) {
   console.log('renderBambooView() called');
-  addDebugBanner('renderBambooView() called', 'green', 40);
+  if (window.debug) addDebugBanner('renderBambooView() called', 'green', 40);
 
   clearChildren(container);
   container.style.backgroundImage = "url('Assets/Minigame/bambooScreen.png')";

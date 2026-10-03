@@ -1,3 +1,4 @@
+import { isCampPhysicallyPresent } from '../locations/CampPresence.js';
 import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
@@ -729,7 +730,7 @@ function startBuildFlow() {
   const help = window.campScreen?.campHelp;
   const helper = help?.location === LocationKeys.SHELTER && tribe.members.find(member =>
     String(member.id) === String(help.npcId) && !member.isOut && member.campActivity?.id === help.activityId &&
-    member.campActivity?.type === 'build_shelter' && gameManager.systems?.npcLocationSystem?.getLocation(member.id) === LocationKeys.SHELTER);
+    member.campActivity?.type === 'build_shelter' && isCampPhysicallyPresent(member, gameManager.systems?.npcLocationSystem, LocationKeys.SHELTER, gameManager));
   if (!isAssigned && !helper) {
     const partners = normalizedAssignments
       .map(id => tribe.members.find(m => String(m.id) === id))

@@ -1,13 +1,16 @@
 // Resolves the content of an existing timed camp block. Knowledge is read and
 // written through SocialMemory's owner-scoped observations and claims.
 import { ownsUsableIdol } from './IdolPossession.js';
-import { physicalCampLocation } from '../locations/LocationUtils.js';
+import { isCampPhysicallyPresent } from '../locations/CampPresence.js';
 import { getCampBehaviorProfile, campLieAttemptChance, campStatementConfidence } from './CampBehaviorProfile.js';
 import { selectCampStrategicIntent } from './CampKnowledge.js';
 const same = (a, b) => a != null && b != null && String(a) === String(b);
 
 export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity, random = Math.random }) {
   if (!memory || !speaker || !listener || !activity || !same(activity.targetId, listener.id)) return null;
+  if (gm.systems?.npcLocationSystem &&
+    (!isCampPhysicallyPresent(speaker, gm.systems.npcLocationSystem, activity.location, gm) ||
+      !isCampPhysicallyPresent(listener, gm.systems.npcLocationSystem, activity.location, gm))) return null;
   const day = gm.day || 1, campTime = activity.endsAt;
   const allied = gm.systems?.allianceSystem?.areAllied?.(speaker.id, listener.id) || false;
   const trust = gm.getTrust?.(speaker.id, listener.id) ?? 50;
@@ -27,11 +30,8 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
   // A public group may notice the conversation, but private content requires
   // a participant. A sensitive speaker waits for privacy rather than leaking.
   const bystanders = (gm.getPlayerTribe?.()?.members || []).filter(person =>
-    !person.isOut && !gm.flags?.absentFromCampIds?.has?.(person.id) &&
-    !gm.flags?.absentFromCampIds?.has?.(String(person.id)) &&
     !same(person.id, speaker.id) && !same(person.id, listener.id) &&
-    physicalCampLocation(person.isPlayer ? globalThis.window?.campScreen?.currentView || person.location :
-      gm.systems?.npcLocationSystem?.getLocation?.(person.id)) === physicalCampLocation(activity.location));
+    isCampPhysicallyPresent(person, gm.systems?.npcLocationSystem, activity.location, gm));
   const discreet = bystanders.length === 0;
   const shareChance = Math.min(0.72, 0.2 + (strategic ? 0.22 : 0) + (allied ? 0.12 : 0) +
     (trust > 65 ? 0.1 : 0) + profile.socialDrive * .08 -

@@ -4,7 +4,7 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import { createElement } from '../utils/index.js';
 import { normalizeLocationKey, physicalCampLocation } from '../locations/LocationUtils.js';
 import CampInteractionSystem from '../systems/CampInteractionSystem.js';
-import { campGroups, clusterPortraitLayout, publicCampCue, placeName, LOCATION_MOOD } from './CampPresentation.js';
+import { campGroups, clusterPortraitLayout, publicCampCues, placeName, LOCATION_MOOD } from './CampPresentation.js';
 import { APPROACH_SECONDS } from '../systems/CampInteractionSystem.js';
 import { CampNarrationQueue, narrationBeat, NARRATION } from './CampNarration.js';
 
@@ -75,7 +75,7 @@ export class NpcAutoRenderer {
     const handsOn = this.lastViewName !== place;
     const minigame = handsOn || place === 'tribeFlag' || this.helping?.view === this.lastViewName;
     const expanded = this.expandedMinigameView === this.lastViewName;
-    const cues = groups.map(group => publicCampCue(group, this.gm.getPlayerTribe?.()));
+    const cues = publicCampCues(groups, this.gm.getPlayerTribe?.());
     const signature = JSON.stringify({ groups, departures: departures.map(e => e.id), cues, width, minigame, expanded });
     if (signature === this.signature && layer.firstChild) return;
     const focusKey = layer.contains(document.activeElement) ? document.activeElement?.dataset?.focusKey : null;
@@ -125,12 +125,14 @@ export class NpcAutoRenderer {
         button.addEventListener('click', () => group.social ? this.openGroup(group) : this.talk(member, group));
         holder.appendChild(button);
         holder.appendChild(createElement('span', { className: 'camp-person-name' }, member.name));
-        if (member.cue) holder.appendChild(createElement('span', { className: 'camp-work-cue', 'aria-hidden': 'true' }, member.cue));
+        if (member.cue) holder.appendChild(createElement('span', { className: 'camp-work-cue', 'aria-hidden': 'true', title: member.label }, member.cue));
         portraits.appendChild(holder);
       });
       card.appendChild(portraits);
-      card.appendChild(createElement('p', { className: 'camp-activity-label' },
-        group.social ? `${group.privacy === 'private' ? '◌ ' : ''}${group.label}` : group.members[0].label));
+      const label = createElement('p', { className: 'camp-activity-label' });
+      if (group.privacy === 'private') label.appendChild(createElement('span', { className: 'camp-private-glyph', 'aria-hidden': 'true' }, '◌ '));
+      label.appendChild(document.createTextNode(group.social ? group.label : group.members[0].label));
+      card.appendChild(label);
       if (cues[groupIndex]) card.appendChild(createElement('p', { className: 'camp-public-cue' }, cues[groupIndex]));
       const actions = createElement('div', { className: 'camp-context-actions' });
       if (!handsOn && group.social && this.interactions?.available) {
@@ -150,12 +152,20 @@ export class NpcAutoRenderer {
     rail.appendChild(clusters);
     if (departures.length && !handsOn) {
       const routes = createElement('div', { className: 'camp-departures' });
+      routes.appendChild(createElement('p', { className: 'camp-departure-heading' }, 'Just left'));
       for (const entry of departures) {
         const person = this.interactions.person(entry.actorId);
         const trail = createElement('div', { className: 'camp-witnessed-departure' });
         const names = [person, ...(entry.participantIds || []).map(id => this.interactions.person(id))].filter(Boolean);
-        for (const p of names) if (p.avatarUrl) trail.appendChild(createElement('img', { src: p.avatarUrl, alt: '', className: 'camp-leaving-portrait' }));
-        trail.appendChild(createElement('span', {}, `${names.length > 1 ? `With ${names.slice(1).map(p => p.firstName).join(' & ')} · ` : ''}toward ${placeName(entry.location)}`));
+        const portraits = createElement('div', { className: 'camp-departure-portraits', 'aria-hidden': 'true' });
+        for (const p of names) if (p.avatarUrl) portraits.appendChild(createElement('img', { src: p.avatarUrl, alt: '', className: 'camp-leaving-portrait' }));
+        trail.appendChild(portraits);
+        const description = createElement('div', { className: 'camp-departure-description' });
+        description.appendChild(createElement('strong', {}, names.map(p => p.firstName).join(' & ')));
+        const direction = createElement('span', {});
+        direction.appendChild(createElement('span', { 'aria-hidden': 'true' }, '↗ '));
+        direction.appendChild(document.createTextNode(`Heading toward ${placeName(entry.location)}`));
+        description.appendChild(direction); trail.appendChild(description);
         trail.appendChild(this.action(`Follow ${person.firstName}`, `follow:${entry.id}`, () => {
           const result = this.interactions.follow(entry); this.refresh(); this.narrate();
           if (this.interactions.available) this.showResult(result.text);
@@ -213,7 +223,7 @@ export class NpcAutoRenderer {
   openGroup(group) {
     if (!this.interactions?.available) return;
     const names = group.members.map(p => p.name).join(' & ');
-    this.openSheet(names, `${group.label}. Walking over takes ${APPROACH_SECONDS} seconds. They may finish or lower their voices before you reach them.`, [
+    this.openSheet(names, group.label, [
       ['Approach', () => {
         const result = this.interactions.approach(group); this.refresh(); this.narrate();
         if (!this.interactions.available) return;
@@ -233,7 +243,11 @@ export class NpcAutoRenderer {
       }],
       ['Leave', () => this.closeSheet()]
     ]);
-    if (this.sheet) { this.sheet.groupId = group.id; this.sheet.activityId = group.activityId; }
+    if (this.sheet) {
+      const status = this.sheet.dialog.querySelector('p'); status.classList.add('camp-sheet-status');
+      status.after(createElement('p', { className: 'camp-sheet-helper' }, `Approaching takes about ${APPROACH_SECONDS} seconds.`));
+      this.sheet.groupId = group.id; this.sheet.activityId = group.activityId;
+    }
   }
   openSheet(title, body, actions) {
     const previous = this.sheet?.returnFocus || document.activeElement;

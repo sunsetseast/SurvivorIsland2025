@@ -966,6 +966,24 @@ class SocialMemorySystem {
         return [...owners.keys()];
     }
 
+    // Narrow compatibility repair for an in-flight pre-presence save. The old
+    // engine recorded this exact arrival at departure time; no other memories
+    // or claims are changed, and no owner gains a replacement observation.
+    removePrematureCampArrival(activityId, completesAt) {
+        const id = `${activityId}:arrival`;
+        for (const [ownerId, mem] of Object.entries(this.memory)) {
+            const invalid = mem.campObservations?.find(e => e.id === id && e.type === 'arrived' && e.campTime > completesAt);
+            if (!invalid) continue;
+            mem.campObservations = mem.campObservations.filter(e => e !== invalid);
+            const pattern = mem.campImpressions?.[String(invalid.actorId)]?.arrived;
+            if (pattern && String(invalid.actorId) !== ownerId) {
+                pattern.count = Math.max(0, pattern.count - 1);
+                pattern.confidence = Math.max(0, pattern.confidence - (invalid.origin === 'witness' ? .17 : .1));
+                if (!pattern.count) delete mem.campImpressions[String(invalid.actorId)].arrived;
+            }
+        }
+    }
+
     shareCampObservation({ fromId, toId, observationId } = {}) {
         if (fromId == null || toId == null || !observationId) return false;
         this.initNPC(fromId); this.initNPC(toId);
