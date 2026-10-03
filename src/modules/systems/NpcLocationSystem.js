@@ -578,6 +578,7 @@ class NpcLocationSystem {
     if (!isCoreCampLocation(normalized)) return;
     const key = String(npcId);
     this.locations[key] = normalized;
+    gameManager.systems?.campInteractionSystem?.targetMoved(npcId, normalized);
     this.locationSinceTimer[key] = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? this.locationSinceTimer[key] ?? null;
     const tribe = gameManager.getPlayerTribe();
     const npc = tribe?.members?.find(member => String(member.id) === String(npcId));

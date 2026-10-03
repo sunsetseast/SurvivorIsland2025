@@ -6,6 +6,7 @@ import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { getCampBehaviorProfile, campWorkSkill, campBuildSuccessChance } from './CampBehaviorProfile.js';
 import { refreshNpcCampNeeds } from './CampSustenance.js';
 import { ownsUsableIdol } from './IdolPossession.js';
+import eventManager from '../core/EventManager.js';
 export { physicalCampLocation } from '../locations/LocationUtils.js';
 
 const WORK = Object.freeze({
@@ -225,6 +226,7 @@ export default class CampActivitySystem {
         participantIds: activity.participantIds || [], witnessIds: arrivals, type: 'arrived', location: plan.location,
         fromLocation: from, day: this.gm.day, campTime: now, visibility: 'movement' });
     }
+    eventManager.publish('camp:activityChanged', { activityId: activity.id });
     return activity;
   }
   interrupt(actor, reason = 'interrupted', at = this.gm.dayTimer) {
@@ -522,7 +524,7 @@ export default class CampActivitySystem {
       (typeof window !== 'undefined' ? window.campScreen?.currentView : player?.location);
     const location = physicalCampLocation(view) || player?.location;
     if (!player || !location || player.campActivity?.interruptible === false) return null;
-    const activity = this.start(player, { type: ['follow', 'watch'].includes(payload.activityType) ? payload.activityType :
+    const activity = this.start(player, { type: ['follow', 'watch', 'approach'].includes(payload.activityType) ? payload.activityType :
       payload.source === 'player_idol_hunt' ? 'idol_hunt' : VIEW_WORK[view] || 'observe',
       location, duration: before - after, external: true }, before);
     if (activity) { activity.endsAt = after; player.location = location; }

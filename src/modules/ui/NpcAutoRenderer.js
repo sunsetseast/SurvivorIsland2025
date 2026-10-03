@@ -4,15 +4,17 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import { createElement } from '../utils/index.js';
 import { normalizeLocationKey, physicalCampLocation } from '../locations/LocationUtils.js';
 import CampInteractionSystem from '../systems/CampInteractionSystem.js';
-import { campGroups, clusterPortraitLayout, campObservationLine, LOCATION_MOOD } from './CampPresentation.js';
+import { campGroups, clusterPortraitLayout, publicCampCue, placeName, LOCATION_MOOD } from './CampPresentation.js';
+import { APPROACH_SECONDS } from '../systems/CampInteractionSystem.js';
+import { CampNarrationQueue, narrationBeat, NARRATION } from './CampNarration.js';
 
 // One renderer owns every physical camp location. Layout/labels are projected
 // from semantic state; only transient DOM/focus lives here.
 export class NpcAutoRenderer {
   constructor(gm = null) {
     this._gm = gm; this.initialized = false; this.lastViewName = null;
-    this.signature = null; this.seenNarration = new Set(); this.unsubscribers = [];
-    this.sheet = null; this.lastBeatAt = Infinity;
+    this.signature = null; this.unsubscribers = [];
+    this.sheet = null; this.narration = new CampNarrationQueue();
   }
   get gm() { return this._gm || gameManager; }
   initialize() {
@@ -28,17 +30,20 @@ export class NpcAutoRenderer {
     globalThis.window?.addEventListener?.('resize', resize);
     this.unsubscribers.push(() => globalThis.window?.removeEventListener?.('resize', resize));
     on(GameEvents.CAMP_VIEW_LOADED, ({ viewName }) => {
+      if (this.helping?.view !== normalizeLocationKey(viewName)) this.helping = null;
       this.closeSheet(false); this.lastViewName = normalizeLocationKey(viewName); this.renderFor(this.lastViewName);
     });
-    on('npc:locationUpdated', () => this.refresh());
+    on('npc:locationUpdated', ({ reason } = {}) => { if (!reason?.startsWith('activity:')) this.refresh(); });
+    on('camp:activityChanged', () => this.refresh());
     on('camp:timeAdvanced', () => { this.refresh(); this.narrate(); });
-    on(GameEvents.CAMP_EVENT_STARTED, () => { this.closeSheet(false); this.clear(); });
-    on(GameEvents.GAME_STATE_CHANGED, ({ newState }) => { if (newState !== 'camp') { this.closeSheet(false); this.clear(); } });
-    on(GameEvents.GAME_PHASE_CHANGED, () => { this.closeSheet(false); this.refresh(); });
+    on(GameEvents.CAMP_EVENT_STARTED, () => { this.interactions.missDepartures(); this.closeSheet(); this.resetNarration(); this.clear(); });
+    on(GameEvents.GAME_STATE_CHANGED, ({ newState }) => { if (newState !== 'camp') { this.interactions.missDepartures(); this.closeSheet(false); this.resetNarration(); this.clear(); } });
+    on(GameEvents.GAME_PHASE_CHANGED, () => { this.interactions.missDepartures(); this.closeSheet(); this.resetNarration(); this.refresh(); });
     on(GameEvents.GAME_LOADED, () => {
-      this.closeSheet(false); this.interactions.watching = null; this.signature = null;
+      this.closeSheet(); this.helping = null; this.expandedMinigameView = null; this.interactions.watching = null; this.signature = null;
+      if (globalThis.window?.campScreen) window.campScreen.campHelp = null;
       // Rebuild groups, but do not replay old live announcements after reload.
-      this.seenNarration = new Set(this.ownedObservations().map(e => e.id));
+      this.resetNarration();
       this.refresh();
     });
     on(GameEvents.TRIBES_CREATED, () => {
@@ -68,38 +73,45 @@ export class NpcAutoRenderer {
     const departures = this.interactions?.recentDepartures() || [];
     const width = Math.min(350, Math.max(180, (camp.clientWidth || 375) - 24));
     const handsOn = this.lastViewName !== place;
-    const minigame = handsOn || place === 'tribeFlag';
+    const minigame = handsOn || place === 'tribeFlag' || this.helping?.view === this.lastViewName;
     const expanded = this.expandedMinigameView === this.lastViewName;
-    const signature = JSON.stringify({ groups, departures: departures.map(e => e.id), width, minigame, expanded });
+    const cues = groups.map(group => publicCampCue(group, this.gm.getPlayerTribe?.()));
+    const signature = JSON.stringify({ groups, departures: departures.map(e => e.id), cues, width, minigame, expanded });
     if (signature === this.signature && layer.firstChild) return;
     const focusKey = layer.contains(document.activeElement) ? document.activeElement?.dataset?.focusKey : null;
     const scrollTop = layer.querySelector('.camp-presence')?.scrollTop || 0;
+    const previousCards = new Map([...layer.querySelectorAll('.camp-cluster')].map(card => [card.dataset.projection, card]));
+    const previousPeople = new Set([...layer.querySelectorAll('[data-npc-id]')].map(node => node.dataset.npcId));
     this.signature = signature;
     layer.replaceChildren();
     const rail = createElement('section', { className: `npc-icon-container camp-presence ${minigame ? `minigame ${expanded ? 'expanded' : 'collapsed'}` : ''}`, 'aria-label': 'People nearby',
       dataset: { location: place }, style: { '--camp-tribe-color': this.gm.getPlayerTribe?.()?.color || this.gm.getPlayerTribe?.()?.tribeColor || '#d7b36c' } });
     const header = createElement('div', { className: 'camp-presence-heading' }, LOCATION_MOOD[place] || 'Nearby');
     if (minigame) {
-      const toggle = this.action(`People nearby · ${groups.reduce((n,g) => n + g.members.length, 0)}`, 'nearby-toggle', () => {
+      const toggle = this.action(`${this.helping ? `Helping ${this.helping.name} · ` : ''}People nearby · ${groups.reduce((n,g) => n + g.members.length, 0)}`, 'nearby-toggle', () => {
         this.expandedMinigameView = expanded ? null : this.lastViewName; this.signature = null; this.refresh();
       });
       toggle.setAttribute('aria-expanded', String(expanded)); header.replaceChildren(toggle);
     }
     rail.appendChild(header);
     rail.appendChild(createElement('p', { className: 'camp-observable-beat', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }));
+    rail.querySelector('.camp-observable-beat').textContent = this.narration.current?.text || '';
     layer.appendChild(rail);
     const contentWidth = rail.clientWidth - 2 * (parseFloat(getComputedStyle(rail).paddingLeft) || 0);
     const clusters = createElement('div', { className: 'camp-clusters' });
     const groupWidth = Math.min(150, Math.max(120, (contentWidth - 12) / 2));
-    for (const group of groups) {
+    for (const [groupIndex, group] of groups.entries()) {
       const cardWidth = group.members.length > 1 ? contentWidth : groupWidth;
+      const projection = JSON.stringify({ group, cardWidth, handsOn, cue: cues[groupIndex] });
+      const previous = previousCards.get(projection);
+      if (previous) { clusters.appendChild(previous); continue; }
       const card = createElement('article', { className: `camp-cluster ${group.engaged ? 'engaged' : 'nearby'} ${group.privacy === 'private' ? 'quiet' : ''}`,
-        style: { width: `${cardWidth}px` }, dataset: { groupId: group.id } });
+        style: { width: `${cardWidth}px` }, dataset: { groupId: group.id, projection } });
       const layout = clusterPortraitLayout(group.members.length, cardWidth);
       const portraits = createElement('div', { className: 'camp-portraits', style: { height: `${layout.height}px` } });
       group.members.forEach((member, index) => {
         const box = layout.boxes[index];
-        const holder = createElement('div', { className: `camp-person ${member.travelling ? 'travelling' : ''}`,
+        const holder = createElement('div', { className: `camp-person ${previousPeople.has(String(member.id)) ? '' : 'camp-arriving'}`,
           style: { left: `${box.x}px`, top: `${box.y}px` } });
         const button = createElement('button', { type: 'button', className: 'npc-icon camp-portrait',
           'aria-label': `${member.name}: ${member.label}. ${handsOn ? 'Nearby' : group.social ? 'Approach group' : 'Talk'}`,
@@ -113,19 +125,23 @@ export class NpcAutoRenderer {
         button.addEventListener('click', () => group.social ? this.openGroup(group) : this.talk(member, group));
         holder.appendChild(button);
         holder.appendChild(createElement('span', { className: 'camp-person-name' }, member.name));
+        if (member.cue) holder.appendChild(createElement('span', { className: 'camp-work-cue', 'aria-hidden': 'true' }, member.cue));
         portraits.appendChild(holder);
       });
       card.appendChild(portraits);
       card.appendChild(createElement('p', { className: 'camp-activity-label' },
         group.social ? `${group.privacy === 'private' ? '◌ ' : ''}${group.label}` : group.members[0].label));
+      if (cues[groupIndex]) card.appendChild(createElement('p', { className: 'camp-public-cue' }, cues[groupIndex]));
       const actions = createElement('div', { className: 'camp-context-actions' });
       if (!handsOn && group.social && this.interactions?.available) {
         actions.appendChild(this.action('Approach', `group:${group.id}`, () => this.openGroup(group)));
       } else if (!handsOn && group.members[0].helpView && this.interactions?.available) {
         const member = group.members[0];
         actions.appendChild(this.action('Help', `help:${member.id}`, () => {
-          if (!this.interactions.visible(member.id)) return;
-          window.campScreen?.loadView?.(member.helpView);
+          if (!this.interactions.currentGroup(group) || !this.interactions.visible(member.id)) return;
+          this.helping = { view: member.helpView, name: member.name };
+          window.campScreen?.loadView?.(member.helpView, { help: { npcId: member.id, activityId: group.activityId, location: group.location } });
+          document.querySelector('#action-buttons button')?.focus({ preventScroll: true });
         }));
       }
       card.appendChild(actions); clusters.appendChild(card);
@@ -136,9 +152,15 @@ export class NpcAutoRenderer {
       const routes = createElement('div', { className: 'camp-departures' });
       for (const entry of departures) {
         const person = this.interactions.person(entry.actorId);
-        routes.appendChild(this.action(`Follow ${person.firstName}`, `follow:${entry.id}`, () => {
-          const result = this.interactions.follow(entry); this.refresh(); this.showResult(result.text);
+        const trail = createElement('div', { className: 'camp-witnessed-departure' });
+        const names = [person, ...(entry.participantIds || []).map(id => this.interactions.person(id))].filter(Boolean);
+        for (const p of names) if (p.avatarUrl) trail.appendChild(createElement('img', { src: p.avatarUrl, alt: '', className: 'camp-leaving-portrait' }));
+        trail.appendChild(createElement('span', {}, `${names.length > 1 ? `With ${names.slice(1).map(p => p.firstName).join(' & ')} · ` : ''}toward ${placeName(entry.location)}`));
+        trail.appendChild(this.action(`Follow ${person.firstName}`, `follow:${entry.id}`, () => {
+          const result = this.interactions.follow(entry); this.refresh(); this.narrate();
+          if (this.interactions.available) this.showResult(result.text);
         }));
+        routes.appendChild(trail);
       }
       rail.insertBefore(routes, clusters);
     }
@@ -151,37 +173,63 @@ export class NpcAutoRenderer {
   }
   action(text, key, callback) {
     const button = createElement('button', { type: 'button', className: 'camp-context-button', dataset: { focusKey: key } }, text);
-    button.addEventListener('click', callback); return button;
+    let running = false;
+    button.addEventListener('click', () => {
+      if (button.disabled || running || !button.isConnected) return;
+      running = true;
+      try { callback(); } finally { running = false; }
+    }); return button;
   }
   talk(member, group, context = {}) {
     this.closeSheet(false);
     if (this.gm.systems.campActivitySystem?.active) {
-      if (!this.interactions.visible(member.id)) return;
+      if (!this.interactions.currentGroup(group) || !this.interactions.visible(member.id)) return;
       this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: member.id, phase: 'pre', context: { location: group.location, ...context } });
+      this.focusConversation();
     } else {
       const survivor = this.gm.getPlayerTribe?.()?.members.find(p => String(p.id) === String(member.id));
       eventManager.publish(GameEvents.NPC_CONFRONTATION, { survivor, location: group.location });
     }
   }
+  focusConversation() {
+    const conversation = this.gm.systems.conversationSystem;
+    const session = conversation?.nodeSession || conversation?.conversationSession;
+    const first = document.querySelector('#conversation-overlay button:not(:disabled)');
+    if (!session || !first) return;
+    first.focus({ preventScroll: true });
+    const previousClose = session.onClose;
+    session.onClose = (...args) => {
+      try { previousClose?.(...args); } finally {
+        // The existing close hook runs before activities are released. Wait
+        // for that synchronous work before focusing a reconstructed control.
+        queueMicrotask(() => {
+          if (!this.interactions.available || document.querySelector('#conversation-overlay')) return;
+          this.refresh();
+          (this.npcLayer?.querySelector('button:not(:disabled)') || document.querySelector('.camp-nav-button'))?.focus({ preventScroll: true });
+        });
+      }
+    };
+  }
   openGroup(group) {
     if (!this.interactions?.available) return;
-    if (this.lastNarrationPhase !== this.gm.systems.campActivitySystem.phaseId) {
-      this.lastNarrationPhase = this.gm.systems.campActivitySystem.phaseId; this.lastBeatAt = Infinity;
-    }
     const names = group.members.map(p => p.name).join(' & ');
-    this.openSheet(names, `${group.label}. You can walk over, linger nearby, or leave.`, [
+    this.openSheet(names, `${group.label}. Walking over takes ${APPROACH_SECONDS} seconds. They may finish or lower their voices before you reach them.`, [
       ['Approach', () => {
-        const result = this.interactions.approach(group); this.refresh();
+        const result = this.interactions.approach(group); this.refresh(); this.narrate();
+        if (!this.interactions.available) return;
+        const responseGroup = campGroups(this.gm, this.lastViewName).find(g => g.members.some(p => String(p.id) === String(group.members[0].id)));
         this.openSheet(names, result.text, [
           ...(result.join ? [['Join conversation', () => {
-            this.closeSheet(false); this.interactions.join(group, result.context); this.refresh();
-          }]] : result.relocated ? [] : [['Talk', () => this.talk(group.members[0], group, { interruptedGroup: true, observedPrivacy: group.privacy })]]),
+            this.closeSheet(false); this.interactions.join(group, result.context); this.refresh(); this.focusConversation();
+          }]] : result.relocated || result.movedOn || !responseGroup ? [] : [['Talk', () => this.talk(responseGroup.members[0], responseGroup, { interruptedGroup: true, observedPrivacy: group.privacy })]]),
           ['Leave', () => this.closeSheet()]
         ]);
-        if (result.join && this.sheet) { this.sheet.groupId = group.id; this.sheet.activityId = group.activityId; }
+        const anchor = result.join ? group : !result.relocated && !result.movedOn ? responseGroup : null;
+        if (anchor && this.sheet) { this.sheet.groupId = anchor.id; this.sheet.activityId = anchor.activityId; }
       }],
       ['Watch nearby · 1 minute', () => {
-        const result = this.interactions.watch(group); this.refresh(); this.showResult(result.text);
+        const result = this.interactions.watch(group); this.refresh(); this.narrate();
+        if (this.interactions.available) this.showResult(result.text);
       }],
       ['Leave', () => this.closeSheet()]
     ]);
@@ -209,37 +257,47 @@ export class NpcAutoRenderer {
     const { dialog, returnFocus } = this.sheet; this.sheet = null;
     dialog.close(); dialog.remove();
     if (restoreFocus) {
-      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+      if (returnFocus?.isConnected && returnFocus !== document.body && !returnFocus.disabled) returnFocus.focus({ preventScroll: true });
       else (this.npcLayer?.querySelector('button:not(:disabled)') || document.querySelector('.camp-nav-button'))?.focus({ preventScroll: true });
     }
+  }
+  resetNarration() {
+    clearTimeout(this.narrationTimer); this.narrationTimer = null;
+    this.narration.reset(this.ownedObservations());
+    const node = this.npcLayer?.querySelector('.camp-observable-beat');
+    if (node) node.textContent = '';
+    this.lastNarrationPhase = this.gm.systems.campActivitySystem?.phaseId;
   }
   ownedObservations() {
     return this.gm.systems.socialMemorySystem?.getCampObservations?.(this.gm.getPlayerSurvivor?.()?.id, { day: this.gm.day }) || [];
   }
   narrate() {
-    if (!this.interactions?.available) return;
-    const name = id => this.gm.getPlayerTribe()?.members.find(p => String(p.id) === String(id))?.firstName || 'Someone';
-    const pending = this.ownedObservations().filter(e => !this.seenNarration.has(e.id));
-    for (const e of pending) this.seenNarration.add(e.id);
-    if (this.seenNarration.size > 150) this.seenNarration = new Set(this.ownedObservations().map(e => e.id));
-    const priority = e => ['idol_search_seen', 'conversation_guarded', 'overheard_name', 'overheard_fragment', 'overheard_statement', 'public_conflict'].includes(e.type) ? 3 :
-      e.type === 'departed' && (e.participantIds?.length || (this.gm.systems.socialMemorySystem.getCampImpression(this.gm.player?.id, e.actorId, 'absence')?.count || 0) >= 2) ? 2 :
-      e.type === 'seen_together' || e.type === 'arrived' ? 1 : 0;
-    const beat = pending.filter(e => e.origin !== 'hearsay' && priority(e) > 0 &&
-      e.campTime - this.gm.dayTimer < 180).sort((a, b) => priority(b) - priority(a))[0];
-    if (!beat || priority(beat) < 3 && this.lastBeatAt - this.gm.dayTimer < 120) return;
-    const heardClaim = beat.type === 'overheard_statement' && this.gm.systems.socialMemorySystem.getCampClaims(this.gm.player?.id)
-      .find(claim => claim.acquisition === 'overheard' && String(claim.sourceId) === String(beat.actorId) &&
-        String(claim.subjectId) === String(beat.subjectId) && claim.campTime === beat.campTime);
-    const text = heardClaim ? this.interactions.statementText({firstName:name(beat.actorId)}, heardClaim) : campObservationLine(beat, name);
-    if (text) {
-      const node = this.npcLayer?.querySelector('.camp-observable-beat');
-      if (node) node.textContent = text;
-      this.lastBeatAt = this.gm.dayTimer;
+    if (!this.interactions?.available) { this.resetNarration(); return; }
+    const phase = this.gm.systems.campActivitySystem.phaseId;
+    if (this.lastNarrationPhase !== phase) {
+      this.lastNarrationPhase = phase;
+      clearTimeout(this.narrationTimer); this.narrationTimer = null;
+      this.narration.reset();
     }
+    const owned = this.ownedObservations(), playerId = this.gm.getPlayerSurvivor()?.id;
+    const name = id => String(id) === String(playerId) ? 'You' : this.gm.getPlayerTribe()?.members.find(p => String(p.id) === String(id))?.firstName || 'Someone';
+    const now = Date.now();
+    this.narration.ingest(owned, entry => {
+      const beat = narrationBeat(entry, owned, name, playerId);
+      const claim = entry.type === 'overheard_statement' && this.gm.systems.socialMemorySystem.getCampClaims(playerId)
+        .find(c => c.acquisition === 'overheard' && String(c.sourceId) === String(entry.actorId) && String(c.subjectId) === String(entry.subjectId) && c.campTime === entry.campTime);
+      if (beat && claim) beat.text = this.interactions.statementText({ firstName: name(entry.actorId) }, claim);
+      return beat;
+    }, this.gm.dayTimer, now);
+    const beat = this.narration.advance(this.gm.dayTimer, now);
+    const node = this.npcLayer?.querySelector('.camp-observable-beat');
+    if (node && node.textContent !== (beat?.text || '')) node.textContent = beat?.text || '';
+    if (!this.narrationTimer && beat) this.narrationTimer = setTimeout(() => {
+      this.narrationTimer = null; this.narrate();
+    }, Math.max(1, NARRATION.dwellMs - (now - beat.displayedAt)));
   }
   dispose() {
-    this.closeSheet(false); this.unsubscribers.forEach(unsubscribe => unsubscribe());
+    this.resetNarration(); this.closeSheet(false); this.unsubscribers.forEach(unsubscribe => unsubscribe());
     this.unsubscribers = []; this.initialized = false;
     if (this.resizeFrame) cancelAnimationFrame(this.resizeFrame); this.resizeFrame = null; this.clear();
   }
