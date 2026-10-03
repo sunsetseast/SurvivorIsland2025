@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { makeLivingCampQa } from '../qa/LivingCampSimulationHarness.mjs';
-const { default: CampInteractionSystem, overhearingChance } = await import('../src/modules/systems/CampInteractionSystem.js');
-import { campGroups, visibleActivityLabel, clusterPortraitLayout, campRecap } from '../src/modules/ui/CampPresentation.js';
+const { default: CampInteractionSystem, overhearingChance, APPROACH_SECONDS } = await import('../src/modules/systems/CampInteractionSystem.js');
+import { campGroups, visibleActivityLabel, clusterPortraitLayout, campRecap, publicCampCue } from '../src/modules/ui/CampPresentation.js';
 import { ownsUsableIdol } from '../src/modules/systems/IdolPossession.js';
 import { LocationKeys as L } from '../src/modules/core/LocationKeys.js';
 
@@ -17,7 +17,7 @@ function fixture(random = () => .99) {
   const interactions = new CampInteractionSystem(s.gm, { random, getView: () => view.value,
     navigate: place => { view.value = place; window.campScreen.currentView = place; s.gm.player.location = place; } });
   s.gm.systems.campInteractionSystem = interactions;
-  const setView = place => { view.value = place; window.campScreen.currentView = place; s.gm.player.location = place; };
+  const setView = place => { interactions.leaveLocation(view.value, place); view.value = place; window.campScreen.currentView = place; s.gm.player.location = place; };
   const startPair = (type = 'strategy_conversation', location = L.WATER_WELL) => {
     s.activity.start(b, { type: 'rest', location, duration: 3000 });
     return s.activity.start(a, { type, location, targetId: b.id });
@@ -276,4 +276,98 @@ test('watching an audible actual exchange presents the owned statement rather th
   assert.ok(result.text.includes(s.c.firstName));assert.ok(result.text.includes('after the challenge'));
   assert.equal(s.memory.getCampClaims(s.gm.player.id)[0].acquisition,'overheard');
   assert.equal(s.interactions.watching,null);
+});
+
+// Interaction hardening: semantic eligibility survives UI changes/reload.
+function departure(s) {
+  s.activity.start(s.a,{type:'travel',location:L.TRIBE_FLAG,goal:{type:'rest',location:L.TRIBE_FLAG,duration:500}});
+  return s.interactions.recentDepartures().find(e=>e.actorId===s.a.id);
+}
+test('Follow requires the witnessed origin; leaving and returning permanently misses it, including JSON reload',()=>{
+  const s=fixture(), e=departure(s);
+  assert.ok(e);assert.equal(e.fromLocation,L.BEACH);
+  s.setView(L.CAMPFIRE);assert.equal(s.interactions.recentDepartures().length,0);
+  s.setView(L.BEACH);assert.equal(s.interactions.recentDepartures().length,0);
+  const payload=JSON.parse(JSON.stringify(s.gm.createSavePayload()));s.gm.restoreSavePayload(payload);
+  assert.equal(s.interactions.recentDepartures().length,0);
+  const before=s.gm.dayTimer;s.interactions.follow(e);assert.equal(s.gm.dayTimer,before);
+});
+test('Follow closes when target returns, is out/absent, time expires, or camp is interrupted',()=>{
+  for(const reason of ['return','out','absent','expired','event','phase','treeMail','end']) {
+    const s=fixture(),e=departure(s);assert.ok(e);
+    if(reason==='return') s.activity.start(s.a,{type:'rest',location:L.BEACH});
+    if(reason==='out') s.a.isOut=true;
+    if(reason==='absent') s.gm.flags.absentFromCampIds=[s.a.id];
+    if(reason==='expired') s.gm.dayTimer-=181;
+    if(reason==='event') { s.interactions.missDepartures();s.gm.flags.campEventActive=true; }
+    if(reason==='phase') s.gm.gamePhase='postChallenge';
+    if(reason==='treeMail') s.setView(L.TREE_MAIL);
+    if(reason==='end') s.gm.dayTimer=0;
+    assert.equal(s.interactions.recentDepartures().length,0,reason);
+    if(reason==='return') {s.activity.start(s.a,{type:'rest',location:L.TRIBE_FLAG});assert.equal(s.interactions.recentDepartures().length,0);}
+    if(reason==='event') {s.gm.flags.campEventActive=false;assert.equal(s.interactions.recentDepartures().length,0);}
+  }
+});
+test('attempted Follow stays spent after JSON reload',()=>{
+  const s=fixture(()=>.99),e=departure(s);s.interactions.follow(e);
+  s.gm.restoreSavePayload(JSON.parse(JSON.stringify(s.gm.createSavePayload())));
+  s.setView(L.BEACH);const before=s.gm.dayTimer;s.interactions.follow(e);assert.equal(s.gm.dayTimer,before);
+});
+for(const type of ['socialize','strategy_conversation']) test(`Approach ${type} spends the same real time, progresses work/needs and gives no approach reward`,()=>{
+  const s=fixture(),block=s.startPair(type,L.WATER_WELL);s.setView(L.WATER_WELL);
+  s.activity.start(s.c,{type:'gather_firewood',location:L.JUNGLE_TRAIL,duration:30});
+  const group=campGroups(s.gm,L.WATER_WELL).find(g=>g.activityId===block.id);
+  const before=s.gm.dayTimer,team=s.gm.player.teamPlayer,effort=s.activity.effort[s.gm.player.id]||0;
+  const needs=JSON.stringify(s.gm.campNeedElapsed),trust=s.gm.getTrust(s.a.id,s.gm.player.id);
+  s.interactions.approach(group);
+  assert.equal(before-s.gm.dayTimer,APPROACH_SECONDS);assert.notEqual(JSON.stringify(s.gm.campNeedElapsed),needs);
+  assert.ok(s.gm.campLog.some(e=>e.actorId===s.c.id));assert.equal(s.gm.player.teamPlayer,team);
+  assert.equal(s.gm.getTrust(s.a.id,s.gm.player.id),trust);assert.equal(s.activity.effort[s.gm.player.id]||0,effort);
+  assert.equal(s.gm.player.campActivity,null);
+});
+test('conversation resolving during Approach is not resurrected or interrupted through the old group',()=>{
+  const s=fixture(),block=s.startPair('strategy_conversation',L.BEACH);
+  block.endsAt=s.gm.dayTimer-20;block.duration=20;s.b.campActivity.endsAt=block.endsAt;
+  const group=campGroups(s.gm,L.BEACH).find(g=>g.activityId===block.id);
+  const result=s.interactions.approach(group);assert.ok(result.movedOn);assert.equal(result.join,false);
+  assert.ok(!s.memory.getCampObservations(s.gm.player.id).some(e=>e.type==='conversation_guarded'));
+  const current=s.a.campActivity?.id,before=s.gm.dayTimer;
+  s.interactions.approach(group);assert.equal(s.a.campActivity?.id,current);assert.equal(s.gm.dayTimer,before);
+});
+test('same casual activity reacts once; subsequent choice joins without rerolling or walking twice',()=>{
+  let rolls=0;const s=fixture(()=>{rolls++;return .99;});const a=s.startPair('socialize',L.BEACH);
+  const group=campGroups(s.gm,L.BEACH).find(g=>g.activityId===a.id);
+  s.interactions.approach(group);const before=s.gm.dayTimer,previous=rolls;
+  assert.ok(s.interactions.approach(group).join);assert.equal(s.gm.dayTimer,before);assert.equal(rolls,previous);
+  assert.equal(s.memory.getCampObservations(s.gm.player.id).filter(e=>e.type==='approached').length,1);
+});
+
+test('paired travelers depart before destination portraits arrive; semantic route steps and JSON restore agree',()=>{
+  const s=fixture();const block=s.activity.moveTogether(s.a,s.b,L.CAMPFIRE);
+  assert.ok(block);assert.equal(s.gm.systems.npcLocationSystem.getLocation(s.a.id),L.TRIBE_FLAG,'runtime route contract retained');
+  const contains=(place,id)=>campGroups(s.gm,place).some(g=>g.members.some(p=>p.id===id));
+  for(const place of [L.BEACH,L.TRIBE_FLAG,L.CAMPFIRE]) {assert.equal(contains(place,s.a.id),false);assert.equal(contains(place,s.b.id),false);}
+  s.gm.restoreSavePayload(JSON.parse(JSON.stringify(s.gm.createSavePayload())));
+  assert.equal(contains(L.TRIBE_FLAG,s.a.id),false);
+  s.gm.consumeCampTime(45,{source:'clock'});assert.equal(contains(L.CAMPFIRE,s.a.id),false);
+  s.gm.consumeCampTime(45,{source:'clock'});
+  const pair=campGroups(s.gm,L.CAMPFIRE).find(g=>g.members.some(p=>p.id===s.a.id));
+  assert.deepEqual(pair.members.map(p=>p.id).sort(),[s.a.id,s.b.id].sort());
+  assert.equal(contains(L.BEACH,s.a.id),false);assert.equal(contains(L.TRIBE_FLAG,s.a.id),false);
+});
+test('public atmosphere uses only shared needs; private groups never get speech or secret subjects',()=>{
+  const s=fixture(),block=s.startPair('socialize',L.BEACH),group=campGroups(s.gm,L.BEACH).find(g=>g.activityId===block.id);
+  s.tribe.stockpile.water=0;assert.equal(publicCampCue(group,s.tribe),'“Water’s getting low.”');
+  assert.equal(publicCampCue({...group,privacy:'private'},s.tribe),null);
+  assert.equal(publicCampCue({...group,social:false},s.tribe),null);
+  s.tribe.stockpile.water=30;s.tribe.stockpile.firewood=0;assert.match(publicCampCue(group,s.tribe),/wood/);
+});
+
+test('accepted approach guard survives observation pruning and JSON reload on the original activity',()=>{
+  const s=fixture(),block=s.startPair('socialize',L.BEACH),group=campGroups(s.gm,L.BEACH).find(g=>g.activityId===block.id);
+  s.interactions.approach(group);
+  s.memory.memory[String(s.gm.player.id)].campObservations=[];
+  s.gm.restoreSavePayload(JSON.parse(JSON.stringify(s.gm.createSavePayload())));
+  const before=s.gm.dayTimer;
+  assert.ok(s.interactions.approach(group).join);assert.equal(s.gm.dayTimer,before);
 });

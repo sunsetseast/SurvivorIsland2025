@@ -10,7 +10,7 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderFishingView(container) {
   console.log('renderFishingView() called');
-  addDebugBanner('renderFishingView() called', 'blue', 40);
+  if (window.debug) addDebugBanner('renderFishingView() called', 'blue', 40);
 
   clearChildren(container);
   container.style.backgroundImage = "url('Assets/water-bg.png')";
@@ -214,8 +214,10 @@ export default function renderFishingView(container) {
   if (actionButtons) {
     clearChildren(actionButtons);
 
-    const downButton = createElement('div', {
+    const downButton = createElement('button', {
+      type: 'button', className: 'camp-nav-button', 'aria-label': 'Return to Rocky Shore',
       style: `
+        border:0; background:transparent; padding:0;
         width: 120px;
         height: 100px;
         display: inline-block;
@@ -261,7 +263,7 @@ export default function renderFishingView(container) {
 
       // ——— SWITCH VIEW ———
       if (window.campScreen && typeof window.campScreen.loadView === 'function') {
-        window.campScreen.loadView(LocationKeys.BEACH);
+        window.campScreen.loadView(LocationKeys.ROCKY_SHORE);
       }
     });
 
@@ -273,6 +275,7 @@ export default function renderFishingView(container) {
   let aimSet = false;
   let currentFish = null;
   let spawnTimer = null;
+  let attemptInFlight = false;
 
   // Weighted probabilities for fish types: fish1 (common), fish2 (uncommon), fish3 (rare)
   const fishWeights = [
@@ -291,7 +294,8 @@ export default function renderFishingView(container) {
   }
 
   // === EVENT HANDLERS ===
-  container.addEventListener('click', (e) => {
+  const handleFishingClick = (e) => {
+    if (gameState === 'ended' || attemptInFlight) return;
     // Ignore action bar clicks
     if (e.target.closest('#action-buttons')) return;
 
@@ -317,15 +321,25 @@ export default function renderFishingView(container) {
     } else {
       attemptCatch();
     }
-  });
+  };
+  container.addEventListener('click', handleFishingClick);
+  window.__campViewCleanup = () => {
+    gameState = 'ended';
+    container.removeEventListener('click', handleFishingClick);
+    clearTimeout(spawnTimer); spawnTimer = null;
+    currentFish?.animation?.cancel();
+    styleEl.remove();
+  };
 
   // Popup click: hides it and either starts fishing (initial) or resets for next round (result)
   popup.addEventListener('click', (e) => {
+    if (gameState === 'ended') return;
     e.stopPropagation();
     popup.style.display = 'none';
     if (gameState === 'ready') {
       startFishing();
     } else {
+      attemptInFlight = false;
       // After showing catch result, reset aim for next round
       aimCircle.style.display = 'none';
       aimSet = false;
@@ -501,6 +515,8 @@ export default function renderFishingView(container) {
   }
 
   function attemptCatch() {
+    if (gameState === 'ended' || attemptInFlight) return;
+    attemptInFlight = true;
     // Stop pulsing so the spear can shoot straight up:
     spear.style.animation = 'none';
 
@@ -543,6 +559,7 @@ export default function renderFishingView(container) {
     let frame = 0;
 
     function animateSpear() {
+      if (gameState === 'ended') return;
       frame++;
       const progress = frame / frameCount;
       const newY = startY + (finalTop - startY) * progress;
@@ -564,6 +581,7 @@ export default function renderFishingView(container) {
   }
 
   function catchFish() {
+    if (gameState === 'ended') return;
     // 1) If a fish exists, compute its current on‐screen position and cancel its WAAPI animation
     if (currentFish) {
       const fishRect      = currentFish.getBoundingClientRect();
@@ -663,6 +681,7 @@ export default function renderFishingView(container) {
   }
 
   function missCatch() {
+    if (gameState === 'ended') return;
     // Remove fish if still present
     if (currentFish) {
       currentFish.remove();

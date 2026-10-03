@@ -7,7 +7,8 @@
 .camp-cluster.engaged { background:#101e1466; border:1px solid #ead9af50; }
 .camp-cluster.quiet { border-style:dashed; }
 .camp-portraits { position:relative; width:100%; }
-.camp-person { position:absolute; width:56px; height:80px; text-align:center; animation:camp-arrival .24s ease-out; }
+.camp-person { position:absolute; width:56px; height:80px; text-align:center; }
+.camp-person.camp-arriving { animation:camp-arrival .24s ease-out; }
 #npc-layer .camp-portrait { display:block; width:56px; height:56px; padding:0; overflow:hidden; border-radius:50%; border:2px solid var(--camp-tribe-color,#d7b36c); background:#2d301e; cursor:pointer; transition:transform .18s ease; }
 .camp-portrait img { display:block; width:100%; height:100%; object-fit:cover; }
 .camp-portrait:focus-visible, .camp-context-button:focus-visible { outline:3px solid #fff6ae; outline-offset:3px; }
@@ -45,7 +46,7 @@
   #npc-layer .camp-presence { top:70px; right:12px; max-height:calc(100% - 158px); width:300px; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .camp-person { animation:none; }
+  .camp-person, .camp-person.camp-arriving { animation:none; }
   #npc-layer .camp-portrait { transition:none; }
 }
 /* Scope text against the older universal font and brown paragraph styles. */
@@ -54,13 +55,44 @@
 #npc-layer .camp-activity-label, #npc-layer .camp-observable-beat, #npc-layer .camp-empty { color:#fff4d4; text-shadow:0 1px 3px #000; }
 #npc-layer .camp-person-name { color:#fff8dc; font-weight:600; width:68px; margin-left:-6px; white-space:normal; }
 .camp-encounter-sheet { position:fixed; inset:0; margin:auto; height:fit-content; }
+.camp-encounter-sheet { max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)); overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.camp-sheet-actions { position:sticky; bottom:-24px; padding-bottom:8px; background:#f5deb3; }
+#npc-layer .camp-work-cue { position:absolute; top:38px; right:-4px; width:20px; height:20px; display:grid; place-items:center; border-radius:50%; background:#342d1f; color:#fff4c4; border:1px solid #d8c28a; font-size:14px; pointer-events:none; }
+#npc-layer .camp-person-name { width:80px; margin-left:-12px; white-space:nowrap; }
+#npc-layer .camp-public-cue { color:#fff2c6; font-size:12px; line-height:1.4; font-style:italic; text-align:center; margin:2px 8px 8px; }
+.camp-witnessed-departure { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:4px; width:100%; font-size:12px; line-height:1.4; }
+.camp-witnessed-departure > span { flex:1; min-width:120px; }
+.camp-leaving-portrait { width:28px; height:28px; object-fit:cover; border-radius:50%; opacity:.65; }
+body:has(#camp-screen.active) { min-height:100dvh; padding:0; overflow:hidden; }
+#game-container:has(#camp-screen.active) { height:100dvh; min-height:0; }
+#camp-screen #camp-action-bar { bottom:env(safe-area-inset-bottom,0px); }
+@media (max-width:600px) {
+  #npc-layer .camp-presence { bottom:calc(92px + env(safe-area-inset-bottom,0px)); -webkit-overflow-scrolling:touch; }
+  /* QA found the shelter supply banner covering the lower portrait row. */
+  #camp-content #stockpile-banner { top:230px !important; bottom:auto !important; }
+  #camp-content #food-stockpile-banner { top:230px; bottom:auto !important; max-width:calc(100% - 24px); box-sizing:border-box; padding:8px; }
+  #camp-content #food-stockpile-banner .stockpile-item { padding:4px !important; gap:3px !important; }
+}
+/* The fire challenge needs the stage; supplies return when it finishes. */
+#camp-content:has(#fire-game-ui) #food-stockpile-banner { display:none !important; }
+@media (max-height:500px) {
+  .camp-encounter-sheet { padding:16px; }
+  .camp-encounter-sheet h2 { font-size:1.2rem; margin-bottom:8px; }
+  .camp-encounter-sheet p { margin:8px 0 12px; }
+  .camp-sheet-actions { bottom:-16px; }
+  #npc-layer .camp-presence { max-height:calc(100dvh - 170px - env(safe-area-inset-bottom,0px)); }
+  /* Rendered landscape QA found the lower spiral beneath navigation. */
+  #camp-content #fire-game-ui { top:90px !important; height:calc(100dvh - 190px) !important; max-height:none !important; }
+  #camp-content #progress-rings-container { margin-top:5px !important; }
+  #camp-content #fireCanvas { height:calc(100dvh - 220px); max-height:380px; width:auto; flex-shrink:0; }
+}
 .camp-encounter-sheet p, .camp-encounter-sheet button, .camp-human-recap li { font-family:Arial,sans-serif; }
-#camp-content .camp-location-intro { position:absolute; left:100px; right:390px; top:76px; padding:12px !important; font-size:clamp(1rem,2vw,1.5rem) !important; pointer-events:none; }
+#camp-content .camp-location-intro { position:absolute; left:100px; right:390px; top:100px; padding:12px !important; font-size:clamp(1rem,2vw,1.5rem) !important; pointer-events:none; }
 @media (max-width:600px) {
   #camp-content .camp-location-intro { left:18px; right:18px; top:150px; font-size:1.1rem !important; }
 }
 @media (max-height:500px) and (min-width:601px) {
-  #camp-content .camp-location-intro { left:90px; right:330px; top:72px; font-size:1rem !important; }
+  #camp-content .camp-location-intro { left:90px; right:330px; top:100px; font-size:1rem !important; }
 }
 /* Human minigames keep their stage clear; nearby activity is expandable. */
 #npc-layer .camp-presence.minigame.collapsed { width:auto; max-width:240px; max-height:100px; }
@@ -69,9 +101,23 @@
 @media (prefers-reduced-motion:reduce) {
   #camp-content .camp-location-intro { transition:none !important; }
   .camp-encounter-sheet *, #npc-layer .camp-context-button { transition:none; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-parchment { animation:none !important; }
 }
 #npc-layer .camp-context-button:hover, .camp-encounter-sheet .camp-context-button:hover { transform:none; background:#59492d; }
 @media (prefers-reduced-motion:reduce) {
   #npc-layer .camp-portrait:hover { transform:none; }
 }
 .camp-portrait-initial { display:flex; width:100%; height:100%; align-items:center; justify-content:center; font-size:24px; color:#fff8dc; }
+#camp-content .summary-wrapper { height:calc(100% - 84px - env(safe-area-inset-bottom,0px)) !important; padding-top:100px !important; box-sizing:border-box; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+#camp-screen:has(.summary-wrapper) #task-icon { display:none !important; } /* The camp task shortcut covered the recap title. */
+/* Actual Join playtesting put End chat below a landscape phone viewport. */
+@media (max-height:500px) {
+  body:has(#camp-screen.active) #conversation-overlay .conversation-center { flex-direction:row !important; align-items:flex-start !important; gap:10px !important; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-center > div:first-child { flex:0 0 100px; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-center > div:first-child > div:first-child { width:64px !important; height:64px !important; min-width:64px !important; min-height:64px !important; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-content { flex:1; min-width:0; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-parchment { max-height:calc(100dvh - 36px); padding:12px !important; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-transcript-region { min-height:64px; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-options-region { max-height:40dvh; }
+  body:has(#camp-screen.active) #conversation-overlay .conversation-nav-row button { height:44px !important; min-height:44px; }
+}

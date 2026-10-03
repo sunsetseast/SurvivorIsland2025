@@ -1,0 +1,490 @@
+{
+  "baseline": "f1c668a3c06843cf432a03907a58a315b469b656",
+  "physicalIosSafariTested": false,
+  "engines": [
+    {
+      "browserName": "chromium",
+      "browser": "141.0.7390.37",
+      "scenes": 128,
+      "viewports": [
+        {
+          "width": 375,
+          "height": 812
+        },
+        {
+          "width": 430,
+          "height": 932
+        },
+        {
+          "width": 844,
+          "height": 390
+        },
+        {
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "errors": [],
+      "playtests": [
+        {
+          "style": "passive",
+          "actions": [],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 2,
+          "remaining": 5760,
+          "owned": 6,
+          "completed": 10,
+          "needs": {
+            "water": 240,
+            "hunger": 0,
+            "rest": 0,
+            "restByTribe": {
+              "1": 600
+            }
+          },
+          "supplies": {
+            "firewood": 3,
+            "bamboo": 8,
+            "palms": 2,
+            "water": 30,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "worker",
+          "actions": [
+            "filled tribe water: 35 minutes"
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 4,
+          "remaining": 3390,
+          "owned": 19,
+          "completed": 10,
+          "needs": {
+            "water": 210,
+            "hunger": 210,
+            "rest": 0,
+            "restByTribe": {
+              "1": 90
+            }
+          },
+          "supplies": {
+            "firewood": 9,
+            "bamboo": 0,
+            "palms": 1,
+            "water": 50,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "social",
+          "actions": [
+            "navigate",
+            "navigate",
+            "navigate",
+            "approach: You walk over, but they have already moved on.",
+            "approach: You walk over. Wendell makes room for you.",
+            "join/exchange/end chat",
+            "approach: You walk over. Tony makes room for you.",
+            "join/exchange/end chat",
+            "approach: You walk over. Boston Rob makes room for you.",
+            "join/exchange/end chat",
+            "approach: They go quiet, then head down the path together.",
+            "navigate",
+            "navigate",
+            "navigate",
+            "navigate"
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 9,
+          "remaining": 4785,
+          "owned": 38,
+          "completed": 6,
+          "needs": {
+            "water": 15,
+            "hunger": 255,
+            "rest": 0,
+            "restByTribe": {
+              "1": 135
+            }
+          },
+          "supplies": {
+            "firewood": 11,
+            "bamboo": 15,
+            "palms": 3,
+            "water": 30,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "spy",
+          "actions": [
+            "follow: Michele is tending the fire.",
+            "navigate",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: You lose sight of Jeremy beyond camp.",
+            "follow: Wendell is talking nearby.",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: You lose sight of them.",
+            "navigate",
+            "follow: You lose sight of Sandra beyond the shelter.",
+            "navigate",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: Boston Rob is gathering firewood together.",
+            "navigate",
+            "navigate",
+            "navigate",
+            "navigate",
+            "follow: You lose sight of them.",
+            "navigate"
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 10,
+          "remaining": 4350,
+          "owned": 48,
+          "completed": 15,
+          "needs": {
+            "water": 150,
+            "hunger": 330,
+            "rest": 0,
+            "restByTribe": {
+              "1": 210
+            }
+          },
+          "supplies": {
+            "firewood": 8,
+            "bamboo": 0,
+            "palms": 1,
+            "water": 34,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "mixed",
+          "actions": [
+            "follow: You lose sight of them.",
+            "navigate",
+            "navigate",
+            "approach: You walk over. Wendell makes room for you.",
+            "join/exchange/end chat",
+            "follow: You lose sight of Tony beyond the shelter.",
+            "filled tribe water: 35 minutes",
+            "follow: You lose sight of Wendell beyond the fire.",
+            "follow: You lose sight of Jeremy beyond camp.",
+            "navigate",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: You lose sight of them.",
+            "follow: Michele is gathering food together.",
+            "navigate",
+            "follow: Wendell is collecting water.",
+            "navigate",
+            "navigate",
+            "navigate",
+            "navigate",
+            "follow: Sandra is gathering food."
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 11,
+          "remaining": 1725,
+          "owned": 48,
+          "completed": 18,
+          "needs": {
+            "water": 75,
+            "hunger": 75,
+            "rest": 0,
+            "restByTribe": {
+              "1": 555
+            }
+          },
+          "supplies": {
+            "firewood": 7,
+            "bamboo": 4,
+            "palms": 0,
+            "water": 46,
+            "coconuts": 18,
+            "fish1": 4,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        }
+      ],
+      "interactionChecks": [
+        "dialog focus/Escape",
+        "watch time",
+        "semantic paired travel",
+        "follow time",
+        "save/load groups",
+        "reduced motion",
+        "existing group dialogue",
+        "minigame collapsed presence",
+        "live resize",
+        "timed stale approach",
+        "missed follow reload",
+        "narration dwell/queue/reload",
+        "stable portraits",
+        "orientation focus",
+        "Help fishing/shelter/fire",
+        "actual tribe water time/idempotence"
+      ]
+    },
+    {
+      "browserName": "webkit",
+      "browser": "26.5",
+      "scenes": 128,
+      "viewports": [
+        {
+          "width": 375,
+          "height": 812
+        },
+        {
+          "width": 430,
+          "height": 932
+        },
+        {
+          "width": 844,
+          "height": 390
+        },
+        {
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "errors": [],
+      "playtests": [
+        {
+          "style": "passive",
+          "actions": [],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 2,
+          "remaining": 5760,
+          "owned": 6,
+          "completed": 10,
+          "needs": {
+            "water": 240,
+            "hunger": 0,
+            "rest": 0,
+            "restByTribe": {
+              "1": 600
+            }
+          },
+          "supplies": {
+            "firewood": 3,
+            "bamboo": 8,
+            "palms": 2,
+            "water": 30,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "worker",
+          "actions": [
+            "filled tribe water: 35 minutes"
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 4,
+          "remaining": 3390,
+          "owned": 19,
+          "completed": 10,
+          "needs": {
+            "water": 210,
+            "hunger": 210,
+            "rest": 0,
+            "restByTribe": {
+              "1": 90
+            }
+          },
+          "supplies": {
+            "firewood": 9,
+            "bamboo": 0,
+            "palms": 1,
+            "water": 50,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "social",
+          "actions": [
+            "navigate",
+            "navigate",
+            "navigate",
+            "approach: You walk over, but they have already moved on.",
+            "approach: You walk over. Wendell makes room for you.",
+            "join/exchange/end chat",
+            "approach: You walk over. Tony makes room for you.",
+            "join/exchange/end chat",
+            "approach: You walk over. Boston Rob makes room for you.",
+            "join/exchange/end chat",
+            "approach: They go quiet, then head down the path together.",
+            "navigate",
+            "navigate",
+            "navigate",
+            "navigate"
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 9,
+          "remaining": 4785,
+          "owned": 38,
+          "completed": 6,
+          "needs": {
+            "water": 15,
+            "hunger": 255,
+            "rest": 0,
+            "restByTribe": {
+              "1": 135
+            }
+          },
+          "supplies": {
+            "firewood": 11,
+            "bamboo": 15,
+            "palms": 3,
+            "water": 30,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "spy",
+          "actions": [
+            "follow: Michele is tending the fire.",
+            "navigate",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: You lose sight of Jeremy beyond camp.",
+            "follow: Wendell is talking nearby.",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: You lose sight of them.",
+            "navigate",
+            "follow: You lose sight of Sandra beyond the shelter.",
+            "navigate",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: Boston Rob is gathering firewood together.",
+            "navigate",
+            "navigate",
+            "navigate",
+            "navigate",
+            "follow: You lose sight of them.",
+            "navigate"
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 10,
+          "remaining": 4350,
+          "owned": 48,
+          "completed": 15,
+          "needs": {
+            "water": 150,
+            "hunger": 330,
+            "rest": 0,
+            "restByTribe": {
+              "1": 210
+            }
+          },
+          "supplies": {
+            "firewood": 8,
+            "bamboo": 0,
+            "palms": 1,
+            "water": 34,
+            "coconuts": 10,
+            "fish1": 0,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        },
+        {
+          "style": "mixed",
+          "actions": [
+            "follow: You lose sight of them.",
+            "navigate",
+            "navigate",
+            "approach: You walk over. Wendell makes room for you.",
+            "join/exchange/end chat",
+            "follow: You lose sight of Tony beyond the shelter.",
+            "filled tribe water: 35 minutes",
+            "follow: You lose sight of Wendell beyond the fire.",
+            "follow: You lose sight of Jeremy beyond camp.",
+            "navigate",
+            "watch: You stay nearby for a minute. Their words are hard to make out.",
+            "follow: You lose sight of them.",
+            "follow: Michele is gathering food together.",
+            "navigate",
+            "follow: Wendell is collecting water.",
+            "navigate",
+            "navigate",
+            "navigate",
+            "navigate",
+            "follow: Sandra is gathering food."
+          ],
+          "minutesLingering": 24,
+          "distinctNearbyGroups": 11,
+          "remaining": 1725,
+          "owned": 48,
+          "completed": 18,
+          "needs": {
+            "water": 75,
+            "hunger": 75,
+            "rest": 0,
+            "restByTribe": {
+              "1": 555
+            }
+          },
+          "supplies": {
+            "firewood": 7,
+            "bamboo": 4,
+            "palms": 0,
+            "water": 46,
+            "coconuts": 18,
+            "fish1": 4,
+            "fish2": 0,
+            "fish3": 0
+          },
+          "npcs": 6
+        }
+      ],
+      "interactionChecks": [
+        "dialog focus/Escape",
+        "watch time",
+        "semantic paired travel",
+        "follow time",
+        "save/load groups",
+        "reduced motion",
+        "existing group dialogue",
+        "minigame collapsed presence",
+        "live resize",
+        "timed stale approach",
+        "missed follow reload",
+        "narration dwell/queue/reload",
+        "stable portraits",
+        "orientation focus",
+        "Help fishing/shelter/fire",
+        "actual tribe water time/idempotence"
+      ]
+    }
+  ]
+}

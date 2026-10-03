@@ -29,6 +29,7 @@ gm.initializeWaterPlanForTribe(tribe);
 const screen=new CampScreen();screen.isActive=true;
 window.gameManager=gm;window.campScreen=screen;
 renderer.initialize();
+screen.ensureClockUI(); // Render the production HUD without starting wall-clock pacing.
 const activity=gm.systems.campActivitySystem;activity.phaseId=activity.phase;
 window.campQa={gm,screen,renderer,tribe,members,activity,
   scene(view='beach',count=6,mode='mixed') {
@@ -43,11 +44,29 @@ window.campQa={gm,screen,renderer,tribe,members,activity,
       activity.start(npcs[0],{type:mode==='casual'?'socialize':'strategy_conversation',location:view,targetId:npcs[1].id,duration:3000});
     }
     if(count>=3) activity.start(npcs[2],{type:types[view]||'observe',location:view,duration:3000});
+    if(view==='campfire' && mode==='casual' && count>=4) activity.start(npcs[3],{type:types[view],location:view,duration:3000});
+    if(mode==='search') activity.start(npcs[0],{type:'idol_hunt',location:view,duration:3000});
+    if(mode==='follower') activity.start(npcs[2],{type:'investigate',location:view,targetId:npcs[0].id,duration:3000});
     screen.currentView=view;window.previousCampView=view;screen.loadView(view,{travelPaid:true});
+    renderer.resetNarration();
     return renderer.npcLayer?.querySelectorAll('.camp-portrait').length;
   },
   travel() { const people=gm.getPlayerTribe().members.filter(p=>!p.isPlayer);return activity.moveTogether(people[0],people[1],'tribeFlag'); },
   advance(seconds=60) {gm.consumeCampTime(seconds,{source:'clock'});},
+  natural(seed=47) {
+    renderer.closeSheet(false);gm.systems.conversationSystem.closeConversation('qa_reset');
+    gm.dayTimer=7200;gm.campNeedElapsed={water:0,hunger:0,rest:0};gm.campLog=[];
+    gm.systems.socialMemorySystem=new memoryTemplate.constructor();
+    const currentTribe=gm.getPlayerTribe();currentTribe.fire=1;currentTribe.shelter=1;currentTribe.stockpile={firewood:25,bamboo:20,palms:5,water:30,coconuts:10};
+    gm.systems.relationshipSystem=new RelationshipSystem(gm);gm.systems.trustSystem=new TrustSystem(gm);
+    for(const p of gm.getPlayerTribe().members) {
+      p.campActivity=null;p.water=75;p.hunger=75;p.rest=75;
+      p.location='beach';if(!p.isPlayer) positions.updateNpcLocation(p.id,'beach');
+    }
+    let state=seed;activity.random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
+    renderer.interactions.random=activity.random;
+    activity.phaseId=null;screen.loadView('beach',{travelPaid:true});activity.ensureStarted();renderer.refresh();renderer.resetNarration();
+  },
   restore() {const payload=JSON.parse(JSON.stringify(gm.createSavePayload()));gm.restoreSavePayload(payload);screen.loadView(screen.currentView,{travelPaid:true});}
 };
 window.campQa.scene();window.campQaReady=true;

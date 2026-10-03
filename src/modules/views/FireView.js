@@ -182,8 +182,10 @@ export default function renderFireView(container) {
     fontSize = '1.3rem',
     textOffset = -1
   ) {
-    const wrapper = createElement('div', {
+    const wrapper = createElement('button', {
+      type: 'button', className: 'camp-nav-button', 'aria-label': alt,
       style: `
+        border:0; background:transparent; padding:0;
         width: ${width}px;
         height: ${height}px;
         display: inline-block;
@@ -278,7 +280,7 @@ export default function renderFireView(container) {
     actionButtons.appendChild(downButton);
   }
 
-  addDebugBanner('Fire view rendered!', 'orange', 170);
+  if (window.debug) addDebugBanner('Fire view rendered!', 'orange', 170);
   if (playerTribe) {
     ensureFoodStockpileBanner(container, playerTribe);
   }
@@ -2100,7 +2102,7 @@ export default function renderFireView(container) {
     }
 
     function updateGame() {
-      if (!gameState.gameRunning) return;
+      if (!gameState.gameRunning || !canvas.isConnected) return;
       updateEmberPosition();
       const newCurrentRing = getCurrentRing();
       if (newCurrentRing !== gameState.currentRing && newCurrentRing !== -1) {
@@ -2495,7 +2497,7 @@ export default function renderFireView(container) {
         actionButtons.appendChild(downBtn);
       }
 
-      addDebugBanner('Fire successfully built!', 'orange', 200);
+      if (window.debug) addDebugBanner('Fire successfully built!', 'orange', 200);
     }
 
     // --- 9) Start the minigame loop ---

@@ -3,8 +3,9 @@
 import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { ISLAND_LOCATION_GRAPH } from './NpcLocationSystem.js';
 import { routeBetween } from './CampActivitySystem.js';
-import { campGroups, eligibleCampMember, playerPlace, sameId, visibleActivityLabel, placeName } from '../ui/CampPresentation.js';
+import { campGroups, eligibleCampMember, physicallyPresent, playerPlace, sameId, visibleActivityLabel, placeName } from '../ui/CampPresentation.js';
 const clamp = n => Math.max(0, Math.min(1, n));
+export const APPROACH_SECONDS = 45;
 export function overhearingChance({ privacy = 'private', awareness = 5, occupied = false, near = false, location } = {}) {
   const noise = ['campfire', 'rockyShore'].includes(location) ? .12 : 0;
   return Math.max(.05, Math.min(.8, (privacy === 'public' ? .55 : .16) + clamp(awareness / 10) * .18 +
@@ -19,10 +20,10 @@ export default class CampInteractionSystem {
   get player() { return this.gm.getPlayerSurvivor?.(); }
   get place() { return playerPlace(this.gm, this.getView()); }
   get living() { return this.gm.systems?.campActivitySystem; }
-  get available() { return this.gm.gameState === 'camp' && this.living?.active && !this.gm.flags?.campEventActive && this.gm.dayTimer > 0; }
+  get available() { return this.gm.gameState === 'camp' && this.living?.active && !this.gm.flags?.campEventActive && this.gm.dayTimer > 0 && this.place !== 'treeMail'; }
   person(id) { return this.living?.members?.().find(p => sameId(id, p.id)); }
   visible(id) { return this.available && eligibleCampMember(this.gm, this.person(id)) &&
-    this.gm.systems.npcLocationSystem.getLocation(id) === this.place; }
+    physicallyPresent(this.person(id), this.gm.systems.npcLocationSystem, this.place); }
   observe({ id, actorId, type, location = this.place, participantIds = [], subjectId = null, detail = '', witnessOnly = false }) {
     return this.memory?.recordCampObservation?.({ id, actorId, participantIds, witnessIds: [this.player.id],
       type, location, subjectId, day: this.gm.day, campTime: this.gm.dayTimer, visibility: 'visible', detail, witnessOnly });
@@ -95,18 +96,30 @@ export default class CampInteractionSystem {
       this.gm.consumeCampTime(60, { source: 'camp_watch', activityType: 'watch', locationKey: this.place });
       heard = this.watching.text;
     } finally { this.watching = null; }
-    return { text: heard || 'You linger nearby for a moment. Their words are hard to make out.' };
+    return { text: heard || 'You stay nearby for a minute. Their words are hard to make out.' };
   }
   approach(group) {
     if (!this.available || !this.currentGroup(group) || !group?.members.every(p => this.visible(p.id))) return { text: 'They have moved on.', join: false };
     const lead = this.person(group.members[0].id);
     if (group.members.some(p => p.busy)) return { text: 'They are in the middle of another conversation.', join: false };
+    const id = `${group.activityId}:approach:${this.player.id}`;
+    if (this.memory.getCampObservations(this.player.id).some(e => e.id === id) || lead.campActivity?.approachedByIds?.some(playerId => sameId(playerId, this.player.id)))
+      return { text: 'You are already close enough to join them.', join: true, context: this.joinContext(group) };
+    // Walking is a player block, not work at the well/shelter. Revalidate the
+    // exact shared activity after everyone else has had time to continue.
+    this.observe({ id, actorId: this.player.id, type: 'approached', witnessOnly: true });
+    this.gm.consumeCampTime(APPROACH_SECONDS, { source: 'camp_approach', activityType: 'approach', locationKey: this.place });
+    if (!this.available || !this.currentGroup(group) || !group.members.every(p => this.visible(p.id)))
+      return { text: 'You walk over, but they have already moved on.', join: false, movedOn: true };
+    for (const member of group.members) {
+      const activity = this.person(member.id)?.campActivity;
+      if (activity?.id === group.activityId) activity.approachedByIds = [...new Set([...(activity.approachedByIds || []), this.player.id])];
+    }
     const trust = group.members.reduce((n, p) => n + (this.gm.getTrust?.(p.id, this.player.id) ?? 50), 0) / group.members.length;
     const relationship = group.members.reduce((n, p) => n + (this.gm.systems.relationshipSystem?.getRelationship?.(p.id, this.player.id)?.value ?? 50), 0) / group.members.length;
     const welcomed = group.privacy === 'public' || this.random() < Math.max(.12, Math.min(.75, (trust + relationship) / 200 - .15));
-    const id = `${group.activityId}:approach:${this.player.id}`;
     if (!welcomed) {
-      this.observe({ id, actorId: lead.id, type: 'conversation_guarded', participantIds: group.members.slice(1).map(p => p.id) });
+      this.observe({ id: `${id}:guarded`, actorId: lead.id, type: 'conversation_guarded', participantIds: group.members.slice(1).map(p => p.id), witnessOnly: true });
       // Interrupt the shared block once; no invented social outcome/reward.
       this.living.interrupt(lead, 'player_approach');
       for (const person of group.members.map(p => this.person(p.id)))
@@ -119,9 +132,11 @@ export default class CampInteractionSystem {
         return { text: 'They go quiet, then head down the path together.', join: false, guarded: true, relocated: true };
       return { text: 'Their conversation trails off as you get closer.', join: false, guarded: true };
     }
-    return { text: `${lead.firstName} waves you over.`, join: true, context: { location: group.location,
+    return { text: `You walk over. ${lead.firstName} makes room for you.`, join: true, context: this.joinContext(group) };
+  }
+  joinContext(group) { return { location: group.location,
       groupParticipantIds: group.members.map(p => p.id), groupWelcomed: true, interruptedGroup: true,
-      observedPrivacy: group.privacy } };
+      observedPrivacy: group.privacy };
   }
   join(group, context) {
     if (!this.available || !this.currentGroup(group) || !group.members.every(p => this.visible(p.id))) return false;
@@ -133,24 +148,44 @@ export default class CampInteractionSystem {
     return true;
   }
   recentDepartures() {
+    const owned = this.memory?.getCampObservations?.(this.player?.id, { day: this.gm.day }) || [];
+    for (const e of owned.filter(e => e.type === 'departed' && e.origin === 'witness')) {
+      if (!this.available || this.place !== e.fromLocation || !eligibleCampMember(this.gm, this.person(e.actorId)) ||
+          this.gm.systems.npcLocationSystem.getLocation(e.actorId) === e.fromLocation || e.campTime - this.gm.dayTimer > 180)
+        e.followMissed = true;
+    }
     if (!this.available) return [];
-    return (this.memory?.getCampObservations?.(this.player.id, { day: this.gm.day }) || []).filter(e =>
+    return owned.filter(e =>
       e.type === 'departed' && e.origin === 'witness' && e.campTime - this.gm.dayTimer <= 180 &&
+      !e.followMissed && this.place === e.fromLocation &&
       e.campTime >= this.gm.dayTimer && !this.memory.getCampObservations(this.player.id).some(known => known.id === `${e.id}:follow:${this.player.id}`) && eligibleCampMember(this.gm, this.person(e.actorId)) &&
       !this.visible(e.actorId)).slice(-2);
+  }
+  leaveLocation(from, to) {
+    if (from === to) return;
+    for (const e of this.memory?.getCampObservations?.(this.player?.id, { day: this.gm.day }) || [])
+      if (e.type === 'departed' && e.origin === 'witness' && e.fromLocation === from) e.followMissed = true;
+  }
+  missDepartures() {
+    for (const e of this.memory?.getCampObservations?.(this.player?.id, { day: this.gm.day }) || [])
+      if (e.type === 'departed' && e.origin === 'witness') e.followMissed = true;
+  }
+  targetMoved(id, location) {
+    for (const e of this.memory?.getCampObservations?.(this.player?.id, { day: this.gm.day }) || [])
+      if (e.type === 'departed' && sameId(e.actorId, id) && e.fromLocation === location) e.followMissed = true;
   }
   follow(entry) {
     if (!this.recentDepartures().some(e => e.id === entry?.id)) return { text: 'You have lost their trail.' };
     const id = `${entry.id}:follow:${this.player.id}`;
     if (this.memory.getCampObservations(this.player.id).some(e => e.id === id)) return { text: 'They have already moved on.' };
-    const target = this.person(entry.actorId), from = this.place;
+    const target = this.person(entry.actorId);
     this.observe({ id, actorId: this.player.id, type: 'followed', location: entry.location });
     this.player.location = entry.location;
     // Set physical presence before passing time. It is also used by bystander
     // checks while other activity blocks resolve during this walk.
     this.navigate(entry.location);
     this.gm.consumeCampTime(120, { source: 'camp_follow', activityType: 'follow', locationKey: entry.location });
-    if (!this.available || !eligibleCampMember(this.gm, target)) return { text: 'You lose sight of them.' };
+    if (!this.available || !eligibleCampMember(this.gm, target) || target.campActivity?.type === 'travel') return { text: 'You lose sight of them.' };
     const location = this.gm.systems.npcLocationSystem.getLocation(target.id);
     if (!location || (location !== entry.location && (!routeBetween(entry.location, location).length || routeBetween(entry.location, location).length > 2)) || this.random() > .55 + clamp((this.player.awareness ?? 5) / 10) * .25)
       return { text: `You lose sight of ${target.firstName} beyond ${placeName(entry.location)}.` };
@@ -161,6 +196,7 @@ export default class CampInteractionSystem {
         location, subjectId: target.id, day: this.gm.day, campTime: this.gm.dayTimer, detail: 'was noticed following' });
       this.gm.systems.relationshipSystem?.changeRelationship?.(target.id, this.player.id, -1);
       this.gm.systems.trustSystem?.changeTrust?.(target.id, this.player.id, -1, 'caught_following');
+      this.observe({ id: `${caughtId}:owned`, actorId: target.id, type: 'caught_following', location, witnessOnly: true });
       return { text: `${target.firstName} turns around. “You following me?”`, caught: true };
     }
     const a = target.campActivity;
@@ -173,6 +209,6 @@ export default class CampInteractionSystem {
     }
     this.observe({ id: `${id}:seen`, actorId: target.id, type: a?.type && ['socialize', 'strategy_conversation'].includes(a.type) ? 'seen_together' : 'noticed',
       location, participantIds: a?.participantIds || [], witnessOnly: true });
-    return { text: `${target.firstName} is ${visibleActivityLabel(a).toLowerCase()} near ${placeName(location)}.` };
+    return { text: `${target.firstName} is ${visibleActivityLabel(a).toLowerCase()}.` };
   }
 }

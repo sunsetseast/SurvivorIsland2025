@@ -796,5 +796,5 @@ export default function renderSummary(container) {
     actionButtons.appendChild(continueButton);
   }
 
-  addDebugBanner('Summary view rendered!', 'purple', 170);
+  if (window.debug) addDebugBanner('Summary view rendered!', 'purple', 170);
 }
