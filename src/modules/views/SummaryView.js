@@ -5,6 +5,7 @@
 
 import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
+import { campRecap } from '../ui/CampPresentation.js';
 import { GamePhase } from '../core/GameManager.js';
 
 const RESOURCE_LABELS = {
@@ -572,8 +573,6 @@ function buildSocialRecapSection() {
 }
 
 export default function renderSummary(container) {
-  console.log('renderSummary() called');
-  addDebugBanner('renderSummary() called', 'purple', 40);
 
   clearChildren(container);
 
@@ -644,71 +643,60 @@ export default function renderSummary(container) {
     if (recapSection) summaryContent.appendChild(recapSection);
   }
 
-  const midpointReport = findLatestCheckpointReport(campLog, currentDay);
-  if (midpointReport && !living) {
-    const reportSection = renderCheckpointReportSection(midpointReport, playerTribe, 'Midpoint Checkpoint');
-    if (reportSection) summaryContent.appendChild(reportSection);
-  }
-
-  const endReport = findLatestEndOfPhaseReport(campLog, currentDay);
-  if (endReport && endReport !== midpointReport && !living) {
-    const endSection = renderCheckpointReportSection(endReport, playerTribe, 'End of Camp Results');
-    if (endSection) summaryContent.appendChild(endSection);
-  }
-
-  const highlightEntries = campLog.filter(entry => {
-    if (!entry) return false;
-    if (entry.day != null && entry.day !== currentDay) return false;
-    if (entry.id === 'day1_first_impressions') return false;
-    if (entry.type === 'checkpoint_report' || living && entry.source === 'camp_activity') return false;
-    if (entry.type === 'task_results' || entry.type === 'end_phase_report') return false;
-    if (entry.isCinematicEventSummary) return false;
-    return true;
-  });
-
-  const highlightSection = renderCampHighlightsSection(highlightEntries, playerTribe);
-  if (highlightSection) {
-    summaryContent.appendChild(highlightSection);
-  }
-
-  const socialRecap = buildSocialRecapSection();
-  if (!recapEntry && !midpointReport && !endReport && !highlightEntries.length && !socialRecap) {
-    const placeholder = createElement('div', {
-      style: `
-        color: #2b190a;
-        font-style: italic;
-        text-align: center;
-        padding: 12px 0;
-      `
-    }, 'Nothing significant was recorded during this camp phase.');
-    summaryContent.appendChild(placeholder);
-  }
-  if (socialRecap) {
-    summaryContent.appendChild(socialRecap);
-  }
   if (living) {
-    const memory = gameManager.systems?.socialMemorySystem;
-    const observations = memory?.getCampObservations?.(gameManager.player?.id,
-      { day: currentDay }) || [];
-    const seen = [...new Set(observations.filter(entry => entry.origin !== 'hearsay' &&
-      entry.actorId !== gameManager.player?.id).slice(-5).map(entry => {
-        const name = displayNameById(entry.actorId, playerTribe, gameManager.player?.id);
-        if (entry.type === 'work') return `${name} spent time contributing to camp.`;
-        if (entry.type === 'absence') return `${name} was seen away from camp.`;
-        if (entry.type === 'seen_together') return `${name} found time to talk with someone.`;
-        return null;
-      }).filter(Boolean))];
-    if (seen.length) summaryContent.appendChild(createElement('p', {}, seen.join(' ')));
-    const told = (memory?.getCampClaims?.(gameManager.player?.id) || [])
-      .filter(claim => claim.day === currentDay && ['direct_statement', 'hearsay'].includes(claim.origin) && claim.sourceId != null)
-      .slice(-3).map(claim => {
-        const source = displayNameById(claim.sourceId, playerTribe, gameManager.player?.id);
-        const subject = displayNameById(claim.subjectId, playerTribe, gameManager.player?.id);
-        if (claim.topic === 'idol_suspicion') return `${source} raised a question about ${subject} and an idol.`;
-        if (claim.topic === 'target' || claim.topic === 'warning') return `${source} brought up ${subject}'s name.`;
-        return null;
-      }).filter(Boolean);
-    if (told.length) summaryContent.appendChild(createElement('p', {}, [...new Set(told)].join(' ')));
+    const recap = campRecap(gameManager);
+    const section = createElement('section', { className: 'camp-human-recap' });
+    for (const [heading, lines] of [['Camp Life', recap.life], ['Tribe Needs', recap.needs], ['Your Social Read', recap.read]]) {
+      section.appendChild(createElement('h3', {}, heading));
+      const list = createElement('ul');
+      for (const line of lines.length ? lines : ['A quiet stretch of camp. You may have missed what happened elsewhere.'])
+        list.appendChild(createElement('li', {}, line));
+      section.appendChild(list);
+    }
+    summaryContent.appendChild(section);
+  } else {
+    const midpointReport = findLatestCheckpointReport(campLog, currentDay);
+    if (midpointReport && !living) {
+      const reportSection = renderCheckpointReportSection(midpointReport, playerTribe, 'Midpoint Checkpoint');
+      if (reportSection) summaryContent.appendChild(reportSection);
+    }
+
+    const endReport = findLatestEndOfPhaseReport(campLog, currentDay);
+    if (endReport && endReport !== midpointReport && !living) {
+      const endSection = renderCheckpointReportSection(endReport, playerTribe, 'End of Camp Results');
+      if (endSection) summaryContent.appendChild(endSection);
+    }
+
+    const highlightEntries = campLog.filter(entry => {
+      if (!entry) return false;
+      if (entry.day != null && entry.day !== currentDay) return false;
+      if (entry.id === 'day1_first_impressions') return false;
+      if (entry.type === 'checkpoint_report' || living && entry.source === 'camp_activity') return false;
+      if (entry.type === 'task_results' || entry.type === 'end_phase_report') return false;
+      if (entry.isCinematicEventSummary) return false;
+      return true;
+    });
+
+    const highlightSection = renderCampHighlightsSection(highlightEntries, playerTribe);
+    if (highlightSection) {
+      summaryContent.appendChild(highlightSection);
+    }
+
+    const socialRecap = buildSocialRecapSection();
+    if (!recapEntry && !midpointReport && !endReport && !highlightEntries.length && !socialRecap) {
+      const placeholder = createElement('div', {
+        style: `
+          color: #2b190a;
+          font-style: italic;
+          text-align: center;
+          padding: 12px 0;
+        `
+      }, 'Nothing significant was recorded during this camp phase.');
+      summaryContent.appendChild(placeholder);
+    }
+    if (socialRecap) {
+      summaryContent.appendChild(socialRecap);
+    }
   }
   wrapper.appendChild(title);
   wrapper.appendChild(summaryContent);

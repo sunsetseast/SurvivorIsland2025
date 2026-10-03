@@ -1,0 +1,178 @@
+// Player encounters use existing activities, clock and owned SocialMemory.
+// Transient watching/sheets are never saved; received evidence is semantic.
+import { physicalCampLocation } from '../locations/LocationUtils.js';
+import { ISLAND_LOCATION_GRAPH } from './NpcLocationSystem.js';
+import { routeBetween } from './CampActivitySystem.js';
+import { campGroups, eligibleCampMember, playerPlace, sameId, visibleActivityLabel, placeName } from '../ui/CampPresentation.js';
+const clamp = n => Math.max(0, Math.min(1, n));
+export function overhearingChance({ privacy = 'private', awareness = 5, occupied = false, near = false, location } = {}) {
+  const noise = ['campfire', 'rockyShore'].includes(location) ? .12 : 0;
+  return Math.max(.05, Math.min(.8, (privacy === 'public' ? .55 : .16) + clamp(awareness / 10) * .18 +
+    (near ? .16 : 0) - (occupied ? .18 : 0) - noise));
+}
+export default class CampInteractionSystem {
+  constructor(gm, { getView = () => globalThis.window?.campScreen?.currentView,
+    navigate = view => globalThis.window?.campScreen?.loadView?.(view, { travelPaid: true }), random = Math.random } = {}) {
+    this.gm = gm; this.getView = getView; this.navigate = navigate; this.random = random; this.watching = null;
+  }
+  get memory() { return this.gm.systems?.socialMemorySystem; }
+  get player() { return this.gm.getPlayerSurvivor?.(); }
+  get place() { return playerPlace(this.gm, this.getView()); }
+  get living() { return this.gm.systems?.campActivitySystem; }
+  get available() { return this.gm.gameState === 'camp' && this.living?.active && !this.gm.flags?.campEventActive && this.gm.dayTimer > 0; }
+  person(id) { return this.living?.members?.().find(p => sameId(id, p.id)); }
+  visible(id) { return this.available && eligibleCampMember(this.gm, this.person(id)) &&
+    this.gm.systems.npcLocationSystem.getLocation(id) === this.place; }
+  observe({ id, actorId, type, location = this.place, participantIds = [], subjectId = null, detail = '', witnessOnly = false }) {
+    return this.memory?.recordCampObservation?.({ id, actorId, participantIds, witnessIds: [this.player.id],
+      type, location, subjectId, day: this.gm.day, campTime: this.gm.dayTimer, visibility: 'visible', detail, witnessOnly });
+  }
+  seeGroups(view = this.getView()) {
+    const groups = campGroups(this.gm, view);
+    for (const group of groups) {
+      const actor = this.person(group.members[0].id), a = actor?.campActivity;
+      if (!a?.id || !this.available) continue;
+      if (group.engaged) this.observe({ id: a.socialPurpose ? `${a.id}:company` : a.id, actorId: actor.id, type: 'seen_together',
+        location: group.location, participantIds: group.members.slice(1).map(p => p.id) });
+      else if (group.members[0].helpView) this.observe({ id: a.id, actorId: actor.id,
+        type: 'work', location: group.location });
+    }
+    return groups;
+  }
+  // Called only after an actual resolved exchange. claimId refers to the
+  // statement just received by its participant, never a hidden intention.
+  hearExchange({ speaker, listener, activity, claimId, observationId }) {
+    if (!this.available || this.place !== physicalCampLocation(activity.location) ||
+      sameId(this.player.id, speaker.id) || sameId(this.player.id, listener.id)) return null;
+    const id = `${activity.id}:heard:${this.player.id}`;
+    if (this.memory.getCampObservations(this.player.id).some(e => e.id === id)) return null;
+    const privacy = activity.privacy === 'private' || activity.socialPurpose === 'strategy' ? 'private' : 'public';
+    const near = this.watching?.activityId === activity.id;
+    const occupied = physicalCampLocation(this.getView()) !== this.getView() ||
+      this.player.campActivity && !['observe', 'watch'].includes(this.player.campActivity.type);
+    const chance = overhearingChance({ privacy, awareness: this.player.awareness ?? 5, occupied: Boolean(occupied), near, location: this.place });
+    const roll = this.random();
+    // Record the attempt even when inaudible so reload/re-render cannot reroll.
+    this.observe({ id, actorId: this.player.id, type: 'listened', detail: '' });
+    if (roll >= chance || !claimId && !observationId) return null;
+    const claim = claimId && this.memory.getCampClaims(listener.id).find(e => e.id === claimId);
+    const observation = observationId && this.memory.getCampObservations(listener.id).find(e => e.id === observationId);
+    const subjectId = claim?.subjectId ?? observation?.actorId;
+    if (subjectId == null) return null;
+    // Complete statements require close, relatively open conversation. A
+    // guarded conversation normally yields a name, not its strategic content.
+    if (claim && near && privacy === 'public' && !occupied && roll < chance * .45) {
+      this.memory.overhearCampClaim({ ownerId: this.player.id, listenerId: listener.id,
+        speakerId: speaker.id, claimId, confidence: .65 });
+      this.observe({ id: `${id}:statement`, actorId: speaker.id, type: 'overheard_statement', subjectId, witnessOnly: true });
+      const text = this.statementText(speaker, claim);
+      if (near) this.watching.text = text;
+      return text;
+    }
+    const type = roll < chance * .75 ? 'overheard_name' : 'overheard_fragment';
+    this.observe({ id: `${id}:fragment`, actorId: speaker.id, type, subjectId: type === 'overheard_name' ? subjectId : null, witnessOnly: true });
+    const text = type === 'overheard_name' ? `You hear ${speaker.firstName} mention ${this.person(subjectId)?.firstName || 'someone'}.` :
+      'You catch a name, but miss the rest of the conversation.';
+    if (near) this.watching.text = text;
+    return text;
+  }
+  statementText(speaker, claim) {
+    const subject = this.person(claim.subjectId)?.firstName || 'someone';
+    if (claim.topic === 'idol_suspicion') return `${speaker.firstName} says ${subject} ${['unlikely', 'denied', 'no'].includes(claim.stance) ? 'may not be looking for anything' : 'may be looking for something'}.`;
+    if (claim.topic === 'target') return `${speaker.firstName} brings up ${subject} ${['denied', 'no'].includes(claim.stance) ? 'and dismisses their name' : 'as someone to watch after the challenge'}.`;
+    if (claim.topic === 'idol_possession') return `${speaker.firstName} says ${subject} has an idol.`;
+    return `${speaker.firstName} mentions ${subject} in the conversation.`;
+  }
+  currentGroup(group) { return campGroups(this.gm, this.getView()).some(current => current.id === group?.id && current.activityId === group?.activityId); }
+  watch(group) {
+    if (!this.available || !group?.social || !this.currentGroup(group) || !group.members.every(p => this.visible(p.id))) return { text: 'They have moved on.' };
+    const id = `${group.activityId}:watch:${this.player.id}`;
+    if (this.memory.getCampObservations(this.player.id).some(e => e.id === id)) return { text: 'You have already lingered here. You could approach them.' };
+    this.observe({ id, actorId: this.player.id, type: 'watched' });
+    this.watching = { activityId: group.activityId };
+    let heard;
+    try {
+      this.gm.consumeCampTime(60, { source: 'camp_watch', activityType: 'watch', locationKey: this.place });
+      heard = this.watching.text;
+    } finally { this.watching = null; }
+    return { text: heard || 'You linger nearby for a moment. Their words are hard to make out.' };
+  }
+  approach(group) {
+    if (!this.available || !this.currentGroup(group) || !group?.members.every(p => this.visible(p.id))) return { text: 'They have moved on.', join: false };
+    const lead = this.person(group.members[0].id);
+    if (group.members.some(p => p.busy)) return { text: 'They are in the middle of another conversation.', join: false };
+    const trust = group.members.reduce((n, p) => n + (this.gm.getTrust?.(p.id, this.player.id) ?? 50), 0) / group.members.length;
+    const relationship = group.members.reduce((n, p) => n + (this.gm.systems.relationshipSystem?.getRelationship?.(p.id, this.player.id)?.value ?? 50), 0) / group.members.length;
+    const welcomed = group.privacy === 'public' || this.random() < Math.max(.12, Math.min(.75, (trust + relationship) / 200 - .15));
+    const id = `${group.activityId}:approach:${this.player.id}`;
+    if (!welcomed) {
+      this.observe({ id, actorId: lead.id, type: 'conversation_guarded', participantIds: group.members.slice(1).map(p => p.id) });
+      // Interrupt the shared block once; no invented social outcome/reward.
+      this.living.interrupt(lead, 'player_approach');
+      for (const person of group.members.map(p => this.person(p.id)))
+        if (person && !person.campActivity) this.living.start(person, { type: 'idle_at_camp', location: group.location, duration: 90 });
+      const companion = group.members.length === 2 && this.person(group.members[1].id);
+      const quieter = (ISLAND_LOCATION_GRAPH[group.location] || []).find(place =>
+        !this.living.members().some(person => person.isPlayer ? this.place === place :
+          this.gm.systems.npcLocationSystem.getLocation(person.id) === place));
+      if (companion && quieter && this.random() < .25 && this.living.moveTogether(lead, companion, quieter))
+        return { text: 'They go quiet, then head down the path together.', join: false, guarded: true, relocated: true };
+      return { text: 'Their conversation trails off as you get closer.', join: false, guarded: true };
+    }
+    return { text: `${lead.firstName} waves you over.`, join: true, context: { location: group.location,
+      groupParticipantIds: group.members.map(p => p.id), groupWelcomed: true, interruptedGroup: true,
+      observedPrivacy: group.privacy } };
+  }
+  join(group, context) {
+    if (!this.available || !this.currentGroup(group) || !group.members.every(p => this.visible(p.id))) return false;
+    // The existing dialogue remains one speaker at a time. Other members stay
+    // physically reserved, preventing unrelated work while the player joins.
+    const npc = this.person(group.members[0].id);
+    this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: npc.id, phase: 'pre', context });
+    this.living.reserveConversationGroup?.(group.members.slice(1).map(p => p.id));
+    return true;
+  }
+  recentDepartures() {
+    if (!this.available) return [];
+    return (this.memory?.getCampObservations?.(this.player.id, { day: this.gm.day }) || []).filter(e =>
+      e.type === 'departed' && e.origin === 'witness' && e.campTime - this.gm.dayTimer <= 180 &&
+      e.campTime >= this.gm.dayTimer && !this.memory.getCampObservations(this.player.id).some(known => known.id === `${e.id}:follow:${this.player.id}`) && eligibleCampMember(this.gm, this.person(e.actorId)) &&
+      !this.visible(e.actorId)).slice(-2);
+  }
+  follow(entry) {
+    if (!this.recentDepartures().some(e => e.id === entry?.id)) return { text: 'You have lost their trail.' };
+    const id = `${entry.id}:follow:${this.player.id}`;
+    if (this.memory.getCampObservations(this.player.id).some(e => e.id === id)) return { text: 'They have already moved on.' };
+    const target = this.person(entry.actorId), from = this.place;
+    this.observe({ id, actorId: this.player.id, type: 'followed', location: entry.location });
+    this.player.location = entry.location;
+    // Set physical presence before passing time. It is also used by bystander
+    // checks while other activity blocks resolve during this walk.
+    this.navigate(entry.location);
+    this.gm.consumeCampTime(120, { source: 'camp_follow', activityType: 'follow', locationKey: entry.location });
+    if (!this.available || !eligibleCampMember(this.gm, target)) return { text: 'You lose sight of them.' };
+    const location = this.gm.systems.npcLocationSystem.getLocation(target.id);
+    if (!location || (location !== entry.location && (!routeBetween(entry.location, location).length || routeBetween(entry.location, location).length > 2)) || this.random() > .55 + clamp((this.player.awareness ?? 5) / 10) * .25)
+      return { text: `You lose sight of ${target.firstName} beyond ${placeName(entry.location)}.` };
+    if (location !== entry.location) this.navigate(location);
+    const caughtId = `${id}:caught`;
+    if (this.random() < .15 + clamp((target.awareness ?? 5) / 10) * .25) {
+      this.memory.recordCampObservation({ id: caughtId, actorId: this.player.id, witnessIds: [target.id], type: 'player_following',
+        location, subjectId: target.id, day: this.gm.day, campTime: this.gm.dayTimer, detail: 'was noticed following' });
+      this.gm.systems.relationshipSystem?.changeRelationship?.(target.id, this.player.id, -1);
+      this.gm.systems.trustSystem?.changeTrust?.(target.id, this.player.id, -1, 'caught_following');
+      return { text: `${target.firstName} turns around. “You following me?”`, caught: true };
+    }
+    const a = target.campActivity;
+    if (a?.type === 'idol_hunt') {
+      this.observe({ id: `${id}:search`, actorId: target.id, type: 'idol_search_seen', location, witnessOnly: true });
+      this.memory.recordCampClaim({ id: `${id}:evidence`, speakerId: this.player.id, subjectId: target.id,
+        topic: 'idol_suspicion', stance: 'searching', origin: 'firsthand', confidence: .9, salience: 'high',
+        day: this.gm.day, campTime: this.gm.dayTimer });
+      return { text: `${target.firstName} steps off the trail and searches through the brush.` };
+    }
+    this.observe({ id: `${id}:seen`, actorId: target.id, type: a?.type && ['socialize', 'strategy_conversation'].includes(a.type) ? 'seen_together' : 'noticed',
+      location, participantIds: a?.participantIds || [], witnessOnly: true });
+    return { text: `${target.firstName} is ${visibleActivityLabel(a).toLowerCase()} near ${placeName(location)}.` };
+  }
+}

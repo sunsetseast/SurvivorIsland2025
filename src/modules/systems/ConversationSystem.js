@@ -1734,7 +1734,10 @@ class ConversationSystem {
     if (this.debugConvo) {
       console.log('[CONVO-DEBUG] Main topics', mainTopics.map(topic => topic.label));
     }
-    const menuText = `Pick a main topic with ${npc.firstName}.`;
+    const company = (context.groupParticipantIds || []).filter(id => String(id) !== String(npc.id))
+      .map(id => this._getSurvivorById(id)?.firstName).filter(Boolean);
+    const menuText = company.length ? `You join ${npc.firstName} and ${company.join(' & ')}. Choose a topic with ${npc.firstName}.` :
+      `Pick a main topic with ${npc.firstName}.`;
     const buttons = mainTopics.map(topic => ({
       label: topic.label,
       onClick: () => {
@@ -11701,7 +11704,8 @@ class ConversationSystem {
     ) {
       return this.activeOverlay;
     }
-    this._clearOverlay();
+    // Rebuilding the UI must retain an active encounter/group context.
+    this._clearOverlay({ preserveSession: reuse });
     this._injectConversationStyles();
 
     const overlay = createElement('div', {

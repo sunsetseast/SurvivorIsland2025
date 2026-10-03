@@ -933,10 +933,12 @@ class SocialMemorySystem {
     // knows the visible meeting, not the private words. Repetition merges into
     // bounded impressions; the concrete trail is capped per owner.
     recordCampObservation({ id, actorId, participantIds = [], witnessIds = [], type, location,
-        day, campTime, detail = '', visibility = 'visible' } = {}) {
+        day, campTime, detail = '', visibility = 'visible', subjectId = null, fromLocation = null, witnessOnly = false } = {}) {
         if (!id || actorId == null || !type) return [];
-        const owners = new Map([[String(actorId), 'participant']]);
-        for (const owner of participantIds) if (owner != null) owners.set(String(owner), 'participant');
+        // A private perception (unnoticed overhearing/following) belongs only
+        // to its witness. The subject does not learn they were observed.
+        const owners = new Map(witnessOnly ? [] : [[String(actorId), 'participant']]);
+        if (!witnessOnly) for (const owner of participantIds) if (owner != null) owners.set(String(owner), 'participant');
         for (const owner of witnessIds) if (owner != null && !owners.has(String(owner))) owners.set(String(owner), 'witness');
         for (const [ownerId, origin] of owners) {
             this.initNPC(ownerId);
@@ -947,7 +949,8 @@ class SocialMemorySystem {
             const salience = ['betrayal', 'confirmed_lie', 'public_conflict', 'promise', 'idol_search_seen'].includes(type) ? 'high' :
                 ['absence', 'role_neglect', 'seen_together'].includes(type) ? 'medium' : 'low';
             mem.campObservations.push({ id, actorId, participantIds: [...participantIds], type, location,
-                day, campTime, origin, sourceId: origin === 'participant' ? actorId : null,
+                day, campTime, origin, ...(subjectId != null ? { subjectId } : {}),
+                ...(fromLocation ? { fromLocation } : {}), sourceId: origin === 'participant' ? actorId : null,
                 confidence: origin === 'participant' ? 1 : visibility === 'inference' ? 0.55 : 0.85,
                 salience, visibility, detail: visibility === 'private' && origin === 'witness' ? '' : detail });
             this.pruneCampObservations(mem);
@@ -1097,6 +1100,20 @@ class SocialMemorySystem {
             sourceChain: direct ? [fromId] : [...(known.sourceChain || []), fromId].slice(-5), confidence,
             truthfulness: undefined, evidenceOrigin: campProvenance(known) === 'inference' ? 'inference' : undefined,
             challenged: Boolean(known.challenged), sourceContradictionApplied: undefined });
+        return true;
+    }
+
+    // Receive only a statement that a real participant just heard. Copy an
+    // explicit epistemic projection, never the speaker's hidden lie markers.
+    overhearCampClaim({ ownerId, speakerId, listenerId, claimId, confidence = 0.6 } = {}) {
+        const received = this.getCampClaims(listenerId).find(entry => entry.id === claimId);
+        if (!received || ownerId == null || this.getCampClaims(ownerId).some(entry => entry.id === claimId)) return false;
+        this.initNPC(ownerId);
+        const { id, subjectId, topic, stance, day, campTime, salience, sourceChain, evidenceOrigin } = received;
+        this.addOwnedCampClaim(this.memory[ownerId], { id, speakerId, subjectId, topic, stance, day, campTime,
+            salience, origin: received.origin === 'hearsay' ? 'hearsay' : 'direct_statement',
+            acquisition: 'overheard', sourceId: speakerId, sourceChain: [...(sourceChain || [speakerId])],
+            evidenceOrigin, confidence: Math.min(confidence, campEvidenceConfidence(received), this.campClaimConfidence(ownerId, speakerId, received.confidence)) });
         return true;
     }
 

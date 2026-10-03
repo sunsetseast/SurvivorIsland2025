@@ -3,18 +3,12 @@
  * Renders the waterfall trail screen inside the Camp Phase
  */
 
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntOptions } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
-/* ⭐ NPC SYSTEM IMPORTS ---------------------------------------- */
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-/* ------------------------------------------------------------- */
-
 export default function renderWaterfallTrail(container) {
-  console.log('renderWaterfallTrail() called');
-  addDebugBanner('renderWaterfallTrail() called', 'dodgerblue', 40);
 
   clearChildren(container);
 
@@ -58,8 +52,10 @@ export default function renderWaterfallTrail(container) {
     clearChildren(actionButtons);
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 260px;
           height: 150px;
           display: inline-block;
@@ -86,7 +82,6 @@ export default function renderWaterfallTrail(container) {
     };
 
     const leftButton = createIconButton('Assets/Buttons/left.png', 'Left', () => {
-      console.log('Left button clicked - returning to Tree Mail');
       window.campScreen.loadView(LocationKeys.TREE_MAIL);
     });
 
@@ -95,7 +90,6 @@ export default function renderWaterfallTrail(container) {
     });
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
-      console.log('Right button clicked - going to Water Well');
       window.campScreen.loadView(LocationKeys.WATER_WELL);
     });
 
@@ -103,11 +97,4 @@ export default function renderWaterfallTrail(container) {
     actionButtons.appendChild(blankButton);
     actionButtons.appendChild(rightButton);
   }
-
-  /* ⭐ NEW: NPC Rendering for this view ------------------------- */
-  /* ------------------------------------------------------------- */
-
-  addDebugBanner('Waterfall Trail view rendered!', 'dodgerblue', 170);
 }
-
-/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR WATERFALL TRAIL ------- */

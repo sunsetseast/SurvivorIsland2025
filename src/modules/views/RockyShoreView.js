@@ -3,18 +3,12 @@
  * Renders the rocky shore screen inside the Camp Phase
  */
 
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { openIdolHuntMenu } from '../ui/IdolHuntOverlay.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 
-/* ⭐ NEW IMPORTS FOR NPC SYSTEM ----------------------------------- */
-import npcLocationSystem from "../systems/NpcLocationSystem.js";
-/* ---------------------------------------------------------------- */
-
 export default function renderRockyShore(container) {
-  console.log('renderRockyShore() called');
-  addDebugBanner('renderRockyShore() called', 'slategray', 40);
 
   clearChildren(container);
 
@@ -38,6 +32,7 @@ export default function renderRockyShore(container) {
   });
 
   const message = createElement('div', {
+    className: 'camp-location-intro',
     style: `
       color: white;
       text-shadow: 2px 2px 4px black;
@@ -58,8 +53,10 @@ export default function renderRockyShore(container) {
     clearChildren(actionButtons);
 
     const createIconButton = (src, alt, onClick) => {
-      const wrapper = createElement('div', {
+      const wrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 140px;
           height: 80px;
           display: flex;
@@ -90,7 +87,6 @@ export default function renderRockyShore(container) {
     };
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {
-      console.log('Down button clicked (return to Beach)');
       window.campScreen.loadView(LocationKeys.BEACH);
     });
 
@@ -101,12 +97,4 @@ export default function renderRockyShore(container) {
     actionButtons.appendChild(downButton);
     actionButtons.appendChild(blankButton);
   }
-
-  /* ⭐ NEW NPC RENDERING CALL ------------------------------------- */
-  /* -------------------------------------------------------------- */
-
-  addDebugBanner('Rocky Shore view rendered!', 'darkslategray', 170);
 }
-
-
-/* ⭐⭐ NEW FUNCTION — RENDER NPC ICONS FOR ROCKY SHORE ------------- */

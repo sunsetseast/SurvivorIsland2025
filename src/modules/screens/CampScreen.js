@@ -349,7 +349,7 @@ export default class CampScreen {
     if (clock) clock.remove();
   }
 
-  loadView(viewName) {
+  loadView(viewName, { travelPaid = false } = {}) {
     const viewContainer = getElement('camp-content');
     const normalizedViewName = normalizeCampViewKey(viewName);
     const actionButtons = document.getElementById('action-buttons');
@@ -394,7 +394,7 @@ export default class CampScreen {
     const to = physicalCampLocation(normalizedViewName);
     if (player && to) {
       if (this.isActive && gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
-          !gameManager.flags?.campEventActive && from && from !== to) {
+          !gameManager.flags?.campEventActive && !travelPaid && from && from !== to) {
         const steps = routeBetween(from, to);
         if (steps.length && [LocationKeys.JUNGLE_TRAIL, LocationKeys.ROCKY_SHORE,
           LocationKeys.WATERFALL_TRAIL, LocationKeys.MOUNTAIN_TRAIL].includes(to))

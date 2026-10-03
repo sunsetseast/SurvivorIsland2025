@@ -5,6 +5,7 @@ import { resolveNpcCampExchange } from './CampSocialResolution.js';
 import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { getCampBehaviorProfile, campWorkSkill, campBuildSuccessChance } from './CampBehaviorProfile.js';
 import { refreshNpcCampNeeds } from './CampSustenance.js';
+import { ownsUsableIdol } from './IdolPossession.js';
 export { physicalCampLocation } from '../locations/LocationUtils.js';
 
 const WORK = Object.freeze({
@@ -151,7 +152,7 @@ export default class CampActivitySystem {
     // secret idol find is not an AI input. Exhausted legal searches are blocked
     // by the same per-location limit as IdolSystem, before committing camp time.
     const searches = this.gm.systems?.idolSystem?.getCasualSearchCount?.(npc.id, LocationKeys.JUNGLE_TRAIL) || 0;
-    const maySearch = this.gm.gameSettings?.enableIdols !== false && !npc.hasIdol && searches < 2;
+    const maySearch = this.gm.gameSettings?.enableIdols !== false && !ownsUsableIdol(npc, this.gm.systems?.idolSystem) && searches < 2;
     choices.push({ type: 'idol_hunt', location: LocationKeys.JUNGLE_TRAIL,
       weight: !maySearch ? 0 : (.04 + profile.idolDrive ** 2 * 1.15) *
         (observers ? .35 + profile.riskTolerance * .5 : 1.15) * (shortages >= 4 ? .8 : 1) });
@@ -182,15 +183,25 @@ export default class CampActivitySystem {
     if (actor.campActivity) this.interrupt(actor, 'new_priority', now);
     const duration = plan.duration || (plan.type === 'travel' ? 45 : WORK[plan.type]?.duration ||
       (plan.type === 'idol_hunt' ? 510 : plan.type === 'rest' ? 360 : 240));
+    const from = actor.isPlayer ? actor.location : this.locations?.getLocation?.(actor.id);
     const activity = { id: `${this.phase}:${this.nextId++}`, actorId: actor.id, type: plan.type,
       location: plan.location, startedAt: now, endsAt: now - duration, duration,
       role: this.roleOf(actor), targetId: plan.targetId || null, socialPurpose: plan.socialPurpose || null,
-      route: plan.route || null,
+      route: plan.route || null, travelWithId: plan.travelWithId || null,
       goal: plan.goal || null, privacy: ['strategy_conversation', 'idol_hunt'].includes(plan.type) ? 'private' : 'visible',
       interruptible: !['private_conversation', 'strategy_conversation_player'].includes(plan.type),
       external: Boolean(plan.external) };
     actor.campActivity = activity;
     if (!actor.isPlayer) this.locations?.updateNpcLocation?.(actor.id, plan.location, { reason: `activity:${plan.type}` });
+    if (plan.type === 'travel' && plan.travelWithId) {
+      const companion = this.npcs().find(s => same(s.id, plan.travelWithId));
+      if (companion && this.locations?.getLocation?.(companion.id) === from && companion.campActivity?.interruptible !== false) {
+        this.interrupt(companion, 'walk_together', now);
+        activity.participantIds = [companion.id];
+        companion.campActivity = { ...activity, actorId: companion.id, external: true };
+        this.locations?.updateNpcLocation?.(companion.id, plan.location, { reason: 'activity:travel' });
+      }
+    }
     if (['socialize', 'strategy_conversation'].includes(plan.type) && plan.targetId) {
       const target = this.npcs().find(s => same(s.id, plan.targetId));
       const available = !target?.campActivity || ['rest', 'idle_at_camp', 'observe'].includes(target.campActivity.type);
@@ -199,6 +210,20 @@ export default class CampActivitySystem {
         target.campActivity = { ...activity, actorId: target.id, targetId: actor.id, external: true };
         activity.participantIds = [target.id];
       }
+    }
+    if (!actor.isPlayer && plan.type === 'travel' && from && from !== plan.location) {
+      const witnesses = this.members().filter(s => !same(s.id, actor.id) && !activity.participantIds?.some(id => same(id, s.id)) &&
+        (s.isPlayer ? physicalCampLocation(globalThis.window?.campScreen?.currentView || s.location) :
+          this.locations?.getLocation?.(s.id)) === from).map(s => s.id);
+      this.memory?.recordCampObservation?.({ id: `${activity.id}:departure`, actorId: actor.id,
+        participantIds: activity.participantIds || [], witnessIds: witnesses, type: 'departed', location: plan.location,
+        fromLocation: from, day: this.gm.day, campTime: now, visibility: 'movement' });
+      const arrivals = this.members().filter(s => !same(s.id, actor.id) && !activity.participantIds?.some(id => same(id, s.id)) &&
+        (s.isPlayer ? physicalCampLocation(globalThis.window?.campScreen?.currentView || s.location) :
+          this.locations?.getLocation?.(s.id)) === plan.location).map(s => s.id);
+      this.memory?.recordCampObservation?.({ id: `${activity.id}:arrival`, actorId: actor.id,
+        participantIds: activity.participantIds || [], witnessIds: arrivals, type: 'arrived', location: plan.location,
+        fromLocation: from, day: this.gm.day, campTime: now, visibility: 'movement' });
     }
     return activity;
   }
@@ -263,7 +288,7 @@ export default class CampActivitySystem {
       companion.campActivity = null;
     }
     if (activity.type === 'travel') {
-      if (activity.route?.length) this.start(actor, { type: 'travel', location: activity.route[0], route: activity.route.slice(1), goal: activity.goal }, at);
+      if (activity.route?.length) this.start(actor, { type: 'travel', location: activity.route[0], route: activity.route.slice(1), goal: activity.goal, travelWithId: activity.travelWithId }, at);
       else if (activity.goal) this.start(actor, activity.goal, at);
     } else if (activity.external) { /* The owning minigame records its own outcome. */ }
     else if (WORK[activity.type]) {
@@ -427,6 +452,31 @@ export default class CampActivitySystem {
     this.conversation = { npcId: npc.id, activityId: activity.id, location: place, strategy, prior };
     return true;
   }
+  moveTogether(actor, companion, destination) {
+    if (!this.active || this.absent(actor) || this.absent(companion) || actor.isPlayer || companion.isPlayer ||
+      actor.campActivity?.interruptible === false || companion.campActivity?.interruptible === false) return false;
+    const from = this.locations?.getLocation?.(actor.id), route = routeBetween(from, destination);
+    if (this.locations?.getLocation?.(companion.id) !== from || !route.length || route.length > 2) return false;
+    const goal = { type: 'strategy_conversation', location: destination, targetId: companion.id };
+    return this.start(actor, { type: 'travel', location: route[0], route: route.slice(1),
+      goal, travelWithId: companion.id });
+  }
+  reserveConversationGroup(ids = []) {
+    if (!this.conversation) return false;
+    const npc = this.members().find(s => same(s.id, this.conversation.npcId));
+    if (!npc?.campActivity) return false;
+    const groupIds = [];
+    for (const id of ids) {
+      const other = this.npcs().find(s => same(s.id, id));
+      if (!other || same(other.id, npc.id) || this.locations?.getLocation?.(id) !== this.conversation.location ||
+        other.campActivity?.interruptible === false) continue;
+      this.interrupt(other, 'joined_conversation');
+      other.campActivity = { ...npc.campActivity, actorId: other.id, external: true };
+      groupIds.push(other.id);
+    }
+    this.conversation.groupIds = groupIds;
+    return true;
+  }
   approachPlayer(npc, location) {
     if (!this.active) this.ensureStarted();
     const place = physicalCampLocation(location) || location, from = this.locations?.getLocation?.(npc?.id);
@@ -450,7 +500,14 @@ export default class CampActivitySystem {
     if (npc?.campActivity?.id === current.activityId) npc.campActivity = null;
     if (player?.campActivity?.id === current.activityId) player.campActivity = null;
     this.resolved.add(current.activityId);
-    if (npc && player) this.observe({ actor: player, type: 'seen_together', participants: [npc.id],
+    for (const id of current.groupIds || []) {
+      const other = this.npcs().find(s => same(s.id, id));
+      if (other?.campActivity?.id === current.activityId) {
+        other.campActivity = null;
+        if (this.gm.dayTimer > 0) this.chooseNext(other, this.gm.dayTimer);
+      }
+    }
+    if (npc && player) this.observe({ actor: player, type: 'seen_together', participants: [npc.id, ...(current.groupIds || [])],
       location: current.location, activityId: current.activityId, at: this.gm.dayTimer,
       visibility: 'movement', detail: `You spent time talking with ${npc.firstName}` });
     if (npc && this.gm.dayTimer > 0) {
@@ -465,7 +522,8 @@ export default class CampActivitySystem {
       (typeof window !== 'undefined' ? window.campScreen?.currentView : player?.location);
     const location = physicalCampLocation(view) || player?.location;
     if (!player || !location || player.campActivity?.interruptible === false) return null;
-    const activity = this.start(player, { type: payload.source === 'player_idol_hunt' ? 'idol_hunt' : VIEW_WORK[view] || 'observe',
+    const activity = this.start(player, { type: ['follow', 'watch'].includes(payload.activityType) ? payload.activityType :
+      payload.source === 'player_idol_hunt' ? 'idol_hunt' : VIEW_WORK[view] || 'observe',
       location, duration: before - after, external: true }, before);
     if (activity) { activity.endsAt = after; player.location = location; }
     return activity;
@@ -511,7 +569,7 @@ export default class CampActivitySystem {
     this.conversation = null;
     for (const s of this.tribe?.members || []) {
       const a = s.campActivity;
-      const companion = a?.external && ['socialize', 'strategy_conversation'].includes(a.type) &&
+      const companion = a?.external && ['socialize', 'strategy_conversation', 'travel'].includes(a.type) &&
         this.npcs().some(owner => owner.campActivity?.id === a.id && !owner.campActivity.external &&
           owner.campActivity.participantIds?.some(id => same(id, s.id)));
       if (this.absent(s) || a?.external && !companion ||

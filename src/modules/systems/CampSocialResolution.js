@@ -1,5 +1,6 @@
 // Resolves the content of an existing timed camp block. Knowledge is read and
 // written through SocialMemory's owner-scoped observations and claims.
+import { ownsUsableIdol } from './IdolPossession.js';
 import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { getCampBehaviorProfile, campLieAttemptChance, campStatementConfidence } from './CampBehaviorProfile.js';
 import { selectCampStrategicIntent } from './CampKnowledge.js';
@@ -35,6 +36,7 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
   const shareChance = Math.min(0.72, 0.2 + (strategic ? 0.22 : 0) + (allied ? 0.12 : 0) +
     (trust > 65 ? 0.1 : 0) + profile.socialDrive * .08 -
     (discreet ? 0 : 0.22));
+  let claimId = null, observationId = null;
   let outcome = { type: 'bond', speakerId: speaker.id, listenerId: listener.id, activityId: activity.id };
   const cover = strategic && discreet &&
     relevant.find(claim => ['idol_suspicion', 'target'].includes(claim.topic));
@@ -43,6 +45,7 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
     memory.recordCampClaim({ id: `${activity.id}:claim`, speakerId: speaker.id,
       listenerIds: [listener.id], subjectId: cover.subjectId, topic: cover.topic, stance: lie,
       truthfulness: false, confidence: campStatementConfidence(.65, profile), salience: 'high', day, campTime });
+    claimId = `${activity.id}:claim`;
     outcome = { ...outcome, type: 'lie', subjectId: cover.subjectId, topic: cover.topic };
   } else if (random() < shareChance && (relevant.length || witnessed.length)) {
     const claim = relevant.sort((a, b) => (b.salience === 'high') - (a.salience === 'high') ||
@@ -51,11 +54,13 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
       (claim.topic !== 'idol_possession' || random() < .15 + profile.advantageSharing * .6)) {
       if (memory.shareCampClaim({ fromId: speaker.id, toId: listener.id, claimId: claim.id,
         delivery: campStatementConfidence(1, profile) })) {
+        claimId = claim.id;
         outcome = { ...outcome, type: 'claim', subjectId: claim.subjectId, topic: claim.topic };
       }
     } else if (witnessed.length) {
       const observation = witnessed.sort((a, b) => (b.day || 0) - (a.day || 0))[0];
       if (memory.shareCampObservation({ fromId: speaker.id, toId: listener.id, observationId: observation.id })) {
+        observationId = observation.id;
         outcome = { ...outcome, type: 'gossip', subjectId: observation.actorId, topic: observation.type };
         // Repeated absences support suspicion, never proof of an idol.
         const repeated = memory.getCampImpression?.(speaker.id, observation.actorId, 'absence');
@@ -66,14 +71,14 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
       }
     }
   }
-  const inventory = gm.systems?.idolSystem?.getSurvivorInventory?.(speaker.id);
-  const ownIdol = speaker.hasIdol || inventory?.idols?.some(item => !item.isUsed && !item.played);
+  const ownIdol = ownsUsableIdol(speaker, gm.systems?.idolSystem);
   if (outcome.type === 'bond' && strategic && discreet && allied && trust >= 65 && ownIdol &&
     !listenerClaims.some(claim => same(claim.subjectId, speaker.id) && claim.topic === 'idol_possession') &&
     random() < .02 + profile.advantageSharing * .25) {
     memory.recordCampClaim({ id: `${activity.id}:disclosure`, speakerId: speaker.id, listenerIds: [listener.id],
       subjectId: speaker.id, topic: 'idol_possession', stance: 'disclosed', origin: 'firsthand',
       confidence: campStatementConfidence(.9, profile), salience: 'high', day, campTime });
+    claimId = `${activity.id}:disclosure`;
     outcome = { ...outcome, type: 'disclosure', subjectId: speaker.id, topic: 'idol_possession' };
   }
   if (strategic && outcome.type === 'bond' && discreet) {
@@ -83,6 +88,7 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
         listenerIds: [listener.id], subjectId: intent.targetId, topic: 'target',
         stance: intent.intent === 'warning' ? 'warned' : 'consider', confidence: campStatementConfidence(.65, profile),
         salience: 'high', day, campTime });
+      claimId = `${activity.id}:pitch`;
       outcome = { ...outcome, type: 'pitch', subjectId: intent.targetId, topic: 'target' };
     }
   }
@@ -94,5 +100,6 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
       (activity.socialPurpose && !['strategy_conversation', 'socialize'].includes(activity.type)))
     gm.systems?.relationshipSystem?.changeRelationship?.(speaker.id, listener.id, 1);
   if (outcome.type === 'claim' && allied) gm.systems?.trustSystem?.changeTrust?.(listener.id, speaker.id, 1, 'camp_information');
+  gm.systems?.campInteractionSystem?.hearExchange?.({ speaker, listener, activity, claimId, observationId });
   return outcome;
 }

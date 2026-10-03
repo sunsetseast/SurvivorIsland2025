@@ -1,4 +1,4 @@
-import { createElement, clearChildren, addDebugBanner } from '../utils/index.js';
+import { createElement, clearChildren } from '../utils/index.js';
 import { gameManager } from '../core/index.js';
 import { getRandomInt } from '../utils/CommonUtils.js';
 import activityTracker from '../utils/ActivityTracker.js';
@@ -31,9 +31,6 @@ export default function renderShelter(container) {
   messageTimeouts = [];
   cleanupShelterUI();
 
-  console.log('renderShelter() called');
-  addDebugBanner('renderShelter() called', 'darkgreen', 40);
-
   clearChildren(container);
   if (window.campScreen?.currentView !== LocationKeys.SHELTER) {
     window.campScreen.currentView = LocationKeys.SHELTER;
@@ -52,8 +49,10 @@ export default function renderShelter(container) {
     actionButtons.style.display = 'flex';
 
     const createIconButton = (src, alt, onClick) => {
-      const btnWrapper = createElement('div', {
+      const btnWrapper = createElement('button', {
+        type: 'button', className: 'camp-nav-button', 'aria-label': alt,
         style: `
+          border: 0; background: transparent; padding: 0;
           width: 260px;
           height: 150px;
           display: inline-block;
@@ -153,6 +152,7 @@ export default function renderShelter(container) {
   }
 
   const message = createElement('div', {
+    className: 'camp-location-intro',
     id: 'shelter-message',
     style: `
       color: white;
@@ -198,8 +198,6 @@ export default function renderShelter(container) {
     hasWrapper: !!wrapper && wrapper.isConnected,
     hasBanner: !!wrapper?.querySelector('#stockpile-banner')
   });
-
-  addDebugBanner('Shelter view rendered!', 'forestgreen', 170);
 }
 
 let shelterRecoveryInProgress = false;
@@ -288,7 +286,6 @@ function handleCenterButtonClick() {
   }
   document.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
   overlayOpen = true;
-  addDebugBanner('Shelter action overlay opened', 'darkorange', 50);
   console.log('[ShelterView] overlay count:', document.querySelectorAll('#shelter-overlay').length);
 
   const root = getShelterRoot();
@@ -390,7 +387,6 @@ function handleCenterButtonClick() {
 function closeOverlay() {
   document.querySelectorAll('#shelter-overlay').forEach(el => el.remove());
   overlayOpen = false;
-  addDebugBanner('Shelter action overlay closed', 'darkorange', 50);
   console.log('[ShelterView] overlay count:', document.querySelectorAll('#shelter-overlay').length);
 }
 
@@ -704,7 +700,6 @@ function startContributionFlow() {
         timestamp: Date.now(),
         type: 'camp_contribute'
       });
-      addDebugBanner('Contribution submitted', 'teal', 60);
       currentActionMode = null;
       updateStockpileValuesUI(tribe);
       window.refreshMenuCard?.();
@@ -714,7 +709,6 @@ function startContributionFlow() {
       currentActionMode = null;
     }
   });
-  addDebugBanner('Contribution flow started', 'teal', 60);
 }
 
 function startBuildFlow() {
