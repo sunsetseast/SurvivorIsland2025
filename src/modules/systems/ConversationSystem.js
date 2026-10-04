@@ -535,6 +535,11 @@ class ConversationSystem {
   }
 
   _applyStanceEffects({ player, npc, stance, effectsByStance, contextTag }) {
+    const occupied = this.gameManager.systems?.campActivitySystem?.conversation;
+    if (occupied && this.gameManager.gamePhase === GamePhase.POST_CHALLENGE) {
+      occupied.topics = `${occupied.topics || ''} ${contextTag || ''}`;
+      occupied.turns = Math.min(6, (occupied.turns || 0) + 1);
+    }
     if (!effectsByStance) return;
     const effects = effectsByStance[stance] || effectsByStance.DEFAULT;
     if (!effects) return;
@@ -1292,6 +1297,8 @@ class ConversationSystem {
    */
   startNpcConversation(survivor, type, options = {}) {
     if (!survivor || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
+    if (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE &&
+      !isCampPhysicallyPresent(survivor, this.gameManager.systems.npcLocationSystem, this.gameManager.player?.location, this.gameManager)) return;
     const rawView = typeof window !== 'undefined' ? window.campScreen?.currentView : null;
     const view = physicalCampLocation(rawView) || rawView;
     const locations = this.gameManager.systems?.npcLocationSystem;
@@ -1322,6 +1329,11 @@ class ConversationSystem {
     if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
     const survivor = this._getSurvivorById(npcId);
     if (!survivor) return;
+    if (survivor.campActivity?.type === 'approach_wait' && !context.initiatedByNpc) this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation();
+    const reservation = this.gameManager.systems?.campActivitySystem?.conversation;
+    if (reservation && String(reservation.npcId) !== String(survivor.id)) return;
+    if (survivor.campActivity?.interruptible === false && !reservation &&
+      survivor.campActivity.type !== 'approach_wait' && !context.scripted) return;
 
     const normalizedPhase = this._normalizePhase(phase);
     const location = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
@@ -1346,6 +1358,7 @@ class ConversationSystem {
     };
 
     const beginConversation = () => {
+      if (survivor.campActivity?.type === 'approach_wait') this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation();
       if (this.gameManager.systems?.campActivitySystem?.active &&
         (!isCampPhysicallyPresent(survivor, this.gameManager.systems.npcLocationSystem, location, this.gameManager) ||
          !isCampPhysicallyPresent(this.gameManager.getPlayerSurvivor?.(), this.gameManager.systems.npcLocationSystem, location, this.gameManager))) return;
@@ -1376,6 +1389,11 @@ class ConversationSystem {
     if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
     const survivor = this._getSurvivorById(npcId);
     if (!survivor) return;
+    if (survivor.campActivity?.type === 'approach_wait') this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation();
+    const reservation = this.gameManager.systems?.campActivitySystem?.conversation;
+    if (reservation && String(reservation.npcId) !== String(survivor.id)) return;
+    if (survivor.campActivity?.interruptible === false && !reservation &&
+      survivor.campActivity.type !== 'approach_wait' && !context.scripted) return;
 
     const normalizedPhase = this._normalizePhase(phase);
     const requested = context.location || (typeof window !== 'undefined' ? window?.campScreen?.currentView : null);
@@ -1493,8 +1511,10 @@ class ConversationSystem {
       return;
     }
 
-    if (this.gameManager.gamePhase === GamePhase.PRE_CHALLENGE)
+    if ([GamePhase.PRE_CHALLENGE, GamePhase.POST_CHALLENGE].includes(this.gameManager.gamePhase)) {
+      if (survivor.campActivity?.interruptible === false) return;
       this.gameManager.systems?.campActivitySystem?.beginConversation?.(survivor, { location });
+    }
     this._showTopicSelection(survivor, location);
   }
 
@@ -1568,6 +1588,7 @@ class ConversationSystem {
     if (this.gameManager.flags?.campEventActive) return;
     const phaseType = this._normalizePhase(phase);
     const activity = this.gameManager.systems?.campActivitySystem;
+    if (phase === GamePhase.POST_CHALLENGE) return; // Scramble plans physical invitations; no wall-time chatter.
     if (phase === GamePhase.PRE_CHALLENGE) {
       activity?.ensureStarted?.();
       const introKey = `${this.gameManager.day}:pre:intro`;
@@ -1582,21 +1603,11 @@ class ConversationSystem {
       timerManager.clearTimeout(this.midPhaseTimerId);
     }
 
-    if (phase === GamePhase.PRE_CHALLENGE) return;
-
-    this.midPhaseTimerId = timerManager.setTimeout(
-      `conversation-mid-${phase}-${this.gameManager.day}`,
-      () => {
-        if (this._isInCamp() && this.gameManager.gamePhase === phase) {
-          socialEngine?.runOffscreenNpcChatter?.({ phaseType, beatId: 'midPhase' });
-          this._scheduleMeetingInvitation(phase, 'midPhase');
-        }
-      },
-      60000
-    );
+    return;
   }
 
   _scheduleMeetingInvitation(phase, type) {
+    if (phase === GamePhase.POST_CHALLENGE || phase === 'post') return;
     if (this.gameManager.flags?.campEventActive) return;
     const phaseType = this._normalizePhase(phase);
     const currentView = typeof window !== 'undefined' ? window?.campScreen?.currentView : null;
@@ -3047,7 +3058,7 @@ class ConversationSystem {
   }
 
   _logConversationStart({ initiator, phase, survivor = null, location = null }) {
-    if (this.gameManager.gamePhase === GamePhase.PRE_CHALLENGE && this._normalizePhase(phase) === 'pre') {
+    if ([GamePhase.PRE_CHALLENGE, GamePhase.POST_CHALLENGE].includes(this.gameManager.gamePhase)) {
       const npc = survivor || this._getSurvivorById?.(this.state?.npcId);
       this.gameManager.systems?.campActivitySystem?.beginConversation?.(npc, {
         location: location || this.activeConversationContext?.location || this.state?.context?.location ||
@@ -7788,6 +7799,7 @@ class ConversationSystem {
     const parchment = this._buildParchment(
       `${survivor.firstName} approaches you${locationLabel ? ` from the ${locationLabel}` : ''}. They want a word.`
     );
+    parchment.classList.add('conversation-invitation');
 
     const prompt = createElement('div', {
       style: {
@@ -7800,6 +7812,7 @@ class ConversationSystem {
     parchment.appendChild(prompt);
 
     const buttons = createElement('div', {
+      className: 'conversation-approach-actions',
       style: {
         display: 'flex',
         gap: '10px',
@@ -7832,10 +7845,12 @@ class ConversationSystem {
     content.appendChild(parchment);
 
     this._clearApproachTimer();
-    this.approachTimerId = timerManager.setTimeout(`npc-approach-${survivor.id}`, accept, 1800);
+    if (this.gameManager.gamePhase !== GamePhase.POST_CHALLENGE)
+      this.approachTimerId = timerManager.setTimeout(`npc-approach-${survivor.id}`, accept, 1800);
   }
 
   _handleApproachDeclined(survivor) {
+    if (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE) this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation();
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationshipSystem = this.gameManager.systems?.relationshipSystem;
     if (player && relationshipSystem && typeof relationshipSystem.changeRelationship === 'function') {
@@ -7866,12 +7881,17 @@ class ConversationSystem {
     survivor,
     { isPurpose = false, meeting = null, location = null, context = {} } = {}
   ) {
-    if (this.gameManager.systems?.campActivitySystem?.active &&
-      !isCampPhysicallyPresent(survivor, this.gameManager.systems.npcLocationSystem,
-        location || context.location || globalThis.window?.campScreen?.currentView, this.gameManager)) return;
+    const camp = this.gameManager.systems?.campActivitySystem;
+    const place = location || context.location || globalThis.window?.campScreen?.currentView;
+    if (camp?.active && (!isCampPhysicallyPresent(survivor, this.gameManager.systems.npcLocationSystem, place, this.gameManager) ||
+      !isCampPhysicallyPresent(this.gameManager.player, this.gameManager.systems.npcLocationSystem, place, this.gameManager) ||
+      camp.conversation && String(camp.conversation.npcId) !== String(survivor.id) ||
+      survivor.campActivity?.interruptible === false && !camp.conversation)) return;
     const initiator = context.initiator || 'player';
     const phase = context.phase || this._getConversationPhase();
     const conversationContext = this._normalizeConversationContext({ ...context, initiator, isPurpose, meeting, location, phase });
+    const occupied = this.gameManager.systems?.campActivitySystem?.conversation;
+    if (occupied) occupied.topics = `${occupied.topics || ''} ${context.intent || context.socialType || ''}`;
     this.activeConversationContext = conversationContext;
     if (initiator === 'npc') {
       this._logConversationStart({ initiator, phase, survivor, location });
@@ -8185,6 +8205,9 @@ class ConversationSystem {
   advanceConversation(choice) {
     const session = this.activeConversation;
     if (!session || !choice) return;
+    const occupied = this.gameManager.systems?.campActivitySystem?.conversation;
+    if (occupied && this.gameManager.gamePhase === GamePhase.POST_CHALLENGE && !choice.end && !choice.nextMenu && !choice.back)
+      occupied.turns = Math.min(6, (occupied.turns || 0) + 1);
     const npc = this._getSurvivorById(session.npcId);
     if (!npc) return;
 
@@ -8690,6 +8713,8 @@ class ConversationSystem {
   }
 
   _initNodeSession({ npcId, playerId, intent, meeting = null, context = {} }) {
+    const occupied = this.gameManager.systems?.campActivitySystem?.conversation;
+    if (occupied && this.gameManager.gamePhase === GamePhase.POST_CHALLENGE) occupied.topics = `${occupied.topics || ''} ${intent || ''}`;
     return {
       sessionId: `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       npcId,
@@ -9345,6 +9370,9 @@ class ConversationSystem {
   _handleNodeChoice(session, nodeId, choice) {
     console.log('[CONVO-DEBUG] _handleNodeChoice ENTRY', { nodeId, choiceId: choice?.id, choiceLabel: choice?.label, hasResponseOption: !!choice?.responseOption });
     if (!session || !choice) return;
+    const occupied = this.gameManager.systems?.campActivitySystem?.conversation;
+    if (occupied && this.gameManager.gamePhase === GamePhase.POST_CHALLENGE && !choice.end && !choice.nextMenu && !choice.back)
+      occupied.turns = Math.min(6, (occupied.turns || 0) + 1);
     const npc = this._getSurvivorById(session.npcId);
     if (!npc) return;
     try {
@@ -9667,12 +9695,12 @@ class ConversationSystem {
         }
       }
 
-      if (this.gameManager.gamePhase === GamePhase.PRE_CHALLENGE) {
+      if ([GamePhase.PRE_CHALLENGE, GamePhase.POST_CHALLENGE].includes(this.gameManager.gamePhase)) {
         const topics = [activeSession?.intent, activeSession?.topic, this.state?.topic,
           this.state?.lastIntent, this.activeConversationContext?.intent].filter(Boolean).join(' ');
         this.gameManager.systems?.campActivitySystem?.finishConversation?.({
           turns: Math.min(8, activeSession?.turnIndex || activeSession?.history?.length || this.state?.history?.length || 0),
-          strategy: /strateg|vote|alliance|target|warning|idol|deal|gossip|rumor|name/i.test(topics)
+          topics, strategy: /strateg|vote|alliance|target|warning|idol|deal|gossip|rumor|name/i.test(topics)
         });
       }
       this.activeConversation = null;
@@ -11804,6 +11832,26 @@ class ConversationSystem {
     center.appendChild(content);
     overlay.appendChild(center);
     document.body.appendChild(overlay);
+    if (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE) {
+      overlay.classList.add('scramble-dialog');
+      overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', `Conversation with ${survivor.firstName}`);
+      this._scrambleReturnFocus ||= document.activeElement;
+      overlay.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation();
+          this.closeConversation('escape');
+        }
+        if (event.key === 'Tab') {
+          const buttons = [...overlay.querySelectorAll('button:not(:disabled)')];
+          const first = buttons[0], last = buttons.at(-1);
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        }
+      });
+      queueMicrotask(() => overlay.querySelector('button:not(:disabled)')?.focus({ preventScroll: true }));
+    }
 
     this.activeOverlay = overlay;
     this._activeOverlayNpcId = survivor?.id || null;
@@ -14261,10 +14309,12 @@ class ConversationSystem {
     const memory = this.gameManager.systems?.socialMemorySystem;
     const day = this.gameManager.getCurrentDay?.() || this.gameManager.day || 1;
     const phase = this._getConversationPhase();
+    const reservation = this.gameManager.gamePhase === GamePhase.POST_CHALLENGE ? this.gameManager.systems?.campActivitySystem?.conversation : null;
+    const semantic = reservation ? { id: `${reservation.activityId}:event:${reservation.eventSequence = (reservation.eventSequence || 0) + 1}`, time: this.gameManager.systems.strategyPhaseSystem.semanticTimestamp() } : {};
     const recordFn = memory?.recordConversationEvent || memory?.recordStructuredEvent;
     const entry = recordFn
-      ? recordFn({
-          type,
+      ? recordFn.call(memory, {
+          ...semantic, type,
           speakerId,
           listenerId,
           subjectId,
@@ -16867,6 +16917,12 @@ class ConversationSystem {
       this.activeOverlay = null;
     }
     this._activeOverlayNpcId = null;
+    if (!preserveSession && this._scrambleReturnFocus) {
+      const focus = this._scrambleReturnFocus; this._scrambleReturnFocus = null;
+      queueMicrotask(() => {
+        if (!document.querySelector('#conversation-overlay') && focus.isConnected) focus.focus?.({ preventScroll: true });
+      });
+    }
     if (!preserveSession) {
       this.activeConversationContext = null;
       this.conversationSession = null;

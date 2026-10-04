@@ -76,7 +76,7 @@ export class NpcAutoRenderer {
     const minigame = handsOn || place === 'tribeFlag' || this.helping?.view === this.lastViewName;
     const expanded = this.expandedMinigameView === this.lastViewName;
     const cues = publicCampCues(groups, this.gm.getPlayerTribe?.());
-    const signature = JSON.stringify({ groups, departures: departures.map(e => e.id), cues, width, minigame, expanded });
+    const signature = JSON.stringify({ groups, scramble: this.gm.systems.strategyPhaseSystem?.isActive ? { invitation: this.gm.systems.strategyPhaseSystem.scramble?.invitation, meetings: this.gm.systems.strategyPhaseSystem.scramble?.meetings.map(m => [m.id, m.status]), conversation: this.gm.systems.campActivitySystem.conversation?.activityId } : null, departures: departures.map(e => e.id), cues, width, minigame, expanded });
     if (signature === this.signature && layer.firstChild) return;
     const focusKey = layer.contains(document.activeElement) ? document.activeElement?.dataset?.focusKey : null;
     const scrollTop = layer.querySelector('.camp-presence')?.scrollTop || 0;
@@ -148,6 +148,34 @@ export class NpcAutoRenderer {
       }
       card.appendChild(actions); clusters.appendChild(card);
     }
+    const strategy = this.gm.systems.strategyPhaseSystem;
+    if (!handsOn && strategy?.isActive && this.gm.gamePhase === 'postChallenge') {
+      const invitation = strategy.scramble?.invitation;
+      if (invitation && this.interactions.visible(invitation.npcId)) {
+        const person = this.interactions.person(invitation.npcId);
+        rail.appendChild(this.action(`${person.firstName} wants to talk`, `invite:${invitation.activityId}`, () => {
+          this.closeSheet(false);
+          this.gm.systems.conversationSystem.startNpcConversation(person, invitation.purpose,
+            { initiatedByNpc: true, context: { phase: 'post' }, location: this.gm.player.location });
+          this.focusConversation();
+        }));
+      }
+      const reservation = this.gm.systems.campActivitySystem.conversation;
+      if (reservation && !document.querySelector('#conversation-overlay')) {
+        rail.appendChild(this.action('Resume conversation', `resume:${reservation.activityId}`, () => {
+          this.gm.systems.conversationSystem.startPlayerConversation({ npcId: reservation.npcId, phase: 'post', context: { location: reservation.location } });
+          this.focusConversation();
+        }));
+      }
+      for (const meeting of strategy.scramble?.meetings || []) if (meeting.status === 'active' && meeting.location === place &&
+        meeting.memberIds.some(id => String(id) === String(this.gm.player.id)))
+        rail.appendChild(this.action('Join alliance meeting', `meeting:${meeting.id}`, () => {
+          this.closeSheet(false); strategy.scramble.attend(meeting.id); this.focusConversation();
+        }));
+      if (!reservation) rail.appendChild(this.action('Wait · 1 minute', 'scramble:wait', () => {
+        this.gm.consumeCampTime(60, { source: 'scramble_wait' }); this.refresh();
+      }));
+    }
     if (!groups.length) clusters.appendChild(createElement('p', { className: 'camp-empty' }, 'A quiet moment here.'));
     rail.appendChild(clusters);
     if (departures.length && !handsOn) {
@@ -194,7 +222,7 @@ export class NpcAutoRenderer {
     this.closeSheet(false);
     if (this.gm.systems.campActivitySystem?.active) {
       if (!this.interactions.currentGroup(group) || !this.interactions.visible(member.id)) return;
-      this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: member.id, phase: 'pre', context: { location: group.location, ...context } });
+      this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: member.id, phase: this.gm.gamePhase === 'postChallenge' ? 'post' : 'pre', context: { location: group.location, ...context } });
       this.focusConversation();
     } else {
       const survivor = this.gm.getPlayerTribe?.()?.members.find(p => String(p.id) === String(member.id));

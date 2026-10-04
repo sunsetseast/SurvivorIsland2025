@@ -278,6 +278,11 @@ export default class CampScreen {
     this.ensureTaskIcon();
 
     if (phase === GamePhase.POST_CHALLENGE) {
+      const strategy = gameManager.systems?.strategyPhaseSystem;
+      if (strategy?.startedForPhaseKey === `${gameManager.day}-${phase}`) {
+        this.loadView(strategy.isActive ? gameManager.player?.location || LocationKeys.BEACH : LocationKeys.STRATEGY_SUMMARY);
+        this.renderClockUI(); return;
+      }
       if (this.isRunningScriptedPostChallenge || this.postChallengeInitPromise) {
         console.info('[CampScreen] post-challenge event setup skipped (already running)', {
           isRunningScriptedPostChallenge: this.isRunningScriptedPostChallenge,
@@ -396,7 +401,7 @@ export default class CampScreen {
     const to = physicalCampLocation(normalizedViewName);
     gameManager.systems?.campInteractionSystem?.leaveLocation(from, to);
     if (player && to) {
-      if (this.isActive && gameManager.gamePhase === GamePhase.PRE_CHALLENGE &&
+      if (this.isActive && [GamePhase.PRE_CHALLENGE, GamePhase.POST_CHALLENGE].includes(gameManager.gamePhase) &&
           !gameManager.flags?.campEventActive && !travelPaid && from && from !== to) {
         const steps = routeBetween(from, to);
         if (steps.length && [LocationKeys.JUNGLE_TRAIL, LocationKeys.ROCKY_SHORE,
@@ -409,6 +414,7 @@ export default class CampScreen {
             duration: steps.length * 30, external: true });
           try { gameManager.consumeCampTime(steps.length * 30, { source: 'camp_travel' }); }
           finally { living?.finishPlayerBlock(travel); }
+          if (gameManager.gamePhase === GamePhase.POST_CHALLENGE && !gameManager.systems.strategyPhaseSystem?.isActive) return;
         }
       }
       player.location = to;
@@ -800,9 +806,8 @@ export default class CampScreen {
       return true;
     }
 
-    if (timer > 0) {
-      return true;
-    }
+    if (gameManager.systems?.strategyPhaseSystem?.startedForPhaseKey === `${gameManager.day}-${phase}`) return timer > 0;
+    if (timer > 0) { return true; }
 
     const strat = gameManager?.systems?.strategyPhaseSystem;
     if (!strat?.startPostChallengePhase) {
@@ -868,6 +873,7 @@ export default class CampScreen {
     }
 
     this.stopCampClockTick();
+    if (phase === GamePhase.POST_CHALLENGE) { this.ensureClockUI(); return; }
     this.clockRunning = true;
     this.ensureClockUI();
     console.info('[CampScreen] Camp clock ticking started', { phase, timer });
@@ -949,6 +955,7 @@ export default class CampScreen {
     const clock = this.ensureClockUI();
     const phase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     const timer = gameManager.getDayTimer?.() ?? gameManager.dayTimer;
+    updateCampClockUI(timer, gameManager.getDay());
     console.info('[CampScreen] renderClockUI', { phase, timer });
 
     if (phase === GamePhase.POST_CHALLENGE && timer <= 0) {

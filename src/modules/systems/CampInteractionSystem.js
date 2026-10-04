@@ -32,7 +32,7 @@ export default class CampInteractionSystem {
   }
   seeGroups(view = this.getView()) {
     const groups = campGroups(this.gm, view);
-    if (!isCampPhysicallyPresent(this.player, this.gm.systems.npcLocationSystem, playerPlace(this.gm, view), this.gm)) return groups;
+    if (!isCampPhysicallyPresent(this.player, this.gm.systems.npcLocationSystem, playerPlace(this.gm, view), this.gm)) return [];
     for (const group of groups) {
       const actor = this.person(group.members[0].id), a = actor?.campActivity;
       if (!a?.id || !this.available) continue;
@@ -147,7 +147,7 @@ export default class CampInteractionSystem {
     // The existing dialogue remains one speaker at a time. Other members stay
     // physically reserved, preventing unrelated work while the player joins.
     const npc = this.person(group.members[0].id);
-    this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: npc.id, phase: 'pre', context });
+    this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: npc.id, phase: this.gm.gamePhase === 'postChallenge' ? 'post' : 'pre', context });
     this.living.reserveConversationGroup?.(group.members.slice(1).map(p => p.id));
     return true;
   }
