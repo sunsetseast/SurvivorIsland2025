@@ -208,7 +208,7 @@ export default class CampActivitySystem {
       goal: plan.goal || null, privacy: ['strategy_conversation', 'alliance_meeting', 'idol_hunt'].includes(plan.type) ? 'private' : 'visible',
       interruptible: !['private_conversation', 'strategy_conversation_player', 'meeting_wait', 'alliance_meeting', 'approach_player', 'approach_wait'].includes(plan.type),
       external: Boolean(plan.external), ...(plan.meetingId ? { meetingId: plan.meetingId } : {}),
-      ...(plan.purpose ? { purpose: plan.purpose } : {}) };
+      ...(plan.purpose ? { purpose: plan.purpose } : {}), ...(plan.agenda ? { agenda: plan.agenda } : {}) };
     actor.campActivity = activity;
     if (!actor.isPlayer) this.locations?.updateNpcLocation?.(actor.id, plan.location, { reason: `activity:${plan.type}`, publish: false });
     if (plan.type === 'travel' && plan.travelWithId) {
@@ -516,6 +516,7 @@ export default class CampActivitySystem {
     activity.interruptible = false; activity.endsAt = 0;
     player.campActivity = { ...activity, actorId: player.id, participantIds: [npc.id] };
     this.conversation = { npcId: npc.id, activityId: activity.id, location: place, strategy, prior };
+    if (this.post) this.strategy?.reasoning?.checkpoint(this.conversation);
     return true;
   }
   moveTogether(actor, companion, destination) {
@@ -541,6 +542,7 @@ export default class CampActivitySystem {
       groupIds.push(other.id);
     }
     this.conversation.groupIds = groupIds;
+    if (this.conversation.checkpoint) this.conversation.checkpoint.participants = [npc.id, ...groupIds];
     return true;
   }
   approachPlayer(npc, location) {

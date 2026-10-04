@@ -33,6 +33,16 @@ window.scrambleQa = {
     gm.player.location = view; screen.currentView = view; screen.loadView(view, { travelPaid: true }); renderer.refresh();
     return { aId: a.id, bId: b.id, cId: c.id };
   },
+  intelligence() {
+    this.reset(); strategy.scramble.meetings = []; strategy.scramble.nextApproachAt = -1;
+    const [npc, source] = activity.npcs();
+    for (const person of activity.npcs()) { person.campActivity = null; activity.start(person, { type: 'idle_at_camp', location: 'beach', duration: 3000 }); }
+    strategy.reasoning.statement({ id: 'qa:warning', speakerId: source.id, listenerIds: [gm.player.id], subjectId: gm.player.id,
+      topic: 'safety', stance: 'warned', random: () => 0 });
+    strategy.reasoning.statement({ id: 'qa:plan', speakerId: npc.id, listenerIds: [gm.player.id], subjectId: source.id, random: () => 0 });
+    gm.systems.conversationSystem.startPlayerConversation({ npcId: npc.id, phase: 'post', context: { location: 'beach' } });
+    return { npcId: npc.id };
+  },
   meeting() {
     this.reset(); const meeting = strategy.scramble.meetings[0]; meeting.dueAt = 3600;
     strategy.onActivityBoundary(3600); this.wait(180); gm.player.location = meeting.location;

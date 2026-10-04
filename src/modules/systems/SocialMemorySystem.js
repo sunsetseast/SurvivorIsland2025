@@ -1023,7 +1023,8 @@ class SocialMemorySystem {
     // knowledge of a deliberate lie never crosses to a listener by implication.
     recordCampClaim({ id, speakerId, listenerIds = [], subjectId, topic, stance,
         origin = 'participant', sourceId = null, confidence = 0.8, day = 1, campTime = null,
-        salience = 'medium', truthfulness = null } = {}) {
+        salience = 'medium', truthfulness = null, attributedId = null, sourceChain = null,
+        speechAct = null, refutesClaimId = null, confidenceByListener = null } = {}) {
         if (!id || speakerId == null || subjectId == null || !topic || !stance) return false;
         const owners = [speakerId, ...listenerIds];
         let added = false;
@@ -1034,11 +1035,13 @@ class SocialMemorySystem {
             if (mem.campClaims.some(entry => entry.id === id)) continue;
             const speaker = String(ownerId) === String(speakerId);
             const entry = { id, speakerId, subjectId, topic, stance, day, campTime, salience,
-                origin: speaker ? origin : 'direct_statement', sourceId: speaker ? sourceId : speakerId,
+                origin: speaker ? origin : attributedId != null && String(attributedId) !== String(speakerId) ? 'hearsay' : 'direct_statement', sourceId: speaker ? sourceId : speakerId,
+                attributedId: attributedId ?? speakerId, speechAct, refutesClaimId,
+                audienceIds: speaker ? [...listenerIds] : [ownerId],
                 ...(origin === 'inference' ? { evidenceOrigin: 'inference' } : {}),
-                sourceChain: speaker ? [speakerId] : [sourceId, speakerId].filter(id => id != null),
+                sourceChain: sourceChain ? [...sourceChain].slice(-5) : speaker ? [speakerId] : [sourceId, speakerId].filter(id => id != null),
                 confidence: speaker ? campEvidenceConfidence({ origin, confidence, topic }) :
-                    this.campClaimConfidence(ownerId, speakerId, confidence),
+                    confidenceByListener?.[ownerId] ?? this.campClaimConfidence(ownerId, speakerId, confidence),
                 ...(speaker && truthfulness != null ? { truthfulness } : {}) };
             this.addOwnedCampClaim(mem, entry);
             added = true;
@@ -1068,10 +1071,12 @@ class SocialMemorySystem {
             unlikely: ['possible', 'searching'], searching: ['unlikely', 'denied'],
             mentioned: ['denied'], denied: ['mentioned', 'searching'],
             warned: ['denied'] };
-        const contradicts = mem.campClaims.filter(previous => entry.truthfulness !== false &&
-            String(previous.subjectId) === String(entry.subjectId) && previous.topic === entry.topic &&
-            (opposites[previous.stance]?.includes(entry.stance) || opposites[entry.stance]?.includes(previous.stance)) &&
-            previous.confidence > 0.15);
+        const contradicts = mem.campClaims.filter(previous => entry.truthfulness !== false && previous.confidence > .15 && (
+            (String(previous.subjectId) === String(entry.subjectId) && previous.topic === entry.topic &&
+             (opposites[previous.stance]?.includes(entry.stance) || opposites[entry.stance]?.includes(previous.stance))) ||
+            (entry.day === previous.day && ['target', 'commitment'].includes(entry.topic) && previous.topic === entry.topic &&
+             String(entry.attributedId ?? entry.speakerId) === String(previous.attributedId ?? previous.speakerId) &&
+             String(entry.subjectId) !== String(previous.subjectId)) || entry.refutesClaimId === previous.id));
         for (const prior of contradicts) {
             if (campEvidenceRank(prior) > campEvidenceRank(entry)) {
                 // Hearing the same weak rumor repeatedly cannot erase what this
@@ -1084,7 +1089,9 @@ class SocialMemorySystem {
             prior.confidence = Math.max(0.05, prior.confidence * (entry.origin === 'firsthand' ? 0.4 : 0.78));
             if (campEvidenceRank(prior) === campEvidenceRank(entry)) entry.challenged = true;
             // Only direct evidence can discredit a source; conflicting rumors are uncertainty.
-            if (entry.origin === 'firsthand' && entry.confidence >= .7 && prior.sourceId != null && !prior.sourceContradictionApplied) {
+            if ((entry.origin === 'firsthand' && entry.confidence >= .7 ||
+                entry.refutesClaimId === prior.id && String(entry.speakerId) === String(prior.attributedId) && entry.confidence >= .55) &&
+                prior.sourceId != null && !prior.sourceContradictionApplied) {
                 const key = String(prior.sourceId);
                 mem.campSourceReliability[key] = Math.max(0.2, (mem.campSourceReliability[key] ?? 0.75) - 0.18);
                 prior.sourceContradictionApplied = true;
@@ -1116,7 +1123,7 @@ class SocialMemorySystem {
             this.campClaimConfidence(toId, fromId, known.confidence)) * credibility;
         this.addOwnedCampClaim(this.memory[toId], { ...known, origin: direct ? 'direct_statement' : 'hearsay', sourceId: fromId,
             sourceChain: direct ? [fromId] : [...(known.sourceChain || []), fromId].slice(-5), confidence,
-            truthfulness: undefined, evidenceOrigin: campProvenance(known) === 'inference' ? 'inference' : undefined,
+            audienceIds: [toId], truthfulness: undefined, evidenceOrigin: campProvenance(known) === 'inference' ? 'inference' : undefined,
             challenged: Boolean(known.challenged), sourceContradictionApplied: undefined });
         return true;
     }

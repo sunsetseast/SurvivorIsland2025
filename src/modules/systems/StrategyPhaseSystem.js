@@ -3,6 +3,7 @@ import { gameManager, GamePhase, GameState } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import { LocationKeys } from '../core/LocationKeys.js';
 import ScrambleActivityPlan, { ScrambleState, SCRAMBLE_SECONDS } from './ScrambleActivityPlan.js';
+import ScrambleStrategy from './ScrambleStrategy.js';
 import { campTargetPreference } from './CampKnowledge.js';
 
 /**
@@ -51,6 +52,7 @@ class StrategyPhaseSystem {
   reset({ skipGameManager = false } = {}) {
     this.scrambleState = ScrambleState.RETURN_EVENT;
     this.scramble = null;
+    this.reasoning = new ScrambleStrategy(skipGameManager ? null : gameManager, this);
     this.transitioned = false;
     this.isActive = false;
     this.playerTribeSafe = false;
@@ -82,7 +84,7 @@ class StrategyPhaseSystem {
 
   serialize() {
     return JSON.parse(JSON.stringify({
-      scrambleState: this.scrambleState, scramble: this.scramble?.serialize(), transitioned: this.transitioned,
+      strategic: this.reasoning.serialize(), scrambleState: this.scrambleState, scramble: this.scramble?.serialize(), transitioned: this.transitioned,
       isActive: this.isActive,
       playerTribeSafe: this.playerTribeSafe,
       personalTargetId: this.personalTargetId,
@@ -118,6 +120,8 @@ class StrategyPhaseSystem {
     this.allianceTargets = new Map(Array.isArray(payload.allianceTargets) ? payload.allianceTargets : []);
     this.npcIntentTargets = new Map(Array.isArray(payload.npcIntentTargets) ? payload.npcIntentTargets : []);
     this.npcIntentMeta = new Map(Array.isArray(payload.npcIntentMeta) ? payload.npcIntentMeta : []);
+    this.reasoning = new ScrambleStrategy(gameManager, this, payload.strategic || {});
+    this.reasoning.migrate();
     this.tribalTargetBoard = payload.tribalTargetBoard ?? null;
     this.strategyFacts = Array.isArray(payload.strategyFacts) ? payload.strategyFacts : [];
     this.playerVisibleFacts = Array.isArray(payload.playerVisibleFacts) ? payload.playerVisibleFacts : [];
@@ -164,6 +168,8 @@ class StrategyPhaseSystem {
     gameManager.requestAutoSave?.(`scramble:start:${source}`);
     return true;
   }
+
+  getPlayerStrategyRecap() { return this.reasoning.recap(); }
 
   random() { return this.scramble ? this.scramble.random() : Math.random(); }
   semanticTimestamp() { return this.scramble ? this.getCurrentDay() * 20000 + 10000 +
@@ -436,6 +442,8 @@ class StrategyPhaseSystem {
       updatedAt: this.semanticTimestamp(),
     };
     this.npcIntentMeta.set(npcId, meta);
+    this.reasoning.gm = gameManager;
+    this.reasoning.setIntent(npcId, targetId, meta);
 
     const npcName = this.getName(npcId);
     const targetName = this.getName(targetId);
@@ -459,6 +467,10 @@ class StrategyPhaseSystem {
 
   getNpcTargetIntent(npcId) {
     if (!npcId) return null;
+    const cached = this.npcIntentTargets.get(npcId) ?? this.npcIntentTargets.get(String(npcId));
+    if (cached != null && !this.isTargetIdAvailable(cached)) return null;
+    const rich = this.reasoning.states[String(npcId)];
+    if (rich) return this.isTargetIdAvailable(rich.intendedVoteId) ? { targetId: rich.intendedVoteId, confidence: rich.confidence, reason: rich.reason, updatedAt: rich.updatedAt } : null;
     const targetId = this.npcIntentTargets.get(npcId)
       || this.npcIntentTargets.get(String(npcId))
       || this.npcIntentTargets.get(Number(npcId));
@@ -533,7 +545,7 @@ class StrategyPhaseSystem {
       heatMap[key] = (heatMap[key] || 0) + weight;
     };
 
-    this.npcIntentTargets.forEach((targetId) => increment(targetId));
+    this.npcIntentTargets.forEach((targetId, id) => increment(this.getNpcTargetIntent(id)?.targetId));
 
     if (this.personalTargetId) {
       increment(this.personalTargetId);

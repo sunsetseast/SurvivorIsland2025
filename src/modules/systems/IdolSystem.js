@@ -125,6 +125,7 @@ class IdolSystem {
     this.tribeClueStates = new Map();
     this.survivorInventories = new Map();
     this.casualSearchCounts = new Map();
+    this.searchHistory = new Map();
     this.huntVisits = new Map();
     this.currentCampPhaseId = null;
     this.initialSpawnCompleted = false;
@@ -141,6 +142,7 @@ class IdolSystem {
     this.tribeIdolStates.clear();
     this.tribeClueStates.clear();
     this.survivorInventories.clear();
+    this.searchHistory.clear();
     this.casualSearchCounts.clear();
     this.huntVisits.clear();
     this.currentCampPhaseId = null;
@@ -154,6 +156,7 @@ class IdolSystem {
       tribeClueStates: Array.from(this.tribeClueStates.entries()),
       survivorInventories: Array.from(this.survivorInventories.entries()),
       casualSearchCounts: Array.from(this.casualSearchCounts.entries()),
+      searchHistory: Array.from(this.searchHistory.entries()),
       huntVisits: Array.from(this.huntVisits.entries()),
       currentCampPhaseId: this.currentCampPhaseId,
       initialSpawnCompleted: this.initialSpawnCompleted,
@@ -169,11 +172,14 @@ class IdolSystem {
     this.tribeClueStates = new Map(Array.isArray(payload.tribeClueStates) ? payload.tribeClueStates : []);
     this.survivorInventories = new Map(Array.isArray(payload.survivorInventories) ? payload.survivorInventories : []);
     this.casualSearchCounts = new Map(Array.isArray(payload.casualSearchCounts) ? payload.casualSearchCounts : []);
+    this.searchHistory = new Map(Array.isArray(payload.searchHistory) ? payload.searchHistory : []);
     this.huntVisits = new Map(Array.isArray(payload.huntVisits) ? payload.huntVisits : []);
     this.currentCampPhaseId = payload.currentCampPhaseId ?? null;
     this.initialSpawnCompleted = Boolean(payload.initialSpawnCompleted);
     this.setDebugMode(Boolean(payload.debugMode));
   }
+
+  getSearchHistory(id) { return { ...(this.searchHistory.get(String(id)) || { count: 0 }) }; }
 
   spawnInitialForAllTribes() {
     if (this.initialSpawnCompleted || !this.gameManager.gameSettings?.enableIdols) {
@@ -308,6 +314,8 @@ class IdolSystem {
       this._incrementCasualSearch(survivorId, safeLocationKey);
     }
 
+    const history = this.searchHistory.get(String(survivorId)) || { count: 0 };
+    this.searchHistory.set(String(survivorId), { count: history.count + 1, day: this.gameManager.day, location: locationKey });
     if (!isNpc && this.gameManager.consumeCampTime) {
       this.gameManager.consumeCampTime(settings.timeCost, {
         source: isNpc ? 'npc_idol_hunt' : 'player_idol_hunt',

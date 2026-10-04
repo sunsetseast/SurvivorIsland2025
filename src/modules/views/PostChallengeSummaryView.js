@@ -18,6 +18,11 @@ export default function renderPostChallengeSummaryView(container) {
   const facts = strategyPhaseSystem.getPlayerSummaryFacts();
 
   const sections = buildSections(facts);
+  const recap = strategyPhaseSystem.getPlayerStrategyRecap();
+  const statements = recap.statements.filter(e => e.speakerId !== gameManager.player?.id).slice(-8).map(e =>
+    `${nameOrId(e.speakerId)} ${e.topic === 'safety' ? (e.stance === 'yes' ? 'reassured you' : 'warned you') : e.topic === 'commitment' ? 'promised' : 'mentioned'}${e.topic === 'safety' ? '' : ` ${nameOrId(e.subjectId)}`}.`);
+  sections.unshift({ title: 'What You Heard', lines: statements }, { title: 'Your Promises',
+    lines: recap.promises.map(e => `You told ${(e.audienceIds || []).map(nameOrId).join(' & ')} you would vote ${nameOrId(e.subjectId)}.`) });
   sections.forEach(({ title: heading, lines }) => {
     const section = document.createElement('div');
     section.className = 'summary-section';

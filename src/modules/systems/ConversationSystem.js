@@ -6,6 +6,8 @@ import { getRandomInt } from '../utils/CommonUtils.js';
 import timerManager from '../utils/TimerManager.js';
 import socialEngine from './SocialEngine.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import { scrambleNodes, resolveScrambleNode } from './ScrambleConversation.js';
+import { ownsUsableIdol } from './IdolPossession.js';
 import { DealTypes } from './DealSystem.js';
 import { buildDay1NpcReference } from '../events/Day1CampMemory.js';
 import { physicalCampLocation } from '../locations/LocationUtils.js';
@@ -498,7 +500,7 @@ class ConversationSystem {
     }
 
     const total = Object.values(weights).reduce((sum, value) => sum + Math.max(0, value), 0);
-    let roll = Math.random() * total;
+    let roll = this._scrambleRandom(`stance:${topicId}:${nodeId}`) * total;
     let selected = NPC_STANCES.DEFLECT;
     Object.entries(weights).some(([stance, weight]) => {
       roll -= Math.max(0, weight);
@@ -676,6 +678,27 @@ class ConversationSystem {
   }
 
 
+  _scrambleModel() {
+    const strategy = this.gameManager.systems.strategyPhaseSystem;
+    return this.gameManager.gamePhase === GamePhase.POST_CHALLENGE && strategy?.isActive && !strategy.playerTribeSafe ? strategy.reasoning : null;
+  }
+  _scrambleRandom(key) {
+    const model = this._scrambleModel();
+    return model && this.gameManager.systems.campActivitySystem.conversation ? model.choice(`roll:${key}`, random => ({ value: random() })).value : Math.random();
+  }
+  _scrambleInt(min, max) { return min + Math.floor(this._scrambleRandom(`int:${min}:${max}`) * (max-min+1)); }
+  _renderScrambleContext({ player, npc, context }) {
+    const model = this._scrambleModel(), cp = model.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
+    const nodes = scrambleNodes(model, { player, npc, context });
+    const known = [...model.knowledge(player.id)].reverse().find(e => String(e.speakerId) === String(npc.id) && ['target','commitment'].includes(e.topic));
+    const preferred = known ? [`commit:${known.subjectId}`, 'vote_read', 'not_commit'] : ['vote_read', 'safety_read', 'not_commit'];
+    const selected = preferred.map(id => nodes.find(n => n.id === id)).filter(Boolean);
+    selected.push(nodes.find(n => n.id.startsWith('counter:')));
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: cp?.lastLine || 'What do you want to ask?' }),
+      [...selected.filter(Boolean).map(node => ({ label: node.buttonText, onClick: () => this._runConversationNode({ player, npc, node, context }) })),
+       { label: 'More…', onClick: () => this._renderMainMenu({ player, npc, context: { ...context, scrambleMore: true }, mainTopics: this._buildMainTopics({ player, npc, context }) }) }], { showEnd: true });
+  }
+
   _fmtNpcLine(npc, text) {
     if (!text) return '';
     const name = npc?.firstName || 'NPC';
@@ -720,6 +743,8 @@ class ConversationSystem {
     });
     const session = this._getActiveTranscriptSession();
     if (session) session._justLoggedYou = false;
+    if (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE && this.activeOverlay && !this.activeOverlay.contains(document.activeElement))
+      this.activeOverlay.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
   }
 
   _renderPickList({ npc, title, candidates, onPick, onBack, extraOptions = [] }) {
@@ -1118,6 +1143,8 @@ class ConversationSystem {
   }
 
   _applyExchangeEffects({ player, npc, deltas = {}, contextTag = 'conversation' }) {
+    const cp = this._scrambleModel()?.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
+    if (cp) { const key = `effect:${contextTag}`; if (cp.choices[key]) return; cp.choices[key] = { applied: true }; }
     const trustDelta = deltas.trust ?? 0;
     const relationshipDelta = deltas.relationship ?? 0;
     const suspicionDelta = deltas.suspicion ?? 0;
@@ -1141,6 +1168,19 @@ class ConversationSystem {
 
   _runConversationNode({ npc, player, node, context, returnTo }) {
     if (!node) return;
+    const model = this._scrambleModel();
+    if (model && node.semanticResolve) {
+      const result = resolveScrambleNode(model, node, npc.id);
+      if (!result) return;
+      this._initTranscript(this.nodeSession);
+      this.nodeSession?.addYou?.(node.playerLine || node.buttonText);
+      this.nodeSession?.addNpc?.(result.line);
+      return this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }),
+        [{ label: 'Keep talking', onClick: () => this._renderScrambleContext({ player, npc, context }) }], { showEnd: true });
+    }
+    const checkpoint = model?.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
+    const legacyKey = `legacy:${node.id}`;
+    if (checkpoint?.choices[legacyKey]) return this._renderScrambleContext({ player, npc, context });
     if (!this.nodeSession) {
       this.nodeSession = { npcId: npc?.id || null, context, menuStack: [], transcript: [] };
     }
@@ -1254,6 +1294,11 @@ class ConversationSystem {
     };
 
     const runReply = () => {
+      if (checkpoint) {
+        if (checkpoint.choices[legacyKey]) return;
+        checkpoint.choices[legacyKey] = { line: npcReply };
+        checkpoint.topics.push(legacyKey); checkpoint.turnCount++;
+      }
       session.addNpc?.(npcReply);
       session._justLoggedYou = false;
       this._applyStanceEffects({
@@ -1358,7 +1403,7 @@ class ConversationSystem {
     };
 
     const beginConversation = () => {
-      if (survivor.campActivity?.type === 'approach_wait') this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation();
+      if (survivor.campActivity?.type === 'approach_wait') { seededContext.agenda ||= survivor.campActivity.agenda; this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation(); }
       if (this.gameManager.systems?.campActivitySystem?.active &&
         (!isCampPhysicallyPresent(survivor, this.gameManager.systems.npcLocationSystem, location, this.gameManager) ||
          !isCampPhysicallyPresent(this.gameManager.getPlayerSurvivor?.(), this.gameManager.systems.npcLocationSystem, location, this.gameManager))) return;
@@ -1749,6 +1794,7 @@ class ConversationSystem {
   }
 
   _renderMainMenu({ player, npc, context, mainTopics }) {
+    if (this._scrambleModel() && !context.scrambleMore) return this._renderScrambleContext({ player, npc, context });
     if (this.debugConvo) {
       console.log('[CONVO-DEBUG] Main topics', mainTopics.map(topic => topic.label));
     }
@@ -2272,6 +2318,27 @@ class ConversationSystem {
 
   _startNpcInitiatedConversation({ player, npc, context }) {
     if (!player || !npc) return;
+    if (this._scrambleModel()) {
+      this.activeConversationContext = context;
+      this.nodeSession = { npcId: npc.id, context, menuStack: [], transcript: [] };
+      this._initTranscript(this.nodeSession);
+      const model = this._scrambleModel(), cp = model.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
+      if (!cp) return;
+      cp.agenda ||= context.agenda || model.agenda(npc.id, player.id, { plan: true });
+      const agenda = cp.agenda, subject = agenda.primarySubject;
+      if (subject) {
+        const result = model.choice('opening', random => {
+          model.statement({ id: `${cp.activityId}:opening`, speakerId: npc.id, listenerIds: [player.id], subjectId: subject,
+            topic: ['warn_ally','reassure_target'].includes(agenda.purpose) ? 'safety' : 'target',
+            stance: agenda.purpose === 'warn_ally' ? 'warned' : agenda.purpose === 'reassure_target' ? 'yes' : 'consider', mode: agenda.messageMode, random });
+          return { line: agenda.purpose === 'warn_ally' ? 'Your name is coming up. You should talk to people.' :
+            agenda.purpose === 'reassure_target' ? 'You’re fine. Don’t worry.' : `I’m hearing ${model.person(subject)?.firstName || 'a name'}. What are you thinking?` };
+        });
+        if (!result.replay) cp.lastLine = result.line;
+        this.nodeSession.addNpc?.(result.line);
+      }
+      return this._renderScrambleContext({ player, npc, context });
+    }
     const normalizedContext = this._normalizeConversationContext({ ...context, initiator: 'npc' });
     this.activeConversationContext = normalizedContext;
     this.nodeSession = {
@@ -2742,6 +2809,14 @@ class ConversationSystem {
   }
 
   _resolveNpcIntentCounter({ npc, player, intent, context, counterTarget }) {
+    if (this._scrambleModel()) {
+      const node = scrambleNodes(this._scrambleModel(), { player, npc, context }).find(n => n.id === `counter:${counterTarget?.id}`);
+      if (!node) return;
+      const result = resolveScrambleNode(this._scrambleModel(), node, npc.id);
+      this._getActiveTranscriptSession()?.addNpc?.(result?.line);
+      this._renderMenu(npc, this._buildTranscriptBody({ session: this._getActiveTranscriptSession() }), [], { showEnd: true });
+      return result;
+    }
     const session = this._getActiveTranscriptSession();
     if (!counterTarget) return;
     session?.addYou?.(`What about ${counterTarget.firstName}?`);
@@ -3596,6 +3671,7 @@ class ConversationSystem {
   }
 
   _buildGossipNodes({ player, npc, context }) {
+    if (this._scrambleModel()) return scrambleNodes(this._scrambleModel(), { player, npc, context, topic: 'gossip' });
     const memory = this._getNpcMemory(npc.id);
     const applyGossipRisk = () => {
       memory.gossipCount = (memory.gossipCount || 0) + 1;
@@ -3882,6 +3958,7 @@ class ConversationSystem {
   }
 
   _buildIdolTalkNodes({ player, npc, context }) {
+    if (this._scrambleModel()) return scrambleNodes(this._scrambleModel(), { player, npc, context, topic: 'idol' });
     return [
       {
         id: 'idol_looked',
@@ -4004,7 +4081,7 @@ class ConversationSystem {
     const allianceSystem = this.gameManager.systems?.allianceSystem;
     const sharedAlliances = allianceSystem?.getAlliancesForSurvivor?.(player.id) || [];
     const shared = sharedAlliances.filter(alliance => alliance.memberIds?.includes?.(npc.id));
-    return [
+    const legacy = [
       {
         id: 'vote_read',
         buttonText: 'Vote read',
@@ -4114,9 +4191,11 @@ class ConversationSystem {
         }
       }
     ];
+    return this._scrambleModel() ? [...scrambleNodes(this._scrambleModel(), { player, npc, context }), ...legacy.filter(n => ['offer_deal','alliances'].includes(n.id))] : legacy;
   }
 
   _buildConfrontNodes({ player, npc, context }) {
+    if (this._scrambleModel()) return scrambleNodes(this._scrambleModel(), { player, npc, context, topic: 'confront' });
     return [
       {
         id: 'call_out_tension',
@@ -4512,6 +4591,7 @@ class ConversationSystem {
   }
 
   _pickLikelyDuo(npc) {
+    if (this._scrambleModel()) return this._scrambleModel().knownPair(npc.id)?.ids.map(id => this._getSurvivorById(id)) || [];
     const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
     if (candidates.length < 2) return null;
     let bestPair = null;
@@ -4529,6 +4609,7 @@ class ConversationSystem {
   }
 
   _showTargetPitchMenu({ player, npc, context, mode = 'pitch' }) {
+    if (this._scrambleModel()) return this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: scrambleNodes(this._scrambleModel(), { player, npc, context }).filter(n => n.id.startsWith('counter:')) } });
     const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
     this._renderPickList({
       npc,
@@ -4619,7 +4700,7 @@ class ConversationSystem {
     if (style.includes('social')) acceptScore += 0.05;
     acceptScore += this._getVoteTogetherContextBonus({ context, target, dealType });
 
-    const roll = Math.random();
+    const roll = this._scrambleRandom(`deal:${dealType}:${target?.id || 'none'}`);
     let outcome = 'stall';
     if (roll < acceptScore - 0.1) outcome = 'accept';
     else if (roll < acceptScore + 0.1) outcome = 'counter';
@@ -4666,6 +4747,10 @@ class ConversationSystem {
   }
 
   _createDeal({ player, npc, dealType, target, status }) {
+    const cp = this._scrambleModel()?.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
+    const semanticKey = `deal:${dealType}:${target?.id || 'none'}`;
+    if (cp?.choices[`created:${semanticKey}`]) return this._renderScrambleContext({ player, npc, context: this.activeConversationContext || {} });
+    if (cp) { cp.choices[`created:${semanticKey}`] = { status }; cp.topics.push(semanticKey); }
     const dealSystem = this.gameManager?.systems?.dealSystem;
     const allianceSystem = this.gameManager?.systems?.allianceSystem;
     const socialMemorySystem = this.gameManager?.systems?.socialMemorySystem;
@@ -4694,13 +4779,14 @@ class ConversationSystem {
     };
 
     const allianceType = allianceTypeMap[dealType] || null;
-    let allianceOutcome = null;
+    let allianceOutcome = null; let draw = 0;
     if (status === 'accepted' && allianceType && allianceSystem?.evaluateAllianceOffer) {
       allianceOutcome = allianceSystem.evaluateAllianceOffer({
         proposerId: player.id,
         receiverId: npc.id,
         type: allianceType,
-        targetId: target?.id ?? null
+        targetId: target?.id ?? null,
+        random: () => this._scrambleRandom(`alliance:${semanticKey}:${draw++}`)
       });
 
       if (!allianceOutcome?.accepted) {
@@ -4708,6 +4794,7 @@ class ConversationSystem {
       }
     }
     const deal = dealSystem.createDeal({
+      ...(cp ? { id: `${cp.activityId}:${semanticKey}` } : {}),
       type: typeMap[dealType] || 'VOTE_TOGETHER',
       parties: [player.id, npc.id],
       terms: {
@@ -4720,7 +4807,7 @@ class ConversationSystem {
     if (deal) {
       if (status === 'accepted') {
         dealSystem.acceptDeal(deal.id, npc.id, 'accepted_in_conversation');
-        this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(3, 10), relationship: getRandomInt(1, 5) }, contextTag: 'deal_accept' });
+        this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(3, 10), relationship: this._scrambleInt(1, 5) }, contextTag: 'deal_accept' });
 
         if (allianceType && allianceSystem?.createAlliance) {
           const name = allianceType === 'final_two'
@@ -4761,7 +4848,7 @@ class ConversationSystem {
         });
       } else if (status === 'refused') {
         dealSystem.refuseDeal(deal.id, npc.id, 'refused_in_conversation');
-        this._applyExchangeEffects({ player, npc, deltas: { trust: -getRandomInt(1, 5), suspicion: getRandomInt(0, 2) }, contextTag: 'deal_refuse' });
+        this._applyExchangeEffects({ player, npc, deltas: { trust: -this._scrambleInt(1, 5), suspicion: this._scrambleInt(0, 2) }, contextTag: 'deal_refuse' });
 
         if (allianceType) {
           socialMemorySystem?.recordAllianceInvite?.({

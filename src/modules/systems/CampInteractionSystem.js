@@ -45,7 +45,7 @@ export default class CampInteractionSystem {
   }
   // Called only after an actual resolved exchange. claimId refers to the
   // statement just received by its participant, never a hidden intention.
-  hearExchange({ speaker, listener, activity, claimId, observationId }) {
+  hearExchange({ speaker, listener, activity, claimId, observationId, random = this.random }) {
     if (!this.available || !isCampPhysicallyPresent(this.player, this.gm.systems.npcLocationSystem, activity.location, this.gm) ||
       !isCampPhysicallyPresent(speaker, this.gm.systems.npcLocationSystem, activity.location, this.gm) ||
       !isCampPhysicallyPresent(listener, this.gm.systems.npcLocationSystem, activity.location, this.gm) || this.place !== physicalCampLocation(activity.location) ||
@@ -57,7 +57,7 @@ export default class CampInteractionSystem {
     const occupied = physicalCampLocation(this.getView()) !== this.getView() ||
       this.player.campActivity && !['observe', 'watch'].includes(this.player.campActivity.type);
     const chance = overhearingChance({ privacy, awareness: this.player.awareness ?? 5, occupied: Boolean(occupied), near, location: this.place });
-    const roll = this.random();
+    const roll = random();
     // Record the attempt even when inaudible so reload/re-render cannot reroll.
     this.observe({ id, actorId: this.player.id, type: 'listened', detail: '' });
     if (roll >= chance || !claimId && !observationId) return null;

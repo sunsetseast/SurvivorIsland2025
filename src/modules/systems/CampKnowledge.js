@@ -5,7 +5,7 @@ const clamp = n => Math.max(0, Math.min(1, Number(n) || 0));
 export const CAMP_EVIDENCE_RANK = Object.freeze({ inference: 1, hearsay: 2, direct_statement: 3, firsthand: 4 });
 
 export function campProvenance(entry) {
-  if (entry?.evidenceOrigin === 'inference' || entry?.origin === 'inference' || entry?.visibility === 'inference') return 'inference';
+  if (entry?.evidenceOrigin === 'inference' || ['inference', 'speculation'].includes(entry?.origin) || entry?.visibility === 'inference') return 'inference';
   if (entry?.origin === 'witness') return 'firsthand';
   if (entry?.origin === 'participant') return entry.topic ? 'direct_statement' : 'firsthand';
   return CAMP_EVIDENCE_RANK[entry?.origin] ? entry.origin : 'hearsay';
@@ -17,7 +17,8 @@ export const campEvidenceConfidence = entry => Math.min(clamp(entry?.confidence)
 export function ownedCampKnowledge(memory, ownerId, day = 1) {
   const project = (entry, kind) => ({
     id: entry.id, ownerId, kind, subjectId: kind === 'claim' ? entry.subjectId : entry.actorId,
-    speakerId: entry.speakerId ?? entry.actorId, topic: entry.topic ?? entry.type, stance: entry.stance,
+    speakerId: entry.speakerId ?? entry.actorId, attributedId: entry.attributedId ?? entry.speakerId,
+    speechAct: entry.speechAct, audienceIds: [...(entry.audienceIds || [])], topic: entry.topic ?? entry.type, stance: entry.stance,
     sourceId: entry.sourceId ?? null, sourceChain: [...(entry.sourceChain || [])],
     provenance: campProvenance(entry), confidence: campEvidenceConfidence(entry),
     challenged: Boolean(entry.challenged), day: entry.day, campTime: entry.campTime,

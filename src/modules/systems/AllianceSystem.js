@@ -138,7 +138,7 @@ class AllianceSystem {
   }
 
   createAlliance({
-    name,
+    name, id = null,
     type = ALLIANCE_TYPES.CORE,
     memberIds = [],
     tribeId = null,
@@ -162,7 +162,7 @@ class AllianceSystem {
     });
 
     const alliance = this._normalizeAlliance({
-      id: `alliance_${generateId()}`,
+      id: id || `alliance_${generateId()}`,
       name: name || `${normalizedType} alliance`,
       type: normalizedType,
       tribeId,
@@ -411,7 +411,7 @@ class AllianceSystem {
     this.socialMemorySystem?.setCommittedAllianceId?.(survivorId, null);
   }
 
-  evaluateAllianceOffer({ proposerId, receiverId, type = ALLIANCE_TYPES.CORE, targetId = null }) {
+  evaluateAllianceOffer({ proposerId, receiverId, type = ALLIANCE_TYPES.CORE, targetId = null, random = Math.random }) {
     const normalizedType = this._normalizeType(type);
     const relationship = this._getRelationshipValue(proposerId, receiverId);
     const trust = this._getTrust(receiverId);
@@ -451,14 +451,14 @@ class AllianceSystem {
     }
 
     if (style === 'Wildcard') {
-      probability += (Math.random() - 0.5) * 0.3;
+      probability += (random() - 0.5) * 0.3;
       reasons.push('wildcard_variance');
     }
 
-    probability += (Math.random() - 0.5) * 0.08;
+    probability += (random() - 0.5) * 0.08;
     probability = Math.max(0, Math.min(1, probability));
 
-    const accepted = Math.random() < probability;
+    const accepted = random() < probability;
     const score = Math.round(probability * 100);
 
     let sincerity = 'real';
@@ -468,10 +468,10 @@ class AllianceSystem {
       if (trust < 45) fakeChance += 0.15;
       if (['Power Player', 'Shadow Strategist', 'Competitive'].includes(style)) fakeChance += 0.25;
       if (['Social Genius', 'Lethal Charmer'].includes(style)) fakeChance -= 0.12;
-      if (style === 'Wildcard') fakeChance += (Math.random() - 0.5) * 0.2;
+      if (style === 'Wildcard') fakeChance += (random() - 0.5) * 0.2;
 
       fakeChance = Math.max(0.05, Math.min(0.9, fakeChance));
-      sincerity = Math.random() < fakeChance ? 'fake' : 'real';
+      sincerity = random() < fakeChance ? 'fake' : 'real';
       reasons.push(sincerity === 'fake' ? 'accepted_fake' : 'accepted_real');
     } else {
       reasons.push('declined_offer');
