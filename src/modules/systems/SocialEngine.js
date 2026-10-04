@@ -737,6 +737,7 @@ class NpcIntentPlanner {
     runOffscreenNpcChatter({ phaseType, beatId = null } = {}) {
         if (gameManager.flags?.campEventActive) return;
         const phase = this._normalizePhase(phaseType || this.phaseType);
+        if (phase === 'post') return; // Strategy outcomes belong to semantic camp activities.
         // Pre-immunity conversations are resolved by the timed camp activities.
         if (phase === 'pre' && gameManager.systems?.campActivitySystem?.active) return;
         const dayValue = this._getCurrentDay();
@@ -1011,9 +1012,9 @@ class NpcIntentPlanner {
     }
 
     _pickChatterTarget(excludeIds = []) {
-        const survivors = gameManager.survivors || [];
+        const survivors = gameManager.getPlayerTribe?.()?.members || [];
         const exclude = new Set(excludeIds.map(id => String(id)));
-        const candidates = survivors.filter(s => s && s.id != null && !exclude.has(String(s.id)));
+        const candidates = survivors.filter(s => s && s.id != null && !s.isOut && !s.eliminated && !gameManager.hasImmunity?.(s) && !exclude.has(String(s.id)));
         if (candidates.length === 0) return null;
         const pick = candidates[Math.floor(Math.random() * candidates.length)];
         return { id: pick.id, name: pick.firstName || null };

@@ -1116,6 +1116,8 @@ class GameManager {
   }
 
   advanceCampTime(seconds, payload = {}) {
+    if (this.gamePhase === GamePhase.POST_CHALLENGE && (payload.source === 'clock' ||
+      !this.systems?.strategyPhaseSystem?.isActive || this.flags?.campEventActive)) return this.dayTimer;
     const amount = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
     if (!amount) return this.dayTimer;
     const before = this.dayTimer;
@@ -1133,6 +1135,15 @@ class GameManager {
       }
       if (before > 0 && this.dayTimer === 0) this.finalizePreImmunityCamp();
       eventManager.publish('camp:timeAdvanced', { before, after: this.dayTimer, phase: this.gamePhase });
+    }
+    if (this.gamePhase === GamePhase.POST_CHALLENGE) {
+      const activity = this.systems?.campActivitySystem;
+      const after = this.dayTimer;
+      const block = activity?.beginPlayerBlock?.(before, after, payload);
+      activity?.advance?.(before, after, elapsed => advanceCampNeeds(this, elapsed));
+      activity?.finishPlayerBlock?.(block);
+      eventManager.publish('camp:timeAdvanced', { before, after: this.dayTimer, phase: this.gamePhase });
+      if (this.dayTimer === 0) this.systems?.strategyPhaseSystem?.handleTimerExpired?.();
     }
     updateCampClockUI(this.dayTimer, this.getDay());
     if (this.systems?.idolSystem?.isDebugMode?.()) {

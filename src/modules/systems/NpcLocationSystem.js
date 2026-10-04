@@ -174,7 +174,7 @@ class NpcLocationSystem {
       dbg("Camp event active — skipping location assignment");
       return;
     }
-    if ((phase === 'preChallenge' || phase === 'pre') && gameManager.systems?.campActivitySystem?.active) {
+    if (['preChallenge', 'pre', 'postChallenge', 'post'].includes(phase) && gameManager.systems?.campActivitySystem?.active) {
       gameManager.systems.campActivitySystem.ensureStarted();
       return;
     }
@@ -502,7 +502,7 @@ class NpcLocationSystem {
 
   advanceRoaming({ currentTime = null, phase = null, currentView = null } = {}) {
     if (gameManager.flags?.campEventActive) return;
-    if ((phase === 'preChallenge' || phase === 'pre') && gameManager.systems?.campActivitySystem?.active) return;
+    if (['preChallenge', 'pre', 'postChallenge', 'post'].includes(phase) && gameManager.systems?.campActivitySystem?.active) return;
     const timer = Number.isFinite(currentTime) ? currentTime : (gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? null);
     if (!Number.isFinite(timer)) return;
     if (this.lastRoamTimer == null) {

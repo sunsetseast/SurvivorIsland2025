@@ -2,6 +2,7 @@ import eventManager, { GameEvents } from '../core/EventManager.js';
 import { gameManager, GamePhase, GameState } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
 import { LocationKeys } from '../core/LocationKeys.js';
+import ScrambleActivityPlan, { ScrambleState, SCRAMBLE_SECONDS } from './ScrambleActivityPlan.js';
 import { campTargetPreference } from './CampKnowledge.js';
 
 /**
@@ -17,7 +18,8 @@ class StrategyPhaseSystem {
   initialize() {
     eventManager.subscribe(GameEvents.GAME_PHASE_CHANGED, ({ phase }) => {
       if (phase === GamePhase.POST_CHALLENGE) {
-        this.startPostChallengePhase();
+        // PostChallengeEventSystem owns return narratives before activation.
+        if (!this.startedForPhaseKey) this.scrambleState = ScrambleState.RETURN_EVENT;
       } else {
         this.reset();
       }
@@ -47,6 +49,9 @@ class StrategyPhaseSystem {
   }
 
   reset({ skipGameManager = false } = {}) {
+    this.scrambleState = ScrambleState.RETURN_EVENT;
+    this.scramble = null;
+    this.transitioned = false;
     this.isActive = false;
     this.playerTribeSafe = false;
     this.personalTargetId = null;
@@ -77,6 +82,7 @@ class StrategyPhaseSystem {
 
   serialize() {
     return JSON.parse(JSON.stringify({
+      scrambleState: this.scrambleState, scramble: this.scramble?.serialize(), transitioned: this.transitioned,
       isActive: this.isActive,
       playerTribeSafe: this.playerTribeSafe,
       personalTargetId: this.personalTargetId,
@@ -103,6 +109,10 @@ class StrategyPhaseSystem {
     if (!payload || typeof payload !== 'object') return;
 
     this.isActive = Boolean(payload.isActive);
+    this.scrambleState = payload.scrambleState || (this.isActive ? ScrambleState.ACTIVE : ScrambleState.BEFORE_TRIBAL);
+    this.transitioned = Boolean(payload.transitioned);
+    this.scramble = payload.scramble ? new ScrambleActivityPlan(gameManager, this, payload.scramble) :
+      this.isActive ? new ScrambleActivityPlan(gameManager, this) : null;
     this.playerTribeSafe = Boolean(payload.playerTribeSafe);
     this.personalTargetId = payload.personalTargetId ?? null;
     this.allianceTargets = new Map(Array.isArray(payload.allianceTargets) ? payload.allianceTargets : []);
@@ -122,68 +132,46 @@ class StrategyPhaseSystem {
     this.lastStrategyTimerValue = Number.isFinite(payload.lastStrategyTimerValue) ? payload.lastStrategyTimerValue : null;
     if (this.isActive) {
       gameManager.conversationPhaseOverride = 'POST_CHALLENGE';
+      this.startedForPhaseKey ||= `${gameManager.day}-${gameManager.gamePhase}`;
+      if (!payload.scramble && !this.playerTribeSafe) {
+        // Adopt existing saves without restarting their clock, targets or alliances.
+        this.scramble.scheduleAlliances();
+        for (const meeting of this.scramble.meetings) {
+          const legacy = this.pendingAllianceMeetings.find(m => String(m.allianceId) === String(meeting.allianceId));
+          if (legacy?.locationView && Object.values(LocationKeys).includes(legacy.locationView)) meeting.location = legacy.locationView;
+          meeting.dueAt = Math.min(gameManager.dayTimer, meeting.dueAt);
+          if (this.completedAllianceMeetings.has(meeting.allianceId)) meeting.status = 'completed';
+        }
+      }
     }
   }
 
-  async startPostChallengePhase(options = {}) {
-    const { force = false, source = 'unspecified' } = options;
-    const phaseKey = `${gameManager.getDay?.() ?? gameManager.day}-${gameManager.getGamePhase?.() ?? gameManager.gamePhase}`;
-    const existingTimer = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 0;
-    const shouldReinitializeBecauseTimerMissing = existingTimer <= 0;
-
-    console.info('[StrategyPhaseSystem] startPostChallengePhase', {
-      source,
-      phaseKey,
-      existingTimer,
-      force
-    });
-
-    window.debugBanner?.('POST-CH START', `src:${source} | t:${existingTimer}`);
-
-    if (this.startedForPhaseKey === phaseKey && !force && !shouldReinitializeBecauseTimerMissing) {
-      return;
-    }
-
-    if (this.startedForPhaseKey === phaseKey && (force || shouldReinitializeBecauseTimerMissing)) {
-      console.info('[StrategyPhaseSystem] Re-initializing post-challenge phase', {
-        source,
-        force,
-        existingTimer,
-        phaseKey
-      });
-    }
-
+  async startPostChallengePhase({ source = 'unspecified' } = {}) {
+    const phaseKey = `${gameManager.day}-${gameManager.gamePhase}`;
+    if (gameManager.gamePhase !== GamePhase.POST_CHALLENGE || this.startedForPhaseKey === phaseKey) return false;
     this.startedForPhaseKey = phaseKey;
+    this.scrambleState = ScrambleState.ACTIVE;
+    this.isActive = true; this.transitioned = false;
     gameManager.conversationPhaseOverride = 'POST_CHALLENGE';
-    gameManager.flags = gameManager.flags || {};
-    if (!(gameManager.flags.absentFromCampIds instanceof Set)) {
-      gameManager.flags.absentFromCampIds = new Set(gameManager.flags.absentFromCampIds || []);
-    }
-
-    // Timed post-challenge strategy always starts after narrative queue completes on losses.
-    gameManager.dayTimer = 3600;
-    window.debugBanner?.('POST-CH TIMER', `phase:${gameManager.getGamePhase?.() ?? gameManager.gamePhase} | t:${gameManager.getDayTimer?.() ?? gameManager.dayTimer}`);
-    this.isActive = true;
-
+    gameManager.dayTimer = SCRAMBLE_SECONDS;
     this.playerTribeSafe = this.didPlayerTribeWinImmunity();
-
-    window.debugBanner?.('POST-CHALLENGE', this.playerTribeSafe ? 'IMMUNE' : 'VULNERABLE');
-
+    this.scramble = new ScrambleActivityPlan(gameManager, this);
     if (!this.playerTribeSafe) {
-      this.promptPersonalTarget();
-      this.scheduleAllianceMeetings();
       this.seedNpcIntentTargetsForPhase();
+      this.scramble.scheduleAlliances();
     }
-
-    this.beginStrategyBeats();
-    this.lastStrategyTimerValue = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? 3600;
-    this.startTimerWatcher();
-    console.info('[StrategyPhaseSystem] Post-challenge phase initialized', {
-      dayTimer: gameManager.getDayTimer?.() ?? gameManager.dayTimer,
-      journeyerIdForPhase: this.journeyerIdForPhase,
-      playerTribeSafe: this.playerTribeSafe
-    });
+    gameManager.systems?.campActivitySystem?.ensureStarted();
+    gameManager.requestAutoSave?.(`scramble:start:${source}`);
+    return true;
   }
+
+  random() { return this.scramble ? this.scramble.random() : Math.random(); }
+  semanticTimestamp() { return this.scramble ? this.getCurrentDay() * 20000 + 10000 +
+    SCRAMBLE_SECONDS - gameManager.dayTimer : Date.now(); }
+  planActivity(npc, now) { return this.scramble?.plan(npc, now); }
+  resolveActivity(actor, activity, at) { return this.scramble?.resolve(actor, activity, at); }
+  onActivityBoundary(now) { this.scramble?.onBoundary(now); }
+  nextActivityBoundaries(cursor, after) { return this.scramble?.nextBoundary(cursor, after) || []; }
 
   didPlayerTribeWinImmunity() {
     const day = gameManager.getCurrentDay?.() ?? gameManager.getDay?.() ?? gameManager.day;
@@ -249,58 +237,7 @@ class StrategyPhaseSystem {
     return false;
   }
 
-  scheduleAllianceMeetings() {
-    const allianceSystem = gameManager?.systems?.allianceSystem;
-    if (!allianceSystem) return;
-
-    const playerId = gameManager.player?.id;
-    if (!playerId) return;
-
-    let alliances = [];
-    if (typeof allianceSystem.getAlliancesForMember === 'function') {
-      alliances = allianceSystem.getAlliancesForMember(playerId) || [];
-    } else if (typeof allianceSystem.getAlliancesForSurvivor === 'function') {
-      alliances = allianceSystem.getAlliancesForSurvivor(playerId) || [];
-    } else if (typeof allianceSystem.getAllAlliances === 'function') {
-      alliances = allianceSystem.getAllAlliances() || [];
-    }
-
-    const toMemberIds = (alliance) => {
-      const members = alliance?.memberIds ?? alliance?.members ?? [];
-      if (!Array.isArray(members)) return [];
-      if (members.length && typeof members[0] === 'object') {
-        return members.map((m) => m?.id).filter(Boolean);
-      }
-      return members.filter((m) => m != null);
-    };
-
-    const meetingSpots = [
-      LocationKeys.SHELTER,
-      LocationKeys.CAMPFIRE,
-      LocationKeys.WATER_WELL,
-      LocationKeys.BEACH,
-      LocationKeys.FORK1,
-      LocationKeys.FORK2,
-      LocationKeys.FORK3
-    ];
-
-    this.pendingAllianceMeetings = alliances
-      .map((alliance) => {
-        const memberIds = toMemberIds(alliance);
-        const isPlayerMember = memberIds.some((id) => String(id) === String(playerId));
-        if (!isPlayerMember || memberIds.length < 2) return null;
-        const allianceId = this.getAllianceKey(alliance) ?? `alliance-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const spot = meetingSpots[Math.floor(Math.random() * meetingSpots.length)];
-        this.logFact({ type: 'allianceMeetingStart', allianceId, location: spot });
-        const locationKey = this.normalizeViewKey(spot);
-        window.debugBanner?.('ALLIANCE-MEETING', `locationView: ${spot} | locationKey: ${locationKey}`);
-        return { allianceId, alliance, locationView: spot, locationKey, memberIds };
-      })
-      .filter(Boolean);
-
-    this.queueMeetingAlert();
-    return this.pendingAllianceMeetings.length;
-  }
+  scheduleAllianceMeetings() { this.scramble?.scheduleAlliances(); return this.scramble?.meetings.length || 0; }
 
   resolveAllianceById(allianceId) {
     if (!allianceId) return null;
@@ -313,66 +250,9 @@ class StrategyPhaseSystem {
     return all.find((a) => a?.id === allianceId || a?.allianceId === allianceId) || null;
   }
 
-  queueMeetingAlert() {
-    if (!this.pendingAllianceMeetings.length) return;
-    const next = this.pendingAllianceMeetings[0];
-    if (!next) return;
-
-    const toast = document.createElement('div');
-    toast.className = 'strategy-meeting-toast';
-    toast.textContent = `Your alliance wants to meet at the ${next.locationView}.`;
-
-    const button = document.createElement('button');
-    button.className = 'rect-button';
-    button.textContent = 'Go Now';
-    button.addEventListener('click', () => {
-      document.body.removeChild(toast);
-      const tryKeys = [
-        next.locationView,
-        `${next.locationView}View`,
-        `${next.locationView.charAt(0).toUpperCase()}${next.locationView.slice(1)}View`,
-      ];
-
-      for (const k of tryKeys) {
-        try {
-          window.campScreen?.loadView?.(k);
-          break;
-        } catch (e) {}
-      }
-    });
-
-    toast.appendChild(button);
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-      if (toast.parentElement) toast.remove();
-    }, 7000);
-  }
-
-  handleCampViewNavigation(viewName) {
-    const loadedKey = this.normalizeViewKey(viewName);
-    const pendingIndex = this.pendingAllianceMeetings.findIndex((m) => m.locationKey === loadedKey);
-    const pendingKeys = this.pendingAllianceMeetings.map((m) => m.locationKey).join(', ');
-    window.debugBanner?.('CAMP-NAV', `view: ${viewName} | loadedKey: ${loadedKey} | pendingKeys: ${pendingKeys}`);
-    const pending = pendingIndex >= 0 ? this.pendingAllianceMeetings[pendingIndex] : null;
-    if (!pending) return;
-    const meetingKey = `${pending.allianceId}-${pending.locationKey || loadedKey}`;
-    if (this.completedAllianceMeetings.has(meetingKey)) return;
-
-    const alliance = pending.alliance || this.resolveAllianceById(pending.allianceId);
-    if (!alliance) {
-      this.completedAllianceMeetings.add(meetingKey);
-      this.pendingAllianceMeetings.splice(pendingIndex, 1);
-      this.queueMeetingAlert();
-      return;
-    }
-
-    alliance.memberIds = pending.memberIds || alliance.memberIds;
-    this.launchAllianceConversation(alliance, viewName);
-    this.completedAllianceMeetings.add(meetingKey);
-    this.pendingAllianceMeetings.splice(pendingIndex, 1);
-    this.queueMeetingAlert();
-  }
+  // Legacy navigation/alert entry points no longer teleport or auto-open meetings.
+  queueMeetingAlert() {}
+  handleCampViewNavigation() {}
 
   promptPersonalTarget() {
     const tribe = gameManager.getPlayerTribe();
@@ -537,17 +417,14 @@ class StrategyPhaseSystem {
     });
   }
 
-  beginStrategyBeats() {
-    this.beatIntervalId && clearInterval(this.beatIntervalId);
-    if (this.playerTribeSafe) return;
-    this.beatIntervalId = setInterval(() => this.runStrategyBeat(), 12000);
-  }
+  // Compatibility only: the semantic CampActivitySystem is the sole heartbeat.
+  beginStrategyBeats() {}
 
   updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0, absoluteConfidence = null,
     lateVolatility = false } = {}) {
     if (!npcId || !this.isTargetIdAvailable(targetId)) return null;
     const previousTargetId = this.getNpcTargetIntent(npcId)?.targetId;
-    const priorMeta = this.npcIntentMeta.get(npcId) || { confidence: 0.5, reason: 'seed', updatedAt: Date.now() };
+    const priorMeta = this.npcIntentMeta.get(npcId) || { confidence: 0.5, reason: 'seed', updatedAt: this.semanticTimestamp() };
     const fallbackConfidence = (Number(priorMeta.confidence) || 0.5) + (Number(confidenceDelta) || 0);
     const seededConfidence = absoluteConfidence == null ? fallbackConfidence : Number(absoluteConfidence);
     const nextConfidence = Math.min(1, Math.max(0, seededConfidence));
@@ -556,7 +433,7 @@ class StrategyPhaseSystem {
     const meta = {
       confidence: Number(nextConfidence.toFixed(2)),
       reason,
-      updatedAt: Date.now(),
+      updatedAt: this.semanticTimestamp(),
     };
     this.npcIntentMeta.set(npcId, meta);
 
@@ -574,7 +451,7 @@ class StrategyPhaseSystem {
       // names stay private; the visible event is the late scramble itself.
       this.strategyFacts.push({ type: 'lateTargetSwitch', speakerId: npcId,
         fromTargetId: previousTargetId, toTargetId: targetId, severity: .75,
-        source: reason, timestamp: Date.now() });
+        source: reason, timestamp: this.semanticTimestamp() });
     }
     window.debugBanner?.('NPC-INTENT', `${npcName} -> ${targetName} (${meta.confidence.toFixed(2)})`);
     return meta;
@@ -621,7 +498,7 @@ class StrategyPhaseSystem {
         const score = threatScore + (100 - relationshipValue) + this.campPreference(npc.id, candidate.id) * 12;
         return { candidate, weight: Math.exp(Math.min(200, score) / 35) };
       });
-      let roll = Math.random() * weighted.reduce((n, entry) => n + entry.weight, 0);
+      let roll = this.random() * weighted.reduce((n, entry) => n + entry.weight, 0);
       return (weighted.find(entry => (roll -= entry.weight) <= 0) || weighted.at(-1))?.candidate.id ?? null;
     };
 
@@ -673,7 +550,7 @@ class StrategyPhaseSystem {
     const ranked = Object.entries(heatMap).sort((a, b) => b[1] - a[1]);
     const primaryTargetId = ranked[0]?.[0] ?? null;
     const secondaryTargetId = ranked[1]?.[0] ?? null;
-    const computedAt = Date.now();
+    const computedAt = this.semanticTimestamp();
 
     this.tribalTargetBoard = {
       primaryTargetId,
@@ -705,273 +582,11 @@ class StrategyPhaseSystem {
     return this.tribalTargetBoard || gameManager.flags?.tribalTargetBoard || null;
   }
 
-  runStrategyBeat() {
-    if (!this.isActive || gameManager.gameState !== GameState.CAMP) return;
-    if (this.playerTribeSafe) return;
-    if (gameManager.flags?.campEventActive) return;
-
-    const tribe = gameManager.getPlayerTribe();
-    if (!tribe) return;
-
-    const speaker = this.pickSpeaker(tribe.members);
-    if (!speaker) return;
-
-    const action = this.pickAction(speaker);
-    const targetId = this.pickTargetForAction(action, tribe.members, speaker);
-    this.logPlayerNameFloatedIfNeeded({ speaker, targetId, action });
-
-    if (targetId) {
-      this.firstTargetIntroduced = true;
-      this.updateNpcIntentTarget(speaker.id, targetId, {
-        reason: `strategyBeat:${action}`,
-        confidenceDelta: action === 'HARD_COUNTER' ? 0.12 : action === 'SOFT_COUNTER' ? 0.08 : 0.05,
-      });
-    }
-
-    this.logFact({
-      type: 'strategyBeat',
-      speakerId: speaker.id,
-      gameplayStyle: speaker.gameplayStyle,
-      action,
-      targetId,
-    });
-
-    if (Math.random() < this.getRumorLeakChance(speaker)) {
-      this.logFact({ type: 'rumor', speakerId: speaker.id, targetId, toPlayer: true });
-      if (targetId) {
-        this.updateNpcIntentTarget(speaker.id, targetId, {
-          reason: `rumorLeak:${action}`,
-          confidenceDelta: 0.03,
-        });
-      }
-    }
-  }
-
+  runStrategyBeat() { return false; }
   launchAllianceConversation(alliance, location) {
-    const overlay = document.createElement('div');
-    overlay.className = 'strategy-overlay';
-
-    const modal = document.createElement('div');
-    modal.className = 'strategy-modal strategy-convo-modal';
-
-    const title = document.createElement('h2');
-    title.textContent = `${alliance.name || 'Alliance'} meeting (${location})`;
-    modal.appendChild(title);
-
-    const logArea = document.createElement('div');
-    logArea.className = 'strategy-convo-log';
-    modal.appendChild(logArea);
-
-    const actions = document.createElement('div');
-    actions.className = 'strategy-actions';
-    modal.appendChild(actions);
-
-    const members = (alliance.memberIds || [])
-      .map((id) => gameManager.survivors?.find((s) => s.id === id))
-      .filter(Boolean);
-    const tribe = gameManager.getPlayerTribe();
-    const tribeMembers = tribe?.members || [];
-
-    const npcMembers = members.filter((m) => !m.isPlayer);
-    const player = gameManager.getPlayerSurvivor();
-
-    const addLine = (text) => {
-      const line = document.createElement('div');
-      line.textContent = text;
-      logArea.appendChild(line);
-      logArea.scrollTop = logArea.scrollHeight;
-    };
-
-    const proposeTarget = (speaker) => {
-      return this.pickTargetForAction('SOFT_COUNTER', tribeMembers, speaker)
-        || tribeMembers.find((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m))?.id;
-    };
-
-    const runDiscussion = (initial) => {
-      const allianceKey = this.getAllianceKey(alliance) ?? `alliance-${alliance.name || 'unnamed'}`;
-      const stances = new Map();
-      const proposedBy = initial.by;
-      stances.set(initial.targetId, [{ speakerId: proposedBy.id, stance: 'propose' }]);
-      this.logFact({ type: 'targetProposed', allianceId: allianceKey, speakerId: proposedBy.id, targetId: initial.targetId });
-
-      npcMembers.forEach((npc) => {
-        if (npc.id === proposedBy.id) return;
-        const stanceRoll = Math.random();
-        let stance = 'agree';
-        if (npc.gameplayStyle === 'Wildcard' && stanceRoll < 0.3) stance = 'counter';
-        else if (stanceRoll < 0.15) stance = 'silent';
-        else if (stanceRoll < 0.3) stance = 'reluctant';
-
-        let targetId = initial.targetId;
-        if (stance === 'counter') {
-          targetId = proposeTarget(npc) || targetId;
-        }
-        const bucket = stances.get(targetId) || [];
-        bucket.push({ speakerId: npc.id, stance });
-        stances.set(targetId, bucket);
-        this.logFact({ type: 'targetResponse', allianceId: allianceKey, speakerId: npc.id, stance, targetId });
-        addLine(`${npc.firstName} ${stance === 'counter' ? 'counters with' : stance === 'reluctant' ? 'softly agrees on' : stance === 'silent' ? 'stays quiet about' : 'backs'} ${this.getName(targetId)}.`);
-      });
-
-      let chosenTarget = initial.targetId;
-      let bestScore = 0;
-      stances.forEach((entries, target) => {
-        const score = entries.length;
-        if (score > bestScore) {
-          bestScore = score;
-          chosenTarget = target;
-        }
-      });
-
-      this.logFact({ type: 'allianceTargetLocked', allianceId: allianceKey, targetId: chosenTarget });
-      this.allianceTargets.set(allianceKey, chosenTarget);
-      npcMembers.forEach((npc) => {
-        this.updateNpcIntentTarget(npc.id, chosenTarget, {
-          reason: `allianceLock:${allianceKey}`,
-          confidenceDelta: 0.04,
-        });
-      });
-      return chosenTarget;
-    };
-
-    const finishMeeting = (targetId) => {
-      const finalActions = document.createElement('div');
-      finalActions.className = 'strategy-actions';
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = 'Wrap up';
-      closeBtn.className = 'rect-button';
-      closeBtn.addEventListener('click', () => {
-        document.body.removeChild(overlay);
-      });
-      finalActions.appendChild(closeBtn);
-      modal.appendChild(finalActions);
-    };
-
-    const startFlow = () => {
-      addLine('Your alliance huddles up. Who speaks first?');
-      const speakBtn = document.createElement('button');
-      speakBtn.textContent = "I'll speak first";
-      speakBtn.className = 'rect-button';
-      speakBtn.addEventListener('click', () => {
-        actions.innerHTML = '';
-        const tribeOptions = tribeMembers.filter((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m));
-        const picker = this.buildAvatarGridPickerModal({
-          title: 'Who do you pitch?',
-          confirmLabel: 'Propose',
-          options: tribeOptions,
-          tribeColor: tribe?.color || tribe?.tribeColor,
-          defaultSelection: this.personalTargetId || tribeOptions[0]?.id,
-          onConfirm: (targetId) => {
-            addLine(`You put out ${this.getName(targetId)}.`);
-            const finalTarget = runDiscussion({ by: player, targetId });
-            addLine(`Group leans toward ${this.getName(finalTarget)}.`);
-            this.offerSway(finalTarget, alliance, modal, overlay, addLine, finishMeeting);
-          },
-        });
-        document.body.appendChild(picker.overlay);
-      });
-
-      const npcBtn = document.createElement('button');
-      npcBtn.textContent = 'Let someone else speak';
-      npcBtn.className = 'rect-button alt';
-      npcBtn.addEventListener('click', () => {
-        actions.innerHTML = '';
-        const npc = npcMembers[Math.floor(Math.random() * npcMembers.length)];
-        const targetId = proposeTarget(npc);
-        addLine(`${npc.firstName} starts: "What about ${this.getName(targetId)}?"`);
-        const finalTarget = runDiscussion({ by: npc, targetId });
-        addLine(`Group leans toward ${this.getName(finalTarget)}.`);
-        this.offerSway(finalTarget, alliance, modal, overlay, addLine, finishMeeting);
-      });
-
-      actions.appendChild(speakBtn);
-      actions.appendChild(npcBtn);
-    };
-
-    modal.appendChild(actions);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    startFlow();
-  }
-
-  offerSway(currentTarget, alliance, modal, overlay, addLine, finishMeeting) {
-    const allianceKey = this.getAllianceKey(alliance) ?? `alliance-${alliance.name || 'unnamed'}`;
-    const actionRow = document.createElement('div');
-    actionRow.className = 'strategy-actions';
-
-    const goWithGroup = document.createElement('button');
-    goWithGroup.textContent = 'Go with the group';
-    goWithGroup.className = 'rect-button';
-    goWithGroup.addEventListener('click', () => {
-      addLine(`You stick with ${this.getName(currentTarget)}.`);
-      modal.removeChild(actionRow);
-      finishMeeting(currentTarget);
-    });
-
-    const pushDifferent = document.createElement('button');
-    pushDifferent.textContent = 'Push a different name';
-    pushDifferent.className = 'rect-button alt';
-    pushDifferent.addEventListener('click', () => {
-      const tribe = gameManager.getPlayerTribe();
-      const options = tribe?.members?.filter((m) => !m.isPlayer && this.isMemberAvailableForTargeting(m)) || [];
-      const picker = this.buildAvatarGridPickerModal({
-        title: 'Who do you push?',
-        confirmLabel: 'Push',
-        options,
-        tribeColor: tribe?.color || tribe?.tribeColor,
-        defaultSelection: options[0]?.id,
-        onConfirm: (targetId) => {
-          const sway = this.calculateSwayProbability(alliance);
-          const roll = Math.random();
-          const success = roll < sway.probability;
-          this.logFact({
-            type: 'playerSwayAttempt',
-            allianceId: allianceKey,
-            targetId,
-            probability: sway.probability,
-            success,
-            trustAvg: sway.trustAvg,
-            relAvg: sway.relAvg,
-            styleModifier: sway.styleModifier,
-            breakdown: sway.breakdown,
-          });
-          window.debugBanner?.(
-            'SWAY-PROB',
-            `${(sway.probability * 100).toFixed(0)}% roll:${roll.toFixed(3)} ${success ? 'success' : 'fail'} (${this.getName(targetId)})`
-          );
-          window.debugBanner?.(
-            'SWAY-ATTEMPT',
-            `p:${sway.probability.toFixed(3)} result:${success ? 'success' : 'fail'} trustAvg:${sway.trustAvg.toFixed(1)} relAvg:${sway.relAvg.toFixed(1)} style:${sway.styleModifier.toFixed(3)} social:${sway.breakdown.socialComponent.toFixed(3)}`
-          );
-          if (success) {
-            addLine(`You sway them toward ${this.getName(targetId)}!`);
-            this.allianceTargets.set(allianceKey, targetId);
-            this.logFact({ type: 'allianceTargetLocked', allianceId: allianceKey, targetId });
-            const memberIds = alliance.memberIds || [];
-            memberIds
-              .map((id) => gameManager.survivors?.find((s) => s.id === id))
-              .filter((s) => s && !s.isPlayer)
-              .forEach((npc) => {
-                this.updateNpcIntentTarget(npc.id, targetId, {
-                  reason: `playerSwaySuccess:${allianceKey}`,
-                  confidenceDelta: 0.05,
-                });
-              });
-            finishMeeting(targetId);
-          } else {
-            addLine('They hesitate and stick with the original plan.');
-            this.logFact({ type: 'suspicionGained', allianceId: allianceKey, speakerId: allianceKey, aboutId: gameManager.player?.id, reason: 'pushed against majority' });
-            finishMeeting(currentTarget);
-          }
-          modal.removeChild(actionRow);
-        },
-      });
-      document.body.appendChild(picker.overlay);
-    });
-
-    actionRow.appendChild(goWithGroup);
-    actionRow.appendChild(pushDifferent);
-    modal.appendChild(actionRow);
+    const meeting = this.scramble?.meetings.find(m => m.status === 'active' &&
+      String(m.allianceId) === String(this.getAllianceKey(alliance)) && m.location === location);
+    return meeting ? this.scramble.attend(meeting.id) : false;
   }
 
   calculateSwayProbability(alliance) {
@@ -1116,7 +731,7 @@ class StrategyPhaseSystem {
   pickSpeaker(members) {
     const candidates = members.filter((m) => !m.isPlayer);
     if (!candidates.length) return null;
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    return candidates[Math.floor(this.random() * candidates.length)];
   }
 
   pickAction(speaker) {
@@ -1145,7 +760,7 @@ class StrategyPhaseSystem {
     }));
 
     const total = weighted.reduce((sum, item) => sum + item.weight, 0);
-    let roll = Math.random() * total;
+    let roll = this.random() * total;
     for (const item of weighted) {
       roll -= item.weight;
       if (roll <= 0) return item.key;
@@ -1199,13 +814,13 @@ class StrategyPhaseSystem {
       const challengeThreats = weightedCandidates
         .map((entry) => entry.candidate)
         .filter((m) => m.physical >= 70 || m.mental >= 70 || this.calculateThreatScore(m) >= 70);
-      if (challengeThreats.length && Math.random() < 0.6) {
-        return challengeThreats[Math.floor(Math.random() * challengeThreats.length)].id;
+      if (challengeThreats.length && this.random() < 0.6) {
+        return challengeThreats[Math.floor(this.random() * challengeThreats.length)].id;
       }
     }
 
     const totalWeight = weightedCandidates.reduce((sum, entry) => sum + entry.weight, 0);
-    let roll = Math.random() * totalWeight;
+    let roll = this.random() * totalWeight;
     for (const entry of weightedCandidates) {
       roll -= entry.weight;
       if (roll <= 0) {
@@ -1299,9 +914,12 @@ class StrategyPhaseSystem {
   }
 
   logFact(fact) {
-    const enriched = { ...fact, timestamp: Date.now() };
+    const enriched = { ...fact, day: this.getCurrentDay(), campTime: gameManager.dayTimer, timestamp: this.semanticTimestamp() };
     this.strategyFacts.push(enriched);
-    this.playerVisibleFacts.push(enriched);
+    // Facts are simulation reality. Only participants/direct disclosures belong
+    // in the player's recap; visual co-presence alone grants no secret content.
+    if (fact.toPlayer || fact.playerVisible || String(fact.speakerId) === String(gameManager.player?.id) ||
+      fact.participantIds?.some(id => String(id) === String(gameManager.player?.id))) this.playerVisibleFacts.push(enriched);
 
     const debugLabel = fact.type?.toUpperCase?.() || 'FACT';
     const detail = [fact.action, fact.targetId, fact.allianceId].filter(Boolean).join(' | ');
@@ -1318,23 +936,7 @@ class StrategyPhaseSystem {
     return gameManager.getCurrentDay?.() ?? gameManager.getDay?.() ?? gameManager.day;
   }
 
-  startTimerWatcher() {
-    this.timerWatcherId && clearInterval(this.timerWatcherId);
-    this.timerWatcherId = setInterval(() => {
-      if (!this.isActive) return;
-      if (gameManager.flags?.campEventActive) return;
-
-      const currentTimer = gameManager.getDayTimer();
-      this.lastStrategyTimerValue = currentTimer;
-
-      if (currentTimer <= 0) {
-        this.handleTimerExpired();
-      }
-    }, 1000);
-  }
-
-
-
+  startTimerWatcher() {}
 
   addSummaryFact(fact) {
     this.logFact(fact);
@@ -1349,48 +951,21 @@ class StrategyPhaseSystem {
   }
 
   async handleTimerExpired() {
-    if (!this.isActive) return;
+    if (!this.isActive || this.scrambleState === ScrambleState.RESOLVING || gameManager.dayTimer > 0) return false;
+    this.scrambleState = ScrambleState.RESOLVING;
     this.isActive = false;
-    this.beatIntervalId && clearInterval(this.beatIntervalId);
-    this.timerWatcherId && clearInterval(this.timerWatcherId);
-
-    if (!this.playerTribeSafe) {
-      await this.lockPersonalTarget();
-      await this.lockAlliances();
-      this.triggerNpcScramble();
-      this.computeTribalTargetBoard();
-    }
-
+    this.scramble?.clearInvitation();
+    gameManager.systems?.campActivitySystem?.releasePhaseReservations?.();
+    if (!this.playerTribeSafe) this.computeTribalTargetBoard();
+    this.scrambleState = ScrambleState.BEFORE_TRIBAL;
     this.showSummaryView();
+    gameManager.requestAutoSave?.('scramble:resolved');
+    return true;
   }
 
-  triggerNpcScramble() {
-    const tribe = gameManager.getPlayerTribe();
-    if (!tribe) return;
-
-    tribe.members
-      .filter((m) => !m.isPlayer)
-      .forEach((npc) => {
-        if (Math.random() < 0.4) {
-          const action = this.pickAction(npc);
-          const targetId = this.pickTargetForAction(action, tribe.members, npc);
-          this.logPlayerNameFloatedIfNeeded({ speaker: npc, targetId, action });
-          this.logFact({
-            type: 'npcScramble',
-            speakerId: npc.id,
-            action,
-            targetId,
-          });
-          if (targetId) {
-            this.updateNpcIntentTarget(npc.id, targetId, {
-              reason: `npcScramble:${action}`,
-              confidenceDelta: 0.06,
-              lateVolatility: true,
-            });
-          }
-        }
-      });
-  }
+  // No free-floating last-second target reroll. Final-minute activities resolve
+  // through the same physical loop as the rest of the hour.
+  triggerNpcScramble() { return false; }
 
   showSummaryView() {
     if (window.campScreen && typeof window.campScreen.loadView === 'function') {
@@ -1398,11 +973,15 @@ class StrategyPhaseSystem {
     }
   }
 
+  getPlayerSummaryFacts() { return this.playerVisibleFacts; }
+
   getSummaryFacts() {
     return this.strategyFacts;
   }
 
   proceedAfterSummary() {
+    if (this.transitioned) return;
+    this.transitioned = true; this.scrambleState = ScrambleState.COMPLETE;
     const currentState = gameManager.getGameState?.() || gameManager.gameState;
     const currentPhase = gameManager.getGamePhase?.() || gameManager.gamePhase;
     console.log('[StrategyPhaseSystem] proceedAfterSummary start', {

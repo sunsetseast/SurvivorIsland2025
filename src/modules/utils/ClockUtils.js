@@ -22,5 +22,8 @@ export function updateCampClockUI(dayTimer, currentDay) {
     `${seconds.toString().padStart(2, '0')}`;
 
   timeText.innerText = displayTime;
-  dayText.innerText = `Day ${currentDay}`;
+  const gm = globalThis.window?.gameManager;
+  const scramble = gm?.gamePhase === 'postChallenge' && !gm.systems?.strategyPhaseSystem?.playerTribeSafe;
+  dayText.classList?.toggle?.('scramble-clock-label', scramble);
+  dayText.innerText = scramble ? 'Tribal in' : `Day ${currentDay}`;
 }

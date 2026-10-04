@@ -18,12 +18,12 @@ const LABELS = Object.freeze({ gather_firewood: 'Gathering firewood', gather_bam
   gather_food: 'Gathering food', collect_water: 'Collecting water', fish: 'Fishing along the rocks',
   build_fire: 'Working on the fire', tend_fire: 'Tending the fire', build_shelter: 'Working on the shelter',
   rest: 'Taking a break', idol_hunt: 'Looking around the trail', investigate: 'Watching the trail',
-  observe: 'Watching camp', idle_at_camp: 'Sitting nearby', cook: 'Preparing food',
+  meeting_wait: 'Waiting for a meeting', approach_player: 'Coming over to talk', approach_wait: 'Wants to talk', observe: 'Watching camp', idle_at_camp: 'Sitting nearby', cook: 'Preparing food',
   private_conversation: 'Talking with you', strategy_conversation_player: 'Talking with you' });
-export const isSocialActivity = activity => ['socialize', 'strategy_conversation'].includes(activity?.type) || Boolean(activity?.socialPurpose);
+export const isSocialActivity = activity => ['socialize', 'strategy_conversation', 'alliance_meeting'].includes(activity?.type) || Boolean(activity?.socialPurpose);
 export function activityPrivacy(activity) {
   if (!isSocialActivity(activity)) return 'public';
-  return activity.privacy === 'private' || activity.type === 'strategy_conversation' || activity.socialPurpose === 'strategy' ? 'private' : 'public';
+  return activity.privacy === 'private' || ['strategy_conversation', 'alliance_meeting'].includes(activity.type) || activity.socialPurpose === 'strategy' ? 'private' : 'public';
 }
 export function visibleActivityLabel(activity, companions = []) {
   if (!activity) return 'Around camp';
@@ -73,11 +73,11 @@ export function activityCue(activity) {
 }
 export function campGroups(gm, view) {
   const place = playerPlace(gm, view);
-  if (!place || gm.flags?.campEventActive) return [];
+  if (!place || gm.flags?.campEventActive || ['travel', 'follow'].includes(gm.getPlayerSurvivor?.()?.campActivity?.type)) return [];
   const positions = gm.systems?.npcLocationSystem;
   const visible = (gm.getPlayerTribe?.()?.members || []).filter(person => !person.isPlayer &&
     eligibleCampMember(gm, person) && isCampPhysicallyPresent(person, positions, place, gm));
-  const currentActivity = person => gm.gamePhase === 'preChallenge' ? person.campActivity : null;
+  const currentActivity = person => ['preChallenge', 'postChallenge'].includes(gm.gamePhase) ? person.campActivity : null;
   const sets = visible.map(person => [person]);
   // Link only people actually engaged in the same block/shared work, not every
   // co-located bystander. A third nearby person remains a distinct presence.

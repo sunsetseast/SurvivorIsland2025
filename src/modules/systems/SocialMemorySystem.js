@@ -149,10 +149,10 @@ class SocialMemorySystem {
         }
     }
 
-    recordStructuredEvent({ type, speakerId, listenerId = null, subjectId = null, data = {}, day = null, phase = null }) {
+    recordStructuredEvent({ type, speakerId, listenerId = null, subjectId = null, data = {}, day = null, phase = null, id = null, time = null }) {
         const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
         const entry = {
-            id: `evt-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+            id: id ?? `evt-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
             type,
             speakerId,
             listenerId,
@@ -160,7 +160,7 @@ class SocialMemorySystem {
             data,
             day: dayValue,
             phase: phase || window.gameManager?.getGamePhase?.() || null,
-            time: Date.now()
+            time: time ?? Date.now()
         };
 
         this.structuredEvents.push(entry);
@@ -176,7 +176,7 @@ class SocialMemorySystem {
         return entry;
     }
 
-    recordConversationEvent({ type, speakerId, listenerId = null, topicPersonId = null, targetName = null, stance = null, confidence = null, location = null, day = null, phase = null, data = {} }) {
+    recordConversationEvent({ type, speakerId, listenerId = null, topicPersonId = null, targetName = null, stance = null, confidence = null, location = null, day = null, phase = null, data = {}, id = null, time = null }) {
         const payload = {
             topicPersonId,
             targetName,
@@ -192,7 +192,7 @@ class SocialMemorySystem {
             subjectId: topicPersonId,
             data: payload,
             day,
-            phase
+            phase, id, time
         });
     }
 

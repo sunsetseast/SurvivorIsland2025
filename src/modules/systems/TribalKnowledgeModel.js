@@ -52,7 +52,7 @@ export default class TribalKnowledgeModel {
     for (const fact of raw) {
       if (!fact?.type || fact.type === 'tribalTargetBoardComputed') continue;
       const alliance = alliances.find(entry => id(entry.id) === id(fact.allianceId));
-      const knownTo = [fact.speakerId];
+      const knownTo = [fact.speakerId, ...(fact.participantIds || [])];
       if (fact.toPlayer || fact.type === 'personalTargetSet' || fact.type === 'personalTargetLocked') knownTo.push(playerId);
       if (fact.allianceId) knownTo.push(...(alliance?.memberIds || alliance?.members || []));
       if (fact.listenerId != null) knownTo.push(fact.listenerId);

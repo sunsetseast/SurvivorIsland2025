@@ -99,10 +99,6 @@ export default class PostChallengeEventSystem {
         return;
       }
 
-      await this.gameManager.systems?.strategyPhaseSystem?.startPostChallengePhase?.({
-        source: 'PostChallengeEventSystem.run.day1-loss'
-      });
-
       if (!playerWasJourneyer) {
         await FirstLossEvent.runScripted({
           gameManager: this.gameManager,
@@ -140,6 +136,9 @@ export default class PostChallengeEventSystem {
         JourneyReturnCampEvent.markHandled?.(this.gameManager);
       }
 
+      await this.gameManager.systems?.strategyPhaseSystem?.startPostChallengePhase?.({ source: 'PostChallengeEventSystem.run.day1-loss' });
+      this.campScreen?.loadView?.('beach');
+      this.campScreen?.renderClockUI?.();
       return;
     }
 
@@ -167,5 +166,7 @@ export default class PostChallengeEventSystem {
     await this.gameManager.systems?.strategyPhaseSystem?.startPostChallengePhase?.({
       source: 'PostChallengeEventSystem.run'
     });
+    this.campScreen?.loadView?.('beach');
+    this.campScreen?.renderClockUI?.();
   }
 }

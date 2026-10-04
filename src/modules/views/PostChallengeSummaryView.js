@@ -15,7 +15,7 @@ export default function renderPostChallengeSummaryView(container) {
   const scroll = document.createElement('div');
   scroll.className = 'post-challenge-summary-scroll';
 
-  const facts = strategyPhaseSystem.getSummaryFacts();
+  const facts = strategyPhaseSystem.getPlayerSummaryFacts();
 
   const sections = buildSections(facts);
   sections.forEach(({ title: heading, lines }) => {
@@ -257,7 +257,7 @@ function buildSections(facts = []) {
   }
 
   return [
-    { title: 'Your Locked Personal Target', lines: dedupe(personal) },
+    { title: 'Your Current Target', lines: dedupe(personal) },
     { title: 'Alliance Targets', lines: dedupe(alliance) },
     { title: 'Rumors You Heard', lines: dedupe(rumors) },
     { title: 'Deals / Pacts', lines: dedupe(deals) },

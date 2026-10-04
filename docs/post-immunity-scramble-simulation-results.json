@@ -1,0 +1,1159 @@
+[
+  {
+    "scenario": "clear-majority",
+    "seed": 73,
+    "elapsedMinutes": 60,
+    "actions": [
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "halfway_wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait"
+    ],
+    "activityTypes": [
+      "observe",
+      "private_conversation",
+      "idle_at_camp",
+      "strategy_conversation",
+      "travel",
+      "meeting_wait",
+      "alliance_meeting",
+      "collect_water",
+      "build_shelter",
+      "approach_player"
+    ],
+    "movement": 21,
+    "savedAt": 1800,
+    "initialIntents": [
+      [
+        1,
+        6
+      ],
+      [
+        9,
+        6
+      ],
+      [
+        10,
+        6
+      ],
+      [
+        11,
+        6
+      ],
+      [
+        15,
+        6
+      ],
+      [
+        6,
+        9
+      ]
+    ],
+    "npcApproaches": 2,
+    "meetingEvents": [
+      {
+        "type": "meeting_gathering",
+        "campTime": 3300,
+        "meetingId": "1:postChallenge:meeting:qa-core"
+      },
+      {
+        "type": "meeting_started",
+        "campTime": 3030,
+        "meetingId": "1:postChallenge:meeting:qa-core",
+        "participantIds": [
+          1,
+          9,
+          10
+        ]
+      }
+    ],
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed"
+      }
+    ],
+    "conversations": 32,
+    "intentChanges": 43,
+    "facts": 67,
+    "rumors": 1,
+    "deals": 0,
+    "finalBoard": {
+      "primaryTargetId": "6",
+      "secondaryTargetId": "10",
+      "heatMap": {
+        "6": 4,
+        "10": 2,
+        "11": 1
+      },
+      "computedAt": 33600
+    },
+    "tribalInputs": [
+      {
+        "id": 1,
+        "intent": {
+          "targetId": 6,
+          "confidence": 0.4,
+          "reason": "activity:1:postChallenge:126:ENDORSE",
+          "updatedAt": 33585
+        }
+      },
+      {
+        "id": 9,
+        "intent": {
+          "targetId": 6,
+          "confidence": 0.68,
+          "reason": "activity:1:postChallenge:118:HARD_COUNTER",
+          "updatedAt": 33450
+        }
+      },
+      {
+        "id": 10,
+        "intent": {
+          "targetId": 6,
+          "confidence": 0.58,
+          "reason": "heard_pitch:1:postChallenge:118",
+          "updatedAt": 33450
+        }
+      },
+      {
+        "id": 11,
+        "intent": {
+          "targetId": 10,
+          "confidence": 0.49,
+          "reason": "activity:1:postChallenge:71:HARD_COUNTER",
+          "updatedAt": 32160
+        }
+      },
+      {
+        "id": 15,
+        "intent": {
+          "targetId": 11,
+          "confidence": 0.68,
+          "reason": "activity:1:postChallenge:103:ENDORSE",
+          "updatedAt": 33195
+        }
+      },
+      {
+        "id": 6,
+        "intent": {
+          "targetId": 10,
+          "confidence": 0.72,
+          "reason": "activity:1:postChallenge:79:ENDORSE",
+          "updatedAt": 32400
+        }
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "divided",
+    "seed": 74,
+    "elapsedMinutes": 60,
+    "actions": [
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "travel",
+      "halfway_wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait"
+    ],
+    "activityTypes": [
+      "observe",
+      "private_conversation",
+      "idle_at_camp",
+      "strategy_conversation",
+      "travel",
+      "meeting_wait",
+      "collect_water",
+      "build_shelter"
+    ],
+    "movement": 41,
+    "savedAt": 1800,
+    "initialIntents": [
+      [
+        1,
+        9
+      ],
+      [
+        9,
+        1
+      ],
+      [
+        10,
+        9
+      ],
+      [
+        11,
+        1
+      ],
+      [
+        15,
+        9
+      ],
+      [
+        6,
+        1
+      ]
+    ],
+    "npcApproaches": 0,
+    "meetingEvents": [
+      {
+        "type": "meeting_gathering",
+        "campTime": 3300,
+        "meetingId": "1:postChallenge:meeting:qa-core"
+      }
+    ],
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "cancelled"
+      }
+    ],
+    "conversations": 33,
+    "intentChanges": 44,
+    "facts": 69,
+    "rumors": 2,
+    "deals": 0,
+    "finalBoard": {
+      "primaryTargetId": "9",
+      "secondaryTargetId": "15",
+      "heatMap": {
+        "9": 4,
+        "15": 1,
+        "1001": 1
+      },
+      "computedAt": 33600
+    },
+    "tribalInputs": [
+      {
+        "id": 1,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.64,
+          "reason": "activity:1:postChallenge:143:ENDORSE",
+          "updatedAt": 33600
+        }
+      },
+      {
+        "id": 9,
+        "intent": {
+          "targetId": 15,
+          "confidence": 0.54,
+          "reason": "activity:1:postChallenge:137:HARD_COUNTER",
+          "updatedAt": 33435
+        }
+      },
+      {
+        "id": 10,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.63,
+          "reason": "activity:1:postChallenge:132:ENDORSE",
+          "updatedAt": 33270
+        }
+      },
+      {
+        "id": 11,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.66,
+          "reason": "heard_pitch:1:postChallenge:132",
+          "updatedAt": 33270
+        }
+      },
+      {
+        "id": 15,
+        "intent": {
+          "targetId": 1001,
+          "confidence": 0.54,
+          "reason": "activity:1:postChallenge:130:ENDORSE",
+          "updatedAt": 33195
+        }
+      },
+      {
+        "id": 6,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.58,
+          "reason": "heard_pitch:1:postChallenge:134",
+          "updatedAt": 33360
+        }
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "player-danger",
+    "seed": 75,
+    "elapsedMinutes": 60,
+    "actions": [
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "halfway_wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait"
+    ],
+    "activityTypes": [
+      "observe",
+      "private_conversation",
+      "idle_at_camp",
+      "strategy_conversation",
+      "approach_player",
+      "travel",
+      "meeting_wait",
+      "alliance_meeting",
+      "collect_water",
+      "build_shelter"
+    ],
+    "movement": 33,
+    "savedAt": 1800,
+    "initialIntents": [
+      [
+        1,
+        1001
+      ],
+      [
+        9,
+        1001
+      ],
+      [
+        10,
+        1001
+      ],
+      [
+        11,
+        1001
+      ],
+      [
+        15,
+        1001
+      ],
+      [
+        6,
+        1001
+      ]
+    ],
+    "npcApproaches": 3,
+    "meetingEvents": [
+      {
+        "type": "meeting_gathering",
+        "campTime": 3240,
+        "meetingId": "1:postChallenge:meeting:qa-core"
+      },
+      {
+        "type": "meeting_started",
+        "campTime": 3030,
+        "meetingId": "1:postChallenge:meeting:qa-core",
+        "participantIds": [
+          1,
+          9,
+          10
+        ]
+      }
+    ],
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed"
+      }
+    ],
+    "conversations": 31,
+    "intentChanges": 42,
+    "facts": 65,
+    "rumors": 2,
+    "deals": 0,
+    "finalBoard": {
+      "primaryTargetId": "1001",
+      "secondaryTargetId": "15",
+      "heatMap": {
+        "9": 1,
+        "11": 1,
+        "15": 2,
+        "1001": 3
+      },
+      "computedAt": 33600
+    },
+    "tribalInputs": [
+      {
+        "id": 1,
+        "intent": {
+          "targetId": 1001,
+          "confidence": 0.58,
+          "reason": "activity:1:postChallenge:133:ENDORSE",
+          "updatedAt": 33525
+        }
+      },
+      {
+        "id": 9,
+        "intent": {
+          "targetId": 1001,
+          "confidence": 0.62,
+          "reason": "activity:1:postChallenge:122:SOFT_COUNTER",
+          "updatedAt": 33285
+        }
+      },
+      {
+        "id": 10,
+        "intent": {
+          "targetId": 15,
+          "confidence": 0.53,
+          "reason": "activity:1:postChallenge:128:ENDORSE",
+          "updatedAt": 33375
+        }
+      },
+      {
+        "id": 11,
+        "intent": {
+          "targetId": 15,
+          "confidence": 0.59,
+          "reason": "activity:1:postChallenge:123:ENDORSE",
+          "updatedAt": 33285
+        }
+      },
+      {
+        "id": 15,
+        "intent": {
+          "targetId": 11,
+          "confidence": 0.53,
+          "reason": "activity:1:postChallenge:113:ENDORSE",
+          "updatedAt": 33045
+        }
+      },
+      {
+        "id": 6,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.65,
+          "reason": "activity:1:postChallenge:74:HARD_COUNTER",
+          "updatedAt": 32235
+        }
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "swing-player",
+    "seed": 76,
+    "elapsedMinutes": 60,
+    "actions": [
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "halfway_wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait"
+    ],
+    "activityTypes": [
+      "observe",
+      "private_conversation",
+      "strategy_conversation",
+      "idle_at_camp",
+      "travel",
+      "meeting_wait",
+      "alliance_meeting",
+      "collect_water",
+      "build_shelter",
+      "approach_player"
+    ],
+    "movement": 53,
+    "savedAt": 1800,
+    "initialIntents": [
+      [
+        1,
+        15
+      ],
+      [
+        9,
+        15
+      ],
+      [
+        10,
+        15
+      ],
+      [
+        11,
+        9
+      ],
+      [
+        15,
+        9
+      ],
+      [
+        6,
+        9
+      ]
+    ],
+    "npcApproaches": 2,
+    "meetingEvents": [
+      {
+        "type": "meeting_gathering",
+        "campTime": 3300,
+        "meetingId": "1:postChallenge:meeting:qa-left"
+      },
+      {
+        "type": "meeting_started",
+        "campTime": 3000,
+        "meetingId": "1:postChallenge:meeting:qa-left",
+        "participantIds": [
+          1,
+          9
+        ]
+      },
+      {
+        "type": "meeting_gathering",
+        "campTime": 2760,
+        "meetingId": "1:postChallenge:meeting:qa-right"
+      },
+      {
+        "type": "meeting_started",
+        "campTime": 2370,
+        "meetingId": "1:postChallenge:meeting:qa-right",
+        "participantIds": [
+          10,
+          11
+        ]
+      }
+    ],
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-left",
+        "status": "completed"
+      },
+      {
+        "id": "1:postChallenge:meeting:qa-right",
+        "status": "completed"
+      }
+    ],
+    "conversations": 29,
+    "intentChanges": 45,
+    "facts": 70,
+    "rumors": 4,
+    "deals": 0,
+    "finalBoard": {
+      "primaryTargetId": "1",
+      "secondaryTargetId": "9",
+      "heatMap": {
+        "1": 2,
+        "9": 2,
+        "10": 2,
+        "15": 1
+      },
+      "computedAt": 33600
+    },
+    "tribalInputs": [
+      {
+        "id": 1,
+        "intent": {
+          "targetId": 10,
+          "confidence": 0.44,
+          "reason": "activity:1:postChallenge:142:SOFT_COUNTER",
+          "updatedAt": 33135
+        }
+      },
+      {
+        "id": 9,
+        "intent": {
+          "targetId": 10,
+          "confidence": 0.55,
+          "reason": "activity:1:postChallenge:151:ENDORSE",
+          "updatedAt": 33420
+        }
+      },
+      {
+        "id": 10,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.54,
+          "reason": "activity:1:postChallenge:110:HARD_COUNTER",
+          "updatedAt": 32550
+        }
+      },
+      {
+        "id": 11,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.57,
+          "reason": "activity:1:postChallenge:149:SOFT_COUNTER",
+          "updatedAt": 33375
+        }
+      },
+      {
+        "id": 15,
+        "intent": {
+          "targetId": 1,
+          "confidence": 0.77,
+          "reason": "heard_pitch:1:postChallenge:154",
+          "updatedAt": 33480
+        }
+      },
+      {
+        "id": 6,
+        "intent": {
+          "targetId": 1,
+          "confidence": 0.75,
+          "reason": "activity:1:postChallenge:154:SOFT_COUNTER",
+          "updatedAt": 33480
+        }
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "alliance-disagreement",
+    "seed": 77,
+    "elapsedMinutes": 60,
+    "actions": [
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "halfway_wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "strategic_conversation"
+    ],
+    "activityTypes": [
+      "observe",
+      "private_conversation",
+      "idle_at_camp",
+      "strategy_conversation",
+      "travel",
+      "meeting_wait",
+      "alliance_meeting",
+      "collect_water",
+      "build_shelter",
+      "approach_player"
+    ],
+    "movement": 23,
+    "savedAt": 1800,
+    "initialIntents": [
+      [
+        1,
+        9
+      ],
+      [
+        9,
+        10
+      ],
+      [
+        10,
+        11
+      ],
+      [
+        11,
+        15
+      ],
+      [
+        15,
+        6
+      ],
+      [
+        6,
+        1
+      ]
+    ],
+    "npcApproaches": 3,
+    "meetingEvents": [
+      {
+        "type": "meeting_gathering",
+        "campTime": 3300,
+        "meetingId": "1:postChallenge:meeting:qa-core"
+      },
+      {
+        "type": "meeting_started",
+        "campTime": 2985,
+        "meetingId": "1:postChallenge:meeting:qa-core",
+        "participantIds": [
+          1,
+          9,
+          10
+        ]
+      }
+    ],
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed"
+      }
+    ],
+    "conversations": 29,
+    "intentChanges": 38,
+    "facts": 63,
+    "rumors": 2,
+    "deals": 0,
+    "finalBoard": {
+      "primaryTargetId": "9",
+      "secondaryTargetId": "1001",
+      "heatMap": {
+        "1": 1,
+        "9": 3,
+        "10": 1,
+        "1001": 2
+      },
+      "computedAt": 33600
+    },
+    "tribalInputs": [
+      {
+        "id": 1,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.45,
+          "reason": "activity:1:postChallenge:120:ENDORSE",
+          "updatedAt": 33435
+        }
+      },
+      {
+        "id": 9,
+        "intent": {
+          "targetId": 10,
+          "confidence": 0.55,
+          "reason": "activity:1:postChallenge:114:SOFT_COUNTER",
+          "updatedAt": 33240
+        }
+      },
+      {
+        "id": 10,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.54,
+          "reason": "activity:1:postChallenge:92:SOFT_COUNTER",
+          "updatedAt": 32520
+        }
+      },
+      {
+        "id": 11,
+        "intent": {
+          "targetId": 1001,
+          "confidence": 0.56,
+          "reason": "heard_pitch:1:postChallenge:121",
+          "updatedAt": 33450
+        }
+      },
+      {
+        "id": 15,
+        "intent": {
+          "targetId": 1001,
+          "confidence": 0.74,
+          "reason": "activity:1:postChallenge:121:HARD_COUNTER",
+          "updatedAt": 33450
+        }
+      },
+      {
+        "id": 6,
+        "intent": {
+          "targetId": 1,
+          "confidence": 0.5,
+          "reason": "activity:1:postChallenge:111:ENDORSE",
+          "updatedAt": 33195
+        }
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "late-change",
+    "seed": 78,
+    "elapsedMinutes": 60,
+    "actions": [
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "halfway_wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "travel",
+      "strategic_conversation",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "strategic_conversation",
+      "travel",
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "late_counter",
+      "strategic_conversation"
+    ],
+    "activityTypes": [
+      "observe",
+      "private_conversation",
+      "idle_at_camp",
+      "strategy_conversation",
+      "approach_player",
+      "travel",
+      "meeting_wait",
+      "alliance_meeting",
+      "collect_water",
+      "build_shelter"
+    ],
+    "movement": 21,
+    "savedAt": 1800,
+    "initialIntents": [
+      [
+        1,
+        9
+      ],
+      [
+        9,
+        1
+      ],
+      [
+        10,
+        9
+      ],
+      [
+        11,
+        1
+      ],
+      [
+        15,
+        9
+      ],
+      [
+        6,
+        1
+      ]
+    ],
+    "npcApproaches": 3,
+    "meetingEvents": [
+      {
+        "type": "meeting_gathering",
+        "campTime": 3240,
+        "meetingId": "1:postChallenge:meeting:qa-core"
+      },
+      {
+        "type": "meeting_started",
+        "campTime": 3030,
+        "meetingId": "1:postChallenge:meeting:qa-core",
+        "participantIds": [
+          1,
+          9,
+          10
+        ]
+      }
+    ],
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed"
+      }
+    ],
+    "conversations": 32,
+    "intentChanges": 40,
+    "facts": 64,
+    "rumors": 1,
+    "deals": 0,
+    "finalBoard": {
+      "primaryTargetId": "1",
+      "secondaryTargetId": "6",
+      "heatMap": {
+        "1": 4,
+        "6": 1,
+        "9": 1,
+        "15": 1
+      },
+      "computedAt": 33600
+    },
+    "tribalInputs": [
+      {
+        "id": 1,
+        "intent": {
+          "targetId": 9,
+          "confidence": 0.65,
+          "reason": "conversation:playerCounter",
+          "updatedAt": 33315
+        }
+      },
+      {
+        "id": 9,
+        "intent": {
+          "targetId": 1,
+          "confidence": 0.67,
+          "reason": "heard_pitch:1:postChallenge:122",
+          "updatedAt": 33555
+        }
+      },
+      {
+        "id": 10,
+        "intent": {
+          "targetId": 1,
+          "confidence": 0.63,
+          "reason": "activity:1:postChallenge:122:SOFT_COUNTER",
+          "updatedAt": 33555
+        }
+      },
+      {
+        "id": 11,
+        "intent": {
+          "targetId": 6,
+          "confidence": 0.54,
+          "reason": "heard_pitch:1:postChallenge:116",
+          "updatedAt": 33300
+        }
+      },
+      {
+        "id": 15,
+        "intent": {
+          "targetId": 1,
+          "confidence": 0.49,
+          "reason": "activity:1:postChallenge:103:ENDORSE",
+          "updatedAt": 32835
+        }
+      },
+      {
+        "id": 6,
+        "intent": {
+          "targetId": 15,
+          "confidence": 0.49,
+          "reason": "activity:1:postChallenge:120:SOFT_COUNTER",
+          "updatedAt": 33435
+        }
+      }
+    ],
+    "saveLoadEquivalent": true
+  }
+]
