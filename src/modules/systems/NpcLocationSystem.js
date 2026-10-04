@@ -9,6 +9,7 @@ import { getRandomInt, shuffleArray } from "../utils/CommonUtils.js";
 import eventManager from "../core/EventManager.js";
 import { LocationKeys } from "../core/LocationKeys.js";
 import { isCoreCampLocation, normalizeLocationKey } from "../locations/LocationUtils.js";
+import { isCampPhysicallyPresent } from '../locations/CampPresence.js';
 import { CAMP_WORK_LOCATIONS } from './CampState.js';
 
 // Safe debug helper – uses global debugBanner if it exists
@@ -555,11 +556,8 @@ class NpcLocationSystem {
     const canonicalLocation = normalizeLocationKey(locationName);
     if (!canonicalLocation) return results;
 
-    const absentSet = gameManager.flags?.absentFromCampIds;
-
     for (let s of tribe.members) {
-      const assignedLocation = normalizeLocationKey(this.locations[s.id]);
-      if (!s.isPlayer && !s.isOut && !isMarkedAbsent(absentSet, s.id) && assignedLocation === canonicalLocation) {
+      if (!s.isPlayer && isCampPhysicallyPresent(s, this, canonicalLocation, gameManager)) {
         results.push(s);
       }
     }
@@ -572,28 +570,29 @@ class NpcLocationSystem {
     return results;
   }
 
-  updateNpcLocation(npcId, locationKey, { reason = null } = {}) {
+  updateNpcLocation(npcId, locationKey, { reason = null, publish = true } = {}) {
     if (!npcId) return;
     const normalized = normalizeLocationKey(locationKey);
     if (!isCoreCampLocation(normalized)) return;
     const key = String(npcId);
     this.locations[key] = normalized;
-    gameManager.systems?.campInteractionSystem?.targetMoved(npcId, normalized);
+    if (!reason?.startsWith('activity:travel')) gameManager.systems?.campInteractionSystem?.targetMoved(npcId, normalized);
     this.locationSinceTimer[key] = gameManager.getDayTimer?.() ?? gameManager.dayTimer ?? this.locationSinceTimer[key] ?? null;
     const tribe = gameManager.getPlayerTribe();
     const npc = tribe?.members?.find(member => String(member.id) === String(npcId));
     if (npc) {
       npc.location = normalized;
     }
-    eventManager.publish("npc:locationUpdated", { npcId, locationKey: normalized, reason });
+    if (publish) eventManager.publish("npc:locationUpdated", { npcId, locationKey: normalized, reason });
   }
 
   getLocationCounts() {
     const counts = {};
-    Object.values(this.locations).forEach(location => {
-      if (!location) return;
+    for (const person of gameManager.getPlayerTribe()?.members || []) {
+      const location = this.getLocation(person.id);
+      if (person.isPlayer || !isCampPhysicallyPresent(person, this, location, gameManager)) continue;
       counts[location] = (counts[location] || 0) + 1;
-    });
+    }
     return counts;
   }
 

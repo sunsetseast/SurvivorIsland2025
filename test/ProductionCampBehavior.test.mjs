@@ -162,7 +162,7 @@ test('physical privacy includes the player in Firewood/Bamboo/Fishing/Fire subvi
   const a = npc('Tony'), b = npc('Jeremy');
   memory.recordConversationIntent({ npcId: a.id, targetId: npc('Sandra').id, intent: 'targeting', day: 3, campTime: 7000 });
   for (const [view, physical] of [[L.FIREWOOD,L.JUNGLE_TRAIL],[L.BAMBOO,L.JUNGLE_TRAIL],[L.FISHING,L.ROCKY_SHORE],[L.FIRE,L.CAMPFIRE]]) {
-    window.campScreen.currentView = view; positions[a.id] = positions[b.id] = physical;
+    window.campScreen.currentView = view; gm.getPlayerSurvivor().location = physical; positions[a.id] = positions[b.id] = physical;
     assert.equal(physicalCampLocation(view), physical);
     const result = resolveNpcCampExchange({ gm, memory, speaker: a, listener: b, random: () => 0,
       activity: { id: view, type: 'strategy_conversation', targetId: b.id, location: physical, endsAt: 6000 } });
@@ -288,6 +288,8 @@ test('advantage disclosure uses actual idolshare and real privacy, rather than i
   gm.systems.allianceSystem.areAllied = () => true;
   const exchange = speaker => {
     speaker.hasIdol = true;
+    gm.systems.npcLocationSystem.updateNpcLocation(speaker.id, L.WATER_WELL);
+    gm.systems.npcLocationSystem.updateNpcLocation(listener.id, L.WATER_WELL);
     const pair = { ...gm, getPlayerTribe: () => ({ members: [speaker, listener] }) };
     return resolveNpcCampExchange({ gm: pair, memory, speaker, listener, random: () => .2,
       activity: { id: `disclosure:${speaker.id}`, type: 'strategy_conversation', location: L.WATER_WELL,

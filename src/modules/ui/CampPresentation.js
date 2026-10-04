@@ -1,6 +1,8 @@
 // A read-only, player-visible projection of the existing physical camp. No AI
 // intentions, hidden targets, or other contestants' memories enter this model.
 import { physicalCampLocation } from '../locations/LocationUtils.js';
+import { eligibleCampMember, isCampPhysicallyPresent } from '../locations/CampPresence.js';
+export { eligibleCampMember, isCampPhysicallyPresent as physicallyPresent } from '../locations/CampPresence.js';
 export const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 export const placeName = key => ({ beach: 'the beach', campfire: 'the fire', shelter: 'the shelter',
   jungleTrail: 'the jungle trail', rockyShore: 'the rocks', waterWell: 'the water well',
@@ -32,37 +34,49 @@ export function visibleActivityLabel(activity, companions = []) {
     companions.length ? `Talking with ${companions.join(' & ')}` : 'Talking nearby';
   return work || 'Around camp';
 }
-export function eligibleCampMember(gm, person) {
-  const absent = gm.flags?.absentFromCampIds;
-  return person && !person.isOut && !(absent instanceof Set ? [...absent] : absent || []).some(id => sameId(id, person.id));
-}
 export function playerPlace(gm, view) {
   return physicalCampLocation(view || gm.getPlayerSurvivor?.()?.location);
 }
-// Runtime locations identify route destinations early. Keep that contract,
-// but a traveler is not yet an arrived, talkable portrait at that destination.
-export function physicallyPresent(person, positions, place) {
-  return positions?.getLocation?.(person.id) === place && person.campActivity?.type !== 'travel';
+const PUBLIC_CUES = Object.freeze({
+  water: ['Water’s getting low.', 'We should make another water run.', 'Anyone heading to the well?'],
+  wood: ['We need more wood.', 'That wood pile’s getting thin.', 'We’ll need another wood run.'],
+  fire: ['We still need to get the fire going.', 'We could use a fire.', 'The fire needs another try.'],
+  shelter: ['There’s still work to do on the shelter.', 'The shelter could use a little work.', 'We should finish the shelter.']
+});
+function publicNeeds(tribe) {
+  const supply = tribe?.stockpile || {};
+  return [(supply.water || 0) < (tribe?.members?.length || 1) ? 'water' : null,
+    (supply.firewood || 0) < 10 ? 'wood' : null, !(tribe?.fire > 0) ? 'fire' : null,
+    (tribe?.shelter || 0) < 3 ? 'shelter' : null].filter(Boolean);
 }
+const cueHash = value => [...String(value)].reduce((n, c) => (Math.imul(n, 31) + c.charCodeAt(0)) >>> 0, 7);
 export function publicCampCue(group, tribe) {
   if (!group.social || group.privacy !== 'public') return null;
-  const supplies = tribe?.stockpile || {};
-  if ((supplies.water || 0) < (tribe?.members?.length || 1)) return '“Water’s getting low.”';
-  if ((supplies.firewood || 0) < 10) return '“We need more wood.”';
-  if (!(tribe?.fire > 0)) return '“We still need to get the fire going.”';
-  if ((tribe?.shelter || 0) < 3) return '“There’s still work to do on the shelter.”';
-  return null;
+  const topic = publicNeeds(tribe)[0];
+  return topic ? `“${PUBLIC_CUES[topic][0]}”` : null;
+}
+// Read-only and bounded to the local rail. Activity identity keeps wording
+// stable; one cue per shared need avoids several groups echoing each other.
+export function publicCampCues(groups, tribe) {
+  const needs = publicNeeds(tribe), spoken = new Set();
+  return groups.map(group => {
+    if (!group.social || group.privacy !== 'public' || !needs.length) return null;
+    const hash = cueHash(`${group.id}:${group.activityId}`), topic = needs[hash % needs.length];
+    if (spoken.has(topic)) return null;
+    spoken.add(topic);
+    return `“${PUBLIC_CUES[topic][Math.floor(hash / needs.length) % PUBLIC_CUES[topic].length]}”`;
+  });
 }
 export function activityCue(activity) {
-  return ({ build_shelter: '⚒', fish: '⌁', build_fire: '♨', tend_fire: '♨', collect_water: '◒',
-    gather_firewood: '⚒', gather_bamboo: '⚒', rest: '·', strategy_conversation: '◌' })[activity?.type] || null;
+  return ({ build_shelter: 'Work', fish: 'Fish', build_fire: 'Fire', tend_fire: 'Fire', collect_water: 'Water',
+    gather_firewood: 'Work', gather_bamboo: 'Work', rest: 'Rest', strategy_conversation: 'Quiet' })[activity?.type] || null;
 }
 export function campGroups(gm, view) {
   const place = playerPlace(gm, view);
   if (!place || gm.flags?.campEventActive) return [];
   const positions = gm.systems?.npcLocationSystem;
   const visible = (gm.getPlayerTribe?.()?.members || []).filter(person => !person.isPlayer &&
-    eligibleCampMember(gm, person) && physicallyPresent(person, positions, place));
+    eligibleCampMember(gm, person) && isCampPhysicallyPresent(person, positions, place, gm));
   const currentActivity = person => gm.gamePhase === 'preChallenge' ? person.campActivity : null;
   const sets = visible.map(person => [person]);
   // Link only people actually engaged in the same block/shared work, not every

@@ -10,10 +10,12 @@ const { default: RelationshipSystem } = await import('../src/modules/systems/Rel
 const { default: TrustSystem } = await import('../src/modules/systems/TrustSystem.js');
 const { default: ConversationSystem } = await import('../src/modules/systems/ConversationSystem.js');
 const { default: CampActivitySystem } = await import('../src/modules/systems/CampActivitySystem.js');
+const { updateCampClockUI } = await import('../src/modules/utils/ClockUtils.js');
+const { isCampPhysicallyPresent } = await import('../src/modules/locations/CampPresence.js');
 const { normalizeCampState } = await import('../src/modules/systems/CampState.js');
 const cast = structuredClone(data.getSurvivors());
 const player = { ...cast[1], id: 1001, isPlayer: true, firstName: 'You', location: 'beach' };
-const members = [cast[3],cast[5],cast[8],cast[10],cast[13],cast[14],player];
+const members = [...['Parvati','Jeremy','Tony','Sandra','Wendell','Kelley'].map(name=>cast.find(s=>s.firstName===name)),player];
 for (const person of members) Object.assign(person,{isOut:false,isPlayer:person===player,tribeId:1,tribeName:'QA',tribeColor:'red',campActivity:null,location:'beach'});
 const tribe = normalizeCampState({id:1,tribeId:1,name:'QA',tribeColor:'red',color:'red',members,fire:1,shelter:2,
   stockpile:{firewood:25,bamboo:20,palms:5,water:30,coconuts:10},day1Plan:{assignments:{fire:[],shelter:[],wood:[],resources:[],float:[]}}});
@@ -32,7 +34,22 @@ renderer.initialize();
 screen.ensureClockUI(); // Render the production HUD without starting wall-clock pacing.
 const activity=gm.systems.campActivitySystem;activity.phaseId=activity.phase;
 window.campQa={gm,screen,renderer,tribe,members,activity,
+  present(person,place) {return isCampPhysicallyPresent(person,positions,place,gm);},
+  movement(view='waterWell',paired=false) {
+    gm.dayTimer=7200;gm.campNeedElapsed={water:0,hunger:0,rest:0};gm.campLog=[];
+    gm.systems.socialMemorySystem=new memoryTemplate.constructor();
+    this.scene(view,3,'mixed');
+    const npcs=gm.getPlayerTribe().members.filter(p=>!p.isPlayer),actor=npcs.find(p=>p.firstName==='Tony'),companion=npcs[5];
+    const from={beach:'tribeFlag',waterWell:'jungleTrail',jungleTrail:'fork1',campfire:'tribeFlag',shelter:'campfire',rockyShore:'beach'}[view];
+    activity.start(actor,{type:'rest',location:from,duration:3000});
+    if(paired) activity.start(companion,{type:'rest',location:from,duration:3000});
+    renderer.resetNarration();
+    const step=activity.start(actor,{type:'travel',location:view,travelWithId:paired?companion.id:null,
+      goal:{type:paired?'strategy_conversation':'rest',targetId:paired?companion.id:null,location:view,duration:1000}});
+    return {actorId:actor.id,companionId:paired?companion.id:null,activityId:step.id};
+  },
   scene(view='beach',count=6,mode='mixed') {
+    updateCampClockUI(gm.dayTimer,gm.day);
     renderer.closeSheet(false); gm.flags.campEventActive=false;
     for (const p of gm.getPlayerTribe().members) p.campActivity=null;
     activity.phaseId=activity.phase;activity.conversation=null;

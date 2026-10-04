@@ -153,6 +153,18 @@ export async function interactionQa(page, output) {
   for(const [index,style] of ['passive','worker','social','spy','mixed'].entries()) {
     await qa(()=>{document.querySelectorAll('#fireFailureOverlay,#fireVictoryOverlay').forEach(n=>n.remove());});
     await page.evaluate(seed=>campQa.natural(seed),47+index);
+    await qa(()=>{
+      window.qaMovement={departures:0,arrivals:0,pairArrivals:0,earlyArrivals:0};
+      const memory=campQa.gm.systems.socialMemorySystem,record=memory.recordCampObservation.bind(memory);
+      memory.recordCampObservation=entry=>{
+        if(entry.type==='departed') window.qaMovement.departures++;
+        if(entry.type==='arrived') {
+          window.qaMovement.arrivals++;if(entry.participantIds?.length) window.qaMovement.pairArrivals++;
+          if([entry.actorId,...(entry.participantIds||[])].some(id=>campQa.activity.npcs().find(p=>p.id===id)?.campActivity?.type==='travel')) window.qaMovement.earlyArrivals++;
+        }
+        return record(entry);
+      };
+    });
     const actions=[],signatures=new Set();
     let lingered=0;
     for(let step=0;step<24 && await timer()>240;step++) {
@@ -167,6 +179,10 @@ export async function interactionQa(page, output) {
         await page.evaluate(view=>campQa.screen.loadView(view),places[step/3%places.length]);
         actions.push('navigate');
       }
+      assert.ok(await qa(()=>[...document.querySelectorAll('.camp-portrait[data-npc-id]')].every(node=>{
+        const person=campQa.activity.npcs().find(p=>String(p.id)===node.dataset.npcId);
+        return campQa.present(person,campQa.screen.currentView);
+      })),'natural sequence has no in-transit nearby portraits');
       const groups=await qa(()=>campQa.renderer.interactions.seeGroups());
       signatures.add(JSON.stringify(groups.map(g=>({id:g.id,activity:g.activityId}))));
       const social=groups.find(g=>g.social);
@@ -199,9 +215,11 @@ export async function interactionQa(page, output) {
       lingered++;
       await page.screenshot({path:path.join(output,`playtest-${style}-latest.png`)});
     }
-    const result=await qa(()=>({remaining:campQa.gm.dayTimer,owned:campQa.gm.systems.socialMemorySystem.getCampObservations(campQa.gm.player.id).length,
+    const result=await qa(()=>({movement:window.qaMovement,remaining:campQa.gm.dayTimer,owned:campQa.gm.systems.socialMemorySystem.getCampObservations(campQa.gm.player.id).length,
       completed:campQa.gm.campLog.filter(e=>e.source==='camp_activity').length,needs:campQa.gm.campNeedElapsed,
       supplies:campQa.gm.getPlayerTribe().stockpile,npcs:campQa.activity.npcs().filter(p=>p.campActivity).length}));
+    assert.equal(result.movement.earlyArrivals,0);
+    assert.ok(result.movement.departures>0 && result.movement.arrivals>0);
     assert.ok(result.npcs>0);assert.ok(result.completed>0);assert.ok(result.remaining>0 && result.remaining<7200);
     reports.push({style,actions,minutesLingering:lingered,distinctNearbyGroups:signatures.size,...result});
     await qa(()=>campQa.screen.loadView('summary',{travelPaid:true}));

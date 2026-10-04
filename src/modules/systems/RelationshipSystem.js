@@ -1,3 +1,4 @@
+import { isCampPhysicallyPresent } from '../locations/CampPresence.js';
 /**
  * @module RelationshipSystem
  * Manages relationships between survivors in the game
@@ -391,11 +392,15 @@ class RelationshipSystem {
     
     if (!playerTribe) return;
     
+    const actor = playerTribe.members.find(s => String(s.id) === String(survivorId));
+    const positions = this.gameManager.systems?.npcLocationSystem;
+    const place = actor?.isPlayer ? actor.location : positions?.getLocation?.(actor?.id);
+    if (activityType === 'location' && !isCampPhysicallyPresent(actor, positions, place, this.gameManager)) return;
     // For each tribe member, potentially change relationship
     playerTribe.members.forEach(member => {
       if (member.id !== survivorId) {
         // Skip if not in the same location
-        if (activityType === 'location' && member.location !== playerTribe.members.find(s => s.id === survivorId).location) {
+        if (activityType === 'location' && !isCampPhysicallyPresent(member, positions, place, this.gameManager)) {
           return;
         }
         

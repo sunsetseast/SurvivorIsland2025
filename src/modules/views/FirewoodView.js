@@ -10,7 +10,7 @@ import { LocationKeys } from '../core/LocationKeys.js';
 
 export default function renderFirewoodView(container) {
   console.log('renderFirewoodView() called');
-  addDebugBanner('renderFirewoodView() called', 'orange', 40);
+  if (window.debug) addDebugBanner('renderFirewoodView() called', 'orange', 40);
 
   clearChildren(container);
   container.style.backgroundImage = "url('Assets/Minigame/firewoodScreen.png')";

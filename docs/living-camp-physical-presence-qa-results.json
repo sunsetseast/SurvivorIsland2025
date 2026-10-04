@@ -1,0 +1,1206 @@
+{
+  "chromium": {
+    "browserName": "chromium",
+    "browser": "141.0.7390.37",
+    "scenes": 168,
+    "viewports": [
+      {
+        "width": 375,
+        "height": 812
+      },
+      {
+        "width": 430,
+        "height": 932
+      },
+      {
+        "width": 844,
+        "height": 390
+      },
+      {
+        "width": 1280,
+        "height": 800
+      }
+    ],
+    "errors": [],
+    "playtests": [
+      {
+        "style": "passive",
+        "actions": [],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 4,
+        "movement": {
+          "departures": 37,
+          "arrivals": 41,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 5760,
+        "owned": 10,
+        "completed": 9,
+        "needs": {
+          "water": 240,
+          "hunger": 0,
+          "rest": 0,
+          "restByTribe": {
+            "1": 120
+          }
+        },
+        "supplies": {
+          "firewood": 20,
+          "bamboo": 3,
+          "palms": 1,
+          "water": 35,
+          "coconuts": 10,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "worker",
+        "actions": [
+          "filled tribe water: 35 minutes"
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 7,
+        "movement": {
+          "departures": 59,
+          "arrivals": 63,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 3390,
+        "owned": 17,
+        "completed": 8,
+        "needs": {
+          "water": 210,
+          "hunger": 210,
+          "rest": 0,
+          "restByTribe": {
+            "1": 690
+          }
+        },
+        "supplies": {
+          "firewood": 17,
+          "bamboo": 11,
+          "palms": 2,
+          "water": 40,
+          "coconuts": 10,
+          "fish1": 2,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "social",
+        "actions": [
+          "navigate",
+          "navigate",
+          "navigate",
+          "approach: You walk over, but they have already moved on.",
+          "approach: You walk over. Wendell makes room for you.",
+          "join/exchange/end chat",
+          "approach: You walk over. Parvati makes room for you.",
+          "join/exchange/end chat",
+          "approach: You walk over. Sandra makes room for you.",
+          "join/exchange/end chat",
+          "navigate",
+          "navigate",
+          "navigate",
+          "navigate"
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 8,
+        "movement": {
+          "departures": 20,
+          "arrivals": 23,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 4830,
+        "owned": 31,
+        "completed": 8,
+        "needs": {
+          "water": 270,
+          "hunger": 210,
+          "rest": 0,
+          "restByTribe": {
+            "1": 690
+          }
+        },
+        "supplies": {
+          "firewood": 19,
+          "bamboo": 8,
+          "palms": 2,
+          "water": 30,
+          "coconuts": 10,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "spy",
+        "actions": [
+          "follow: Wendell is tending the fire.",
+          "navigate",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "follow: Tony is working on the shelter together.",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "follow: You lose sight of Kelley beyond the trail.",
+          "navigate",
+          "follow: You lose sight of Sandra beyond the shelter.",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "navigate",
+          "follow: Wendell is gathering firewood.",
+          "follow: Sandra turns around. \u201cYou following me?\u201d",
+          "watch: You linger nearby for a minute. They keep their voices low.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "follow: Jeremy turns around. \u201cYou following me?\u201d",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "follow: You lose sight of them.",
+          "follow: Wendell is working on the shelter together.",
+          "navigate",
+          "navigate",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them."
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 14,
+        "movement": {
+          "departures": 52,
+          "arrivals": 54,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 4050,
+        "owned": 48,
+        "completed": 18,
+        "needs": {
+          "water": 150,
+          "hunger": 270,
+          "rest": 0,
+          "restByTribe": {
+            "1": 30
+          }
+        },
+        "supplies": {
+          "firewood": 6,
+          "bamboo": 11,
+          "palms": 1,
+          "water": 30,
+          "coconuts": 20,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "mixed",
+        "actions": [
+          "follow: Sandra turns around. \u201cYou following me?\u201d",
+          "navigate",
+          "approach: You walk over. Tony makes room for you.",
+          "join/exchange/end chat",
+          "follow: You lose sight of them.",
+          "navigate",
+          "follow: You lose sight of Wendell beyond camp.",
+          "filled tribe water: 35 minutes",
+          "follow: You lose sight of them.",
+          "follow: Wendell turns around. \u201cYou following me?\u201d",
+          "navigate",
+          "navigate",
+          "follow: Kelley is talking nearby.",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "approach: You walk over. Sandra makes room for you.",
+          "join/exchange/end chat",
+          "follow: You lose sight of Parvati beyond the fire.",
+          "navigate",
+          "navigate",
+          "navigate"
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 5,
+        "movement": {
+          "departures": 122,
+          "arrivals": 126,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 1920,
+        "owned": 46,
+        "completed": 22,
+        "needs": {
+          "water": 180,
+          "hunger": 240,
+          "rest": 0,
+          "restByTribe": {
+            "1": 360
+          }
+        },
+        "supplies": {
+          "firewood": 10,
+          "bamboo": 4,
+          "palms": 0,
+          "water": 40,
+          "coconuts": 24,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      }
+    ],
+    "presenceChecks": [
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      }
+    ],
+    "interactionChecks": [
+      "dialog focus/Escape",
+      "watch time",
+      "semantic paired travel",
+      "follow time",
+      "save/load groups",
+      "reduced motion",
+      "existing group dialogue",
+      "minigame collapsed presence",
+      "live resize",
+      "timed stale approach",
+      "missed follow reload",
+      "narration dwell/queue/reload",
+      "stable portraits",
+      "orientation focus",
+      "Help fishing/shelter/fire",
+      "actual tribe water time/idempotence"
+    ]
+  },
+  "webkit": {
+    "browserName": "webkit",
+    "browser": "26.5",
+    "scenes": 168,
+    "viewports": [
+      {
+        "width": 375,
+        "height": 812
+      },
+      {
+        "width": 430,
+        "height": 932
+      },
+      {
+        "width": 844,
+        "height": 390
+      },
+      {
+        "width": 1280,
+        "height": 800
+      }
+    ],
+    "errors": [],
+    "playtests": [
+      {
+        "style": "passive",
+        "actions": [],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 4,
+        "movement": {
+          "departures": 37,
+          "arrivals": 41,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 5760,
+        "owned": 10,
+        "completed": 9,
+        "needs": {
+          "water": 240,
+          "hunger": 0,
+          "rest": 0,
+          "restByTribe": {
+            "1": 120
+          }
+        },
+        "supplies": {
+          "firewood": 20,
+          "bamboo": 3,
+          "palms": 1,
+          "water": 35,
+          "coconuts": 10,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "worker",
+        "actions": [
+          "filled tribe water: 35 minutes"
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 7,
+        "movement": {
+          "departures": 59,
+          "arrivals": 63,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 3390,
+        "owned": 17,
+        "completed": 8,
+        "needs": {
+          "water": 210,
+          "hunger": 210,
+          "rest": 0,
+          "restByTribe": {
+            "1": 690
+          }
+        },
+        "supplies": {
+          "firewood": 17,
+          "bamboo": 11,
+          "palms": 2,
+          "water": 40,
+          "coconuts": 10,
+          "fish1": 2,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "social",
+        "actions": [
+          "navigate",
+          "navigate",
+          "navigate",
+          "approach: You walk over, but they have already moved on.",
+          "approach: You walk over. Wendell makes room for you.",
+          "join/exchange/end chat",
+          "approach: You walk over. Parvati makes room for you.",
+          "join/exchange/end chat",
+          "approach: You walk over. Sandra makes room for you.",
+          "join/exchange/end chat",
+          "navigate",
+          "navigate",
+          "navigate",
+          "navigate"
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 8,
+        "movement": {
+          "departures": 20,
+          "arrivals": 23,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 4830,
+        "owned": 31,
+        "completed": 8,
+        "needs": {
+          "water": 270,
+          "hunger": 210,
+          "rest": 0,
+          "restByTribe": {
+            "1": 690
+          }
+        },
+        "supplies": {
+          "firewood": 19,
+          "bamboo": 8,
+          "palms": 2,
+          "water": 30,
+          "coconuts": 10,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "spy",
+        "actions": [
+          "follow: Wendell is tending the fire.",
+          "navigate",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "follow: Tony is working on the shelter together.",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "follow: You lose sight of Kelley beyond the trail.",
+          "navigate",
+          "follow: You lose sight of Sandra beyond the shelter.",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "navigate",
+          "follow: Wendell is gathering firewood.",
+          "follow: Sandra turns around. \u201cYou following me?\u201d",
+          "watch: You linger nearby for a minute. They keep their voices low.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "follow: Jeremy turns around. \u201cYou following me?\u201d",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "follow: You lose sight of them.",
+          "follow: Wendell is working on the shelter together.",
+          "navigate",
+          "navigate",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them.",
+          "watch: You have already lingered here. You could approach them."
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 14,
+        "movement": {
+          "departures": 52,
+          "arrivals": 54,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 4050,
+        "owned": 48,
+        "completed": 18,
+        "needs": {
+          "water": 150,
+          "hunger": 270,
+          "rest": 0,
+          "restByTribe": {
+            "1": 30
+          }
+        },
+        "supplies": {
+          "firewood": 6,
+          "bamboo": 11,
+          "palms": 1,
+          "water": 30,
+          "coconuts": 20,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      },
+      {
+        "style": "mixed",
+        "actions": [
+          "follow: Sandra turns around. \u201cYou following me?\u201d",
+          "navigate",
+          "approach: You walk over. Tony makes room for you.",
+          "join/exchange/end chat",
+          "follow: You lose sight of them.",
+          "navigate",
+          "follow: You lose sight of Wendell beyond camp.",
+          "filled tribe water: 35 minutes",
+          "follow: You lose sight of them.",
+          "follow: Wendell turns around. \u201cYou following me?\u201d",
+          "navigate",
+          "navigate",
+          "follow: Kelley is talking nearby.",
+          "watch: You hang around for a minute, but can\u2019t make out much.",
+          "approach: You walk over. Sandra makes room for you.",
+          "join/exchange/end chat",
+          "follow: You lose sight of Parvati beyond the fire.",
+          "navigate",
+          "navigate",
+          "navigate"
+        ],
+        "minutesLingering": 24,
+        "distinctNearbyGroups": 5,
+        "movement": {
+          "departures": 122,
+          "arrivals": 126,
+          "pairArrivals": 0,
+          "earlyArrivals": 0
+        },
+        "remaining": 1920,
+        "owned": 46,
+        "completed": 22,
+        "needs": {
+          "water": 180,
+          "hunger": 240,
+          "rest": 0,
+          "restByTribe": {
+            "1": 360
+          }
+        },
+        "supplies": {
+          "firewood": 10,
+          "bamboo": 4,
+          "palms": 0,
+          "water": 40,
+          "coconuts": 24,
+          "fish1": 0,
+          "fish2": 0,
+          "fish3": 0
+        },
+        "npcs": 6
+      }
+    ],
+    "presenceChecks": [
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 430,
+          "height": 932
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "solo departure",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "beach",
+        "mode": "paired departure",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "waterWell",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "shelter",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "rockyShore",
+        "mode": "inbound/save/paired arrival",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "campfire",
+        "mode": "multiple public groups and deduped needs",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "in-transit Follow result",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      },
+      {
+        "view": "jungleTrail",
+        "mode": "investigator too late",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        }
+      }
+    ],
+    "interactionChecks": [
+      "dialog focus/Escape",
+      "watch time",
+      "semantic paired travel",
+      "follow time",
+      "save/load groups",
+      "reduced motion",
+      "existing group dialogue",
+      "minigame collapsed presence",
+      "live resize",
+      "timed stale approach",
+      "missed follow reload",
+      "narration dwell/queue/reload",
+      "stable portraits",
+      "orientation focus",
+      "Help fishing/shelter/fire",
+      "actual tribe water time/idempotence"
+    ]
+  }
+}

@@ -6,6 +6,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { presenceQa } from './LivingCampPresenceQA.mjs';
 import { interactionQa } from './LivingCampInteractionQA.mjs';
 const require = createRequire(import.meta.url);
 const browsers = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -122,7 +123,8 @@ try {
   await page.waitForTimeout(100);
   assert.ok(await page.locator('.camp-presence').evaluate(e=>e.scrollWidth<=e.clientWidth+1));
   const playtests = await interactionQa(page,output);
+  const presenceChecks = await presenceQa(page,output);
   assert.deepEqual(errors,[],'uncaught page errors');
-  fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({browserName,browser:browser.version(),scenes:checks.length+32,viewports,errors,playtests,interactionChecks:['dialog focus/Escape','watch time','semantic paired travel','follow time','save/load groups','reduced motion','existing group dialogue','minigame collapsed presence','live resize','timed stale approach','missed follow reload','narration dwell/queue/reload','stable portraits','orientation focus','Help fishing/shelter/fire','actual tribe water time/idempotence']},null,2));
-  console.log(JSON.stringify({scenes:checks.length+32,errors,output}));
+  fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({browserName,browser:browser.version(),scenes:checks.length+32+presenceChecks.length,viewports,errors,playtests,presenceChecks,interactionChecks:['dialog focus/Escape','watch time','semantic paired travel','follow time','save/load groups','reduced motion','existing group dialogue','minigame collapsed presence','live resize','timed stale approach','missed follow reload','narration dwell/queue/reload','stable portraits','orientation focus','Help fishing/shelter/fire','actual tribe water time/idempotence']},null,2));
+  console.log(JSON.stringify({scenes:checks.length+32+presenceChecks.length,errors,output}));
 } finally {await browser.close();server.close();}
