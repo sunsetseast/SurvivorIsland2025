@@ -74,7 +74,9 @@ class DealSystem {
     this.cleanupInvalidReferences();
   }
 
-  createDeal({ type, parties, terms = {}, expires = null, note = '', stakes = 'standard' }) {
+  _semanticNow() { return this.gameManager?.gamePhase === 'postChallenge' && this.gameManager.systems?.strategyPhaseSystem?.scramble ? this.gameManager.systems.strategyPhaseSystem.semanticTimestamp() : Date.now(); }
+
+  createDeal({ id = null, type, parties, terms = {}, expires = null, note = '', stakes = 'standard' }) {
     if (!Array.isArray(parties) || parties.length !== 2) {
       this._log('[DealSystem] Invalid parties for deal creation', parties);
       return null;
@@ -102,8 +104,8 @@ class DealSystem {
       return existing;
     }
 
-    const dealId = `deal_${generateId()}`;
-    const now = Date.now();
+    const dealId = id || `deal_${generateId()}`;
+    const now = this._semanticNow();
     const context = this._getGameContext();
     const deal = {
       id: dealId,
@@ -151,7 +153,7 @@ class DealSystem {
     if (!deal) return false;
 
     deal.status = status;
-    deal.updated.timestamp = Date.now();
+    deal.updated.timestamp = this._semanticNow();
     this._appendHistory(deal, {
       action: status,
       by: bySurvivorId,
@@ -407,7 +409,7 @@ class DealSystem {
   }
 
   _appendHistory(deal, { action, by = null, note = '' }) {
-    const now = Date.now();
+    const now = this._semanticNow();
     const context = this._getGameContext();
     deal.history = Array.isArray(deal.history) ? deal.history : [];
     deal.history.push({
@@ -545,7 +547,7 @@ class DealSystem {
       return null;
     }
 
-    const now = Date.now();
+    const now = this._semanticNow();
     const created = rawDeal.created || this._getGameContext();
     const updated = rawDeal.updated || { timestamp: now };
     const history = Array.isArray(rawDeal.history) ? rawDeal.history : [];

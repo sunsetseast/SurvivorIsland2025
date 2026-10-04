@@ -132,14 +132,13 @@ test('premerge chatter target selection never chooses outsiders, out or immune c
   try { for (let i = 0; i < 100; i++) { const target = social._pickChatterTarget(); assert.ok(![outsider.id, s.a.id, s.b.id].includes(target?.id)); } }
   finally { s.gm.hasImmunity = old; }
 });
-test('legitimate physical pitch updates intent without revealing it to bystanders', () => {
-  const s = controlled(); s.strategy.pickAction = () => 'SOFT_COUNTER'; const original = s.strategy.pickTargetForAction;
-  s.strategy.pickTargetForAction = () => s.c.id;
-  try { s.activity.start(s.a, { type: 'strategy_conversation', location: 'beach', targetId: s.b.id, duration: 30 }); s.wait(30);
-    assert.equal(s.strategy.getNpcTargetIntent(s.a.id).targetId, s.c.id);
-    assert.ok(s.memory.getCampClaims(s.b.id).some(c => c.subjectId === s.c.id));
-    assert.ok(!s.strategy.getPlayerSummaryFacts().some(f => f.type === 'targetProposed'));
-  } finally { delete s.strategy.pickAction; s.strategy.pickTargetForAction = original; }
+test('legitimate physical agenda shares a pitch without changing the speaker merely for saying a name', () => {
+  const s = controlled(); const target = s.strategy.getNpcTargetIntent(s.a.id).targetId;
+  s.activity.start(s.a, { type: 'strategy_conversation', location: 'beach', targetId: s.b.id, duration: 30,
+    agenda: { purpose: 'recruit_swing', primarySubject: target, messageMode: 'truthful', knownEvidence: [] } }); s.wait(30);
+  assert.equal(s.strategy.getNpcTargetIntent(s.a.id).targetId, target);
+  assert.ok(s.memory.getCampClaims(s.b.id).some(c => c.subjectId === target));
+  assert.ok(!s.strategy.getPlayerSummaryFacts().some(f => f.type === 'targetProposed'));
 });
 test('resulting intents still project into the existing Tribal target board', () => {
   const s = controlled(); s.strategy.updateNpcIntentTarget(s.a.id, s.c.id); const board = s.strategy.computeTribalTargetBoard();

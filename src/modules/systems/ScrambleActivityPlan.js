@@ -1,7 +1,6 @@
 import { LocationKeys } from '../core/LocationKeys.js';
 import { routeBetween } from './CampActivitySystem.js';
 import { eligibleCampMember, isCampPhysicallyPresent } from '../locations/CampPresence.js';
-import { resolveNpcCampExchange } from './CampSocialResolution.js';
 
 export { ScrambleState, SCRAMBLE_SECONDS, scrambleConversationSeconds } from './ScrambleTime.js';
 import { ScrambleState } from './ScrambleTime.js';
@@ -48,12 +47,12 @@ export default class ScrambleActivityPlan {
     }
   }
   plan(npc, now) {
-    const partner = this.members.filter(s => this.free(s) && !same(s.id, npc.id))
-      .sort((a, b) => (this.gm.getTrust?.(npc.id, b.id) ?? 50) - (this.gm.getTrust?.(npc.id, a.id) ?? 50));
-    if (partner.length && this.random() < .8) {
-      const other = partner[Math.floor(this.random() * Math.min(3, partner.length))];
+    this.strategy.reasoning.react(npc.id);
+    const other = this.strategy.reasoning.choosePartner(npc, this.members.filter(s => this.free(s)));
+    if (other) {
+      const agenda = this.strategy.reasoning.agenda(npc.id, other.id, { plan: true });
       return { type: 'strategy_conversation', location: this.gm.systems.npcLocationSystem.getLocation(other.id),
-        targetId: other.id, duration: 240, purpose: ['vote_pitch', 'verify_story', 'check_in', 'warning'][Math.floor(this.random() * 4)] };
+        targetId: other.id, duration: 240, purpose: agenda.purpose, agenda };
     }
     return { type: this.random() < .5 ? 'observe' : 'idle_at_camp',
       location: this.gm.systems.npcLocationSystem.getLocation(npc.id) || LocationKeys.BEACH, duration: 120 };
@@ -107,12 +106,13 @@ export default class ScrambleActivityPlan {
       !this.present(this.person(this.invitation.npcId), this.gm.player?.location))) this.clearInvitation();
     if (!this.invitation && now <= this.nextApproachAt && now > 180 && !this.camp.conversation) {
       this.nextApproachAt = now - 600;
-      const npc = this.members.find(s => this.free(s));
+      const npc = this.members.filter(s => this.free(s)).map(npc => ({ npc, score: this.strategy.reasoning.candidateScore(npc.id, this.gm.player.id) }))
+          .filter(x => Number.isFinite(x.score)).sort((a,b) => b.score-a.score)[0]?.npc;
       const player = this.gm.getPlayerSurvivor?.();
       if (npc && this.present(player, player.location)) {
-        const owned = this.gm.systems.socialMemorySystem?.getNpcConversationIntents?.(npc.id, { day: this.gm.day, limit: 1 })?.[0];
-        const purpose = owned?.intent || (this.strategy.getNpcTargetIntent(npc.id)?.targetId ? 'vote_pitch' : 'check_in');
-        const goal = { type: 'approach_player', location: player.location, duration: 45, purpose };
+        const agenda = this.strategy.reasoning.agenda(npc.id, player.id, { plan: true });
+        const purpose = agenda.purpose;
+        const goal = { type: 'approach_player', location: player.location, duration: 45, purpose, agenda };
         const route = routeBetween(this.gm.systems.npcLocationSystem.getLocation(npc.id), player.location);
         this.camp.start(npc, route.length ? { type: 'travel', location: route[0], route: route.slice(1), goal } : goal, now);
         npc.campActivity.interruptible = false;
@@ -127,7 +127,7 @@ export default class ScrambleActivityPlan {
       const player = this.gm.getPlayerSurvivor?.();
       if (this.present(player, activity.location)) {
         actor.campActivity = { ...activity, id: `${activity.id}:waiting`, type: 'approach_wait', endsAt: 0, external: true, interruptible: false };
-        this.invitation = { npcId: actor.id, purpose: activity.purpose, activityId: actor.campActivity.id, expiresAt: at - 180 };
+        this.invitation = { npcId: actor.id, purpose: activity.purpose, agenda: activity.agenda, activityId: actor.campActivity.id, expiresAt: at - 180 };
       }
       return true;
     }
@@ -136,37 +136,13 @@ export default class ScrambleActivityPlan {
     if (!listeners.length) return true;
     this.camp.observe({ actor, type: 'seen_together', participants: listeners.map(s => s.id), location: activity.location,
       activityId: activity.id, at, visibility: 'private' });
-    for (const listener of listeners) {
-      const action = this.strategy.pickAction(actor);
-      const targetId = action === 'ENDORSE' ? this.strategy.getNpcTargetIntent(actor.id)?.targetId :
-        this.strategy.pickTargetForAction(action, this.members, actor);
-      if (targetId) {
-        this.strategy.firstTargetIntroduced = true;
-        this.strategy.updateNpcIntentTarget(actor.id, targetId, { reason: `activity:${activity.id}:${action}`,
-          confidenceDelta: .05, lateVolatility: at <= 600 });
-        this.gm.systems.socialMemorySystem?.recordCampClaim?.({ id: `${activity.id}:pitch:${listener.id}`,
-          speakerId: actor.id, listenerIds: [listener.id], subjectId: targetId, topic: 'target', stance: 'consider',
-          confidence: .65, salience: 'high', day: this.gm.day, campTime: at });
-        if (!same(targetId, listener.id) && this.random() < (this.gm.getTrust?.(listener.id, actor.id) ?? 50) / 100)
-          this.strategy.updateNpcIntentTarget(listener.id, targetId, { reason: `heard_pitch:${activity.id}`,
-            confidenceDelta: .04, lateVolatility: at <= 600 });
-        this.strategy.logFact({ type: 'targetProposed', speakerId: actor.id, targetId,
-          participantIds: [listener.id], activityId: activity.id, location: activity.location });
-      }
-      resolveNpcCampExchange({ gm: this.gm, memory: this.gm.systems.socialMemorySystem, speaker: actor, listener,
-        activity: { ...activity, type: 'strategy_conversation', targetId: listener.id, endsAt: at }, random: () => this.random() });
-    }
     const meeting = this.meetings.find(m => m.activityId === activity.id);
     if (meeting) {
-      const counts = new Map();
-      for (const member of [actor, ...listeners]) {
-        const target = this.strategy.getNpcTargetIntent(member.id)?.targetId;
-        if (target) counts.set(target, (counts.get(target) || 0) + 1);
-      }
-      const [target, votes] = [...counts].sort((a, b) => b[1] - a[1])[0] || [];
-      if (votes > (listeners.length + 1) / 2) this.strategy.allianceTargets.set(meeting.allianceId, target);
-      meeting.status = 'completed'; this.strategy.completedAllianceMeetings.add(meeting.id);
-    }
+      const result = this.strategy.reasoning.resolveMeeting([actor, ...listeners], activity, () => this.random());
+      if (result.targetId) this.strategy.allianceTargets.set(meeting.allianceId, result.targetId);
+      meeting.outcome = result; meeting.status = 'completed'; this.strategy.completedAllianceMeetings.add(meeting.id);
+    } else for (const listener of listeners)
+      this.strategy.reasoning.resolveAgenda(actor, listener, activity, () => this.random());
     this.note('conversation_resolved', { activityId: activity.id, actorId: actor.id, participantIds: listeners.map(s => s.id) });
     return true;
   }

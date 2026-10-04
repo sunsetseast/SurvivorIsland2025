@@ -11,6 +11,8 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
   if (gm.systems?.npcLocationSystem &&
     (!isCampPhysicallyPresent(speaker, gm.systems.npcLocationSystem, activity.location, gm) ||
       !isCampPhysicallyPresent(listener, gm.systems.npcLocationSystem, activity.location, gm))) return null;
+  if (gm.gamePhase === 'postChallenge' && gm.systems.strategyPhaseSystem?.isActive && !gm.systems.strategyPhaseSystem.playerTribeSafe)
+    return gm.systems.strategyPhaseSystem.reasoning.resolveAgenda(speaker, listener, activity, random);
   const day = gm.day || 1, campTime = activity.endsAt;
   const allied = gm.systems?.allianceSystem?.areAllied?.(speaker.id, listener.id) || false;
   const trust = gm.getTrust?.(speaker.id, listener.id) ?? 50;
