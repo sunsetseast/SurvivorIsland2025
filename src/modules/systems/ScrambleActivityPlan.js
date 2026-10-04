@@ -47,6 +47,7 @@ export default class ScrambleActivityPlan {
     }
   }
   plan(npc, now) {
+    this.strategy.reasoning.react(npc.id);
     const other = this.strategy.reasoning.choosePartner(npc, this.members.filter(s => this.free(s)));
     if (other) {
       const agenda = this.strategy.reasoning.agenda(npc.id, other.id, { plan: true });

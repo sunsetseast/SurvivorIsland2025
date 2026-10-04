@@ -1,0 +1,1379 @@
+[
+  {
+    "scenario": "majority-decoy",
+    "seed": 73,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 55,
+    "metrics": {
+      "intentionChanges": 11,
+      "statements": 51,
+      "deliberateLies": 5,
+      "decoys": 3,
+      "motive:recruit_swing": 23,
+      "truthfulStatements": 46,
+      "hedges": 12,
+      "motive:warn_ally": 5,
+      "warnings": 5,
+      "commitments": 11,
+      "motive:reassure_target": 2,
+      "reassurances": 2,
+      "motive:spread_decoy": 2,
+      "contradictionsDiscovered": 3,
+      "motive:counter_pitch": 2
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 10,
+        "weight": 0.8
+      },
+      {
+        "id": 9,
+        "targetId": 10,
+        "weight": 0.76
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 10,
+        "weight": 0.8
+      },
+      {
+        "id": 15,
+        "targetId": 10,
+        "weight": 0.8
+      },
+      {
+        "id": 6,
+        "targetId": 10,
+        "weight": 0.8
+      }
+    ],
+    "activityHistory": 41,
+    "strategicConversations": 35,
+    "playerApproaches": 2,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed",
+        "outcome": "tentative_consensus"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "10",
+      "secondaryTargetId": "9",
+      "heatMap": {
+        "9": 1,
+        "10": 6
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33030
+      },
+      {
+        "id": 9,
+        "targetId": 10,
+        "confidence": 0.76,
+        "reason": "strategic_adoption",
+        "updatedAt": 32175
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33270
+      },
+      {
+        "id": 15,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33030
+      },
+      {
+        "id": 6,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 32160
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "split-vote",
+    "seed": 74,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 52,
+    "metrics": {
+      "intentionChanges": 9,
+      "splitPlans": 1,
+      "motive:recruit_swing": 22,
+      "statements": 41,
+      "truthfulStatements": 38,
+      "hedges": 12,
+      "motive:reassure_target": 3,
+      "deliberateLies": 3,
+      "reassurances": 3,
+      "commitments": 3,
+      "motive:warn_ally": 5,
+      "warnings": 5,
+      "motive:counter_pitch": 2
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 10,
+        "weight": 0.8
+      },
+      {
+        "id": 9,
+        "targetId": 11,
+        "weight": 0.75
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 10,
+        "weight": 0.8
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.8
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "weight": 0.35
+      }
+    ],
+    "activityHistory": 41,
+    "strategicConversations": 33,
+    "playerApproaches": 3,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed",
+        "outcome": "disagreement"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "9",
+      "secondaryTargetId": "10",
+      "heatMap": {
+        "1": 1,
+        "9": 2,
+        "10": 2,
+        "11": 1
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33090
+      },
+      {
+        "id": 9,
+        "targetId": 11,
+        "confidence": 0.75,
+        "reason": "accepted_split",
+        "updatedAt": 30000
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 30960
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33090
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "player-bottom",
+    "seed": 75,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 46,
+    "metrics": {
+      "intentionChanges": 8,
+      "statements": 46,
+      "truthfulStatements": 44,
+      "warnings": 2,
+      "commitments": 8,
+      "motive:recruit_swing": 28,
+      "hedges": 13,
+      "deliberateLies": 2,
+      "decoys": 2,
+      "motive:warn_ally": 1
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 10,
+        "weight": 0.8
+      },
+      {
+        "id": 9,
+        "targetId": 1001,
+        "weight": 0.8
+      },
+      {
+        "id": 10,
+        "targetId": 1001,
+        "weight": 0.8
+      },
+      {
+        "id": 11,
+        "targetId": 10,
+        "weight": 0.8
+      },
+      {
+        "id": 15,
+        "targetId": 1001,
+        "weight": 0.8
+      },
+      {
+        "id": 6,
+        "targetId": 1001,
+        "weight": 0.8
+      }
+    ],
+    "activityHistory": 41,
+    "strategicConversations": 30,
+    "playerApproaches": 4,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed",
+        "outcome": "tentative_consensus"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "1001",
+      "secondaryTargetId": "10",
+      "heatMap": {
+        "10": 2,
+        "1001": 5
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 30000
+      },
+      {
+        "id": 9,
+        "targetId": 1001,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33090
+      },
+      {
+        "id": 10,
+        "targetId": 1001,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 32850
+      },
+      {
+        "id": 11,
+        "targetId": 10,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33090
+      },
+      {
+        "id": 15,
+        "targetId": 1001,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 30690
+      },
+      {
+        "id": 6,
+        "targetId": 1001,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 31890
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "player-swing",
+    "seed": 76,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 57,
+    "metrics": {
+      "intentionChanges": 6,
+      "statements": 40,
+      "truthfulStatements": 37,
+      "commitments": 6,
+      "motive:recruit_swing": 25,
+      "motive:reassure_target": 3,
+      "deliberateLies": 3,
+      "reassurances": 3,
+      "hedges": 20,
+      "motive:warn_ally": 1,
+      "warnings": 1
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 15,
+        "weight": 0.8
+      },
+      {
+        "id": 9,
+        "targetId": 15,
+        "weight": 0.76
+      },
+      {
+        "id": 10,
+        "targetId": 15,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 6,
+        "targetId": 9,
+        "weight": 0.8
+      }
+    ],
+    "activityHistory": 38,
+    "strategicConversations": 31,
+    "playerApproaches": 2,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-left",
+        "status": "completed",
+        "outcome": "consensus"
+      },
+      {
+        "id": "1:postChallenge:meeting:qa-right",
+        "status": "completed",
+        "outcome": "disagreement"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "15",
+      "secondaryTargetId": "9",
+      "heatMap": {
+        "9": 3,
+        "11": 1,
+        "15": 4
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 15,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33150
+      },
+      {
+        "id": 9,
+        "targetId": 15,
+        "confidence": 0.76,
+        "reason": "strategic_adoption",
+        "updatedAt": 32550
+      },
+      {
+        "id": 10,
+        "targetId": 15,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 6,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 32730
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "verified-lie",
+    "seed": 77,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 50,
+    "metrics": {
+      "intentionChanges": 7,
+      "statements": 44,
+      "truthfulStatements": 41,
+      "contradictionsDiscovered": 8,
+      "motive:recruit_swing": 26,
+      "hedges": 12,
+      "commitments": 6,
+      "motive:verify_story": 3,
+      "verificationAttempts": 3,
+      "motive:reassure_target": 3,
+      "deliberateLies": 3,
+      "reassurances": 3
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "weight": 0.48
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.8
+      },
+      {
+        "id": 6,
+        "targetId": 9,
+        "weight": 0.8
+      }
+    ],
+    "activityHistory": 41,
+    "strategicConversations": 32,
+    "playerApproaches": 4,
+    "deals": 0,
+    "rumors": 1,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "cancelled"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "9",
+      "secondaryTargetId": "1",
+      "heatMap": {
+        "1": 2,
+        "9": 4
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "confidence": 0.48,
+        "reason": "strategic_adoption",
+        "updatedAt": 32970
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 32970
+      },
+      {
+        "id": 6,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33240
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "player-lie",
+    "seed": 78,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 55,
+    "metrics": {
+      "intentionChanges": 4,
+      "statements": 38,
+      "deliberateLies": 5,
+      "warnings": 6,
+      "contradictionsDiscovered": 4,
+      "truthfulStatements": 33,
+      "motive:recruit_swing": 21,
+      "hedges": 14,
+      "motive:reassure_target": 4,
+      "reassurances": 4,
+      "motive:verify_story": 1,
+      "verificationAttempts": 1,
+      "motive:warn_ally": 3,
+      "motive:counter_pitch": 1,
+      "commitments": 4
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "weight": 0.8
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.8
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "weight": 0.8
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "weight": 0.35
+      }
+    ],
+    "activityHistory": 36,
+    "strategicConversations": 30,
+    "playerApproaches": 3,
+    "deals": 0,
+    "rumors": 1,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "cancelled"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "1",
+      "secondaryTargetId": "9",
+      "heatMap": {
+        "1": 3,
+        "9": 3
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33270
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33030
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 32790
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "fake-reassurance",
+    "seed": 79,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 57,
+    "metrics": {
+      "intentionChanges": 8,
+      "statements": 36,
+      "deliberateLies": 5,
+      "reassurances": 5,
+      "motive:recruit_swing": 22,
+      "truthfulStatements": 31,
+      "hedges": 12,
+      "motive:reassure_target": 4,
+      "motive:warn_ally": 3,
+      "warnings": 3,
+      "commitments": 4,
+      "contradictionsDiscovered": 1,
+      "motive:counter_pitch": 1
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 1001,
+        "weight": 0.35
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "weight": 0.8
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 15,
+        "targetId": 1,
+        "weight": 0.8
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "weight": 0.8
+      }
+    ],
+    "activityHistory": 34,
+    "strategicConversations": 30,
+    "playerApproaches": 2,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "cancelled"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "1",
+      "secondaryTargetId": "9",
+      "heatMap": {
+        "1": 4,
+        "9": 1,
+        "1001": 1
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 1001,
+        "confidence": 0.35,
+        "reason": "unknown",
+        "updatedAt": 30000
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 32790
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 15,
+        "targetId": 1,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33270
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 31920
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "backup-activation",
+    "seed": 80,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 47,
+    "metrics": {
+      "intentionChanges": 10,
+      "backups": 1,
+      "statements": 34,
+      "truthfulStatements": 27,
+      "motive:recruit_swing": 18,
+      "hedges": 13,
+      "motive:spread_decoy": 3,
+      "deliberateLies": 7,
+      "decoys": 3,
+      "commitments": 2,
+      "motive:reassure_target": 4,
+      "reassurances": 4,
+      "motive:warn_ally": 1,
+      "warnings": 1
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 11,
+        "weight": 0.65
+      },
+      {
+        "id": 9,
+        "targetId": 11,
+        "weight": 0.8
+      },
+      {
+        "id": 10,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "weight": 0.8
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "weight": 0.35
+      }
+    ],
+    "activityHistory": 38,
+    "strategicConversations": 26,
+    "playerApproaches": 6,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "cancelled"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "1",
+      "secondaryTargetId": "11",
+      "heatMap": {
+        "1": 3,
+        "9": 1,
+        "11": 2
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 11,
+        "confidence": 0.65,
+        "reason": "backup:suspected_idol",
+        "updatedAt": 30000
+      },
+      {
+        "id": 9,
+        "targetId": 11,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 31230
+      },
+      {
+        "id": 10,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "unknown",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 30240
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "alliance-disagreement",
+    "seed": 81,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 57,
+    "metrics": {
+      "intentionChanges": 7,
+      "statements": 39,
+      "truthfulStatements": 36,
+      "hedges": 17,
+      "motive:recruit_swing": 21,
+      "motive:warn_ally": 9,
+      "warnings": 9,
+      "motive:reassure_target": 3,
+      "deliberateLies": 3,
+      "reassurances": 3,
+      "contradictionsDiscovered": 2
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 11,
+        "weight": 0.48
+      },
+      {
+        "id": 9,
+        "targetId": 10,
+        "weight": 0.48
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "weight": 0.35
+      }
+    ],
+    "activityHistory": 38,
+    "strategicConversations": 34,
+    "playerApproaches": 1,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed",
+        "outcome": "disagreement"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "1",
+      "secondaryTargetId": "9",
+      "heatMap": {
+        "1": 2,
+        "9": 2,
+        "10": 1,
+        "11": 1
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 11,
+        "confidence": 0.48,
+        "reason": "strategic_adoption",
+        "updatedAt": 30000
+      },
+      {
+        "id": 9,
+        "targetId": 10,
+        "confidence": 0.48,
+        "reason": "strategic_adoption",
+        "updatedAt": 30000
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "reload-conversation",
+    "seed": 82,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 47,
+    "metrics": {
+      "intentionChanges": 6,
+      "statements": 43,
+      "deliberateLies": 7,
+      "warnings": 5,
+      "truthfulStatements": 36,
+      "commitments": 6,
+      "motive:verify_story": 4,
+      "verificationAttempts": 4,
+      "motive:recruit_swing": 20,
+      "hedges": 14,
+      "motive:counter_pitch": 3,
+      "motive:reassure_target": 2,
+      "reassurances": 2
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "weight": 0.8
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "weight": 0.8
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.8
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "weight": 0.8
+      }
+    ],
+    "activityHistory": 41,
+    "strategicConversations": 30,
+    "playerApproaches": 4,
+    "deals": 0,
+    "rumors": 1,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed",
+        "outcome": "tentative_consensus"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "9",
+      "secondaryTargetId": "1",
+      "heatMap": {
+        "1": 3,
+        "9": 5
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 32280
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 30960
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33240
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "confidence": 0.8,
+        "reason": "explicit_commitment",
+        "updatedAt": 33090
+      }
+    ],
+    "saveLoadEquivalent": true
+  },
+  {
+    "scenario": "idol-rumor",
+    "seed": 83,
+    "semanticMinutes": 60,
+    "saveMilestones": [
+      {
+        "remaining": 1800,
+        "restored": false
+      }
+    ],
+    "actions": 55,
+    "metrics": {
+      "intentionChanges": 6,
+      "motive:recruit_swing": 26,
+      "statements": 38,
+      "truthfulStatements": 35,
+      "hedges": 23,
+      "motive:reassure_target": 3,
+      "deliberateLies": 3,
+      "reassurances": 3,
+      "motive:warn_ally": 4,
+      "warnings": 4
+    },
+    "tribalWeights": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "weight": 0.48
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "weight": 0.35
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "weight": 0.35
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "weight": 0.35
+      }
+    ],
+    "activityHistory": 40,
+    "strategicConversations": 34,
+    "playerApproaches": 2,
+    "deals": 0,
+    "rumors": 0,
+    "meetings": [
+      {
+        "id": "1:postChallenge:meeting:qa-core",
+        "status": "completed",
+        "outcome": "tentative_consensus"
+      }
+    ],
+    "finalTargetBoard": {
+      "primaryTargetId": "9",
+      "secondaryTargetId": "1",
+      "heatMap": {
+        "1": 3,
+        "9": 4
+      },
+      "computedAt": 33600
+    },
+    "tribalIndividualInputs": [
+      {
+        "id": 1,
+        "targetId": 9,
+        "confidence": 0.48,
+        "reason": "strategic_adoption",
+        "updatedAt": 32130
+      },
+      {
+        "id": 9,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 10,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 11,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 15,
+        "targetId": 9,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      },
+      {
+        "id": 6,
+        "targetId": 1,
+        "confidence": 0.35,
+        "reason": "qa:initial",
+        "updatedAt": 30000
+      }
+    ],
+    "saveLoadEquivalent": true
+  }
+]

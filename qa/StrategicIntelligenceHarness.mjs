@@ -4,9 +4,10 @@ import {pathToFileURL} from 'node:url';
 import {makeScrambleQa} from './ScrambleSimulationHarness.mjs';
 import {quiet} from './LivingCampSimulationHarness.mjs';
 import {scrambleNodes,resolveScrambleNode} from '../src/modules/systems/ScrambleConversation.js';
+const { default: TribalCouncilSystem } = await import('../src/modules/systems/TribalCouncilSystem.js');
 const family=['majority-decoy','split-vote','player-bottom','player-swing','verified-lie','player-lie','fake-reassurance','backup-activation','alliance-disagreement','reload-conversation','idol-rumor'];
 function scene(scenario,seed) {
- const s=makeScrambleQa({seed,scenario:scenario==='player-bottom'?'player-danger':'divided'});s.idle();s.strategy.scramble.meetings=[];s.strategy.scramble.nextApproachAt=3300;
+ const s=makeScrambleQa({seed,scenario:scenario==='player-bottom'?'player-danger':scenario==='player-swing'?'swing-player':'divided'});s.idle();s.strategy.scramble.meetings=[];s.strategy.scramble.nextApproachAt=3300;
  const [a,b,c,d]=s.activity.npcs(),player=s.gm.player;
  const m=()=>s.strategy.reasoning;
  const say=(id,speaker,listener,subject,extra={})=>m().statement({id,speakerId:speaker.id,listenerIds:[listener.id],subjectId:subject.id,random:()=>0,...extra});
@@ -25,7 +26,7 @@ function scene(scenario,seed) {
    const reliability=s.memory.getCampSourceReliability(b.id,player.id);say('source-denial',c,b,b,{topic:'safety',stance:'denied',refutesClaimId:'fabricated'});
    assert.ok(s.memory.getCampSourceReliability(b.id,player.id)<reliability);assert.equal(s.memory.getCampSourceReliability(d.id,player.id),.75);}
  if(scenario==='fake-reassurance') {s.strategy.updateNpcIntentTarget(a.id,player.id);say('safe',a,player,player,{topic:'safety',stance:'yes',mode:'reassurance_lie'});assert.equal(s.strategy.getNpcTargetIntent(a.id).targetId,player.id);}
- if(scenario==='backup-activation') {s.strategy.updateNpcIntentTarget(c.id,a.id);m().backup(a.id,c.id,d.id,[b.id]);assert.equal(m().activateBackup(c.id,'suspected_idol'),false);
+ if(scenario==='backup-activation') {s.strategy.updateNpcIntentTarget(c.id,a.id);s.strategy.updateNpcIntentTarget(b.id,c.id);m().backup(a.id,c.id,d.id,[b.id]);assert.equal(m().activateBackup(c.id,'suspected_idol'),false);
    m().activateBackup(a.id,'suspected_idol');assert.equal(s.strategy.getNpcTargetIntent(b.id).targetId,d.id);assert.equal(s.strategy.getNpcTargetIntent(c.id).targetId,a.id);}
  if(scenario==='alliance-disagreement') {s.strategy.updateNpcIntentTarget(a.id,c.id);s.strategy.updateNpcIntentTarget(b.id,d.id);m().state(a.id).preferredTargetId=c.id;m().state(b.id).preferredTargetId=d.id;
    const result=m().resolveMeeting([a,b],{id:'disputed-meeting'},()=>.99);assert.equal(result.outcome,'disagreement');assert.notEqual(m().state(a.id).preferredTargetId,m().state(b.id).preferredTargetId);}
@@ -34,6 +35,7 @@ function scene(scenario,seed) {
  if(scenario==='idol-rumor') {s.gm.systems.idolSystem.searchHistory.set(String(a.id),{count:1,day:s.gm.day,location:'jungleTrail'});
    s.memory.recordCampObservation({id:'search-seen',actorId:a.id,type:'idol_search_seen',witnessIds:[b.id],location:'jungleTrail',day:s.gm.day,campTime:3600});
    s.memory.shareCampObservation({fromId:b.id,toId:c.id,observationId:'search-seen'});assert.equal(m().idolAnswer(a.id).ownsIdol,false);assert.equal(m().searched(a.id),true);}
+ s.strategy.scramble.scheduleAlliances();
  return s;
 }
 function projection(s) {return {time:s.gm.dayTimer,state:s.strategy.reasoning.serialize(),intents:[...s.strategy.npcIntentTargets],
@@ -60,8 +62,14 @@ function run(scenario,reload,seed) {return quiet(()=>{
  s.strategy.computeTribalTargetBoard();
  const finalInputs=s.activity.npcs().map(p=>({id:p.id,...s.strategy.getNpcTargetIntent(p.id)}));
  const metrics=s.strategy.reasoning.metrics;
- return {scenario,seed,semanticMinutes:60,saveMilestones:milestones,actions:actions.length,metrics,
-   activityHistory:s.strategy.scramble.history.length,meetings:s.strategy.scramble.meetings.map(m=>({id:m.id,status:m.status,outcome:m.outcome?.outcome})),
+ const tribal=new TribalCouncilSystem(s.gm,{publish(){}});tribal.buildTribeContext(1);
+ const tribalWeights=finalInputs.map(input=>({id:input.id,targetId:input.targetId,
+   weight:input.targetId?tribal._getStrategyIntentWeight(s.activity.npcs().find(p=>p.id===input.id),s.gm.getPlayerTribe().members.find(p=>p.id===input.targetId)):0}));
+ return {scenario,seed,semanticMinutes:60,saveMilestones:milestones,actions:actions.length,metrics,tribalWeights,
+   activityHistory:s.strategy.scramble.history.length,strategicConversations:s.strategy.scramble.history.filter(e=>e.type==='conversation_resolved').length,
+   playerApproaches:s.strategy.scramble.history.filter(e=>e.type==='npc_approach').length,
+   deals:Object.keys(s.gm.systems.dealSystem.dealsById).length,rumors:Object.values(s.gm.systems.socialMemorySystem.memory).reduce((n,m)=>n+(m.campClaims||[]).filter(c=>c.origin==='hearsay').length,0),
+   meetings:s.strategy.scramble.meetings.map(m=>({id:m.id,status:m.status,outcome:m.outcome?.outcome})),
    finalTargetBoard:s.strategy.tribalTargetBoard,tribalIndividualInputs:finalInputs,projection:projection(s)};
  });}
 export function validateIntelligenceHarness() {return family.map((scenario,i)=>{const seed=73+i,normal=run(scenario,false,seed),restored=run(scenario,true,seed);

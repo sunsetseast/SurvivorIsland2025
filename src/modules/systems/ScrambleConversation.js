@@ -12,6 +12,7 @@ export function scrambleNodes(model,{player,npc,context={},topic='strategy'}) {
   const emit=(id,subjectId,options={},random)=>model.statement({id:`${prefix}:${id}`,speakerId:player.id,listenerIds:listeners,subjectId,...options,random});
   const npcSay=(id,subjectId,options={},random)=>model.statement({id:`${prefix}:${id}`,speakerId:npc.id,listenerIds:[player.id],subjectId,...options,random});
   const owned=model.knowledge(player.id), state=model.states[String(npc.id)];
+  const playerPlan=model.states[String(player.id)]?.intendedVoteId || [...owned].reverse().find(e=>['target','commitment'].includes(e.topic)&&!['denied','no','protect'].includes(e.stance))?.subjectId;
   const nodes=[node('vote_read','What have you heard?','What do you think the vote is?',random=>{
     const decoy=state?.decoys.find(d=>d.audienceIds.some(id=>same(id,player.id)));
     const read=model.voteRead(npc.id); const target=decoy?.targetId||read.targetId;
@@ -47,9 +48,10 @@ export function scrambleNodes(model,{player,npc,context={},topic='strategy'}) {
     }));
     if(same(claim.attributedId||claim.speakerId,npc.id))nodes.push(node(`verify:${claim.id}`,`Did you mention ${subject}?`,`I heard you mentioned ${subject}. Is that right?`,random=>{
       const history=model.memory.memory[String(npc.id)]?.campClaims||[];
-      const said=history.some(e=>same(e.speakerId,npc.id)&&same(e.subjectId,claim.subjectId)&&e.topic===claim.topic&&e.stance===claim.stance);
+      const prior=history.find(e=>same(e.speakerId,npc.id)&&same(e.subjectId,claim.subjectId)&&e.topic===claim.topic&&e.stance===claim.stance);
+      const said=Boolean(prior);
       const fabricate=!said&&getCampBehaviorProfile(npc).honesty<.45&&random()<.3;
-      npcSay(`verify:${claim.id}`,claim.subjectId,{topic:claim.topic,stance:said||fabricate?claim.stance:'denied',mode:fabricate?'deliberate_lie':'truthful',refutesClaimId:said||fabricate?null:claim.id},random);
+      npcSay(`verify:${claim.id}`,claim.subjectId,{topic:claim.topic,stance:said||fabricate?claim.stance:'denied',mode:fabricate||prior?.truthfulness===false?'deliberate_lie':'truthful',refutesClaimId:said||fabricate?null:claim.id},random);
       model.count('verificationAttempts');return {line:said||fabricate?'Yes. That’s what I told them.':'I didn’t say that. You should ask them where that came from.'};
     }));
   }
@@ -76,20 +78,50 @@ export function scrambleNodes(model,{player,npc,context={},topic='strategy'}) {
   })];
   if(listeners.length>=2)for(const target of model.members.filter(p=>!same(p.id,player.id)&&!listeners.some(id=>same(id,p.id))&&model.strategy.isTargetIdAvailable(p.id)).slice(0,3)) {
     nodes.push(node(`backup:${target.id}`,`Keep ${target.firstName} as backup?`,`Could ${target.firstName} be our backup?`,random=>{
-      const primary=model.state(player.id).intendedVoteId||state?.intendedVoteId;
+      const primary=playerPlan;
+      if(!primary)return {line:'We should settle the main name before choosing a backup.'};
       model.backup(player.id,primary,target.id,listeners);emit(`backup:${target.id}`,target.id,{topic:'backup',stance:'possible'},random);return {line:'That could be a backup. We still need to settle the main plan.'};
     }));
   }
+  if (listeners.length >= 2 && playerPlan) {
+    const primary = playerPlan;
+    for (const secondary of model.members.filter(p => !same(p.id, primary) && !same(p.id, player.id) &&
+        !listeners.some(id => same(id, p.id)) && model.strategy.isTargetIdAvailable(p.id)).slice(0, 2))
+      nodes.push(node(`split_vote:${secondary.id}`, `Propose a split with ${secondary.firstName}.`, 'Could we divide our votes as insurance?', random => {
+        const participants = [player.id, ...listeners];
+        const assignments = Object.fromEntries(participants.map((id,i) => [id, i < Math.ceil(participants.length * .66) ? primary : secondary.id]));
+        const plan = model.split(player.id, primary, secondary.id, assignments, [player.id, npc.id]);
+        if (!plan) return { line: 'We need two valid targets before we can talk about a split.' };
+        const outcomes = [];
+        for (const id of listeners) {
+          const assigned = plan.assignments[id]; if (!assigned) continue;
+          const statement = model.statement({ id: `${prefix}:split_vote:${secondary.id}:${id}`, speakerId: player.id,
+            listenerIds: [id], subjectId: assigned, topic: 'split_assignment', stance: 'yes', random });
+          const outcome = model.adoption(id, player.id, assigned, { belief: statement?.belief[String(id)], random });
+          if (outcome === 'commit') model.acceptSplit(id); outcomes.push(outcome);
+        }
+        return { line: outcomes.every(x => x === 'commit') ? 'We have assignments. Keep checking that everyone stays with it.' : 'Some of us are open to that. Don’t count it as settled yet.', outcomes };
+      }));
+  }
   if(topic==='idol')return idol;
   if(topic==='confront')return nodes.filter(n=>/bluff_warning|confront:|verify:/.test(n.id));
-  if(topic==='gossip')return [nodes[0],node('known_pair','Who’s working together?','Who do you think is together?',random=>{
+  if(topic==='gossip')return [nodes[0],node('close_with','Who are you close with?','Who do you feel good with?',()=>{
+    const friend=model.members.filter(p=>!same(p.id,npc.id)&&!same(p.id,player.id)).sort((a,b)=>(model.gm.getTrust?.(npc.id,b.id)??50)-(model.gm.getTrust?.(npc.id,a.id)??50))[0];
+    return {line:friend&&(model.gm.getTrust?.(npc.id,friend.id)??50)>55?`I feel good with ${friend.firstName}. That’s my relationship; I can’t tell you their vote.`:'I’m still building relationships. I’m not sure who I can count on.'};
+  }),node('known_pair','Who’s working together?','Who do you think is together?',random=>{
     const pair=model.knownPair(npc.id);if(!pair)return {line:'I don’t have much to go on.'};
     const ids=pair.ids.filter(id=>!same(id,npc.id));if(ids.length<2)return {line:'I’ve only seen a few conversations. I’m not sure.'};
     npcSay('known_pair',ids[0],{topic:'social_pair',stance:'possible',mode:'inference'},random);return {line:`I’ve seen ${ids.map(name).join(' and ')} together. That doesn’t mean I know their plan.`};
   }),...['threat','asset','dead_weight','suspicious'].map(opinion=>node(`opinion:${opinion}`,`Who seems ${opinion.replace('_',' ')}?`,'What’s your personal read?',()=>{
     const candidates=model.members.filter(p=>!same(p.id,npc.id)&&!same(p.id,player.id));
-    const person=candidates.sort((a,b)=>(opinion==='threat'?(b.threat??0)-(a.threat??0):
-      (model.gm.getTrust?.(npc.id,a.id)??50)-(model.gm.getTrust?.(npc.id,b.id)??50)))[0];
+    const score=p=>{
+      const trust=model.gm.getTrust?.(npc.id,p.id)??50;
+      const impressions=model.memory.memory[String(npc.id)]?.campImpressions?.[String(p.id)]||{};
+      if(opinion==='threat')return p.threat??0;
+      if(opinion==='asset')return trust+(impressions.work?.count||0)*4;
+      return 100-trust+(impressions.role_neglect?.count||0)*4+(opinion==='suspicious'?(impressions.absence?.count||0)*3:0);
+    };
+    const person=candidates.sort((a,b)=>score(b)-score(a))[0];
     return {line:person?`My personal read is ${person.firstName}. That’s an opinion, not a vote count.`:'I’m still figuring people out.'};
   }))];
   return nodes;

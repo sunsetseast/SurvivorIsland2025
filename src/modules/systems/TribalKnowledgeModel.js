@@ -65,7 +65,7 @@ export default class TribalKnowledgeModel {
     const memory = gm?.systems?.socialMemorySystem;
     for (const member of this.members.filter(s => !s.isOut)) {
       for (const entry of ownedCampKnowledge(memory, member.id, gm?.getDay?.() ?? gm?.day ?? 1)) {
-        if (!['target', 'warning', 'idol_suspicion', 'idol_possession', 'idol_search_seen', 'absence',
+        if (!['target', 'warning', 'safety', 'commitment', 'backup', 'split_assignment', 'idol_suspicion', 'idol_possession', 'idol_search_seen', 'absence',
           'seen_together', 'betrayal', 'confirmed_lie', 'promise', 'public_conflict', 'role_neglect'].includes(entry.topic)) continue;
         this.add({ type: entry.kind === 'claim' ? 'campClaim' : 'campObservation',
           subjectId: entry.subjectId, actorId: entry.speakerId,

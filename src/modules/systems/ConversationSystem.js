@@ -1297,6 +1297,7 @@ class ConversationSystem {
       if (checkpoint) {
         if (checkpoint.choices[legacyKey]) return;
         checkpoint.choices[legacyKey] = { line: npcReply };
+        checkpoint.lastLine = npcReply;
         checkpoint.topics.push(legacyKey); checkpoint.turnCount++;
       }
       session.addNpc?.(npcReply);
@@ -2328,10 +2329,10 @@ class ConversationSystem {
       const agenda = cp.agenda, subject = agenda.primarySubject;
       if (subject) {
         const result = model.choice('opening', random => {
-          model.statement({ id: `${cp.activityId}:opening`, speakerId: npc.id, listenerIds: [player.id], subjectId: subject,
+          if (agenda.messageMode !== 'question') model.statement({ id: `${cp.activityId}:opening`, speakerId: npc.id, listenerIds: [player.id], subjectId: subject,
             topic: ['warn_ally','reassure_target'].includes(agenda.purpose) ? 'safety' : 'target',
             stance: agenda.purpose === 'warn_ally' ? 'warned' : agenda.purpose === 'reassure_target' ? 'yes' : 'consider', mode: agenda.messageMode, random });
-          return { line: agenda.purpose === 'warn_ally' ? 'Your name is coming up. You should talk to people.' :
+          return { line: agenda.messageMode === 'question' ? 'I’ve heard different stories. What have you been told?' : agenda.purpose === 'warn_ally' ? 'Your name is coming up. You should talk to people.' :
             agenda.purpose === 'reassure_target' ? 'You’re fine. Don’t worry.' : `I’m hearing ${model.person(subject)?.firstName || 'a name'}. What are you thinking?` };
         });
         if (!result.replay) cp.lastLine = result.line;
@@ -3221,8 +3222,8 @@ class ConversationSystem {
         },
         effects: ({ player, npc }) => {
           const paranoia = npc.paranoia ?? 0;
-          const relationshipDelta = getRandomInt(2, 5);
-          const trustDelta = paranoia >= 70 ? getRandomInt(0, 1) : getRandomInt(1, 3);
+          const relationshipDelta = this._scrambleInt(2, 5);
+          const trustDelta = paranoia >= 70 ? this._scrambleInt(0, 1) : this._scrambleInt(1, 3);
           this._applyExchangeEffects({
             player,
             npc,
@@ -3266,7 +3267,7 @@ class ConversationSystem {
         },
         effects: ({ player, npc }) => {
           const lowMood = (npc.rest ?? 100) < 40 && (npc.paranoia ?? 0) > 60;
-          const relationshipDelta = lowMood ? getRandomInt(-2, -1) : getRandomInt(3, 6);
+          const relationshipDelta = lowMood ? this._scrambleInt(-2, -1) : this._scrambleInt(3, 6);
           this._applyExchangeEffects({
             player,
             npc,
@@ -3285,8 +3286,8 @@ class ConversationSystem {
           DEFLECT: ['We’ll see. It’s early. Anybody can look good on day one.']
         },
         effects: ({ player, npc, stance }) => {
-          const relationshipDelta = getRandomInt(2, 5);
-          const trustDelta = stance === NPC_STANCES.COUNTER || stance === NPC_STANCES.DEFLECT ? 0 : getRandomInt(1, 3);
+          const relationshipDelta = this._scrambleInt(2, 5);
+          const trustDelta = stance === NPC_STANCES.COUNTER || stance === NPC_STANCES.DEFLECT ? 0 : this._scrambleInt(1, 3);
           this._applyExchangeEffects({
             player,
             npc,
@@ -3306,7 +3307,7 @@ class ConversationSystem {
                 this._applyExchangeEffects({
                   player,
                   npc,
-                  deltas: { trust: getRandomInt(1, 2), relationship: getRandomInt(1, 3), suspicion: -1 },
+                  deltas: { trust: this._scrambleInt(1, 2), relationship: this._scrambleInt(1, 3), suspicion: -1 },
                   contextTag: 'build_compliment_real'
                 });
               }
@@ -3320,7 +3321,7 @@ class ConversationSystem {
                 this._applyExchangeEffects({
                   player,
                   npc,
-                  deltas: { trust: getRandomInt(0, 2), relationship: getRandomInt(1, 3), suspicion: 1 },
+                  deltas: { trust: this._scrambleInt(0, 2), relationship: this._scrambleInt(1, 3), suspicion: 1 },
                   contextTag: 'build_compliment_build'
                 });
               }
@@ -3338,8 +3339,8 @@ class ConversationSystem {
           COUNTER: ['I hear you. I’m just keeping my head down for now.']
         },
         effects: ({ player, npc, stance }) => {
-          const relationshipDelta = getRandomInt(3, 7);
-          const trustDelta = stance === NPC_STANCES.DEFLECT ? getRandomInt(0, 1) : getRandomInt(1, 3);
+          const relationshipDelta = this._scrambleInt(3, 7);
+          const trustDelta = stance === NPC_STANCES.DEFLECT ? this._scrambleInt(0, 1) : this._scrambleInt(1, 3);
           this._applyExchangeEffects({
             player,
             npc,
@@ -3390,7 +3391,7 @@ class ConversationSystem {
             playerLine: 'Let’s calm it down. We can keep this tribe steady.',
             npcReplyByStance: { DEFAULT: ['That would help. Less noise, more trust.'] },
             effects: ({ player, npc }) => {
-              player.teamPlayer = this._clampStat((player.teamPlayer ?? 50) + getRandomInt(1, 3));
+              player.teamPlayer = this._clampStat((player.teamPlayer ?? 50) + this._scrambleInt(1, 3));
               this._applyExchangeEffects({
                 player,
                 npc,
@@ -3417,7 +3418,7 @@ class ConversationSystem {
             effects: ({ player, npc }) => {
               const style = (npc.gameplayStyle || '').toLowerCase();
               const likes = style.includes('shadow') || style.includes('power');
-              const deltas = likes ? { trust: getRandomInt(1, 2) } : { suspicion: getRandomInt(1, 2) };
+              const deltas = likes ? { trust: this._scrambleInt(1, 2) } : { suspicion: this._scrambleInt(1, 2) };
               this._applyExchangeEffects({ player, npc, deltas, contextTag: 'vibe_chaos' });
             }
           }
@@ -3439,8 +3440,8 @@ class ConversationSystem {
           }]
         },
         effects: ({ player, npc, stance }) => {
-          const relationshipDelta = getRandomInt(1, 3);
-          const trustDelta = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? getRandomInt(1, 2) : 0;
+          const relationshipDelta = this._scrambleInt(1, 3);
+          const trustDelta = stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE ? this._scrambleInt(1, 2) : 0;
           this._applyExchangeEffects({ player, npc, deltas: { relationship: relationshipDelta, trust: trustDelta }, contextTag: 'vibe_holding' });
         }
       },
@@ -3457,7 +3458,7 @@ class ConversationSystem {
           const paranoia = npc.paranoia ?? 0;
           const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
           const named = trust > 65 && paranoia < 55 && candidates.length
-            ? candidates[getRandomInt(0, Math.max(0, candidates.length - 1))]
+            ? candidates[this._scrambleInt(0, Math.max(0, candidates.length - 1))]
             : null;
           if (stance === NPC_STANCES.DEFLECT || stance === NPC_STANCES.COUNTER) {
             return 'I’m keeping my head down for now. It’s early to gripe.';
@@ -3487,7 +3488,7 @@ class ConversationSystem {
             playerLine: 'I see it too. It’s not just you.',
             npcReplyByStance: { DEFAULT: ['Good. I needed to hear that.'] },
             effects: ({ player, npc }) => {
-              this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2), relationship: getRandomInt(1, 2) }, contextTag: 'vibe_bugging_align' });
+              this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(1, 2), relationship: this._scrambleInt(1, 2) }, contextTag: 'vibe_bugging_align' });
             }
           },
           {
@@ -3599,7 +3600,7 @@ class ConversationSystem {
             buttonText: 'Respect',
             playerLine: 'Respect. That’s a smart read.',
             npcReplyByStance: { DEFAULT: ['Appreciate it.'] },
-            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(1, 2) }, contextTag: 'vibe_strategy_respect' })
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(1, 2) }, contextTag: 'vibe_strategy_respect' })
           },
           {
             id: 'strategy_help_us',
@@ -3656,7 +3657,7 @@ class ConversationSystem {
             buttonText: 'Fix it',
             playerLine: 'I want to fix it. Tell me what you need.',
             npcReplyByStance: { DEFAULT: ['Own your moves and don’t blindside me.'] },
-            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(2, 6), relationship: getRandomInt(1, 4) }, contextTag: 'vibe_good_fix' })
+            effects: ({ player, npc }) => this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(2, 6), relationship: this._scrambleInt(1, 4) }, contextTag: 'vibe_good_fix' })
           },
           {
             id: 'good_defensive',
@@ -4342,6 +4343,23 @@ class ConversationSystem {
   }
 
   _buildTalkAboutSomeoneNode({ player, npc, context, target, angle }) {
+    const model = this._scrambleModel();
+    if (model) {
+      const semantic = scrambleNodes(model, { player, npc, context });
+      if (['said_your_name','said_name'].includes(angle)) {
+        const owned = semantic.find(n => n.id.startsWith('share:') && model.knowledge(player.id).some(e => n.id === `share:${e.id}` && String(e.speakerId) === String(target.id)));
+        return owned || semantic.find(n => n.id === `bluff_warning:${target.id}`) || semantic.find(n => n.id === 'not_commit');
+      }
+      if (angle === 'idol') {
+        const owned = model.knowledge(player.id).find(e => String(e.subjectId) === String(target.id) && ['idol_suspicion','idol_possession'].includes(e.topic));
+        return semantic.find(n => n.id === `share:${owned?.id}`) || { id: `speculate_idol:${target.id}`, buttonText: 'Speculate about an idol', playerLine: `I wonder if ${target.firstName} looked.`,
+          semanticResolve: random => { const cp = model.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
+            model.statement({ id: `${cp.activityId}:speculate_idol:${target.id}`, speakerId: player.id, listenerIds: [npc.id], subjectId: target.id,
+              topic: 'idol_suspicion', stance: 'possible', mode: 'speculation', random }); return { line: 'Maybe. That’s a guess; I haven’t seen an idol.' }; } };
+      }
+      return { id: `opinion:${angle}:${target.id}`, buttonText: 'Personal read', playerLine: `What’s your personal read on ${target.firstName}?`,
+        semanticResolve: () => ({ line: (this.gameManager.getTrust?.(npc.id,target.id) ?? 50) > 60 ? 'I feel good with them, personally. I can’t speak for everyone.' : 'I’m still figuring them out. That’s just my own read.' }) };
+    }
     const buildReply = ({ stance, truth, lie, deflect }) => {
       if (stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) return truth;
       if (stance === NPC_STANCES.LIE) return lie || deflect;
@@ -4807,6 +4825,10 @@ class ConversationSystem {
     if (deal) {
       if (status === 'accepted') {
         dealSystem.acceptDeal(deal.id, npc.id, 'accepted_in_conversation');
+        if (cp && dealType === 'vote_together' && target) {
+          this._scrambleModel().commit({ id: `${cp.activityId}:deal_promise:player`, speakerId: player.id, listenerIds: [npc.id], targetId: target.id });
+          this._scrambleModel().commit({ id: `${cp.activityId}:deal_promise:npc`, speakerId: npc.id, listenerIds: [player.id], targetId: target.id, lie: allianceOutcome?.sincerity === 'fake' });
+        }
         this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(3, 10), relationship: this._scrambleInt(1, 5) }, contextTag: 'deal_accept' });
 
         if (allianceType && allianceSystem?.createAlliance) {
@@ -4871,6 +4893,7 @@ class ConversationSystem {
     const responseText = status === 'accepted'
       ? 'Alright. We have a deal.'
       : 'I’m not going for that.';
+    if (cp) cp.lastLine = responseText;
     const session = this._getActiveTranscriptSession();
     session?.addNpc?.(responseText);
     this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
@@ -4887,7 +4910,7 @@ class ConversationSystem {
         onClick: () => {
           const session = this._getActiveTranscriptSession();
           session?.addYou?.('Let’s recommit.');
-          this._applyExchangeEffects({ player, npc, deltas: { trust: getRandomInt(2, 6) }, contextTag: 'alliance_recommit' });
+          this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(2, 6) }, contextTag: 'alliance_recommit' });
           session?.addNpc?.('We’re good. Let’s keep it tight.');
           this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
             onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),

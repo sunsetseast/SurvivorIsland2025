@@ -315,7 +315,7 @@ class IdolSystem {
     }
 
     const history = this.searchHistory.get(String(survivorId)) || { count: 0 };
-    this.searchHistory.set(String(survivorId), { count: history.count + 1, day: this.gameManager.day, location: locationKey });
+    this.searchHistory.set(String(survivorId), { count: history.count + 1, day: this.gameManager.day, location: safeLocationKey });
     if (!isNpc && this.gameManager.consumeCampTime) {
       this.gameManager.consumeCampTime(settings.timeCost, {
         source: isNpc ? 'npc_idol_hunt' : 'player_idol_hunt',

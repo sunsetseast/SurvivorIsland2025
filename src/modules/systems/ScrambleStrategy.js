@@ -76,7 +76,8 @@ export default class ScrambleStrategy {
   statement({id,speakerId,listenerIds=[],subjectId,topic='target',stance='consider',mode='truthful',
     attributedId=null,sourceChain=null,refutesClaimId=null,random=()=>this.strategy.random()}) {
     if (this.resolved[id]) return this.resolved[id];
-    const speaker=this.person(speakerId); if (!id || !speaker || !this.person(subjectId)) return null;
+    const speaker=this.person(speakerId); if (!id || !speaker || !this.person(subjectId) ||
+      ['target','commitment','split_assignment'].includes(topic) && !this.strategy.isTargetIdAvailable(subjectId)) return null;
     const listeners=listenerIds.map(id=>this.person(id)).filter(p=>p&&!same(p.id,speakerId)&&this.together(speaker,p));
     if (!listeners.length) return null;
     const belief={}; const confidences={};
@@ -90,7 +91,8 @@ export default class ScrambleStrategy {
       day:this.gm.day,campTime:this.gm.dayTimer,salience:'high',...(hiddenFalse?{truthfulness:false}:{})});
     const state=this.state(speakerId);
     for (const listener of listeners) { state.pitchesByAudience[String(listener.id)]={id,subjectId,topic,stance,mode};
-      state.lastContacts[String(listener.id)]=this.gm.dayTimer; this.refresh(listener.id); }
+      state.lastContacts[String(listener.id)]=this.gm.dayTimer; this.refresh(listener.id);
+      if (this.contradictions(listener.id).some(e=>e.id===id)) this.count('contradictionsDiscovered'); }
     if (topic==='commitment') { state.promises.push({id,subjectId,audienceIds:listeners.map(p=>p.id),stance}); state.promises=state.promises.slice(-24); }
     const result={id,belief,listenerIds:listeners.map(p=>p.id)}; this.resolved[id]=result;
     this.count('statements'); this.count(hiddenFalse?'deliberateLies':mode==='hearsay'?'rumors':mode==='speculation'?'speculations':'truthfulStatements');
@@ -120,6 +122,7 @@ export default class ScrambleStrategy {
   }
   commit({id,speakerId,listenerIds,targetId,lie=false,random}) {
     if(this.resolved[id])return this.resolved[id];
+    if(!this.strategy.isTargetIdAvailable(targetId)||same(speakerId,targetId))return null;
     const result=this.statement({id,speakerId,listenerIds,subjectId:targetId,topic:'commitment',stance:'yes',mode:lie?'deliberate_lie':'truthful',random});
     if(result&&!lie&&this.strategy.isTargetIdAvailable(targetId)&&!same(speakerId,targetId)) {
       const s=this.state(speakerId); s.committedTargetId=targetId;
@@ -135,18 +138,28 @@ export default class ScrambleStrategy {
   }
   backup(ownerId,primaryTargetId,targetId,informedIds=[],trigger='suspected_idol') {
     if(!this.strategy.isTargetIdAvailable(targetId)||same(primaryTargetId,targetId))return null;
-    const ids=[ownerId,...informedIds].filter((id,i,a)=>a.findIndex(x=>same(x,id))===i&&this.person(id));
+    const ids=[ownerId,...informedIds].filter((id,i,a)=>a.findIndex(x=>same(x,id))===i&&this.person(id)&&(same(id,ownerId)||this.together(this.person(ownerId),this.person(id))));
     const plan={id:`backup:${ownerId}:${primaryTargetId}:${targetId}`,primaryTargetId,targetId,informedIds:ids,trigger,active:false};
     this.plans[plan.id]=plan;for(const id of ids)this.state(id).backup=copy(plan);this.count('backups');return plan;
   }
   activateBackup(ownerId,trigger) {
-    const known=this.state(ownerId).backup;const plan=this.plans[known?.id];if(!plan||!this.strategy.isTargetIdAvailable(plan.targetId)||plan.active||plan.trigger!==trigger||!plan.informedIds.some(id=>same(id,ownerId)))return false;
-    plan.active=true;for(const id of plan.informedIds){this.state(id).backup.active=true;
-      if(!this.person(id)?.isPlayer&&!same(id,plan.targetId))this.strategy.updateNpcIntentTarget(id,plan.targetId,{reason:`backup:${trigger}`,absoluteConfidence:.65,lateVolatility:this.gm.dayTimer<=600});}return true;
+    const known=this.state(ownerId).backup,plan=this.plans[known?.id];
+    if(!plan||!this.strategy.isTargetIdAvailable(plan.targetId)||known.active||plan.trigger!==trigger||!plan.informedIds.some(id=>same(id,ownerId)))return false;
+    plan.active=true;
+    const owner=this.person(ownerId);
+    const listeners=plan.informedIds.filter(id=>!same(id,ownerId)&&this.together(owner,this.person(id)));
+    this.statement({id:`${plan.id}:activate:${ownerId}`,speakerId:ownerId,listenerIds:listeners,subjectId:plan.targetId,topic:'backup',stance:'activated'});
+    for(const id of [ownerId,...listeners]) {
+      const state=this.state(id);state.backup.active=true;
+      // Knowing a backup isn't consenting to abandon an unrelated plan.
+      if(!this.person(id)?.isPlayer&&!same(id,plan.targetId)&&(same(id,ownerId)||same(state.intendedVoteId,plan.primaryTargetId)||same(state.committedTargetId,plan.primaryTargetId)))
+        this.strategy.updateNpcIntentTarget(id,plan.targetId,{reason:`backup:${trigger}`,absoluteConfidence:.65,lateVolatility:this.gm.dayTimer<=600});
+    }
+    return true;
   }
   split(ownerId,primaryTargetId,secondaryTargetId,assignments,fullKnowledgeIds=[ownerId]) {
     if(!this.strategy.isTargetIdAvailable(primaryTargetId)||!this.strategy.isTargetIdAvailable(secondaryTargetId)||same(primaryTargetId,secondaryTargetId))return null;
-    const valid=Object.entries(assignments).filter(([id,target])=>this.person(id)&&!same(id,target)&&[primaryTargetId,secondaryTargetId].some(t=>same(t,target)));
+    const valid=Object.entries(assignments).filter(([id,target])=>this.person(id)&&(same(id,ownerId)||this.together(this.person(ownerId),this.person(id)))&&!same(id,target)&&[primaryTargetId,secondaryTargetId].some(t=>same(t,target)));
     const plan={id:`split:${ownerId}:${primaryTargetId}:${secondaryTargetId}`,ownerId,primaryTargetId,secondaryTargetId,assignments:Object.fromEntries(valid),fullKnowledgeIds:[...fullKnowledgeIds],counts:{}};
     for(const [,target] of valid)plan.counts[target]=(plan.counts[target]||0)+1;
     this.plans[plan.id]=plan;
@@ -157,6 +170,17 @@ export default class ScrambleStrategy {
     if(!target||!this.strategy.isTargetIdAvailable(target)||this.person(id)?.isPlayer)return false;
     if(same(s.intendedVoteId,target)&&same(s.committedTargetId,target))return true;
     this.strategy.updateNpcIntentTarget(id,target,{reason:'accepted_split',absoluteConfidence:.75});s.committedTargetId=target;return true;}
+  react(id) {
+    const plan = this.states[String(id)]?.backup;
+    if (!plan || plan.active) return false;
+    const owned = this.knowledge(id);
+    const triggered = plan.trigger === 'suspected_idol' && owned.some(e =>
+      ['idol_suspicion','idol_possession'].includes(e.topic) && same(e.subjectId,plan.primaryTargetId) && !negative(e)) ||
+      plan.trigger === 'target_aware' && owned.some(e => e.topic === 'safety' && same(e.subjectId,plan.primaryTargetId) && e.stance === 'warned') ||
+      plan.trigger === 'target_unavailable' && !this.strategy.isTargetIdAvailable(plan.primaryTargetId) ||
+      plan.trigger === 'lost_votes' && this.viability(id,plan.primaryTargetId) < 1.5;
+    return triggered ? this.activateBackup(id,plan.trigger) : false;
+  }
   agenda(speakerId,listenerId,{plan=false}={}) {
     const s=this.refresh(speakerId), owned=this.knowledge(speakerId), profile=getCampBehaviorProfile(this.person(speakerId));
     const disputed=this.contradictions(speakerId).at(-1);
@@ -198,7 +222,7 @@ export default class ScrambleStrategy {
       const prior=(this.memory.memory[String(listener.id)]?.campClaims||[]).find(e=>same(e.speakerId,listener.id)&&same(e.subjectId,subjectId)&&e.topic===known?.topic);
       const lie=!prior&&getCampBehaviorProfile(listener).honesty<.45&&random()<.35;
       return this.statement({id,speakerId:listener.id,listenerIds:[actor.id],subjectId,topic:known?.topic||'target',stance:prior||lie?'mentioned':'denied',
-        mode:lie?'deliberate_lie':'truthful',refutesClaimId:prior||lie?null:known?.id,random});
+        mode:lie||prior?.truthfulness===false?'deliberate_lie':'truthful',refutesClaimId:prior||lie?null:known?.id,random});
     }
     if(agenda.purpose==='warn_ally'){topic='safety';stance='warned';}
     if(agenda.purpose==='reassure_target'){topic='safety';stance='yes';}
@@ -222,6 +246,24 @@ export default class ScrambleStrategy {
     const counts=new Map();for(const p of participants){const target=this.state(p.id).intendedVoteId;if(target)counts.set(target,(counts.get(target)||0)+1);}
     const [target,votes]=[...counts].sort((a,b)=>b[1]-a[1])[0]||[];
     const outcome=votes===participants.length?'consensus':votes>participants.length/2?'tentative_consensus':'disagreement';
+    const owner = participants[0];
+    const risk = target && this.knowledge(owner.id).some(e => ['idol_suspicion','idol_possession'].includes(e.topic) && same(e.subjectId,target) && !negative(e));
+    if (outcome !== 'disagreement' && risk) {
+      const secondary = positions.find(p => p.intendedVoteId && !same(p.intendedVoteId,target) &&
+        this.strategy.isTargetIdAvailable(p.intendedVoteId))?.intendedVoteId || this.members.find(p =>
+          !same(p.id,target) && !participants.some(member => same(member.id,p.id)) && this.strategy.isTargetIdAvailable(p.id))?.id;
+      if (secondary) {
+        this.backup(owner.id,target,secondary,participants.slice(1).map(p=>p.id));
+        if (participants.length >= 4) {
+          const assignments = Object.fromEntries(participants.map((p,i)=>[p.id,i<Math.ceil(participants.length*.66)?target:secondary]));
+          const plan=this.split(owner.id,target,secondary,assignments,[owner.id]);
+          if (plan) for (const participant of participants) {
+            const assigned=plan.assignments[participant.id];
+            if (assigned && !same(participant.id,owner.id) && this.adoption(participant.id,owner.id,assigned,{random})==='commit') this.acceptSplit(participant.id);
+          }
+        }
+      }
+    }
     return {positions,outcome,targetId:outcome==='disagreement'?null:target};
   }
   searched(id) {return (this.gm.systems.idolSystem?.getSearchHistory?.(id)?.count||0)>0||
@@ -230,7 +272,7 @@ export default class ScrambleStrategy {
   idolAnswer(id) {return {searched:this.searched(id),ownsIdol:ownsUsableIdol(this.person(id),this.gm.systems.idolSystem)};}
   knownPair(id) {
     const owned=(this.memory?.memory?.[String(id)]?.campObservations||[]).filter(e=>e.type==='seen_together'&&e.day===this.gm.day&&e.confidence>=.2);
-    const e=owned.at(-1);if(e)return {ids:[e.actorId,...(e.participants||[])].filter((x,i,a)=>a.indexOf(x)===i),provenance:e.origin==='hearsay'?'hearsay':'inference',evidenceId:e.id};
+    const e=owned.at(-1);if(e)return {ids:[e.actorId,...(e.participantIds||[])].filter((x,i,a)=>a.indexOf(x)===i),provenance:e.origin==='hearsay'?'hearsay':'inference',evidenceId:e.id};
     const alliance=this.gm.systems.allianceSystem?.getAlliancesForSurvivor?.(id)?.find(a=>a.active!==false);
     const ids=(alliance?.memberIds||[]).filter(x=>!same(x,id)&&this.person(x));return ids.length>=2?{ids:ids.slice(0,2),provenance:'direct_statement'}:null;
   }
@@ -238,7 +280,7 @@ export default class ScrambleStrategy {
     const owned=this.knowledge(id);const ownPromises=(this.memory?.memory?.[String(id)]?.campClaims||[]).filter(e=>same(e.speakerId,id)&&e.topic==='commitment'&&e.day===this.gm.day).map(e=>({id:e.id,subjectId:e.subjectId,audienceIds:e.audienceIds,stance:e.stance}));
     return {currentVoteIntent:this.states[String(id)]?.intendedVoteId??null,statements:owned.filter(e=>e.kind==='claim'),
       groups:owned.filter(e=>e.topic==='seen_together'),promises:ownPromises,contradictions:this.contradictions(id).map(e=>({id:e.id,conflicts:[...e.contradicts]})),
-      deals:(this.gm.systems.dealSystem?.getAllDeals?.()||[...(this.gm.systems.dealSystem?.deals?.values?.()||[])]).filter(d=>(d.participantIds||d.parties||[]).some(x=>same(x,id)))};
+      deals:(this.gm.systems.dealSystem?.getAllDeals?.()||Object.values(this.gm.systems.dealSystem?.dealsById||{})).filter(d=>(d.participantIds||d.parties||[]).some(x=>same(x,id)))};
   }
   checkpoint(reservation) {if(!reservation)return null;return reservation.checkpoint ||= {activityId:reservation.activityId,npcId:reservation.npcId,
     participants:[reservation.npcId,...(reservation.groupIds||[])],location:reservation.location,purpose:reservation.strategy?'strategy':'check_in',
