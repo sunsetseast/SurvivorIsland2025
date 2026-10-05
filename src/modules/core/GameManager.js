@@ -322,6 +322,7 @@ class GameManager {
         id: entry.id || entry,
         name: entry.name || getName(entry.id || entry) || 'Unknown'
       })),
+      idolOpportunities: (tribalSummary.idolOpportunities||[]).map(o=>({ownerId:o.ownerId,usable:o.usable===true})),
       rockDrawEliminatedId: tribalSummary.rockDrawEliminatedId || null,
       idolPlays: (tribalSummary.idolPlays || []).map(play => ({
         playerId: play.playerId || play.playedById || null,

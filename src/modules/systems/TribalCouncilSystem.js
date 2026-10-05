@@ -122,6 +122,7 @@ export default class TribalCouncilSystem {
 
     this.computeNpcVotes();
     this.resolveShotInTheDark();
+    this.idolOpportunities=this.voters.map(owner=>({ownerId:owner.id,usable:this._hasIdol(owner)}));
     this.resolveIdolStage();
 
     const initialCounts = this.buildVoteTally(this.initialVotes.filter(vote => vote.phase === 'initial'));
@@ -203,6 +204,7 @@ export default class TribalCouncilSystem {
       })),
       validVoteCount,
       nullifiedVoteCount,
+      idolOpportunities: this.idolOpportunities || [],
       immuneIds: [...this.immunityHolderIds],
       idolPlays: this.idolPlays.map(play => ({
         ...play,
@@ -306,6 +308,7 @@ export default class TribalCouncilSystem {
       initialVotes: this.initialVotes.map(vote => ({ ...vote, voterName: getName(vote.voterId), targetName: getName(vote.targetId), nullified: vote.wasNullified })),
       validVoteCount,
       nullifiedVoteCount,
+      idolOpportunities: this.idolOpportunities || [],
       immuneIds: [...this.immunityHolderIds],
       idolPlays: this.idolPlays.map(play => ({ ...play, playerId: play.playedById, playerName: getName(play.playedById), targetId: play.playedOnId, targetName: getName(play.playedOnId) })),
       shotResults: this.shotResults.map(result => ({ ...result, playerName: getName(result.playerId) })),

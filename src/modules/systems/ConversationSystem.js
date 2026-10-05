@@ -1459,7 +1459,8 @@ class ConversationSystem {
     }}));
     buttons.push({label:'Talk about something else',onClick:()=>this._renderMainMenu({player,npc,context:{...context,scrambleMore:true},mainTopics:this._buildMainTopics({player,npc,context})})});
     cp.allianceTranscript=JSON.parse(JSON.stringify(session.transcript));
-    this._renderMenu(npc,this._buildTranscriptBody({session}),buttons,{showEnd:true});return true;
+    this._renderMenu(npc,this._buildTranscriptBody({session}),buttons,{showEnd:true});
+    if(typeof document!=='undefined')document.getElementById('conversation-overlay')?.setAttribute('data-alliance-dialog','true');return true;
   }
   startPlayerConversation({ npcId, phase, socialType = null, context = {} }) {
     if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
