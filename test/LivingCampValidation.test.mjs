@@ -104,13 +104,15 @@ test('owned contradictory firsthand evidence changes source reliability/trust on
   m.recordCampClaim({ id: 'evidence', speakerId: b.id, subjectId: c.id, topic: 'idol_suspicion',
     stance: 'searching', origin: 'firsthand', confidence: .95 });
   assert.ok(m.getCampClaims(b.id)[0].challenged);
-  assert.equal(s.gm.getTrust(a.id,b.id), trust - 2);
+  assert.equal(s.gm.getTrust(b.id,a.id), trust - 2);
+  assert.equal(s.gm.getTrust(a.id,b.id), trust);
   const reliability = m.getCampSourceReliability(b.id,a.id);
   m.deserialize(JSON.parse(JSON.stringify(m.serialize())));
   m.recordCampClaim({ id: 'evidence-again', speakerId: b.id, subjectId: c.id, topic: 'idol_suspicion',
     stance: 'searching', origin: 'firsthand', confidence: .95 });
   assert.equal(m.getCampSourceReliability(b.id,a.id), reliability);
-  assert.equal(s.gm.getTrust(a.id,b.id), trust - 2);
+  assert.equal(s.gm.getTrust(b.id,a.id), trust - 2);
+  assert.equal(s.gm.getTrust(a.id,b.id), trust);
 }));
 
 test('all nine scenario families reproduce exactly across mid-phase production JSON save/load over four days', () => {

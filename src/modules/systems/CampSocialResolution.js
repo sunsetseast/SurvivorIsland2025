@@ -101,7 +101,7 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
   if (outcome.type === 'bond' || outcome.type === 'reassurance' ||
       (activity.socialPurpose && !['strategy_conversation', 'socialize'].includes(activity.type)))
     gm.systems?.relationshipSystem?.changeRelationship?.(speaker.id, listener.id, 1);
-  if (outcome.type === 'claim' && allied) gm.systems?.trustSystem?.changeTrust?.(listener.id, speaker.id, 1, 'camp_information');
+  if (outcome.type === 'claim' && allied) gm.systems?.trustSystem?.changeOwnedTrust?.(listener.id, speaker.id, 1, 'camp_information');
   gm.systems?.campInteractionSystem?.hearExchange?.({ speaker, listener, activity, claimId, observationId });
   return outcome;
 }

@@ -569,6 +569,7 @@ export default class CampActivitySystem {
       clamp((strategy || current.strategy ? 180 : 90) + Math.max(0, turns) * 30, 90, 420);
     if (this.post) this.strategy?.scramble?.note('player_conversation', { npcId: current.npcId, seconds, topics });
     this.gm.consumeCampTime(seconds, { source: 'camp_conversation' });
+    if(this.post)this.strategy?.reasoning?.contact([player?.id,current.npcId,...(current.groupIds||[])].filter(id=>id!=null));
     if (npc?.campActivity?.id === current.activityId) npc.campActivity = null;
     if (player?.campActivity?.id === current.activityId) player.campActivity = null;
     this.resolved.add(current.activityId);

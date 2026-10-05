@@ -208,7 +208,7 @@ export default class AllianceSystem {
       const s = this.memberState(
         raw.memberStates?.[id],
         type,
-        raw.sincerityMap?.[id] === "fake" ? "fake" : "real",
+        ["fake","cover"].includes(raw.sincerityMap?.[id]) ? raw.sincerityMap[id] : "real",
         roster,
       );
       if (!a.active && !raw.memberStates) s.believesAllianceActive = false;
@@ -661,11 +661,22 @@ export default class AllianceSystem {
       reasons: [accepted ? "accepted" : outcome],
     };
   }
+  // Historical objects do not consume the same attention as local operating pacts.
+  getActiveStrategicLoad(id) {
+    return this.getAlliancesForSurvivor(id).reduce((load,a)=>{
+      const member=a.memberStates[id];
+      if(!member || ['left','eliminated'].includes(member.status) || ['disbanded','fractured'].includes(a.lifecycle))return load;
+      const local=this.knownRoster(id,a.id).filter(other=>this.living(other)&&same(this.tribeOf(id),this.tribeOf(other)));
+      const priority=member.priority||0,commitment=member.commitment||0;
+      if(a.lifecycle==='dormant' || local.length<2)return load+(priority>.7?priority*commitment*.35:0);
+      return load + (.35 + priority*commitment*.65) * (['temporary','voting_bloc'].includes(a.type)?.7:1);
+    },0);
+  }
   canForm(a, b, type) {
     return (
       this.together(a, b) &&
-      this.getAlliancesForSurvivor(a).length < 5 &&
-      this.getAlliancesForSurvivor(b).length < 5 &&
+      this.getActiveStrategicLoad(a) < 3.5 &&
+      this.getActiveStrategicLoad(b) < 3.5 &&
       !this.getSharedAlliances(a, b).some((x) => x.type === this.type(type))
     );
   }
@@ -714,7 +725,7 @@ export default class AllianceSystem {
     const result =
       choice === "evaluate"
         ? this.evaluateAllianceOffer({ ...p, random })
-        : { accepted: choice === "accept", outcome: choice, sincerity: "real" };
+        : { accepted: ["accept", "cover"].includes(choice), outcome: choice === "cover" ? "accept" : choice, sincerity: choice === "cover" && this.person(p.receiverId)?.isPlayer ? "cover" : "real" };
     p.status = result.accepted ? "accepted" : result.outcome;
     p.receiverSincerity = result.sincerity;
     this.recordClaim({
@@ -857,7 +868,7 @@ export default class AllianceSystem {
             type: a.type,
             random,
           })
-        : { accepted: choice === "accept", outcome: choice, sincerity: "real" };
+        : { accepted: ["accept", "cover"].includes(choice), outcome: choice === "cover" ? "accept" : choice, sincerity: choice === "cover" && this.person(p.receiverId)?.isPlayer ? "cover" : "real" };
     p.status = r.accepted ? "accepted" : r.outcome;
     this.recordClaim({
       id: `${p.id}:response`,
@@ -1019,15 +1030,14 @@ export default class AllianceSystem {
         : "I want to keep working together. Let’s agree on the actual vote.";
   }
   priorityAnswer(memberId, listenerId, random = Math.random) {
-    const best = this.getRankedAlliancesForMember(memberId)[0];
-    if (!best) return "I’m keeping my options open.";
-    if (
-      !this.knownRoster(listenerId, best.id).length ||
-      (getCampBehaviorProfile(this.person(memberId)).honesty < 0.5 &&
-        random() < 0.5)
-    )
-      return "I value what we have. I’m not going to rank every relationship.";
-    return `The ${best.type.replaceAll("_", " ")} we discussed matters most to me right now.`;
+    const best=this.getRankedAlliancesForMember(memberId)[0];
+    if(!best)return "I’m keeping my options open.";
+    const profile=getCampBehaviorProfile(this.person(memberId)),affinity=this.getAllianceAffinity(memberId,listenerId);
+    const shared=this.knownRoster(memberId,best.id).some(id=>same(id,listenerId));
+    if(profile.honesty<.5 && affinity<.3 && random()<.6)return "I want us to be the core. You can count on that.";
+    if(!shared || best.secrecy==='secret' && this.trust(memberId,listenerId)<65 || random()>profile.honesty)
+      return "I’m not ranking my relationships. I want to know the plan for tonight.";
+    return ['voting_bloc','temporary'].includes(best.type)?"For tonight, this is the group I need.":`The ${best.type.replaceAll("_"," ")} we discussed is the relationship I trust most. We still need to agree on the vote.`;
   }
   concerns(ownerId, allianceId) {
     return ownedCampKnowledge(this.memory, ownerId, this.day)
@@ -1305,8 +1315,8 @@ export default class AllianceSystem {
           same(p.receiverId, listenerId) &&
           this.day - p.day < 2,
       ) ||
-      this.getAlliancesForSurvivor(speakerId).length >= 4 ||
-      this.getAlliancesForSurvivor(listenerId).length >= 4
+      this.getActiveStrategicLoad(speakerId) >= 3 ||
+      this.getActiveStrategicLoad(listenerId) >= 2.5
     )
       return null;
     const expandable = this.getRankedAlliancesForMember(speakerId).find(
@@ -1331,7 +1341,7 @@ export default class AllianceSystem {
       (mind?.safetyBelief < 0.45 ||
         same(
           mind?.intendedVoteId,
-          this.reasoning?.state(listenerId)?.intendedVoteId,
+          this.reasoning?.knownPosition(speakerId, listenerId)?.subjectId,
         ))
     )
       return { purpose: "alliance_expansion", allianceId: expandable.id };

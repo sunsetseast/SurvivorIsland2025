@@ -41,7 +41,12 @@ export function allianceOpening({ gm, player, npc, context, cp }) {
   if (participants.length > 1) {
     const a = system.getAlliance(cp.allianceId);
     cp.groupPositions ||= {};
-    return participants.map((p) => {
+    const meeting=gm.systems.strategyPhaseSystem.scramble?.meetings.find(m=>m.id===gm.systems.campActivitySystem.conversation.meetingId);
+    const purpose=meeting?.reason||system.getMeetingNeed(a?.id)?.reason;
+    const introductions={disagreement:"We’re not on the same page. Let’s hear each plan.",recruitment:"Do we need another person? We should talk before approaching anyone.",repair:"Last vote left questions. Are we still doing this?",unresolved_vote:"We need to decide where we stand for tonight."};
+    const danger=model.knowledge(npc.id).find(e=>["safety","target"].includes(e.topic)&&e.stance!=="yes"&&!same(e.subjectId,npc.id));
+    const intro=purpose==="member_danger"?(danger?`${name(system.person(danger.subjectId))}’s name came up. We need to check whether it’s real.`:"I don’t feel settled. What have people actually heard?"):introductions[purpose];
+    const positions=participants.map((p) => {
       const s = model.state(p.id),
         cover = maintainsCover(system, model, a, p.id, player.id);
       const publicPitch = s.pitchesByAudience[player.id];
@@ -79,6 +84,7 @@ export function allianceOpening({ gm, player, npc, context, cp }) {
           : "I still need to hear where everyone stands.",
       );
     });
+    return intro?[line(npc,intro),...positions]:positions;
   }
   return [
     line(
@@ -143,6 +149,7 @@ export function allianceChoices({ gm, player, npc, context, cp }) {
   if (pending) {
     for (const [choice, label] of [
       ["accept", "Accept pact"],
+      ["cover", "Agree, but keep your options open"],
       ["question", "Ask about the terms"],
       ["hedge", "Keep options open"],
       ["decline", "Decline pact"],
@@ -159,7 +166,7 @@ export function allianceChoices({ gm, player, npc, context, cp }) {
         cp.allianceId = response?.allianceId || null;
         return result(
           npc,
-          choice === "accept"
+          ["accept", "cover"].includes(choice)
             ? "We agreed to work together. Let’s keep talking about the actual plan."
             : choice === "hedge"
               ? "Fair. We can talk again without a promise."
@@ -316,13 +323,14 @@ export function allianceChoices({ gm, player, npc, context, cp }) {
     ["temporary", "Work together temporarily"],
   ])
     if (system.canForm(player.id, npc.id, type))
-      add(`form:${type}`, label, (random) => {
+      for(const commitment of ["real","cover"]) add(`form:${type}${commitment==="cover"?":open":""}`, commitment==="cover"?`${label}, keeping options open`:label, (random) => {
         const proposal = system.propose({
             id: `${cp.activityId}:proposal:${type}`,
             proposerId: player.id,
             receiverId: npc.id,
             type,
             secrecy: "private",
+            sincerity:commitment,
           }),
           response = proposal && system.respond(proposal.id, { random });
         cp.allianceId = response?.allianceId || cp.allianceId;
@@ -366,6 +374,12 @@ export function allianceChoices({ gm, player, npc, context, cp }) {
     add("recommit", "Recommit to this relationship", () => ({
       lines: others.map((p) => line(p, system.recommit(p.id, a.id, player.id))),
     }));
+    for(const [id,label,stance] of [["priority-honest","Tell them where this relationship stands","honest"],["priority-hedge","Keep your priorities private","hedge"],["priority-reassure","Tell them they can count on you","reassure"]])
+      add(id,label,()=>{
+        const top=system.getRankedAlliancesForMember(player.id)[0],honest=same(top?.id,a.id)&&system.getAllianceAffinity(player.id,npc.id)>.35;
+        system.recordClaim({id:`${cp.activityId}:${id}`,speakerId:player.id,listenerIds:others.map(p=>p.id),topic:'alliance_priority',allianceId:a.id,stance:stance==='hedge'?'uncertain':stance==='honest'&&!honest?'working':'yes',...(stance==='reassure'&&!honest?{truthfulness:false}:{})});
+        return result(npc,stance==='hedge'?"Okay. I still need to know whether you’re with the vote.":"I hear you. I’ll judge by what we do tonight.");
+      });
     add("personal-priority", "Which alliance matters most to you?", (random) =>
       result(npc, system.priorityAnswer(npc.id, player.id, random)),
     );

@@ -1090,7 +1090,7 @@ class SocialMemorySystem {
                 mem.campSourceReliability[key] = Math.max(0.2, (mem.campSourceReliability[key] ?? 0.75) - 0.18);
                 prior.sourceContradictionApplied = true;
                 const gm = typeof window !== 'undefined' ? window.gameManager : null;
-                gm?.systems?.trustSystem?.changeTrust?.(entry.ownerId ?? this.findCampMemoryOwner(mem),
+                gm?.systems?.trustSystem?.changeOwnedTrust?.(entry.ownerId ?? this.findCampMemoryOwner(mem),
                     prior.sourceId, -2, 'camp_contradicted_statement');
             }
         }

@@ -78,7 +78,7 @@ test('travelers cannot receive destination strategy statements or groups',()=>{c
  assert.equal(campGroups(s.gm,'waterWell').some(g=>g.members.some(p=>p.id===s.b.id)),false);});
 test('in-transit player cannot receive destination statements',()=>{const s=setup();s.activity.start(s.gm.player,{type:'travel',location:'waterWell',external:true,duration:30});
  s.activity.start(s.a,{type:'observe',location:'waterWell',duration:300});say(s,{listenerIds:[s.gm.player.id]});assert.equal(s.memory.getCampClaims(s.gm.player.id).some(e=>e.id==='test:statement'),false);});
-test('warning motive favors relevant threatened ally',()=>{const s=setup();s.gm.systems.trustSystem.changeTrust(s.a.id,s.b.id,30);
+test('warning motive favors relevant threatened ally',()=>{const s=setup();s.strategy.updateNpcIntentTarget(s.a.id,s.d.id);s.gm.systems.trustSystem.changeTrust(s.a.id,s.b.id,30);
  say(s,{speakerId:s.c.id,listenerIds:[s.a.id],subjectId:s.b.id,topic:'safety',stance:'warned'});
  assert.equal(s.m.agenda(s.a.id,s.b.id).purpose,'warn_ally');assert.ok(s.m.candidateScore(s.a.id,s.b.id)>s.m.candidateScore(s.a.id,s.d.id));});
 test('verification motive seeks alleged original source',()=>{const s=setup();say(s,{speakerId:s.c.id,listenerIds:[s.a.id],attributedId:s.b.id});
