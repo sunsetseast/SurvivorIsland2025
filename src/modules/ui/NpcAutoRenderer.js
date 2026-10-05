@@ -163,12 +163,13 @@ export class NpcAutoRenderer {
       const reservation = this.gm.systems.campActivitySystem.conversation;
       if (reservation && !document.querySelector('#conversation-overlay')) {
         rail.appendChild(this.action('Resume conversation', `resume:${reservation.activityId}`, () => {
-          this.gm.systems.conversationSystem.startPlayerConversation({ npcId: reservation.npcId, phase: 'post', context: { location: reservation.location } });
+          if(reservation.checkpoint?.allianceOpened)this.gm.systems.conversationSystem.startAllianceConversation(reservation.npcId,reservation.checkpoint.allianceId,{allianceProposalId:reservation.checkpoint.allianceProposalId,location:reservation.location,groupParticipantIds:reservation.groupIds});
+          else this.gm.systems.conversationSystem.startPlayerConversation({ npcId: reservation.npcId, phase: 'post', context: { location: reservation.location } });
           this.focusConversation();
         }));
       }
       for (const meeting of strategy.scramble?.meetings || []) if (meeting.status === 'active' && meeting.location === place &&
-        meeting.memberIds.some(id => String(id) === String(this.gm.player.id)))
+        meeting.memberIds.some(id => String(id) === String(this.gm.player.id)) && this.gm.systems.allianceSystem?.getKnownAlliances?.(this.gm.player.id).some(a=>a.id===meeting.allianceId))
         rail.appendChild(this.action('Join alliance meeting', `meeting:${meeting.id}`, () => {
           this.closeSheet(false); strategy.scramble.attend(meeting.id); this.focusConversation();
         }));

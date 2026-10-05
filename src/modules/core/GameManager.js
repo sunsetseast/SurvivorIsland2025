@@ -1017,6 +1017,7 @@ class GameManager {
     });
     if (this.isMerged && !this.jury.some(member => sameSurvivorId(member.id, survivor.id))) this.jury.push(survivor);
 
+    this.systems.allianceSystem?.onElimination?.(survivor.id);
     eventManager.publish(GameEvents.SURVIVOR_ELIMINATED, {
       eliminatedSurvivor: survivor,
       tribe: sourceTribe.id,
@@ -1227,6 +1228,7 @@ class GameManager {
         day1Memories: this.day1Memories,
         gameHistory: this.gameHistory,
         tribalCouncilLog: this.tribalCouncilLog,
+        tribalCompletion: {completedKeys:[...(this._completedTribalKeys || [])],stages:[...(this._tribalCompletionStages || [])]},
         state: this.state,
         postChallengeMode: this.postChallengeMode,
         lastChallengeResult: this.lastChallengeResult,
@@ -1242,6 +1244,9 @@ class GameManager {
     if (!normalized) return false;
 
     const data = normalized.gameManager || {};
+    this._completedTribalKeys = new Set(data.tribalCompletion?.completedKeys || []);
+    this._tribalCompletionStages = new Map(data.tribalCompletion?.stages || []);
+    this._tribalCompletionInFlight = new Set();
 
     this.isInitialized = data.isInitialized ?? this.isInitialized;
     this.gameState = data.gameState || this.gameState || GameState.WELCOME;
@@ -1320,6 +1325,7 @@ class GameManager {
       }
     });
 
+    this.systems.allianceSystem?.migrateLegacyPriorityHints?.(systemsState.allianceSystem, systemsState.socialMemorySystem);
     this._updateScreenForState(this.gameState);
     eventManager.publish(GameEvents.GAME_LOADED, { timestamp: normalized.savedAt });
     return true;

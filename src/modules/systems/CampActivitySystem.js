@@ -99,7 +99,7 @@ export default class CampActivitySystem {
         claim.day === this.gm.day && !claim.challenged && claim.confidence >= .2 && claim.truthfulness !== false).length || 0);
     const allies = this.npcs().filter(s => !same(s.id, npc.id)).map(s => ({ s,
       score: (this.gm.getTrust?.(npc.id, s.id) ?? 50) +
-        (this.gm.systems?.allianceSystem?.areAllied?.(npc.id, s.id) ? 25 : 0) +
+        (this.gm.systems?.allianceSystem?.getAllianceAffinity?.(npc.id, s.id) || 0) * 25 +
         Math.min(8, (this.memory?.getCampImpression?.(npc.id, s.id, 'work')?.count || 0) * 2) -
         Math.min(8, (this.memory?.getCampImpression?.(npc.id, s.id, 'role_neglect')?.count || 0) * 2) +
         ((this.memory?.getCampSourceReliability?.(npc.id, s.id) ?? 0.75) - 0.75) * 16 }))
@@ -256,7 +256,7 @@ export default class CampActivitySystem {
       if (!urgent.length || this.random() >= .35 + profile.strategyDrive * .2 + profile.confrontationDrive * .15) continue;
       this.lastUrgentTime[npc.id] = urgent.at(-1).campTime;
       this.interrupt(npc, 'urgent_information', before);
-      const ally = this.npcs().find(s => !same(s.id, npc.id) && this.gm.systems?.allianceSystem?.areAllied?.(npc.id, s.id));
+      const ally = this.npcs().find(s => !same(s.id, npc.id) && (this.gm.systems?.allianceSystem?.getAllianceAffinity?.(npc.id, s.id) || 0) > .35);
       if (ally) {
         const location = this.locations?.getLocation?.(ally.id), route = routeBetween(this.locations?.getLocation?.(npc.id), location);
         const goal = { type: 'strategy_conversation', location, targetId: ally.id };
@@ -562,6 +562,7 @@ export default class CampActivitySystem {
   finishConversation({ turns = 0, strategy = false, topics = '' } = {}) {
     if (!this.conversation) return false;
     const current = this.conversation; this.conversation = null;
+    this.gm.systems?.allianceSystem?.reactToOwnedEvidence?.();
     const npc = this.members().find(s => same(s.id, current.npcId)), player = this.gm.getPlayerSurvivor?.();
     turns = Math.max(turns, current.turns || 0); topics = `${topics} ${current.topics || ''} ${current.meetingId ? 'alliance_commitment' : ''}`;
     const seconds = this.post ? scrambleConversationSeconds({ turns, strategy: strategy || current.strategy, topics: topics || (current.meetingId ? 'alliance_commitment' : '') }) :

@@ -32,11 +32,8 @@ export default class TribalKnowledgeModel {
     const raw = strategy?.getSummaryFacts?.() || strategy?.strategyFacts || [];
     const playerId = gm?.getPlayerSurvivor?.()?.id;
     const alliances = gm?.systems?.allianceSystem?.getAlliances?.() || [];
-    for (const alliance of alliances.filter(entry => entry.active !== false)) {
-      const parties = (alliance.memberIds || alliance.members || []).filter(memberId => this._active(memberId));
-      if (parties.length < 2) continue;
-      this.add({ type: 'allianceMembership', subjectId: alliance.id, visibility: alliance.public === true ? 'PUBLIC' : 'PRIVATE',
-        knownTo: parties, source: 'alliance', details: { memberIds: parties } });
+    for (const owner of gm?.survivors || []) for (const alliance of gm.systems?.allianceSystem?.getKnownAlliances?.(owner.id) || []) {
+      this.add({type:'allianceMembership',subjectId:alliance.id,visibility:'PRIVATE',knownTo:[owner.id],source:'alliance',details:{memberIds:alliance.memberIds}});
     }
     for (const deal of Object.values(gm?.systems?.dealSystem?.dealsById || {})) {
       if (!['PROPOSED', 'ACCEPTED'].includes(deal?.status)) continue;
@@ -54,7 +51,7 @@ export default class TribalKnowledgeModel {
       const alliance = alliances.find(entry => id(entry.id) === id(fact.allianceId));
       const knownTo = [fact.speakerId, ...(fact.participantIds || [])];
       if (fact.toPlayer || fact.type === 'personalTargetSet' || fact.type === 'personalTargetLocked') knownTo.push(playerId);
-      if (fact.allianceId) knownTo.push(...(alliance?.memberIds || alliance?.members || []));
+      // Group membership never broadcasts strategic facts to absent members.
       if (fact.listenerId != null) knownTo.push(fact.listenerId);
       this.add({ type: fact.type, subjectId: fact.aboutId ?? fact.targetId, actorId: fact.speakerId,
         targetId: fact.targetId, visibility: fact.public === true ? 'PUBLIC'

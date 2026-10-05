@@ -124,7 +124,7 @@ class SocialMemorySystem {
     // STRUCTURED SOCIAL EVENTS
     // ===============================
     recordSocialEvent({ type, speakerId, listenerId = null, subjectId = null, data = {}, day = null, phase = null }) {
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const payload = {
             type,
             speakerId,
@@ -150,7 +150,7 @@ class SocialMemorySystem {
     }
 
     recordStructuredEvent({ type, speakerId, listenerId = null, subjectId = null, data = {}, day = null, phase = null, id = null, time = null }) {
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const entry = {
             id: id ?? `evt-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
             type,
@@ -197,7 +197,7 @@ class SocialMemorySystem {
     }
 
     recordPlotPacket({ speakerId, listenerId = null, targetId = null, packet = {}, day = null, phase = null }) {
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const entry = {
             type: 'plot_packet',
             speakerId,
@@ -230,7 +230,7 @@ class SocialMemorySystem {
     }
 
     recordAccusation({ speakerId, listenerId = null, accusedId = null, sourceId = null, confidence = null, day = null, phase = null, data = {} }) {
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const entry = {
             type: 'accusation',
             speakerId,
@@ -267,7 +267,7 @@ class SocialMemorySystem {
     }
 
     recordNameMention({ speakerId, listenerId = null, subjectId = null, contextTag = 'general', confidence = null, day = null, phase = null, data = {} }) {
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const entry = {
             type: 'name_mention',
             speakerId,
@@ -418,7 +418,7 @@ class SocialMemorySystem {
 
     recordPlayerBlamedSurvivor(npcId, targetId, day = null) {
         if (npcId == null || targetId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'playerBlamedSurvivor',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -432,7 +432,7 @@ class SocialMemorySystem {
 
     recordPlayerDefendedSurvivor(npcId, targetId, day = null) {
         if (npcId == null || targetId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'playerDefendedSurvivor',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -446,7 +446,7 @@ class SocialMemorySystem {
 
     recordPlayerPraisedSurvivor(npcId, targetId, day = null) {
         if (npcId == null || targetId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'playerPraisedSurvivor',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -460,7 +460,7 @@ class SocialMemorySystem {
 
     recordPlayerCalledThreat(npcId, targetId, day = null) {
         if (npcId == null || targetId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'playerCalledThreat',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -474,7 +474,7 @@ class SocialMemorySystem {
 
     recordPlayerStrategizedWithNpc({ npcId, claimedTargetId = null, promisedDeal = false, liedFlag = false, day = null }) {
         if (npcId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'playerStrategizedWithNpc',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -519,7 +519,7 @@ class SocialMemorySystem {
 
     recordPlayerClaimedIdolTruth(npcId, day = null) {
         if (npcId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'player_claimed_idol_truth',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -531,7 +531,7 @@ class SocialMemorySystem {
 
     recordPlayerClaimedIdolLie(npcId, day = null) {
         if (npcId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'player_claimed_idol_lie',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -543,7 +543,7 @@ class SocialMemorySystem {
 
     recordPlayerPlantedIdolRumor(npcId, targetId, day = null) {
         if (npcId == null || targetId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'player_planted_idol_rumor',
             speakerId: window.gameManager?.getPlayerSurvivor?.()?.id || null,
@@ -557,7 +557,7 @@ class SocialMemorySystem {
 
     recordNpcSharedIdolInfo(npcId, infoType, payload, day = null) {
         if (npcId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'npc_shared_idol_info',
             speakerId: npcId,
@@ -570,7 +570,7 @@ class SocialMemorySystem {
 
     recordNpcRefusedIdolInfo(npcId, day = null) {
         if (npcId == null) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         this.recordStructuredEvent({
             type: 'npc_refused_idol_info',
             speakerId: npcId,
@@ -693,7 +693,7 @@ class SocialMemorySystem {
 
     recordIntel({ from, to = null, kind, claimedTarget = null, outcome = "evade", day = 1, verified = false }) {
 
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const entry = { from, kind, claimedTarget, outcome, day: dayValue, verified };
 
         [...new Set([from, to].filter(id => id != null))].forEach(npcId => {
@@ -716,7 +716,7 @@ class SocialMemorySystem {
 
     recordNamedIntel({ about, context, from, to = null, day, confidence = null, phase = null, shortText = null }) {
         if (!about || !context) return;
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const entry = { about, context, from: from || 'Unknown', day: dayValue };
         const gm = typeof window !== 'undefined' ? window.gameManager : null;
         const speaker = gm?.survivors?.find(s => String(s.id) === String(from) || s.firstName === from) ||
@@ -792,7 +792,7 @@ class SocialMemorySystem {
             return { playerTalks: 0, npcTalks: 0 };
         }
         this.initNPC(npcId);
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const counters = this.memory[npcId].dailyCounters || {};
         const bucket = counters[dayValue] || { playerTalks: 0, npcTalks: 0 };
         return {
@@ -804,7 +804,7 @@ class SocialMemorySystem {
     incrementDailyCounter(npcId, key, day) {
         if (npcId == null || !key) return;
         this.initNPC(npcId);
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const memory = this.memory[npcId];
         if (!memory.dailyCounters || typeof memory.dailyCounters !== 'object') {
             memory.dailyCounters = {};
@@ -856,8 +856,8 @@ class SocialMemorySystem {
   }
 
     recordAllianceInvite({ day, location, npcId, playerId, outcome, pickedThirdId = null, isFake = false, accepted = false, declineType = null, pitchType = null, proposedBy = 'player' }) {
-      const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
-      const gm = window.gameManager;
+      const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
+      const gm = typeof window !== 'undefined' ? window.gameManager : null;
       const getName = (id) => {
           if (!id) return null;
           const survivor = gm?.survivors?.find(s => s.id === id);
@@ -888,15 +888,8 @@ class SocialMemorySystem {
 
       if (playerId) {
           this.initNPC(playerId);
-          this.memory[playerId].allianceInvites.push({ ...entry, perspective: 'player' });
-          if (isFake) {
-              this.memory[playerId].playerSecrets.push({
-                  day: dayValue,
-                  type: 'fake_alliance_accept',
-                  npcId,
-                  npcName: entry.npcName
-              });
-          }
+          const {isFake: hiddenSincerity, ...known} = entry;
+          this.memory[playerId].allianceInvites.push({...known,outcome:accepted?'accepted':outcome,perspective:'player'});
       }
   }
 
@@ -904,7 +897,7 @@ class SocialMemorySystem {
     // STRUCTURED INTEL EVENTS
     // ===============================
     recordIntelEvent({ type, about, from, to, day, phase = null, confidence = null, shortText = '' }) {
-        const dayValue = day || window.gameManager?.getCurrentDay?.() || 1;
+        const dayValue = day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1;
         const entry = {
             type: type || 'gossip',
             about,
@@ -1024,7 +1017,7 @@ class SocialMemorySystem {
     recordCampClaim({ id, speakerId, listenerIds = [], subjectId, topic, stance,
         origin = 'participant', sourceId = null, confidence = 0.8, day = 1, campTime = null,
         salience = 'medium', truthfulness = null, attributedId = null, sourceChain = null,
-        speechAct = null, refutesClaimId = null, confidenceByListener = null } = {}) {
+        speechAct = null, refutesClaimId = null, confidenceByListener = null, allianceId = null, memberIds = [], objectiveReference = null, evidenceIds = [] } = {}) {
         if (!id || speakerId == null || subjectId == null || !topic || !stance) return false;
         const owners = [speakerId, ...listenerIds];
         let added = false;
@@ -1034,7 +1027,7 @@ class SocialMemorySystem {
             mem.lastCampDecayDay ??= day;
             if (mem.campClaims.some(entry => entry.id === id)) continue;
             const speaker = String(ownerId) === String(speakerId);
-            const entry = { id, speakerId, subjectId, topic, stance, day, campTime, salience,
+            const entry = { id, speakerId, subjectId, topic, stance, day, campTime, salience, allianceId, memberIds: [...memberIds], objectiveReference, evidenceIds: [...evidenceIds],
                 origin: speaker ? origin : attributedId != null && String(attributedId) !== String(speakerId) ? 'hearsay' : 'direct_statement', sourceId: speaker ? sourceId : speakerId,
                 attributedId: attributedId ?? speakerId, speechAct, refutesClaimId,
                 audienceIds: speaker ? [...listenerIds] : [ownerId],
@@ -1044,6 +1037,7 @@ class SocialMemorySystem {
                     confidenceByListener?.[ownerId] ?? this.campClaimConfidence(ownerId, speakerId, confidence),
                 ...(speaker && truthfulness != null ? { truthfulness } : {}) };
             this.addOwnedCampClaim(mem, entry);
+            if (!speaker && typeof window !== "undefined") window.gameManager?.systems?.dealSystem?.recordInformationShared?.(speakerId, ownerId, entry);
             added = true;
         }
         return added;
@@ -1134,9 +1128,9 @@ class SocialMemorySystem {
         const received = this.getCampClaims(listenerId).find(entry => entry.id === claimId);
         if (!received || ownerId == null || this.getCampClaims(ownerId).some(entry => entry.id === claimId)) return false;
         this.initNPC(ownerId);
-        const { id, subjectId, topic, stance, day, campTime, salience, sourceChain, evidenceOrigin } = received;
+        const { id, subjectId, topic, stance, day, campTime, salience, sourceChain, evidenceOrigin, allianceId, memberIds, objectiveReference, evidenceIds } = received;
         this.addOwnedCampClaim(this.memory[ownerId], { id, speakerId, subjectId, topic, stance, day, campTime,
-            salience, origin: received.origin === 'hearsay' ? 'hearsay' : 'direct_statement',
+            salience, allianceId, memberIds: [...(memberIds || [])], objectiveReference, evidenceIds: [...(evidenceIds || [])], origin: received.origin === 'hearsay' ? 'hearsay' : 'direct_statement',
             acquisition: 'overheard', sourceId: speakerId, sourceChain: [...(sourceChain || [speakerId])],
             evidenceOrigin, confidence: Math.min(confidence, campEvidenceConfidence(received), this.campClaimConfidence(ownerId, speakerId, received.confidence)) });
         return true;
@@ -1226,7 +1220,7 @@ class SocialMemorySystem {
         if (npcId == null) return;
         this.initNPC(npcId);
         const entry = {
-            day: day || window.gameManager?.getCurrentDay?.() || 1,
+            day: day || (typeof window !== 'undefined' ? window.gameManager?.getCurrentDay?.() : null) || 1,
             phase: phase || window.gameManager?.getGamePhase?.() || null,
             campTime: campTime ?? window.gameManager?.dayTimer ?? null,
             withId,
@@ -1280,7 +1274,7 @@ class SocialMemorySystem {
     getRecentIntelAbout(survivorId, limit = 6, ownerId = null) {
         if (survivorId == null) return [];
         const compare = String(survivorId);
-        const gm = window.gameManager;
+        const gm = typeof window !== 'undefined' ? window.gameManager : null;
         const resolved = gm?.survivors?.find?.((s) => String(s.id) === compare || s.firstName === survivorId);
         const compareAlt = resolved ? String(resolved.id) : null;
         const compareName = resolved?.firstName || null;

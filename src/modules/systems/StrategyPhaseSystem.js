@@ -556,7 +556,7 @@ class StrategyPhaseSystem {
     const alliances = allianceSystem?.getAlliancesForSurvivor?.(playerId) || [];
     alliances.forEach((alliance) => {
       const allianceId = this.getAllianceKey(alliance);
-      increment(this.allianceTargets.get(allianceId));
+      const plan=alliance.roundPlan; if(plan?.day===gameManager.day&&!['unresolved','legacy_unconfirmed'].includes(plan.status)) increment(plan.primaryTargetId);
     });
 
     const ranked = Object.entries(heatMap).sort((a, b) => b[1] - a[1]);

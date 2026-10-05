@@ -1,3 +1,4 @@
+import { ownedCampKnowledge } from './CampKnowledge.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 
 const STAKES_MULTIPLIERS = {
@@ -12,7 +13,7 @@ class DealConsequencesSystem {
   constructor(gameManager) {
     this.gameManager = gameManager;
     this.debug = false;
-    this._initialized = false;
+    this._initialized = false; this.applied = [];
   }
 
   initialize() {
@@ -25,7 +26,7 @@ class DealConsequencesSystem {
   }
 
   reset() {
-    // No persistent state yet.
+    this.applied = [];
   }
 
   setDebug(enabled) {
@@ -50,18 +51,22 @@ class DealConsequencesSystem {
     this._applyTrustDelta(proposerId, otherId, delta, 'deal refused');
   }
 
-  _handleDealBroken({ deal, byId, otherId }) {
-    if (!deal || !byId) return;
-    const breakerId = byId;
-    const victimId = otherId || this._getOtherPartyId(deal, breakerId);
-    if (!victimId) return;
-
-    const trustDelta = this._scaleDelta(-15, deal.stakes);
-    this._applyTrustDelta(victimId, breakerId, trustDelta, 'deal broken');
-    this._applySuspicionDelta(breakerId, this._scaleDelta(8, deal.stakes), 'broken deal');
+  _handleDealBroken({deal}) {
+    if(!deal)return;
+    for(const ownerId of deal.parties||[])for(const e of ownedCampKnowledge(this.gameManager.systems.socialMemorySystem,ownerId,this.gameManager.day))this.learnBreach(deal.id,ownerId,e.id);
+  }
+  serialize(){return{applied:[...this.applied]};}
+  deserialize(payload){this.applied=[...(payload?.applied||[])];}
+  learnBreach(dealId,ownerId,evidenceId){
+    const deal=this.gameManager.systems.dealSystem?.getDealById(dealId),e=ownedCampKnowledge(this.gameManager.systems.socialMemorySystem,ownerId,this.gameManager.day).find(e=>e.id===evidenceId),broken=deal?.history?.filter(e=>e.action==='BROKEN').at(-1),breaker=broken?.by;
+    if(!deal||!e||!breaker||!deal.parties.some(id=>String(id)===String(ownerId))||String(ownerId)===String(breaker)||String(e.subjectId)!==String(breaker)||e.confidence<.55||e.challenged||!['vote_attribution','deal_breach','withheld_information'].includes(e.topic)||
+      ((e.objectiveReference==null||![deal.id,deal.objectiveReference].includes(e.objectiveReference))&&e.day!==broken.at?.day))return false;
+    const key=`${dealId}:${ownerId}`;if(this.applied.includes(key))return false;this.applied.push(key);
+    this._applyTrustDelta(ownerId,breaker,this._scaleDelta(-15,deal.stakes),'learned deal breach');this.gameManager.systems.socialMemorySystem.recordBetrayal(ownerId,breaker,'believed broken deal');return true;
   }
 
   _handleDealCompleted({ deal }) {
+    if(deal?.objectiveOnly)return;
     if (!deal) return;
     const [aId, bId] = deal.parties || [];
     if (!aId || !bId) return;
@@ -78,7 +83,7 @@ class DealConsequencesSystem {
       console.warn('[DealConsequencesSystem] TrustSystem unavailable; trust change skipped.');
       return;
     }
-    trustSystem.changeTrust(fromId, toId, delta, reason);
+    (trustSystem.changeOwnedTrust || trustSystem.changeTrust).call(trustSystem,fromId,toId,delta,reason);
     const fromName = this._getSurvivorDisplayName(fromId);
     const toName = this._getSurvivorDisplayName(toId);
     this._log(`[DealConseq] ${fromName} trust ${delta >= 0 ? '+' : ''}${delta} toward ${toName}`);

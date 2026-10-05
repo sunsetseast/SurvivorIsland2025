@@ -813,7 +813,7 @@ export default class TribalCouncilSystem {
     const rawRisk = Number(voter.risk ?? voter.traits?.risk ?? 5);
     const risk = Number.isFinite(rawRisk) ? Math.max(0, Math.min(10, rawRisk)) : 5;
     const selfExposed = rockPool.some(id => this._idsEqual(id, voter.id));
-    const allyExposed = !selfExposed && rockPool.some(id => this._inSameAlliance(id, voter.id));
+    const allyExposed = !selfExposed && rockPool.some(id => this._inSameAlliance(voter.id, id));
     const concessionPressure = (selfExposed ? 8 : allyExposed ? 5 : 0) * (1 - risk / 12);
     return (this._idsEqual(revote?.targetId, target.id) ? 4 : 0)
       + (this._idsEqual(initial?.targetId, target.id) ? 2 : 0)
@@ -1138,7 +1138,7 @@ export default class TribalCouncilSystem {
   }
 
   _scoreNpcTarget(voter, target) {
-    const allianceWeight = this._inSameAlliance(voter.id, target.id) ? 0.1 : 0.35;
+    const allianceWeight = 0.35 - this._allianceAffinity(voter.id, target.id) * 0.25;
     const intentConfidence = this._getIntentConfidence(voter, target);
     const trust = this.gameManager.getTrust?.(voter.id, target.id) ?? 50;
     const distrustWeight = (100 - trust) / 100;
@@ -1171,16 +1171,10 @@ export default class TribalCouncilSystem {
     return Math.min(0.25, (targetHeat / maxHeat) * 0.25);
   }
 
-  _inSameAlliance(id1, id2) {
-    const allianceSystem = this.gameManager.systems?.allianceSystem;
-    if (!allianceSystem || typeof allianceSystem.getAllAlliances !== 'function') return false;
-    const alliances = allianceSystem.getAllAlliances() || [];
-    return alliances.some(alliance => {
-      if (alliance.active === false) return false;
-      const members = (alliance.members || alliance.memberIds || []).map(memberId => this._normalizeId(memberId));
-      return members.includes(this._normalizeId(id1)) && members.includes(this._normalizeId(id2));
-    });
+  _allianceAffinity(fromId, toId) {
+    return this.gameManager.systems?.allianceSystem?.getAllianceAffinity?.(fromId,toId) ?? 0;
   }
+  _inSameAlliance(fromId, toId) { return this._allianceAffinity(fromId,toId) >= .35; }
 
   _getIntentConfidence(voter, target) {
     const intents = voter.personalIntent || voter.personalIntents || voter.intentions || [];
