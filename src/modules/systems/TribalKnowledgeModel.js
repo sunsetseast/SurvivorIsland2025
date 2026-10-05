@@ -160,7 +160,7 @@ export default class TribalKnowledgeModel {
     return this.members.filter(member => !sameSurvivorId(member.id, viewerId) && !member.isOut && allied.has(id(member.id)));
   }
   areKnownAllies(aId, bId, viewerId) { return [...this.getKnownAlliances(viewerId),...this.getAllianceClaims(viewerId)].some(fact =>
-    !['denied','no'].includes(fact.details?.stance) && fact.confidence>=.3 && [aId, bId].every(person => fact.details?.memberIds?.some(memberId => sameSurvivorId(memberId, person)))); }
+    !['denied','no'].includes(fact.details?.stance) && !fact.details?.challenged && fact.confidence>=.5 && [aId, bId].every(person => fact.details?.memberIds?.some(memberId => sameSurvivorId(memberId, person)))); }
   getKnownDeals(viewerId) { return this.factsFor(viewerId).filter(fact => fact.type === 'deal'); }
 
   perceivedDangerBreakdown(survivor) {

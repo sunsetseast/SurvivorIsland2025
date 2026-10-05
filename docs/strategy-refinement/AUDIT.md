@@ -32,12 +32,20 @@ Baseline current main: **050c11f2beab194acfb690a6cd98112d230f778c** (merged #351
 - SocialMemorySystem getter: compatibility projection, **D**, no exclusive loyalty guarantee.
 - ConversationSystem _buildNpcAlliancePlan and legacy _resolveNpcAllianceIntentState: **C/A**, personally known relationship for dialogue/recommitment; consent is still required.
 - ConversationSystem ST5 effects, _evaluateDealResponse split and _computeNpcStance: **B**, NPC→player actual affinity; migrate. Stance trust must use NPC→player.
+- Manual membership checks in ConversationSystem decideNpcApproachPurpose: **B**, NPC affinity and directional trust; _buildStrategyNodes: **C**, player-known rosters for legacy menus. These bypass areAllied by reading memberIds and require the same semantic audit.
 - ConversationSystem computeAllianceAcceptChance: **D/C**, weighted relevant personal priorities and known roster; replace exclusive primary penalty.
 - ConversationSystem _buildAllianceInviteDialogue: **C**, shared claim does not imply “solid”; route existing coalition conversation and offer overlapping pacts.
 - SocialEngine _planIntentForNpc: **B/C/D**, NPC affinity, personally known relationships and meaningful local ranked plan; no stale generic target.
 
 ## Behavioral findings
 
-All requested defects are reproducible as integration/selection limitations, not missing architecture. Natural backups and splits exist in meeting resolution, but the baseline split guard (four attendees and 2/3 allocation) does not ensure both piles beat the opposition. Verification can follow attributed claims, but the default recruiting fallback dominates and repeated evidence is not individually cooled down. Decoys are created only while planning reassurance against one's actual target, choosing the first eligible alternate without plausibility ranking. Leaks already pass through real conversations but need purposeful selection, chain continuity and owner-only inference. Stable vote maintenance currently has no explicit settled-action exit.
+The reviewed integration and selection gaps are reproducible; the architecture already provides the required strategic vocabulary. Natural backups and splits exist in meeting resolution, but the baseline split guard (four attendees and 2/3 allocation) does not ensure both piles beat the opposition. Verification can follow attributed claims, but the default recruiting fallback dominates and repeated evidence is not individually cooled down. Decoys are created only while planning reassurance against one's actual target, choosing the first eligible alternate without plausibility ranking. Leaks already pass through real conversations but need purposeful selection, chain continuity and owner-only inference. Stable vote maintenance currently has no explicit settled-action exit.
 
 Changes in this pass must remain bounded within these systems, use actual physical contact and camp time, and preserve individual intentions and knowledge. No production contestant attributes, external AI, new clock, new memory store, global voter dashboard or danger meter.
+
+
+## Directional trust consumer audit
+
+TrustSystem itself needs no change. Owned information gains and contradiction penalties had been routed through symmetric base changes; they now update only the informed owner's direction. Direct base adjustments remain symmetric and propagate to owned overrides as before.
+
+ConversationSystem's general NPC stance, approach purpose, intent choice/outcome, opening, vibe/loyalty/confrontation reply, idol disclosure, source disclosure, deal acceptance, alliance doubt, apology, counter-pitch, intel reply and strategic-approach scoring all ask **how much this NPC trusts the player**. Their helper/direct reads now use NPC→player. NPC→candidate target reads already used the correct direction. Both duplicate legacy _getTrustScore definitions remain compatibility code and have the same corrected meaning. These general flows remain subordinate to the existing #350 adapter during Living Scramble; no hidden timer is enabled.

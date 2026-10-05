@@ -1,0 +1,7 @@
+{
+  "baselineCommit": "050c11f2beab194acfb690a6cd98112d230f778c",
+  "baseline": {"command": "npm test", "passed": 540, "failed": 0},
+  "final": {"command": "npm test", "passed": 589, "failed": 0},
+  "newFocused": {"command": "node --test test/StrategicBehaviorRefinement.test.mjs test/StrategicBehaviorHarness.test.mjs", "passed": 49, "failed": 0},
+  "diffCheck": {"command": "git diff --check", "passed": true}
+}

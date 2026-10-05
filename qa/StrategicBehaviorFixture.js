@@ -1,4 +1,5 @@
 import './AlliancePresentationFixture.js';
+const {scrambleNodes}=await import('../src/modules/systems/ScrambleConversation.js');
 const {default:summary}=await import('../src/modules/views/PostChallengeSummaryView.js');
 const {gm,activity,strategy}=window.allianceQa;
 window.behaviorQa={gm,activity,strategy,scene(kind){
@@ -18,11 +19,13 @@ window.behaviorQa={gm,activity,strategy,scene(kind){
  if(kind==='warning'){
   m.statement({id:'fixture:danger',speakerId:scene.ids[2],listenerIds:[npc.id],subjectId:gm.player.id,topic:'safety',stance:'warned',random:()=>0});
   strategy.updateNpcIntentTarget(npc.id,scene.ids[6]);
-  c.startNpcConversation(npc,'warning',{location:'beach',context:{phase:'post',agenda:m.agenda(npc.id,gm.player.id)}});
+  c.startNpcConversation(npc,'warning',{initiatedByNpc:true,location:'beach',context:{phase:'post',agenda:m.agenda(npc.id,gm.player.id)}});
+  [...document.querySelectorAll('#conversation-overlay button')].find(b=>b.textContent==='Talk now').click();
  }else if(kind==='verification'){
   m.statement({id:'fixture:attributed',speakerId:scene.ids[2],listenerIds:[gm.player.id],subjectId:scene.ids[6],topic:'target',mode:'hearsay',attributedId:npc.id,random:()=>0});
   c.startPlayerConversation({npcId:npc.id,phase:'post',context:{location:'beach'}});
-  c._renderScrambleContext({player:gm.player,npc,context:{},topic:'confront'});
+  const node=scrambleNodes(m,{player:gm.player,npc,context:{},topic:'confront'}).find(n=>n.id.startsWith('verify:'));
+  c._runConversationNode({player:gm.player,npc,node,context:{}});
  }else if(kind==='recap'){
   A.disclose({speakerId:npc.id,listenerId:gm.player.id,allianceId:'qa:core'});
   m.statement({id:'fixture:warning',speakerId:scene.ids[2],listenerIds:[gm.player.id],subjectId:gm.player.id,topic:'safety',stance:'warned',random:()=>0});

@@ -1,0 +1,125 @@
+{
+  "seed": 73,
+  "metrics": {
+    "intentionChanges": 26,
+    "statements": 49,
+    "truthfulStatements": 45,
+    "backups": 1,
+    "splitPlans": 1,
+    "viableSplitPlans": 1,
+    "hedges": 6,
+    "backupsActivated": 1,
+    "motive:gather_intel": 9,
+    "gatherIntelAttempts": 9,
+    "motive:alliance_offer": 2,
+    "deliberateLies": 1,
+    "decoys": 1,
+    "motive:check_loyalty": 18,
+    "loyaltyChecks": 18,
+    "contradictionsDiscovered": 23,
+    "motive:warn_ally": 3,
+    "warningAttempts": 3,
+    "rumors": 3,
+    "warnings": 3,
+    "motive:counter_pitch": 6,
+    "commitments": 2
+  },
+  "splits": [
+    {
+      "id": "split:10:14:1",
+      "ownerId": 10,
+      "primaryTargetId": 14,
+      "secondaryTargetId": 1,
+      "assignments": {
+        "3": 1,
+        "6": 1,
+        "7": 1,
+        "9": 1,
+        "10": 14,
+        "11": 14,
+        "13": 14,
+        "17": 14
+      },
+      "fullKnowledgeIds": [
+        10
+      ],
+      "counts": {
+        "1": 4,
+        "14": 4
+      }
+    }
+  ],
+  "opposition": 3,
+  "meetings": [
+    {
+      "status": "completed",
+      "outcome": {
+        "positions": [
+          {
+            "id": 10,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          },
+          {
+            "id": 11,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          },
+          {
+            "id": 13,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          },
+          {
+            "id": 17,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          },
+          {
+            "id": 3,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          },
+          {
+            "id": 6,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          },
+          {
+            "id": 7,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          },
+          {
+            "id": 9,
+            "preferredTargetId": 14,
+            "intendedVoteId": 14
+          }
+        ],
+        "outcome": "consensus",
+        "targetId": 14
+      }
+    },
+    {
+      "status": "completed",
+      "outcome": {
+        "positions": [
+          {
+            "id": 1,
+            "preferredTargetId": 6,
+            "intendedVoteId": 10
+          },
+          {
+            "id": 9,
+            "preferredTargetId": 14,
+            "intendedVoteId": 1
+          }
+        ],
+        "outcome": "disagreement",
+        "targetId": null
+      }
+    }
+  ],
+  "saveLoadEquivalent": true,
+  "setup": "Controlled trustworthy eight-person coalition with shared owned idol concern; no split/backup/motive injected. Normal planner, travel, meeting and full 60-minute semantic phase."
+}
