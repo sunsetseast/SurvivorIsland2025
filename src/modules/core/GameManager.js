@@ -1013,6 +1013,7 @@ class GameManager {
     const sourceTribe = this.tribes.find(tribe => tribe.members.some(member => sameSurvivorId(member.id, survivor.id)));
     if (!sourceTribe) return false;
     survivor.isOut = true;
+    survivor.campActivity = null;
     this.tribes.forEach(tribe => {
       tribe.members = tribe.members.filter(member => !sameSurvivorId(member.id, survivor.id));
     });

@@ -1447,7 +1447,7 @@ class ConversationSystem {
     const gm=this.gameManager,camp=gm.systems.campActivitySystem,reservation=camp.conversation;
     if(!reservation||!gm.systems.allianceSystem?.together(player.id,npc.id))return false;
     const model=gm.systems.strategyPhaseSystem.reasoning,cp=model.checkpoint(reservation);
-    cp.allianceId ||= context.allianceId;cp.allianceProposalId ||= context.allianceProposalId;
+    cp.allianceId ||= context.allianceId;cp.allianceProposalId ||= context.allianceProposalId;cp.allianceRecruitmentId ||= context.allianceRecruitmentId;
     const session=this._getActiveTranscriptSession();this._initTranscript(session);
     if(!session.transcript.length&&cp.allianceTranscript)session.transcript=JSON.parse(JSON.stringify(cp.allianceTranscript));
     if(!cp.allianceOpened){for(const line of allianceOpening({gm,player,npc,context,cp}))session.transcript.push(line);cp.allianceOpened=true;}
@@ -2359,7 +2359,7 @@ class ConversationSystem {
       cp.agenda ||= context.agenda || model.agenda(npc.id, player.id, { plan: true });
       const agenda = cp.agenda, subject = agenda.primarySubject;
       if(agenda.allianceMotive){const offer=this.gameManager.systems.allianceSystem.resolveNpcMotive(npc.id,player.id,agenda.allianceMotive,cp.activityId,()=>model.choice('roll:alliance-opening',random=>({value:random()})).value);
-        return this._renderAllianceConversation({player,npc,context:{...context,allianceId:offer?.allianceId,allianceProposalId:offer?.status==='pending'?offer.id:null}});}
+        return this._renderAllianceConversation({player,npc,context:{...context,allianceId:offer?.allianceId,allianceProposalId:offer?.status==='pending'&&!offer?.recruitmentId?offer.id:null,allianceRecruitmentId:offer?.recruitmentId}});}
       if (subject) {
         const result = model.choice('opening', random => {
           if (agenda.messageMode !== 'question') model.statement({ id: `${cp.activityId}:opening`, speakerId: npc.id, listenerIds: [player.id], subjectId: subject,

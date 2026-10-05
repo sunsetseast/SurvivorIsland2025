@@ -199,7 +199,7 @@ export default class ScrambleStrategy {
     if(plan&&purpose==='reassure_target'&&s.confidence>=.6&&profile.honesty<.5){
       const target=this.members.find(p=>!same(p.id,speakerId)&&!same(p.id,listenerId)&&this.strategy.isTargetIdAvailable(p.id));
       if(target){this.decoy(speakerId,target.id,[listenerId]);purpose='spread_decoy';primarySubject=target.id;messageMode='decoy';}}
-    const allianceMotive = ['recruit_swing','check_loyalty','gather_intel'].includes(purpose) ? this.gm.systems.allianceSystem?.npcMotive?.(speakerId,listenerId) : null;
+    const allianceMotive = ['recruit_swing','check_loyalty','gather_intel','reassure_target'].includes(purpose) ? this.gm.systems.allianceSystem?.npcMotive?.(speakerId,listenerId) : null;
     if (allianceMotive) purpose=allianceMotive.purpose;
     return {allianceMotive,purpose,initiatorId:speakerId,listenerIds:[listenerId],primarySubject,desiredOutcome:purpose==='verify_story'?'verify':'support',knownEvidence,messageMode};
   }
@@ -207,7 +207,7 @@ export default class ScrambleStrategy {
     const s=this.refresh(speakerId),last=s.lastContacts[String(listenerId)];
     if(last!=null&&last-this.gm.dayTimer<420)return -Infinity;
     const agenda=this.agenda(speakerId,listenerId), trust=(this.gm.getTrust?.(speakerId,listenerId)??50)/100;
-    const motive={alliance_offer:1.4,alliance_recruitment:1.7,alliance_reunion:1.5,verify_story:2,warn_ally:2.5,reassure_target:1.5,spread_decoy:1.7,counter_pitch:1.6,establish_backup:1.4,check_loyalty:1.1,recruit_swing:1,gather_intel:.6}[agenda.purpose];
+    const motive={alliance_offer:1.4,alliance_recruitment:1.7,alliance_reunion:1.5,alliance_expansion:1.5,alliance_repair:1.4,verify_story:2,warn_ally:2.5,reassure_target:1.5,spread_decoy:1.7,counter_pitch:1.6,establish_backup:1.4,check_loyalty:1.1,recruit_swing:1,gather_intel:.6}[agenda.purpose];
     const known=this.knowledge(speakerId).find(e=>e.topic==='commitment'&&same(e.speakerId,listenerId));
     return motive+trust*.6+s.urgency*.4-(known&&same(known.subjectId,s.intendedVoteId)?.5:0);
   }
