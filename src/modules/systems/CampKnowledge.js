@@ -19,7 +19,7 @@ export function ownedCampKnowledge(memory, ownerId, day = 1) {
     id: entry.id, ownerId, kind, subjectId: kind === 'claim' ? entry.subjectId : entry.actorId,
     speakerId: entry.speakerId ?? entry.actorId, attributedId: entry.attributedId ?? entry.speakerId,
     allianceId: entry.allianceId ?? null, memberIds: [...(entry.memberIds || [])], objectiveReference: entry.objectiveReference ?? null, evidenceIds: [...(entry.evidenceIds || [])],
-    speechAct: entry.speechAct, audienceIds: [...(entry.audienceIds || [])], topic: entry.topic ?? entry.type, stance: entry.stance,
+    refutesClaimId:entry.refutesClaimId, speechAct: entry.speechAct, audienceIds: [...(entry.audienceIds || [])], topic: entry.topic ?? entry.type, stance: entry.stance,
     sourceId: entry.sourceId ?? null, sourceChain: [...(entry.sourceChain || [])],
     provenance: campProvenance(entry), confidence: campEvidenceConfidence(entry),
     challenged: Boolean(entry.challenged), day: entry.day, campTime: entry.campTime,
@@ -51,6 +51,9 @@ export function campTargetPreference(memory, ownerId, targetId, day = 1) {
     if (entry.topic === 'work') direction = -.1;
     preference += direction * entry.confidence * entry.recency * (entry.challenged ? .4 : 1);
   }
+  // A credible outsider claim is a small strategic concern, not proof or a vote command.
+  const coalitionClaims=ownedCampKnowledge(memory,ownerId,day).filter(e=>e.topic==='alliance_disclosure'&&!['no','denied'].includes(e.stance)&&!e.challenged&&e.confidence>=.5&&e.memberIds.length>=3&&e.memberIds.some(id=>same(id,targetId))&&!e.memberIds.some(id=>same(id,ownerId)));
+  if(coalitionClaims.length)preference+=Math.min(.12,Math.max(...coalitionClaims.map(e=>e.confidence*e.recency))*.12);
   const patterns = memory?.getCampImpression?.(ownerId, targetId) || {};
   preference += .2 * clamp(patterns.role_neglect?.confidence) * Math.min(1, (patterns.role_neglect?.count || 0) / 4);
   preference -= .15 * clamp(patterns.work?.confidence) * Math.min(1, (patterns.work?.count || 0) / 4);

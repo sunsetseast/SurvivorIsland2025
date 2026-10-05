@@ -27,17 +27,20 @@ export default class ScrambleStrategy {
     return this.states[String(id)] ||= { preferredTargetId:null, intendedVoteId:null, committedTargetId:null,
       confidence:.5, flexibility:bounded(.25 + profile.riskTolerance*.35), backup:null, splitPlan:null,
       decoys:[], pitchesByAudience:{}, promises:[], perceivedMajority:null, safetyBelief:.6,
-      urgency:0, lastContacts:{}, reason:'unknown', updatedAt:null };
+      urgency:0, lastContacts:{}, contactDays:{}, motiveReceipts:{}, followUp:null, reason:'unknown', updatedAt:null };
   }
   setIntent(id,target,meta) { const s = this.state(id); const old = s.intendedVoteId;
     if (s.preferredTargetId == null) s.preferredTargetId = target;
     s.intendedVoteId = target; Object.assign(s,meta); s.confidence = bounded(s.confidence);
-    if (old != null && !same(old,target)) this.count('intentionChanges');
+    if (old != null && !same(old,target)){this.count('intentionChanges');if(this.gm.dayTimer<=300)this.count('lateFlips');}
   }
   migrate() { for (const [id,target] of this.strategy.npcIntentTargets) if (!this.states[String(id)])
     this.setIntent(id,target,this.strategy.npcIntentMeta.get(id) || {}); }
-  knowledge(id) { if (!this.memory?.memory?.[String(id)]) return [];
-    return ownedCampKnowledge(this.memory,id,this.gm.day).filter(e => e.day === this.gm.day && e.confidence >= .15); }
+  knowledge(id) {
+    const key=String(id);if(this.selectionKnowledge?.has(key))return this.selectionKnowledge.get(key);
+    const owned=!this.memory?.memory?.[key]?[]:ownedCampKnowledge(this.memory,id,this.gm.day).filter(e=>e.day===this.gm.day&&e.confidence>=.15);
+    this.selectionKnowledge?.set(key,owned);return owned;
+  }
   voteRead(id) {
     const accounts = new Map();
     for (const e of this.knowledge(id)) {
@@ -58,10 +61,51 @@ export default class ScrambleStrategy {
       votes.set(String(e.attributedId ?? e.speakerId),same(e.subjectId,target) ? e.confidence : 0);
     return [...votes.values()].reduce((a,b)=>a+b,0);
   }
-  refresh(id) { const s=this.state(id); s.perceivedMajority=this.voteRead(id);
-    const warnings=this.knowledge(id).filter(e=>e.topic==='safety' && same(e.subjectId,id) && ['warned','mentioned'].includes(e.stance));
-    s.safetyBelief=bounded(.7-warnings.reduce((a,e)=>a+e.confidence*.35,0));
-    s.urgency=bounded((1-s.safetyBelief)*.6+(this.gm.dayTimer<=600?.35:.05)); return s; }
+  // Read evidence from this owner's memory; private votes/exclusions are never inputs.
+  knownPosition(ownerId, personId) {
+    return this.knowledge(ownerId).filter(e => ['target','commitment'].includes(e.topic) &&
+      same(e.attributedId ?? e.speakerId,personId) && !negative(e))
+      .sort((a,b) => (a.campTime ?? 3600)-(b.campTime ?? 3600))[0] || null;
+  }
+  contact(ids, at=this.gm.dayTimer) {
+    const present=ids.filter((id,i,a)=>a.findIndex(x=>same(x,id))===i && this.person(id));
+    for(const id of present) for(const other of present) if(!same(id,other)) {
+      const state=this.state(id);state.lastContacts[String(other)]=at;
+      (state.contactDays ||= {})[String(other)]=this.gm.day;
+    }
+  }
+  recent(id,other,seconds=420) {
+    const s=this.state(id),last=s.lastContacts[String(other)];
+    return last!=null && (s.contactDays?.[String(other)] ?? this.gm.day)===this.gm.day &&
+      last-this.gm.dayTimer>=0 && last-this.gm.dayTimer<seconds;
+  }
+  refresh(id) {
+    const s=this.state(id),owned=this.knowledge(id);s.perceivedMajority=this.voteRead(id);
+    const dangers=new Map(), reassurance=new Map();
+    const add=(key,value,e)=>{const prior=dangers.get(key);if(!prior||prior.value<value)dangers.set(key,{value,id:e.id});};
+    for(const e of owned) {
+      const weight=e.confidence*(e.challenged?.55:1);
+      if(same(e.subjectId,id) && !negative(e)) {
+        if(e.topic==='safety'&&['warned','mentioned'].includes(e.stance))add(`name:${e.attributedId??e.speakerId}`,weight*.38,e);
+        if(['target','commitment'].includes(e.topic))add(`name:${e.attributedId??e.speakerId}`,weight*.32,e);
+        if(e.topic==='alliance_exclusion')add('exclusion',weight*.38,e);
+        if(e.topic==='safety'&&e.stance==='yes')reassurance.set(String(e.speakerId),weight*(this.gm.getTrust?.(id,e.speakerId)??50)/100*.16);
+      }
+      const affinity=this.gm.systems.allianceSystem?.getAllianceAffinity?.(id,e.speakerId)||0;
+      if(affinity>.35 && (['commitment','alliance_doubt'].includes(e.topic)&&['hedge','uncertain','denied'].includes(e.stance)))add(`hedge:${e.speakerId}`,weight*.16,e);
+      if(e.challenged&&['target','commitment','safety'].includes(e.topic))add(`conflict:${e.attributedId??e.speakerId}`,weight*.12,e);
+      if(['betrayal','vote_attribution'].includes(e.topic)&&affinity>.3)add(`betrayal:${e.speakerId}`,weight*.14,e);
+    }
+    const alliedGroups=owned.filter(e=>e.topic==='seen_together' && ![e.subjectId,...(e.memberIds||[])].some(x=>same(x,id)) &&
+      (this.memory?.getCampObservations?.(id)||[]).find(x=>x.id===e.id)?.participantIds?.some(x=>
+        (this.gm.systems.allianceSystem?.getAllianceAffinity?.(id,x)||0)>.35));
+    if(alliedGroups.length>=2)add('private-groups',Math.min(.16,alliedGroups.length*.035),alliedGroups.at(-1));
+    const danger=Math.min(.85,[...dangers.values()].reduce((n,e)=>n+e.value,0));
+    const comfort=Math.min(danger>.4?.08:.18,[...reassurance.values()].reduce((n,v)=>n+v,0));
+    s.safetyBelief=bounded(.72-danger+comfort);
+    s.safetyEvidenceIds=[...dangers.values()].map(e=>e.id).slice(-12);
+    s.urgency=bounded((1-s.safetyBelief)*.75+(this.gm.dayTimer<=600?.25:.03));return s;
+  }
   contradictions(id) { return (this.memory?.memory?.[String(id)]?.campClaims || []).filter(e=>e.day===this.gm.day && e.contradicts?.length); }
   credibility(speaker,listener,{subjectId,topic,stance,attributedId,mode}) {
     const profile=getCampBehaviorProfile(speaker), skeptical=getCampBehaviorProfile(listener);
@@ -74,7 +118,7 @@ export default class ScrambleStrategy {
       skeptical.paranoiaDrive*.12-(contrary?.22:0)-(mode==='speculation'?.12:0));
   }
   statement({id,speakerId,listenerIds=[],subjectId,topic='target',stance='consider',mode='truthful',
-    attributedId=null,sourceChain=null,refutesClaimId=null,random=()=>this.strategy.random()}) {
+    attributedId=null,sourceChain=null,refutesClaimId=null,allianceId=null,memberIds=[],evidenceIds=[],random=()=>this.strategy.random()}) {
     if (this.resolved[id]) return this.resolved[id];
     const speaker=this.person(speakerId); if (!id || !speaker || !this.person(subjectId) ||
       ['target','commitment','split_assignment'].includes(topic) && !this.strategy.isTargetIdAvailable(subjectId)) return null;
@@ -85,13 +129,13 @@ export default class ScrambleStrategy {
       belief[String(listener.id)]=random()<score; confidences[String(listener.id)]=belief[String(listener.id)]?Math.max(.55,score):.2; }
     const hiddenFalse=['deliberate_lie','decoy','reassurance_lie'].includes(mode);
     this.memory.recordCampClaim({id,speakerId,listenerIds:listeners.map(p=>p.id),subjectId,topic,stance,
-      origin:mode==='speculation'||mode==='inference'?'inference':'participant',
-      attributedId:attributedId??speakerId, sourceChain:sourceChain||[attributedId??speakerId,speakerId].filter((v,i,a)=>a.indexOf(v)===i),
-      speechAct:topic,refutesClaimId,confidence:.8,confidenceByListener:confidences,
+      origin:mode==='speculation'||mode==='inference'?'inference':mode==='hearsay'?'hearsay':'participant',
+      attributedId:attributedId??speakerId, sourceChain:[...(sourceChain||[attributedId??speakerId]),speakerId].filter((v,i,a)=>!same(v,a[i-1])).slice(-5),
+      speechAct:topic,refutesClaimId,allianceId,memberIds:[...memberIds],evidenceIds:[...evidenceIds],confidence:.8,confidenceByListener:confidences,
       day:this.gm.day,campTime:this.gm.dayTimer,salience:'high',...(hiddenFalse?{truthfulness:false}:{})});
     const state=this.state(speakerId);
     for (const listener of listeners) { state.pitchesByAudience[String(listener.id)]={id,subjectId,topic,stance,mode};
-      state.lastContacts[String(listener.id)]=this.gm.dayTimer; this.refresh(listener.id);
+      this.contact([speakerId,listener.id]); this.refresh(listener.id);
       if (this.contradictions(listener.id).some(e=>e.id===id)) this.count('contradictionsDiscovered'); }
     if (topic==='commitment') { state.promises.push({id,subjectId,audienceIds:listeners.map(p=>p.id),stance}); state.promises=state.promises.slice(-24); }
     const result={id,belief,listenerIds:listeners.map(p=>p.id)}; this.resolved[id]=result;
@@ -111,6 +155,11 @@ export default class ScrambleStrategy {
     const s=this.refresh(listenerId), trust=(this.gm.getTrust?.(listenerId,speakerId)??50)/100;
     const relationship=this.gm.systems.relationshipSystem?.getRelationship?.(listenerId,target)??50;
     const rel=typeof relationship==='number'?relationship:relationship.value??50;
+    const settled=this.gm.systems.allianceSystem?.getAlliancesForSurvivor?.(listenerId).some(a=>
+      a.roundPlan?.day===this.gm.day&&a.roundPlan.status==='consensus'&&a.roundPlan.participantIds?.some(id=>same(id,listenerId))&&
+      same(a.roundPlan.primaryTargetId,s.intendedVoteId)&&this.gm.systems.allianceSystem.getAlliancePriorityForMember(listenerId,a.id)>.5);
+    const concern=this.knowledge(listenerId).some(e=>e.confidence>=.45&&(!negative(e)&&['idol_suspicion','idol_possession','safety'].includes(e.topic)&&same(e.subjectId,s.intendedVoteId)||e.challenged&&['target','commitment'].includes(e.topic)));
+    if(settled&&s.committedTargetId&&same(s.committedTargetId,s.intendedVoteId)&&!same(s.intendedVoteId,target)&&s.safetyBelief>.5&&!concern){this.count('settledPlansHeld');return 'hedge';}
     const score=.12+trust*.23+(belief?.18:0)+(same(s.preferredTargetId,target)?.22:0)+
       (same(s.intendedVoteId,target)?.13:0)+Math.min(.13,this.viability(listenerId,target)*.045)+s.urgency*.1-
       (s.committedTargetId&&!same(s.committedTargetId,target)?.19:0)-(rel>70?.12:0)+
@@ -140,13 +189,16 @@ export default class ScrambleStrategy {
   backup(ownerId,primaryTargetId,targetId,informedIds=[],trigger='suspected_idol') {
     if(!this.strategy.isTargetIdAvailable(targetId)||same(primaryTargetId,targetId))return null;
     const ids=[ownerId,...informedIds].filter((id,i,a)=>a.findIndex(x=>same(x,id))===i&&this.person(id)&&(same(id,ownerId)||this.together(this.person(ownerId),this.person(id))));
-    const plan={id:`backup:${ownerId}:${primaryTargetId}:${targetId}`,primaryTargetId,targetId,informedIds:ids,trigger,active:false};
+    const prior=this.state(ownerId).backup;if(prior&&same(prior.primaryTargetId,primaryTargetId)&&same(prior.targetId,targetId))return prior;
+    // The concern that prompted insurance is not a new reason to abandon the vote.
+    const triggerEvidenceIds=this.knowledge(ownerId).filter(e=>same(e.subjectId,primaryTargetId)&&['idol_suspicion','idol_possession','safety'].includes(e.topic)).map(e=>e.id).slice(-12);
+    const plan={id:`backup:${ownerId}:${primaryTargetId}:${targetId}`,primaryTargetId,targetId,informedIds:ids,trigger,triggerEvidenceIds,active:false};
     this.plans[plan.id]=plan;for(const id of ids)this.state(id).backup=copy(plan);this.count('backups');return plan;
   }
   activateBackup(ownerId,trigger) {
     const known=this.state(ownerId).backup,plan=this.plans[known?.id];
     if(!plan||!this.strategy.isTargetIdAvailable(plan.targetId)||known.active||plan.trigger!==trigger||!plan.informedIds.some(id=>same(id,ownerId)))return false;
-    plan.active=true;
+    plan.active=true;this.count('backupsActivated');
     const owner=this.person(ownerId);
     const listeners=plan.informedIds.filter(id=>!same(id,ownerId)&&this.together(owner,this.person(id)));
     this.statement({id:`${plan.id}:activate:${ownerId}`,speakerId:ownerId,listenerIds:listeners,subjectId:plan.targetId,topic:'backup',stance:'activated'});
@@ -176,59 +228,134 @@ export default class ScrambleStrategy {
     if (!plan || plan.active) return false;
     const owned = this.knowledge(id);
     const triggered = plan.trigger === 'suspected_idol' && owned.some(e =>
-      ['idol_suspicion','idol_possession'].includes(e.topic) && same(e.subjectId,plan.primaryTargetId) && !negative(e)) ||
-      plan.trigger === 'target_aware' && owned.some(e => e.topic === 'safety' && same(e.subjectId,plan.primaryTargetId) && e.stance === 'warned') ||
+      ['idol_suspicion','idol_possession'].includes(e.topic) && same(e.subjectId,plan.primaryTargetId) && !negative(e) && !plan.triggerEvidenceIds?.includes(e.id)) ||
+      plan.trigger === 'target_aware' && owned.some(e => e.topic === 'safety' && same(e.subjectId,plan.primaryTargetId) && e.stance === 'warned' && !plan.triggerEvidenceIds?.includes(e.id)) ||
       plan.trigger === 'target_unavailable' && !this.strategy.isTargetIdAvailable(plan.primaryTargetId) ||
       plan.trigger === 'lost_votes' && this.viability(id,plan.primaryTargetId) < 1.5;
     return triggered ? this.activateBackup(id,plan.trigger) : false;
   }
+  inferLeak(id) {
+    const owned=this.knowledge(id),raw=this.memory?.getCampClaims?.(id)||[];
+    for(const returned of owned.filter(e=>e.sourceChain?.length>=2 && !same(e.speakerId,id))){
+      const sent=raw.find(e=>same(e.speakerId,id)&&['target','backup','commitment'].includes(e.topic)&&e.topic===returned.topic&&same(e.subjectId,returned.subjectId)&&e.audienceIds?.some(x=>returned.sourceChain.some(y=>same(x,y))));
+      if(!sent)continue;
+      const suspect=sent.audienceIds.find(x=>returned.sourceChain.some(y=>same(x,y))),key=`leak-inference:${sent.id}:${returned.id}`;
+      if(raw.some(e=>e.id===key))continue;
+      this.memory.recordCampClaim({id:key,speakerId:id,subjectId:suspect,topic:'alliance_doubt',stance:'uncertain',origin:'inference',confidence:.35,day:this.gm.day,campTime:this.gm.dayTimer,evidenceIds:[sent.id,returned.id],sourceChain:returned.sourceChain});
+      this.count('suspectedLeaks');
+    }
+  }
   agenda(speakerId,listenerId,{plan=false}={}) {
+    this.inferLeak(speakerId);
     const s=this.refresh(speakerId), owned=this.knowledge(speakerId), profile=getCampBehaviorProfile(this.person(speakerId));
-    const disputed=this.contradictions(speakerId).at(-1);
-    const verify=owned.find(e=>same(e.attributedId,listenerId)&&!same(e.speakerId,listenerId)&&!negative(e));
-    let purpose='recruit_swing',primarySubject=s.intendedVoteId,messageMode='truthful',knownEvidence=[];
-    if(verify&&(disputed||verify.provenance==='hearsay')){purpose='verify_story';primarySubject=verify.subjectId;knownEvidence=[verify.id];messageMode='question';}
-    else if(owned.some(e=>['safety','target'].includes(e.topic)&&same(e.subjectId,listenerId)&&!negative(e))&&
-      (this.gm.getTrust?.(speakerId,listenerId)??50)>60){purpose='warn_ally';primarySubject=listenerId;messageMode='warning';}
-    else if(s.decoys.some(p=>p.audienceIds.some(id=>same(id,listenerId)))){purpose='spread_decoy';primarySubject=s.decoys.find(p=>p.audienceIds.some(id=>same(id,listenerId))).targetId;messageMode='decoy';}
-    else if(same(s.intendedVoteId,listenerId)&&profile.honesty<.7){purpose='reassure_target';primarySubject=listenerId;messageMode='reassurance_lie';}
-    else if(owned.some(e=>['idol_suspicion','idol_possession'].includes(e.topic)&&same(e.subjectId,s.intendedVoteId)&&!negative(e))){purpose='establish_backup';}
-    else if(s.safetyBelief<.4){purpose='counter_pitch';}
-    else if(this.viability(speakerId,s.intendedVoteId)>this.members.length/2){purpose='check_loyalty';}
-    else if(!primarySubject){purpose='gather_intel';messageMode='question';}
-    const allianceMotive = ['recruit_swing','check_loyalty','gather_intel','reassure_target'].includes(purpose) ? this.gm.systems.allianceSystem?.npcMotive?.(speakerId,listenerId) : null;
-    if(!allianceMotive&&plan&&purpose==='reassure_target'&&s.confidence>=.6&&profile.honesty<.5){
-      const target=this.members.find(p=>!same(p.id,speakerId)&&!same(p.id,listenerId)&&this.strategy.isTargetIdAvailable(p.id));
-      if(target){this.decoy(speakerId,target.id,[listenerId]);purpose='spread_decoy';primarySubject=target.id;messageMode='decoy';}}
-    if (allianceMotive) purpose=allianceMotive.purpose;
-    return {allianceMotive,purpose,initiatorId:speakerId,listenerIds:[listenerId],primarySubject,desiredOutcome:purpose==='verify_story'?'verify':'support',knownEvidence,messageMode};
+    const affinity=this.gm.systems.allianceSystem?.getAllianceAffinity?.(speakerId,listenerId)||0;
+    const position=this.knownPosition(speakerId,listenerId), support=position && same(position.subjectId,s.intendedVoteId) && position.confidence>=.5 && !position.challenged;
+    const commitment=support&&position.topic==='commitment';
+    const options=[],add=(purpose,priority,value,subject=s.intendedVoteId,mode='truthful',evidence=[],extra={})=>options.push({purpose,priority,value,primarySubject:subject,messageMode:mode,knownEvidence:evidence,...extra});
+    const verify=owned.filter(e=>same(e.attributedId,listenerId)&&!same(e.speakerId,listenerId)&&!negative(e)&&
+      ['target','commitment','safety','idol_suspicion','alliance_disclosure'].includes(e.topic)).find(e=>
+        !owned.some(d=>same(d.speakerId,listenerId)&&d.topic===e.topic&&same(d.subjectId,e.subjectId)&&d.campTime<=e.campTime&&!d.challenged || d.refutesClaimId===e.id));
+    if(verify){const important=verify.challenged||this.contradictions(speakerId).some(c=>c.id===verify.id)||same(verify.subjectId,speakerId)||same(verify.subjectId,s.intendedVoteId);
+      add('verify_story',important?5:3,important?3:1.2,verify.subjectId,'question',[verify.id]);}
+    const danger=owned.find(e=>['target','commitment','safety','alliance_exclusion'].includes(e.topic)&&same(e.subjectId,listenerId)&&!negative(e)&&(e.topic!=='safety'||e.stance!=='yes'));
+    if(danger && (affinity>.3||(this.gm.getTrust?.(speakerId,listenerId)??50)>=65) && !same(s.intendedVoteId,listenerId))add('warn_ally',5,2.8,listenerId,'hearsay',[danger.id]);
+    const leak=owned.find(e=>same(e.subjectId,s.intendedVoteId)&&e.topic==='safety'&&e.stance==='warned');
+    const idol=owned.find(e=>['idol_suspicion','idol_possession'].includes(e.topic)&&same(e.subjectId,s.intendedVoteId)&&!negative(e)&&e.confidence>=.3);
+    if((idol||leak)&&!s.backup&&affinity>.3&&!same(listenerId,s.intendedVoteId))add('establish_backup',4,2.1,s.intendedVoteId,'truthful',[(idol||leak).id],{trigger:idol?'suspected_idol':'target_aware'});
+    const competing=position&&!same(position.subjectId,s.intendedVoteId);
+    const concern=owned.find(e=>['alliance_doubt','alliance_exclusion','alliance_departure'].includes(e.topic)&&same(e.subjectId,listenerId));
+    if(affinity>.3 && (!commitment||position?.challenged||concern) && s.intendedVoteId && !same(listenerId,s.intendedVoteId))add('check_loyalty',4,1.6,s.intendedVoteId,'question',position?[position.id]:[]);
+    const existingDecoy=s.decoys.find(p=>p.audienceIds.some(x=>same(x,listenerId)));
+    if(existingDecoy)add('spread_decoy',4,1.7,existingDecoy.targetId,'decoy',[],{cover:true});
+    const cover=same(s.intendedVoteId,listenerId)&&profile.honesty<.7;
+    if(cover){const panic=owned.some(e=>same(e.subjectId,listenerId)&&['safety','idol_possession','idol_suspicion'].includes(e.topic));
+      const decoy=s.decoys.find(p=>p.audienceIds.some(x=>same(x,listenerId)));
+      add(decoy?'spread_decoy':'reassure_target',4,panic?2.7:1.7,decoy?.targetId||listenerId,decoy?'decoy':'reassurance_lie',[],{cover:true});}
+    if(s.safetyBelief<.43 && s.intendedVoteId&&!same(s.intendedVoteId,listenerId)&&!commitment)add('counter_pitch',5,2.4,s.intendedVoteId);
+    // A swing is unknown or tentatively open, not a known settled supporter or committed opponent.
+    if(s.intendedVoteId&&!same(s.intendedVoteId,listenerId)&&!support && (position&&position.topic!=='commitment'||position&&position.confidence<.5||!position&&this.gm.dayTimer<=300))
+      add('recruit_swing',3,1.4,s.intendedVoteId);
+    if(competing && s.safetyBelief<.6 && !same(s.intendedVoteId,listenerId))add('counter_pitch',3,1.6,s.intendedVoteId,'truthful',[position.id]);
+    if(!position || position.challenged)add('gather_intel',2,1.1,null,'question',position?[position.id]:[]);
+    const follow=s.followUp;
+    if(follow&&same(follow.listenerId,listenerId)&&follow.day===this.gm.day)add(follow.purpose,4,2,follow.subjectId,'question',follow.evidenceIds||[]);
+    const info=owned.filter(e=>!same(e.speakerId,speakerId)&&e.confidence>=.35&&!e.challenged&&
+      ['target','commitment','backup','alliance_disclosure','safety'].includes(e.topic)&&!e.sourceChain?.some(x=>same(x,listenerId))&&!(s.motiveReceipts?.[`share_intel:${listenerId}:${e.subjectId}:${e.id}`])).at(-1);
+    // Motivation reads speaker's knowledge and relationship; delivery never grants hidden listener state.
+    if(info && affinity>.4 && (this.gm.getTrust?.(speakerId,listenerId)??50)>60 && profile.strategyDrive>.35)
+      add('share_intel',2,1.25,info.subjectId,'hearsay',[info.id]);
+    const allianceMotive=this.gm.systems.allianceSystem?.npcMotive?.(speakerId,listenerId);
+    if(allianceMotive && (this.gm.dayTimer>600||['alliance_recruitment','alliance_repair'].includes(allianceMotive.purpose)))
+      add(allianceMotive.purpose,cover&&allianceMotive.sincerity==='fake'?4:1,cover?2:1,s.intendedVoteId,'truthful',[],{allianceMotive});
+    const now=this.gm.dayTimer,receipts=s.motiveReceipts ||= {};
+    for(const x of options)x.key=`${x.purpose}:${listenerId}:${x.primarySubject}:${x.knownEvidence.join(',')}`;
+    const choice=options.filter(x=>{const r=receipts[x.key];return !r||r.day!==this.gm.day||r.at-now>=900 && !['gather_intel','verify_story','reassure_target','spread_decoy'].includes(x.purpose);})
+      .sort((a,b)=>b.priority-a.priority||b.value-a.value)[0];
+    if(!choice)return {purpose:'settled',priority:0,value:0,primarySubject:null,knownEvidence:[],messageMode:'truthful'};
+    // Decoys are only generated after selecting a valuable cover interaction.
+    if(plan&&choice.purpose==='reassure_target'&&s.confidence>=.6&&profile.honesty<.5){
+      const alternate=this.alternateTarget(speakerId,[speakerId,listenerId]);
+      if(alternate){this.decoy(speakerId,alternate,[listenerId],leak?'contain_leak':'hide_blindside');choice.purpose='spread_decoy';choice.primarySubject=alternate;choice.messageMode='decoy';}}
+    return {...choice,initiatorId:speakerId,listenerIds:[listenerId],desiredOutcome:choice.purpose==='verify_story'?'verify':'support'};
+  }
+  alternateTarget(ownerId,excluded=[]) {
+    const s=this.state(ownerId),read=this.voteRead(ownerId);
+    return this.members.filter(p=>!excluded.some(x=>same(x,p.id))&&!same(p.id,s.intendedVoteId)&&this.strategy.isTargetIdAvailable(p.id))
+      .map(p=>({id:p.id,score:(read.alternatives.some(x=>same(x,p.id))?1:0)+(1-(this.gm.getTrust?.(ownerId,p.id)??50)/100)+
+        (1-(this.gm.systems.allianceSystem?.getAllianceAffinity?.(ownerId,p.id)||0))})).sort((a,b)=>b.score-a.score)[0]?.id||null;
   }
   candidateScore(speakerId,listenerId) {
-    const s=this.refresh(speakerId),last=s.lastContacts[String(listenerId)];
-    if(last!=null&&last-this.gm.dayTimer<420)return -Infinity;
-    const agenda=this.agenda(speakerId,listenerId), trust=(this.gm.getTrust?.(speakerId,listenerId)??50)/100;
-    const motive={alliance_offer:1.4,alliance_recruitment:1.7,alliance_reunion:1.5,alliance_expansion:1.5,alliance_repair:1.4,verify_story:2,warn_ally:2.5,reassure_target:1.5,spread_decoy:1.7,counter_pitch:1.6,establish_backup:1.4,check_loyalty:1.1,recruit_swing:1,gather_intel:.6}[agenda.purpose];
-    const known=this.knowledge(speakerId).find(e=>e.topic==='commitment'&&same(e.speakerId,listenerId));
-    return motive+trust*.6+s.urgency*.4-(known&&same(known.subjectId,s.intendedVoteId)?.5:0);
+    const s=this.refresh(speakerId),agenda=this.agenda(speakerId,listenerId);
+    if(agenda.purpose==='settled')return -Infinity;
+    const receipt=s.motiveReceipts?.[agenda.key],urgent=agenda.priority>=5 && !receipt;
+    if(this.recent(speakerId,listenerId)&&!urgent)return -Infinity;
+    const trust=(this.gm.getTrust?.(speakerId,listenerId)??50)/100;
+    const time=this.gm.dayTimer<=300 && agenda.priority<3 ? -3 : 0;
+    return agenda.priority*3+agenda.value+trust*.4+time;
   }
-  choosePartner(actor,candidates) {return candidates.filter(p=>p&&!same(p.id,actor.id)&&
-    this.present(p,p.isPlayer?p.location:this.gm.systems.npcLocationSystem.getLocation(p.id))).map(p=>({p,score:this.candidateScore(actor.id,p.id)}))
-    .filter(x=>Number.isFinite(x.score)).sort((a,b)=>b.score-a.score)[0]?.p||null;}
+  choosePartner(actor,candidates) {
+    // Reuse bounded owner projections only within this synchronous selection.
+    // A conversation or restore never inherits cached knowledge.
+    this.inferLeak(actor.id);this.selectionKnowledge=new Map();
+    try{return candidates.filter(p=>p&&!same(p.id,actor.id)&&this.present(p,p.isPlayer?p.location:this.gm.systems.npcLocationSystem.getLocation(p.id)))
+      .map(p=>({p,score:this.candidateScore(actor.id,p.id)})).filter(x=>Number.isFinite(x.score)).sort((a,b)=>b.score-a.score)[0]?.p||null;}
+    finally{this.selectionKnowledge=null;}
+  }
   resolveAgenda(actor,listener,activity,random=()=>this.strategy.random()) {
     if(!this.together(actor,listener))return null;
     const agenda=activity.agenda||this.agenda(actor.id,listener.id,{plan:true}),prefix=activity.id;
-    this.count(`motive:${agenda.purpose}`);const id=`${prefix}:agenda:${listener.id}`;
+    const id=`${prefix}:agenda:${listener.id}`;
     if(this.resolved[id])return this.resolved[id];
+    this.count(`motive:${agenda.purpose}`);const heard=this.knownPosition(actor.id,listener.id);
+    const previous=this.state(actor.id).motiveReceipts?.[agenda.key];
+    if(previous?.day===this.gm.day)this.count('repeatedIdenticalAction');
+    if(agenda.purpose==='gather_intel'&&heard?.confidence>=.5&&!heard.challenged)this.count('gatherKnownPosition');
+    if(agenda.purpose==='recruit_swing'&&heard?.topic==='commitment'&&heard.confidence>=.5&&!heard.challenged&&!same(heard.subjectId,this.state(actor.id).intendedVoteId))this.count('recruitSettledOpponent');
+    if(agenda.purpose==='recruit_swing'&&heard?.topic==='commitment'&&heard.confidence>=.5&&!heard.challenged&&same(heard.subjectId,this.state(actor.id).intendedVoteId))this.count('unnecessaryRecruitSwing');
+    this.contact([actor.id,listener.id]);
+    const state=this.state(actor.id);(state.motiveReceipts ||= {})[agenda.key||`${agenda.purpose}:${listener.id}:${agenda.primarySubject}:${(agenda.knownEvidence||[]).join(',')}`]={day:this.gm.day,at:this.gm.dayTimer};
+    if(Object.keys(state.motiveReceipts).length>40)delete state.motiveReceipts[Object.keys(state.motiveReceipts)[0]];
+    if(state.followUp&&same(state.followUp.listenerId,listener.id))state.followUp=null;
     if(agenda.allianceMotive){const result=this.gm.systems.allianceSystem.resolveNpcMotive(actor.id,listener.id,agenda.allianceMotive,id,random);this.resolved[id]={status:result?.status||'unresolved'};return this.resolved[id];}
+    if(agenda.purpose==='settled')return this.resolved[id]={outcome:'settled'};
+    if(agenda.purpose==='share_intel'){const e=this.knowledge(actor.id).find(e=>agenda.knownEvidence.includes(e.id));if(!e)return null;this.count('planLeaks');return this.statement({id,speakerId:actor.id,listenerIds:[listener.id],subjectId:e.subjectId,topic:e.topic,stance:e.stance,mode:'hearsay',attributedId:e.attributedId||e.speakerId,sourceChain:e.sourceChain,allianceId:e.allianceId,memberIds:e.memberIds,evidenceIds:[e.id,...(e.evidenceIds||[])].slice(-8),random});}
+    if(['gather_intel','check_loyalty'].includes(agenda.purpose)){const s=this.state(listener.id),cover=same(s.intendedVoteId,actor.id)||this.gm.systems.allianceSystem?.getAlliancesForSurvivor?.(listener.id).some(a=>['fake','cover'].includes(a.memberStates[listener.id]?.sincerity)&&this.gm.systems.allianceSystem.knownRoster(listener.id,a.id).some(id=>same(id,actor.id)));
+      const target=cover?s.decoys.find(d=>d.audienceIds.some(x=>same(x,actor.id)))?.targetId||this.alternateTarget(listener.id,[listener.id,actor.id]):s.intendedVoteId;
+      if(!target)return this.resolved[id]={outcome:'unknown'};
+      const committed=!cover&&same(s.committedTargetId,target);this.count(agenda.purpose==='gather_intel'?'gatherIntelAttempts':'loyaltyChecks');
+      return this.statement({id,speakerId:listener.id,listenerIds:[actor.id],subjectId:target,topic:committed?'commitment':'target',stance:committed?'yes':'consider',mode:cover?'decoy':'truthful',random});}
+    if(agenda.purpose==='establish_backup'){const next=this.alternateTarget(actor.id,[actor.id,listener.id]);if(!next)return null;
+      const backup=this.backup(actor.id,agenda.primarySubject,next,[listener.id],agenda.trigger||'suspected_idol');
+      return this.statement({id,speakerId:actor.id,listenerIds:[listener.id],subjectId:next,topic:'backup',stance:'possible',random});}
     let topic='target',stance='consider',subjectId=agenda.primarySubject,mode=agenda.messageMode;
     if(agenda.purpose==='verify_story') {
       this.count('verificationAttempts');const known=this.knowledge(actor.id).find(e=>agenda.knownEvidence.includes(e.id));
       const prior=(this.memory.memory[String(listener.id)]?.campClaims||[]).find(e=>same(e.speakerId,listener.id)&&same(e.subjectId,subjectId)&&e.topic===known?.topic);
       const lie=!prior&&getCampBehaviorProfile(listener).honesty<.45&&random()<.35;
-      return this.statement({id,speakerId:listener.id,listenerIds:[actor.id],subjectId,topic:known?.topic||'target',stance:prior||lie?'mentioned':'denied',
-        mode:lie||prior?.truthfulness===false?'deliberate_lie':'truthful',refutesClaimId:prior||lie?null:known?.id,random});
+      return this.statement({id,speakerId:listener.id,listenerIds:[actor.id],subjectId,topic:known?.topic||'target',stance:prior?.stance|| (lie?'mentioned':'denied'),
+        mode:lie||prior?.truthfulness===false?'deliberate_lie':'truthful',attributedId:listener.id,refutesClaimId:prior||lie?null:known?.id,random});
     }
-    if(agenda.purpose==='warn_ally'){topic='safety';stance='warned';}
+    if(agenda.purpose==='warn_ally'){topic='safety';stance='warned';const e=this.knowledge(actor.id).find(e=>agenda.knownEvidence.includes(e.id));this.count('warningAttempts');return this.statement({id,speakerId:actor.id,listenerIds:[listener.id],subjectId,topic,stance,mode:'hearsay',attributedId:e?.attributedId||e?.speakerId,sourceChain:e?.sourceChain,random});}
     if(agenda.purpose==='reassure_target'){topic='safety';stance='yes';}
     if(!subjectId){const read=this.voteRead(listener.id);subjectId=read.targetId;if(!subjectId)return {outcome:'unknown'};
       return this.statement({id,speakerId:listener.id,listenerIds:[actor.id],subjectId,mode:'inference',random});}
@@ -236,8 +363,7 @@ export default class ScrambleStrategy {
     if(result)this.gm.systems.campInteractionSystem?.hearExchange?.({speaker:actor,listener,activity,claimId:id,random});
     if(topic==='target'&&result){const outcome=this.adoption(listener.id,actor.id,subjectId,{belief:result.belief[String(listener.id)],random});
       if(outcome==='commit')this.commit({id:`${prefix}:promise:${listener.id}`,speakerId:listener.id,listenerIds:[actor.id],targetId:subjectId,random});
-      if(agenda.purpose==='establish_backup'){const next=this.members.find(p=>!same(p.id,subjectId)&&!same(p.id,actor.id)&&!same(p.id,listener.id)&&this.strategy.isTargetIdAvailable(p.id));
-        if(next)this.backup(actor.id,subjectId,next.id,[listener.id]);}return {...result,outcome};}
+      return {...result,outcome};}
     return result;
   }
   resolveMeeting(participants,activity,random=()=>this.strategy.random()) {
@@ -260,9 +386,12 @@ export default class ScrambleStrategy {
           !same(p.id,target) && !participants.some(member => same(member.id,p.id)) && this.strategy.isTargetIdAvailable(p.id))?.id;
       if (secondary) {
         this.backup(owner.id,target,secondary,participants.slice(1).map(p=>p.id));
-        if (participants.length >= 4) {
-          const assignments = Object.fromEntries(participants.map((p,i)=>[p.id,i<Math.ceil(participants.length*.66)?target:secondary]));
+        const opposition=this.members.length-participants.length;
+        const minimum=opposition+1,mainCount=participants.length-minimum;
+        if(mainCount>=minimum && getCampBehaviorProfile(owner).strategyDrive>=.5 && participants.every(p=>same(p.id,owner.id)||(this.gm.getTrust?.(owner.id,p.id)??50)>=60)) {
+          const assignments = Object.fromEntries(participants.map((p,i)=>[p.id,i<mainCount?target:secondary]));
           const plan=this.split(owner.id,target,secondary,assignments,[owner.id]);
+          if(plan)this.count('viableSplitPlans');
           if (plan) for (const participant of participants) {
             const assigned=plan.assignments[participant.id];
             if (assigned && !same(participant.id,owner.id) && this.adoption(participant.id,owner.id,assigned,{random})==='commit') this.acceptSplit(participant.id);
@@ -270,6 +399,8 @@ export default class ScrambleStrategy {
         }
       }
     }
+    this.contact(participants.map(p=>p.id));
+    for(const p of participants){const dissent=positions.find(x=>!same(x.id,p.id)&&target&&!same(x.intendedVoteId,target));if(dissent)this.state(p.id).followUp={day:this.gm.day,purpose:'check_loyalty',listenerId:dissent.id,subjectId:target,evidenceIds:[`${activity.id}:position:${dissent.id}`]};}
     return {positions,outcome,targetId:outcome==='disagreement'?null:target};
   }
   searched(id) {return (this.gm.systems.idolSystem?.getSearchHistory?.(id)?.count||0)>0||

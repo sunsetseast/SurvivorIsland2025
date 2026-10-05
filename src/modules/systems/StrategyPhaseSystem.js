@@ -967,6 +967,7 @@ class StrategyPhaseSystem {
     this.scrambleState = ScrambleState.RESOLVING;
     this.isActive = false;
     this.scramble?.clearInvitation();
+    for(const meeting of this.scramble?.meetings||[])if(!["completed","cancelled"].includes(meeting.status))meeting.status="cancelled";
     gameManager.systems?.campActivitySystem?.releasePhaseReservations?.();
     if (!this.playerTribeSafe) this.computeTribalTargetBoard();
     this.scrambleState = ScrambleState.BEFORE_TRIBAL;

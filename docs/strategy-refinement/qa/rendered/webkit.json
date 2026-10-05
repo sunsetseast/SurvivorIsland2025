@@ -1,0 +1,328 @@
+{
+  "engine": "webkit",
+  "version": "26.5",
+  "checks": [
+    {
+      "kind": "offer",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 7,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "sincere",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "cover",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "group",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "bottom",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "warning",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 6,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "verification",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 2,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "recap",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "buttons": 0,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "offer",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 7,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "sincere",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "cover",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "group",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "bottom",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "warning",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 6,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "verification",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 2,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "recap",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "buttons": 0,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "offer",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 7,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "sincere",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "cover",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "group",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "bottom",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "warning",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 6,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "verification",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 2,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "recap",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "buttons": 0,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "offer",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 7,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "sincere",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "cover",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 23,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "group",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "bottom",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 8,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "warning",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 6,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "verification",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 2,
+      "privacy": true,
+      "readingTimeFree": true
+    },
+    {
+      "kind": "recap",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "buttons": 0,
+      "privacy": true,
+      "readingTimeFree": true
+    }
+  ],
+  "errors": [],
+  "physicalIPhoneVerified": false
+}

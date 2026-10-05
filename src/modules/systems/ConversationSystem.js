@@ -329,9 +329,9 @@ class ConversationSystem {
     };
   }
 
-  _getPairTrust(playerId, npcId) {
-    if (!playerId || !npcId) return 50;
-    return this.gameManager?.getTrust?.(playerId, npcId) ?? 50;
+  _getPairTrust(ownerId, subjectId) {
+    if (!ownerId || !subjectId) return 50;
+    return this.gameManager?.getTrust?.(ownerId, subjectId) ?? 50;
   }
 
   _getRelationshipValue(playerId, npcId) {
@@ -425,7 +425,7 @@ class ConversationSystem {
     askedForNames = false,
     riskLevel = 0.3
   }) {
-    const trustScore = this._getPairTrust(player?.id, npc?.id);
+    const trustScore = this._getPairTrust(npc?.id, player?.id);
     const relationshipScore = this._getRelationshipValue(player?.id, npc?.id);
     const paranoia = npc?.paranoia ?? 0;
     const suspicion = npc?.suspicion ?? 0;
@@ -695,7 +695,7 @@ class ConversationSystem {
     const preferred = known ? [`commit:${known.subjectId}`, 'vote_read', 'not_commit'] : ['vote_read', 'safety_read', 'not_commit'];
     const selected = preferred.map(id => nodes.find(n => n.id === id)).filter(Boolean);
     selected.push(nodes.find(n => n.id.startsWith('counter:')));
-    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: cp?.lastLine || 'What do you want to ask?' }),
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: this.nodeSession?.transcript?.length ? null : cp?.lastLine || 'What do you want to ask?' }),
       [...selected.filter(Boolean).map(node => ({ label: node.buttonText, onClick: () => this._runConversationNode({ player, npc, node, context }) })),
        { label: 'More…', onClick: () => this._renderMainMenu({ player, npc, context: { ...context, scrambleMore: true }, mainTopics: this._buildMainTopics({ player, npc, context }) }) }], { showEnd: true });
   }
@@ -1947,11 +1947,11 @@ class ConversationSystem {
   decideNpcApproachPurpose({ player, npc, context = {} }) {
     const phase = context?.phase || this._getConversationPhase();
     const { trustSystem, relationshipSystem, allianceSystem, dealSystem } = this._getConversationSystems();
-    const trustValue = trustSystem?.getTrust?.(player?.id, npc?.id);
+    const trustValue = trustSystem?.getTrust?.(npc?.id, player?.id);
     const relationshipValue = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value;
-    let trust = Number.isFinite(trustValue) ? trustValue : this._getPairTrust?.(player?.id, npc?.id);
+    let trust = Number.isFinite(trustValue) ? trustValue : this._getPairTrust?.(npc?.id, player?.id);
     if (!Number.isFinite(trust)) {
-      trust = this.gameManager?.getTrust?.(player?.id, npc?.id);
+      trust = this.gameManager?.getTrust?.(npc?.id, player?.id);
     }
     const relationship = this._clampStat(Number.isFinite(relationshipValue) ? relationshipValue : this._getRelationshipValue(player?.id, npc?.id));
     if (!Number.isFinite(trust)) {
@@ -1963,8 +1963,7 @@ class ConversationSystem {
     const style = npc?.gameplayStyle || '';
     const reasons = [];
 
-    const sharedAlliances = allianceSystem?.getAlliancesForSurvivor?.(player?.id) || [];
-    const hasSharedAlliance = sharedAlliances.some(alliance => alliance.memberIds?.includes?.(npc?.id));
+    const allianceAffinity = allianceSystem?.getAllianceAffinity?.(npc?.id, player?.id) || 0;
     const activeDeals = dealSystem?.getActiveDealsBetween?.(player?.id, npc?.id) || [];
     const hasActiveDeal = activeDeals.length > 0;
 
@@ -2042,11 +2041,11 @@ class ConversationSystem {
       reasons.push('phase:pre');
     }
 
-    if (hasSharedAlliance) {
-      weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += 1;
-      weights[NPC_APPROACH_PURPOSES.STRATEGY] += 1;
-      weights[NPC_APPROACH_PURPOSES.REASSURE_CHECKIN] += 1;
-      reasons.push('sharedAlliance');
+    if (allianceAffinity > .35) {
+      weights[NPC_APPROACH_PURPOSES.OFFER_DEAL] += allianceAffinity;
+      weights[NPC_APPROACH_PURPOSES.STRATEGY] += allianceAffinity;
+      weights[NPC_APPROACH_PURPOSES.REASSURE_CHECKIN] += allianceAffinity;
+      reasons.push('valuesAlliance');
     }
 
     if (hasActiveDeal) {
@@ -2358,14 +2357,17 @@ class ConversationSystem {
       if (!cp) return;
       cp.agenda ||= context.agenda || model.agenda(npc.id, player.id, { plan: true });
       const agenda = cp.agenda, subject = agenda.primarySubject;
+      model.contact([npc.id,player.id]);
       if(agenda.allianceMotive){const offer=this.gameManager.systems.allianceSystem.resolveNpcMotive(npc.id,player.id,agenda.allianceMotive,cp.activityId,()=>model.choice('roll:alliance-opening',random=>({value:random()})).value);
         return this._renderAllianceConversation({player,npc,context:{...context,allianceId:offer?.allianceId,allianceProposalId:offer?.status==='pending'&&!offer?.recruitmentId?offer.id:null,allianceRecruitmentId:offer?.recruitmentId}});}
       if (subject) {
         const result = model.choice('opening', random => {
           if (agenda.messageMode !== 'question') model.statement({ id: `${cp.activityId}:opening`, speakerId: npc.id, listenerIds: [player.id], subjectId: subject,
             topic: ['warn_ally','reassure_target'].includes(agenda.purpose) ? 'safety' : 'target',
-            stance: agenda.purpose === 'warn_ally' ? 'warned' : agenda.purpose === 'reassure_target' ? 'yes' : 'consider', mode: agenda.messageMode, random });
-          return { line: agenda.messageMode === 'question' ? 'I’ve heard different stories. What have you been told?' : agenda.purpose === 'warn_ally' ? 'Your name is coming up. You should talk to people.' :
+            stance: agenda.purpose === 'warn_ally' ? 'warned' : agenda.purpose === 'reassure_target' ? 'yes' : 'consider', mode: agenda.messageMode,
+            attributedId:agenda.purpose==='warn_ally'?model.knowledge(npc.id).find(e=>agenda.knownEvidence.includes(e.id))?.attributedId:null,
+            sourceChain:agenda.purpose==='warn_ally'?model.knowledge(npc.id).find(e=>agenda.knownEvidence.includes(e.id))?.sourceChain:null, random });
+          return { line: agenda.messageMode === 'question' ? (agenda.purpose==='verify_story'?`I heard you mentioned ${model.person(subject)?.firstName||'a name'}. Is that still your plan?`:agenda.purpose==='check_loyalty'?'Are you actually with this vote, or keeping options open?':'What have people actually told you?') : agenda.purpose === 'warn_ally' ? 'Your name is coming up. You should talk to people.' :
             agenda.purpose === 'reassure_target' ? 'You’re fine. Don’t worry.' : `I’m hearing ${model.person(subject)?.firstName || 'a name'}. What are you thinking?` };
         });
         if (!result.replay) cp.lastLine = result.line;
@@ -2440,7 +2442,7 @@ class ConversationSystem {
     if (normalizedForced) return normalizedForced;
 
     const phase = this._normalizePhase(context.phase);
-    const trust = this._getPairTrust(player?.id, npc?.id);
+    const trust = this._getPairTrust(npc?.id, player?.id);
     const paranoia = npc?.paranoia ?? 0;
     const style = String(npc?.gameplayStyle || npc?.personality || '').toLowerCase();
     const weights = {
@@ -2614,7 +2616,7 @@ class ConversationSystem {
 
   _buildNpcAlliancePlan({ npc, player, target, context = {} }) {
     const allianceSystem = this.gameManager.systems?.allianceSystem;
-    const shared = allianceSystem?.getSharedAlliances?.(npc?.id, player?.id) || [];
+    const shared = (allianceSystem?.getKnownAlliances?.(npc?.id) || []).filter(a=>a.memberIds.some(id=>String(id)===String(player?.id)));
     if (shared.length) {
       return {
         mode: 'recommit',
@@ -2766,7 +2768,7 @@ class ConversationSystem {
   _resolveNpcIntentOutcome({ npc, player, intent, option, target }) {
     const targetName = target?.firstName || intent.targetName || 'them';
     const rel = this._getRelationshipValue(player.id, npc.id);
-    const trustsPlayer = this._getPairTrust(player.id, npc.id) >= 55;
+    const trustsPlayer = this._getPairTrust(npc.id, player.id) >= 55;
     const type = intent.type;
 
     if (type === 'vote_pitch') {
@@ -2961,7 +2963,7 @@ class ConversationSystem {
     const system=this.gameManager.systems.allianceSystem;
     if(option.key!=='accept_alliance'||!system?.together(player.id,npc.id))return;
     if(intent.alliancePlan?.mode==='recommit'){
-      const shared=system.getSharedAlliances(npc.id,player.id)[0];
+      const shared=(system.getKnownAlliances(npc.id)||[]).find(a=>a.memberIds.some(id=>String(id)===String(player.id)));
       if(shared)system.recommit(npc.id,shared.id);return;
     }
     const proposal=system.propose({proposerId:npc.id,receiverId:player.id,type:intent.alliancePlan?.type||'temporary',sincerity:intent.alliancePlan?.sincerity||'real'});
@@ -3109,7 +3111,7 @@ class ConversationSystem {
       weights.set('strategy', (weights.get('strategy') || 1) + 1.5);
     }
 
-    const trustLow = this._getPairTrust(playerId, npcId) < 45;
+    const trustLow = this._getPairTrust(npcId, playerId) < 45;
     const negativeIntel = this._hasNegativeIntelAboutPlayer(npcId, playerId);
     if (trustLow || negativeIntel) {
       weights.set('confront', (weights.get('confront') || 1) + 1.5);
@@ -3469,7 +3471,7 @@ class ConversationSystem {
           const mood = day1Mood;
           const lowResources = (npc.hunger ?? 100) < 45 || (npc.water ?? 100) < 45;
           const lowRel = this._getRelationshipValue(player.id, npc.id) < 45;
-          const trust = this._getPairTrust(player.id, npc.id);
+          const trust = this._getPairTrust(npc.id, player.id);
           const paranoia = npc.paranoia ?? 0;
           const candidates = this._getTribeMembers({ includeNpc: false, npcId: npc.id });
           const named = trust > 65 && paranoia < 55 && candidates.length
@@ -3641,7 +3643,7 @@ class ConversationSystem {
         playerLine: 'You and me — are we good?',
         npcReplyByStance: {
           DEFAULT: [() => {
-            const trust = this._getPairTrust(player.id, npc.id);
+            const trust = this._getPairTrust(npc.id, player.id);
             const relationship = this._getRelationshipValue(player.id, npc.id);
             const memory = this._getNpcMemory(npc.id);
             const hasNegative = memory?.flags?.nameDrop || memory?.flags?.pressured;
@@ -4070,7 +4072,7 @@ class ConversationSystem {
           const chatter = candidates.find(member => member._intelFlags?.idolTalk);
           const idolSus = candidates.sort((a, b) => (b.idolSuspicion ?? b.suspicion ?? 0) - (a.idolSuspicion ?? a.suspicion ?? 0))[0];
           const named = chatter || idolSus;
-          if (stance === NPC_STANCES.TRUTH && idolSus && this._getPairTrust(player.id, npc.id) > 60) {
+          if (stance === NPC_STANCES.TRUTH && idolSus && this._getPairTrust(npc.id, player.id) > 60) {
             this._recordIntel(npc.id, {
               type: 'idol_rumor',
               subjectId: named?.id,
@@ -4095,7 +4097,7 @@ class ConversationSystem {
 
   _buildStrategyNodes({ player, npc, context }) {
     const allianceSystem = this.gameManager.systems?.allianceSystem;
-    const sharedAlliances = allianceSystem?.getAlliancesForSurvivor?.(player.id) || [];
+    const sharedAlliances = allianceSystem?.getKnownAlliances?.(player.id) || [];
     const shared = sharedAlliances.filter(alliance => alliance.memberIds?.includes?.(npc.id));
     const legacy = [
       {
@@ -4219,7 +4221,7 @@ class ConversationSystem {
         playerLine: 'Something feels off between us. What’s going on?',
         npcReplyByStance: {
           DEFAULT: [({ stance }) => {
-            const trust = this._getPairTrust(player.id, npc.id);
+            const trust = this._getPairTrust(npc.id, player.id);
             const relationship = this._getRelationshipValue(player.id, npc.id);
             if (trust > 60 && relationship > 55) return 'We’re good. It’s just stress out here.';
             if (stance === NPC_STANCES.TRUTH || stance === NPC_STANCES.REASSURE) return 'I felt like you were circling me in conversations.';
@@ -4558,7 +4560,7 @@ class ConversationSystem {
 
   _showNameSourceFollowup({ player, npc, context, returnTo }) {
     const session = this._getActiveTranscriptSession();
-    const trustScore = this._getPairTrust(player.id, npc.id);
+    const trustScore = this._getPairTrust(npc.id, player.id);
     const candidates = this._getTribeMembers({ includeNpc: false, includePlayer: false, npcId: npc.id });
 
     const finishWithNpcLine = (line, { trustDelta = 0, suspicionDelta = 0 } = {}) => {
@@ -4723,7 +4725,7 @@ class ConversationSystem {
   }
 
   _resolveDealOutcome({ player, npc, context, dealType, target }) {
-    const trust = this._getPairTrust(player.id, npc.id);
+    const trust = this._getPairTrust(npc.id, player.id);
     const relationship = this._getRelationshipValue(player.id, npc.id);
     const paranoia = npc.paranoia ?? 0;
     const style = (npc.gameplayStyle || '').toLowerCase();
@@ -4947,7 +4949,7 @@ class ConversationSystem {
 
   _resolveAllianceDoubt({ player, npc, context, target }) {
     const session = this._getActiveTranscriptSession();
-    const trust = this._getPairTrust(player.id, npc.id);
+    const trust = this._getPairTrust(npc.id, player.id);
     if (trust < 45) {
       this._applyExchangeEffects({ player, npc, deltas: { trust: -2, suspicion: 1 }, contextTag: 'alliance_doubt_low' });
       session?.addNpc?.('That’s not easing my doubts right now.');
@@ -5003,7 +5005,7 @@ class ConversationSystem {
 
   _resolveApology({ player, npc, context, type }) {
     const session = this._getActiveTranscriptSession();
-    const trust = this._getPairTrust(player.id, npc.id);
+    const trust = this._getPairTrust(npc.id, player.id);
     const open = trust > 55;
     const line = open
       ? 'I hear you. Thanks for owning it.'
@@ -6510,7 +6512,7 @@ class ConversationSystem {
         deltas.speakerSuspicionDelta = 3;
         break;
       case 'ST5':
-        if (this.gameManager.systems?.allianceSystem?.areAllied?.(this.gameManager.getPlayerSurvivor?.()?.id, npc?.id)) {
+        if ((this.gameManager.systems?.allianceSystem?.getAllianceAffinity?.(npc?.id, this.gameManager.getPlayerSurvivor?.()?.id) || 0) > .35) {
           deltas.trustDelta = 1;
           deltas.reliabilityDelta = 1;
         } else {
@@ -6887,7 +6889,7 @@ class ConversationSystem {
   }
 
   _getTrustScore(npc, player) {
-    return Math.round(this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50);
+    return Math.round(this.gameManager.getTrust?.(npc?.id, player?.id) ?? 50);
   }
 
   _getNpcStyleKey(style) {
@@ -10299,7 +10301,7 @@ class ConversationSystem {
   }
 
   _getTrustScore(npc, player) {
-    return Math.round(this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50);
+    return Math.round(this.gameManager.getTrust?.(npc?.id, player?.id) ?? 50);
   }
 
   _resolveDisclosure({ npc, player, targetId = null, topic = 'general', pressureLevel = 0, context = {} }) {
@@ -11085,7 +11087,7 @@ class ConversationSystem {
     const player = this.gameManager.getPlayerSurvivor?.();
     const relationship = this._relationshipBetween(player?.id, npc?.id) || 50;
     const memory = this.gameManager.systems?.socialMemorySystem;
-    const trustScore = this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50;
+    const trustScore = this.gameManager.getTrust?.(npc?.id, player?.id) ?? 50;
     const reliabilityScore = memory?.getReliability?.(npc?.id) ?? 50;
     const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
     const deceptive = personality.includes('deceptive') || personality.includes('strategic');
@@ -11398,20 +11400,10 @@ class ConversationSystem {
       score += 5;
     }
 
-    const alliances = allianceSystem?.getAlliancesForSurvivor?.(npc?.id) || [];
-    const hasOtherAlliance = alliances.some(alliance => !alliance.memberIds.includes(player?.id));
-    if (hasOtherAlliance) {
-      score -= 10;
-    }
-
-    const committedAllianceId = allianceSystem?.getCommittedAllianceId?.(npc?.id);
-    if (committedAllianceId) {
-      const committedAlliance = allianceSystem?.getAlliance?.(committedAllianceId);
-      const playerInCommitted = committedAlliance?.memberIds?.includes?.(player?.id);
-      if (!playerInCommitted) {
-        score -= 10;
-      }
-    }
+    const alliances = allianceSystem?.getRankedAlliancesForMember?.(npc?.id) || [];
+    const competition = alliances.filter(a => a.active && !allianceSystem.knownRoster(npc.id,a.id).some(id=>String(id)===String(player?.id)))
+      .reduce((n,a)=>n+allianceSystem.getAlliancePriorityForMember(npc.id,a.id)* (a.memberStates[npc.id]?.commitment||0),0);
+    score -= Math.min(18,competition*8);
 
     const day = this.gameManager.getCurrentDay?.();
     const recentMemory = socialMemory?.getMemory?.(npc?.id)?.allianceInvites || [];
@@ -11448,10 +11440,10 @@ class ConversationSystem {
   _buildAllianceInviteDialogue(survivor, context = {}) {
     const allianceSystem = this.gameManager.systems?.allianceSystem;
     const player = this.gameManager.getPlayerSurvivor?.();
-    const alreadyAllied = allianceSystem?.areAllied?.(player?.id, survivor.id);
+    const alreadyAllied = (allianceSystem?.getKnownAlliances?.(survivor.id) || []).some(a => a.memberIds.some(id => String(id) === String(player?.id)));
     const initiator = context.initiator || 'player';
     const text = alreadyAllied
-      ? `${survivor.firstName} grins. "We’re already good, right?"`
+      ? `${survivor.firstName} says, "We’ve talked about working together. Where do we stand?"`
       : this._pickIntentTemplate('allianceInvite', initiator).replace('{npc}', survivor.firstName);
 
     const playerInitiatedResponses = [
@@ -11463,7 +11455,7 @@ class ConversationSystem {
     ];
 
     const responses = alreadyAllied
-      ? [{ key: 'alreadyAllied', label: 'Right, we’re solid.' }]
+      ? [{ key: 'alreadyAllied', label: 'Talk about our relationship.' }]
       : (initiator === 'player' ? playerInitiatedResponses : RESPONSE_LIBRARY.allianceInvite);
 
     return { text, responses, context: { ...context, intent: 'allianceInvite', location: context.location, alreadyAllied } };
@@ -14172,7 +14164,7 @@ class ConversationSystem {
       targetName = picked.targetName;
     }
     const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
-    const trustScore = Math.round(this.gameManager.getTrust?.(player?.id, survivor?.id) ?? 50);
+    const trustScore = Math.round(this.gameManager.getTrust?.(survivor?.id, player?.id) ?? 50);
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
     const disclosure = this._resolveDisclosure({
@@ -14306,7 +14298,7 @@ class ConversationSystem {
     const targetId = targetName ? (context.topicPersonId || context.topicId || this._getSurvivorByName(targetName)?.id || null) : null;
 
     const relationshipValue = this._relationshipBetween(player?.id, survivor?.id) || 50;
-    const trustScore = Math.round(this.gameManager.getTrust?.(player?.id, survivor?.id) ?? 50);
+    const trustScore = Math.round(this.gameManager.getTrust?.(survivor?.id, player?.id) ?? 50);
     const targetRel = targetId ? this._relationshipBetween(survivor?.id, targetId) : 50;
     const style = this._classifyStyle(survivor);
     const repeated = targetId ? memory?.hasTalkedAboutTargetRecently?.(survivor.id, targetId) : false;
@@ -15369,7 +15361,7 @@ class ConversationSystem {
     if (context.dealType === 'splitVote') {
       score -= 10;
       const allianceSystem = this.gameManager.systems?.allianceSystem;
-      if (allianceSystem?.areAllied?.(player?.id, survivor.id)) score += 6;
+      score += 6 * (allianceSystem?.getAllianceAffinity?.(survivor.id, player?.id) || 0);
       if (this._getTrustScore(survivor, player) > 70) score += 4;
     }
     if (context.dealType === 'mutualProtection') {
@@ -15531,7 +15523,7 @@ class ConversationSystem {
     const socialMemory = this.gameManager.systems?.socialMemorySystem;
     const allianceSystem = this.gameManager.systems?.allianceSystem;
     const relationship = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value ?? 50;
-    const trust = this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50;
+    const trust = this.gameManager.getTrust?.(npc?.id, player?.id) ?? 50;
     const reliability = socialMemory?.getReliability?.(player?.id) ?? 50;
     const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
     const loyal = personality.includes('loyal') || personality.includes('honest');
@@ -15632,13 +15624,13 @@ class ConversationSystem {
     const socialMemory = this.gameManager.systems?.socialMemorySystem;
     const allianceSystem = this.gameManager.systems?.allianceSystem;
     const relationship = relationshipSystem?.getRelationship?.(player?.id, npc?.id)?.value ?? 50;
-    const memoryTrust = this.gameManager.getTrust?.(player?.id, npc?.id) ?? 50;
+    const memoryTrust = this.gameManager.getTrust?.(npc?.id, player?.id) ?? 50;
     const reliability = socialMemory?.getReliability?.(npc?.id) ?? 50;
-    const allied = allianceSystem?.areAllied?.(player?.id, npc?.id) || false;
+    const allianceAffinity = allianceSystem?.getAllianceAffinity?.(npc?.id, player?.id) || 0;
     const personality = (npc?.personality || npc?.gameplayStyle || '').toLowerCase();
 
     let score = (relationship * 0.6) + (memoryTrust * 0.3) + ((reliability - 50) * 0.1);
-    if (allied) score += 8;
+    score += allianceAffinity * 8;
     if (personality.includes('paranoid')) score -= 6;
     if (personality.includes('deceptive') || personality.includes('shadow')) score -= 4;
     if (personality.includes('loyal') || personality.includes('honest')) score += 5;

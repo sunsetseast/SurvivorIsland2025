@@ -111,13 +111,13 @@ export function scrambleNodes(model,{player,npc,context={},topic='strategy'}) {
   }),node('known_pair','Who’s working together?','Who do you think is together?',random=>{
     const pair=model.knownPair(npc.id);if(!pair)return {line:'I don’t have much to go on.'};
     const ids=pair.ids.filter(id=>!same(id,npc.id));if(ids.length<2)return {line:'I’ve only seen a few conversations. I’m not sure.'};
-    npcSay('known_pair',ids[0],{topic:'social_pair',stance:'possible',mode:'inference'},random);return {line:`I’ve seen ${ids.map(name).join(' and ')} together. That doesn’t mean I know their plan.`};
+    npcSay('known_pair',ids[0],{topic:'social_pair',stance:'possible',mode:'inference'},random);return {line:pair.provenance==='direct_statement'?`${ids.map(name).join(' and ')} are working together. That doesn’t settle tonight’s vote.`:pair.provenance==='hearsay'?`I heard ${ids.map(name).join(' and ')} are working together. I haven’t confirmed it.`:`I’ve seen ${ids.map(name).join(' and ')} together. I think they may be working together.`};
   }),...['threat','asset','dead_weight','suspicious'].map(opinion=>node(`opinion:${opinion}`,`Who seems ${opinion.replace('_',' ')}?`,'What’s your personal read?',()=>{
     const candidates=model.members.filter(p=>!same(p.id,npc.id)&&!same(p.id,player.id));
     const score=p=>{
       const trust=model.gm.getTrust?.(npc.id,p.id)??50;
       const impressions=model.memory.memory[String(npc.id)]?.campImpressions?.[String(p.id)]||{};
-      if(opinion==='threat')return p.threat??0;
+      if(opinion==='threat'){const evidence=model.knowledge(npc.id).filter(e=>same(e.subjectId,p.id)&&['idol_possession','idol_suspicion','commitment','betrayal','alliance_disclosure'].includes(e.topic)&&!['denied','no'].includes(e.stance));return evidence.reduce((n,e)=>n+e.confidence*20,0)+(100-trust)*.15;}
       if(opinion==='asset')return trust+(impressions.work?.count||0)*4;
       return 100-trust+(impressions.role_neglect?.count||0)*4+(opinion==='suspicious'?(impressions.absence?.count||0)*3:0);
     };

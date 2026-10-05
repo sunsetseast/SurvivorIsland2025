@@ -33,7 +33,7 @@ export default class TribalKnowledgeModel {
     const playerId = gm?.getPlayerSurvivor?.()?.id;
     const alliances = gm?.systems?.allianceSystem?.getAlliances?.() || [];
     for (const owner of gm?.survivors || []) for (const alliance of gm.systems?.allianceSystem?.getKnownAlliances?.(owner.id) || []) {
-      this.add({type:'allianceMembership',subjectId:alliance.id,visibility:'PRIVATE',knownTo:[owner.id],source:'alliance',details:{memberIds:alliance.memberIds}});
+      this.add({type:'allianceMembership',subjectId:alliance.id,visibility:'PRIVATE',knownTo:[owner.id],source:'alliance',details:{memberIds:alliance.memberIds,knowledgeKind:'personally_shared'}});
     }
     for (const owner of gm?.survivors || []) for (const deal of gm?.systems?.dealSystem?.getKnownDealsForSurvivor?.(owner.id) || []) {
       if (!['PROPOSED', 'ACCEPTED'].includes(deal?.status)) continue;
@@ -63,7 +63,7 @@ export default class TribalKnowledgeModel {
     for (const member of this.members.filter(s => !s.isOut)) {
       for (const entry of ownedCampKnowledge(memory, member.id, gm?.getDay?.() ?? gm?.day ?? 1)) {
         if (!['target', 'warning', 'safety', 'commitment', 'backup', 'split_assignment', 'idol_suspicion', 'idol_possession', 'idol_search_seen', 'absence',
-          'seen_together', 'betrayal', 'confirmed_lie', 'promise', 'public_conflict', 'role_neglect'].includes(entry.topic)) continue;
+          'alliance_disclosure', 'alliance_membership', 'alliance_exclusion', 'alliance_doubt', 'alliance_departure', 'seen_together', 'betrayal', 'confirmed_lie', 'promise', 'public_conflict', 'role_neglect'].includes(entry.topic)) continue;
         this.add({ type: entry.kind === 'claim' ? 'campClaim' : 'campObservation',
           subjectId: entry.subjectId, actorId: entry.speakerId,
           // Even a visible camp event belongs only to actual witnesses. Jeff's
@@ -74,7 +74,8 @@ export default class TribalKnowledgeModel {
           details: { ownerId: member.id, topic: entry.topic, stance: entry.stance,
             provenance: entry.provenance, sourceId: entry.sourceId, sourceChain: entry.sourceChain,
             campTime: entry.campTime, challenged: entry.challenged, recency: entry.recency,
-            visibility: entry.visibility } });
+            visibility: entry.visibility, claimId:entry.id, allianceId:entry.allianceId, memberIds:[...entry.memberIds], attributedId:entry.attributedId, evidenceIds:[...entry.evidenceIds],
+            knowledgeKind:entry.topic==='seen_together'?'inferred':entry.topic.startsWith('alliance_')?'claimed':null } });
       }
     }
     const relevantEvents = new Set(['playerStrategizedWithNpc', 'NAME_MENTION', 'PLOT_PACKET',
@@ -151,14 +152,15 @@ export default class TribalKnowledgeModel {
 
   _active(memberId) { return this.members.some(member => !member.isOut && sameSurvivorId(member.id, memberId)); }
   getKnownAlliances(viewerId) { return this.factsFor(viewerId).filter(fact => fact.type === 'allianceMembership'); }
+  getAllianceClaims(viewerId) { return this.factsFor(viewerId).filter(f=>f.type==='campClaim' && ['alliance_disclosure','alliance_membership','alliance_exclusion'].includes(f.details?.topic)); }
   getKnownAllies(viewerId) {
     const allied = new Set(this.getKnownAlliances(viewerId)
-      .filter(fact => fact.details?.memberIds?.some(memberId => sameSurvivorId(memberId, viewerId)))
+      .filter(fact => fact.type==='allianceMembership' && fact.details?.memberIds?.some(memberId => sameSurvivorId(memberId, viewerId)))
       .flatMap(fact => fact.details?.memberIds || []).map(id));
     return this.members.filter(member => !sameSurvivorId(member.id, viewerId) && !member.isOut && allied.has(id(member.id)));
   }
-  areKnownAllies(aId, bId, viewerId) { return this.getKnownAlliances(viewerId).some(fact =>
-    [aId, bId].every(person => fact.details?.memberIds?.some(memberId => sameSurvivorId(memberId, person)))); }
+  areKnownAllies(aId, bId, viewerId) { return [...this.getKnownAlliances(viewerId),...this.getAllianceClaims(viewerId)].some(fact =>
+    !['denied','no'].includes(fact.details?.stance) && !fact.details?.challenged && fact.confidence>=.5 && [aId, bId].every(person => fact.details?.memberIds?.some(memberId => sameSurvivorId(memberId, person)))); }
   getKnownDeals(viewerId) { return this.factsFor(viewerId).filter(fact => fact.type === 'deal'); }
 
   perceivedDangerBreakdown(survivor) {

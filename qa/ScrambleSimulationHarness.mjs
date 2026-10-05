@@ -12,8 +12,8 @@ import { isCampPhysicallyPresent } from '../src/modules/locations/CampPresence.j
 import { campGroups } from '../src/modules/ui/CampPresentation.js';
 
 export const SCRAMBLE_SCENARIOS = ['clear-majority', 'divided', 'player-danger', 'swing-player', 'alliance-disagreement', 'late-change'];
-export function makeScrambleQa({ seed = 73, scenario = 'divided', start = true } = {}) {
-  const setup = quiet(() => makeLivingCampQa({ seed }));
+export function makeScrambleQa({ seed = 73, scenario = 'divided', start = true, names = undefined } = {}) {
+  const setup = quiet(() => makeLivingCampQa({ seed, ...(names?{names}:{}) }));
   const gm = setup.gm;
   strategy.reset(); gm.gamePhase = 'postChallenge'; gm.dayTimer = 3600;
   gm.flags = {}; gm.lastChallengeResult = null;

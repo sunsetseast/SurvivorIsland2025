@@ -19,8 +19,11 @@ export default function renderPostChallengeSummaryView(container) {
 
   const sections = buildSections(facts);
   const recap = strategyPhaseSystem.getPlayerStrategyRecap();
-  const statements = recap.statements.filter(e => e.speakerId !== gameManager.player?.id).slice(-8).map(e =>
-    `${nameOrId(e.speakerId)} ${e.topic === 'safety' ? (e.stance === 'yes' ? 'reassured you' : 'warned you') : e.topic === 'commitment' ? 'promised' : 'mentioned'}${e.topic === 'safety' ? '' : ` ${nameOrId(e.subjectId)}`}.`);
+  const statements = recap.statements.filter(e => String(e.speakerId) !== String(gameManager.player?.id)).slice(-8).map(e => {
+    const speaker=nameOrId(e.speakerId), uncertainty=e.challenged?' You heard a conflicting account.':'';
+    if(['alliance_disclosure','alliance_membership'].includes(e.topic))return `${speaker} said ${(e.memberIds||[]).map(nameOrId).join(' & ')} ${e.stance==='denied'?'are not':'are'} working together.${uncertainty}`;
+    return `${speaker} ${e.topic==='safety'?(e.stance==='yes'?'reassured you':'mentioned a safety concern'):e.topic==='commitment'?'promised':e.topic==='backup'?'discussed a backup involving':'mentioned'}${e.topic==='safety'?'':` ${nameOrId(e.subjectId)}`}.${uncertainty}`;
+  });
   sections.unshift({ title: 'What You Heard', lines: statements }, { title: 'Your Promises',
     lines: recap.promises.map(e => `You told ${(e.audienceIds || []).map(nameOrId).join(' & ')} you would vote ${nameOrId(e.subjectId)}.`) });
   sections.forEach(({ title: heading, lines }) => {
@@ -312,6 +315,6 @@ function describeDealOutcome(type, fact = {}) {
 }
 
 function nameOrId(id) {
-  const match = gameManager?.survivors?.find?.((s) => s.id === id);
+  const match = gameManager?.survivors?.find?.((s) => String(s.id) === String(id));
   return match?.firstName || match?.name || id || 'someone';
 }

@@ -233,9 +233,11 @@ class NpcIntentPlanner {
         const location = locationSystem?.getLocation?.(npc.id) || null;
 
         const relValue = relationshipSystem?.getRelationship?.(player.id, npc.id)?.value ?? 50;
-        const trust = gameManager.getTrust?.(player.id, npc.id) ?? 50;
+        const trust = gameManager.getTrust?.(npc.id, player.id) ?? 50;
         const reliability = memorySystem?.getReliability?.(npc.id) ?? 50;
-        const committedAllianceId = memorySystem?.getCommittedAllianceId?.(npc.id) || null;
+        const alliances = allianceSystem?.getRankedAlliancesForMember?.(npc.id) || [];
+        const operational = alliances.filter(a=>a.active && a.lifecycle !== "dormant");
+        const committedAllianceId = operational[0]?.id || null;
 
         const reasons = [];
         reasons.push(`relationship ${Math.round(relValue)}`);
@@ -243,16 +245,17 @@ class NpcIntentPlanner {
         if (typeof reliability === "number") reasons.push(`reliability ${Math.round(reliability)}`);
         if (committedAllianceId) reasons.push("committed alliance plan");
 
-        const alliedWithPlayer = allianceSystem?.areAllied?.(player.id, npc.id) ?? false;
+        const allianceAffinity = allianceSystem?.getAllianceAffinity?.(npc.id, player.id) || 0;
+        const alliedWithPlayer = allianceAffinity > .35;
         if (alliedWithPlayer) {
-            reasons.push("already allied with you");
+            reasons.push("values working with you");
         }
 
-        const alliances = allianceSystem?.getAlliancesForSurvivor?.(npc.id) || [];
-        const allianceTarget = alliances.find(entry => entry?.targetId)?.targetId || null;
-        const votingBlocTarget = alliances.find(entry => entry?.type === "votingBloc" && entry?.targetId)?.targetId || null;
-
-        let targetId = votingBlocTarget || allianceTarget || null;
+        const strategy = gameManager.systems?.strategyPhaseSystem;
+        const alliancePlan = operational.find(a=>a.roundPlan?.day===gameManager.day &&
+          !['unresolved','legacy_unconfirmed'].includes(a.roundPlan.status) &&
+          a.roundPlan.participantIds?.some(id=>String(id)===String(npc.id)));
+        let targetId = strategy?.isActive ? strategy.getNpcTargetIntent?.(npc.id)?.targetId : alliancePlan?.roundPlan?.primaryTargetId || null;
         if (targetId) {
             reasons.push(`alliance target ${this._resolveName(targetId) || targetId}`);
         }
