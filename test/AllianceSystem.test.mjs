@@ -9,6 +9,7 @@ import {
 } from "../src/modules/systems/AllianceConversation.js";
 import DealConsequencesSystem from "../src/modules/systems/DealConsequencesSystem.js";
 import TribalCouncilSystem from "../src/modules/systems/TribalCouncilSystem.js";
+import TribalKnowledgeModel from "../src/modules/systems/TribalKnowledgeModel.js";
 
 function setup() {
   const s = makeScrambleQa();
@@ -1078,5 +1079,204 @@ check(
       "accepted",
     );
     assert.equal(s.memory.memory[s.ids[1]].allianceInvites[0].isFake, true);
+  },
+);
+
+check(
+  "informed exclusion supporters stop protecting the excluded member",
+  (s) => {
+    const a = s.core(s.ids.slice(0, 5));
+    s.A.exclude({
+      allianceId: a.id,
+      proposerId: s.ids[1],
+      memberId: s.player.id,
+      participantIds: s.ids.slice(1, 4),
+    });
+    assert.equal(s.A.getAllianceAffinity(s.ids[1], s.player.id), 0);
+    assert.ok(s.A.getAllianceAffinity(s.player.id, s.ids[1]) > 0.5);
+  },
+);
+check("tentative consideration is not a binding vote promise", (s) => {
+  const a = s.core();
+  a.roundPlan = {
+    day: s.gm.day,
+    primaryTargetId: s.ids[4],
+    participantIds: [s.ids[1]],
+    participantCommitments: {
+      [s.ids[1]]: { targetId: s.ids[4], status: "tentative" },
+    },
+  };
+  s.A.processPostTribalFallout(
+    outcome(s, [{ voterId: s.ids[1], targetId: s.ids[5] }]),
+  );
+  assert.equal(s.A.metrics.defections || 0, 0);
+});
+check(
+  "NPC expansion has strategic purpose and still requires candidate consent",
+  (s) => {
+    const a = s.core(s.ids.slice(1, 3));
+    s.trust.setTrust(s.ids[1], s.ids[3], 90);
+    s.gm.systems.relationshipSystem.setRelationship(s.ids[1], s.ids[3], 90);
+    const mind = s.strategy.reasoning.state(s.ids[1]);
+    mind.safetyBelief = 0.3;
+    const motive = s.A.npcMotive(s.ids[1], s.ids[3]);
+    assert.equal(motive.purpose, "alliance_expansion");
+    let calls = 0;
+    s.A.resolveNpcMotive(
+      s.ids[1],
+      s.ids[3],
+      motive,
+      "expansion",
+      () => [0, 0.99][calls++] ?? 0.99,
+    );
+    assert.ok(a.memberIds.includes(s.ids[3]));
+  },
+);
+check(
+  "NPC recruitment invitation to player waits for explicit acceptance",
+  (s) => {
+    const a = s.core(s.ids.slice(1, 3));
+    const intent = s.A.proposeRecruitment({
+      allianceId: a.id,
+      proposerId: s.ids[1],
+      candidateId: s.player.id,
+    });
+    const resolved = s.A.resolveNpcMotive(
+      s.ids[1],
+      s.player.id,
+      {
+        purpose: "alliance_recruitment",
+        recruitmentId: intent.id,
+        allianceId: a.id,
+      },
+      "invite",
+    );
+    const cp = s.start();
+    cp.allianceRecruitmentId = resolved.recruitmentId;
+    assert.equal(a.memberIds.includes(s.player.id), false);
+    const accept = allianceChoices({
+      gm: s.gm,
+      player: s.player,
+      npc: s.npcs[0],
+      context: {},
+      cp,
+    }).find((n) => n.id.endsWith(":accept"));
+    assert.ok(accept);
+    accept.resolve(() => 0);
+    assert.ok(a.memberIds.includes(s.player.id));
+  },
+);
+check(
+  "alliance repair is driven by owned concern rather than hidden fractures",
+  (s) => {
+    const a = s.core();
+    a.memberStates[s.ids[1]].lastContactDay = 0;
+    s.A.recordClaim({
+      speakerId: s.ids[1],
+      subjectId: s.ids[2],
+      topic: "alliance_doubt",
+      allianceId: a.id,
+      stance: "uncertain",
+    });
+    assert.equal(
+      s.A.npcMotive(s.ids[1], s.player.id).purpose,
+      "alliance_repair",
+    );
+  },
+);
+check("NPC coalition motives have finite partner scheduling scores", (s) => {
+  s.trust.setTrust(s.ids[1], s.ids[3], 90);
+  s.gm.systems.relationshipSystem.setRelationship(s.ids[1], s.ids[3], 90);
+  s.core(s.ids.slice(1, 3));
+  s.strategy.reasoning.state(s.ids[1]).safetyBelief = 0.3;
+  assert.ok(
+    Number.isFinite(s.strategy.reasoning.candidateScore(s.ids[1], s.ids[3])),
+  );
+});
+check("parallel meetings never reserve the same NPC twice", (s) => {
+  const left = s.core(s.ids.slice(1, 4)),
+    right = s.core([s.ids[1], s.ids[4], s.ids[5]]);
+  left.memberStates[s.ids[1]].priority = 0.9;
+  right.memberStates[s.ids[1]].priority = 0.2;
+  s.strategy.scramble.scheduleAlliances();
+  for (const m of s.strategy.scramble.meetings) m.dueAt = 3600;
+  s.strategy.onActivityBoundary(3600);
+  s.wait(180);
+  const actor = s.A.person(s.ids[1]);
+  const occupying = s.strategy.scramble.meetings.filter(
+    (m) => m.status === "active" && m.activityId === actor.campActivity?.id,
+  );
+  assert.ok(occupying.length <= 1);
+  if (occupying.length) assert.equal(occupying[0].allianceId, left.id);
+});
+check(
+  "legacy NPC dialogue consents only for the pair and records third-party recruitment",
+  (s) => {
+    s.conversation._resolveNpcAllianceIntentState({
+      npc: s.npcs[0],
+      player: s.player,
+      intent: { alliancePlan: { memberIds: s.ids.slice(0, 3) } },
+      option: { key: "accept_alliance" },
+      result: { status: "accepted" },
+    });
+    const a = s.A.getSharedAlliances(s.player.id, s.ids[1])[0];
+    assert.ok(a);
+    assert.equal(a.memberIds.includes(s.ids[2]), false);
+    assert.ok(s.A.pendingRecruitment.some((p) => p.candidateId === s.ids[2]));
+  },
+);
+check(
+  "unknown objective deal breach remains a private promise in Tribal knowledge",
+  (s) => {
+    const ds = s.gm.systems.dealSystem,
+      d = ds.createDeal({ type: "FINAL_TWO", parties: s.ids.slice(0, 2) });
+    ds.acceptDeal(d.id, s.ids[1]);
+    ds.processTribalOutcome(
+      outcome(s, [{ voterId: s.ids[1], targetId: s.player.id }]),
+    );
+    const k = new TribalKnowledgeModel(s.gm, s.gm.getPlayerTribe().members);
+    assert.ok(
+      k
+        .getKnownDeals(s.player.id)
+        .some((f) => f.subjectId === d.id && f.details.status === "ACCEPTED"),
+    );
+    assert.equal(
+      k.getKnownDeals(s.ids[2]).some((f) => f.subjectId === d.id),
+      false,
+    );
+    assert.doesNotMatch(
+      JSON.stringify(ds.getKnownDealsForSurvivor(s.player.id)),
+      /objectiveOnly|objectiveReference|Objective promise breach/,
+    );
+  },
+);
+check(
+  "NPC fake offer can precede a cover decoy in the semantic agenda",
+  (s) => {
+    const npc = s.npcs.find((p) => p.firstName === "Tony");
+    assert.ok(npc);
+    s.strategy.updateNpcIntentTarget(npc.id, s.player.id, {
+      absoluteConfidence: 0.95,
+    });
+    const agenda = s.strategy.reasoning.agenda(npc.id, s.player.id, {
+      plan: true,
+    });
+    assert.equal(agenda.purpose, "alliance_offer");
+    assert.equal(agenda.allianceMotive.sincerity, "fake");
+  },
+);
+check(
+  "communicated departure reduces only informed alliance protection",
+  (s) => {
+    const a = s.core();
+    s.trust.setTrust(s.ids[1], s.player.id, 90);
+    const unaware = s.A.getAllianceAffinity(s.ids[2], s.player.id);
+    s.A.leave({
+      memberId: s.player.id,
+      allianceId: a.id,
+      listenerIds: [s.ids[1]],
+    });
+    assert.equal(s.A.getAllianceAffinity(s.ids[1], s.player.id), 0);
+    assert.equal(s.A.getAllianceAffinity(s.ids[2], s.player.id), unaware);
   },
 );

@@ -13,6 +13,13 @@ import {
   allianceChoices,
 } from "../src/modules/systems/AllianceConversation.js";
 
+const { default: DealSystem } =
+  await import("../src/modules/systems/DealSystem.js");
+const { default: DealConsequencesSystem } =
+  await import("../src/modules/systems/DealConsequencesSystem.js");
+let productionDeals = null,
+  productionConsequences = null;
+
 export const ALLIANCE_SCENARIOS = [
   "tight-core",
   "majority-inner-core",
@@ -61,6 +68,7 @@ function projection(s) {
     memory: gm.systems.socialMemorySystem.serialize(),
     trust: gm.systems.trustSystem.serialize(),
     deals: gm.systems.dealSystem.serialize(),
+    dealConsequences: gm.systems.dealConsequencesSystem.serialize(),
     strategy: s.strategy.serialize(),
     camp: s.activity.serialize(),
     tribals: gm.tribalCouncilLog,
@@ -88,6 +96,19 @@ function run(scenario, reload, seed) {
           ids = [gm.player.id, ...s.activity.npcs().map((p) => p.id)],
           milestones = [],
           rounds = [];
+        // Reuse one initialized pair of event-driven production systems, as
+        // the game does. Creating a fresh subscribed instance for each run would
+        // multiply acceptance/fallout listeners across scenarios.
+        if (!productionDeals) {
+          productionDeals = new DealSystem(gm);
+          productionDeals.initialize();
+          productionConsequences = new DealConsequencesSystem(gm);
+          productionConsequences.initialize();
+        }
+        productionDeals.reset();
+        productionConsequences.reset();
+        gm.systems.dealSystem = productionDeals;
+        gm.systems.dealConsequencesSystem = productionConsequences;
         gm.isMerged = false;
         gm.jury = [];
         gm.showGameOverScreen = () => {
@@ -180,11 +201,11 @@ function run(scenario, reload, seed) {
           assert.equal(core.lifecycle, "dormant");
           assert.equal(A.together(ids[0], ids[1]), false);
           checkpoint("separated-alliance");
-          ally=gm.survivors.find(p=>p.id===ids[1]);
-      gm.tribes[0].members.push(ally);
+          ally = gm.survivors.find((p) => p.id === ids[1]);
+          gm.tribes[0].members.push(ally);
           gm.tribes.pop();
           ally.tribeId = 1;
-          gm.systems.npcLocationSystem.updateNpcLocation(ally.id,"beach");
+          gm.systems.npcLocationSystem.updateNpcLocation(ally.id, "beach");
           gm.isMerged = true;
           A.onMerge();
           assert.equal(A.getAlliance(core.id).lifecycle, "dormant");
@@ -388,11 +409,28 @@ function run(scenario, reload, seed) {
           checkpoint("after-autonomous-camp");
           s.wait(gm.dayTimer);
           if (defector) {
-            s.strategy.updateNpcIntentTarget(defector, backup, {
+            const plan = A.getAlliance(core.id).roundPlan;
+            const pledge = plan.participantCommitments?.[defector];
+            // Flip after the final negotiated plan. Do not change the group's
+            // record merely because one member privately changes their vote.
+            const assigned = pledge?.targetId ?? primary;
+            if (!pledge)
+              plan.participantCommitments[defector] = {
+                targetId: assigned,
+                status: "committed",
+              };
+            const flip = gm.tribes[0].members.find(
+              (p) =>
+                !p.isOut &&
+                !p.isPlayer &&
+                p.id !== defector &&
+                p.id !== assigned,
+            )?.id;
+            s.strategy.updateNpcIntentTarget(defector, flip, {
               absoluteConfidence: 1,
               reason: "qa:deliberate-flip-before-Tribal",
             });
-            s.strategy.reasoning.state(defector).committedTargetId = backup;
+            s.strategy.reasoning.state(defector).committedTargetId = flip;
           }
           const tribal = new TribalCouncilSystem(gm, { publish() {} }),
             members = gm.tribes[0].members.filter((p) => !p.isOut);
@@ -426,7 +464,13 @@ function run(scenario, reload, seed) {
             const actual = summary.initialVotes.find(
               (v) => String(v.voterId) === String(defector),
             );
-            if (actual && actual.targetId !== primary) {
+            if (
+              actual &&
+              actual.targetId !==
+                A.getAlliance(core.id).roundPlan.participantCommitments[
+                  defector
+                ].targetId
+            ) {
               A.recordClaim({
                 id: "later-evidence",
                 speakerId: gm.player.id,

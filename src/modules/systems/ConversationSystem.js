@@ -2955,38 +2955,20 @@ class ConversationSystem {
     });
   }
 
-  _resolveNpcAllianceIntentState({ npc, player, intent, option, target, result }) {
-    const memory = this.gameManager.systems?.socialMemorySystem;
-    const allianceSystem = this.gameManager.systems?.allianceSystem;
-    const accepted = option.key === 'accept_alliance';
-    memory?.recordAllianceInvite?.({
-      day: this.gameManager.getCurrentDay?.() || this.gameManager.day || 1,
-      location: this.activeConversationContext?.location || 'camp',
-      npcId: npc.id,
-      playerId: player.id,
-      outcome: result.status,
-      pickedThirdId: intent.alliancePlan?.memberIds?.find(id => String(id) !== String(npc.id) && String(id) !== String(player.id)) || null,
-      isFake: false,
-      accepted,
-      declineType: accepted ? null : result.status,
-      pitchType: intent.alliancePlan?.mode || 'npc_pitch',
-      proposedBy: 'npc'
-    });
-    if (!accepted || !allianceSystem?.createAlliance || intent.alliancePlan?.mode === 'recommit') return;
-    const memberIds = (intent.alliancePlan?.memberIds || [npc.id, player.id]).filter(Boolean);
-    const uniqueMemberIds = [...new Set(memberIds.map(id => String(id)))];
-    allianceSystem.createAlliance({
-      name: this._generateAllianceName(),
-      memberIds: uniqueMemberIds,
-      tribeId: this.gameManager.getPlayerTribe?.()?.id || null,
-      leaderId: npc.id,
-      type: uniqueMemberIds.length > 2 ? 'core' : 'temporary',
-      targetId: null,
-      sincerityMap: uniqueMemberIds.reduce((acc, id) => {
-        acc[id] = 'real';
-        return acc;
-      }, {})
-    });
+  _resolveNpcAllianceIntentState({npc,player,intent,option,result}) {
+    // Compatibility dialogue can consent to a pair, never consent for absent
+    // third parties. Living Scramble uses the richer semantic entry point.
+    const system=this.gameManager.systems.allianceSystem;
+    if(option.key!=='accept_alliance'||!system?.together(player.id,npc.id))return;
+    if(intent.alliancePlan?.mode==='recommit'){
+      const shared=system.getSharedAlliances(npc.id,player.id)[0];
+      if(shared)system.recommit(npc.id,shared.id);return;
+    }
+    const proposal=system.propose({proposerId:npc.id,receiverId:player.id,type:intent.alliancePlan?.type||'temporary',sincerity:intent.alliancePlan?.sincerity||'real'});
+    const accepted=proposal&&system.respond(proposal.id,{choice:'accept'});
+    if(!accepted?.allianceId)return;
+    for(const candidateId of intent.alliancePlan?.memberIds||[])if(![npc.id,player.id].some(id=>String(id)===String(candidateId)))system.proposeRecruitment({allianceId:accepted.allianceId,proposerId:npc.id,candidateId,participantIds:[npc.id,player.id]});
+    this.gameManager.systems.socialMemorySystem?.recordAllianceInvite?.({day:this.gameManager.day,npcId:npc.id,playerId:player.id,accepted:true,outcome:'accepted',proposedBy:'npc'});
   }
 
   _recordNpcIntentStarted({ npc, player, intent, context }) {

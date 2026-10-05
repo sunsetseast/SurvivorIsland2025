@@ -1,0 +1,408 @@
+{
+  "engine": "webkit",
+  "version": "26.5",
+  "checks": [
+    {
+      "scene": "overview",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "detail",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "starter",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "offer",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 6,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "group",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "disagreement",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "recruitment",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 27,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "strained",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "dormant",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "overview",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "detail",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "starter",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "offer",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 6,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "group",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "disagreement",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "recruitment",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 27,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "strained",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "dormant",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "overview",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "detail",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "starter",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "offer",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 6,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "group",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "disagreement",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "recruitment",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 27,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "strained",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "dormant",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "overview",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "detail",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "starter",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "offer",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 6,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "group",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "disagreement",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 8,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "recruitment",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 27,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "strained",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 7,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "dormant",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "controls": 5,
+      "timeBefore": 3600,
+      "allianceCount": 3
+    }
+  ],
+  "errors": [],
+  "actualIOS": false
+}

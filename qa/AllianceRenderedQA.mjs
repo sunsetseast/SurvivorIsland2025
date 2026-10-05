@@ -109,6 +109,17 @@ try {
       );
       assert.ok(state.focused, `${scene} focus inside dialog`);
       assert.ok(
+        await dialog.evaluate((e) => {
+          const r = e.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            Math.max(1, r.left + 12),
+            Math.max(1, r.top + 80),
+          );
+          return e.contains(hit) || hit?.contains(e);
+        }),
+        `${scene} is above camp controls`,
+      );
+      assert.ok(
         state.controls.every((b) => b.w >= 43.9 && b.h >= 43.9),
         `${scene} touch targets`,
       );

@@ -3646,3 +3646,9 @@ body.debug-card-layout .trait-element,
 #conversation-overlay[data-alliance-dialog] .convo-transcript,#conversation-overlay[data-alliance-dialog] .conversation-options {overflow-y:auto;min-height:0;}
 @media(max-height:500px){#alliances-panel,#create-alliance-panel,#manage-alliance-panel{padding:12px;max-height:calc(100dvh - 20px);}#conversation-overlay[data-alliance-dialog] .conversation-parchment{max-height:calc(100dvh - 20px)!important;}}
 @media(prefers-reduced-motion:reduce){#alliances-overlay *,#create-alliance-overlay *,#manage-alliance-overlay *,#conversation-overlay[data-alliance-dialog] *{animation:none!important;transition:none!important;}}
+/* Alliance dialogs sit above the camp task icon and retain readable speech. */
+#alliances-overlay,#create-alliance-overlay,#manage-alliance-overlay,#conversation-overlay[data-alliance-dialog] {z-index:10020!important;}
+#conversation-overlay[data-alliance-dialog] .convo-text {font:400 15px/1.45 system-ui,sans-serif;letter-spacing:normal;text-transform:none;color:#26190e!important;}
+#conversation-overlay[data-alliance-dialog] .convo-speaker {font:700 14px/1.45 system-ui,sans-serif;min-width:72px;letter-spacing:normal;text-transform:none;color:#312016!important;}
+#conversation-overlay[data-alliance-dialog] .convo-line {gap:8px;}
+#conversation-overlay[data-alliance-dialog] .convo-player .convo-text {color:#163652!important;}

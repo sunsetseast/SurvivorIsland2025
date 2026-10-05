@@ -15,8 +15,8 @@ window.allianceQa = {
     closeAlliancesOverlay();
     closeCreateAllianceOverlay();
     closeManageAllianceOverlay();
-    gm.tribes=[{...gm.tribes[0],members:gm.survivors}];
-    gm.isMerged=false;
+    gm.tribes = [{ ...gm.tribes[0], members: gm.survivors }];
+    gm.isMerged = false;
     q.reset();
     gm.systems.socialMemorySystem.deserialize({});
     const A = gm.systems.allianceSystem,

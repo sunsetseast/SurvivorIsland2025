@@ -328,7 +328,8 @@ class DealSystem {
   getKnownDealsForSurvivor(ownerId) {
     return this.getDealsForSurvivor(ownerId).map(deal => {
       const knows=!deal.objectiveOnly || this.gameManager.systems.dealConsequencesSystem?.applied?.includes(`${deal.id}:${ownerId}`);
-      return knows?deal:{...deal,status:'ACCEPTED',history:deal.history.filter(e=>!['BROKEN','COMPLETED'].includes(e.action)),objectiveReference:undefined};
+      const {objectiveOnly,objectiveReference,...known}=deal;
+      return knows?known:{...known,status:'ACCEPTED',history:deal.history.filter(e=>!['BROKEN','COMPLETED'].includes(e.action)),updated:undefined};
     });
   }
   recordInformationShared(fromId,toId,evidence) {

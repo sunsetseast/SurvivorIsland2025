@@ -8,6 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "qa:alliances": "node qa/AllianceSimulationHarness.mjs",
+    "qa:alliances:rendered": "node qa/AllianceRenderedQA.mjs"
   }
 }

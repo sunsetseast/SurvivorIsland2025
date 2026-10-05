@@ -35,12 +35,12 @@ export default class TribalKnowledgeModel {
     for (const owner of gm?.survivors || []) for (const alliance of gm.systems?.allianceSystem?.getKnownAlliances?.(owner.id) || []) {
       this.add({type:'allianceMembership',subjectId:alliance.id,visibility:'PRIVATE',knownTo:[owner.id],source:'alliance',details:{memberIds:alliance.memberIds}});
     }
-    for (const deal of Object.values(gm?.systems?.dealSystem?.dealsById || {})) {
+    for (const owner of gm?.survivors || []) for (const deal of gm?.systems?.dealSystem?.getKnownDealsForSurvivor?.(owner.id) || []) {
       if (!['PROPOSED', 'ACCEPTED'].includes(deal?.status)) continue;
       const terms = deal.terms || {};
       this.add({ type: 'deal', subjectId: deal.id, targetId: terms.protectedId ?? terms.targetId ?? null,
         visibility: deal.public === true || deal.visibility === 'public' ? 'PUBLIC' : 'PRIVATE',
-        knownTo: deal.parties || [], source: 'deal', details: {
+        knownTo: [owner.id], source: 'deal', details: {
           dealType: deal.type, parties: (deal.parties || []).map(id), status: deal.status,
           targetId: id(terms.targetId), protectedId: id(terms.protectedId),
           allianceId: terms.allianceId ?? null

@@ -196,10 +196,10 @@ export default class ScrambleStrategy {
     else if(s.safetyBelief<.4){purpose='counter_pitch';}
     else if(this.viability(speakerId,s.intendedVoteId)>this.members.length/2){purpose='check_loyalty';}
     else if(!primarySubject){purpose='gather_intel';messageMode='question';}
-    if(plan&&purpose==='reassure_target'&&s.confidence>=.6&&profile.honesty<.5){
+    const allianceMotive = ['recruit_swing','check_loyalty','gather_intel','reassure_target'].includes(purpose) ? this.gm.systems.allianceSystem?.npcMotive?.(speakerId,listenerId) : null;
+    if(!allianceMotive&&plan&&purpose==='reassure_target'&&s.confidence>=.6&&profile.honesty<.5){
       const target=this.members.find(p=>!same(p.id,speakerId)&&!same(p.id,listenerId)&&this.strategy.isTargetIdAvailable(p.id));
       if(target){this.decoy(speakerId,target.id,[listenerId]);purpose='spread_decoy';primarySubject=target.id;messageMode='decoy';}}
-    const allianceMotive = ['recruit_swing','check_loyalty','gather_intel','reassure_target'].includes(purpose) ? this.gm.systems.allianceSystem?.npcMotive?.(speakerId,listenerId) : null;
     if (allianceMotive) purpose=allianceMotive.purpose;
     return {allianceMotive,purpose,initiatorId:speakerId,listenerIds:[listenerId],primarySubject,desiredOutcome:purpose==='verify_story'?'verify':'support',knownEvidence,messageMode};
   }
@@ -245,7 +245,7 @@ export default class ScrambleStrategy {
     const cover=id=>['fake','cover'].includes(coalition?.memberStates[id]?.sincerity);
     const positions=participants.map(p=>{const s=this.state(p.id);return {id:p.id,preferredTargetId:s.preferredTargetId,intendedVoteId:cover(p.id)?s.decoys[0]?.targetId||coalition?.roundPlan?.primaryTargetId||s.preferredTargetId:s.intendedVoteId};});
     // Everyone contributes their own position before anyone weighs the discussion.
-    for(const p of positions)if(p.intendedVoteId)this.statement({id:`${activity.id}:position:${p.id}`,speakerId:p.id,listenerIds:participants.filter(x=>!same(x.id,p.id)).map(x=>x.id),subjectId:p.intendedVoteId,random});
+    for(const p of positions)if(p.intendedVoteId)this.statement({id:`${activity.id}:position:${p.id}`,speakerId:p.id,listenerIds:participants.filter(x=>!same(x.id,p.id)).map(x=>x.id),subjectId:p.intendedVoteId,mode:cover(p.id)?'decoy':'truthful',random});
     for(const p of participants){if(cover(p.id))continue;const read=this.voteRead(p.id);if(!read.targetId)continue;
       const speaker=participants.find(x=>!same(x.id,p.id)&&same(positions.find(y=>same(y.id,x.id))?.intendedVoteId,read.targetId));
       if(speaker)this.adoption(p.id,speaker.id,read.targetId,{random});}

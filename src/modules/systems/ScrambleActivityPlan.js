@@ -100,6 +100,10 @@ export default class ScrambleActivityPlan {
         activity.interruptible = false; activity.participantIds = others.map(s => s.id);
         for (const other of others) other.campActivity = { ...activity, actorId: other.id, external: true };
         meeting.status = 'active'; meeting.activityId = activity.id;
+        meeting.missedMemberIds=meeting.memberIds.filter(id=>!this.person(id)?.isPlayer&&!npcs.some(p=>same(p.id,id)));
+        for(const id of meeting.missedMemberIds)this.gm.systems.allianceSystem?.count?.('missedMeetings');
+        // Absence is diagnostic, not evidence identifying betrayal or another
+        // loyalty. Actual witnesses/conversations can explain it later.
         this.note('meeting_started', { meetingId: meeting.id, participantIds: npcs.map(s => s.id) });
       } else if (now <= meeting.deadline) {
         meeting.status = 'cancelled'; this.releaseMeeting(meeting, now);

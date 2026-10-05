@@ -305,6 +305,9 @@ export default class AllianceSystem {
   getAlliance(id) {
     return this.alliances.find((a) => same(a.id, id)) || null;
   }
+  getAllianceById(id) {
+    return this.getAlliance(id);
+  }
   getAlliances({ includeInactive = false } = {}) {
     return this.alliances.filter((a) => includeInactive || a.active);
   }
@@ -464,19 +467,40 @@ export default class AllianceSystem {
   knownRoster(ownerId, allianceId) {
     const a = this.getAlliance(allianceId);
     if (!a) return [];
-    const known = this.claims(ownerId)
-      .filter(
+    const claims = this.claims(ownerId),
+      index = claims.findLastIndex(
         (e) =>
           same(e.allianceId, allianceId) &&
           ["alliance_membership", "alliance_disclosure"].includes(e.topic) &&
           e.stance !== "denied" &&
           !e.challenged,
-      )
-      .at(-1);
-    return unique(
-      known?.memberIds || a.memberStates[ownerId]?.migrationRoster || [],
+      );
+    let roster = unique(
+      claims[index]?.memberIds ||
+        a.memberStates[ownerId]?.migrationRoster ||
+        [],
     );
+    // Later communicated departure/exclusion changes this owner's relationship
+    // claim. Uninformed owners retain it; a new negotiated roster can restore it.
+    for (const evidence of claims.slice(index + 1))
+      if (
+        same(evidence.allianceId, allianceId) &&
+        !evidence.challenged &&
+        evidence.confidence >=
+          (evidence.topic === "alliance_departure" &&
+          evidence.origin === "direct_statement" &&
+          same(evidence.speakerId, evidence.subjectId)
+            ? 0.3
+            : 0.55) &&
+        ((evidence.topic === "alliance_departure" &&
+          evidence.stance === "left") ||
+          (evidence.topic === "alliance_exclusion" &&
+            evidence.stance === "yes"))
+      )
+        roster = roster.filter((id) => !same(id, evidence.subjectId));
+    return roster;
   }
+
   getAllianceAffinity(fromId, toId) {
     if (same(fromId, toId) || !this.living(toId)) return 0;
     let strength = 0;
@@ -898,6 +922,13 @@ export default class AllianceSystem {
     a.lifecycle = "strained";
     this.project(a);
     this.event(a, "exclusion", { memberId }, supporters);
+    for (const ownerId of supporters)
+      this.recordRoster(
+        a,
+        ownerId,
+        [],
+        this.knownRoster(ownerId, a.id).filter((id) => !same(id, memberId)),
+      );
     this.count("exclusions");
     this.recordClaim({
       speakerId: proposerId,
@@ -1454,8 +1485,7 @@ export default class AllianceSystem {
         defects = [];
       for (const v of votes) {
         const pledge = plan.participantCommitments?.[v.voterId];
-        if (!pledge || !["committed", "tentative"].includes(pledge.status))
-          continue;
+        if (!pledge || pledge.status !== "committed") continue;
         (same(v.targetId, pledge.targetId) ? compliance : defects).push(
           v.voterId,
         );
