@@ -2,6 +2,11 @@ const same = (a, b) => a != null && b != null && String(a) === String(b);
 const name = (p) => p?.firstName || p?.name || "Someone";
 const line = (p, text) => ({ speaker: "NPC", name: name(p), text });
 const result = (p, text) => ({ lines: [line(p, text)] });
+// A public coalition conversation must still respect its audience. Someone
+// quietly voting against the listener can maintain cover without announcing it.
+const maintainsCover = (system, model, alliance, speakerId, listenerId) =>
+  ["fake", "cover"].includes(alliance?.memberStates[speakerId]?.sincerity) ||
+  same(model.state(speakerId).intendedVoteId, listenerId);
 export function allianceOpening({ gm, player, npc, context, cp }) {
   const system = gm.systems.allianceSystem,
     model = gm.systems.strategyPhaseSystem.reasoning;
@@ -38,11 +43,22 @@ export function allianceOpening({ gm, player, npc, context, cp }) {
     cp.groupPositions ||= {};
     return participants.map((p) => {
       const s = model.state(p.id),
-        cover = ["fake", "cover"].includes(a?.memberStates[p.id]?.sincerity);
+        cover = maintainsCover(system, model, a, p.id, player.id);
+      const publicPitch = s.pitchesByAudience[player.id];
       const target = cover
-        ? s.decoys[0]?.targetId ||
-          a?.roundPlan?.primaryTargetId ||
-          s.preferredTargetId
+        ? ([
+            publicPitch?.topic === "target" ? publicPitch.subjectId : null,
+            s.decoys.find((d) =>
+              d.audienceIds?.some((id) => same(id, player.id)),
+            )?.targetId,
+            a?.roundPlan?.primaryTargetId,
+            s.preferredTargetId,
+          ].find(
+            (id) =>
+              id != null &&
+              !same(id, player.id) &&
+              gm.systems.strategyPhaseSystem.isTargetIdAvailable(id),
+          ) ?? null)
         : s.intendedVoteId;
       cp.groupPositions[p.id] = target;
       if (target)
@@ -169,9 +185,7 @@ export function allianceChoices({ gm, player, npc, context, cp }) {
           });
           commitments[player.id] = { targetId: target, status: "committed" };
           for (const p of others) {
-            const cover = ["fake", "cover"].includes(
-              a.memberStates[p.id]?.sincerity,
-            );
+            const cover = maintainsCover(system, model, a, p.id, player.id);
             const decision = cover
               ? random() < 0.65
                 ? "cover"
@@ -350,7 +364,7 @@ export function allianceChoices({ gm, player, npc, context, cp }) {
     });
   if (a) {
     add("recommit", "Recommit to this relationship", () => ({
-      lines: others.map((p) => line(p, system.recommit(p.id, a.id))),
+      lines: others.map((p) => line(p, system.recommit(p.id, a.id, player.id))),
     }));
     add("personal-priority", "Which alliance matters most to you?", (random) =>
       result(npc, system.priorityAnswer(npc.id, player.id, random)),

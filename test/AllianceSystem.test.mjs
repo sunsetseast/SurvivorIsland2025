@@ -1280,3 +1280,56 @@ check(
     assert.equal(s.A.getAllianceAffinity(s.ids[2], s.player.id), unaware);
   },
 );
+check(
+  "group dialogue does not automatically disclose a secret plan against its player listener",
+  (s) => {
+    const a = s.core(s.ids.slice(0, 5));
+    s.A.exclude({
+      allianceId: a.id,
+      proposerId: s.ids[1],
+      memberId: s.player.id,
+      participantIds: s.ids.slice(1, 5),
+    });
+    for (const id of s.ids.slice(1, 3)) {
+      s.strategy.updateNpcIntentTarget(id, s.player.id, {
+        absoluteConfidence: 0.95,
+      });
+      const mind = s.strategy.reasoning.state(id);
+      mind.preferredTargetId = s.player.id;
+      mind.decoys = [];
+    }
+    const cp = s.start(s.npcs[0], [s.ids[2]]);
+    cp.allianceId = a.id;
+    const lines = allianceOpening({
+      gm: s.gm,
+      player: s.player,
+      npc: s.npcs[0],
+      context: {},
+      cp,
+    });
+    assert.equal(cp.groupPositions[s.ids[1]], null);
+    assert.equal(cp.groupPositions[s.ids[2]], null);
+    assert.doesNotMatch(
+      JSON.stringify(lines),
+      /I prefer Observer|QA Observer|excluded|blindside/,
+    );
+    for (const id of s.ids.slice(1, 3))
+      assert.equal(s.strategy.reasoning.state(id).intendedVoteId, s.player.id);
+    assert.equal(s.A.getKnownAlliances(s.player.id)[0].read, "Working");
+  },
+);
+check(
+  "reassuring an excluded listener does not increase genuine private commitment",
+  (s) => {
+    const a = s.core(s.ids.slice(0, 5));
+    s.A.exclude({
+      allianceId: a.id,
+      proposerId: s.ids[1],
+      memberId: s.player.id,
+      participantIds: s.ids.slice(1, 4),
+    });
+    const before = json(a.memberStates[s.ids[1]]);
+    assert.match(s.A.recommit(s.ids[1], a.id, s.player.id), /work with/);
+    assert.deepEqual(a.memberStates[s.ids[1]], before);
+  },
+);

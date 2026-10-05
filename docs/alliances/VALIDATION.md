@@ -5,7 +5,7 @@ Baseline main: `364fdeaa6d17f20dc3e301b648c0e1023e621302`.
 ## Automated checks
 
 - Baseline: **458 passed / 0 failed**.
-- Final branch: **538 passed / 0 failed**: the 458 existing checks, 79 focused alliance/privacy/consent tests, and the 12-family multi-round harness check.
+- Final branch: **540 passed / 0 failed**: the 458 existing checks, 81 focused alliance/privacy/consent tests, and the 12-family multi-round harness check.
 - `git diff --check` passes. New coalition code is formatted; surrounding #341–#350 systems receive narrow integration changes.
 
 Existing fixtures were updated where they asserted the replaced binary-alliance API, raw model keys, raw target-map voting influence, or administrative disband semantics. The #350 dissent/persuasion tests still pass using the original persuasion calibration. The attended-meeting test exercises actual production reservations; only rendering is stubbed in its Node environment.
@@ -90,3 +90,5 @@ Representative renders:
 Dialogue is bounded and authored. Suspicion currently joins repeated sightings of the same roster, not arbitrary partial groups. Final Three uses linked pair promises. Information withholding needs owned evidence; no omniscient breach is inferred. Initial vote assignments are checked; additional explicit revote negotiations remain a next pass. Lifecycle/priority/formation heuristics need wider full-season sampling before drawing population-frequency conclusions. No physical iPhone verification was performed.
 
 Recommended next post-immunity refinement: conversational renewal of blocs and revote assignments, richer owner-scoped explanations of missed meetings/partial sightings, and a broader production-season seed matrix. Continue to reuse the existing semantic camp, minds and memory.
+
+Final privacy regression checks cover audience-specific cover pitches when a group secretly targets the listening player, and reassurance to an excluded listener without increasing genuine private commitment. Actual individual vote intentions remain unchanged.

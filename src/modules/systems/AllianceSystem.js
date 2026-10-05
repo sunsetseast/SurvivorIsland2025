@@ -996,11 +996,17 @@ export default class AllianceSystem {
         s.lastContactDay = this.day;
       }
   }
-  recommit(memberId, allianceId) {
+  recommit(memberId, allianceId, listenerId = null) {
     const a = this.getAlliance(allianceId),
       s = a?.memberStates[memberId];
     if (!s) return "I’m keeping my options open.";
-    if (["fake", "cover"].includes(s.sincerity))
+    if (
+      ["fake", "cover"].includes(s.sincerity) ||
+      (listenerId != null &&
+        !this.knownRoster(memberId, allianceId).some((id) =>
+          same(id, listenerId),
+        ))
+    )
       return "I still want to work with you.";
     if (s.perceivedHealth < 0.4)
       return "After our last conversation, I’m not sure where we stand.";
