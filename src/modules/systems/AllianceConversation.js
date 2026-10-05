@@ -80,7 +80,9 @@ export function allianceOpening({ gm, player, npc, context, cp }) {
       return line(
         p,
         target
-          ? `I prefer ${name(system.person(target))}. ${same(s.committedTargetId, target) && !cover ? "That is my plan." : "I have not committed yet."}`
+          ? same(s.committedTargetId,target) && !cover
+            ? `I’m voting ${name(system.person(target))}. That is my plan.`
+            : `${name(system.person(target))} is where my head is. I have not committed yet.`
           : "I still need to hear where everyone stands.",
       );
     });

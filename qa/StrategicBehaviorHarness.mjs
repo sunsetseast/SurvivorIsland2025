@@ -9,13 +9,14 @@ const {default:ScrambleActivityPlan,ScrambleState}=await import('../src/modules/
 const {default:TribalCouncilSystem}=await import('../src/modules/systems/TribalCouncilSystem.js');
 const {default:DealSystem}=await import('../src/modules/systems/DealSystem.js');
 const {default:DealConsequencesSystem}=await import('../src/modules/systems/DealConsequencesSystem.js');
+const {scrambleNodes,resolveScrambleNode}=await import('../src/modules/systems/ScrambleConversation.js');
 const same=(a,b)=>String(a)===String(b);
 export const NATURAL_FAMILIES=['no-alliance','strong-majority','divided','competing-blocs','idol-concern','fake-alliance','secret-core','player-bottom','npc-bottom','target-warned'];
 let deals,consequences;
 const semantic=x=>Array.isArray(x)?x.map(semantic):x&&typeof x==='object'?Object.fromEntries(Object.entries(x).filter(([k])=>!['timestamp','updatedAt','startedAt','savedAt','recordedAt'].includes(k)).map(([k,v])=>[k,semantic(v)])):x;
 const digest=x=>createHash('sha256').update(JSON.stringify(semantic(x))).digest('hex');
 function projection(s){return semantic({day:s.gm.day,time:s.gm.dayTimer,phase:s.gm.gamePhase,strategy:s.strategy.serialize(),camp:s.activity.serialize(),memory:s.memory.serialize(),alliances:s.gm.systems.allianceSystem.serialize(),trust:s.gm.systems.trustSystem.serialize(),deals:s.gm.systems.dealSystem.serialize(),consequences:s.gm.systems.dealConsequencesSystem.serialize(),tribals:s.gm.tribalCouncilLog,survivors:s.gm.survivors.map(p=>({id:p.id,isOut:p.isOut,campActivity:p.campActivity,tribeId:p.tribeId,dealIds:p.dealIds})),completed:[...(s.gm._completedTribalKeys||[])],stages:[...(s.gm._tribalCompletionStages||[])]});}
-export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,castSize=9}={}){
+export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,castSize=9,mixedPreferences=false,activePlayer=false}={}){
  return quiet(()=>{const rng=seeded(seed);return withQaRandom(rng,()=>{
  const oldNow=Date.now;Date.now=()=>1800000000000+seed;
  try{
@@ -31,14 +32,14 @@ export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,ca
  if(family==='secret-core')form(ids.slice(1,4),'core',{secrecy:'secret'});
  if(family==='competing-blocs'){form([ids[1],...ids.slice(5,9)],'voting_bloc');majority.memberStates[ids[1]].priority=.82;}
  if(family==='fake-alliance')form(ids.slice(0,2),'final_two',{sincerityMap:{[ids[1]]:'fake'}});
- const rounds=[],milestones=[],metrics={},contactPairs=new Map();let redundant=0;
+ const rounds=[],milestones=[],metrics={},contactPairs=new Map(),playerActions=[];let redundant=0;
  const checkpoint=label=>{milestones.push(label);if(reload)s.restore();};
  for(let round=0;round<roundLimit&&!gm.player.isOut;round++){
   const live=gm.getPlayerTribe().members.filter(p=>!p.isOut);if(live.length<4)break;
   gm.gamePhase='postChallenge';gm.gameState='camp';gm.dayTimer=3600;gm.flags={};s.strategy.reset();s.strategy.isActive=true;s.strategy.startedForPhaseKey=`${gm.day}-postChallenge`;s.strategy.scrambleState=ScrambleState.ACTIVE;s.strategy.scramble=new ScrambleActivityPlan(gm,s.strategy,{rngState:seed+round*97});s.activity.phaseId=s.activity.phase;s.activity.conversation=null;
   for(const p of live){p.campActivity=null;p.hasVote=true;p.hasImmunity=p.isPlayer&&['no-alliance','divided','idol-concern','competing-blocs'].includes(family);p.tribeId=1;gm.systems.npcLocationSystem.updateNpcLocation(p.id,'beach');}gm.player.location='beach';
-  s.strategy.seedNpcIntentTargetsForPhase();
-  if(round===0&&['strong-majority','secret-core','player-bottom','npc-bottom','target-warned','fake-alliance','idol-concern'].includes(family)){
+  checkpoint('phase-start-before-preferences');s.strategy.seedNpcIntentTargetsForPhase();
+  if(!mixedPreferences&&round===0&&['strong-majority','secret-core','player-bottom','npc-bottom','target-warned','fake-alliance','idol-concern'].includes(family)){
    const target=family==='player-bottom'?ids[0]:family==='npc-bottom'||family==='target-warned'?ids[2]:family==='fake-alliance'?ids[0]:ids.at(-1);
    const insiders=family.endsWith('bottom')||family==='target-warned'?ids.slice(1,7).filter(id=>!same(id,target)):family==='fake-alliance'?[ids[1]]:family==='idol-concern'?ids.slice(1,9):ids.slice(1,7);
    for(const id of insiders.filter(id=>!same(id,target))){s.strategy.updateNpcIntentTarget(id,target,{absoluteConfidence:.85,reason:'qa:initial-majority'});s.strategy.reasoning.state(id).committedTargetId=target;if(family==='idol-concern')s.strategy.reasoning.state(id).preferredTargetId=target;}
@@ -51,15 +52,31 @@ export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,ca
   }
   if(round===2){gm.isMerged=true;A.onMerge();}
   checkpoint('after-initial-plan');s.activity.ensureStarted();s.strategy.scramble.scheduleAlliances();
-  let priorStatements=0,first=false,meeting=false,warning=false,backup=false,leak=false;const changesBefore=s.strategy.reasoning.metrics.intentionChanges||0;
+  let priorStatements=0,first=false,meeting=false,warning=false,backup=false,leak=false,commitment=false,viable=false,finalFive=false,unresolvedAtFinalFive=0;const changesBefore=s.strategy.reasoning.metrics.intentionChanges||0;
   const initial=Object.fromEntries(live.filter(p=>!p.isPlayer).map(p=>[p.id,s.strategy.reasoning.state(p.id).intendedVoteId]));
-  while(gm.dayTimer>0){s.wait(Math.min(60,gm.dayTimer));const m=s.strategy.reasoning;
+  const preferences=Object.fromEntries(live.filter(p=>!p.isPlayer).map(p=>[p.id,s.strategy.reasoning.state(p.id).preferredTargetId]));
+  const initialStatus=Object.fromEntries(live.filter(p=>!p.isPlayer).map(p=>[p.id,s.strategy.reasoning.state(p.id).intentStatus]));
+  while(gm.dayTimer>0){
+   if(activePlayer&&round===0&&playerActions.length<4&&gm.dayTimer<=3000-playerActions.length*300){
+    const m=s.strategy.reasoning,nearby=live.filter(p=>!p.isPlayer&&m.present(p,gm.player.location)&&p.campActivity?.interruptible!==false);
+    const action=playerActions.length;
+    const npc=nearby.find(p=>action!==1||m.knowledge(gm.player.id).some(e=>same(e.attributedId||e.speakerId,p.id)))||nearby[0];
+    if(npc&&s.activity.beginConversation(npc,{location:gm.player.location,strategy:true})){
+     const nodes=scrambleNodes(m,{player:gm.player,npc}),alternate=m.voteRead(gm.player.id).alternatives.find(id=>!same(id,npc.id)&&!same(id,gm.player.id))||live.find(p=>!p.isPlayer&&!same(p.id,npc.id)&&s.strategy.isTargetIdAvailable(p.id))?.id;
+     const node=action===0?nodes.find(n=>n.id==='vote_read'):action===1?nodes.find(n=>n.id.startsWith('verify:')):nodes.find(n=>n.id===`${action===2?'counter':'commit'}:${alternate}`);
+     if(node){const before=m.state(npc.id).intendedVoteId;const result=resolveScrambleNode(m,node,npc.id);playerActions.push({action:node.id,listenerId:npc.id,before,after:m.state(npc.id).intendedVoteId,line:result.line});}
+     s.activity.finishConversation({strategy:true,turns:1});
+    }
+   }
+   s.wait(Math.min(60,gm.dayTimer));const m=s.strategy.reasoning;
    if(!first&&(m.metrics.statements||0)>0){first=true;checkpoint('after-first-strategic-conversation');}
    if(!meeting&&s.strategy.scramble.meetings.some(x=>x.status==='completed')){meeting=true;checkpoint('after-alliance-meeting');}
    if(!warning&&(m.metrics.warnings||0)>0){warning=true;checkpoint('after-warning');}
    if(!backup&&(m.metrics.backups||0)>0){backup=true;checkpoint('after-backup-formation');}
    if(!leak&&(m.metrics.planLeaks||0)>0){leak=true;checkpoint('after-plan-leak');}
-   if(gm.dayTimer===300)checkpoint('near-final-five-minutes');
+   if(!commitment&&(m.metrics.commitments||0)>0){commitment=true;checkpoint('after-first-commitment');}
+   if(!viable&&live.some(p=>!p.isPlayer&&m.planSupport(p.id).plans.some(plan=>plan.support>=Math.floor(live.length/2)))){viable=true;checkpoint('after-viable-plan');}
+   if(!finalFive&&gm.dayTimer<=300){finalFive=true;unresolvedAtFinalFive=live.filter(p=>!p.isPlayer&&m.state(p.id).intentStatus==='lean').length;checkpoint('near-final-five-minutes');}
    const history=s.strategy.scramble.history.filter(x=>x.type==='conversation_resolved');
    for(const e of history.slice(priorStatements)){const pair=[e.actorId,...e.participantIds].map(String).sort().join(':');const prior=contactPairs.get(pair);if(prior?.day===gm.day&&prior.at-e.campTime<420)redundant++;contactPairs.set(pair,{day:gm.day,at:e.campTime});}
    priorStatements=history.length;
@@ -72,10 +89,24 @@ export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,ca
   const tribal=new TribalCouncilSystem(gm,{publish(){}}),summary=finishTribal({gm,tribal,members:live},{playerTargetId:playerTarget});gm.handleTribalCouncilComplete(summary);
   for(const p of live.filter(p=>!p.isPlayer)){const dangerous=m.state(p.id).safetyBelief<.45,targeted=summary.initialVotes.some(v=>same(v.targetId,p.id));const key=dangerous?(targeted?'correctDangerBeliefs':'falseDangerBeliefs'):(targeted?'missedDangerBeliefs':'correctSafetyBeliefs');metrics[key]=(metrics[key]||0)+1;}
   const stable=Object.entries(initial).filter(([id,target])=>same(votesBefore[id],target)).length;
-  rounds.push({round:round+1,day:summary.day,members:live.length,eliminatedId:summary.eliminatedId,initialIntent:initial,finalIntent:votesBefore,stableFraction:stable/Math.max(1,Object.keys(initial).length),votes:summary.initialVotes.map(v=>({voterId:v.voterId,targetId:v.targetId})),metrics:{...m.metrics,strategicConversations:s.strategy.scramble.history.filter(e=>e.type==='conversation_resolved').length},dangerReads:live.filter(p=>!p.isPlayer).map(p=>({id:p.id,safety:m.state(p.id).safetyBelief,targeted:summary.initialVotes.some(v=>same(v.targetId,p.id))}))});
+  const ballots=summary.initialVotes.filter(v=>Object.hasOwn(initial,String(v.voterId))),counts=new Map();
+  for(const v of ballots)counts.set(String(v.targetId),(counts.get(String(v.targetId))||0)+1);
+  const ranked=[...counts.values()].sort((a,b)=>b-a),finalStates=Object.fromEntries(live.filter(p=>!p.isPlayer).map(p=>{const st=m.state(p.id);return [p.id,{targetId:st.intendedVoteId,status:st.intentStatus,reason:st.reason,confidence:st.confidence,commitment:st.committedTargetId,history:st.intentHistory||[],split:st.splitPlan?.assignedVoteId??null}];}));
+  const convergence={distinctTargets:counts.size,leadingShare:(ranked[0]||0)/ballots.length,secondShare:(ranked[1]||0)/ballots.length,
+   preferenceMatches:ballots.filter(v=>same(v.targetId,preferences[v.voterId])).length,
+   provisionalRetention:ballots.filter(v=>initialStatus[v.voterId]==='lean'&&same(v.targetId,initial[v.voterId])).length,
+   provisionalVoters:Object.values(initialStatus).filter(x=>x==='lean').length,
+   compromises:live.filter(p=>!p.isPlayer&&!same(m.state(p.id).intendedVoteId,preferences[p.id])&&['viable_majority','alliance_consensus','explicit_commitment','self_preservation','strategic_compromise'].includes(m.state(p.id).reason)).length,
+   planAligned:ballots.filter(v=>m.knownAlliancePlans(v.voterId).some(p=>same(p.targetId,v.targetId))||m.planSupport(v.voterId).plans.some(p=>same(p.targetId,v.targetId)&&p.support>=.85)).length,
+   splitAssigned:ballots.filter(v=>same(m.state(v.voterId).splitPlan?.assignedVoteId,v.targetId)).length,
+   rogue:ballots.filter(v=>{const plans=m.planSupport(v.voterId).plans.filter(p=>p.support>=.85);return plans.length&&!plans.some(p=>same(p.targetId,v.targetId))&&!same(m.state(v.voterId).splitPlan?.assignedVoteId,v.targetId);}).length,
+   ballots:ballots.length,intentMatched:ballots.filter(v=>same(v.targetId,m.state(v.voterId).intendedVoteId)).length,
+   unresolvedFinalMinutes:unresolvedAtFinalFive,
+   reasons:Object.values(finalStates).reduce((a,p)=>{a[p.reason]=(a[p.reason]||0)+1;return a;},{})};
+  rounds.push({preferences,initialStatus,finalStates,convergence,round:round+1,day:summary.day,members:live.length,eliminatedId:summary.eliminatedId,initialIntent:initial,finalIntent:votesBefore,stableFraction:stable/Math.max(1,Object.keys(initial).length),votes:summary.initialVotes.map(v=>({voterId:v.voterId,targetId:v.targetId})),metrics:{...m.metrics,strategicConversations:s.strategy.scramble.history.filter(e=>e.type==='conversation_resolved').length},dangerReads:live.filter(p=>!p.isPlayer).map(p=>({id:p.id,safety:m.state(p.id).safetyBelief,targeted:summary.initialVotes.some(v=>same(v.targetId,p.id))}))});
   checkpoint('after-Tribal');
  }
- return {family,seed,rounds,milestones,metrics:{...metrics,...A.metrics,repeatedContactWithinSevenMinutes:redundant,playerEliminated:Boolean(gm.player.isOut)},projection:projection(s),rngState:rng.state()};
+ return {family,seed,rounds,milestones,playerActions,metrics:{...metrics,...A.metrics,repeatedContactWithinSevenMinutes:redundant,playerEliminated:Boolean(gm.player.isOut)},projection:projection(s),rngState:rng.state()};
  }finally{Date.now=oldNow;}
  });});
 }
