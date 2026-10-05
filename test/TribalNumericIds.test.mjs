@@ -137,10 +137,9 @@ test('a failed completion can retry without poisoning the key, duplicating histo
 
 test('failure after alliance fallout retries without applying the cohesion penalty twice', () => {
   const { gm, summary } = resolveNumeric('normal');
-  const alliance = { id: 'retry-fallout', memberIds: [2, 3], cohesion: 100, notes: '' };
   const alliances = new AllianceSystem(gm);
-  alliances.getAlliances = () => [alliance];
-  alliances._publish = () => {};
+  const alliance = alliances.normalize({ id:'retry-fallout',memberIds:[2,3],cohesion:100,roundPlan:{day:summary.day,participantIds:[2,3],participantCommitments:{2:{targetId:4,status:'committed'}}}});
+  alliances.alliances.push(alliance);
   gm.systems.allianceSystem = alliances;
   let saves = 0;
   gm.requestAutoSave = () => { if (++saves === 1) throw Error('temporary save failure'); };
@@ -197,15 +196,15 @@ test('deal voting and protection terms compare native and ballot IDs without fal
 });
 
 test('alliance fallout recognizes string ballot IDs against numeric member IDs', () => {
-  const gm = { systems: {} };
+  const gm = { day:3,systems:{},survivors:[{id:2},{id:3},{id:4}] };
   const allianceSystem = new AllianceSystem(gm);
-  const alliance = { id: 'mixed', memberIds: [2, 3], cohesion: 100, notes: '' };
-  allianceSystem.getAlliances = () => [alliance];
-  allianceSystem._publish = () => {};
+  const alliance=allianceSystem.normalize({id:'mixed',memberIds:[2,3],cohesion:100,roundPlan:{day:3,participantIds:[2,3],participantCommitments:{2:{targetId:4,status:'committed'}}}});
+  allianceSystem.alliances.push(alliance);
   allianceSystem.processPostTribalFallout({ day: 3,
     membersAtTribal: [{ id: '2' }, { id: '3' }],
     initialVotes: [{ voterId: '2', targetId: '3' }] }, gm);
-  assert.equal(alliance.cohesion, 97);
+  assert.equal(alliance.cohesion, 98);
+  assert.deepEqual(alliance.history.find(h=>h.type==='objective_vote_outcome').defectorIds,['2']);
 });
 
 test('numeric tied player sees only the other legal revote target and is listed as voting', async () => {

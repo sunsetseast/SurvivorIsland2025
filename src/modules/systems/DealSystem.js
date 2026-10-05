@@ -333,6 +333,7 @@ class DealSystem {
   }
   recordInformationShared(fromId,toId,evidence) {
     if (!evidence?.id || !['target','commitment','safety','idol_possession','idol_suspicion','alliance_disclosure'].includes(evidence.topic))return;
+    for(const deal of this.getAllDeals())if(deal.status==='ACCEPTED'&&deal.type===DealTypes.IDOL_PROTECTION&&deal.terms.action==='warn'&&sameSurvivorId(deal.terms.ownerId??deal.parties[0],fromId)&&sameSurvivorId(deal.terms.protectedId??deal.parties[1],toId)&&['idol_possession','idol_suspicion','safety'].includes(evidence.topic))this.completeDeal(deal.id,fromId,'Relevant warning delivered to the protected partner');
     for(const deal of this.getAllDeals())if(deal.status==='ACCEPTED'&&deal.type===DealTypes.SHARE_INFO&&deal.parties.every(id=>[fromId,toId].some(x=>sameSurvivorId(x,id)))) {
       deal.terms.sharedEvidence ||= {}; const prior=deal.terms.sharedEvidence[String(fromId)] ||= [];
       if(!prior.includes(evidence.id))prior.push(evidence.id);

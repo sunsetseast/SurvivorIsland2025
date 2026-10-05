@@ -111,8 +111,7 @@ export default class ScrambleStrategy {
     const s=this.refresh(listenerId), trust=(this.gm.getTrust?.(listenerId,speakerId)??50)/100;
     const relationship=this.gm.systems.relationshipSystem?.getRelationship?.(listenerId,target)??50;
     const rel=typeof relationship==='number'?relationship:relationship.value??50;
-    const affinity=this.gm.systems.allianceSystem?.getAllianceAffinity?.(listenerId,target)||0;
-    const score=.12+trust*.23-affinity*.16+(belief?.18:0)+(same(s.preferredTargetId,target)?.22:0)+
+    const score=.12+trust*.23+(belief?.18:0)+(same(s.preferredTargetId,target)?.22:0)+
       (same(s.intendedVoteId,target)?.13:0)+Math.min(.13,this.viability(listenerId,target)*.045)+s.urgency*.1-
       (s.committedTargetId&&!same(s.committedTargetId,target)?.19:0)-(rel>70?.12:0)+
       (same(s.intendedVoteId,target)&&this.gm.dayTimer<=600?.1:0)+(random()-.5)*.12;

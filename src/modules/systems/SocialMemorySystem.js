@@ -1416,6 +1416,20 @@ class SocialMemorySystem {
         }
 
         this.memory = payload.memory && typeof payload.memory === 'object' ? payload.memory : {};
+        // Legacy player recaps occasionally stored engine-only fake-offer flags.
+        // Keep NPC private memories; migrate only the player's observable recap.
+        const playerId = typeof window !== 'undefined' ? window.gameManager?.player?.id : null;
+        for (const [id, memory] of Object.entries(this.memory)) {
+            if (Array.isArray(memory.allianceInvites)) memory.allianceInvites = memory.allianceInvites.map(entry => {
+                if (String(id) !== String(playerId) && entry.perspective !== 'player') return entry;
+                const { isFake, ...known } = entry;
+                if (known.accepted || String(known.outcome).includes('fake')) known.outcome = 'accepted';
+                return known;
+            });
+            if (String(id) === String(playerId) && Array.isArray(memory.playerSecrets)) {
+                memory.playerSecrets = memory.playerSecrets.filter(entry => !String(typeof entry === 'string' ? entry : entry?.type || '').includes('fake_alliance'));
+            }
+        }
         this.intelEvents = Array.isArray(payload.intelEvents) ? payload.intelEvents : [];
         this.socialEvents = Array.isArray(payload.socialEvents) ? payload.socialEvents : [];
         this.structuredEvents = Array.isArray(payload.structuredEvents) ? payload.structuredEvents : [];

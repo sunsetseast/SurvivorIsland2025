@@ -174,7 +174,6 @@ export default class ScrambleActivityPlan {
     this.gm.systems.conversationSystem?.startAllianceConversation?.(participants[0].id,meeting.allianceId,{location:meeting.location,meetingId,groupParticipantIds:participants.map(s=>s.id)});
     if (!this.camp.conversation) { meeting.status = 'cancelled'; return false; }
     this.camp.conversation.meetingId = meeting.id;
-    this.camp.reserveConversationGroup(participants.slice(1).map(s => s.id));
     this.note('player_attended', { meetingId });
     return true;
   }
