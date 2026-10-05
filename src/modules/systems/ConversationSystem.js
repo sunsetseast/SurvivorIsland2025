@@ -1,3 +1,4 @@
+import { allianceChoices, allianceOpening } from './AllianceConversation.js';
 import eventManager, { GameEvents } from '../core/EventManager.js';
 import { gameManager, GameState, GamePhase } from '../core/GameManager.js';
 import challengeManager from '../core/ChallengeManager.js';
@@ -1431,6 +1432,36 @@ class ConversationSystem {
   /**
    * Entry point for player-initiated conversations.
    */
+  startAllianceConversation(npcId, allianceId = null, extra = {}) {
+    const gm=this.gameManager, npc=this._getSurvivorById(npcId), player=gm.getPlayerSurvivor?.();
+    if(!npc||!player||!gm.systems.allianceSystem?.together(player.id,npc.id))return false;
+    const camp=gm.systems.campActivitySystem;
+    if(!camp.conversation&&!camp.beginConversation(npc,{strategy:true,location:player.location}))return false;
+    if(String(camp.conversation.npcId)!==String(npcId))return false;
+    camp.reserveConversationGroup((extra.groupParticipantIds||[]).filter(id=>String(id)!==String(npcId)));
+    const context={...extra,allianceId,location:player.location,phase:this._normalizePhase(gm.gamePhase)};
+    this.activeConversationContext=context;this.nodeSession={npcId,context,menuStack:[],transcript:[]};this._initTranscript(this.nodeSession);
+    return this._renderAllianceConversation({player,npc,context});
+  }
+  _renderAllianceConversation({player,npc,context={}}) {
+    const gm=this.gameManager,camp=gm.systems.campActivitySystem,reservation=camp.conversation;
+    if(!reservation||!gm.systems.allianceSystem?.together(player.id,npc.id))return false;
+    const model=gm.systems.strategyPhaseSystem.reasoning,cp=model.checkpoint(reservation);
+    cp.allianceId ||= context.allianceId;cp.allianceProposalId ||= context.allianceProposalId;cp.allianceRecruitmentId ||= context.allianceRecruitmentId;
+    const session=this._getActiveTranscriptSession();this._initTranscript(session);
+    if(!session.transcript.length&&cp.allianceTranscript)session.transcript=JSON.parse(JSON.stringify(cp.allianceTranscript));
+    if(!cp.allianceOpened){for(const line of allianceOpening({gm,player,npc,context,cp}))session.transcript.push(line);cp.allianceOpened=true;}
+    const render=()=>this._renderAllianceConversation({player,npc,context});
+    const buttons=allianceChoices({gm,player,npc,context,cp}).map(node=>({label:node.label,onClick:()=>{
+      const result=model.choice(`alliance:${node.id}`,random=>node.resolve(random));
+      if(!result.replay){session?.addYou?.(node.label);for(const line of result.lines||[])session.transcript.push(line);}
+      render();
+    }}));
+    buttons.push({label:'Talk about something else',onClick:()=>this._renderMainMenu({player,npc,context:{...context,scrambleMore:true},mainTopics:this._buildMainTopics({player,npc,context})})});
+    cp.allianceTranscript=JSON.parse(JSON.stringify(session.transcript));
+    this._renderMenu(npc,this._buildTranscriptBody({session}),buttons,{showEnd:true});
+    if(typeof document!=='undefined')document.getElementById('conversation-overlay')?.setAttribute('data-alliance-dialog','true');return true;
+  }
   startPlayerConversation({ npcId, phase, socialType = null, context = {} }) {
     if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
     const survivor = this._getSurvivorById(npcId);
@@ -2327,6 +2358,8 @@ class ConversationSystem {
       if (!cp) return;
       cp.agenda ||= context.agenda || model.agenda(npc.id, player.id, { plan: true });
       const agenda = cp.agenda, subject = agenda.primarySubject;
+      if(agenda.allianceMotive){const offer=this.gameManager.systems.allianceSystem.resolveNpcMotive(npc.id,player.id,agenda.allianceMotive,cp.activityId,()=>model.choice('roll:alliance-opening',random=>({value:random()})).value);
+        return this._renderAllianceConversation({player,npc,context:{...context,allianceId:offer?.allianceId,allianceProposalId:offer?.status==='pending'&&!offer?.recruitmentId?offer.id:null,allianceRecruitmentId:offer?.recruitmentId}});}
       if (subject) {
         const result = model.choice('opening', random => {
           if (agenda.messageMode !== 'question') model.statement({ id: `${cp.activityId}:opening`, speakerId: npc.id, listenerIds: [player.id], subjectId: subject,
@@ -2922,38 +2955,20 @@ class ConversationSystem {
     });
   }
 
-  _resolveNpcAllianceIntentState({ npc, player, intent, option, target, result }) {
-    const memory = this.gameManager.systems?.socialMemorySystem;
-    const allianceSystem = this.gameManager.systems?.allianceSystem;
-    const accepted = option.key === 'accept_alliance';
-    memory?.recordAllianceInvite?.({
-      day: this.gameManager.getCurrentDay?.() || this.gameManager.day || 1,
-      location: this.activeConversationContext?.location || 'camp',
-      npcId: npc.id,
-      playerId: player.id,
-      outcome: result.status,
-      pickedThirdId: intent.alliancePlan?.memberIds?.find(id => String(id) !== String(npc.id) && String(id) !== String(player.id)) || null,
-      isFake: false,
-      accepted,
-      declineType: accepted ? null : result.status,
-      pitchType: intent.alliancePlan?.mode || 'npc_pitch',
-      proposedBy: 'npc'
-    });
-    if (!accepted || !allianceSystem?.createAlliance || intent.alliancePlan?.mode === 'recommit') return;
-    const memberIds = (intent.alliancePlan?.memberIds || [npc.id, player.id]).filter(Boolean);
-    const uniqueMemberIds = [...new Set(memberIds.map(id => String(id)))];
-    allianceSystem.createAlliance({
-      name: this._generateAllianceName(),
-      memberIds: uniqueMemberIds,
-      tribeId: this.gameManager.getPlayerTribe?.()?.id || null,
-      leaderId: npc.id,
-      type: uniqueMemberIds.length > 2 ? 'core' : 'temporary',
-      targetId: null,
-      sincerityMap: uniqueMemberIds.reduce((acc, id) => {
-        acc[id] = 'real';
-        return acc;
-      }, {})
-    });
+  _resolveNpcAllianceIntentState({npc,player,intent,option,result}) {
+    // Compatibility dialogue can consent to a pair, never consent for absent
+    // third parties. Living Scramble uses the richer semantic entry point.
+    const system=this.gameManager.systems.allianceSystem;
+    if(option.key!=='accept_alliance'||!system?.together(player.id,npc.id))return;
+    if(intent.alliancePlan?.mode==='recommit'){
+      const shared=system.getSharedAlliances(npc.id,player.id)[0];
+      if(shared)system.recommit(npc.id,shared.id);return;
+    }
+    const proposal=system.propose({proposerId:npc.id,receiverId:player.id,type:intent.alliancePlan?.type||'temporary',sincerity:intent.alliancePlan?.sincerity||'real'});
+    const accepted=proposal&&system.respond(proposal.id,{choice:'accept'});
+    if(!accepted?.allianceId)return;
+    for(const candidateId of intent.alliancePlan?.memberIds||[])if(![npc.id,player.id].some(id=>String(id)===String(candidateId)))system.proposeRecruitment({allianceId:accepted.allianceId,proposerId:npc.id,candidateId,participantIds:[npc.id,player.id]});
+    this.gameManager.systems.socialMemorySystem?.recordAllianceInvite?.({day:this.gameManager.day,npcId:npc.id,playerId:player.id,accepted:true,outcome:'accepted',proposedBy:'npc'});
   }
 
   _recordNpcIntentStarted({ npc, player, intent, context }) {
@@ -4765,6 +4780,10 @@ class ConversationSystem {
   }
 
   _createDeal({ player, npc, dealType, target, status }) {
+    if(['vote_together','core_alliance','final2'].includes(dealType)) {
+      if(!this.gameManager.systems.campActivitySystem?.conversation)return;
+      return this._renderAllianceConversation({player,npc,context:{...this.activeConversationContext,requestedAllianceType:{vote_together:'voting_bloc',core_alliance:'core',final2:'final_two'}[dealType]}});
+    }
     const cp = this._scrambleModel()?.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
     const semanticKey = `deal:${dealType}:${target?.id || 'none'}`;
     if (cp?.choices[`created:${semanticKey}`]) return this._renderScrambleContext({ player, npc, context: this.activeConversationContext || {} });
@@ -4817,7 +4836,7 @@ class ConversationSystem {
       parties: [player.id, npc.id],
       terms: {
         targetId: target?.id ?? null,
-        duration: 'next_tribal'
+        duration: 'next_tribal', ...(dealType==='share_info'?{obligation:'relevant_exchange'}:dealType==='idol_protect'?{action:'warn',protectedId:npc.id}:{})
       },
       note: 'conversation_deal'
     });
@@ -4830,32 +4849,6 @@ class ConversationSystem {
           this._scrambleModel().commit({ id: `${cp.activityId}:deal_promise:npc`, speakerId: npc.id, listenerIds: [player.id], targetId: target.id, lie: allianceOutcome?.sincerity === 'fake' });
         }
         this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(3, 10), relationship: this._scrambleInt(1, 5) }, contextTag: 'deal_accept' });
-
-        if (allianceType && allianceSystem?.createAlliance) {
-          const name = allianceType === 'final_two'
-            ? `${player.firstName} & ${npc.firstName} Final Two`
-            : allianceType === 'voting_bloc'
-              ? `Voting Bloc vs ${target?.firstName || 'Target'}`
-              : this._generateAllianceName();
-          const sincerityMap = {
-            [player.id]: 'real',
-            [npc.id]: allianceOutcome?.sincerity || 'real'
-          };
-
-          const createdAlliance = allianceSystem.createAlliance({
-            name,
-            type: allianceType,
-            memberIds: [player.id, npc.id],
-            tribeId: player?.tribeId || player?.tribe?.id || null,
-            leaderId: player.id,
-            targetId: target?.id ?? null,
-            sincerityMap
-          });
-
-          if (createdAlliance && allianceType !== 'voting_bloc' && sincerityMap[npc.id] === 'real') {
-            allianceSystem.commitToAlliance?.({ survivorId: npc.id, allianceId: createdAlliance.id });
-          }
-        }
 
         socialMemorySystem?.recordAllianceInvite?.({
           day: this.gameManager?.getCurrentDay?.(),
@@ -4902,65 +4895,8 @@ class ConversationSystem {
     });
   }
 
-  _showAllianceMenu({ player, npc, context, sharedAlliances }) {
-    const hasMultiple = sharedAlliances.length > 1;
-    const buttons = [
-      {
-        label: 'Recommit',
-        onClick: () => {
-          const session = this._getActiveTranscriptSession();
-          session?.addYou?.('Let’s recommit.');
-          this._applyExchangeEffects({ player, npc, deltas: { trust: this._scrambleInt(2, 6) }, contextTag: 'alliance_recommit' });
-          session?.addNpc?.('We’re good. Let’s keep it tight.');
-          this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
-            onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
-            showEnd: true
-          });
-        }
-      },
-      ...(hasMultiple ? [{
-        label: 'Prioritize alliance',
-        onClick: () => {
-          const session = this._getActiveTranscriptSession();
-          session?.addYou?.('Which alliance matters most?');
-          const best = sharedAlliances.sort((a, b) => (b.cohesion ?? 50) - (a.cohesion ?? 50))[0];
-          session?.addNpc?.(`If I had to pick, I’d prioritize ${best.name}.`);
-          this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
-            onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
-            showEnd: true
-          });
-        }
-      }] : []),
-      {
-        label: 'Address doubt',
-        onClick: () => {
-          const session = this._getActiveTranscriptSession();
-          session?.addYou?.('I have a doubt.');
-          this._showAllianceDoubtMenu({ player, npc, context, sharedAlliances });
-        }
-      },
-      {
-        label: 'Endgame',
-        onClick: () => {
-          const session = this._getActiveTranscriptSession();
-          session?.addYou?.('Let’s talk endgame.');
-          const alliance = sharedAlliances[0];
-          const size = alliance.memberIds?.length || 2;
-          const line = size > 2
-            ? 'We should keep each other ahead of the group when it counts.'
-            : 'It’s us before anyone else. That’s the deal.';
-          session?.addNpc?.(line);
-          this._renderMenu(npc, this._buildTranscriptBody({ session }), [], {
-            onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
-            showEnd: true
-          });
-        }
-      }
-    ];
-    this._renderMenu(npc, this._fmtNarration('Alliance talk:'), buttons, {
-      onBack: () => this._renderSubMenu({ player, npc, context, topic: { id: 'strategy', nodes: this._buildStrategyNodes({ player, npc, context }) } }),
-      showEnd: true
-    });
+  _showAllianceMenu({player,npc,context,sharedAlliances=[]}) {
+    return this._renderAllianceConversation({player,npc,context:{...context,allianceId:context.allianceId||sharedAlliances[0]?.id}});
   }
 
   _showAllianceDoubtMenu({ player, npc, context, sharedAlliances }) {
@@ -11505,306 +11441,8 @@ class ConversationSystem {
     return { score, chance };
   }
 
-  _handleAllianceInviteResponse({
-    survivor,
-    option,
-    meeting,
-    context,
-    socialLog,
-    relationshipSystem,
-    player,
-    applyContextPatch,
-    session
-  }) {
-    const allianceSystem = this.gameManager.systems?.allianceSystem;
-    const socialMemory = this.gameManager.systems?.socialMemorySystem;
-    const playerId = player?.id;
-    const location = (this.activeConversationContext?.location || context?.location || null);
-    const day = this.gameManager.getCurrentDay?.();
-    const alreadyAllied = allianceSystem?.areAllied?.(playerId, survivor.id);
-    const initiator = context.initiator || this.activeConversationContext?.initiator || (context.initiatedByNpc ? 'npc' : 'player');
-    const initiatedByNpc = initiator === 'npc';
-    const relationshipValue = relationshipSystem?.getRelationship?.(playerId, survivor.id)?.value ?? DEFAULT_ALLIANCE_ACCEPT_SCORE_TARGET;
-    const computeChance = () => this.computeAllianceAcceptChance(
-      survivor,
-      player,
-      { ...context, initiator, initiatedByNpc }
-    );
-
-    const logMemory = ({ outcome, pickedThirdId = null, isFake = false, accepted = false, declineType = null, pitchType = null }) => {
-      socialMemory?.recordAllianceInvite?.({
-        day,
-        location,
-        npcId: survivor.id,
-        playerId,
-        outcome,
-        pickedThirdId,
-        isFake,
-        accepted,
-        declineType,
-        pitchType,
-        proposedBy: initiator
-      });
-    };
-
-    const bumpRelationship = (fromId, toId, delta, logName) => {
-      if (typeof delta !== 'number') return;
-      if (relationshipSystem?.changeRelationship && fromId && toId) {
-        relationshipSystem.changeRelationship(fromId, toId, delta);
-      }
-      socialLog.relationship.push({ id: toId, with: logName, amount: delta, context: 'allianceInvite' });
-    };
-
-    const createAlliance = ({ memberIds = [], type = 'core', sincerityMap = null, targetId = null } = {}) => {
-      if (!allianceSystem?.createAlliance) return null;
-      const tribeId = this.gameManager.getPlayerTribe?.()?.id || null;
-      const name = this._generateAllianceName();
-      return allianceSystem.createAlliance({
-        name,
-        memberIds,
-        tribeId,
-        leaderId: survivor.id,
-        type,
-        sincerityMap,
-        targetId
-      });
-    };
-
-    const finishAllianceMenu = ({ text, buttons = [], memoryOutcomePatch = null }) => {
-      if (memoryOutcomePatch) {
-        logMemory(memoryOutcomePatch);
-      }
-
-      const finalButtons = Array.isArray(buttons) ? [...buttons] : [];
-      const hasEndConversation = finalButtons.some(btn => btn?.end && btn?.label === 'End Conversation');
-      if (!hasEndConversation) {
-        finalButtons.push({ label: 'End Conversation', alt: true, end: true });
-      }
-
-      return { text, buttons: finalButtons };
-    };
-
-    const pushMenu = (menu) => {
-      if (!session || !menu) return menu;
-      const nodeId = this._registerNode(session, this._buildNodeFromMenu(menu, session.intent, session.context));
-      this._transitionToNode(session, nodeId);
-      return menu;
-    };
-
-    const npcName = survivor.firstName;
-
-    const refuseAlliance = ({ text, declineType = 'soft_decline', pitchType = null }) => {
-      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-      this._shiftMood(survivor.id, declineType === 'hard_decline' ? 'irritated' : 'neutral');
-      return finishAllianceMenu({
-        text,
-        memoryOutcomePatch: { outcome: declineType, accepted: false, declineType, pitchType }
-      });
-    };
-
-    const gateAndRollAcceptance = (pitchType = null, allianceType = 'core') => {
-      const rel = relationshipValue;
-      if (rel < 40 && !(initiatedByNpc && rel >= 30)) {
-        return refuseAlliance({
-          text: `${npcName} shakes their head. "I’m not there with you yet."`,
-          declineType: 'hard_decline',
-          pitchType
-        });
-      }
-
-      const evalResult = allianceSystem?.evaluateAllianceOffer?.({
-        proposerId: playerId,
-        receiverId: survivor.id,
-        type: allianceType
-      });
-
-      const { chance } = computeChance();
-      const roll = Math.random();
-      const accepted = (evalResult?.accepted !== false) && (roll < chance);
-
-      if (!accepted) {
-        const refusalLine = rel < DEFAULT_ALLIANCE_INVITE_THRESHOLD
-          ? `${npcName} frowns. "That’s moving too fast. I don’t fully trust this."`
-          : `${npcName} hesitates. "Not sure this is the right move."`;
-        return refuseAlliance({ text: refusalLine, declineType: 'soft_decline', pitchType });
-      }
-      return evalResult || { accepted: true, sincerity: 'real', score: chance * 100, reason: 'accepted' };
-    };
-
-    if (option.key === 'alreadyAllied' || alreadyAllied) {
-      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-      return finishAllianceMenu({
-        text: `${npcName} nods. "We’re already locked in. Let’s keep it quiet."`,
-        memoryOutcomePatch: { outcome: 'already_allied', accepted: true, pitchType: 'existing' }
-      });
-    }
-
-    if (option.key === 'acceptFaithful') {
-      const gateResult = gateAndRollAcceptance('tight', 'core');
-      if (!gateResult || gateResult.accepted === false) return gateResult;
-      const createdAlliance = createAlliance({
-        memberIds: [playerId, survivor.id],
-        type: 'core',
-        sincerityMap: {
-          [playerId]: 'real',
-          [survivor.id]: gateResult.sincerity || 'real'
-        }
-      });
-      if (createdAlliance && gateResult.sincerity !== 'fake') {
-        allianceSystem?.commitToAlliance?.({ survivorId: survivor.id, allianceId: createdAlliance.id });
-      }
-      bumpRelationship(playerId, survivor.id, 6, npcName);
-      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-      this._shiftMood(survivor.id, 'happy');
-      return finishAllianceMenu({
-        text: relationshipValue >= 75
-          ? `${npcName} leans in. "I’m with you. Tight."`
-          : `${npcName} nods. "Yeah. Let’s do it — quietly."`,
-        memoryOutcomePatch: { outcome: 'faithful', accepted: true, pitchType: 'tight' }
-      });
-    }
-
-    if (option.key === 'acceptFake') {
-      const gateResult = gateAndRollAcceptance('casual', 'temporary');
-      if (!gateResult || gateResult.accepted === false) return gateResult;
-      createAlliance({
-        memberIds: [playerId, survivor.id],
-        type: 'temporary',
-        sincerityMap: {
-          [playerId]: 'real',
-          [survivor.id]: 'fake'
-        }
-      });
-      bumpRelationship(playerId, survivor.id, 3, npcName);
-      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-      this._shiftMood(survivor.id, 'calm');
-      return finishAllianceMenu({
-        text: `${npcName} smiles, satisfied. "Alright, let’s watch each other’s backs."`,
-        memoryOutcomePatch: { outcome: 'fake', isFake: true, accepted: true, pitchType: 'casual' }
-      });
-    }
-
-    if (option.key === 'conditional') {
-      const gateResult = gateAndRollAcceptance('conditional', 'core');
-      if (!gateResult || gateResult.accepted === false) return gateResult;
-      const exclude = [survivor.id];
-      if (playerId) exclude.push(playerId);
-      this.promptSurvivorPicker({
-        title: 'Who do you want to loop in?',
-        tribeOnly: true,
-        excludeIds: exclude
-      }).then(selectedId => {
-        if (!selectedId) {
-          this._startConversation(survivor, {
-            intentOverride: 'allianceInvite',
-            location,
-            context: { ...(this.activeConversationContext || {}), initiator: this.activeConversationContext?.initiator || 'npc' }
-          });
-          return;
-        }
-        const pick = this._getSurvivorById(selectedId);
-        if (!pick) {
-          this._startConversation(survivor, {
-            intentOverride: 'allianceInvite',
-            location,
-            context: { ...(this.activeConversationContext || {}), initiator: this.activeConversationContext?.initiator || 'npc' }
-          });
-          return;
-        }
-        const thirdId = pick.id;
-        const rel = relationshipSystem?.getRelationship?.(survivor.id, thirdId);
-        const threshold = allianceSystem?.minRelationshipForInvite || 60;
-        const value = typeof rel?.value === 'number' ? rel.value : 50;
-        const accepts = value >= threshold;
-
-        if (accepts) {
-          createAlliance({
-            memberIds: [playerId, survivor.id, thirdId],
-            type: 'core',
-            sincerityMap: {
-              [playerId]: 'real',
-              [survivor.id]: gateResult.sincerity || 'real',
-              [thirdId]: 'real'
-            }
-          });
-          bumpRelationship(playerId, survivor.id, 5, npcName);
-          bumpRelationship(playerId, thirdId, 2, pick.firstName);
-          bumpRelationship(survivor.id, thirdId, 2, pick.firstName);
-          this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-          this._shiftMood(survivor.id, 'focused');
-          pushMenu(finishAllianceMenu({
-            text: `${npcName} nods. "${pick.firstName} works. Let’s lock this in."`,
-            memoryOutcomePatch: { outcome: 'conditional_accepted', pickedThirdId: thirdId, accepted: true, pitchType: 'conditional' }
-          }));
-          return;
-        }
-
-        applyContextPatch({ topicPerson: pick.firstName });
-        const menu = {
-          text: `${npcName} shakes their head. "I don’t trust ${pick.firstName}… not yet."`,
-          buttons: [
-            {
-              label: 'Fine, just us.',
-              onSelect: () => {
-                const createdAlliance = createAlliance({
-                  memberIds: [playerId, survivor.id],
-                  type: 'core',
-                  sincerityMap: {
-                    [playerId]: 'real',
-                    [survivor.id]: gateResult.sincerity || 'real'
-                  }
-                });
-                if (createdAlliance && gateResult.sincerity !== 'fake') {
-                  allianceSystem?.commitToAlliance?.({ survivorId: survivor.id, allianceId: createdAlliance.id });
-                }
-                bumpRelationship(playerId, survivor.id, 5, npcName);
-                this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-                this._shiftMood(survivor.id, 'focused');
-                return finishAllianceMenu({
-                  text: `${npcName} exhales. "Just us then. Let’s stay tight."`,
-                  memoryOutcomePatch: { outcome: 'conditional_refused_duo', pickedThirdId: thirdId, accepted: true, pitchType: 'duo' }
-                });
-              }
-            },
-            {
-              label: 'Then never mind.',
-              alt: true,
-              onSelect: () => {
-                bumpRelationship(playerId, survivor.id, -2, npcName);
-                this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-                this._shiftMood(survivor.id, 'irritated');
-                return finishAllianceMenu({
-                  text: `${npcName} shrugs. "Then let’s drop it."`,
-                  memoryOutcomePatch: { outcome: 'conditional_refused_decline', pickedThirdId: thirdId, accepted: false, declineType: 'soft_decline', pitchType: 'conditional' }
-                });
-              }
-            }
-          ]
-        };
-        pushMenu(menu);
-      });
-      return null;
-    }
-
-    if (option.key === 'softDecline') {
-      bumpRelationship(playerId, survivor.id, -2, npcName);
-      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-      this._shiftMood(survivor.id, 'neutral');
-      return finishAllianceMenu({
-        text: `${npcName} exhales. "Alright, maybe another time."`,
-        memoryOutcomePatch: { outcome: 'soft_decline', accepted: false, declineType: 'soft_decline' }
-      });
-    }
-
-    if (option.key === 'hardDecline') {
-      bumpRelationship(playerId, survivor.id, -6, npcName);
-      this._rememberConversation(survivor, 'allianceInvite', option, meeting);
-      this._shiftMood(survivor.id, 'irritated');
-      return finishAllianceMenu({
-        text: `${npcName} narrows their eyes. "Got it. I’ll remember that."`,
-        memoryOutcomePatch: { outcome: 'hard_decline', accepted: false, declineType: 'hard_decline' }
-      });
-    }
+  _handleAllianceInviteResponse({survivor,context={}}) {
+    this.startAllianceConversation(survivor.id,context.allianceId); return null;
   }
 
   _buildAllianceInviteDialogue(survivor, context = {}) {

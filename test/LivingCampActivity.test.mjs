@@ -46,7 +46,7 @@ function fixture(random = () => 0) {
   gm.systems.taskSimulationSystem = { getAssignmentsFromPlanOrTasks: () => tribe.day1Plan.assignments };
   gm.systems.socialMemorySystem = memory;
   gm.systems.relationshipSystem = { changes: [], changeRelationship(a, b, delta) { this.changes.push([a, b, delta]); } };
-  gm.systems.allianceSystem = { areAllied: () => false };
+  gm.systems.allianceSystem = { areAllied: () => false, getAllianceAffinity: () => 0 };
   const activity = new CampActivitySystem(gm, random);
   gm.systems.campActivitySystem = activity;
   memory.deserialize(null);
@@ -84,7 +84,7 @@ test('interrupted work grants effort but cannot double-resolve', () => {
 test('known urgent warning can override routine work without inventing its output', () => {
   const { gm, tribe, worker, activity } = fixture();
   activity.ensureStarted(); const first = worker.campActivity;
-  gm.systems.allianceSystem.areAllied = (a, b) => a === 'w' && b === 'x';
+  gm.systems.allianceSystem.getAllianceAffinity = (a, b) => a === 'w' && b === 'x' ? 1 : 0;
   memory.recordConversationIntent({ npcId: 'w', intent: 'warning', day: 1, campTime: 7110 });
   gm.dayTimer = 7070; activity.advance(7070, 7060);
   assert.equal(worker.campActivity.type, 'travel');
@@ -121,7 +121,7 @@ test('shortage, role, exhaustion, allies and strategy pressure change bounded ch
   assert.ok(tired > activity.scoreChoices(witness).find(c => c.type === 'rest').weight);
   memory.recordConversationIntent({ npcId: 'w', intent: 'warning', day: 1, campTime: 7000 });
   assert.ok(activity.scoreChoices(worker).find(c => c.type === 'strategy_conversation').weight > 1);
-  gm.systems.allianceSystem.areAllied = (a, b) => a === 'w' && b === 'x';
+  gm.systems.allianceSystem.getAllianceAffinity = (a, b) => a === 'w' && b === 'x' ? 1 : 0;
   assert.ok(activity.scoreChoices(worker).find(c => c.type === 'socialize').weight > 1);
   tribe.day1Plan.assignments.wood = []; tribe.day1Plan.assignments.float = ['w']; tribe.stockpile.firewood = 0;
   assert.ok(activity.scoreChoices(worker).find(c => c.type === 'gather_firewood').weight > stocked);

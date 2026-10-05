@@ -188,7 +188,7 @@ test('alliance meeting gathers through travel before occupying shared physical t
   assert.equal(owner.campActivity.type, 'alliance_meeting'); assert.equal(owner.campActivity.interruptible, false);
 });
 test('player can attend only an actual arrived alliance meeting', () => {
-  const s = controlled(); dialogue(s); s.strategy.scramble.scheduleAlliances(); const meeting = s.strategy.scramble.meetings[0]; meeting.dueAt = 3600;
+  const s = controlled(); dialogue(s); s.conversation._renderAllianceConversation=()=>true; s.strategy.scramble.scheduleAlliances(); const meeting = s.strategy.scramble.meetings[0]; meeting.dueAt = 3600;
   assert.equal(s.strategy.scramble.attend(meeting.id), false); s.strategy.onActivityBoundary(3600); s.wait(180);
   assert.equal(s.strategy.scramble.attend(meeting.id), false); s.gm.player.location = meeting.location; window.campScreen.currentView = meeting.location;
   assert.ok(s.strategy.scramble.attend(meeting.id)); assert.equal(s.activity.conversation.groupIds.length, 2);
@@ -227,7 +227,7 @@ test('safe tribe receives ordinary camp activities without strategy generation',
 });
 test('existing alliance membership and target projection remain save-compatible', () => {
   const s = controlled(); const ids = s.gm.systems.allianceSystem.getAllAlliances()[0].memberIds;
-  s.strategy.allianceTargets.set('qa-core', s.c.id); s.restore();
+  s.gm.systems.allianceSystem.getAlliance('qa-core').roundPlan={day:s.gm.day,primaryTargetId:s.c.id,status:'consensus',participantCommitments:{}}; s.strategy.allianceTargets.set('qa-core', s.c.id); s.restore();
   assert.deepEqual(s.gm.systems.allianceSystem.getAllAlliances()[0].memberIds, ids); assert.equal(s.strategy.allianceTargets.get('qa-core'), s.c.id);
   assert.ok(s.strategy.computeTribalTargetBoard().heatMap[s.c.id] >= 1);
 });
@@ -246,7 +246,7 @@ test('legacy active strategy save adopts semantic meetings without reseeding or 
   payload.systems.strategyPhaseSystem.startedForPhaseKey = null;
   assert.ok(q(() => s.gm.restoreSavePayload(JSON.parse(JSON.stringify(payload)))));
   assert.equal(s.gm.dayTimer, 2800); assert.deepEqual(s.strategy.getNpcTargetIntent(s.npcs[0].id), intent);
-  assert.equal(s.strategy.scramble.meetings.length, 1); assert.equal(s.strategy.scramble.meetings[0].location, 'waterWell');
+  assert.equal(s.strategy.scramble.meetings.filter(m=>m.allianceId==='qa-core').length, 1); assert.equal(s.strategy.scramble.meetings.find(m=>m.allianceId==='qa-core').location, 'waterWell');
   assert.equal(s.strategy.startedForPhaseKey, '1-postChallenge');
 });
 test('alliance scheduling does not overwrite disagreeing individual preferences', () => {

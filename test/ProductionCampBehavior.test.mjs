@@ -42,7 +42,7 @@ function camp(random = () => .99) {
   gm.systems.socialMemorySystem = memory;
   gm.systems.taskSimulationSystem = { getAssignmentsFromPlanOrTasks: () => tribe.day1Plan.assignments };
   gm.systems.relationshipSystem = { getRelationship: () => ({ value: 50 }), changeRelationship() {} };
-  gm.systems.allianceSystem = { areAllied: () => false };
+  gm.systems.allianceSystem = { areAllied: () => false, getAllianceAffinity: () => 0 };
   const activity = new CampActivitySystem(gm, random); gm.systems.campActivitySystem = activity;
   activity.phaseId = activity.phase;
   window.gameManager = gm; window.campScreen = { currentView: L.BEACH };
@@ -285,7 +285,7 @@ test('owned idol rumor feeds qualified Tribal dialogue without public/Jeff knowl
 
 test('advantage disclosure uses actual idolshare and real privacy, rather than idol-hunting aptitude', () => {
   const { gm, npc, tribe } = camp(); const listener = npc('Yul');
-  gm.systems.allianceSystem.areAllied = () => true;
+  gm.systems.allianceSystem.getAllianceAffinity = () => 1;
   const exchange = speaker => {
     speaker.hasIdol = true;
     gm.systems.npcLocationSystem.updateNpcLocation(speaker.id, L.WATER_WELL);

@@ -324,87 +324,46 @@ class DealSystem {
     });
   }
 
-  processTribalOutcome(tribalSummary = {}, gameManager = this.gameManager) {
-    const membersAtTribal = new Set((tribalSummary.membersAtTribal || []).map(member => String(member.id)));
-    if (!membersAtTribal.size) return;
-
-    const decidingVotes = tribalSummary.revoteOccurred
-      ? (tribalSummary.revoteVotes || [])
-      : (tribalSummary.initialVotes || tribalSummary.votes || []);
-    const votesByVoter = new Map(decidingVotes.map(vote => [String(vote.voterId), vote.targetId]));
-    const activeStatuses = new Set([DealStatus.PROPOSED, DealStatus.ACCEPTED]);
-    const activeDeals = Object.values(this.dealsById).filter(deal => activeStatuses.has(deal?.status));
-
-    activeDeals.forEach(deal => {
-      const [partyAId, partyBId] = deal.parties || [];
-      if (!partyAId || !partyBId) return;
-      if (!membersAtTribal.has(String(partyAId)) || !membersAtTribal.has(String(partyBId))) return;
-
-      const aVote = votesByVoter.get(String(partyAId));
-      const bVote = votesByVoter.get(String(partyBId));
-      const terms = deal.terms || {};
-
-      if (deal.type === DealTypes.VOTE_TOGETHER) {
-        const requiredTargetId = terms.targetId ?? null;
-        if (requiredTargetId != null) {
-          if (aVote != null && !sameSurvivorId(aVote, requiredTargetId)) {
-            this.breakDeal(deal.id, partyAId, 'VOTE_TOGETHER target not honored');
-            return;
-          }
-          if (bVote != null && !sameSurvivorId(bVote, requiredTargetId)) {
-            this.breakDeal(deal.id, partyBId, 'VOTE_TOGETHER target not honored');
-            return;
-          }
-          if (sameSurvivorId(aVote, requiredTargetId) && sameSurvivorId(bVote, requiredTargetId)) {
-            this.completeDeal(deal.id, null, 'VOTE_TOGETHER target honored');
-          }
-          return;
-        }
-
-        if (aVote != null && bVote != null && !sameSurvivorId(aVote, bVote)) {
-          this.breakDeal(deal.id, null, 'VOTE_TOGETHER alignment failed');
-          return;
-        }
-        if (aVote != null && bVote != null && sameSurvivorId(aVote, bVote)) {
-          this.completeDeal(deal.id, null, 'VOTE_TOGETHER alignment held');
-        }
-        return;
-      }
-
-      if (deal.type === DealTypes.MUTUAL_PROTECTION || deal.type === 'DO_NOT_VOTE_ME' || deal.type === 'PROTECT_X') {
-        const protectedId = terms.protectedId ?? terms.targetId ?? null;
-        const protectedForA = protectedId || partyBId;
-        const protectedForB = protectedId || partyAId;
-
-        if (sameSurvivorId(aVote, protectedForA)) {
-          this.breakDeal(deal.id, partyAId, 'Protection promise broken');
-          return;
-        }
-        if (sameSurvivorId(bVote, protectedForB)) {
-          this.breakDeal(deal.id, partyBId, 'Protection promise broken');
-          return;
-        }
-
-        if (aVote != null && bVote != null) {
-          this.completeDeal(deal.id, null, 'Protection promise honored');
-        }
-        return;
-      }
-
-      if (deal.type === DealTypes.FINAL_TWO || deal.type === 'FINAL_THREE') {
-        if (sameSurvivorId(aVote, partyBId)) {
-          this.breakDeal(deal.id, partyAId, 'Final pact broken by direct vote');
-          return;
-        }
-        if (sameSurvivorId(bVote, partyAId)) {
-          this.breakDeal(deal.id, partyBId, 'Final pact broken by direct vote');
-          return;
-        }
-      }
+  getAllDeals() { return Object.values(this.dealsById); }
+  getKnownDealsForSurvivor(ownerId) {
+    return this.getDealsForSurvivor(ownerId).map(deal => {
+      const knows=!deal.objectiveOnly || this.gameManager.systems.dealConsequencesSystem?.applied?.includes(`${deal.id}:${ownerId}`);
+      const {objectiveOnly,objectiveReference,...known}=deal;
+      return knows?known:{...known,status:'ACCEPTED',history:deal.history.filter(e=>!['BROKEN','COMPLETED'].includes(e.action)),updated:undefined};
     });
-
-    if (gameManager?.systems?.dealConsequencesSystem?.initialize) {
-      gameManager.systems.dealConsequencesSystem.initialize();
+  }
+  recordInformationShared(fromId,toId,evidence) {
+    if (!evidence?.id || !['target','commitment','safety','idol_possession','idol_suspicion','alliance_disclosure'].includes(evidence.topic))return;
+    for(const deal of this.getAllDeals())if(deal.status==='ACCEPTED'&&deal.type===DealTypes.IDOL_PROTECTION&&deal.terms.action==='warn'&&sameSurvivorId(deal.terms.ownerId??deal.parties[0],fromId)&&sameSurvivorId(deal.terms.protectedId??deal.parties[1],toId)&&['idol_possession','idol_suspicion','safety'].includes(evidence.topic))this.completeDeal(deal.id,fromId,'Relevant warning delivered to the protected partner');
+    for(const deal of this.getAllDeals())if(deal.status==='ACCEPTED'&&deal.type===DealTypes.SHARE_INFO&&deal.parties.every(id=>[fromId,toId].some(x=>sameSurvivorId(x,id)))) {
+      deal.terms.sharedEvidence ||= {}; const prior=deal.terms.sharedEvidence[String(fromId)] ||= [];
+      if(!prior.includes(evidence.id))prior.push(evidence.id);
+      if(deal.parties.every(id=>deal.terms.sharedEvidence[String(id)]?.length))this.completeDeal(deal.id,null,'Relevant information exchanged by both parties');
+    }
+  }
+  processTribalOutcome(summary = {}) {
+    const members=new Set((summary.membersAtTribal||[]).map(p=>String(p.id)));
+    const votes=summary.initialVotes||summary.votes||[],byVoter=new Map(votes.map(v=>[String(v.voterId),v.targetId]));
+    for(const deal of this.getAllDeals()) {
+      if(!members.size||!deal.parties.every(id=>members.has(String(id)))||deal.status!=='ACCEPTED'&&!(deal.status==='EXPIRED'&&deal.history.at(-1)?.at?.day===summary.day&&deal.history.at(-1)?.note==='party eliminated'))continue;
+      const [a,b]=deal.parties,terms=deal.terms||{};let breaker=null,fulfilled=false;
+      const assigned=id=>terms.assignments?.[id]??this.gameManager.systems.allianceSystem?.getAlliance?.(terms.allianceId)?.roundPlan?.participantCommitments?.[id]?.targetId??terms.targetId;
+      if(deal.type===DealTypes.VOTE_TOGETHER){const av=byVoter.get(String(a)),bv=byVoter.get(String(b)),at=assigned(a),bt=assigned(b);
+        if(at!=null&&av!=null&&!sameSurvivorId(av,at))breaker=a;
+        else if(bt!=null&&bv!=null&&!sameSurvivorId(bv,bt))breaker=b;
+        else if(at==null&&bt==null&&av!=null&&bv!=null&&!sameSurvivorId(av,bv)){deal.objectiveOnly=true;deal.objectiveReference=summary.id;this.breakDeal(deal.id,null,'Alignment failed without attributable responsibility');continue;}
+        else fulfilled=av!=null&&bv!=null;
+      }else if([DealTypes.MUTUAL_PROTECTION,'DO_NOT_VOTE_ME','PROTECT_X',DealTypes.FINAL_TWO,'FINAL_THREE'].includes(deal.type)) {
+        if(sameSurvivorId(byVoter.get(String(a)),terms.protectedId??terms.targetId??b))breaker=a;
+        else if(sameSurvivorId(byVoter.get(String(b)),terms.protectedId??terms.targetId??a))breaker=b;
+        else fulfilled=deal.type!==DealTypes.FINAL_TWO&&deal.type!=='FINAL_THREE'&&byVoter.has(String(a))&&byVoter.has(String(b));
+      }else if(deal.type===DealTypes.IDOL_PROTECTION&&terms.action==='play_idol'){
+        const owner=terms.ownerId??a,protectedId=terms.protectedId??b;
+        const danger=votes.some(v=>sameSurvivorId(v.targetId,protectedId));
+        const opportunity=(summary.idolOpportunities||[]).some(o=>sameSurvivorId(o.ownerId,owner)&&o.usable);
+        if(danger&&opportunity){fulfilled=(summary.idolPlays||[]).some(p=>sameSurvivorId(p.playerId??p.playedById,owner)&&sameSurvivorId(p.targetId??p.playedOnId,protectedId));if(!fulfilled)breaker=owner;}
+      }
+      if(breaker||fulfilled){deal.objectiveOnly=true;deal.objectiveReference=summary.id||`tribal:${summary.day}:${summary.attendingTribeId}`;if(breaker)this.breakDeal(deal.id,breaker,'Objective promise breach');else this.completeDeal(deal.id,null,'Objective promise honored');}
     }
   }
 
@@ -570,6 +529,7 @@ class DealSystem {
       },
       expires: this._normalizeExpires(rawDeal.expires),
       terms: rawDeal.terms && typeof rawDeal.terms === 'object' ? rawDeal.terms : {},
+      objectiveOnly: rawDeal.objectiveOnly === true, objectiveReference: rawDeal.objectiveReference ?? null,
       history,
       visibility: rawDeal.visibility || 'private_pair',
       stakes: this._normalizeStakes(rawDeal.stakes)

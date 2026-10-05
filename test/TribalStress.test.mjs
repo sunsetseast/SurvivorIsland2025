@@ -177,7 +177,7 @@ test('an inactive alliance does not suppress an NPC vote against a former ally',
   const setup = makeTribalQa({ size: 4, alliances: [{ memberIds: [2, 3], tribeId: 1 }] });
   const alliance = setup.gm.systems.allianceSystem.getAlliances()[0];
   assert.equal(setup.tribal._inSameAlliance(2, 3), true);
-  setup.gm.systems.allianceSystem.disbandAlliance(alliance.id);
+  setup.gm.systems.allianceSystem.disbandAlliance(alliance.id,'communicated',alliance.memberIds);
   assert.equal(setup.tribal._inSameAlliance('2', 3), false);
 });
 

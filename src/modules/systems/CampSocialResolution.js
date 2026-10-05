@@ -14,7 +14,7 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
   if (gm.gamePhase === 'postChallenge' && gm.systems.strategyPhaseSystem?.isActive && !gm.systems.strategyPhaseSystem.playerTribeSafe)
     return gm.systems.strategyPhaseSystem.reasoning.resolveAgenda(speaker, listener, activity, random);
   const day = gm.day || 1, campTime = activity.endsAt;
-  const allied = gm.systems?.allianceSystem?.areAllied?.(speaker.id, listener.id) || false;
+  const allied = (gm.systems?.allianceSystem?.getAllianceAffinity?.(speaker.id, listener.id) || 0) > .35;
   const trust = gm.getTrust?.(speaker.id, listener.id) ?? 50;
   const profile = getCampBehaviorProfile(speaker);
   const strategic = activity.type === 'strategy_conversation' || activity.socialPurpose === 'strategy';

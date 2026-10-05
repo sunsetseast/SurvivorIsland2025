@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="/"><title>Post-immunity scramble rendered QA</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="src/styles/day1-camp-setup.css"><link rel="stylesheet" href="src/styles/living-camp.css"></head>
+<body><div id="game-container"><div id="camp-screen" class="game-screen active" style="display:block"><div id="camp-content"></div><div id="camp-action-bar"><img src="Assets/button-row.jpeg" id="action-bar-bg" alt=""><div id="action-buttons"></div></div></div></div>
+      <div id="alliances-overlay" class="overlay-backdrop" style="display: none">
+        <div class="overlay-panel" id="alliances-panel">
+          <h2>ALLIANCES</h2>
+          <div id="alliances-grid" class="alliances-grid"></div>
+          <button id="alliances-close-button" class="rect-button small">Close</button>
+        </div>
+      </div>
+      <!-- Create Alliance Overlay -->
+      <div id="create-alliance-overlay" class="overlay-backdrop" style="display: none">
+        <div class="overlay-panel" id="create-alliance-panel">
+          <h2>START ALLIANCE CONVERSATION</h2>
+          <div class="alliance-form-body">
+            <div id="create-alliance-members" class="alliance-chip-grid"></div>
+            <div class="overlay-panel-buttons row">
+              <button id="create-alliance-create-button" class="rect-button" disabled>Start conversation</button>
+              <button id="create-alliance-cancel-button" class="rect-button secondary">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manage Alliance Overlay -->
+      <div id="manage-alliance-overlay" class="overlay-backdrop" style="display: none">
+        <div class="overlay-panel" id="manage-alliance-panel">
+          <h2 id="manage-alliance-title">Alliance</h2>
+          <div class="alliance-form-body">
+            <label class="input-label" for="manage-alliance-name-input">Your private label</label>
+            <input id="manage-alliance-name-input" type="text" class="text-input" placeholder="Alliance Name" />
+            <div id="manage-alliance-members" class="alliance-member-list"></div>
+            <div id="manage-alliance-commit-status" class="input-helper"></div>
+            <div class="overlay-panel-buttons">
+              <button id="manage-alliance-save-button" class="rect-button">Save Name</button>
+              <button id="manage-alliance-talk-button" class="rect-button">Talk to alliance</button>
+              <button id="manage-alliance-distance-button" class="rect-button secondary">Distance yourself privately</button>
+              <button id="manage-alliance-close-button" class="rect-button secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+<button id="qa-open-notebook" type="button">Open notebook</button>
+<script>window.debugBanner=()=>{};window.debug=false;</script><script type="module" src="qa/AlliancePresentationFixture.js"></script></body></html>

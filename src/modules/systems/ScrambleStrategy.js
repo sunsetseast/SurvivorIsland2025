@@ -125,6 +125,7 @@ export default class ScrambleStrategy {
     if(!this.strategy.isTargetIdAvailable(targetId)||same(speakerId,targetId))return null;
     const result=this.statement({id,speakerId,listenerIds,subjectId:targetId,topic:'commitment',stance:'yes',mode:lie?'deliberate_lie':'truthful',random});
     if(result&&!lie&&this.strategy.isTargetIdAvailable(targetId)&&!same(speakerId,targetId)) {
+      this.gm.systems.allianceSystem?.recordPlanSupport?.(speakerId,targetId,listenerIds);
       const s=this.state(speakerId); s.committedTargetId=targetId;
       if(this.person(speakerId)?.isPlayer){s.intendedVoteId=targetId;this.strategy.personalTargetId=targetId;}
       else this.strategy.updateNpcIntentTarget(speakerId,targetId,{reason:'explicit_commitment',absoluteConfidence:.8});
@@ -195,16 +196,18 @@ export default class ScrambleStrategy {
     else if(s.safetyBelief<.4){purpose='counter_pitch';}
     else if(this.viability(speakerId,s.intendedVoteId)>this.members.length/2){purpose='check_loyalty';}
     else if(!primarySubject){purpose='gather_intel';messageMode='question';}
-    if(plan&&purpose==='reassure_target'&&s.confidence>=.6&&profile.honesty<.5){
+    const allianceMotive = ['recruit_swing','check_loyalty','gather_intel','reassure_target'].includes(purpose) ? this.gm.systems.allianceSystem?.npcMotive?.(speakerId,listenerId) : null;
+    if(!allianceMotive&&plan&&purpose==='reassure_target'&&s.confidence>=.6&&profile.honesty<.5){
       const target=this.members.find(p=>!same(p.id,speakerId)&&!same(p.id,listenerId)&&this.strategy.isTargetIdAvailable(p.id));
       if(target){this.decoy(speakerId,target.id,[listenerId]);purpose='spread_decoy';primarySubject=target.id;messageMode='decoy';}}
-    return {purpose,initiatorId:speakerId,listenerIds:[listenerId],primarySubject,desiredOutcome:purpose==='verify_story'?'verify':'support',knownEvidence,messageMode};
+    if (allianceMotive) purpose=allianceMotive.purpose;
+    return {allianceMotive,purpose,initiatorId:speakerId,listenerIds:[listenerId],primarySubject,desiredOutcome:purpose==='verify_story'?'verify':'support',knownEvidence,messageMode};
   }
   candidateScore(speakerId,listenerId) {
     const s=this.refresh(speakerId),last=s.lastContacts[String(listenerId)];
     if(last!=null&&last-this.gm.dayTimer<420)return -Infinity;
     const agenda=this.agenda(speakerId,listenerId), trust=(this.gm.getTrust?.(speakerId,listenerId)??50)/100;
-    const motive={verify_story:2,warn_ally:2.5,reassure_target:1.5,spread_decoy:1.7,counter_pitch:1.6,establish_backup:1.4,check_loyalty:1.1,recruit_swing:1,gather_intel:.6}[agenda.purpose];
+    const motive={alliance_offer:1.4,alliance_recruitment:1.7,alliance_reunion:1.5,alliance_expansion:1.5,alliance_repair:1.4,verify_story:2,warn_ally:2.5,reassure_target:1.5,spread_decoy:1.7,counter_pitch:1.6,establish_backup:1.4,check_loyalty:1.1,recruit_swing:1,gather_intel:.6}[agenda.purpose];
     const known=this.knowledge(speakerId).find(e=>e.topic==='commitment'&&same(e.speakerId,listenerId));
     return motive+trust*.6+s.urgency*.4-(known&&same(known.subjectId,s.intendedVoteId)?.5:0);
   }
@@ -216,6 +219,7 @@ export default class ScrambleStrategy {
     const agenda=activity.agenda||this.agenda(actor.id,listener.id,{plan:true}),prefix=activity.id;
     this.count(`motive:${agenda.purpose}`);const id=`${prefix}:agenda:${listener.id}`;
     if(this.resolved[id])return this.resolved[id];
+    if(agenda.allianceMotive){const result=this.gm.systems.allianceSystem.resolveNpcMotive(actor.id,listener.id,agenda.allianceMotive,id,random);this.resolved[id]={status:result?.status||'unresolved'};return this.resolved[id];}
     let topic='target',stance='consider',subjectId=agenda.primarySubject,mode=agenda.messageMode;
     if(agenda.purpose==='verify_story') {
       this.count('verificationAttempts');const known=this.knowledge(actor.id).find(e=>agenda.knownEvidence.includes(e.id));
@@ -237,13 +241,15 @@ export default class ScrambleStrategy {
     return result;
   }
   resolveMeeting(participants,activity,random=()=>this.strategy.random()) {
-    const positions=participants.map(p=>({id:p.id,preferredTargetId:this.state(p.id).preferredTargetId,intendedVoteId:this.state(p.id).intendedVoteId}));
+    const coalition=this.gm.systems.allianceSystem?.getAlliance?.(activity.allianceId);
+    const cover=id=>['fake','cover'].includes(coalition?.memberStates[id]?.sincerity);
+    const positions=participants.map(p=>{const s=this.state(p.id);return {id:p.id,preferredTargetId:s.preferredTargetId,intendedVoteId:cover(p.id)?s.decoys[0]?.targetId||coalition?.roundPlan?.primaryTargetId||s.preferredTargetId:s.intendedVoteId};});
     // Everyone contributes their own position before anyone weighs the discussion.
-    for(const p of positions)if(p.intendedVoteId)this.statement({id:`${activity.id}:position:${p.id}`,speakerId:p.id,listenerIds:participants.filter(x=>!same(x.id,p.id)).map(x=>x.id),subjectId:p.intendedVoteId,random});
-    for(const p of participants){const read=this.voteRead(p.id);if(!read.targetId)continue;
+    for(const p of positions)if(p.intendedVoteId)this.statement({id:`${activity.id}:position:${p.id}`,speakerId:p.id,listenerIds:participants.filter(x=>!same(x.id,p.id)).map(x=>x.id),subjectId:p.intendedVoteId,mode:cover(p.id)?'decoy':'truthful',random});
+    for(const p of participants){if(cover(p.id))continue;const read=this.voteRead(p.id);if(!read.targetId)continue;
       const speaker=participants.find(x=>!same(x.id,p.id)&&same(positions.find(y=>same(y.id,x.id))?.intendedVoteId,read.targetId));
       if(speaker)this.adoption(p.id,speaker.id,read.targetId,{random});}
-    const counts=new Map();for(const p of participants){const target=this.state(p.id).intendedVoteId;if(target)counts.set(target,(counts.get(target)||0)+1);}
+    const counts=new Map();for(const p of participants){const target=cover(p.id)?positions.find(x=>same(x.id,p.id))?.intendedVoteId:this.state(p.id).intendedVoteId;if(target)counts.set(target,(counts.get(target)||0)+1);}
     const [target,votes]=[...counts].sort((a,b)=>b[1]-a[1])[0]||[];
     const outcome=votes===participants.length?'consensus':votes>participants.length/2?'tentative_consensus':'disagreement';
     const owner = participants[0];
@@ -274,13 +280,13 @@ export default class ScrambleStrategy {
     const owned=(this.memory?.memory?.[String(id)]?.campObservations||[]).filter(e=>e.type==='seen_together'&&e.day===this.gm.day&&e.confidence>=.2);
     const e=owned.at(-1);if(e)return {ids:[e.actorId,...(e.participantIds||[])].filter((x,i,a)=>a.indexOf(x)===i),provenance:e.origin==='hearsay'?'hearsay':'inference',evidenceId:e.id};
     const alliance=this.gm.systems.allianceSystem?.getAlliancesForSurvivor?.(id)?.find(a=>a.active!==false);
-    const ids=(alliance?.memberIds||[]).filter(x=>!same(x,id)&&this.person(x));return ids.length>=2?{ids:ids.slice(0,2),provenance:'direct_statement'}:null;
+    const ids=(this.gm.systems.allianceSystem?.knownRoster?.(id,alliance?.id)||[]).filter(x=>!same(x,id)&&this.person(x));return ids.length>=2?{ids:ids.slice(0,2),provenance:'direct_statement'}:null;
   }
   recap(id=this.gm.player?.id) {
     const owned=this.knowledge(id);const ownPromises=(this.memory?.memory?.[String(id)]?.campClaims||[]).filter(e=>same(e.speakerId,id)&&e.topic==='commitment'&&e.day===this.gm.day).map(e=>({id:e.id,subjectId:e.subjectId,audienceIds:e.audienceIds,stance:e.stance}));
     return {currentVoteIntent:this.states[String(id)]?.intendedVoteId??null,statements:owned.filter(e=>e.kind==='claim'),
       groups:owned.filter(e=>e.topic==='seen_together'),promises:ownPromises,contradictions:this.contradictions(id).map(e=>({id:e.id,conflicts:[...e.contradicts]})),
-      deals:(this.gm.systems.dealSystem?.getAllDeals?.()||Object.values(this.gm.systems.dealSystem?.dealsById||{})).filter(d=>(d.participantIds||d.parties||[]).some(x=>same(x,id)))};
+      deals:(this.gm.systems.dealSystem?.getKnownDealsForSurvivor?.(id)||this.gm.systems.dealSystem?.getAllDeals?.()||Object.values(this.gm.systems.dealSystem?.dealsById||{})).filter(d=>(d.participantIds||d.parties||[]).some(x=>same(x,id)))};
   }
   checkpoint(reservation) {if(!reservation)return null;return reservation.checkpoint ||= {activityId:reservation.activityId,npcId:reservation.npcId,
     participants:[reservation.npcId,...(reservation.groupIds||[])],location:reservation.location,purpose:reservation.strategy?'strategy':'check_in',

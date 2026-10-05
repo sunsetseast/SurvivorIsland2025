@@ -1,0 +1,1685 @@
+[
+  {
+    "scenario": "tight-core",
+    "seed": 191,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 4,
+      "meetings": 10,
+      "proposals": 5,
+      "overlappingAlliances": 2,
+      "fakeAllianceAcceptance": 1,
+      "disagreements": 1,
+      "averageAlliancesPerContestant": 1.2857142857142858,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "majority-inner-core",
+    "seed": 192,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 5,
+      "overlappingAlliances": 4,
+      "meetings": 8,
+      "proposals": 3,
+      "fakeAllianceAcceptance": 2,
+      "missedMeetings": 4,
+      "disagreements": 1,
+      "averageAlliancesPerContestant": 2,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "competing-blocs",
+    "seed": 193,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 6,
+      "overlappingAlliances": 5,
+      "meetings": 12,
+      "proposals": 5,
+      "fakeAllianceAcceptance": 3,
+      "missedMeetings": 1,
+      "disagreements": 2,
+      "votingBlocsExpired": 4,
+      "averageAlliancesPerContestant": 1.1428571428571428,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "fake-alliance",
+    "seed": 194,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "pending-alliance-proposal",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "proposals": 10,
+      "alliancesFormed": 5,
+      "fakeAllianceAcceptance": 3,
+      "overlappingAlliances": 3,
+      "meetings": 8,
+      "disagreements": 2,
+      "dormantAlliances": 1,
+      "averageAlliancesPerContestant": 1.4285714285714286,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "pending-alliance-proposal",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "player-bottom",
+    "seed": 195,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "1001",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 1001
+          },
+          {
+            "voterId": 9,
+            "targetId": 1001
+          },
+          {
+            "voterId": 10,
+            "targetId": 1001
+          },
+          {
+            "voterId": 11,
+            "targetId": 1001
+          },
+          {
+            "voterId": 15,
+            "targetId": 1001
+          },
+          {
+            "voterId": 6,
+            "targetId": 1001
+          }
+        ],
+        "live": 6
+      }
+    ],
+    "milestones": [
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 3,
+      "overlappingAlliances": 1,
+      "exclusions": 1,
+      "meetings": 3,
+      "proposals": 1,
+      "averageAlliancesPerContestant": 1.4285714285714286,
+      "playerBottomFailure": true,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "split-vote",
+    "seed": 196,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 3,
+      "meetings": 9,
+      "proposals": 7,
+      "disagreements": 3,
+      "overlappingAlliances": 1,
+      "fakeAllianceAcceptance": 1,
+      "averageAlliancesPerContestant": 1,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "hidden-defection",
+    "seed": 197,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 9
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 6,
+      "meetings": 8,
+      "proposals": 6,
+      "fakeAllianceAcceptance": 4,
+      "disagreements": 1,
+      "defections": 1,
+      "hiddenDefections": 1,
+      "overlappingAlliances": 3,
+      "averageAlliancesPerContestant": 1.8571428571428572,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "discovered-betrayal",
+    "seed": 198,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 9
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 5,
+      "meetings": 11,
+      "proposals": 5,
+      "disagreements": 3,
+      "defections": 1,
+      "hiddenDefections": 1,
+      "discoveredBetrayals": 1,
+      "overlappingAlliances": 3,
+      "fakeAllianceAcceptance": 2,
+      "averageAlliancesPerContestant": 1.5714285714285714,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "tribe-swap",
+    "seed": 199,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "1",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "1"
+          },
+          {
+            "voterId": 9,
+            "targetId": 1
+          },
+          {
+            "voterId": 10,
+            "targetId": 1
+          },
+          {
+            "voterId": 11,
+            "targetId": 1
+          },
+          {
+            "voterId": 15,
+            "targetId": 1
+          },
+          {
+            "voterId": 6,
+            "targetId": 1
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "separated-alliance",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 3,
+      "dormantAlliances": 1,
+      "meetings": 6,
+      "disagreements": 2,
+      "reactivatedAlliances": 1,
+      "mergeReunions": 1,
+      "proposals": 6,
+      "fakeAllianceAcceptance": 1,
+      "averageAlliancesPerContestant": 1,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "separated-alliance",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "merge-reunion",
+    "seed": 200,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "1",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "1"
+          },
+          {
+            "voterId": 9,
+            "targetId": 1
+          },
+          {
+            "voterId": 10,
+            "targetId": 1
+          },
+          {
+            "voterId": 11,
+            "targetId": 1
+          },
+          {
+            "voterId": 15,
+            "targetId": 1
+          },
+          {
+            "voterId": 6,
+            "targetId": 1
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "separated-alliance",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 3,
+      "dormantAlliances": 1,
+      "overlappingAlliances": 2,
+      "meetings": 5,
+      "disagreements": 2,
+      "reactivatedAlliances": 1,
+      "mergeReunions": 1,
+      "proposals": 5,
+      "averageAlliancesPerContestant": 1,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "separated-alliance",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "final-two-majority",
+    "seed": 201,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 6,
+      "overlappingAlliances": 5,
+      "meetings": 9,
+      "proposals": 3,
+      "fakeAllianceAcceptance": 2,
+      "missedMeetings": 2,
+      "disagreements": 2,
+      "averageAlliancesPerContestant": 2.2857142857142856,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  },
+  {
+    "scenario": "recruitment",
+    "seed": 202,
+    "rounds": [
+      {
+        "round": 1,
+        "day": 1,
+        "eliminatedId": "6",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "6"
+          },
+          {
+            "voterId": 1,
+            "targetId": 6
+          },
+          {
+            "voterId": 9,
+            "targetId": 6
+          },
+          {
+            "voterId": 10,
+            "targetId": 6
+          },
+          {
+            "voterId": 11,
+            "targetId": 6
+          },
+          {
+            "voterId": 15,
+            "targetId": 6
+          },
+          {
+            "voterId": 6,
+            "targetId": 15
+          }
+        ],
+        "live": 6
+      },
+      {
+        "round": 2,
+        "day": 2,
+        "eliminatedId": "15",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "15"
+          },
+          {
+            "voterId": 1,
+            "targetId": 15
+          },
+          {
+            "voterId": 9,
+            "targetId": 15
+          },
+          {
+            "voterId": 10,
+            "targetId": 15
+          },
+          {
+            "voterId": 11,
+            "targetId": 15
+          },
+          {
+            "voterId": 15,
+            "targetId": 11
+          }
+        ],
+        "live": 5
+      },
+      {
+        "round": 3,
+        "day": 3,
+        "eliminatedId": "11",
+        "votes": [
+          {
+            "voterId": 1001,
+            "targetId": "11"
+          },
+          {
+            "voterId": 1,
+            "targetId": 11
+          },
+          {
+            "voterId": 9,
+            "targetId": 11
+          },
+          {
+            "voterId": 10,
+            "targetId": 11
+          },
+          {
+            "voterId": 11,
+            "targetId": 10
+          }
+        ],
+        "live": 4
+      }
+    ],
+    "milestones": [
+      "recruitment-before-consent",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "post-Tribal-complete"
+    ],
+    "metrics": {
+      "alliancesFormed": 4,
+      "recruitmentAttempts": 2,
+      "meetings": 8,
+      "proposals": 5,
+      "recruitmentRejected": 1,
+      "overlappingAlliances": 3,
+      "fakeAllianceAcceptance": 3,
+      "disagreements": 1,
+      "averageAlliancesPerContestant": 1.4285714285714286,
+      "playerBottomFailure": false,
+      "playerBottomRecovery": false
+    },
+    "saveLoadEquivalent": true,
+    "restoreMilestones": [
+      "recruitment-before-consent",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete",
+      "during-group-meeting",
+      "mid-post-immunity-scramble",
+      "after-autonomous-camp",
+      "Tribal-after-deals-before-alliance-fallout",
+      "post-Tribal-complete"
+    ]
+  }
+]

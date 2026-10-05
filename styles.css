@@ -3631,3 +3631,24 @@ body.debug-card-layout .trait-element,
   .tribal-scene.mode-reaction .tribal-artboard { top: 43%; }
   .tribal-question { max-height: 28vh; }
 }
+
+/* Owner-scoped coalition notebook. Historical circle/strength selectors are unused. */
+#alliances-overlay,#create-alliance-overlay,#manage-alliance-overlay {padding: max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));box-sizing:border-box;}
+#alliances-panel,#create-alliance-panel,#manage-alliance-panel {width:min(100%,560px);max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;overscroll-behavior:contain;}
+#alliances-grid,#create-alliance-members,#manage-alliance-members {display:flex;flex-direction:column;gap:10px;width:100%;}
+#alliances-grid .alliance-existing-slot {display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;height:auto;min-height:64px;border-radius:16px;padding:16px;transform:none;text-align:left;box-sizing:border-box;background:#2d2217;color:#f5eee4;border:1px solid #d09d50;}
+#alliances-grid .alliance-title {font:700 20px/1.3 system-ui,sans-serif;color:#fff;}
+#alliances-grid .alliance-note,.alliance-note,.alliance-suspicion {font:400 15px/1.4 system-ui,sans-serif;text-transform:none;letter-spacing:normal;}
+#alliances-panel button,#create-alliance-panel button,#manage-alliance-panel button,#manage-alliance-panel input {min-width:44px;min-height:44px;}
+#alliances-panel button:focus-visible,#create-alliance-panel button:focus-visible,#manage-alliance-panel button:focus-visible {outline:3px solid #fff;outline-offset:2px;}
+#conversation-overlay[data-alliance-dialog] .conversation-parchment {max-height:calc(100dvh - 32px) !important;box-sizing:border-box;overflow:hidden;}
+#conversation-overlay[data-alliance-dialog] button {min-width:44px!important;min-height:44px!important;}
+#conversation-overlay[data-alliance-dialog] .convo-transcript,#conversation-overlay[data-alliance-dialog] .conversation-options {overflow-y:auto;min-height:0;}
+@media(max-height:500px){#alliances-panel,#create-alliance-panel,#manage-alliance-panel{padding:12px;max-height:calc(100dvh - 20px);}#conversation-overlay[data-alliance-dialog] .conversation-parchment{max-height:calc(100dvh - 20px)!important;}}
+@media(prefers-reduced-motion:reduce){#alliances-overlay *,#create-alliance-overlay *,#manage-alliance-overlay *,#conversation-overlay[data-alliance-dialog] *{animation:none!important;transition:none!important;}}
+/* Alliance dialogs sit above the camp task icon and retain readable speech. */
+#alliances-overlay,#create-alliance-overlay,#manage-alliance-overlay,#conversation-overlay[data-alliance-dialog] {z-index:10020!important;}
+#conversation-overlay[data-alliance-dialog] .convo-text {font:400 15px/1.45 system-ui,sans-serif;letter-spacing:normal;text-transform:none;color:#26190e!important;}
+#conversation-overlay[data-alliance-dialog] .convo-speaker {font:700 14px/1.45 system-ui,sans-serif;min-width:72px;letter-spacing:normal;text-transform:none;color:#312016!important;}
+#conversation-overlay[data-alliance-dialog] .convo-line {gap:8px;}
+#conversation-overlay[data-alliance-dialog] .convo-player .convo-text {color:#163652!important;}

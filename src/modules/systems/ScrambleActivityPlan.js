@@ -34,15 +34,16 @@ export default class ScrambleActivityPlan {
     const alliances = this.gm.systems.allianceSystem?.getAllAlliances?.() ||
       this.gm.systems.allianceSystem?.getAlliancesForSurvivor?.(this.gm.player?.id) || [];
     for (const alliance of alliances) {
-      if (alliance.active === false) continue;
+      const need=this.gm.systems.allianceSystem?.getMeetingNeed?.(alliance.id);
+      if (alliance.active === false || !need) continue;
       const key = this.strategy.getAllianceKey(alliance);
-      const ids = (alliance.memberIds || alliance.members || []).map(s => s?.id ?? s)
+      const ids = (need.memberIds || []).map(s => s?.id ?? s)
         .filter(id => this.person(id));
       if (key == null || ids.filter(id => !this.person(id)?.isPlayer).length < 2 ||
         this.meetings.some(m => same(m.allianceId, key))) continue;
       const spots = [LocationKeys.WATER_WELL, LocationKeys.SHELTER, LocationKeys.CAMPFIRE];
       this.meetings.push({ id: `${this.camp.phase}:meeting:${key}`, allianceId: key, memberIds: ids,
-        location: spots[Math.floor(this.random() * spots.length)], dueAt: 3300 - this.meetings.length * 180,
+        urgency: need.urgency, reason: need.reason, location: spots[Math.floor(this.random() * spots.length)], dueAt: 3300 - this.meetings.length * 180,
         status: 'pending' });
     }
   }
@@ -65,6 +66,8 @@ export default class ScrambleActivityPlan {
   }
   onBoundary(now) {
     if (!this.strategy.isActive || this.strategy.playerTribeSafe || this.gm.flags?.campEventActive) return;
+    this.scheduleAlliances();
+    this.gm.systems.allianceSystem?.reactToOwnedEvidence?.();
     if (now <= 600) this.strategy.scrambleState = ScrambleState.FINAL;
     for (const meeting of this.meetings) {
       if (meeting.status === 'pending' && now <= meeting.dueAt) {
@@ -81,8 +84,8 @@ export default class ScrambleActivityPlan {
         this.note('meeting_gathering', { meetingId: meeting.id });
       }
       if (meeting.status !== 'gathering') continue;
-      const npcs = meeting.memberIds.map(id => this.person(id)).filter(s => s && !s.isPlayer);
-      for (const npc of npcs.filter(s => this.free(s))) {
+      const npcs = meeting.memberIds.map(id => this.person(id)).filter(s => s && !s.isPlayer && (this.gm.systems.allianceSystem?.chooseMeeting?.(s.id,this.meetings.filter(m => ['pending','gathering'].includes(m.status)))?.id === meeting.id));
+      for (const npc of npcs.filter(s => this.free(s) && this.gm.systems.allianceSystem?.chooseMeeting?.(s.id,this.meetings.filter(m => ['pending','gathering'].includes(m.status)))?.id === meeting.id)) {
         const goal = { type: 'meeting_wait', location: meeting.location, meetingId: meeting.id,
           duration: Math.max(1, now - meeting.deadline) };
         const route = routeBetween(this.gm.systems.npcLocationSystem.getLocation(npc.id), meeting.location);
@@ -93,10 +96,14 @@ export default class ScrambleActivityPlan {
         const [owner, ...others] = npcs;
         owner.campActivity = null;
         const activity = this.camp.start(owner, { type: 'alliance_meeting', location: meeting.location,
-          duration: 360, meetingId: meeting.id }, now);
+          duration: 360, meetingId: meeting.id, allianceId: meeting.allianceId }, now);
         activity.interruptible = false; activity.participantIds = others.map(s => s.id);
         for (const other of others) other.campActivity = { ...activity, actorId: other.id, external: true };
         meeting.status = 'active'; meeting.activityId = activity.id;
+        meeting.missedMemberIds=meeting.memberIds.filter(id=>!this.person(id)?.isPlayer&&!npcs.some(p=>same(p.id,id)));
+        for(const id of meeting.missedMemberIds)this.gm.systems.allianceSystem?.count?.('missedMeetings');
+        // Absence is diagnostic, not evidence identifying betrayal or another
+        // loyalty. Actual witnesses/conversations can explain it later.
         this.note('meeting_started', { meetingId: meeting.id, participantIds: npcs.map(s => s.id) });
       } else if (now <= meeting.deadline) {
         meeting.status = 'cancelled'; this.releaseMeeting(meeting, now);
@@ -138,7 +145,7 @@ export default class ScrambleActivityPlan {
       activityId: activity.id, at, visibility: 'private' });
     const meeting = this.meetings.find(m => m.activityId === activity.id);
     if (meeting) {
-      const result = this.strategy.reasoning.resolveMeeting([actor, ...listeners], activity, () => this.random());
+      const result = this.gm.systems.allianceSystem.resolveMeeting(meeting.allianceId, [actor, ...listeners], activity, () => this.random());
       if (result.targetId) this.strategy.allianceTargets.set(meeting.allianceId, result.targetId);
       meeting.outcome = result; meeting.status = 'completed'; this.strategy.completedAllianceMeetings.add(meeting.id);
     } else for (const listener of listeners)
@@ -168,12 +175,9 @@ export default class ScrambleActivityPlan {
     // Demote the reserved NPC meeting to the existing interactive conversation.
     for (const npc of participants) npc.campActivity = null;
     meeting.status = 'attended';
-    this.gm.systems.conversationSystem?.startPlayerConversation?.({ npcId: participants[0].id, phase: 'post',
-      context: { location: meeting.location, meetingId, intent: 'alliance_commitment',
-        groupParticipantIds: participants.map(s => s.id) } });
+    this.gm.systems.conversationSystem?.startAllianceConversation?.(participants[0].id,meeting.allianceId,{location:meeting.location,meetingId,groupParticipantIds:participants.map(s=>s.id)});
     if (!this.camp.conversation) { meeting.status = 'cancelled'; return false; }
     this.camp.conversation.meetingId = meeting.id;
-    this.camp.reserveConversationGroup(participants.slice(1).map(s => s.id));
     this.note('player_attended', { meetingId });
     return true;
   }

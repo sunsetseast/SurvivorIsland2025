@@ -42,7 +42,7 @@ test('actual numeric cast and private production alliance inform members, never 
   const alliance = gm.systems.allianceSystem.createAlliance({ name: 'Secret Pair', type: 'final_two',
     tribeId: 1, memberIds: [1, 2], leaderId: 1, sincerityMap: { 1: 'real', 2: 'real' } });
   assert.deepEqual(Object.keys(alliance).sort(), ['active', 'cohesion', 'createdDay', 'id', 'leaderId',
-    'memberIds', 'name', 'notes', 'sincerityMap', 'targetId', 'tribeId', 'type'].sort());
+    'memberIds', 'name', 'notes', 'sincerityMap', 'targetId', 'tribeId', 'type', 'memberStates', 'lifecycle', 'history', 'roundPlan', 'secrecy', 'linkedDealIds', 'privateLabels'].sort());
   const model = knowledge();
   assert.deepEqual(model.getKnownAllies('1').map(member => member.id), [2]);
   assert.equal(model.getKnownAllies(3).length, 0);
@@ -61,7 +61,7 @@ test('actual numeric cast and private production alliance inform members, never 
   assert.ok(knowledge().perceivedDanger(members[0]) < beforeTrust);
   members[1].isOut = true;
   assert.deepEqual(knowledge().getKnownAllies(1), []);
-  alliance.active = false;
+  gm.systems.allianceSystem.disbandAlliance(alliance.id,'communicated',[1,2]);
   assert.equal(knowledge().getKnownAlliances(1).length, 0);
 });
 

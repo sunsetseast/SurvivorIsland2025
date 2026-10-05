@@ -102,6 +102,7 @@ export default class SeasonEngine {
     this.gameManager.tribeCount = targetCount;
     this.gameManager.isTribesShuffled = true;
     this.state.swapCount += 1;
+    this.gameManager.systems?.allianceSystem?.onTribeSwap?.();
     this.state.history.push({ type: 'swap', day: this.gameManager.day, from: oldTribes.length, to: targetCount });
     this.eventManager?.publish(GameEvents.TRIBE_SHUFFLED, {
       tribes: this.gameManager.tribes, day: this.gameManager.day
@@ -128,6 +129,7 @@ export default class SeasonEngine {
     this.gameManager.tribeCount = 1;
     this.gameManager.isMerged = true;
     this.state.mergeCount += 1;
+    this.gameManager.systems?.allianceSystem?.onMerge?.();
     this.state.history.push({ type: 'merge', day: this.gameManager.day, activeCount: members.length });
     this.eventManager?.publish(GameEvents.TRIBES_MERGED, { mergedTribe: merged, day: this.gameManager.day });
     return true;
@@ -229,9 +231,8 @@ export default class SeasonEngine {
     ));
     if (!candidates.length) return null;
     const alliances = this.gameManager.systems?.allianceSystem?.getAlliances?.() || [];
-    const allianceSize = (member) => alliances.find(alliance => (
-      alliance?.active !== false && (alliance.memberIds || []).includes(member.id)
-    ))?.memberIds?.length || 0;
+    const allianceSize = member => (tribe?.members || []).reduce((total,voter) => total +
+      (this.gameManager.systems?.allianceSystem?.getAllianceAffinity?.(voter.id,member.id) || 0),0);
     const score = (member) => {
       const trust = Number(this.gameManager.getTrust?.(member.id) ?? member.trust ?? 50);
       const relationship = Number(member.relationships?.[this.gameManager.player?.id] ?? member.relationship ?? 50);
