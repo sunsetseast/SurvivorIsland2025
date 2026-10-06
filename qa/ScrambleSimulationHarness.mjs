@@ -97,7 +97,7 @@ export function runScrambleScenario(scenario, { seed = 73, reload = false } = {}
         s.activity.finishConversation({ turns: 2, strategy: true, topics: 'verify_story' }); actions.push('strategic_conversation');
       } else { s.wait(45); actions.push('wait'); }
     }
-    if (scenario === 'late-change' && s.gm.dayTimer <= 480 && s.gm.dayTimer > 300 && !actions.includes('late_counter')) {
+    if (scenario === 'late-change' && s.gm.dayTimer <= 600 && s.gm.dayTimer > 90 && !actions.includes('late_counter')) {
       const npc = s.activity.npcs().find(p => p.campActivity?.interruptible !== false && s.present(p, s.gm.systems.npcLocationSystem.getLocation(p.id)));
       const target = s.activity.npcs().find(p => p.id !== npc?.id && p.id !== s.strategy.getNpcTargetIntent(npc?.id)?.targetId);
       if (npc && target) {

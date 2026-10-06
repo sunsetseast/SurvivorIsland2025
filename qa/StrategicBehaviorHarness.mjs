@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { makeScrambleQa } from './ScrambleSimulationHarness.mjs';
 import { CAST, quiet, seeded, withQaRandom } from './LivingCampSimulationHarness.mjs';
+import {captureConvergence,classifyBallot,tracePlayerAction} from './ConvergenceDiagnostics.mjs';
 const { finishTribal } = await import('./TribalQaHarness.mjs');
 const {default:ScrambleActivityPlan,ScrambleState}=await import('../src/modules/systems/ScrambleActivityPlan.js');
 const {default:TribalCouncilSystem}=await import('../src/modules/systems/TribalCouncilSystem.js');
@@ -28,11 +29,11 @@ export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,ca
  const form=(roster,type='core',extra={})=>A.createAlliance({memberIds:roster,type,...extra});
  let majority;
  if(family==='idol-concern')majority=form(ids.slice(1,9));
- else if(family!=='no-alliance')majority=form(ids.slice(0,family==='strong-majority'||family==='secret-core'||family.endsWith('bottom')||family==='target-warned'?7:4));
+ else if(family!=='no-alliance')majority=form(ids.slice(0,family==='strong-majority'||family==='secret-core'||family.endsWith('bottom')||family==='target-warned'?Math.min(7,ids.length-2):4));
  if(family==='secret-core')form(ids.slice(1,4),'core',{secrecy:'secret'});
  if(family==='competing-blocs'){form([ids[1],...ids.slice(5,9)],'voting_bloc');majority.memberStates[ids[1]].priority=.82;}
  if(family==='fake-alliance')form(ids.slice(0,2),'final_two',{sincerityMap:{[ids[1]]:'fake'}});
- const rounds=[],milestones=[],metrics={},contactPairs=new Map(),playerActions=[];let redundant=0;
+ const rounds=[],milestones=[],metrics={},contactPairs=new Map(),playerActions=[],policyAttempts=[];let redundant=0;
  const checkpoint=label=>{milestones.push(label);if(reload)s.restore();};
  for(let round=0;round<roundLimit&&!gm.player.isOut;round++){
   const live=gm.getPlayerTribe().members.filter(p=>!p.isOut);if(live.length<4)break;
@@ -41,8 +42,8 @@ export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,ca
   checkpoint('phase-start-before-preferences');s.strategy.seedNpcIntentTargetsForPhase();
   if(!mixedPreferences&&round===0&&['strong-majority','secret-core','player-bottom','npc-bottom','target-warned','fake-alliance','idol-concern'].includes(family)){
    const target=family==='player-bottom'?ids[0]:family==='npc-bottom'||family==='target-warned'?ids[2]:family==='fake-alliance'?ids[0]:ids.at(-1);
-   const insiders=family.endsWith('bottom')||family==='target-warned'?ids.slice(1,7).filter(id=>!same(id,target)):family==='fake-alliance'?[ids[1]]:family==='idol-concern'?ids.slice(1,9):ids.slice(1,7);
-   for(const id of insiders.filter(id=>!same(id,target))){s.strategy.updateNpcIntentTarget(id,target,{absoluteConfidence:.85,reason:'qa:initial-majority'});s.strategy.reasoning.state(id).committedTargetId=target;if(family==='idol-concern')s.strategy.reasoning.state(id).preferredTargetId=target;}
+   const insiders=family.endsWith('bottom')||family==='target-warned'?(activePlayer?majority.memberIds:ids.slice(1,7)).filter(id=>!same(id,gm.player.id)&&!same(id,target)):family==='fake-alliance'?[ids[1]]:family==='idol-concern'?ids.slice(1,9):ids.slice(1,7);
+   for(const id of insiders.filter(id=>!same(id,target))){s.strategy.updateNpcIntentTarget(id,target,{absoluteConfidence:activePlayer?.2:.85,reason:activePlayer?'personal_preference':'qa:initial-majority'});if(!activePlayer)s.strategy.reasoning.state(id).committedTargetId=target;if(family==='idol-concern'||activePlayer)s.strategy.reasoning.state(id).preferredTargetId=target;}
    if(family.endsWith('bottom'))A.exclude({allianceId:majority.id,proposerId:insiders[0],memberId:target,participantIds:insiders});
   }
   if(family==='idol-concern'){
@@ -58,13 +59,21 @@ export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,ca
   const initialStatus=Object.fromEntries(live.filter(p=>!p.isPlayer).map(p=>[p.id,s.strategy.reasoning.state(p.id).intentStatus]));
   while(gm.dayTimer>0){
    if(activePlayer&&round===0&&playerActions.length<4&&gm.dayTimer<=3000-playerActions.length*300){
-    const m=s.strategy.reasoning,nearby=live.filter(p=>!p.isPlayer&&m.present(p,gm.player.location)&&p.campActivity?.interruptible!==false);
-    const action=playerActions.length;
-    const npc=nearby.find(p=>action!==1||m.knowledge(gm.player.id).some(e=>same(e.attributedId||e.speakerId,p.id)))||nearby[0];
-    if(npc&&s.activity.beginConversation(npc,{location:gm.player.location,strategy:true})){
-     const nodes=scrambleNodes(m,{player:gm.player,npc}),alternate=m.voteRead(gm.player.id).alternatives.find(id=>!same(id,npc.id)&&!same(id,gm.player.id))||live.find(p=>!p.isPlayer&&!same(p.id,npc.id)&&s.strategy.isTargetIdAvailable(p.id))?.id;
-     const node=action===0?nodes.find(n=>n.id==='vote_read'):action===1?nodes.find(n=>n.id.startsWith('verify:')):nodes.find(n=>n.id===`${action===2?'counter':'commit'}:${alternate}`);
-     if(node){const before=m.state(npc.id).intendedVoteId;const result=resolveScrambleNode(m,node,npc.id);playerActions.push({action:node.id,listenerId:npc.id,before,after:m.state(npc.id).intendedVoteId,line:result.line});}
+    const m=s.strategy.reasoning,actors=m.members,action=playerActions.length;
+    const owned=m.knowledge(gm.player.id).filter(e=>['target','safety','commitment','idol_suspicion','idol_possession'].includes(e.topic)&&!same(e.speakerId,gm.player.id)).slice(-5);
+    const claim=owned.findLast(e=>actors.some(p=>!p.isPlayer&&same(p.id,e.attributedId||e.speakerId)));
+    const knownRoster=majority?A.knownRoster(gm.player.id,majority.id):[];
+    const visible=actors.filter(p=>!p.isPlayer&&m.present(p,gm.systems.npcLocationSystem.getLocation(p.id))&&p.campActivity?.interruptible!==false);
+    const npc=action===1?visible.find(p=>same(p.id,claim?.attributedId||claim?.speakerId)):
+      action===3?visible.find(p=>same(p.id,playerActions.at(-1).listenerId)):
+      action===2?visible.find(p=>!knownRoster.some(id=>same(id,p.id))):visible.find(p=>m.present(p,gm.player.location))||visible[0];
+    const attempt={action,time:gm.dayTimer,listenerId:npc?.id,visibleIds:visible.map(p=>p.id),knownRoster};policyAttempts.push(attempt);
+    const destination=npc&&gm.systems.npcLocationSystem.getLocation(npc.id);if(npc)s.move(destination);const walked=npc&&s.strategy.reasoning.present(gm.player,destination);attempt.walked=Boolean(walked);attempt.playerLocation=gm.player.location;
+    if(npc&&walked&&s.strategy.isActive&&s.activity.beginConversation(s.strategy.reasoning.person(npc.id),{location:gm.player.location,strategy:true})){
+     const current=s.strategy.reasoning,listener=current.person(npc.id),nodes=scrambleNodes(current,{player:gm.player,npc:listener});
+     const alternate=action===3?playerActions.at(-1).targetId:current.voteRead(gm.player.id).alternatives.find(id=>!same(id,listener.id)&&!same(id,gm.player.id))||current.members.find(p=>!p.isPlayer&&!same(p.id,listener.id)&&s.strategy.isTargetIdAvailable(p.id))?.id;
+     const node=action===0?nodes.find(n=>n.id==='vote_read'):action===1?nodes.find(n=>n.id===`verify:${claim?.id}`):nodes.find(n=>n.id===`${action===2?'counter':'commit'}:${alternate}`);
+     attempt.node=node?.id;if(node)playerActions.push(tracePlayerAction(current,gm.player,listener,node,()=>resolveScrambleNode(current,node,listener.id)));
      s.activity.finishConversation({strategy:true,turns:1});
     }
    }
@@ -85,35 +94,37 @@ export function runNaturalStrategy(family,{seed=401,reload=false,roundLimit=4,ca
   const m=s.strategy.reasoning;for(const [k,v] of Object.entries(m.metrics))metrics[k]=(metrics[k]||0)+v;
   metrics.strategicConversations=(metrics.strategicConversations||0)+s.strategy.scramble.history.filter(e=>e.type==='conversation_resolved').length;
   const votesBefore=Object.fromEntries(live.filter(p=>!p.isPlayer).map(p=>[p.id,m.state(p.id).intendedVoteId]));
+  const finalStates=captureConvergence(m,live.filter(p=>!p.isPlayer).map(p=>p.id));
   const playerTarget=live.find(p=>!p.isPlayer&&!p.hasImmunity)?.id;
   const tribal=new TribalCouncilSystem(gm,{publish(){}}),summary=finishTribal({gm,tribal,members:live},{playerTargetId:playerTarget});gm.handleTribalCouncilComplete(summary);
   for(const p of live.filter(p=>!p.isPlayer)){const dangerous=m.state(p.id).safetyBelief<.45,targeted=summary.initialVotes.some(v=>same(v.targetId,p.id));const key=dangerous?(targeted?'correctDangerBeliefs':'falseDangerBeliefs'):(targeted?'missedDangerBeliefs':'correctSafetyBeliefs');metrics[key]=(metrics[key]||0)+1;}
   const stable=Object.entries(initial).filter(([id,target])=>same(votesBefore[id],target)).length;
   const ballots=summary.initialVotes.filter(v=>Object.hasOwn(initial,String(v.voterId))),counts=new Map();
   for(const v of ballots)counts.set(String(v.targetId),(counts.get(String(v.targetId))||0)+1);
-  const ranked=[...counts.values()].sort((a,b)=>b-a),finalStates=Object.fromEntries(live.filter(p=>!p.isPlayer).map(p=>{const st=m.state(p.id);return [p.id,{targetId:st.intendedVoteId,status:st.intentStatus,reason:st.reason,confidence:st.confidence,commitment:st.committedTargetId,history:st.intentHistory||[],split:st.splitPlan?.assignedVoteId??null}];}));
+  const ranked=[...counts.values()].sort((a,b)=>b-a),classification=Object.fromEntries(ballots.map(v=>[v.voterId,classifyBallot(finalStates[v.voterId],v.targetId)]));
   const convergence={distinctTargets:counts.size,leadingShare:(ranked[0]||0)/ballots.length,secondShare:(ranked[1]||0)/ballots.length,
    preferenceMatches:ballots.filter(v=>same(v.targetId,preferences[v.voterId])).length,
    provisionalRetention:ballots.filter(v=>initialStatus[v.voterId]==='lean'&&same(v.targetId,initial[v.voterId])).length,
    provisionalVoters:Object.values(initialStatus).filter(x=>x==='lean').length,
-   compromises:live.filter(p=>!p.isPlayer&&!same(m.state(p.id).intendedVoteId,preferences[p.id])&&['viable_majority','alliance_consensus','explicit_commitment','self_preservation','strategic_compromise'].includes(m.state(p.id).reason)).length,
-   planAligned:ballots.filter(v=>m.knownAlliancePlans(v.voterId).some(p=>same(p.targetId,v.targetId))||m.planSupport(v.voterId).plans.some(p=>same(p.targetId,v.targetId)&&p.support>=.85)).length,
-   splitAssigned:ballots.filter(v=>same(m.state(v.voterId).splitPlan?.assignedVoteId,v.targetId)).length,
-   rogue:ballots.filter(v=>{const plans=m.planSupport(v.voterId).plans.filter(p=>p.support>=.85);return plans.length&&!plans.some(p=>same(p.targetId,v.targetId))&&!same(m.state(v.voterId).splitPlan?.assignedVoteId,v.targetId);}).length,
+   compromises:Object.values(finalStates).filter(p=>!same(p.targetId,p.preference)&&['viable_majority','alliance_consensus','explicit_commitment','self_preservation','strategic_compromise'].includes(p.reason)).length,
+   planAligned:Object.values(classification).filter(c=>['split_assignment','active_backup','coalition_plan','known_plan'].includes(c)).length,
+   splitAssigned:Object.values(classification).filter(c=>c==='split_assignment').length,
+   rogue:Object.values(classification).filter(c=>c==='intentional_outside_known_plans').length,
    ballots:ballots.length,intentMatched:ballots.filter(v=>same(v.targetId,m.state(v.voterId).intendedVoteId)).length,
    unresolvedFinalMinutes:unresolvedAtFinalFive,
    reasons:Object.values(finalStates).reduce((a,p)=>{a[p.reason]=(a[p.reason]||0)+1;return a;},{})};
-  rounds.push({preferences,initialStatus,finalStates,convergence,round:round+1,day:summary.day,members:live.length,eliminatedId:summary.eliminatedId,initialIntent:initial,finalIntent:votesBefore,stableFraction:stable/Math.max(1,Object.keys(initial).length),votes:summary.initialVotes.map(v=>({voterId:v.voterId,targetId:v.targetId})),metrics:{...m.metrics,strategicConversations:s.strategy.scramble.history.filter(e=>e.type==='conversation_resolved').length},dangerReads:live.filter(p=>!p.isPlayer).map(p=>({id:p.id,safety:m.state(p.id).safetyBelief,targeted:summary.initialVotes.some(v=>same(v.targetId,p.id))}))});
+  rounds.push({preferences,initialStatus,finalStates,classification,convergence,round:round+1,day:summary.day,members:live.length,eliminatedId:summary.eliminatedId,initialIntent:initial,finalIntent:votesBefore,stableFraction:stable/Math.max(1,Object.keys(initial).length),votes:summary.initialVotes.map(v=>({voterId:v.voterId,targetId:v.targetId})),metrics:{...m.metrics,strategicConversations:s.strategy.scramble.history.filter(e=>e.type==='conversation_resolved').length},dangerReads:live.filter(p=>!p.isPlayer).map(p=>({id:p.id,safety:m.state(p.id).safetyBelief,targeted:summary.initialVotes.some(v=>same(v.targetId,p.id))}))});
   checkpoint('after-Tribal');
  }
- return {family,seed,rounds,milestones,playerActions,metrics:{...metrics,...A.metrics,repeatedContactWithinSevenMinutes:redundant,playerEliminated:Boolean(gm.player.isOut)},projection:projection(s),rngState:rng.state()};
+ return {family,seed,rounds,milestones,playerActions,policyAttempts,metrics:{...metrics,...A.metrics,repeatedContactWithinSevenMinutes:redundant,playerEliminated:Boolean(gm.player.isOut)},projection:projection(s),rngState:rng.state()};
  }finally{Date.now=oldNow;}
  });});
 }
 // Controlled circumstances, unforced production scheduling/resolution. No split plan
 // or motive is injected, and the group travels and spends six semantic minutes.
 export function runSplitOpportunity({seed=73,reload=false}={}) {
- return quiet(()=>withQaRandom(seeded(seed),()=>{
+ const rng=seeded(seed);
+ return quiet(()=>withQaRandom(rng,()=>{
   const s=makeScrambleQa({seed,names:['Cirie','Parvati','Tony','Natalie','Carolyn','Yul','Sandra','Jeremy','Michele','Ozzy']}),m=()=>s.strategy.reasoning,A=s.gm.systems.allianceSystem;
   s.idle();s.strategy.scramble.meetings=[];A.reset();s.memory.deserialize({});
   const group=s.activity.npcs().slice(0,8),primary=s.activity.npcs()[8].id;
@@ -124,7 +135,7 @@ export function runSplitOpportunity({seed=73,reload=false}={}) {
   s.strategy.scramble.scheduleAlliances();let saved=false;
   while(s.gm.dayTimer>0){s.wait(60);if(!saved&&m().metrics.splitPlans){saved=true;if(reload)s.restore();}}
   const splits=Object.values(m().plans).filter(p=>p.assignments);
-  return {seed,metrics:{...m().metrics},splits,opposition:s.gm.getPlayerTribe().members.length-group.length,meetings:s.strategy.scramble.meetings.map(x=>({status:x.status,outcome:x.outcome})),projection:semantic({strategy:s.strategy.serialize(),memory:s.memory.serialize(),alliances:A.serialize(),camp:s.activity.serialize()})};
+  return {seed,rngState:rng.state(),metrics:{...m().metrics},splits,opposition:s.gm.getPlayerTribe().members.length-group.length,meetings:s.strategy.scramble.meetings.map(x=>({status:x.status,outcome:x.outcome})),projection:semantic({strategy:s.strategy.serialize(),memory:s.memory.serialize(),alliances:A.serialize(),camp:s.activity.serialize()})};
  }));
 }
 export function validateNaturalStrategy({seedsPerFamily=4,roundLimit=4,onResult=null,families=NATURAL_FAMILIES}={}){

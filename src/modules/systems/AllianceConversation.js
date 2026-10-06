@@ -6,7 +6,7 @@ const result = (p, text) => ({ lines: [line(p, text)] });
 // quietly voting against the listener can maintain cover without announcing it.
 const maintainsCover = (system, model, alliance, speakerId, listenerId) =>
   ["fake", "cover"].includes(alliance?.memberStates[speakerId]?.sincerity) ||
-  same(model.state(speakerId).intendedVoteId, listenerId);
+  model.hasVotePlan(speakerId, listenerId);
 export function allianceOpening({ gm, player, npc, context, cp }) {
   const system = gm.systems.allianceSystem,
     model = gm.systems.strategyPhaseSystem.reasoning;
@@ -66,6 +66,9 @@ export function allianceOpening({ gm, player, npc, context, cp }) {
           ) ?? null)
         : s.intendedVoteId;
       cp.groupPositions[p.id] = target;
+      const speech=cover
+        ? {topic:'target',stance:'consider',line:target?`I can work with ${name(system.person(target))} tonight.`:'I’m still figuring it out.'}
+        : model.voteStatement(p.id,target);
       if (target)
         model.statement({
           id: `${cp.activityId}:alliance-opening:${p.id}`,
@@ -75,15 +78,13 @@ export function allianceOpening({ gm, player, npc, context, cp }) {
             ...participants.filter((x) => !same(x.id, p.id)).map((x) => x.id),
           ],
           subjectId: target,
+          topic: speech.topic,
+          stance: speech.stance,
           mode: cover ? "decoy" : "truthful",
         });
       return line(
         p,
-        target
-          ? same(s.committedTargetId,target) && !cover
-            ? `I’m voting ${name(system.person(target))}. That is my plan.`
-            : `${name(system.person(target))} is where my head is. I have not committed yet.`
-          : "I still need to hear where everyone stands.",
+        speech.line,
       );
     });
     return intro?[line(npc,intro),...positions]:positions;

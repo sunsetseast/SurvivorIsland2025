@@ -23,7 +23,7 @@ export function scrambleNodes(model,{player,npc,context={},topic='strategy'}) {
     node('safety_read','Is my name coming up?','Have you heard my name?',random=>{
       const evidence=model.knowledge(npc.id).find(e=>['target','safety'].includes(e.topic)&&same(e.subjectId,player.id)&&!['denied','no','protect'].includes(e.stance));
       if(evidence&&(model.gm.getTrust?.(npc.id,player.id)??50)>55){npcSay('safety_read',player.id,{topic:'safety',stance:'warned',mode:'hearsay',sourceChain:evidence.sourceChain},random);return {line:'I have heard your name. You should check in with people.'};}
-      if(same(state?.intendedVoteId,player.id)&&getCampBehaviorProfile(npc).honesty<.7){npcSay('safety_read',player.id,{topic:'safety',stance:'yes',mode:'reassurance_lie'},random);return {line:'You’re fine. Don’t worry.'};}
+      if(model.hasVotePlan(npc.id,player.id)&&getCampBehaviorProfile(npc).honesty<.7){npcSay('safety_read',player.id,{topic:'safety',stance:'yes',mode:'reassurance_lie'},random);return {line:'You’re fine. Don’t worry.'};}
       return {line:'Nobody has told me that. I can’t promise anything.'};
     })];
   for(const target of model.members.filter(p=>!same(p.id,player.id)&&!same(p.id,npc.id)&&model.strategy.isTargetIdAvailable(p.id))) {
