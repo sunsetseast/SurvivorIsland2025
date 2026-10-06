@@ -1159,7 +1159,8 @@ export default class TribalCouncilSystem {
 
     const directIntent = strategyPhaseSystem.getNpcTargetIntent?.(voter.id);
     if (directIntent && this._idsEqual(directIntent.targetId, target.id)) {
-      return Math.max(0, Math.min(directIntent.intentStatus==='lean' ? .25 : 1, directIntent.confidence ?? 0.5));
+      const cap=directIntent.intentStatus==='lean' ? .25 : directIntent.intentStatus==='provisional' ? .65 : 1;
+      return Math.max(0, Math.min(cap, directIntent.confidence ?? 0.5));
     }
 
     // A board aggregate must not pressure an NPC away from their own ballot.

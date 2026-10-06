@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "baseline": "3c8cafad03bc3af89eaa25d54856c1b34dc9c8ad",
+    "implementationCommit": "11a8ed54950b9f79115226e277ba55df8c68efd6",
+    "runnableSha256": "d0c98bf769cd4dbcce04227b814dd268e945957316b9a9060cee359870f80e98",
+    "files": 203,
+    "generatedAt": "2026-10-06T04:41:13.974Z",
+    "method": "Production Node/local verification; no GitHub Actions claim. Paired uninterrupted/production JSON restore. NPC-only ballots."
+  },
+  "scope": "Local Node execution on the implementation commit; repeat on the report-only final published head before opening the draft PR. Exact final-head attestation is in the PR description.",
+  "baseline": {
+    "commit": "3c8cafad03bc3af89eaa25d54856c1b34dc9c8ad",
+    "total": 624,
+    "passed": 623,
+    "failed": 1,
+    "failure": "Existing late-change QA policy missed a physically eligible conversation in its narrow timing window."
+  },
+  "newTests": 22,
+  "full": {
+    "command": "npm test",
+    "total": 646,
+    "passed": 646,
+    "failed": 0
+  },
+  "focused": {
+    "command": "node --test test/VoteConvergence.test.mjs test/VoteConvergenceHarness.test.mjs test/ConvergenceCertification.test.mjs",
+    "total": 57,
+    "passed": 57,
+    "failed": 0
+  },
+  "gitDiffCheck": "Passed; repeat baseline..final-head after publication.",
+  "githubActions": "Not run; no repository workflow exists.",
+  "rendered": "Not run: Playwright Chromium archive download failed (empty/truncated ZIP). Chromium + Linux WebKit command did not install usable engines.",
+  "physicalIphone": "Not performed."
+}
