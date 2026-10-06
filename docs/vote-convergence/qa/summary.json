@@ -1,0 +1,1145 @@
+{
+  "metadata": {
+    "baseline": "3c8cafad03bc3af89eaa25d54856c1b34dc9c8ad",
+    "implementationCommit": "11a8ed54950b9f79115226e277ba55df8c68efd6",
+    "runnableSha256": "d0c98bf769cd4dbcce04227b814dd268e945957316b9a9060cee359870f80e98",
+    "files": 203,
+    "generatedAt": "2026-10-06T04:41:13.974Z",
+    "method": "Production Node/local verification; no GitHub Actions claim. Paired uninterrupted/production JSON restore. NPC-only ballots."
+  },
+  "setup": {
+    "natural": "Same #352 cast rotation/seeds, configured starting alliances and initial majority circumstances, four-round policy; player immunity in four families; merge in round three when surviving.",
+    "controlled": "Configured social structure and mixed weak personal wishes; no injected final plan, commitment, split or ballot. Real movement/meetings/conversations and actual Tribal.",
+    "active": "Seven players; player secretly excluded from a five-person majority, insiders start weak preferences, not injected final promises. Four-action physical policy chooses a nearby listener and a heard/fallback alternate.",
+    "counterplay": "Seven players; configured danger, trusted ally and uncertain swing. Player verification/share/pitch/pledge use actual checkpoint RNG/time. NPC variant begins with owned ally openness and an actual player pledge, then autonomous physical camp planning. Capability, not escape-rate balance.",
+    "split": "Favorable configured high trust, idol evidence, existing primary support and enough numbers. No actual split/backup/motive injected."
+  },
+  "runs": 40,
+  "tribals": 145,
+  "controlled": 20,
+  "before": {
+    "no-alliance": {
+      "rounds": 16,
+      "distinctTargets": 5.1875,
+      "leadingShare": 0.3350694444444445,
+      "secondShare": 0.21961805555555555,
+      "initialIntentionRetention": 0.9930555555555556
+    },
+    "strong-majority": {
+      "rounds": 16,
+      "distinctTargets": 4.5625,
+      "leadingShare": 0.4626736111111111,
+      "secondShare": 0.2152777777777778,
+      "initialIntentionRetention": 0.984375
+    },
+    "divided": {
+      "rounds": 16,
+      "distinctTargets": 5.0625,
+      "leadingShare": 0.4027777777777778,
+      "secondShare": 0.2109375,
+      "initialIntentionRetention": 0.9618055555555556
+    },
+    "competing-blocs": {
+      "rounds": 16,
+      "distinctTargets": 5.125,
+      "leadingShare": 0.37760416666666663,
+      "secondShare": 0.2282986111111111,
+      "initialIntentionRetention": 0.9765625
+    },
+    "idol-concern": {
+      "rounds": 16,
+      "distinctTargets": 4.375,
+      "leadingShare": 0.4722222222222222,
+      "secondShare": 0.2152777777777778,
+      "initialIntentionRetention": 0.9296875
+    },
+    "fake-alliance": {
+      "rounds": 10,
+      "distinctTargets": 4.8,
+      "leadingShare": 0.39583333333333337,
+      "secondShare": 0.24027777777777776,
+      "initialIntentionRetention": 0.9527777777777778
+    },
+    "secret-core": {
+      "rounds": 16,
+      "distinctTargets": 3.625,
+      "leadingShare": 0.6015625,
+      "secondShare": 0.19878472222222224,
+      "initialIntentionRetention": 0.96875
+    },
+    "player-bottom": {
+      "rounds": 4,
+      "distinctTargets": 4,
+      "leadingShare": 0.6666666666666666,
+      "secondShare": 0.1111111111111111,
+      "initialIntentionRetention": 1
+    },
+    "npc-bottom": {
+      "rounds": 16,
+      "distinctTargets": 4.1875,
+      "leadingShare": 0.5208333333333333,
+      "secondShare": 0.21267361111111113,
+      "initialIntentionRetention": 1
+    },
+    "target-warned": {
+      "rounds": 16,
+      "distinctTargets": 4.625,
+      "leadingShare": 0.4574652777777778,
+      "secondShare": 0.20572916666666669,
+      "initialIntentionRetention": 1
+    }
+  },
+  "after": {
+    "no-alliance": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 2.6875,
+      "leadingShare": 0.7178819444444444,
+      "secondShare": 0.20312499999999997,
+      "initialIntentionRetention": 0.45746527777777773,
+      "initialProvisionalRetention": 0.4621212121212121,
+      "finalPreferenceMatch": 0.4621212121212121,
+      "socialCompromiseRate": 0.5378787878787878,
+      "compromises": 71,
+      "commitments": 365,
+      "planAligned": 78,
+      "rogue": 4,
+      "splitAssigned": 0,
+      "lateFlips": 8,
+      "intentionChanges": 77,
+      "intentMatched": 1,
+      "reasons": {
+        "explicit_commitment": 88,
+        "personal_preference": 21,
+        "viable_majority": 18,
+        "strategic_compromise": 3,
+        "self_preservation": 1,
+        "alliance_consensus": 1
+      }
+    },
+    "strong-majority": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 2,
+      "leadingShare": 0.8628472222222222,
+      "secondShare": 0.1371527777777778,
+      "initialIntentionRetention": 0.3342013888888889,
+      "initialProvisionalRetention": 0.2037037037037037,
+      "finalPreferenceMatch": 0.18181818181818182,
+      "socialCompromiseRate": 0.8181818181818182,
+      "compromises": 108,
+      "commitments": 459,
+      "planAligned": 109,
+      "rogue": 0,
+      "splitAssigned": 0,
+      "lateFlips": 5,
+      "intentionChanges": 124,
+      "intentMatched": 0.9924242424242424,
+      "reasons": {
+        "explicit_commitment": 107,
+        "personal_preference": 6,
+        "alliance_consensus": 2,
+        "viable_majority": 12,
+        "strategic_compromise": 5
+      }
+    },
+    "divided": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 3.375,
+      "leadingShare": 0.5928819444444444,
+      "secondShare": 0.23263888888888887,
+      "initialIntentionRetention": 0.5182291666666667,
+      "initialProvisionalRetention": 0.5227272727272727,
+      "finalPreferenceMatch": 0.5227272727272727,
+      "socialCompromiseRate": 0.4621212121212121,
+      "compromises": 61,
+      "commitments": 290,
+      "planAligned": 65,
+      "rogue": 2,
+      "splitAssigned": 0,
+      "lateFlips": 11,
+      "intentionChanges": 82,
+      "intentMatched": 1,
+      "reasons": {
+        "explicit_commitment": 71,
+        "viable_majority": 11,
+        "personal_preference": 34,
+        "alliance_consensus": 8,
+        "strategic_compromise": 3,
+        "backup:target_aware": 2,
+        "self_preservation": 3
+      }
+    },
+    "competing-blocs": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 3.375,
+      "leadingShare": 0.6171875,
+      "secondShare": 0.21093750000000003,
+      "initialIntentionRetention": 0.5442708333333333,
+      "initialProvisionalRetention": 0.5454545454545454,
+      "finalPreferenceMatch": 0.5454545454545454,
+      "socialCompromiseRate": 0.45454545454545453,
+      "compromises": 60,
+      "commitments": 287,
+      "planAligned": 67,
+      "rogue": 2,
+      "splitAssigned": 0,
+      "lateFlips": 13,
+      "intentionChanges": 73,
+      "intentMatched": 1,
+      "reasons": {
+        "personal_preference": 36,
+        "strategic_compromise": 8,
+        "explicit_commitment": 71,
+        "viable_majority": 16,
+        "alliance_consensus": 1
+      }
+    },
+    "idol-concern": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 2.375,
+      "leadingShare": 0.7456597222222222,
+      "secondShare": 0.1918402777777778,
+      "initialIntentionRetention": 0.5008680555555556,
+      "initialProvisionalRetention": 0.36,
+      "finalPreferenceMatch": 0.5151515151515151,
+      "socialCompromiseRate": 0.48484848484848486,
+      "compromises": 64,
+      "commitments": 375,
+      "planAligned": 91,
+      "rogue": 4,
+      "splitAssigned": 0,
+      "lateFlips": 9,
+      "intentionChanges": 139,
+      "intentMatched": 1,
+      "reasons": {
+        "explicit_commitment": 95,
+        "personal_preference": 18,
+        "alliance_consensus": 3,
+        "viable_majority": 8,
+        "self_preservation": 7,
+        "strategic_compromise": 1
+      }
+    },
+    "fake-alliance": {
+      "rounds": 13,
+      "ballots": 108,
+      "distinctTargets": 2.923076923076923,
+      "leadingShare": 0.5865384615384615,
+      "secondShare": 0.2799145299145299,
+      "initialIntentionRetention": 0.42841880341880345,
+      "initialProvisionalRetention": 0.4423076923076923,
+      "finalPreferenceMatch": 0.4351851851851852,
+      "socialCompromiseRate": 0.5648148148148148,
+      "compromises": 61,
+      "commitments": 322,
+      "planAligned": 59,
+      "rogue": 4,
+      "splitAssigned": 0,
+      "lateFlips": 12,
+      "intentionChanges": 88,
+      "intentMatched": 1,
+      "reasons": {
+        "explicit_commitment": 69,
+        "personal_preference": 20,
+        "viable_majority": 10,
+        "strategic_compromise": 6,
+        "self_preservation": 2,
+        "alliance_consensus": 1
+      }
+    },
+    "secret-core": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 2.9375,
+      "leadingShare": 0.662326388888889,
+      "secondShare": 0.2230902777777778,
+      "initialIntentionRetention": 0.49565972222222227,
+      "initialProvisionalRetention": 0.39814814814814814,
+      "finalPreferenceMatch": 0.3484848484848485,
+      "socialCompromiseRate": 0.6515151515151515,
+      "compromises": 86,
+      "commitments": 339,
+      "planAligned": 95,
+      "rogue": 2,
+      "splitAssigned": 0,
+      "lateFlips": 14,
+      "intentionChanges": 111,
+      "intentMatched": 1,
+      "reasons": {
+        "personal_preference": 15,
+        "explicit_commitment": 92,
+        "viable_majority": 5,
+        "strategic_compromise": 8,
+        "alliance_consensus": 11,
+        "self_preservation": 1
+      }
+    },
+    "player-bottom": {
+      "rounds": 4,
+      "ballots": 36,
+      "distinctTargets": 1,
+      "leadingShare": 1,
+      "secondShare": 0,
+      "initialIntentionRetention": 0.6666666666666666,
+      "initialProvisionalRetention": 0,
+      "finalPreferenceMatch": 0.08333333333333333,
+      "socialCompromiseRate": 0.9166666666666666,
+      "compromises": 33,
+      "commitments": 191,
+      "planAligned": 34,
+      "rogue": 0,
+      "splitAssigned": 0,
+      "lateFlips": 1,
+      "intentionChanges": 33,
+      "intentMatched": 1,
+      "reasons": {
+        "explicit_commitment": 35,
+        "viable_majority": 1
+      }
+    },
+    "npc-bottom": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 3.1875,
+      "leadingShare": 0.6649305555555556,
+      "secondShare": 0.19010416666666669,
+      "initialIntentionRetention": 0.5217013888888888,
+      "initialProvisionalRetention": 0.42857142857142855,
+      "finalPreferenceMatch": 0.3712121212121212,
+      "socialCompromiseRate": 0.6136363636363636,
+      "compromises": 81,
+      "commitments": 360,
+      "planAligned": 79,
+      "rogue": 2,
+      "splitAssigned": 0,
+      "lateFlips": 7,
+      "intentionChanges": 89,
+      "intentMatched": 0.9848484848484849,
+      "reasons": {
+        "explicit_commitment": 81,
+        "personal_preference": 32,
+        "strategic_compromise": 8,
+        "viable_majority": 6,
+        "alliance_consensus": 5
+      }
+    },
+    "target-warned": {
+      "rounds": 16,
+      "ballots": 132,
+      "distinctTargets": 2,
+      "leadingShare": 0.8324652777777778,
+      "secondShare": 0.16753472222222224,
+      "initialIntentionRetention": 0.328125,
+      "initialProvisionalRetention": 0.25892857142857145,
+      "finalPreferenceMatch": 0.2196969696969697,
+      "socialCompromiseRate": 0.7803030303030303,
+      "compromises": 103,
+      "commitments": 533,
+      "planAligned": 107,
+      "rogue": 2,
+      "splitAssigned": 0,
+      "lateFlips": 5,
+      "intentionChanges": 121,
+      "intentMatched": 1,
+      "reasons": {
+        "explicit_commitment": 109,
+        "strategic_compromise": 5,
+        "personal_preference": 6,
+        "viable_majority": 9,
+        "alliance_consensus": 3
+      }
+    }
+  },
+  "smells": [
+    {
+      "family": "divided",
+      "seed": 410,
+      "round": 2,
+      "type": "excessive-fragmentation"
+    },
+    {
+      "family": "player-bottom",
+      "seed": 429,
+      "round": 1,
+      "type": "near-unanimity-review"
+    },
+    {
+      "family": "player-bottom",
+      "seed": 430,
+      "round": 1,
+      "type": "near-unanimity-review"
+    },
+    {
+      "family": "player-bottom",
+      "seed": 431,
+      "round": 1,
+      "type": "near-unanimity-review"
+    },
+    {
+      "family": "player-bottom",
+      "seed": 432,
+      "round": 1,
+      "type": "near-unanimity-review"
+    },
+    {
+      "size": 6,
+      "seed": 79,
+      "structure": "no-alliance",
+      "type": "excessive-fragmentation"
+    }
+  ],
+  "smellCounts": {
+    "excessive-fragmentation": 2,
+    "near-unanimity-review": 4
+  },
+  "activeAnalysis": {
+    "runs": 32,
+    "actions": 128,
+    "survivals": 0,
+    "immediateShifts": 0,
+    "counterAttempts": [
+      {
+        "seed": 401,
+        "listenerId": 10,
+        "targetId": 6,
+        "playerSupport": 0,
+        "listenerIntent": 9,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.45999999999999996,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.2950741310287267,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 402,
+        "listenerId": 11,
+        "targetId": 7,
+        "playerSupport": 0,
+        "listenerIntent": 8,
+        "listenerCommitment": 8,
+        "trust": 50,
+        "flexibility": 0.39,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.24480498020425437,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 403,
+        "listenerId": 12,
+        "targetId": 8,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.4314464936833829,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 404,
+        "listenerId": 13,
+        "targetId": 9,
+        "playerSupport": 0,
+        "listenerIntent": 12,
+        "listenerCommitment": 12,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.2803073404997587,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 405,
+        "listenerId": 14,
+        "targetId": 10,
+        "playerSupport": 0,
+        "listenerIntent": 11,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.45999999999999996,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.2859585930649191,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 406,
+        "listenerId": 15,
+        "targetId": 11,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.425,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.4102429480586201,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 407,
+        "listenerId": 16,
+        "targetId": 12,
+        "playerSupport": 0,
+        "listenerIntent": 15,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.44957112077511846,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 408,
+        "listenerId": 17,
+        "targetId": 13,
+        "playerSupport": 0,
+        "listenerIntent": 14,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.53,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.4602991297151894,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 409,
+        "listenerId": 18,
+        "targetId": 14,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.6,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.42154428831860424,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 410,
+        "listenerId": 1,
+        "targetId": 15,
+        "playerSupport": 0,
+        "listenerIntent": 18,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.41922287315018475,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 411,
+        "listenerId": 2,
+        "targetId": 16,
+        "playerSupport": 0,
+        "listenerIntent": 17,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.53,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.4609296281784773,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 412,
+        "listenerId": 4,
+        "targetId": 17,
+        "playerSupport": 0,
+        "listenerIntent": 2,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.495,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.30181191688030956,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 413,
+        "listenerId": 4,
+        "targetId": 18,
+        "playerSupport": 0,
+        "listenerIntent": 3,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.495,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.434442453622818,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 414,
+        "listenerId": 6,
+        "targetId": 1,
+        "playerSupport": 0,
+        "listenerIntent": 1,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.495,
+        "affinity": 0,
+        "viability": 0.25,
+        "adoption": [
+          {
+            "score": 0.6632313608553261,
+            "outcome": "commit",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": true,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 415,
+        "listenerId": 6,
+        "targetId": 2,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.495,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.44743702963814136,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 416,
+        "listenerId": 7,
+        "targetId": 3,
+        "playerSupport": 0,
+        "listenerIntent": 6,
+        "listenerCommitment": 6,
+        "trust": 50,
+        "flexibility": 0.39,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.2748258024588227,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 417,
+        "listenerId": 8,
+        "targetId": 4,
+        "playerSupport": 0,
+        "listenerIntent": 5,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.45999999999999996,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.4581542351230979,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 418,
+        "listenerId": 9,
+        "targetId": 5,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.6,
+        "affinity": 0,
+        "viability": 0.0815798611111111,
+        "adoption": [
+          {
+            "score": 0.4446625152911163,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 419,
+        "listenerId": 10,
+        "targetId": 6,
+        "playerSupport": 0,
+        "listenerIntent": 9,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.45999999999999996,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.3037944234218448,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 420,
+        "listenerId": 11,
+        "targetId": 7,
+        "playerSupport": 0,
+        "listenerIntent": 8,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.39,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.32182390421256424,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 421,
+        "listenerId": 12,
+        "targetId": 8,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.3128237228058279,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 422,
+        "listenerId": 13,
+        "targetId": 9,
+        "playerSupport": 0,
+        "listenerIntent": 12,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0.0873611111111111,
+        "adoption": [
+          {
+            "score": 0.4266332919783063,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 423,
+        "listenerId": 14,
+        "targetId": 10,
+        "playerSupport": 0,
+        "listenerIntent": 11,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.45999999999999996,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.42037647937983275,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 424,
+        "listenerId": 15,
+        "targetId": 11,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.425,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.42357915927805007,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 425,
+        "listenerId": 16,
+        "targetId": 12,
+        "playerSupport": 0,
+        "listenerIntent": 15,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.4552210882015526,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 426,
+        "listenerId": 17,
+        "targetId": 13,
+        "playerSupport": 0,
+        "listenerIntent": 13,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.53,
+        "affinity": 0,
+        "viability": 0.916873611111111,
+        "adoption": [
+          {
+            "score": 0.6933272180922246,
+            "outcome": "commit",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": true,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 427,
+        "listenerId": 18,
+        "targetId": 14,
+        "playerSupport": 0,
+        "listenerIntent": 1001,
+        "listenerCommitment": 1001,
+        "trust": 50,
+        "flexibility": 0.6,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.11627121537551284,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 428,
+        "listenerId": 1,
+        "targetId": 15,
+        "playerSupport": 0,
+        "listenerIntent": 18,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.3205982548892498,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 429,
+        "listenerId": 2,
+        "targetId": 16,
+        "playerSupport": 0,
+        "listenerIntent": 18,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.53,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.2895270450375974,
+            "outcome": "refuse",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 430,
+        "listenerId": 3,
+        "targetId": 17,
+        "playerSupport": 0,
+        "listenerIntent": 17,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.565,
+        "affinity": 0,
+        "viability": 0.9310184027777777,
+        "adoption": [
+          {
+            "score": 0.5622890058659183,
+            "outcome": "open",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 431,
+        "listenerId": 4,
+        "targetId": 18,
+        "playerSupport": 0,
+        "listenerIntent": 3,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.495,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.4634116813968867,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      },
+      {
+        "seed": 432,
+        "listenerId": 5,
+        "targetId": 1,
+        "playerSupport": 0,
+        "listenerIntent": 2,
+        "listenerCommitment": null,
+        "trust": 50,
+        "flexibility": 0.45999999999999996,
+        "affinity": 0,
+        "viability": 0,
+        "adoption": [
+          {
+            "score": 0.32436406399682166,
+            "outcome": "hedge",
+            "reason": "evaluated"
+          }
+        ],
+        "gainedCredibleVote": false,
+        "realIntentChanged": false
+      }
+    ],
+    "outcomes": {
+      "evaluated:refuse": 9,
+      "evaluated:hedge": 20,
+      "evaluated:commit": 2,
+      "evaluated:open": 1
+    }
+  },
+  "counterSummary": {
+    "player": {
+      "runs": 16,
+      "swingMoved": 8
+    },
+    "npc": {
+      "runs": 16,
+      "swingMoved": 6
+    }
+  },
+  "restore": {
+    "cases": 125,
+    "matched": 125
+  },
+  "split": [
+    {
+      "metrics": {
+        "intentionChanges": 28,
+        "statements": 72,
+        "truthfulStatements": 65,
+        "voteReconsiderations": 201,
+        "commitments": 18,
+        "backups": 1,
+        "splitPlans": 1,
+        "viableSplitPlans": 1,
+        "hedges": 10,
+        "backupsActivated": 1,
+        "motive:gather_intel": 11,
+        "gatherIntelAttempts": 11,
+        "motive:alliance_offer": 2,
+        "socialCompromises": 2,
+        "deliberateLies": 5,
+        "decoys": 4,
+        "motive:check_loyalty": 29,
+        "loyaltyChecks": 29,
+        "contradictionsDiscovered": 23,
+        "motive:reassure_target": 1,
+        "reassurances": 1,
+        "motive:warn_ally": 1,
+        "warningAttempts": 1,
+        "rumors": 2,
+        "warnings": 1,
+        "motive:counter_pitch": 3,
+        "motive:recruit_swing": 1
+      },
+      "assignments": [
+        {
+          "3": 1,
+          "6": 1,
+          "7": 1,
+          "9": 1,
+          "10": 14,
+          "11": 14,
+          "13": 14,
+          "17": 14
+        }
+      ],
+      "opposition": 3
+    }
+  ]
+}
