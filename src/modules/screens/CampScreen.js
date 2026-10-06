@@ -399,6 +399,7 @@ export default class CampScreen {
     const player = gameManager.getPlayerSurvivor?.();
     const from = physicalCampLocation(window.previousCampView);
     const to = physicalCampLocation(normalizedViewName);
+    let presentedTravelSeconds = 0;
     gameManager.systems?.campInteractionSystem?.leaveLocation(from, to);
     if (player && to) {
       if (this.isActive && [GamePhase.PRE_CHALLENGE, GamePhase.POST_CHALLENGE].includes(gameManager.gamePhase) &&
@@ -414,6 +415,7 @@ export default class CampScreen {
             duration: steps.length * 30, external: true });
           try { gameManager.consumeCampTime(steps.length * 30, { source: 'camp_travel' }); }
           finally { living?.finishPlayerBlock(travel); }
+          presentedTravelSeconds = steps.length * 30;
           if (gameManager.gamePhase === GamePhase.POST_CHALLENGE && !gameManager.systems.strategyPhaseSystem?.isActive) return;
         }
       }
@@ -474,6 +476,8 @@ export default class CampScreen {
       eventManager.publish(GameEvents.CAMP_VIEW_LOADED, {
         viewName: normalizedViewName
       });
+      if (presentedTravelSeconds && gameManager.gamePhase === GamePhase.POST_CHALLENGE)
+        eventManager.publish('camp:travelPresented', { from, to, seconds: presentedTravelSeconds });
       safeDebug('CAMP VIEW LOADED', normalizedViewName);
 
       // Update menu stats. The CAMP_VIEW_LOADED subscriber owns NPC rendering.

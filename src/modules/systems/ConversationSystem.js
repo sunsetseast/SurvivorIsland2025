@@ -14,6 +14,7 @@ import { buildDay1NpcReference } from '../events/Day1CampMemory.js';
 import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { isCampPhysicallyPresent } from '../locations/CampPresence.js';
 import { campEvidenceRank, campEvidenceConfidence } from './CampKnowledge.js';
+import { contextualScrambleChoices } from '../ui/ScramblePresentation.js';
 
 // DEV NOTE (ConversationSystem)
 // - NPC stances: computed per exchange from relationship, paranoia, gameplay style, and risk.
@@ -691,10 +692,7 @@ class ConversationSystem {
   _renderScrambleContext({ player, npc, context }) {
     const model = this._scrambleModel(), cp = model.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
     const nodes = scrambleNodes(model, { player, npc, context });
-    const known = [...model.knowledge(player.id)].reverse().find(e => String(e.speakerId) === String(npc.id) && ['target','commitment'].includes(e.topic));
-    const preferred = known ? [`commit:${known.subjectId}`, 'vote_read', 'not_commit'] : ['vote_read', 'safety_read', 'not_commit'];
-    const selected = preferred.map(id => nodes.find(n => n.id === id)).filter(Boolean);
-    selected.push(nodes.find(n => n.id.startsWith('counter:')));
+    const selected = contextualScrambleChoices(nodes, model.knowledge(player.id), npc.id, cp?.choices);
     this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: this.nodeSession?.transcript?.length ? null : cp?.lastLine || 'What do you want to ask?' }),
       [...selected.filter(Boolean).map(node => ({ label: node.buttonText, onClick: () => this._runConversationNode({ player, npc, node, context }) })),
        { label: 'More…', onClick: () => this._renderMainMenu({ player, npc, context: { ...context, scrambleMore: true }, mainTopics: this._buildMainTopics({ player, npc, context }) }) }], { showEnd: true });
@@ -1124,6 +1122,7 @@ class ConversationSystem {
     });
 
     content.appendChild(parchment);
+    if (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE) this._renderScrambleParticipants(overlay, npc);
 
     if (!optionsScrollable) {
       optionsDiv.style.overflowY = 'visible';
@@ -1176,8 +1175,14 @@ class ConversationSystem {
       this._initTranscript(this.nodeSession);
       this.nodeSession?.addYou?.(node.playerLine || node.buttonText);
       this.nodeSession?.addNpc?.(result.line);
-      return this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession }),
-        [{ label: 'Keep talking', onClick: () => this._renderScrambleContext({ player, npc, context }) }], { showEnd: true });
+      eventManager.publish('camp:readUpdated');
+      this._renderScrambleContext({ player, npc, context });
+      if (!result.replay && /^(commit:|bluff_vote:)/.test(node.id)) {
+        const cue = document.createElement('p'); cue.className = 'scramble-promise-cue'; cue.setAttribute('role','status');
+        cue.textContent = `Promise made to ${npc.firstName}: “${node.playerLine}”`;
+        this.activeOverlay?.querySelector('.conversation-options-region')?.prepend(cue);
+      }
+      return;
     }
     const checkpoint = model?.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
     const legacyKey = `legacy:${node.id}`;
@@ -1422,7 +1427,7 @@ class ConversationSystem {
       });
     };
 
-    if (seededContext.initiatedByNpc) {
+    if (seededContext.initiatedByNpc && !seededContext.approachAccepted) {
       this._showNpcApproachOverlay(survivor, location, beginConversation);
     } else {
       beginConversation();
@@ -1455,12 +1460,35 @@ class ConversationSystem {
     const buttons=allianceChoices({gm,player,npc,context,cp}).map(node=>({label:node.label,onClick:()=>{
       const result=model.choice(`alliance:${node.id}`,random=>node.resolve(random));
       if(!result.replay){session?.addYou?.(node.label);for(const line of result.lines||[])session.transcript.push(line);}
+      eventManager.publish('camp:readUpdated');
       render();
     }}));
     buttons.push({label:'Talk about something else',onClick:()=>this._renderMainMenu({player,npc,context:{...context,scrambleMore:true},mainTopics:this._buildMainTopics({player,npc,context})})});
     cp.allianceTranscript=JSON.parse(JSON.stringify(session.transcript));
     this._renderMenu(npc,this._buildTranscriptBody({session}),buttons,{showEnd:true});
     if(typeof document!=='undefined')document.getElementById('conversation-overlay')?.setAttribute('data-alliance-dialog','true');return true;
+  }
+  _renderScrambleParticipants(overlay, npc) {
+    const reservation = this.gameManager.systems.campActivitySystem?.conversation;
+    const ids = [npc.id, ...(reservation?.groupIds || [])];
+    const participants = ids.filter((id, i) => ids.findIndex(x => String(x) === String(id)) === i)
+      .map(id => this._getSurvivorById(id)).filter(Boolean);
+    const center = overlay.querySelector('.conversation-center');
+    if (!center) return;
+    [...center.children].find(e => !e.classList.contains('conversation-content') && !e.classList.contains('scramble-speakers'))?.classList.add('scramble-primary-avatar');
+    let header = center.querySelector('.scramble-speakers');
+    if (!header) { header = document.createElement('header'); header.className = 'scramble-speakers'; center.prepend(header); }
+    header.replaceChildren();
+    const title = document.createElement('p'); title.className = 'scramble-dialog-title';
+    title.textContent = participants.length > 1 ? 'Talking quietly together' : 'A word before Tribal'; header.appendChild(title);
+    const rail = document.createElement('div'); rail.className = 'scramble-participants';
+    const last = [...(this._getActiveTranscriptSession()?.transcript || [])].reverse().find(e => e.speaker === 'NPC');
+    for (const p of participants) {
+      const person = document.createElement('span'); person.className = `scramble-participant${last?.name === p.firstName ? ' speaking' : ''}`;
+      const img = document.createElement('img'); img.src = p.avatarUrl || ''; img.alt = ''; person.appendChild(img);
+      const label = document.createElement('span'); label.textContent = p.firstName; person.appendChild(label); rail.appendChild(person);
+    }
+    header.appendChild(rail); overlay.setAttribute('aria-label', `Conversation with ${participants.map(p => p.firstName).join(', ')}`);
   }
   startPlayerConversation({ npcId, phase, socialType = null, context = {} }) {
     if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;

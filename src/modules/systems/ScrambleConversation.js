@@ -13,6 +13,7 @@ export function scrambleNodes(model,{player,npc,context={},topic='strategy'}) {
   const npcSay=(id,subjectId,options={},random)=>model.statement({id:`${prefix}:${id}`,speakerId:npc.id,listenerIds:[player.id],subjectId,...options,random});
   const owned=model.knowledge(player.id), state=model.states[String(npc.id)];
   const playerPlan=model.states[String(player.id)]?.intendedVoteId || [...owned].reverse().find(e=>['target','commitment'].includes(e.topic)&&!['denied','no','protect'].includes(e.stance))?.subjectId;
+  const audienceName = [...owned].reverse().find(e => same(e.speakerId,npc.id) && ['target','commitment'].includes(e.topic) && !['denied','no','protect'].includes(e.stance))?.subjectId;
   const nodes=[node('vote_read','What have you heard?','What do you think the vote is?',random=>{
     const decoy=state?.decoys.find(d=>d.audienceIds.some(id=>same(id,player.id)));
     const read=model.voteRead(npc.id); const target=decoy?.targetId||read.targetId;
@@ -76,6 +77,15 @@ export function scrambleNodes(model,{player,npc,context={},topic='strategy'}) {
   }),node('bluff_idol','Bluff: I have an idol.','I have an idol.',random=>{
     emit('bluff_idol',player.id,{topic:'idol_possession',stance:'yes',mode:'deliberate_lie'},random);return {line:'Okay. I’ll think about what that means.'};
   })];
+  if(audienceName) nodes.push(node('numbers_read','Who else is with that?','Who else have you heard for that name?',()=>{
+    const seen=new Set();
+    const evidence=[...model.knowledge(npc.id)].reverse().filter(e=>same(e.subjectId,audienceName)&&['target','commitment'].includes(e.topic)&&
+      !['denied','no','protect'].includes(e.stance)&&!same(e.attributedId||e.speakerId,npc.id)).filter(e=>{
+        const id=String(e.attributedId||e.speakerId);if(seen.has(id))return false;seen.add(id);return true;
+      }).slice(0,2);
+    for(const e of evidence) model.memory.shareCampClaim({fromId:npc.id,toId:player.id,claimId:e.id});
+    return {line:evidence.length?evidence.map(e=>`${name(e.attributedId||e.speakerId)} ${e.topic==='commitment'&&e.stance==='yes'?'said they’re voting':'mentioned'} ${name(audienceName)}.`).join(' ')+' That’s what I heard; check with them.':'I don’t have another name I can count on yet.'};
+  }));
   if(listeners.length>=2)for(const target of model.members.filter(p=>!same(p.id,player.id)&&!listeners.some(id=>same(id,p.id))&&model.strategy.isTargetIdAvailable(p.id)).slice(0,3)) {
     nodes.push(node(`backup:${target.id}`,`Keep ${target.firstName} as backup?`,`Could ${target.firstName} be our backup?`,random=>{
       const primary=playerPlan;

@@ -3432,28 +3432,6 @@ body.debug-card-layout .trait-element,
   cursor: pointer;
 }
 
-.post-challenge-summary {
-  position: relative;
-  z-index: 2000;
-  pointer-events: auto;
-  padding: 24px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 12px;
-  border: 3px solid #8b5a2b;
-  max-width: 720px;
-  margin: 0 auto;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.post-challenge-summary-scroll {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 16px;
-}
-
 .summary-list {
   max-height: 320px;
   overflow: auto;
@@ -3653,9 +3631,4 @@ body.debug-card-layout .trait-element,
 #conversation-overlay[data-alliance-dialog] .convo-line {gap:8px;}
 #conversation-overlay[data-alliance-dialog] .convo-player .convo-text {color:#163652!important;}
 
-/* Owned strategy notes sit on the light summary surface. */
-.post-challenge-summary .summary-row {
-  color: #382515;
-  font: 400 15px/1.45 system-ui, sans-serif;
-  text-align: left;
-}
+
