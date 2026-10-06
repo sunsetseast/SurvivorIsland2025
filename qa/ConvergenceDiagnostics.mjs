@@ -45,7 +45,12 @@ export function tracePlayerAction(model,player,npc,node,resolve) {
   };
   let result;try{result=resolve();}finally{model.adoption=original;}
   const after=listenerAssessment(model,player.id,npc.id,target);
+  // Receiving a pitch adds the speaker to the listener's uncertain accounts.
+  // That is not an extra vote won by the speaker. Count only newly credible
+  // other voters in the speaker's own confirmed/likely projection.
+  const credible=plan=>new Set([...(plan?.confirmed||[]),...(plan?.likely||[])].filter(id=>!same(id,player.id)).map(String));
+  const prior=credible(before.speakerOwnedSupport),current=credible(after.speakerOwnedSupport);
   return {action:node.id,listenerId:npc.id,targetId:target,ownedEvidence:owned,before,after,adoption,line:result?.line,
-    gainedCredibleVote:(after.knownPlans.find(p=>same(p.targetId,target))?.support||0)>(before.knownPlans.find(p=>same(p.targetId,target))?.support||0),
-    realIntentChanged:!same(before.intendedVoteId,after.intendedVoteId)};
+    gainedCredibleVote:[...current].some(id=>!prior.has(id)),
+    realIntentChanged:String(before.intendedVoteId)!==String(after.intendedVoteId)};
 }

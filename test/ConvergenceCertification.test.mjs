@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {runViableCounterplay} from '../qa/CounterplayHarness.mjs';
 import {makeScrambleQa} from '../qa/ScrambleSimulationHarness.mjs';
 import {quiet} from '../qa/LivingCampSimulationHarness.mjs';
+import {tracePlayerAction} from '../qa/ConvergenceDiagnostics.mjs';
 
 test('viable physical player counterplan can move an undecided NPC with a second credible number',()=>{
  const r=runViableCounterplay({seed:74});assert.ok(r.swingMoved);
@@ -35,4 +36,11 @@ test('restore fixture resolves conversation participant from current actor regis
  s.restore();const current=s.strategy.reasoning.members.find(p=>p.id===id);assert.notEqual(current,old);
  s.idle();assert.ok(s.activity.beginConversation(current,{location:'beach',strategy:true}));
  assert.equal(s.activity.conversation.npcId,current.id);
+}));
+test('a refused counterpitch is not counted as an additional credible supporter',()=>quiet(()=>{
+ const s=makeScrambleQa(),m=s.strategy.reasoning,[npc,target]=s.activity.npcs(),player=s.gm.player;
+ const r=tracePlayerAction(m,player,npc,{id:`counter:${target.id}`},()=>m.statement({id:'refused-pitch',speakerId:player.id,
+   listenerIds:[npc.id],subjectId:target.id,stance:'consider',confidence:.2,random:()=>0}));
+ assert.ok(r.after.knownPlans.some(p=>p.uncertain.includes(player.id)));
+ assert.equal(r.gainedCredibleVote,false);assert.equal(r.realIntentChanged,false);
 }));
