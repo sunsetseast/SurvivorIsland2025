@@ -294,3 +294,10 @@ export function contextualScrambleChoices(nodes, owned, npcId, resolved = {}) {
     buttonText: n.id.startsWith("commit:") ? n.playerLine : n.buttonText,
   }));
 }
+
+// Human wording only; the saved statement and strategic speech act stay intact.
+export const formatScrambleSpeech = (text) =>
+  String(text)
+    .replace(/\bYou is where my head is/g, "Your name is where my head is")
+    .replace(/I’m voting You\b/g, "I’m voting for you")
+    .replace(/I’m leaning You\b/g, "I’m leaning toward you");

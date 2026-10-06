@@ -796,3 +796,70 @@ body:has(.scramble-camp) #manage-alliance-panel {
     backdrop-filter: none;
   }
 }
+/* Bound the entire dialogue, including its speaker strip and End control. */
+#conversation-overlay.scramble-dialog .conversation-center {
+  height: min(
+    720px,
+    calc(
+      100dvh - 32px - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    )
+  );
+}
+#conversation-overlay.scramble-dialog .conversation-content {
+  display: flex;
+  flex-direction: column;
+}
+#conversation-overlay.scramble-dialog .conversation-parchment {
+  height: 100%;
+  max-height: 100% !important;
+  flex: 1;
+  min-height: 0;
+}
+#conversation-overlay.scramble-dialog .conversation-nav-row {
+  min-height: 52px;
+}
+@media (max-height: 500px) {
+  #conversation-overlay.scramble-dialog .conversation-center {
+    height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+}
+
+/* Short exchanges size to their content; long exchanges share bounded scroll space. */
+#conversation-overlay.scramble-dialog .conversation-center {
+  height: auto;
+  gap: 0 !important;
+}
+#conversation-overlay.scramble-dialog .conversation-content {
+  flex: 0 1 auto;
+  margin: 0 !important;
+}
+#conversation-overlay.scramble-dialog .conversation-parchment {
+  height: auto;
+  max-height: calc(
+    100dvh - 32px - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px) - var(--scramble-speaker-height, 80px)
+  ) !important;
+}
+#conversation-overlay.scramble-dialog .convo-text * {
+  font: inherit !important;
+  color: inherit !important;
+  text-shadow: none !important;
+}
+.scramble-camp .camp-person {
+  height: 46px !important;
+}
+.scramble-camp #npc-layer .scramble-invitation p {
+  color: #dfcfb1;
+  font:
+    13px/1.4 Arial,
+    sans-serif;
+}
+@media (max-height: 500px) {
+  #conversation-overlay.scramble-dialog .conversation-parchment {
+    max-height: calc(
+      100dvh - 16px - var(--scramble-speaker-height, 48px)
+    ) !important;
+  }
+}

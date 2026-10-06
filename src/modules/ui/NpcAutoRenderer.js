@@ -185,7 +185,7 @@ export class NpcAutoRenderer {
         notice.appendChild(createElement('p', {}, '“Can we talk?”'));
         const talk = this.action('Talk', `invite:${invitation.activityId}`, () => {
           this.closeSheet(false); this.gm.systems.conversationSystem.startNpcConversation(person, strategy.scramble.invitation?.purpose,
-            {initiatedByNpc:true, approachAccepted:true, context:{phase:'post'}, location:this.gm.player.location}); this.focusConversation();
+            {initiatedByNpc:true, approachAccepted:true, context:{phase:'post',approachAccepted:true}, location:this.gm.player.location}); this.focusConversation();
         }); talk.setAttribute('aria-label', `${person.firstName} wants to talk`); notice.appendChild(talk);
         notice.appendChild(this.action('Not now', `decline:${invitation.activityId}`, () => { this.gm.systems.conversationSystem._handleApproachDeclined(person); this.focusConversation(); this.refresh(); }));
         rail.appendChild(notice);

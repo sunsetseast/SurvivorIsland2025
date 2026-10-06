@@ -14,7 +14,7 @@ import { buildDay1NpcReference } from '../events/Day1CampMemory.js';
 import { physicalCampLocation } from '../locations/LocationUtils.js';
 import { isCampPhysicallyPresent } from '../locations/CampPresence.js';
 import { campEvidenceRank, campEvidenceConfidence } from './CampKnowledge.js';
-import { contextualScrambleChoices } from '../ui/ScramblePresentation.js';
+import { contextualScrambleChoices, formatScrambleSpeech, buildPlayerScrambleRead } from '../ui/ScramblePresentation.js';
 
 // DEV NOTE (ConversationSystem)
 // - NPC stances: computed per exchange from relationship, paranoia, gameplay style, and risk.
@@ -693,7 +693,8 @@ class ConversationSystem {
     const model = this._scrambleModel(), cp = model.checkpoint(this.gameManager.systems.campActivitySystem.conversation);
     const nodes = scrambleNodes(model, { player, npc, context });
     const selected = contextualScrambleChoices(nodes, model.knowledge(player.id), npc.id, cp?.choices);
-    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: this.nodeSession?.transcript?.length ? null : cp?.lastLine || 'What do you want to ask?' }),
+    const remembered = buildPlayerScrambleRead(this.gameManager).names.flatMap(g => g.lines).findLast(r => r.text.startsWith(`${npc.firstName} `));
+    this._renderMenu(npc, this._buildTranscriptBody({ session: this.nodeSession, narration: this.nodeSession?.transcript?.length ? null : cp?.lastLine || (remembered ? `You remember: ${remembered.text}` : 'What do you want to ask?') }),
       [...selected.filter(Boolean).map(node => ({ label: node.buttonText, onClick: () => this._runConversationNode({ player, npc, node, context }) })),
        { label: 'More…', onClick: () => this._renderMainMenu({ player, npc, context: { ...context, scrambleMore: true }, mainTopics: this._buildMainTopics({ player, npc, context }) }) }], { showEnd: true });
   }
@@ -701,6 +702,7 @@ class ConversationSystem {
   _fmtNpcLine(npc, text) {
     if (!text) return '';
     const name = npc?.firstName || 'NPC';
+    if (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE) text = formatScrambleSpeech(text);
     return `<div class="convo-line convo-npc"><div class="convo-speaker">${name}</div><div class="convo-text">"${text}"</div></div>`;
   }
 
@@ -1488,7 +1490,7 @@ class ConversationSystem {
       const img = document.createElement('img'); img.src = p.avatarUrl || ''; img.alt = ''; person.appendChild(img);
       const label = document.createElement('span'); label.textContent = p.firstName; person.appendChild(label); rail.appendChild(person);
     }
-    header.appendChild(rail); overlay.setAttribute('aria-label', `Conversation with ${participants.map(p => p.firstName).join(', ')}`);
+    header.appendChild(rail); center.style.setProperty('--scramble-speaker-height', `${header.getBoundingClientRect().height}px`); overlay.setAttribute('aria-label', `Conversation with ${participants.map(p => p.firstName).join(', ')}`);
   }
   startPlayerConversation({ npcId, phase, socialType = null, context = {} }) {
     if (!npcId || !this._isInCamp() || this.gameManager.flags?.campEventActive) return;
