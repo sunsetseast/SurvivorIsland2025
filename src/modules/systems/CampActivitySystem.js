@@ -535,8 +535,14 @@ export default class CampActivitySystem {
     const groupIds = [];
     for (const id of ids) {
       const other = this.npcs().find(s => same(s.id, id));
-      if (!other || same(other.id, npc.id) || !this.present(other, this.conversation.location) ||
-        other.campActivity?.interruptible === false) continue;
+      if (!other || same(other.id, npc.id) || !this.present(other, this.conversation.location)) continue;
+      // Restore/resume reuses the physical reservation, including speakers
+      // whose existing conversation is deliberately non-interruptible.
+      if (other.campActivity?.id === npc.campActivity.id &&
+          this.conversation.groupIds?.some(memberId => same(memberId, other.id))) {
+        groupIds.push(other.id); continue;
+      }
+      if (other.campActivity?.interruptible === false) continue;
       this.interrupt(other, 'joined_conversation');
       other.campActivity = { ...npc.campActivity, actorId: other.id, external: true };
       groupIds.push(other.id);

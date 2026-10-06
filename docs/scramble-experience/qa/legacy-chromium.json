@@ -1,0 +1,722 @@
+{
+  "engine": "chromium",
+  "version": "134.0.6998.35",
+  "checks": [
+    {
+      "view": "beach",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "waterWell",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "campfire",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "shelter",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "jungleTrail",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "rockyShore",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "nearby"
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "conversation-reading-and-close"
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "bluff-checkpoint-resume-focus-orientation-billing"
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "physical-npc-approach"
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "meeting-join"
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "type": "paid-navigation"
+    },
+    {
+      "view": "beach",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "waterWell",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "campfire",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "shelter",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "jungleTrail",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "rockyShore",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "nearby"
+    },
+    {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "conversation-reading-and-close"
+    },
+    {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "bluff-checkpoint-resume-focus-orientation-billing"
+    },
+    {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "physical-npc-approach"
+    },
+    {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "meeting-join"
+    },
+    {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "type": "paid-navigation"
+    },
+    {
+      "view": "beach",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "waterWell",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "campfire",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "shelter",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "jungleTrail",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "rockyShore",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "nearby"
+    },
+    {
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "conversation-reading-and-close"
+    },
+    {
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "bluff-checkpoint-resume-focus-orientation-billing"
+    },
+    {
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "physical-npc-approach"
+    },
+    {
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "meeting-join"
+    },
+    {
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "type": "paid-navigation"
+    },
+    {
+      "view": "beach",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "waterWell",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "campfire",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "shelter",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "jungleTrail",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "nearby"
+    },
+    {
+      "view": "rockyShore",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "nearby"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "conversation-reading-and-close"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "bluff-checkpoint-resume-focus-orientation-billing"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "physical-npc-approach"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "meeting-join"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "type": "paid-navigation"
+    }
+  ],
+  "playtests": [
+    {
+      "style": "passive",
+      "outcomes": [
+        {
+          "time": 3540,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            11,
+            15,
+            12
+          ]
+        },
+        {
+          "time": 3480,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            11,
+            15,
+            12
+          ]
+        },
+        {
+          "time": 3420,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            11,
+            15,
+            12
+          ]
+        },
+        {
+          "time": 3360,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            12,
+            11,
+            15
+          ]
+        },
+        {
+          "time": 3300,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            12,
+            11,
+            15
+          ]
+        },
+        {
+          "time": 3240,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            12,
+            11,
+            15
+          ]
+        },
+        {
+          "time": 3180,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            12,
+            11,
+            15
+          ]
+        },
+        {
+          "time": 3120,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            15,
+            11,
+            12
+          ]
+        },
+        {
+          "time": 3060,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            15,
+            11,
+            12
+          ]
+        },
+        {
+          "time": 3000,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            15,
+            11,
+            12
+          ]
+        },
+        {
+          "time": 2940,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            15,
+            11,
+            12
+          ]
+        },
+        {
+          "time": 2880,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            6,
+            9,
+            11,
+            15,
+            12
+          ]
+        }
+      ]
+    },
+    {
+      "style": "social",
+      "outcomes": [
+        {
+          "time": 3360,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3300,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3240,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3180,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3000,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 2940,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 2880,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 2820,
+          "groups": 0,
+          "travelling": [
+            9
+          ],
+          "visible": []
+        },
+        {
+          "time": 2700,
+          "groups": 3,
+          "travelling": [
+            9
+          ],
+          "visible": [
+            13,
+            6,
+            11,
+            15,
+            12
+          ]
+        },
+        {
+          "time": 2640,
+          "groups": 3,
+          "travelling": [
+            13,
+            6,
+            9
+          ],
+          "visible": [
+            11,
+            15,
+            12
+          ]
+        },
+        "talk",
+        {
+          "time": 2490,
+          "groups": 2,
+          "travelling": [
+            13,
+            6
+          ],
+          "visible": [
+            11,
+            15,
+            12
+          ]
+        },
+        {
+          "time": 2430,
+          "groups": 2,
+          "travelling": [
+            13,
+            6
+          ],
+          "visible": [
+            11,
+            15,
+            12
+          ]
+        }
+      ]
+    },
+    {
+      "style": "mixed",
+      "outcomes": [
+        {
+          "time": 3360,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3300,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3240,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3180,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 3000,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 2940,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 2880,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 2820,
+          "groups": 0,
+          "travelling": [],
+          "visible": []
+        },
+        {
+          "time": 2700,
+          "groups": 3,
+          "travelling": [],
+          "visible": [
+            13,
+            15,
+            6,
+            9,
+            11,
+            12
+          ]
+        },
+        {
+          "time": 2640,
+          "groups": 4,
+          "travelling": [],
+          "visible": [
+            13,
+            9,
+            6,
+            15,
+            11,
+            12
+          ]
+        },
+        "approach",
+        "talk",
+        {
+          "time": 2445,
+          "groups": 3,
+          "travelling": [
+            9
+          ],
+          "visible": [
+            13,
+            11,
+            6,
+            15,
+            12
+          ]
+        },
+        {
+          "time": 2385,
+          "groups": 2,
+          "travelling": [
+            6,
+            9
+          ],
+          "visible": [
+            13,
+            11,
+            15,
+            12
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "actualIOS": false
+}

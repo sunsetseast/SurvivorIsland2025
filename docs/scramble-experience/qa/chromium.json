@@ -1,0 +1,8039 @@
+{
+  "engine": "chromium",
+  "version": "134.0.6998.35",
+  "sourceCommit": "50ff56bd1a629b7eb7be08c09bdd56c6db09d820",
+  "sourceFingerprint": "d2802b6a325c2c3db2d485800f8a29878a813bc8d89ed064ca2cf30ef00be8a2",
+  "workingTree": "",
+  "viewports": [
+    {
+      "width": 375,
+      "height": 812
+    },
+    {
+      "width": 430,
+      "height": 932
+    },
+    {
+      "width": 844,
+      "height": 390
+    },
+    {
+      "width": 1280,
+      "height": 800
+    }
+  ],
+  "scenes": [
+    "start",
+    "departures",
+    "pair",
+    "three",
+    "meeting",
+    "outsider",
+    "invitation",
+    "conversation",
+    "group-dialogue",
+    "knowledge",
+    "contradiction",
+    "alliances",
+    "final-five",
+    "before",
+    "restore",
+    "landscape-dialogue",
+    "dense-long",
+    "warning",
+    "verification",
+    "bottom"
+  ],
+  "checks": [
+    {
+      "scene": "start",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 451.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 452.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 527.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 528.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 603.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 604.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 679.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 680.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 755.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 756.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 831.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 832.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "departures",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "Follow Parvati · 2 min",
+          "x": 203.53125,
+          "y": 491.1875,
+          "w": 148.46875,
+          "h": 44
+        },
+        {
+          "label": "Follow Tony · 2 min",
+          "x": 217.671875,
+          "y": 568.15625,
+          "w": 134.328125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 631.09375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 632.09375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 707.09375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 708.09375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 783.09375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 784.09375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "pair",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 451.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 451.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 248.484375,
+          "y": 478.453125,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 579.25,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 580.25,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 655.25,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 656.25,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 731.25,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 732.25,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 807.25,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 808.25,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "three",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 451.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 451.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 140,
+          "y": 451.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 248.484375,
+          "y": 478.453125,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 579.25,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 580.25,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 655.25,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 656.25,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 731.25,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 732.25,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "meeting",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 495.234375,
+        "w": 351,
+        "h": 232.765625
+      },
+      "buttons": [
+        {
+          "label": "Join",
+          "x": 289.53125,
+          "y": 566.828125,
+          "w": 51.46875,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 658.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 658.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 658.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "outsider",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 451.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 452.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 527.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 528.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 603.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 604.65625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 679.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 679.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 140,
+          "y": 679.65625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 248.484375,
+          "y": 716.84375,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "invitation",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 286.1875,
+          "y": 453.65625,
+          "w": 52.8125,
+          "h": 68.1875
+        },
+        {
+          "label": "Not now",
+          "x": 36,
+          "y": 523.84375,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 675.84375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 676.84375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 751.84375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 752.84375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 827.84375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 828.84375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 903.84375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 904.84375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 979.84375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 980.84375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "conversation",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 225,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 341.375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 457.75,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 495.828125,
+          "w": 297,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "group-dialogue",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Support Parvati",
+          "x": 39,
+          "y": 427.3125,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Support Jeremy",
+          "x": 39,
+          "y": 485.5,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Ask who is actually committed",
+          "x": 39,
+          "y": 543.6875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Ask about idol concerns",
+          "x": 39,
+          "y": 601.875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Don’t commit",
+          "x": 39,
+          "y": 660.0625,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Suggest a plan or other alliance action",
+          "x": 39,
+          "y": 718.25,
+          "w": 282,
+          "h": 66
+        },
+        {
+          "label": "Talk about something else",
+          "x": 39,
+          "y": 797.4375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 698.140625,
+          "w": 297,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "knowledge",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 19,
+        "y": 19,
+        "w": 337,
+        "h": 774
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 36,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 139,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 242,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 36,
+          "y": 215.96875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 36,
+          "y": 757.828125,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 36,
+          "y": 952.421875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 36,
+          "y": 1364.609375,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 36,
+          "y": 1559.203125,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 36,
+          "y": 1753.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 36,
+          "y": 1805.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 36,
+          "y": 1857.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 36,
+          "y": 1909.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 36,
+          "y": 716.8125,
+          "w": 147.5,
+          "h": 63.1875
+        },
+        {
+          "label": "Back to camp",
+          "x": 191.5,
+          "y": 716.8125,
+          "w": 147.5,
+          "h": 63.1875
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "contradiction",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 19,
+        "y": 19,
+        "w": 337,
+        "h": 774
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 36,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 139,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 242,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 36,
+          "y": 215.96875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 36,
+          "y": 757.828125,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 36,
+          "y": 952.421875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 36,
+          "y": 1364.609375,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 36,
+          "y": 1559.203125,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 36,
+          "y": 1753.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 36,
+          "y": 1805.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 36,
+          "y": 1857.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 36,
+          "y": 1909.796875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 36,
+          "y": 716.8125,
+          "w": 147.5,
+          "h": 63.1875
+        },
+        {
+          "label": "Back to camp",
+          "x": 191.5,
+          "y": 716.8125,
+          "w": 147.5,
+          "h": 63.1875
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "alliances",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Camp alliesYou · Parvati · Jeremy · Tonycore allianceYour read: Working",
+          "x": 38,
+          "y": 101,
+          "w": 299,
+          "h": 141
+        },
+        {
+          "label": "Between usYou · Parvatifinal two allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 38,
+          "y": 252,
+          "w": 299,
+          "h": 189
+        },
+        {
+          "label": "The ThreeYou · Parvati · Jeremycore allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 38,
+          "y": 451,
+          "w": 299,
+          "h": 189
+        },
+        {
+          "label": "Start alliance conversation",
+          "x": 38,
+          "y": 650,
+          "w": 299,
+          "h": 50
+        },
+        {
+          "label": "Close",
+          "x": 38,
+          "y": 813,
+          "w": 165,
+          "h": 50
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "final-five",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 433.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 434.46875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 509.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 510.46875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 585.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 586.46875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 661.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 662.46875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 737.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 738.46875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 813.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 288.1875,
+          "y": 814.46875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "before",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 30,
+          "y": 176,
+          "w": 101,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 137,
+          "y": 176,
+          "w": 101,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 244,
+          "y": 176,
+          "w": 101,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 30,
+          "y": 228,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 30,
+          "y": 748.859375,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 30,
+          "y": 943.453125,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 30,
+          "y": 1355.640625,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 30,
+          "y": 1550.234375,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 30,
+          "y": 1744.828125,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 30,
+          "y": 1796.828125,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 30,
+          "y": 1848.828125,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 30,
+          "y": 1900.828125,
+          "w": 315,
+          "h": 51
+        },
+        {
+          "label": "Head to Tribal Council",
+          "x": 14,
+          "y": 754,
+          "w": 347,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "restore",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 354.484375,
+        "w": 351,
+        "h": 373.515625
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 286.1875,
+          "y": 409.28125,
+          "w": 52.8125,
+          "h": 47.1875
+        },
+        {
+          "label": "Not now",
+          "x": 36,
+          "y": 458.46875,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 534.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 534.46875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 248.484375,
+          "y": 561.265625,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 134.671875,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 246.34375,
+          "y": 668.625,
+          "w": 105.671875,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "landscape-dialogue",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 225,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 341.375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 457.75,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 495.828125,
+          "w": 297,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "dense-long",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 19,
+        "y": 19,
+        "w": 337,
+        "h": 774
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 36,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 139,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 242,
+          "y": 163.96875,
+          "w": 97,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 36,
+          "y": 215.96875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 36,
+          "y": 884.921875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 36,
+          "y": 1121.515625,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 36,
+          "y": 1638.703125,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 36,
+          "y": 1875.296875,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 36,
+          "y": 2090.890625,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 36,
+          "y": 2142.890625,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 36,
+          "y": 2194.890625,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 36,
+          "y": 2246.890625,
+          "w": 303,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 36,
+          "y": 716.8125,
+          "w": 147.5,
+          "h": 63.1875
+        },
+        {
+          "label": "Back to camp",
+          "x": 191.5,
+          "y": 716.8125,
+          "w": 147.5,
+          "h": 63.1875
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "warning",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 225,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 341.375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 457.75,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 495.828125,
+          "w": 297,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "verification",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 298.09375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 356.28125,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 414.46875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 472.65625,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 530.84375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 589.03125,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 647.21875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 568.921875,
+          "w": 297,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 375,
+        "h": 812
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 225,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Sandra?",
+          "x": 39,
+          "y": 341.375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Sandra.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "What if we do Wendell?",
+          "x": 39,
+          "y": 457.75,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 282,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 495.828125,
+          "w": 297,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "type": "group-checkpoint-resume",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      }
+    },
+    {
+      "type": "promise-checkpoint-resume",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      }
+    },
+    {
+      "scene": "start",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 516.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 517.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 592.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 593.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 668.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 669.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 744.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 745.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 820.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 821.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 896.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 897.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "departures",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "Follow Parvati · 2 min",
+          "x": 258.53125,
+          "y": 543.953125,
+          "w": 148.46875,
+          "h": 44
+        },
+        {
+          "label": "Follow Tony · 2 min",
+          "x": 272.671875,
+          "y": 605.953125,
+          "w": 134.328125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 665.953125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 666.953125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 741.953125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 742.953125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 817.953125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 818.953125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "pair",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 516.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 516.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 303.484375,
+          "y": 543.25,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 644.046875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 645.046875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 720.046875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 721.046875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 796.046875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 797.046875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 872.046875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 873.046875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "three",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 516.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 516.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 140,
+          "y": 516.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 303.484375,
+          "y": 543.25,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 644.046875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 645.046875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 720.046875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 721.046875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 796.046875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 797.046875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "meeting",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 629.609375,
+        "w": 406,
+        "h": 218.390625
+      },
+      "buttons": [
+        {
+          "label": "Join",
+          "x": 344.53125,
+          "y": 701.203125,
+          "w": 51.46875,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 793,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 793,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 793,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "outsider",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 516.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 517.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 592.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 593.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 668.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 669.453125,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 744.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 744.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 140,
+          "y": 744.453125,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 303.484375,
+          "y": 771.25,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "invitation",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 341.1875,
+          "y": 518.453125,
+          "w": 52.8125,
+          "h": 47.1875
+        },
+        {
+          "label": "Not now",
+          "x": 36,
+          "y": 567.640625,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 719.640625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 720.640625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 795.640625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 796.640625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 871.640625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 872.640625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 947.640625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 948.640625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 1023.640625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 1024.640625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "conversation",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 225,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 341.375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 457.75,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 534.234375,
+          "w": 352,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "group-dialogue",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Support Parvati",
+          "x": 39,
+          "y": 470.515625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Support Jeremy",
+          "x": 39,
+          "y": 528.703125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Ask who is actually committed",
+          "x": 39,
+          "y": 586.890625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Ask about idol concerns",
+          "x": 39,
+          "y": 645.078125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Don’t commit",
+          "x": 39,
+          "y": 703.265625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Suggest a plan or other alliance action",
+          "x": 39,
+          "y": 761.453125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Talk about something else",
+          "x": 39,
+          "y": 819.640625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 779.75,
+          "w": 352,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "knowledge",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 19,
+        "y": 66,
+        "w": 392,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 36,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 157.328125,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 278.65625,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 36,
+          "y": 262.96875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 36,
+          "y": 783.828125,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 36,
+          "y": 978.421875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 36,
+          "y": 1390.609375,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 36,
+          "y": 1585.203125,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 36,
+          "y": 1779.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 36,
+          "y": 1831.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 36,
+          "y": 1883.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 36,
+          "y": 1935.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 36,
+          "y": 809,
+          "w": 175,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 219,
+          "y": 809,
+          "w": 175,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "contradiction",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 19,
+        "y": 66,
+        "w": 392,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 36,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 157.328125,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 278.65625,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 36,
+          "y": 262.96875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 36,
+          "y": 783.828125,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 36,
+          "y": 978.421875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 36,
+          "y": 1390.609375,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 36,
+          "y": 1585.203125,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 36,
+          "y": 1779.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 36,
+          "y": 1831.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 36,
+          "y": 1883.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 36,
+          "y": 1935.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 36,
+          "y": 809,
+          "w": 175,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 219,
+          "y": 809,
+          "w": 175,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "alliances",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Camp alliesYou · Parvati · Jeremy · Tonycore allianceYour read: Working",
+          "x": 38,
+          "y": 144.40625,
+          "w": 354,
+          "h": 141
+        },
+        {
+          "label": "Between usYou · Parvatifinal two allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 38,
+          "y": 295.40625,
+          "w": 354,
+          "h": 168
+        },
+        {
+          "label": "The ThreeYou · Parvati · Jeremycore allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 38,
+          "y": 473.40625,
+          "w": 354,
+          "h": 168
+        },
+        {
+          "label": "Start alliance conversation",
+          "x": 38,
+          "y": 651.40625,
+          "w": 354,
+          "h": 50
+        },
+        {
+          "label": "Close",
+          "x": 38,
+          "y": 793.40625,
+          "w": 180,
+          "h": 50
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "final-five",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 34,
+          "y": 498.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 499.265625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 574.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 575.265625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 650.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 651.265625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 726.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 727.265625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 802.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 803.265625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 878.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 343.1875,
+          "y": 879.265625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 803,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "before",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 30,
+          "y": 155,
+          "w": 119.328125,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 155.328125,
+          "y": 155,
+          "w": 119.328125,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 280.65625,
+          "y": 155,
+          "w": 119.328125,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 30,
+          "y": 207,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 30,
+          "y": 727.859375,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 30,
+          "y": 922.453125,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 30,
+          "y": 1334.640625,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 30,
+          "y": 1529.234375,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 30,
+          "y": 1723.828125,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 30,
+          "y": 1775.828125,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 30,
+          "y": 1827.828125,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 30,
+          "y": 1879.828125,
+          "w": 370,
+          "h": 51
+        },
+        {
+          "label": "Head to Tribal Council",
+          "x": 14,
+          "y": 874,
+          "w": 402,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "restore",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 12,
+        "y": 419.28125,
+        "w": 406,
+        "h": 428.71875
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 341.1875,
+          "y": 474.078125,
+          "w": 52.8125,
+          "h": 47.1875
+        },
+        {
+          "label": "Not now",
+          "x": 36,
+          "y": 523.265625,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 34,
+          "y": 599.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 87,
+          "y": 599.265625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 303.484375,
+          "y": 626.0625,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 23,
+          "y": 793.859375,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "What I Know",
+          "x": 153,
+          "y": 793.859375,
+          "w": 124,
+          "h": 44
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 283,
+          "y": 793.859375,
+          "w": 124,
+          "h": 44
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "landscape-dialogue",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 225,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 341.375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 457.75,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 534.234375,
+          "w": 352,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "dense-long",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 19,
+        "y": 66,
+        "w": 392,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 36,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 157.328125,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 278.65625,
+          "y": 210.96875,
+          "w": 115.328125,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 36,
+          "y": 262.96875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 36,
+          "y": 867.828125,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 36,
+          "y": 1104.421875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 36,
+          "y": 1579.609375,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 36,
+          "y": 1816.203125,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 36,
+          "y": 2031.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 36,
+          "y": 2083.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 36,
+          "y": 2135.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 36,
+          "y": 2187.796875,
+          "w": 358,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 36,
+          "y": 809,
+          "w": 175,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 219,
+          "y": 809,
+          "w": 175,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "warning",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 37.13392639160156,
+          "y": 224.75082397460938,
+          "w": 340.732177734375,
+          "h": 45.49835205078125
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 341.375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 457.75,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 534.234375,
+          "w": 352,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "verification",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 39,
+          "y": 277.09375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 335.28125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 39,
+          "y": 393.46875,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 39,
+          "y": 451.65625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 39,
+          "y": 509.84375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 568.03125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 626.21875,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 586.328125,
+          "w": 352,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 430,
+        "h": 932
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 35.55133056640625,
+          "y": 224.53948974609375,
+          "w": 343.8973388671875,
+          "h": 45.9210205078125
+        },
+        {
+          "label": "What have you heard?",
+          "x": 39,
+          "y": 283.1875,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Sandra?",
+          "x": 39,
+          "y": 341.375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Sandra.",
+          "x": 39,
+          "y": 399.5625,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "What if we do Wendell?",
+          "x": 39,
+          "y": 457.75,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 39,
+          "y": 515.9375,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 39,
+          "y": 574.125,
+          "w": 337,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 39,
+          "y": 534.234375,
+          "w": 352,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "type": "group-checkpoint-resume",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      }
+    },
+    {
+      "type": "promise-checkpoint-resume",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      }
+    },
+    {
+      "scene": "start",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 526,
+          "y": 187.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 188.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 263.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 264.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 339.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 340.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 415.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 416.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 491.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 492.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 567.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 568.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "departures",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "Follow Parvati · 2 min",
+          "x": 670.53125,
+          "y": 223.703125,
+          "w": 148.46875,
+          "h": 44
+        },
+        {
+          "label": "Follow Tony · 2 min",
+          "x": 684.671875,
+          "y": 294.671875,
+          "w": 134.328125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 354.609375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 355.609375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 430.609375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 431.609375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 506.609375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 507.609375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "pair",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 526,
+          "y": 187.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 579,
+          "y": 187.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 715.484375,
+          "y": 213.96875,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 314.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 315.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 390.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 391.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 466.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 467.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 542.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 543.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "three",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 526,
+          "y": 187.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 579,
+          "y": 187.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 632,
+          "y": 187.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 715.484375,
+          "y": 224.359375,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 335.5625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 336.5625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 411.5625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 412.5625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 487.5625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 488.5625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "meeting",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "Join",
+          "x": 756.53125,
+          "y": 161.59375,
+          "w": 51.46875,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "outsider",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 526,
+          "y": 187.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 188.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 263.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 264.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 339.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 340.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 415.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 579,
+          "y": 415.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 632,
+          "y": 415.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 715.484375,
+          "y": 452.359375,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "invitation",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 753.1875,
+          "y": 189.171875,
+          "w": 52.8125,
+          "h": 68.1875
+        },
+        {
+          "label": "Not now",
+          "x": 528,
+          "y": 259.359375,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 411.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 412.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 487.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 488.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 563.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 564.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 639.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 640.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 715.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 716.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "conversation",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 120,
+          "y": 176,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 120,
+          "y": 234.1875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 120,
+          "y": 292.375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 120,
+          "y": 350.5625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 120,
+          "y": 408.75,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 120,
+          "y": 466.9375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 120,
+          "y": 525.125,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 120,
+          "y": 300.09375,
+          "w": 604,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "group-dialogue",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Support Parvati",
+          "x": 120,
+          "y": 191.71875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Support Jeremy",
+          "x": 120,
+          "y": 249.90625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Ask who is actually committed",
+          "x": 120,
+          "y": 308.09375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Ask about idol concerns",
+          "x": 120,
+          "y": 366.28125,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Don’t commit",
+          "x": 120,
+          "y": 424.46875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Suggest a plan or other alliance action",
+          "x": 120,
+          "y": 482.65625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Talk about something else",
+          "x": 120,
+          "y": 540.84375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 120,
+          "y": 315.8125,
+          "w": 604,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "knowledge",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 112,
+        "y": 19,
+        "w": 620,
+        "h": 352
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 133,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 327.671875,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 522.34375,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 133,
+          "y": 174.984375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 133,
+          "y": 695.84375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 133,
+          "y": 890.4375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 133,
+          "y": 1218.625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 133,
+          "y": 1413.21875,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 133,
+          "y": 1607.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 133,
+          "y": 1659.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 133,
+          "y": 1711.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 133,
+          "y": 1763.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 129,
+          "y": 314,
+          "w": 289,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 426,
+          "y": 314,
+          "w": 289,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "contradiction",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 112,
+        "y": 19,
+        "w": 620,
+        "h": 352
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 133,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 327.671875,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 522.34375,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 133,
+          "y": 174.984375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 133,
+          "y": 695.84375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 133,
+          "y": 890.4375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 133,
+          "y": 1218.625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 133,
+          "y": 1413.21875,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 133,
+          "y": 1607.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 133,
+          "y": 1659.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 133,
+          "y": 1711.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 133,
+          "y": 1763.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 129,
+          "y": 314,
+          "w": 289,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 426,
+          "y": 314,
+          "w": 289,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "alliances",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Camp alliesYou · Parvati · Jeremy · Tonycore allianceYour read: Working",
+          "x": 156,
+          "y": 83,
+          "w": 532,
+          "h": 141
+        },
+        {
+          "label": "Between usYou · Parvatifinal two allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 156,
+          "y": 234,
+          "w": 532,
+          "h": 168
+        },
+        {
+          "label": "The ThreeYou · Parvati · Jeremycore allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 156,
+          "y": 412,
+          "w": 532,
+          "h": 168
+        },
+        {
+          "label": "Start alliance conversation",
+          "x": 156,
+          "y": 590,
+          "w": 532,
+          "h": 50
+        },
+        {
+          "label": "Close",
+          "x": 156,
+          "y": 732,
+          "w": 180,
+          "h": 50
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "final-five",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 526,
+          "y": 168.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 169.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 244.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 245.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 320.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 321.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 396.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 397.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 472.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 473.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 548.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 755.1875,
+          "y": 549.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "before",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 36,
+          "y": 109.796875,
+          "w": 253.328125,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 295.328125,
+          "y": 109.796875,
+          "w": 253.328125,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 554.65625,
+          "y": 109.796875,
+          "w": 253.328125,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 36,
+          "y": 161.796875,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 36,
+          "y": 682.65625,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 36,
+          "y": 877.25,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 36,
+          "y": 1205.4375,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 36,
+          "y": 1400.03125,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 36,
+          "y": 1594.625,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 36,
+          "y": 1646.625,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 36,
+          "y": 1698.625,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 36,
+          "y": 1750.625,
+          "w": 772,
+          "h": 51
+        },
+        {
+          "label": "Head to Tribal Council",
+          "x": 16,
+          "y": 338,
+          "w": 812,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "restore",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 502,
+        "y": 88,
+        "w": 330,
+        "h": 222
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 753.1875,
+          "y": 144.796875,
+          "w": 52.8125,
+          "h": 68.1875
+        },
+        {
+          "label": "Not now",
+          "x": 528,
+          "y": 214.984375,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 526,
+          "y": 290.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 579,
+          "y": 290.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 715.484375,
+          "y": 317.78125,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 515,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 618.328125,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 721.65625,
+          "y": 250.625,
+          "w": 97.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "landscape-dialogue",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 120,
+          "y": 176,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 120,
+          "y": 234.1875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 120,
+          "y": 292.375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 120,
+          "y": 350.5625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 120,
+          "y": 408.75,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 120,
+          "y": 466.9375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 120,
+          "y": 525.125,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 120,
+          "y": 300.09375,
+          "w": 604,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "dense-long",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 112,
+        "y": 19,
+        "w": 620,
+        "h": 352
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 133,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 327.671875,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 522.34375,
+          "y": 122.984375,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 133,
+          "y": 174.984375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 133,
+          "y": 716.84375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 133,
+          "y": 911.4375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 133,
+          "y": 1323.625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 133,
+          "y": 1518.21875,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 133,
+          "y": 1712.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 133,
+          "y": 1764.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 133,
+          "y": 1816.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 133,
+          "y": 1868.8125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 129,
+          "y": 314,
+          "w": 289,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 426,
+          "y": 314,
+          "w": 289,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "warning",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 120,
+          "y": 176,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 120,
+          "y": 234.1875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 120,
+          "y": 292.375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 120,
+          "y": 350.5625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 120,
+          "y": 408.75,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 120,
+          "y": 466.9375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 120,
+          "y": 525.125,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 120,
+          "y": 300.09375,
+          "w": 604,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "verification",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 120,
+          "y": 191.71875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 120,
+          "y": 249.90625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 120,
+          "y": 308.09375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 120,
+          "y": 366.28125,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 120,
+          "y": 424.46875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 120,
+          "y": 482.65625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 120,
+          "y": 540.84375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 120,
+          "y": 315.8125,
+          "w": 604,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 120,
+          "y": 176,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 120,
+          "y": 234.1875,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Sandra?",
+          "x": 120,
+          "y": 292.375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Sandra.",
+          "x": 120,
+          "y": 350.5625,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "What if we do Wendell?",
+          "x": 120,
+          "y": 408.75,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 120,
+          "y": 466.9375,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 120,
+          "y": 525.125,
+          "w": 589,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 120,
+          "y": 300.09375,
+          "w": 604,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "type": "group-checkpoint-resume",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "type": "promise-checkpoint-resume",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "scene": "start",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 578
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 926,
+          "y": 211.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 212.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 287.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 288.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 363.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 364.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 439.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 440.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 515.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 516.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 591.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 592.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "departures",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 550.796875
+      },
+      "buttons": [
+        {
+          "label": "Follow Parvati · 2 min",
+          "x": 1100.53125,
+          "y": 241.609375,
+          "w": 148.46875,
+          "h": 44
+        },
+        {
+          "label": "Follow Tony · 2 min",
+          "x": 1114.671875,
+          "y": 309.484375,
+          "w": 134.328125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 372.421875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 373.421875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 448.421875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 449.421875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 524.421875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 525.421875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 591.421875,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 591.421875,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 591.421875,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "pair",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 578
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 926,
+          "y": 211.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 979,
+          "y": 211.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 1145.484375,
+          "y": 237.96875,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 338.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 339.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 414.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 415.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 490.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 491.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 566.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 567.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "three",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 517.140625
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 926,
+          "y": 211.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 979,
+          "y": 211.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 1032,
+          "y": 211.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 1145.484375,
+          "y": 237.96875,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 338.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 339.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 414.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 415.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 490.765625,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 491.765625,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 557.765625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 557.765625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 557.765625,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "meeting",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 236.765625
+      },
+      "buttons": [
+        {
+          "label": "Join",
+          "x": 1186.53125,
+          "y": 185.59375,
+          "w": 51.46875,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 277.390625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 277.390625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 277.390625,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "outsider",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 537.9375
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 926,
+          "y": 211.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 212.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 287.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 288.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 363.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 364.171875,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 439.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 979,
+          "y": 439.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 1032,
+          "y": 439.171875,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 1145.484375,
+          "y": 476.359375,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 578.5625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 578.5625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 578.5625,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "invitation",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 578
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 1183.1875,
+          "y": 213.171875,
+          "w": 52.8125,
+          "h": 47.1875
+        },
+        {
+          "label": "Not now",
+          "x": 928,
+          "y": 262.359375,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 414.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 415.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 490.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 491.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 566.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 567.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 642.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 643.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 718.359375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 719.359375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "conversation",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 342,
+          "y": 225,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 342,
+          "y": 283.1875,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 342,
+          "y": 341.375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 342,
+          "y": 399.5625,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 342,
+          "y": 457.75,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 342,
+          "y": 515.9375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 342,
+          "y": 574.125,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 342,
+          "y": 492,
+          "w": 596,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "group-dialogue",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Support Parvati",
+          "x": 342,
+          "y": 423,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Support Jeremy",
+          "x": 342,
+          "y": 481.1875,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Ask who is actually committed",
+          "x": 342,
+          "y": 539.375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Ask about idol concerns",
+          "x": 342,
+          "y": 597.5625,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Don’t commit",
+          "x": 342,
+          "y": 655.75,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Suggest a plan or other alliance action",
+          "x": 342,
+          "y": 713.9375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Talk about something else",
+          "x": 342,
+          "y": 772.125,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 342,
+          "y": 690,
+          "w": 596,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "knowledge",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 330,
+        "y": 19,
+        "w": 620,
+        "h": 762
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 351,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 545.671875,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 740.34375,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 351,
+          "y": 199.78125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 351,
+          "y": 720.640625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 351,
+          "y": 915.234375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 351,
+          "y": 1243.421875,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 351,
+          "y": 1438.015625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 351,
+          "y": 1632.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 351,
+          "y": 1684.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 351,
+          "y": 1736.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 351,
+          "y": 1788.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 347,
+          "y": 724,
+          "w": 289,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 644,
+          "y": 724,
+          "w": 289,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "contradiction",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 330,
+        "y": 19,
+        "w": 620,
+        "h": 762
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 351,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 545.671875,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 740.34375,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 351,
+          "y": 199.78125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 351,
+          "y": 720.640625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 351,
+          "y": 915.234375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 351,
+          "y": 1243.421875,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 351,
+          "y": 1438.015625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 351,
+          "y": 1632.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 351,
+          "y": 1684.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 351,
+          "y": 1736.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 351,
+          "y": 1788.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 347,
+          "y": 724,
+          "w": 289,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 644,
+          "y": 724,
+          "w": 289,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "alliances",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Camp alliesYou · Parvati · Jeremy · Tonycore allianceYour read: Working",
+          "x": 386,
+          "y": 101,
+          "w": 508,
+          "h": 141
+        },
+        {
+          "label": "Between usYou · Parvatifinal two allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 386,
+          "y": 252,
+          "w": 508,
+          "h": 168
+        },
+        {
+          "label": "The ThreeYou · Parvati · Jeremycore allianceYour read: WorkingRecent: We agreed to work together.",
+          "x": 386,
+          "y": 430,
+          "w": 508,
+          "h": 168
+        },
+        {
+          "label": "Start alliance conversation",
+          "x": 386,
+          "y": 608,
+          "w": 508,
+          "h": 50
+        },
+        {
+          "label": "Close",
+          "x": 386,
+          "y": 750,
+          "w": 180,
+          "h": 50
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "final-five",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 578
+      },
+      "buttons": [
+        {
+          "label": "",
+          "x": 926,
+          "y": 192.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 193.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 268.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 269.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 344.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 345.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 420.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 421.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 496.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 497.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 572.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Talk",
+          "x": 1185.1875,
+          "y": 573.984375,
+          "w": 52.8125,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 630.625,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "before",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 310,
+          "y": 170.1875,
+          "w": 216,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 532,
+          "y": 170.1875,
+          "w": 216,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 754,
+          "y": 170.1875,
+          "w": 216,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 310,
+          "y": 222.1875,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 310,
+          "y": 743.046875,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 310,
+          "y": 937.640625,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 310,
+          "y": 1265.828125,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 310,
+          "y": 1460.421875,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 310,
+          "y": 1655.015625,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 310,
+          "y": 1707.015625,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 310,
+          "y": 1759.015625,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 310,
+          "y": 1811.015625,
+          "w": 660,
+          "h": 51
+        },
+        {
+          "label": "Head to Tribal Council",
+          "x": 290,
+          "y": 738,
+          "w": 700,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "restore",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 902,
+        "y": 112,
+        "w": 360,
+        "h": 447.953125
+      },
+      "buttons": [
+        {
+          "label": "Talk",
+          "x": 1183.1875,
+          "y": 168.796875,
+          "w": 52.8125,
+          "h": 47.1875
+        },
+        {
+          "label": "Not now",
+          "x": 928,
+          "y": 217.984375,
+          "w": 71.875,
+          "h": 44
+        },
+        {
+          "label": "",
+          "x": 926,
+          "y": 293.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "",
+          "x": 979,
+          "y": 293.984375,
+          "w": 46,
+          "h": 46
+        },
+        {
+          "label": "Approach",
+          "x": 1145.484375,
+          "y": 320.78125,
+          "w": 92.515625,
+          "h": 44
+        },
+        {
+          "label": "Move",
+          "x": 915,
+          "y": 488.578125,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "What I Know",
+          "x": 1028.328125,
+          "y": 488.578125,
+          "w": 107.328125,
+          "h": 58.375
+        },
+        {
+          "label": "Wait · 1 minute",
+          "x": 1141.65625,
+          "y": 488.578125,
+          "w": 107.328125,
+          "h": 58.375
+        }
+      ],
+      "dialog": false,
+      "focused": true
+    },
+    {
+      "scene": "landscape-dialogue",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 342,
+          "y": 225,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 342,
+          "y": 283.1875,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 342,
+          "y": 341.375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 342,
+          "y": 399.5625,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 342,
+          "y": 457.75,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 342,
+          "y": 515.9375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 342,
+          "y": 574.125,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 342,
+          "y": 492,
+          "w": 596,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "dense-long",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 330,
+        "y": 19,
+        "w": 620,
+        "h": 762
+      },
+      "buttons": [
+        {
+          "label": "Names",
+          "x": 351,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Promises",
+          "x": 545.671875,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Stories",
+          "x": 740.34375,
+          "y": 147.78125,
+          "w": 188.671875,
+          "h": 44
+        },
+        {
+          "label": "Names you’ve heard",
+          "x": 351,
+          "y": 199.78125,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Warnings & reassurance",
+          "x": 351,
+          "y": 741.640625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Different stories",
+          "x": 351,
+          "y": 936.234375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your promises",
+          "x": 351,
+          "y": 1348.421875,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Promises to you",
+          "x": 351,
+          "y": 1543.015625,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Your alliances",
+          "x": 351,
+          "y": 1737.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Working together",
+          "x": 351,
+          "y": 1789.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Idol information",
+          "x": 351,
+          "y": 1841.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Things you noticed",
+          "x": 351,
+          "y": 1893.609375,
+          "w": 578,
+          "h": 51
+        },
+        {
+          "label": "Alliance notebook",
+          "x": 347,
+          "y": 724,
+          "w": 289,
+          "h": 44
+        },
+        {
+          "label": "Back to camp",
+          "x": 644,
+          "y": 724,
+          "w": 289,
+          "h": 44
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "warning",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 342,
+          "y": 225,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 342,
+          "y": 283.1875,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 342,
+          "y": 341.375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 342,
+          "y": 399.5625,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 342,
+          "y": 457.75,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 342,
+          "y": 515.9375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 342,
+          "y": 574.125,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 342,
+          "y": 492,
+          "w": 596,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "verification",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 342,
+          "y": 277.09375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 342,
+          "y": 335.28125,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Jeremy?",
+          "x": 342,
+          "y": 393.46875,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Jeremy.",
+          "x": 342,
+          "y": 451.65625,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What if we do Tony?",
+          "x": 342,
+          "y": 509.84375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 342,
+          "y": 568.03125,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 342,
+          "y": 626.21875,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 342,
+          "y": 544.09375,
+          "w": 596,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "scene": "bottom",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "surface": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 800
+      },
+      "buttons": [
+        {
+          "label": "Who else is with that?",
+          "x": 342,
+          "y": 225,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What have you heard?",
+          "x": 342,
+          "y": 283.1875,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "Did you mention Sandra?",
+          "x": 342,
+          "y": 341.375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m voting Sandra.",
+          "x": 342,
+          "y": 399.5625,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "What if we do Wendell?",
+          "x": 342,
+          "y": 457.75,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "I’m not committing yet.",
+          "x": 342,
+          "y": 515.9375,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "More…",
+          "x": 342,
+          "y": 574.125,
+          "w": 581,
+          "h": 45
+        },
+        {
+          "label": "End chat",
+          "x": 342,
+          "y": 492,
+          "w": 596,
+          "h": 45
+        }
+      ],
+      "dialog": true,
+      "focused": true
+    },
+    {
+      "type": "group-checkpoint-resume",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "type": "promise-checkpoint-resume",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "type": "controlled-group-play-and-existing-tribal-handoff",
+      "staged": "A scheduled appointment is due at phase start; travel, group choice and rest of hour use actual UI and production systems."
+    }
+  ],
+  "playthroughs": [
+    {
+      "policy": "passive observer",
+      "seed": 79,
+      "actions": 45,
+      "conversations": 0,
+      "groupConversations": 0,
+      "watches": 8,
+      "moves": 9,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "social player",
+      "seed": 80,
+      "actions": 26,
+      "conversations": 13,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 3,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "strategic player",
+      "seed": 81,
+      "actions": 43,
+      "conversations": 18,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 6,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "player in danger",
+      "seed": 82,
+      "actions": 40,
+      "conversations": 5,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 9,
+      "restores": 1,
+      "expired": true,
+      "staged": "One owned warning plus starting core; production activity afterward"
+    },
+    {
+      "policy": "alliance-heavy player",
+      "seed": 83,
+      "actions": 35,
+      "conversations": 6,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 12,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "mobile landscape",
+      "seed": 84,
+      "actions": 30,
+      "conversations": 10,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 5,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    {
+      "file": "alliances-1280.png",
+      "sha256": "759083220d9aeee4abd8a98db523fbf5e5ec16315782db38d1a27140ef6ecafd"
+    },
+    {
+      "file": "alliances-375.png",
+      "sha256": "31503e4267169db81d35012bf1eadaaaa8006d62b2ebcd3a915571f77059fbfa"
+    },
+    {
+      "file": "alliances-430.png",
+      "sha256": "5fb5929e4cbb2cd4b81447e9fcaec698afb567fdd673c4899ff6d745d3a8809c"
+    },
+    {
+      "file": "alliances-844.png",
+      "sha256": "b662640c25cd5a9ffe24a6afe8f9c2fd482feb7f3570ac703f4f0a40f6d6c80a"
+    },
+    {
+      "file": "before-1280.png",
+      "sha256": "dd46d3df9a028a91e30ec4cabb4623cbd434db1b4c54fd0d4784dd4a11fe0788"
+    },
+    {
+      "file": "before-375.png",
+      "sha256": "f231d35e8e6a4f38999656c9c1244aa574a11ba4373ad2c2afe149ea7558f062"
+    },
+    {
+      "file": "before-430.png",
+      "sha256": "a24c9efdc565636baab6f6154d664a93ea80f23a276f5a024eb213809f0f3907"
+    },
+    {
+      "file": "before-844.png",
+      "sha256": "5731d7d31b8d9a70b19afdfedb8a1260eb363c0ca728308a3be7cedf4c3b84b3"
+    },
+    {
+      "file": "bottom-1280.png",
+      "sha256": "dcb57ff346c9ca93eab64dc1bbf8ee574767c839ea28883d81c64b83230f172f"
+    },
+    {
+      "file": "bottom-375.png",
+      "sha256": "cf716beba2814ab7dda07ca4d9e935e69ace1dea60169faa95460dbfc21605d4"
+    },
+    {
+      "file": "bottom-430.png",
+      "sha256": "2943dc94b4874033e5dbece5f5fb88bd995e1995442791bd041175520ab50e34"
+    },
+    {
+      "file": "bottom-844.png",
+      "sha256": "fc29bebd79620e22521f2595d15acccc3a979a2708e698c2d762551e51326b5a"
+    },
+    {
+      "file": "contradiction-1280.png",
+      "sha256": "71784de13238ef7e508338ce7adadd8c2002f6416d7f291186ab75634ec4f273"
+    },
+    {
+      "file": "contradiction-375.png",
+      "sha256": "30bf4703a2e0d0624092cf43c302f1eab15d4ed480369b0e898f95aa9275aea7"
+    },
+    {
+      "file": "contradiction-430.png",
+      "sha256": "fb283a46a56e28d40424239f2aa2c1e9daeccf6424cc0fcad7c21d7ebb941b04"
+    },
+    {
+      "file": "contradiction-844.png",
+      "sha256": "60c0424f34d8378f09fa64efd4395629bd2cb5724797f11cb18e8a9db1286e82"
+    },
+    {
+      "file": "controlled-group-play.png",
+      "sha256": "d05551bb8894c7265f3631aca0b9b04e31346bb3dd0590e3aff898891e240ed3"
+    },
+    {
+      "file": "conversation-1280.png",
+      "sha256": "4515de51127658376e682ca33a5b9219114128a1d81c450b0243becd82fdbe11"
+    },
+    {
+      "file": "conversation-375.png",
+      "sha256": "88110d187a787e0fbb3ef012dc4e7107df0282050265794a5d9351ccdeacb44e"
+    },
+    {
+      "file": "conversation-430.png",
+      "sha256": "6a93fb5115a8d8b156671b585d53617a3f0d08ed72968e7624f728ed7bdc1b0b"
+    },
+    {
+      "file": "conversation-844.png",
+      "sha256": "c4a10717a7aa021d4fb73eb10bdbf727e743756a157ca89d73bd05eec03d8a2f"
+    },
+    {
+      "file": "dense-long-1280.png",
+      "sha256": "0cc3e4212fec0fe621e11e9ad9057117cee1a3d10ef8dede7e6bb1d352c3ea12"
+    },
+    {
+      "file": "dense-long-375.png",
+      "sha256": "9699bd0f22b31b770f7ab147f70496edb687f7775310d72d1153cfdad5c5a2c2"
+    },
+    {
+      "file": "dense-long-430.png",
+      "sha256": "3a85537b5d29e78f8211978210bf8facf1675c5cf7ec5579b470a5edff5f4159"
+    },
+    {
+      "file": "dense-long-844.png",
+      "sha256": "30a7aa52914bf259d899892500aabac330b305b34909c71dccb0a574b0549d4b"
+    },
+    {
+      "file": "departures-1280.png",
+      "sha256": "96ebbbe2d41fc530c83540ac9898701f268ddfdaf552ddbe5d87cc0fea9b6615"
+    },
+    {
+      "file": "departures-375.png",
+      "sha256": "18668b3934a97bc0f334f4a49ce28c79bcbc470eea49e60b58fe6c454a17ab49"
+    },
+    {
+      "file": "departures-430.png",
+      "sha256": "aacd5f9676a83db1c3b5f7cc6e14c48271ab0000a5d0c8a2a9036282bc4c9d8c"
+    },
+    {
+      "file": "departures-844.png",
+      "sha256": "4a9d8c9cddb47fa32399a79ff6201da41028f34661a326a09e4d6b05a96ab11e"
+    },
+    {
+      "file": "final-five-1280.png",
+      "sha256": "c0369cf7eb9703e4df00af3aad44cc42c5ff4cdf09de26b1b378bd9dcfaccd88"
+    },
+    {
+      "file": "final-five-375.png",
+      "sha256": "90df4234c9454b40d8c99fae11680fd3d16496aadf50936a4a7db6c7eeb0b152"
+    },
+    {
+      "file": "final-five-430.png",
+      "sha256": "55bdcc9dd745b24ad2fb39b20bf95ce2e05582b4cc22596aa35da20a8c0d1f94"
+    },
+    {
+      "file": "final-five-844.png",
+      "sha256": "889b11ad2279bc76730d61e26eb1f898a9ceaccd362cc2490207cda8ff0ef261"
+    },
+    {
+      "file": "group-dialogue-1280.png",
+      "sha256": "d001b79097b5718b3f36cd3a73c19f1e7cc5922e29cb2133f11e25ec8ff3cc54"
+    },
+    {
+      "file": "group-dialogue-375.png",
+      "sha256": "9925ee866affd7c865dbc1fff6a86ab37faeba21b4f041bfba18b5b51868863f"
+    },
+    {
+      "file": "group-dialogue-430.png",
+      "sha256": "d7ea0fd473842b843c12c4f86628f3d1e80f29d65917b9dc89a3007c0e05c35b"
+    },
+    {
+      "file": "group-dialogue-844.png",
+      "sha256": "576946b1f6833ed0c3ce9a7250b9dc0b079a2d86be0fa139520fe13a6080710e"
+    },
+    {
+      "file": "invitation-1280.png",
+      "sha256": "1a8ed9df1e83813740c30f6ee1d8b4d1ee6c52a458c2e4023a380f578809699f"
+    },
+    {
+      "file": "invitation-375.png",
+      "sha256": "1766dee6dffe8a13cb4502fff69f13c98ac54c8b5b16cf49d832dc6e1491d1b4"
+    },
+    {
+      "file": "invitation-430.png",
+      "sha256": "94064411205641c3efe1d6f73bce88481678d537747f6da1ed8909a6d4e8c8de"
+    },
+    {
+      "file": "invitation-844.png",
+      "sha256": "e376ba3ae85dae47f87bd105f91963d78c78260ef4e54a9608385197b69b7e82"
+    },
+    {
+      "file": "knowledge-1280.png",
+      "sha256": "4e887f496dc66022082ce4f8c46e95ae21cd7f9d109a586272260542e7787363"
+    },
+    {
+      "file": "knowledge-375.png",
+      "sha256": "3e9fdf6036e36447ff196bce9c89a560a4fb5c2caad40387a5a2edf7cc4f02ac"
+    },
+    {
+      "file": "knowledge-430.png",
+      "sha256": "c9824f2e27d58db772aa2a7b816e4fc8a24e9f7b041aefd36e14ea8cf39bb209"
+    },
+    {
+      "file": "knowledge-844.png",
+      "sha256": "0d2bc1eff07fa9f5ce960f1f33c881b0f20697f3f5e44fb144ce7bbf0290d83a"
+    },
+    {
+      "file": "landscape-dialogue-1280.png",
+      "sha256": "4515de51127658376e682ca33a5b9219114128a1d81c450b0243becd82fdbe11"
+    },
+    {
+      "file": "landscape-dialogue-375.png",
+      "sha256": "88110d187a787e0fbb3ef012dc4e7107df0282050265794a5d9351ccdeacb44e"
+    },
+    {
+      "file": "landscape-dialogue-430.png",
+      "sha256": "6a93fb5115a8d8b156671b585d53617a3f0d08ed72968e7624f728ed7bdc1b0b"
+    },
+    {
+      "file": "landscape-dialogue-844.png",
+      "sha256": "c4a10717a7aa021d4fb73eb10bdbf727e743756a157ca89d73bd05eec03d8a2f"
+    },
+    {
+      "file": "meeting-1280.png",
+      "sha256": "58854770e1b8c8e9458b526a85f60fe400be4ebf4d4045fb2bad710d6f75022e"
+    },
+    {
+      "file": "meeting-375.png",
+      "sha256": "0bcc12f1873f8f20fffdd769d1cec68e1846907a630aa5dc2c5172b98c2c5961"
+    },
+    {
+      "file": "meeting-430.png",
+      "sha256": "6306501dd243e712963dba2303046bbf524cc32a78215a6123e5722382799874"
+    },
+    {
+      "file": "meeting-844.png",
+      "sha256": "df1209fdb17bb8e3c54acb030af0aa2e37c61a9aac1ed4863d9fd1aa9ed89f9f"
+    },
+    {
+      "file": "outsider-1280.png",
+      "sha256": "8f764a9eb1d21dd7782d1622eb922d653d4b5e6a672bb9e357c038a32992ebc3"
+    },
+    {
+      "file": "outsider-375.png",
+      "sha256": "bdb4ad25ecb61bcaf9cd4fd28e0074a5bdb40afb8dde30c4078aba6f1da251fe"
+    },
+    {
+      "file": "outsider-430.png",
+      "sha256": "419ec1b1b987cd40986e12e6320b3183ecc9d4eea325c7d14730abaf3e8f8d1c"
+    },
+    {
+      "file": "outsider-844.png",
+      "sha256": "ddcad8871401c51774315ac0318ba942437ffaae6550b6a0d7163e08410c0c07"
+    },
+    {
+      "file": "pair-1280.png",
+      "sha256": "1e511c01410b3e875029e97e666b9a171f475b3484c9b01cba81b82373450cd2"
+    },
+    {
+      "file": "pair-375.png",
+      "sha256": "812d32bdfca9d928ba8c4226be925451a4ca699a24d450446deeed725fa355d1"
+    },
+    {
+      "file": "pair-430.png",
+      "sha256": "18190db3aa90c5b83c0ea3de29af8e22ca0dea73a671144ffc495ed41bc937e2"
+    },
+    {
+      "file": "pair-844.png",
+      "sha256": "dbe6f7d40b047d432d964352c315c83a02986daa0edd27e30677351589548222"
+    },
+    {
+      "file": "playthrough-0.png",
+      "sha256": "621828cd72780b78e74993957253ec6c8cc495a1137c8ab0aecddf7eb17435ee"
+    },
+    {
+      "file": "playthrough-1.png",
+      "sha256": "937d1b34816b5d29c16c7c8cd1816c274443494e48b50dbcdd224809c19406eb"
+    },
+    {
+      "file": "playthrough-2.png",
+      "sha256": "b9f30c95ffb7fca99b864f580bea683ca1f141fbdde986e33e1332a64c899902"
+    },
+    {
+      "file": "playthrough-3.png",
+      "sha256": "e7f74e1d12560ac36459cdcfcc2fe66eed5d674173ab5e043fcbe8a7f3a70694"
+    },
+    {
+      "file": "playthrough-4.png",
+      "sha256": "af9e7ed67908b1e6ad9d42a0674ea0d4f0a05fff8ac5e620b0c8395748df77da"
+    },
+    {
+      "file": "playthrough-5.png",
+      "sha256": "14eb2fbc370c9e64e254b4813172296051560d2c1c0e7364c5fbf13f4b7e7464"
+    },
+    {
+      "file": "restore-1280.png",
+      "sha256": "5484cf966fa5f466624beb5bb53e78e002ceafa173641f9926cce8bd82a1518d"
+    },
+    {
+      "file": "restore-375.png",
+      "sha256": "6070e31b13768dfd8f005644ff921c9caf340dacf8f12273e5ea4ebbfab8b222"
+    },
+    {
+      "file": "restore-430.png",
+      "sha256": "d520862ecff5e86eb704de88a15ec38a4edd1e1165a25ed7e6264c151dac63dd"
+    },
+    {
+      "file": "restore-844.png",
+      "sha256": "17017ed2113305d2b09975bbcef3c574b1dcd586d51a23043857fd70166852a4"
+    },
+    {
+      "file": "resume-dialogue-1280.png",
+      "sha256": "9c0e32fec0b1580a59a70e14a7821878fe7566fb478373a585bdec804caf813f"
+    },
+    {
+      "file": "resume-dialogue-375.png",
+      "sha256": "af28a29bf21216d9a3423825fc83c581559213a983dfdf58c8305efc44ec3d7c"
+    },
+    {
+      "file": "resume-dialogue-430.png",
+      "sha256": "75226310fcdd091add6b05641156600821f4b13b4bbaa088517814e5cfe1ae32"
+    },
+    {
+      "file": "resume-dialogue-844.png",
+      "sha256": "2d624fd621525da2eb9614d6ee75c3e2e278e563c93451ffd579f02e36fc4689"
+    },
+    {
+      "file": "start-1280.png",
+      "sha256": "7d26dcbf264c2b73d8a4029acdd0db9c154d920ee06e22c828a213da44fe7303"
+    },
+    {
+      "file": "start-375.png",
+      "sha256": "ac32bceee54bb231be9f8ed12221c2a7e11c176edeb22f77de5e098a38594798"
+    },
+    {
+      "file": "start-430.png",
+      "sha256": "ef433435d530d2984fac9c54e2f9d598ae903fe0024cd0cd209e1438756a049d"
+    },
+    {
+      "file": "start-844.png",
+      "sha256": "7dce8ad71fe257e57f7b5e8f26835970f8cf37c69db64c7aec9af07dd45c649f"
+    },
+    {
+      "file": "three-1280.png",
+      "sha256": "0e45ff1fd5c691a2518bedd542e6fb62bb51ec988adf8bc0e9bf6a8dd3f0f1bd"
+    },
+    {
+      "file": "three-375.png",
+      "sha256": "9b050714406b8cdc15cb84740c81879249ed9517581e0d670aa1e4b790aa68fb"
+    },
+    {
+      "file": "three-430.png",
+      "sha256": "f7e51b33c9e640dfb235a3269c182d174d7385f2306a2628fa6bf5f99403be5c"
+    },
+    {
+      "file": "three-844.png",
+      "sha256": "042d2966779486ab3dad7b272ff34aa74568c8116d36aa5d98d2c065e38c58c4"
+    },
+    {
+      "file": "verification-1280.png",
+      "sha256": "7affbb9ea1df399152b3f901aafb33ada73d73b2482910626bbac40eab49a4ee"
+    },
+    {
+      "file": "verification-375.png",
+      "sha256": "9a22c8cc8460449ef35a525193abd7c9e626ded46144c91c1a72ebec09db47ee"
+    },
+    {
+      "file": "verification-430.png",
+      "sha256": "283fe645cec8f2ca6874c1e3000e542fa3d5cdf83e77fe98ba6e7fa0992435c9"
+    },
+    {
+      "file": "verification-844.png",
+      "sha256": "1008f723881d73f40546d13e4acd592c589e034e5f1c42beaed45bb15b906a94"
+    },
+    {
+      "file": "warning-1280.png",
+      "sha256": "758e9f071c32938b9538a8930a8e63d56c13dad7cc4c894083f198ebddf010b2"
+    },
+    {
+      "file": "warning-375.png",
+      "sha256": "5cff8d7129e230ed39df5b19513d3b95fe44658b728994f1d7cf34629795f317"
+    },
+    {
+      "file": "warning-430.png",
+      "sha256": "e581914f6e3f50ff73b75c268767f35b5dfe986c1201d4264862df1874751bd9"
+    },
+    {
+      "file": "warning-844.png",
+      "sha256": "3690997b34a7a64965cb645a12a447c57643f621ff091bfdbc3010c6998bb9b0"
+    }
+  ],
+  "physicalIPhone": false
+}

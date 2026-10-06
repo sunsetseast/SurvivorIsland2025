@@ -36,7 +36,7 @@ try {
     await page.setViewportSize(viewport);
     for (const view of ['beach', 'waterWell', 'campfire', 'shelter', 'jungleTrail', 'rockyShore']) {
       await page.evaluate(view => window.scrambleQa.local(view), view);
-      assert.equal(await page.locator('#clock-time-text').innerText(), '01:00:00', 'restored semantic clock displayed');
+      assert.equal(await page.locator('#clock-time-text').innerText(), '60:00', 'restored semantic clock displayed');
       const g = await geometry(); assert.equal(g.overflow, false); assert.ok(g.rail.y + g.rail.h <= viewport.height);
       for (const button of g.buttons) assert.ok(button.w >= 44 && button.h >= 44);
       assert.equal(await page.locator('.camp-cluster.quiet').count(), 1);
@@ -71,12 +71,12 @@ try {
     await shot(`bluff-${viewport.width}`);
     assert.ok(await overlay.evaluate(e => e.contains(document.activeElement)), 'focus retained after resolving bluff');
     assert.equal(await page.evaluate(() => window.scrambleQa.gm.dayTimer), 3600);
-    await page.getByRole('button', { name: 'Keep talking', exact: true }).click();
-    await page.getByRole('button', { name: /^What if we do/ }).first().click();
+    const resolvedCounterLabel = await page.getByRole('button', { name: /^What if we do/ }).first().innerText();
+    await page.getByRole('button', { name: resolvedCounterLabel, exact: true }).click();
     const resolved = await page.evaluate(() => JSON.stringify(window.scrambleQa.activity.conversation.checkpoint));
     await page.evaluate(() => window.scrambleQa.restore());
     await page.getByRole('button', { name: 'Resume conversation', exact: true }).click();
-    await page.getByRole('button', { name: /^What if we do/ }).first().click();
+    assert.equal(await page.getByRole('button', { name: resolvedCounterLabel, exact: true }).count(), 0, 'that resolved counter hidden on restore');
     assert.equal(await page.evaluate(() => JSON.stringify(window.scrambleQa.activity.conversation.checkpoint)), resolved, 'resolved choice cannot replay after production restore');
     await shot(`resumed-${viewport.width}`);
     await page.setViewportSize({ width: viewport.height, height: viewport.width });
@@ -86,11 +86,11 @@ try {
     await page.setViewportSize(viewport);
     checks.push({ viewport, type: 'bluff-checkpoint-resume-focus-orientation-billing' });
     await page.evaluate(() => window.scrambleQa.invite());
-    await page.getByRole('button', { name: /wants to talk/ }).click(); await page.getByRole('button', { name: 'Talk now', exact: true }).waitFor();
-    await page.waitForTimeout(2100); assert.equal(await page.getByRole('button', { name: 'Talk now', exact: true }).count(), 1, 'no wall-time autoaccept');
+    const beforeInvite = await page.evaluate(() => window.scrambleQa.gm.dayTimer);
+    await page.waitForTimeout(2100); assert.equal(await page.locator('#conversation-overlay').count(), 0, 'no wall-time autoaccept');
+    assert.equal(await page.evaluate(() => window.scrambleQa.gm.dayTimer), beforeInvite, 'reading invitation does not tick');
     await shot(`invitation-${viewport.width}`);
-    for (const label of ['Talk now', 'Maybe later']) assert.ok(await page.getByRole('button', { name: label, exact: true }).evaluate(e => { const b = e.getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth && b.top >= 0 && b.bottom <= innerHeight; }), `${label} invitation fully reachable`);
-    await page.getByRole('button', { name: 'Talk now', exact: true }).click();
+    await page.getByRole('button', { name: /wants to talk/ }).click();
     assert.ok(await page.evaluate(() => !!window.scrambleQa.activity.conversation)); await page.keyboard.press('Escape');
     checks.push({ viewport, type: 'physical-npc-approach' });
     const meeting = await page.evaluate(() => window.scrambleQa.meeting()); assert.equal(meeting.status, 'active');

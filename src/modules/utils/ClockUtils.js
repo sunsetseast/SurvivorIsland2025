@@ -1,3 +1,4 @@
+import { scrambleCountdown } from '../ui/ScramblePresentation.js';
 /**
  * @module ClockUtils
  * Handles UI updates for the in-game camp clock
@@ -21,9 +22,15 @@ export function updateCampClockUI(dayTimer, currentDay) {
     `${minutes.toString().padStart(2, '0')}:` +
     `${seconds.toString().padStart(2, '0')}`;
 
-  timeText.innerText = displayTime;
   const gm = globalThis.window?.gameManager;
   const scramble = gm?.gamePhase === 'postChallenge' && !gm.systems?.strategyPhaseSystem?.playerTribeSafe;
+  const countdown = scrambleCountdown(dayTimer);
+  timeText.innerText = scramble ? countdown.text : displayTime;
+  const clock = document.getElementById('camp-clock');
+  if (clock) {
+    clock.classList.toggle('scramble-clock', scramble); clock.dataset.urgency = scramble ? countdown.tier : '';
+    clock.setAttribute('aria-label', scramble ? `Tribal in ${Math.floor(total / 60)} minutes ${seconds} seconds` : `Day ${currentDay}`);
+  }
   dayText.classList?.toggle?.('scramble-clock-label', scramble);
-  dayText.innerText = scramble ? 'Tribal in' : `Day ${currentDay}`;
+  dayText.innerText = scramble ? countdown.label : `Day ${currentDay}`;
 }

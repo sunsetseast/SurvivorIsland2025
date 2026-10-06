@@ -5,6 +5,9 @@ import { createElement } from '../utils/index.js';
 import { normalizeLocationKey, physicalCampLocation } from '../locations/LocationUtils.js';
 import CampInteractionSystem from '../systems/CampInteractionSystem.js';
 import { campGroups, clusterPortraitLayout, publicCampCues, placeName, LOCATION_MOOD } from './CampPresentation.js';
+import { buildNearbyScramble, buildPlayerScrambleRead, isScramble, scrambleCountdown } from './ScramblePresentation.js';
+import { ScrambleNotebook } from './ScrambleNotebook.js';
+import { routeBetween } from '../systems/CampActivitySystem.js';
 import { APPROACH_SECONDS } from '../systems/CampInteractionSystem.js';
 import { CampNarrationQueue, narrationBeat, NARRATION } from './CampNarration.js';
 
@@ -20,6 +23,7 @@ export class NpcAutoRenderer {
   initialize() {
     if (this.initialized) return;
     this.initialized = true;
+    this.notebook = new ScrambleNotebook(this.gm);
     this.interactions = new CampInteractionSystem(this.gm);
     this.gm.systems.campInteractionSystem = this.interactions;
     const on = (event, fn) => this.unsubscribers.push(eventManager.subscribe(event, fn));
@@ -35,11 +39,24 @@ export class NpcAutoRenderer {
     });
     on('npc:locationUpdated', ({ reason } = {}) => { if (!reason?.startsWith('activity:')) this.refresh(); });
     on('camp:activityChanged', () => this.refresh());
-    on('camp:timeAdvanced', () => { this.refresh(); this.narrate(); });
+    on('camp:timeAdvanced', () => {
+      if (this.awaitReadCueClose && !this.gm.systems.campActivitySystem.conversation) {
+        if (this.livePresentationCue) this.livePresentationCue.at = this.gm.dayTimer;
+        this.awaitReadCueClose = false;
+      }
+      this.refresh(); this.narrate();
+    });
+    on('camp:readUpdated', () => { this.refresh(); this.readCue(); });
+    on('camp:travelPresented', ({ from, to, seconds }) => {
+      this.livePresentationCue = { at: this.gm.dayTimer, text: `${placeName(from)} → ${placeName(to)} · ${seconds < 60 ? `${seconds} sec` : `${Math.floor(seconds / 60)} min${seconds % 60 ? ` ${seconds % 60} sec` : ''}`}` };
+      const beat = this.npcLayer?.querySelector('.camp-observable-beat'); if (beat) beat.textContent = this.presentationText();
+    });
     on(GameEvents.CAMP_EVENT_STARTED, () => { this.interactions.missDepartures(); this.closeSheet(); this.resetNarration(); this.clear(); });
     on(GameEvents.GAME_STATE_CHANGED, ({ newState }) => { if (newState !== 'camp') { this.interactions.missDepartures(); this.closeSheet(false); this.resetNarration(); this.clear(); } });
     on(GameEvents.GAME_PHASE_CHANGED, () => { this.interactions.missDepartures(); this.closeSheet(); this.resetNarration(); this.refresh(); });
     on(GameEvents.GAME_LOADED, () => {
+      this.notebook.close(false); this.restoredAt = this.gm.dayTimer; this.awaitReadCueClose = false; this.livePresentationCue = null;
+      this.seedReadCues(); this.lastCountdownTier = scrambleCountdown(this.gm.dayTimer).tier;
       this.closeSheet(); this.helping = null; this.expandedMinigameView = null; this.interactions.watching = null; this.signature = null;
       if (globalThis.window?.campScreen) window.campScreen.campHelp = null;
       // Rebuild groups, but do not replay old live announcements after reload.
@@ -69,14 +86,18 @@ export class NpcAutoRenderer {
     let layer = camp.querySelector('#npc-layer');
     if (!layer) { layer = createElement('div', { id: 'npc-layer' }); camp.appendChild(layer); this.signature = null; }
     this.npcLayer = layer;
-    const groups = this.interactions?.available ? this.interactions.seeGroups(this.lastViewName) : campGroups(this.gm, this.lastViewName);
+    let groups = this.interactions?.available ? this.interactions.seeGroups(this.lastViewName) : campGroups(this.gm, this.lastViewName);
+    const post = isScramble(this.gm);
+    document.getElementById('camp-screen')?.classList.toggle('scramble-camp', post);
+    const projection = post ? buildNearbyScramble(this.gm, this.lastViewName) : null;
+    if (post) { groups = projection.groups; this.phaseCue(); }
     const departures = this.interactions?.recentDepartures() || [];
     const width = Math.min(350, Math.max(180, (camp.clientWidth || 375) - 24));
     const handsOn = this.lastViewName !== place;
     const minigame = handsOn || place === 'tribeFlag' || this.helping?.view === this.lastViewName;
     const expanded = this.expandedMinigameView === this.lastViewName;
     const cues = publicCampCues(groups, this.gm.getPlayerTribe?.());
-    const signature = JSON.stringify({ groups, scramble: this.gm.systems.strategyPhaseSystem?.isActive ? { invitation: this.gm.systems.strategyPhaseSystem.scramble?.invitation, meetings: this.gm.systems.strategyPhaseSystem.scramble?.meetings.map(m => [m.id, m.status]), conversation: this.gm.systems.campActivitySystem.conversation?.activityId } : null, departures: departures.map(e => e.id), cues, width, minigame, expanded });
+    const signature = JSON.stringify({ groups, scramble: post ? { invitation: projection.invitation, conversation: this.gm.systems.campActivitySystem.conversation?.activityId, tier: scrambleCountdown(this.gm.dayTimer).tier } : null, departures: departures.map(e => e.id), cues, width, minigame, expanded });
     if (signature === this.signature && layer.firstChild) return;
     const focusKey = layer.contains(document.activeElement) ? document.activeElement?.dataset?.focusKey : null;
     const scrollTop = layer.querySelector('.camp-presence')?.scrollTop || 0;
@@ -95,23 +116,23 @@ export class NpcAutoRenderer {
     }
     rail.appendChild(header);
     rail.appendChild(createElement('p', { className: 'camp-observable-beat', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }));
-    rail.querySelector('.camp-observable-beat').textContent = this.narration.current?.text || '';
+    rail.querySelector('.camp-observable-beat').textContent = this.presentationText();
     layer.appendChild(rail);
     const contentWidth = rail.clientWidth - 2 * (parseFloat(getComputedStyle(rail).paddingLeft) || 0);
     const clusters = createElement('div', { className: 'camp-clusters' });
     const groupWidth = Math.min(150, Math.max(120, (contentWidth - 12) / 2));
     for (const [groupIndex, group] of groups.entries()) {
-      const cardWidth = group.members.length > 1 ? contentWidth : groupWidth;
+      const cardWidth = post || group.members.length > 1 ? contentWidth : groupWidth;
       const projection = JSON.stringify({ group, cardWidth, handsOn, cue: cues[groupIndex] });
       const previous = previousCards.get(projection);
       if (previous) { clusters.appendChild(previous); continue; }
-      const card = createElement('article', { className: `camp-cluster ${group.engaged ? 'engaged' : 'nearby'} ${group.privacy === 'private' ? 'quiet' : ''}`,
+      const card = createElement('article', { className: `camp-cluster ${group.engaged ? 'engaged' : 'nearby'} ${group.privacy === 'private' ? 'quiet' : ''} ${post && group.members.length === 1 ? 'scramble-solo' : ''}`,
         style: { width: `${cardWidth}px` }, dataset: { groupId: group.id, projection } });
       const layout = clusterPortraitLayout(group.members.length, cardWidth);
       const portraits = createElement('div', { className: 'camp-portraits', style: { height: `${layout.height}px` } });
       group.members.forEach((member, index) => {
         const box = layout.boxes[index];
-        const holder = createElement('div', { className: `camp-person ${previousPeople.has(String(member.id)) ? '' : 'camp-arriving'}`,
+        const holder = createElement('div', { className: `camp-person ${previousPeople.has(String(member.id)) || this.restoredAt === this.gm.dayTimer ? '' : 'camp-arriving'}`,
           style: { left: `${box.x}px`, top: `${box.y}px` } });
         const button = createElement('button', { type: 'button', className: 'npc-icon camp-portrait',
           'aria-label': `${member.name}: ${member.label}. ${handsOn ? 'Nearby' : group.social ? 'Approach group' : 'Talk'}`,
@@ -129,14 +150,20 @@ export class NpcAutoRenderer {
         portraits.appendChild(holder);
       });
       card.appendChild(portraits);
+      if (post) card.appendChild(createElement('h3', { className: 'scramble-group-names' }, group.names));
       const label = createElement('p', { className: 'camp-activity-label' });
       if (group.privacy === 'private') label.appendChild(createElement('span', { className: 'camp-private-glyph', 'aria-hidden': 'true' }, '◌ '));
       label.appendChild(document.createTextNode(group.social ? group.label : group.members[0].label));
       card.appendChild(label);
       if (cues[groupIndex]) card.appendChild(createElement('p', { className: 'camp-public-cue' }, cues[groupIndex]));
       const actions = createElement('div', { className: 'camp-context-actions' });
-      if (!handsOn && group.social && this.interactions?.available) {
+      if (post && group.meetingId && !handsOn) {
+        actions.appendChild(this.action('Join', `meeting:${group.meetingId}`, () => { this.closeSheet(false); this.gm.systems.strategyPhaseSystem.scramble.attend(group.meetingId); this.focusConversation(); }));
+        actions.lastChild.setAttribute('aria-label','Join alliance meeting');
+      } else if (!handsOn && group.social && this.interactions?.available) {
         actions.appendChild(this.action('Approach', `group:${group.id}`, () => this.openGroup(group)));
+      } else if (post && !handsOn && !group.members[0].busy) {
+        actions.appendChild(this.action('Talk', `talk:${group.members[0].id}`, () => this.talk(group.members[0], group)));
       } else if (!handsOn && group.members[0].helpView && this.interactions?.available) {
         const member = group.members[0];
         actions.appendChild(this.action('Help', `help:${member.id}`, () => {
@@ -150,15 +177,18 @@ export class NpcAutoRenderer {
     }
     const strategy = this.gm.systems.strategyPhaseSystem;
     if (!handsOn && strategy?.isActive && this.gm.gamePhase === 'postChallenge') {
-      const invitation = strategy.scramble?.invitation;
-      if (invitation && this.interactions.visible(invitation.npcId)) {
+      const invitation = projection?.invitation;
+      if (invitation) {
         const person = this.interactions.person(invitation.npcId);
-        rail.appendChild(this.action(`${person.firstName} wants to talk`, `invite:${invitation.activityId}`, () => {
-          this.closeSheet(false);
-          this.gm.systems.conversationSystem.startNpcConversation(person, invitation.purpose,
-            { initiatedByNpc: true, context: { phase: 'post' }, location: this.gm.player.location });
-          this.focusConversation();
-        }));
+        const notice = createElement('div', {className:'scramble-invitation'});
+        notice.appendChild(createElement('strong', {}, `${person.firstName} came looking for you`));
+        notice.appendChild(createElement('p', {}, '“Can we talk?”'));
+        const talk = this.action('Talk', `invite:${invitation.activityId}`, () => {
+          this.closeSheet(false); this.gm.systems.conversationSystem.startNpcConversation(person, strategy.scramble.invitation?.purpose,
+            {initiatedByNpc:true, approachAccepted:true, context:{phase:'post',approachAccepted:true}, location:this.gm.player.location}); this.focusConversation();
+        }); talk.setAttribute('aria-label', `${person.firstName} wants to talk`); notice.appendChild(talk);
+        notice.appendChild(this.action('Not now', `decline:${invitation.activityId}`, () => { this.gm.systems.conversationSystem._handleApproachDeclined(person); this.focusConversation(); this.refresh(); }));
+        rail.appendChild(notice);
       }
       const reservation = this.gm.systems.campActivitySystem.conversation;
       if (reservation && !document.querySelector('#conversation-overlay')) {
@@ -168,14 +198,6 @@ export class NpcAutoRenderer {
           this.focusConversation();
         }));
       }
-      for (const meeting of strategy.scramble?.meetings || []) if (meeting.status === 'active' && meeting.location === place &&
-        meeting.memberIds.some(id => String(id) === String(this.gm.player.id)) && this.gm.systems.allianceSystem?.getKnownAlliances?.(this.gm.player.id).some(a=>a.id===meeting.allianceId))
-        rail.appendChild(this.action('Join alliance meeting', `meeting:${meeting.id}`, () => {
-          this.closeSheet(false); strategy.scramble.attend(meeting.id); this.focusConversation();
-        }));
-      if (!reservation) rail.appendChild(this.action('Wait · 1 minute', 'scramble:wait', () => {
-        this.gm.consumeCampTime(60, { source: 'scramble_wait' }); this.refresh();
-      }));
     }
     if (!groups.length) clusters.appendChild(createElement('p', { className: 'camp-empty' }, 'A quiet moment here.'));
     rail.appendChild(clusters);
@@ -195,7 +217,7 @@ export class NpcAutoRenderer {
         direction.appendChild(createElement('span', { 'aria-hidden': 'true' }, '↗ '));
         direction.appendChild(document.createTextNode(`Heading toward ${placeName(entry.location)}`));
         description.appendChild(direction); trail.appendChild(description);
-        trail.appendChild(this.action(`Follow ${person.firstName}`, `follow:${entry.id}`, () => {
+        trail.appendChild(this.action(`Follow ${person.firstName} · 2 min`, `follow:${entry.id}`, () => {
           const result = this.interactions.follow(entry); this.refresh(); this.narrate();
           if (this.interactions.available) this.showResult(result.text);
         }));
@@ -203,12 +225,51 @@ export class NpcAutoRenderer {
       }
       rail.insertBefore(routes, clusters);
     }
+    if (post && !handsOn) {
+      const tools = createElement('nav', { className:'scramble-camp-tools', 'aria-label':'Camp actions' });
+      const reservation = this.gm.systems.campActivitySystem.conversation;
+      if (!reservation) tools.appendChild(this.action('Move', 'scramble:move', () => this.openMove()));
+      tools.appendChild(this.action('What I Know', 'scramble:read', () => this.notebook.open()));
+      if (!reservation) tools.appendChild(this.action('Wait · 1 minute', 'scramble:wait', () => { this.gm.consumeCampTime(60,{source:'scramble_wait'}); this.refresh(); }));
+      rail.appendChild(tools);
+    }
     rail.scrollTop = scrollTop;
     if (focusKey) {
       const next = [...layer.querySelectorAll('[data-focus-key]')].find(e => e.dataset.focusKey === focusKey) ||
         layer.querySelector('button:not(:disabled)') || document.querySelector('.camp-nav-button');
       next?.focus({ preventScroll: true });
     }
+  }
+  openMove() {
+    const origin = this.gm.player.location;
+    const destinations = ['beach','shelter','campfire','waterWell','rockyShore','jungleTrail','mountainTrail','waterfallTrail','tribeFlag'];
+    const routes = destinations.map(to => ({to,seconds:routeBetween(origin,to).length*30})).filter(r => r.seconds);
+    this.openSheet('Move around camp', `You’re at ${placeName(origin)}.`, routes.map(r => [`${placeName(r.to)} · ${r.seconds<60?`${r.seconds} sec`:`${r.seconds/60} min`}`, () => { this.closeSheet(false); window.campScreen?.loadView(r.to); }]));
+  }
+  presentationText() {
+    if (this.narration.current?.text) return this.narration.current.text;
+    return this.livePresentationCue && this.livePresentationCue.at - this.gm.dayTimer <= 60 ? this.livePresentationCue.text : '';
+  }
+  seedReadCues() {
+    const read = buildPlayerScrambleRead(this.gm);
+    this.readCueKeys = new Set([...read.yourPromises,...read.contradictions].map(r=>r.key));
+  }
+  readCue() {
+    if (!isScramble(this.gm)) return;
+    const read = buildPlayerScrambleRead(this.gm), keys = this.readCueKeys || new Set();
+    const promise = read.yourPromises.find(r=>!keys.has(r.key)), conflict = read.contradictions.find(r=>!keys.has(r.key));
+    this.seedReadCues();
+    if (!promise && !conflict) return;
+    this.livePresentationCue = {at:this.gm.dayTimer,text:promise ? `Promise remembered. ${promise.text}` : `Different stories. ${conflict.text}`};
+    this.awaitReadCueClose = Boolean(this.gm.systems.campActivitySystem.conversation);
+    const beat = this.npcLayer?.querySelector('.camp-observable-beat'); if(beat) beat.textContent=this.presentationText();
+  }
+  phaseCue() {
+    const tier=scrambleCountdown(this.gm.dayTimer).tier;
+    if (this.lastCountdownTier && !['final','last'].includes(this.lastCountdownTier) && ['final','last'].includes(tier))
+      this.livePresentationCue={at:this.gm.dayTimer,text:'Final scramble. Tribal is close.'};
+    else if(!this.lastCountdownTier && this.gm.dayTimer===3600) this.livePresentationCue={at:3600,text:'Back at camp. One hour before Tribal. Time moves when you act.'};
+    this.lastCountdownTier=tier;
   }
   action(text, key, callback) {
     const button = createElement('button', { type: 'button', className: 'camp-context-button', dataset: { focusKey: key } }, text);
@@ -294,7 +355,7 @@ export class NpcAutoRenderer {
     document.body.appendChild(dialog); this.sheet = { dialog, returnFocus: previous };
     dialog.showModal(); buttons.querySelector('button')?.focus();
   }
-  showResult(text) { this.openSheet('Around camp', text, [['Back to camp', () => this.closeSheet()]]); }
+  showResult(text) { this.openSheet(isScramble(this.gm) && this.interactions.watching ? `Watching ${placeName(this.gm.player.location)}` : 'Around camp', text, [['Back to camp', () => this.closeSheet()]]); }
   closeSheet(restoreFocus = true) {
     if (!this.sheet) return;
     const { dialog, returnFocus } = this.sheet; this.sheet = null;
@@ -334,13 +395,13 @@ export class NpcAutoRenderer {
     }, this.gm.dayTimer, now);
     const beat = this.narration.advance(this.gm.dayTimer, now);
     const node = this.npcLayer?.querySelector('.camp-observable-beat');
-    if (node && node.textContent !== (beat?.text || '')) node.textContent = beat?.text || '';
+    if (node && node.textContent !== this.presentationText()) node.textContent = this.presentationText();
     if (!this.narrationTimer && beat) this.narrationTimer = setTimeout(() => {
       this.narrationTimer = null; this.narrate();
     }, Math.max(1, NARRATION.dwellMs - (now - beat.displayedAt)));
   }
   dispose() {
-    this.resetNarration(); this.closeSheet(false); this.unsubscribers.forEach(unsubscribe => unsubscribe());
+    this.resetNarration(); this.closeSheet(false); this.notebook?.close(false); this.unsubscribers.forEach(unsubscribe => unsubscribe());
     this.unsubscribers = []; this.initialized = false;
     if (this.resizeFrame) cancelAnimationFrame(this.resizeFrame); this.resizeFrame = null; this.clear();
   }

@@ -1,0 +1,125 @@
+{
+  "engine": "webkit",
+  "version": "26.5",
+  "sourceCommit": "50ff56bd1a629b7eb7be08c09bdd56c6db09d820",
+  "sourceFingerprint": "d2802b6a325c2c3db2d485800f8a29878a813bc8d89ed064ca2cf30ef00be8a2",
+  "workingTree": "",
+  "reportFormat": "Captured runner output and metadata; detailed per-scene geometry file was lost in workspace replacement before publication.",
+  "viewports": [
+    {
+      "width": 375,
+      "height": 812
+    },
+    {
+      "width": 430,
+      "height": 932
+    },
+    {
+      "width": 844,
+      "height": 390
+    },
+    {
+      "width": 1280,
+      "height": 800
+    }
+  ],
+  "scenes": [
+    "start",
+    "departures",
+    "pair",
+    "three",
+    "meeting",
+    "outsider",
+    "invitation",
+    "conversation",
+    "group-dialogue",
+    "knowledge",
+    "contradiction",
+    "alliances",
+    "final-five",
+    "before",
+    "restore",
+    "landscape-dialogue",
+    "dense-long",
+    "warning",
+    "verification",
+    "bottom"
+  ],
+  "checks": 89,
+  "playthroughs": [
+    {
+      "policy": "passive observer",
+      "seed": 79,
+      "actions": 45,
+      "conversations": 0,
+      "groupConversations": 0,
+      "watches": 8,
+      "moves": 9,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "social player",
+      "seed": 80,
+      "actions": 26,
+      "conversations": 13,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 3,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "strategic player",
+      "seed": 81,
+      "actions": 43,
+      "conversations": 18,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 6,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "player in danger",
+      "seed": 82,
+      "actions": 40,
+      "conversations": 5,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 9,
+      "restores": 1,
+      "expired": true,
+      "staged": "One owned warning plus starting core; production activity afterward"
+    },
+    {
+      "policy": "alliance-heavy player",
+      "seed": 83,
+      "actions": 35,
+      "conversations": 6,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 12,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    },
+    {
+      "policy": "mobile landscape",
+      "seed": 84,
+      "actions": 30,
+      "conversations": 10,
+      "groupConversations": 0,
+      "watches": 0,
+      "moves": 5,
+      "restores": 1,
+      "expired": true,
+      "staged": "Starting known core; production activities/responses afterward"
+    }
+  ],
+  "errors": [],
+  "physicalIPhone": false
+}

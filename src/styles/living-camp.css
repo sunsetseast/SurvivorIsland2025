@@ -145,21 +145,4 @@ body:has(#camp-screen.active) { min-height:100dvh; padding:0; overflow:hidden; }
 #npc-layer .camp-work-cue { width:auto; min-width:20px; height:18px; padding:0 3px; box-sizing:border-box; font-size:9px; line-height:1; }
 #npc-layer .camp-person-name { font-size:13px; }
 
-/* Actual scramble QA: topic controls were 34px and the oversized End chat
-   art overlapped options. Keep the existing dialogue layout, art, and scroll. */
-#conversation-overlay.scramble-dialog { background:rgba(0,0,0,.82) !important; padding-top:max(10px,env(safe-area-inset-top,0px)) !important; }
-#conversation-overlay.scramble-dialog .conversation-parchment { background-color:#dcc29b; max-height:calc(100dvh - 195px); }
-#conversation-overlay.scramble-dialog button { min-height:44px !important; flex-shrink:0; }
-#conversation-overlay.scramble-dialog .conversation-nav-row button { height:44px !important; }
-#conversation-overlay.scramble-dialog .conversation-transcript-region { min-height:72px; }
-#conversation-overlay.scramble-dialog .convo-narration, #conversation-overlay.scramble-dialog .convo-narration .convo-text { color:#3c2d1d; }
-#conversation-overlay.scramble-dialog .conversation-options-region { overscroll-behavior:contain; }
-#conversation-overlay.scramble-dialog .conversation-invitation { overflow-y:auto; overscroll-behavior:contain; }
-#conversation-overlay.scramble-dialog .conversation-approach-actions { flex-direction:column; }
-#conversation-overlay.scramble-dialog .conversation-approach-actions button { width:100%; max-width:100%; min-width:0; }
-#conversation-overlay.scramble-dialog button:focus-visible { outline:3px solid #f9e6a4; outline-offset:2px; }
-@media (max-height:500px) {
-  #conversation-overlay.scramble-dialog .conversation-parchment { max-height:calc(100dvh - 36px); }
-}
-
 #camp-clock .scramble-clock-label { white-space:nowrap; font-size:16px !important; }
