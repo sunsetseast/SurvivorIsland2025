@@ -1244,9 +1244,12 @@ export default class AllianceSystem {
     return a.roundPlan;
   }
   resolveMeeting(allianceId, participants, activity, random) {
-    const r = this.reasoning?.resolveMeeting(participants, activity, random);
+    // CampActivitySystem preserves the meeting reservation, not coalition
+    // metadata. Pass the known context explicitly at this integration boundary.
+    const r = this.reasoning?.resolveMeeting(participants, { ...activity, allianceId }, random);
     if (r) {
       this.captureRoundPlan(allianceId, participants, r, activity.id);
+      for (const p of participants) this.reasoning.reconsiderVote(p.id,{eventId:`meeting:${activity.id}:completed`});
       const a = this.getAlliance(allianceId),
         target = r.targetId,
         ids = participants.map((p) => p.id);

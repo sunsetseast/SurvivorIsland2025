@@ -1159,8 +1159,11 @@ export default class TribalCouncilSystem {
 
     const directIntent = strategyPhaseSystem.getNpcTargetIntent?.(voter.id);
     if (directIntent && this._idsEqual(directIntent.targetId, target.id)) {
-      return Math.max(0, Math.min(1, directIntent.confidence ?? 0.5));
+      return Math.max(0, Math.min(directIntent.intentStatus==='lean' ? .25 : 1, directIntent.confidence ?? 0.5));
     }
+
+    // A board aggregate must not pressure an NPC away from their own ballot.
+    if (directIntent) return 0;
 
     // Fallback bridge for player/alliance target-board pressure when no direct NPC intent exists.
     const board = strategyPhaseSystem.getTribalTargetBoard?.() || this.gameManager.flags?.tribalTargetBoard;

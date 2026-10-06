@@ -176,7 +176,12 @@ class StrategyPhaseSystem {
     SCRAMBLE_SECONDS - gameManager.dayTimer : Date.now(); }
   planActivity(npc, now) { return this.scramble?.plan(npc, now); }
   resolveActivity(actor, activity, at) { return this.scramble?.resolve(actor, activity, at); }
-  onActivityBoundary(now) { this.scramble?.onBoundary(now); }
+  onActivityBoundary(now) {
+    this.scramble?.onBoundary(now);
+    if (this.isActive && !this.playerTribeSafe && now <= 300)
+      for (const p of this.reasoning.members) if (!p.isPlayer)
+        this.reasoning.reconsiderVote(p.id,{eventId:`final-five:${this.getCurrentDay()}`});
+  }
   nextActivityBoundaries(cursor, after) { return this.scramble?.nextBoundary(cursor, after) || []; }
 
   didPlayerTribeWinImmunity() {
@@ -427,7 +432,7 @@ class StrategyPhaseSystem {
   beginStrategyBeats() {}
 
   updateNpcIntentTarget(npcId, targetId, { reason = 'unknown', confidenceDelta = 0, absoluteConfidence = null,
-    lateVolatility = false } = {}) {
+    lateVolatility = false, intentStatus = null } = {}) {
     if (!npcId || !this.isTargetIdAvailable(targetId)) return null;
     const previousTargetId = this.getNpcTargetIntent(npcId)?.targetId;
     const priorMeta = this.npcIntentMeta.get(npcId) || { confidence: 0.5, reason: 'seed', updatedAt: this.semanticTimestamp() };
@@ -440,6 +445,7 @@ class StrategyPhaseSystem {
       confidence: Number(nextConfidence.toFixed(2)),
       reason,
       updatedAt: this.semanticTimestamp(),
+      ...(intentStatus ? {intentStatus} : {}),
     };
     this.npcIntentMeta.set(npcId, meta);
     this.reasoning.gm = gameManager;
@@ -470,7 +476,9 @@ class StrategyPhaseSystem {
     const cached = this.npcIntentTargets.get(npcId) ?? this.npcIntentTargets.get(String(npcId));
     if (cached != null && !this.isTargetIdAvailable(cached)) return null;
     const rich = this.reasoning.states[String(npcId)];
-    if (rich) return this.isTargetIdAvailable(rich.intendedVoteId) ? { targetId: rich.intendedVoteId, confidence: rich.confidence, reason: rich.reason, updatedAt: rich.updatedAt } : null;
+    if (rich) return this.isTargetIdAvailable(rich.intendedVoteId) ? { targetId: rich.intendedVoteId,
+      confidence: rich.intentStatus==='lean' ? Math.min(.25,rich.confidence) : rich.confidence,
+      intentStatus:rich.intentStatus || (rich.committedTargetId?'committed':'provisional'), reason: rich.reason, updatedAt: rich.updatedAt } : null;
     const targetId = this.npcIntentTargets.get(npcId)
       || this.npcIntentTargets.get(String(npcId))
       || this.npcIntentTargets.get(Number(npcId));
@@ -521,9 +529,10 @@ class StrategyPhaseSystem {
       const seededTargetId = pickThreatTargetForNpc(npc);
       if (!seededTargetId) return;
       this.updateNpcIntentTarget(npc.id, seededTargetId, {
-        reason: 'seed:startPhase',
+        reason: 'personal_preference',
         confidenceDelta: 0,
-        absoluteConfidence: 0.35,
+        absoluteConfidence: 0.2,
+        intentStatus: 'lean',
       });
       seededCount += 1;
     });
@@ -969,7 +978,11 @@ class StrategyPhaseSystem {
     this.scramble?.clearInvitation();
     for(const meeting of this.scramble?.meetings||[])if(!["completed","cancelled"].includes(meeting.status))meeting.status="cancelled";
     gameManager.systems?.campActivitySystem?.releasePhaseReservations?.();
-    if (!this.playerTribeSafe) this.computeTribalTargetBoard();
+    if (!this.playerTribeSafe) {
+      for (const p of this.reasoning.members) if (!p.isPlayer)
+        this.reasoning.reconsiderVote(p.id,{eventId:`expiry:${this.getCurrentDay()}`,final:true});
+      this.computeTribalTargetBoard();
+    }
     this.scrambleState = ScrambleState.BEFORE_TRIBAL;
     this.showSummaryView();
     gameManager.requestAutoSave?.('scramble:resolved');
