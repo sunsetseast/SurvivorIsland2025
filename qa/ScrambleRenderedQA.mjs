@@ -71,11 +71,12 @@ try {
     await shot(`bluff-${viewport.width}`);
     assert.ok(await overlay.evaluate(e => e.contains(document.activeElement)), 'focus retained after resolving bluff');
     assert.equal(await page.evaluate(() => window.scrambleQa.gm.dayTimer), 3600);
-    await page.getByRole('button', { name: /^What if we do/ }).first().click();
+    const resolvedCounterLabel = await page.getByRole('button', { name: /^What if we do/ }).first().innerText();
+    await page.getByRole('button', { name: resolvedCounterLabel, exact: true }).click();
     const resolved = await page.evaluate(() => JSON.stringify(window.scrambleQa.activity.conversation.checkpoint));
     await page.evaluate(() => window.scrambleQa.restore());
     await page.getByRole('button', { name: 'Resume conversation', exact: true }).click();
-    assert.equal(await page.getByRole('button', { name: /^What if we do/ }).count(), 0, 'resolved counter hidden on restore');
+    assert.equal(await page.getByRole('button', { name: resolvedCounterLabel, exact: true }).count(), 0, 'that resolved counter hidden on restore');
     assert.equal(await page.evaluate(() => JSON.stringify(window.scrambleQa.activity.conversation.checkpoint)), resolved, 'resolved choice cannot replay after production restore');
     await shot(`resumed-${viewport.width}`);
     await page.setViewportSize({ width: viewport.height, height: viewport.width });
