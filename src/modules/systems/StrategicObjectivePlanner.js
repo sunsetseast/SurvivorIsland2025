@@ -4,18 +4,29 @@ import {
 } from "./ConversationActionCatalog.js";
 import { conversationCharacter } from "./ConversationCharacter.js";
 import { TASK_ACTIONS, taskAction } from "./StrategicTaskActions.js";
+import StrategicWorkPlanner from "./StrategicWorkPlanner.js";
 const copy = (x) => JSON.parse(JSON.stringify(x));
+// Persist the chosen job, not the temporary comparison scores used to choose it.
+const selectedWork = ({
+  value,
+  preferSelf,
+  preferredExecutorType,
+  exposureRisk,
+  urgency,
+  ...work
+}) => copy(work);
 // A planner influences conversations only. It never writes ballots or creates a vote solver.
 export default class StrategicObjectivePlanner {
   constructor(engine, payload = {}) {
     this.engine = engine;
+    this.workPlanner = new StrategicWorkPlanner(engine);
     this.records = payload?.records || {};
     this.dirty = new Set(payload?.dirty || []);
   }
   invalidate(...ids) {
     ids.forEach((id) => this.dirty.add(String(id)));
   }
-  intermediary(owner, target, objective, candidates) {
+  intermediary(owner, target, objective, candidates, work = null) {
     const e = this.engine,
       p = conversationCharacter(owner),
       known = e.knowledge(owner.id);
@@ -84,13 +95,16 @@ export default class StrategicObjectivePlanner {
             relation * 0.25 +
             reliability * 0.55 +
             p.delegationDrive * 0.14 -
+            (work?.secrecyNeed
+              ? Math.max(0, 0.7 - trust) * 0.4 + Math.max(0, -reliability) * 0.3
+              : 0) -
             risk -
             workload * 0.18 -
             (priorRefusal ? 0.5 : 0),
         };
       })
       .filter(
-        (x) => x.score >= 0.52 && !e.model.recent(owner.id, x.person.id, 180),
+        (x) => x.score >= 0.52 && !e.model?.recent(owner.id, x.person.id, 180),
       )
       .sort(
         (a, b) =>
@@ -169,7 +183,29 @@ export default class StrategicObjectivePlanner {
   evaluate(ownerId, now) {
     const e = this.engine,
       model = e.model;
-    if (!model || e.person(ownerId)?.isPlayer) return null;
+    if (e.person(ownerId)?.isPlayer) return null;
+    if (!model) {
+      const owned = e.knowledge(ownerId),
+        meaningful = owned.find(
+          (k) =>
+            [
+              "safety",
+              "alliance_doubt",
+              "idol_suspicion",
+              "public_conflict",
+            ].includes(k.topic) && !same(k.subjectId, ownerId),
+        );
+      return meaningful
+        ? this.objective(ownerId) ||
+            this.establish(ownerId, {
+              type: "maintain_connections",
+              targetId: meaningful.subjectId,
+              rationale: "Maintain useful relationships before immunity",
+            })
+        : null;
+    }
+    const early = this.objective(ownerId);
+    if (early?.type === "maintain_connections") early.status = "expired";
     const state = model.refresh(ownerId),
       p = conversationCharacter(e.person(ownerId));
     let o = this.objective(ownerId);
@@ -213,6 +249,7 @@ export default class StrategicObjectivePlanner {
         (k) =>
           same(k.subjectId, o.targetId) &&
           ["idol_possession", "idol_suspicion"].includes(k.topic) &&
+          !k.challenged &&
           !["no", "denied", "unlikely"].includes(k.stance),
       );
     const leak = owned.find(
@@ -276,31 +313,56 @@ export default class StrategicObjectivePlanner {
   }
   plan(actor, now) {
     const e = this.engine;
-    if (!e.model || actor.isPlayer) return null;
+    if (actor.isPlayer) return null;
     e.refreshConditions();
     e.tasks.expire();
     const taskPlan = e.tasks.plan(actor, now);
     if (taskPlan) return taskPlan;
     const o = this.evaluate(actor.id, now);
     if (!o || now <= 180) return null;
-    // Do not displace the established short-term agenda before the speaker has
-    // a concrete move and personally heard support. Explicit proposals can start earlier.
-    const own = e.model.state(actor.id);
+    // Keep #356's maturation boundary: the objective layer supplements the
+    // established camp agenda once there is a concrete, personally supported move.
+    const established = e.model?.state(actor.id);
     if (
+      e.model &&
       !o.explicit &&
-      (own.confidence < 0.65 ||
+      (established.confidence < 0.65 ||
         o.believedVotes.filter((v) => v.status === "committed").length < 2)
     )
       return null;
     const p = conversationCharacter(actor),
-      known = e.knowledge(actor.id),
-      free = conversationMembers(e.gm).filter(
-        (x) =>
-          !same(x.id, actor.id) &&
-          !same(x.id, o.targetId) &&
-          (!x.campActivity ||
-            ["rest", "idle_at_camp", "observe"].includes(x.campActivity.type)),
+      known = e.knowledge(actor.id);
+    const free = conversationMembers(e.gm).filter(
+      (x) =>
+        !same(x.id, actor.id) &&
+        (!x.campActivity ||
+          ["rest", "idle_at_camp", "observe"].includes(x.campActivity.type)),
+    );
+    const dispute = e
+      .events(actor.id)
+      .find(
+        (k) =>
+          k.topic === "task_report_dispute" &&
+          !o.steps.some((step) => step.eventId === k.id),
       );
+    if (dispute) {
+      const listener = e.person(dispute.proposition.delegateId);
+      if (listener && !e.model?.recent(actor.id, listener.id, 180))
+        return {
+          type: listener.isPlayer ? "approach_player" : "strategy_conversation",
+          location: e.place(listener.id),
+          targetId: listener.id,
+          duration: listener.isPlayer ? 45 : 120,
+          objectiveId: o.id,
+          purpose: "objective_confront",
+          agenda: {
+            purpose: "objective_confront",
+            objectiveId: o.id,
+            eventId: dispute.id,
+            primarySubject: listener.id,
+          },
+        };
+    }
     const follow = e.tasks
       .knownTasks(actor.id)
       .find(
@@ -330,21 +392,7 @@ export default class StrategicObjectivePlanner {
           },
         };
     }
-    const unknown = free.filter(
-      (x) =>
-        !o.believedVotes.some(
-          (v) => same(v.voterId, x.id) && v.status === "committed",
-        ),
-    );
-    const failed = new Set(
-      known
-        .filter((k) => k.topic === "task_report" && k.stance === "refused")
-        .map((k) => String(k.subjectId)),
-    );
-    const candidates = unknown.filter(
-      (x) => !failed.has(String(x.id)) && !e.model.recent(actor.id, x.id, 420),
-    );
-    const plannedWork =
+    const supplied =
       o.work &&
       TASK_ACTIONS[o.work.purpose] &&
       (!o.work.claimId || known.some((k) => k.id === o.work.claimId)) &&
@@ -352,49 +400,61 @@ export default class StrategicObjectivePlanner {
         e.events(actor.id).some((k) => k.id === o.work.eventId))
         ? o.work
         : null;
-    if (!candidates.length && !plannedWork) return null;
-    const pending = o.taskIds.some((id) => {
-      const task = e.tasks.knownTasks(actor.id).find((t) => t.id === id);
-      return task && !task.report && task.publicStatus === "accepted";
-    });
-    const target =
-      e.person(plannedWork?.targetId) ||
-      candidates.sort(
-        (a, b) =>
-          Number(o.requiredPeople.some((id) => same(id, b.id))) -
-            Number(o.requiredPeople.some((id) => same(id, a.id))) ||
-          (e.gm.getTrust?.(actor.id, b.id) ?? 50) -
-            (e.gm.getTrust?.(actor.id, a.id) ?? 50),
-      )[0];
-    if (!target) return null;
+    const needs = supplied
+      ? [supplied]
+      : this.workPlanner.candidates(actor, o, now);
+    const work = needs.find(
+      (w) =>
+        free.some((x) => same(x.id, w.targetId)) &&
+        !e.model?.recent(actor.id, w.targetId, 420),
+    );
+    if (!work) return null;
+    // Preserve the established agenda until an ordinary voting move is ready.
+    const own = e.model?.state(actor.id);
+    if (
+      !o.explicit &&
+      ["recruit", "bring"].includes(work.purpose) &&
+      (!own ||
+        own.confidence < 0.65 ||
+        o.believedVotes.filter((v) => v.status === "committed").length < 2)
+    )
+      return null;
+    const target = e.person(work.targetId);
     const publicAudience = conversationMembers(e.gm).filter(
       (x) => e.together(actor.id, x.id) && !same(x.id, actor.id),
     ).length;
-    if (pending && p.visibilityTolerance < 0.6)
-      return { type: "observe", location: e.place(actor.id), duration: 120 };
-    const intermediary = this.intermediary(actor, target, o, free),
-      ally = intermediary?.person;
-    const delegate =
-      ally &&
-      p.delegationDrive > 0.55 &&
-      !pending &&
-      !same(ally.id, target.id) &&
-      !e.model.recent(actor.id, ally.id, 180);
+    const pending = e.tasks
+      .knownTasks(actor.id)
+      .filter(
+        (t) =>
+          same(t.requesterId, actor.id) &&
+          t.day === e.gm.day &&
+          !t.report &&
+          ["accepted", "pending", "hedged"].includes(t.publicStatus),
+      );
     if (
-      publicAudience > 2 &&
-      o.secrecy &&
-      p.visibilityTolerance < 0.3 &&
-      !delegate
+      pending.some(
+        (t) => t.purpose === "bring" && now > e.tasks.get(t.id).createdAt - 900,
+      )
     )
       return { type: "observe", location: e.place(actor.id), duration: 120 };
-    const listener = delegate ? ally : target;
-    const contingency =
-      o.explicit && o.risks.includes("idol_concern") && !o.backupTargetId;
-    const leakTest =
-      o.explicit &&
-      o.risks.includes("possible_leak") &&
-      p.coverDrive > 0.5 &&
-      !o.steps.some((s) => s.type === "leak_test");
+    const intermediary = this.intermediary(
+      actor,
+      target,
+      o,
+      free.filter((x) => !same(x.id, o.targetId)),
+      work,
+    );
+    const delegate = intermediary && !work.preferSelf && pending.length < 2;
+    if (
+      publicAudience > 2 &&
+      work.secrecyNeed &&
+      p.visibilityTolerance < 0.3 &&
+      !delegate &&
+      work.urgency < 0.9
+    )
+      return { type: "observe", location: e.place(actor.id), duration: 120 };
+    const listener = delegate ? intermediary.person : target;
     return {
       type: listener.isPlayer ? "approach_player" : "strategy_conversation",
       location: e.place(listener.id),
@@ -403,26 +463,14 @@ export default class StrategicObjectivePlanner {
       purpose: delegate ? "objective_delegate" : "objective_recruit",
       objectiveId: o.id,
       agenda: {
-        purpose: contingency
-          ? "objective_backup"
-          : leakTest
-            ? "objective_leak_test"
-            : delegate
-              ? "objective_delegate"
-              : "objective_recruit",
+        purpose: delegate ? "objective_delegate" : "objective_recruit",
         objectiveId: o.id,
-        primarySubject: plannedWork?.subjectId || o.targetId,
+        primarySubject: work.subjectId || o.targetId,
         delegateTargetId: target.id,
-        requestedAction:
-          plannedWork?.purpose ||
-          (delegate &&
-          o.secrecy &&
-          intermediary.connection >= 0.5 &&
-          p.visibilityTolerance < 0.4
-            ? "bring"
-            : "recruit"),
-        claimId: plannedWork?.claimId,
-        eventId: plannedWork?.eventId,
+        requestedAction: work.purpose,
+        claimId: work.claimId,
+        eventId: work.eventId,
+        work: selectedWork(work),
       },
     };
   }
@@ -433,11 +481,12 @@ export default class StrategicObjectivePlanner {
     const purpose = activity.agenda?.purpose,
       delegate = purpose === "objective_delegate",
       personalWork =
-        purpose === "objective_recruit" && o.work
+        purpose === "objective_recruit" && (activity.agenda?.work || o.work)
           ? taskAction(
               e,
               {
-                ...o.work,
+                ...(activity.agenda?.work || o.work),
+                targetId: listener.id,
                 delegateId: actor.id,
                 requesterId: actor.id,
                 primaryTargetId: o.targetId,
@@ -446,23 +495,33 @@ export default class StrategicObjectivePlanner {
             )
           : null,
       type =
-        purpose === "objective_followup"
-          ? "follow_task"
-          : purpose === "objective_backup"
-            ? "backup"
-            : purpose === "objective_leak_test"
-              ? "leak_test"
-              : delegate
-                ? "delegate"
-                : personalWork?.type || "ask_vote";
+        purpose === "objective_confront"
+          ? "confront"
+          : purpose === "objective_followup"
+            ? "follow_task"
+            : purpose === "objective_backup"
+              ? "backup"
+              : purpose === "objective_leak_test"
+                ? "leak_test"
+                : delegate
+                  ? "delegate"
+                  : personalWork?.type === "come_with_me"
+                    ? e.model
+                      ? "ask_vote"
+                      : "loyalty"
+                    : personalWork?.type || "ask_vote";
     const subjectId =
       type === "backup"
         ? e.model.alternateTarget(actor.id, [actor.id, listener.id, o.targetId])
         : delegate
           ? activity.agenda.delegateTargetId
-          : personalWork
-            ? personalWork.subjectId
-            : o.targetId;
+          : personalWork?.type === "come_with_me"
+            ? e.model
+              ? o.targetId
+              : null
+            : personalWork
+              ? personalWork.subjectId
+              : o.targetId;
     if (subjectId == null && !personalWork) return null;
     const a = e.action(type, {
       ...(personalWork || {}),
@@ -475,11 +534,18 @@ export default class StrategicObjectivePlanner {
       claimId: activity.agenda?.claimId,
       eventId: activity.agenda?.eventId,
       requestedAction: activity.agenda?.requestedAction || "recruit",
+      requestedTruthMode: delegate
+        ? activity.agenda?.work?.truthMode
+        : undefined,
       delegationId: activity.agenda?.followTaskId,
       objectiveId: o.id,
       activityId: activity.id,
       keepSourcePrivate:
-        o.secrecy && activity.agenda?.requestedAction !== "bring",
+        activity.agenda?.work?.keepSourcePrivate ??
+        (o.secrecy && activity.agenda?.requestedAction !== "bring"),
+      reasonLine: activity.agenda?.work?.reasonLine,
+      reasonClaimId: activity.agenda?.work?.reasonClaimId,
+      dependencyIds: activity.agenda?.work?.dependencyIds || [],
       line:
         type === "follow_task"
           ? `Did you talk to ${e.name(e.tasks.get(activity.agenda.followTaskId)?.targetId)}?`
@@ -491,11 +557,18 @@ export default class StrategicObjectivePlanner {
       if (task) task.lastFollowupAt = e.gm.dayTimer;
     }
     if (!r.invalid) {
-      e.model.contact([actor.id, listener.id]);
+      e.model?.contact([actor.id, listener.id]);
+      const work = activity.agenda?.work;
+      if (work?.key) {
+        o.workReceipts ||= {};
+        o.workReceipts[work.key] = { day: e.gm.day, at: e.gm.dayTimer };
+        o.selectedWork = copy(work);
+      }
       o.steps.push({
         actionId: a.actionId,
         type: a.type,
         listenerId: listener.id,
+        eventId: a.eventId,
       });
       for (const t of Object.values(e.tasks.records).filter(
         (t) => t.objectiveId === o.id,

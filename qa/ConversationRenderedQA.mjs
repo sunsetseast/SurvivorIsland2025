@@ -501,6 +501,210 @@ try {
     });
     await capture("group-active-request", viewport);
     await button("End chat").click();
+    // Continuity scenes exercise the live semantic resolver, never hidden UI labels.
+    for (const scene of [
+      "bring-clarification",
+      "bring-later",
+      "report-confrontation",
+      "delegated-decoy",
+      "protected-source",
+    ]) {
+      await page.evaluate((scene) => {
+        window.experienceQa.scene("conversation");
+        const { gm, activity } = window.scrambleQa,
+          h = gm.systems.conversationSystem,
+          e = h.engine;
+        h.closeConversation("delegation-continuity");
+        e.deserialize();
+        const sand = activity.npcs().find((p) => p.firstName === "Sandra"),
+          target = activity.npcs().find((p) => p.firstName === "Wendell"),
+          tony = activity.npcs().find((p) => p.firstName === "Tony"),
+          jeremy = activity.npcs().find((p) => p.firstName === "Jeremy");
+        target.firstName = "Michele Alexandria Montgomery-Wellington";
+        Object.assign(target, {
+          gameplayStyle: "Social Genius",
+          honesty: 9,
+          paratend: 8,
+          risk: 3,
+        });
+        const purpose =
+          scene === "delegated-decoy"
+            ? "decoy"
+            : scene === "protected-source"
+              ? "protect_source"
+              : scene === "report-confrontation"
+                ? "warn"
+                : "bring";
+        let claimId;
+        if (scene === "protected-source") {
+          e.resolve(
+            e.action("promise", {
+              speakerId: jeremy.id,
+              listenerIds: [sand.id],
+              subjectId: tony.id,
+            }),
+          );
+          claimId = e
+            .knowledge(sand.id)
+            .find(
+              (k) => k.topic === "commitment" && k.speakerId === jeremy.id,
+            ).id;
+        }
+        e.resolve(
+          e.action("delegate", {
+            speakerId: sand.id,
+            listenerIds: [gm.player.id],
+            subjectId: target.id,
+            requestedAction: purpose,
+            planTargetId: tony.id,
+            claimId,
+            keepSourcePrivate: scene === "protected-source",
+            reasonLine:
+              purpose === "bring" ? "I want to talk about our numbers." : null,
+          }),
+        );
+        const task = Object.values(e.tasks.records).at(-1);
+        e.tasks.respond(task.id, gm.player.id, true);
+        if (scene === "report-confrontation") {
+          e.resolve(
+            e.action("report", {
+              speakerId: gm.player.id,
+              listenerIds: [sand.id],
+              delegationId: task.id,
+              truthMode: "fabrication",
+            }),
+          );
+          const report = e
+            .knowledge(sand.id)
+            .find((k) => k.topic === "task_report");
+          e.resolve(
+            e.action("verify", {
+              speakerId: sand.id,
+              listenerIds: [target.id],
+              claimId: report.id,
+            }),
+          );
+          const dispute = e
+            .events(sand.id)
+            .find((k) => k.topic === "task_report_dispute");
+          h.startPlayerConversation({
+            npcId: sand.id,
+            phase: "post",
+            context: { location: "beach" },
+          });
+          const r = e.resolve(
+            e.action("confront", {
+              speakerId: sand.id,
+              listenerIds: [gm.player.id],
+              eventId: dispute.id,
+            }),
+          );
+          h.view.session(sand, {}).addNpc(r.playerLine);
+          h.view.show(sand, {});
+        } else {
+          h.startPlayerConversation({
+            npcId: target.id,
+            phase: "post",
+            context: { location: "beach" },
+          });
+          if (scene.startsWith("bring-")) {
+            gm.systems.trustSystem.setTrust(
+              target.id,
+              gm.player.id,
+              scene === "bring-later" ? 40 : 55,
+            );
+            gm.systems.trustSystem.setTrust(
+              target.id,
+              sand.id,
+              scene === "bring-later" ? 55 : 62,
+            );
+            const r = e.resolve(
+              e.action("come_with_me", {
+                speakerId: gm.player.id,
+                listenerIds: [target.id],
+                subjectId: sand.id,
+                delegationId: task.id,
+              }),
+            );
+            h.view.session(target, {}).addNpc(r.responses[0].line);
+            h.view.show(target, {});
+          }
+        }
+        window.continuityTaskId = task.id;
+      }, scene);
+      if (scene === "bring-clarification") {
+        assert.match(
+          await page.locator(".conversation-transcript").innerText(),
+          /Why do they want me/,
+        );
+        assert.equal(await button("Tell the reason they gave you").count(), 1);
+        assert.equal(
+          await button("Bluff: say it is nothing serious").count(),
+          1,
+        );
+      }
+      if (scene === "bring-later") {
+        assert.equal(
+          await page.evaluate(
+            () =>
+              window.scrambleQa.gm.systems.conversationSystem.engine.tasks.get(
+                window.continuityTaskId,
+              ).status,
+          ),
+          "maybe_later",
+        );
+      }
+      if (scene === "report-confrontation") {
+        assert.equal(await button("Admit your report was wrong").count(), 1);
+        assert.equal(
+          await button("Explain a possible misunderstanding").count(),
+          1,
+        );
+      }
+      if (scene === "delegated-decoy")
+        assert.match(
+          await page
+            .locator(".conversation-options-region button")
+            .first()
+            .innerText(),
+          /cover story/,
+        );
+      await capture(scene, viewport);
+      if (scene === "protected-source") {
+        assert.match(
+          await page
+            .locator(".conversation-options-region button")
+            .first()
+            .innerText(),
+          /protecting the source/,
+        );
+        await page
+          .locator(".conversation-options-region button")
+          .first()
+          .click();
+        const text = await page.locator(".conversation-transcript").innerText();
+        assert.equal(
+          text.includes("Jeremy"),
+          false,
+          "protected attribution must stay out of spoken text",
+        );
+        await capture("protected-source-delivery", viewport);
+      }
+      if (scene === "bring-clarification") {
+        await button("Tell the reason they gave you").click();
+        assert.equal(
+          await page.evaluate(
+            () =>
+              window.scrambleQa.gm.systems.conversationSystem.engine.tasks.get(
+                window.continuityTaskId,
+              ).status,
+          ),
+          "ready_to_walk",
+        );
+        await capture("bring-reconsideration", viewport);
+      }
+      await button("End chat").click();
+    }
   }
   assert.deepEqual(errors, []);
   fs.writeFileSync(

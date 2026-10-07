@@ -10,6 +10,10 @@ import {
   taskDescription,
   taskSuggestion,
 } from "./StrategicTaskActions.js";
+import {
+  reportProposition,
+  evaluateReportEvidence,
+} from "./StrategicTaskReports.js";
 const copy = (x) => JSON.parse(JSON.stringify(x));
 const TERMINAL = ["refused", "expired", "abandoned"];
 // Durable work records are hidden execution state. Requesters see only the request and spoken reports.
@@ -33,6 +37,7 @@ export default class StrategicTaskSystem {
         targetId: t.targetId,
         purpose: t.purpose,
         subjectId: t.subjectId,
+        requestedInformation: copy(t.information || null),
         conditions: copy(t.conditions || []),
         publicStatus: t.publicStatus,
         day: t.day,
@@ -60,6 +65,7 @@ export default class StrategicTaskSystem {
       if (t.status === "refused") value -= 0.035;
       if (t.status === "reported:not_done") value -= 0.15;
       if (t.status === "report_disputed") value -= 0.22;
+      if (t.status === "report_uncertain") value -= 0.04;
     }
     const source =
       this.engine.memory.memory[String(ownerId)]?.campSourceReliability?.[
@@ -71,6 +77,8 @@ export default class StrategicTaskSystem {
     this.expire();
     const states = {
       pending: "Requested",
+      asking_reason: "Waiting for an explanation",
+      maybe_later: "Maybe later",
       hedged: "Not promised",
       queued: "Active",
       finding: "In progress",
@@ -104,12 +112,16 @@ export default class StrategicTaskSystem {
           "ready_to_walk",
           "bringing",
           "awaiting_report",
+          "asking_reason",
+          "maybe_later",
         ].includes(t.status),
         canIgnore: [
           "queued",
           "finding",
           "ready_to_walk",
           "awaiting_report",
+          "asking_reason",
+          "maybe_later",
         ].includes(t.status),
         canReport:
           t.publicStatus === "accepted" &&
@@ -146,10 +158,22 @@ export default class StrategicTaskSystem {
       .filter(
         (t) =>
           same(t.delegateId, ownerId) &&
-          ["queued", "finding", "ready_to_walk"].includes(t.status) &&
+          [
+            "queued",
+            "finding",
+            "ready_to_walk",
+            "asking_reason",
+            "maybe_later",
+          ].includes(t.status) &&
           listenerIds.some((id) => same(id, t.targetId)),
       )
-      .map((t) => taskSuggestion(this.engine, t))
+      .flatMap((t) =>
+        t.status === "asking_reason"
+          ? this.bringOptions(t, ownerId)
+          : t.status === "maybe_later" && this.engine.gm.dayTimer > t.retryAfter
+            ? []
+            : [taskSuggestion(this.engine, t)],
+      )
       .filter(Boolean);
   }
   ignore(id, ownerId) {
@@ -158,9 +182,14 @@ export default class StrategicTaskSystem {
       !t ||
       !same(t.delegateId, ownerId) ||
       t.publicStatus !== "accepted" ||
-      !["queued", "finding", "ready_to_walk", "awaiting_report"].includes(
-        t.status,
-      )
+      ![
+        "queued",
+        "finding",
+        "ready_to_walk",
+        "awaiting_report",
+        "asking_reason",
+        "maybe_later",
+      ].includes(t.status)
     )
       return false;
     t.status = "ignored";
@@ -270,6 +299,10 @@ export default class StrategicTaskSystem {
         ? a.planTargetId || e.ownTarget(requester.id)
         : null,
       purpose: a.purpose,
+      deliveryTruthMode:
+        a.requestedTruthMode ||
+        (a.purpose === "decoy" ? "fabrication" : "truth"),
+      requestedClaimId: a.claimId || null,
       claimId: a.claimId || null,
       requestClaimId:
         e
@@ -289,6 +322,9 @@ export default class StrategicTaskSystem {
       keepSourcePrivate: Boolean(a.keepSourcePrivate),
       attribution: a.attribution || "if_necessary",
       objectiveId: a.objectiveId || null,
+      reasonLine: a.reasonLine || null,
+      reasonClaimId: a.reasonClaimId || null,
+      dependencyIds: copy(a.dependencyIds || []),
       day: e.gm.day,
       phase: e.gm.gamePhase,
       createdAt: e.gm.dayTimer,
@@ -316,6 +352,12 @@ export default class StrategicTaskSystem {
       .knowledge(requester.id)
       .find((k) => k.id === a.claimId);
     if (information) {
+      task.information = {
+        topic: information.topic,
+        subjectId: information.subjectId,
+        stance: information.stance,
+        proposition: copy(information.proposition ?? null),
+      };
       const told = e.statement(
         a,
         {
@@ -437,7 +479,14 @@ export default class StrategicTaskSystem {
           same(t.delegateId, actor.id) &&
           t.day === e.gm.day &&
           !TERMINAL.includes(t.status) &&
-          ["queued", "finding", "awaiting_report"].includes(t.status),
+          [
+            "queued",
+            "finding",
+            "awaiting_report",
+            "asking_reason",
+            "maybe_later",
+          ].includes(t.status) &&
+          !(t.status === "maybe_later" && now > t.retryAfter),
       );
     if (!task || actor.isPlayer) return null;
     if (task.executionMode === "ignore") {
@@ -473,7 +522,8 @@ export default class StrategicTaskSystem {
         !target.campActivity ||
         ["rest", "idle_at_camp", "observe"].includes(target.campActivity.type);
       if (free) {
-        task.status = reporting ? "awaiting_report" : "working";
+        if (!["asking_reason", "maybe_later"].includes(task.status))
+          task.status = reporting ? "awaiting_report" : "working";
         return {
           type: "strategy_conversation",
           location: e.place(actor.id),
@@ -542,8 +592,18 @@ export default class StrategicTaskSystem {
       });
       return e.resolve(action);
     }
-    if (task.executionReceipt) return e.receipts[task.executionReceipt] || null;
-    const fields = taskAction(e, task, actor.id);
+    if (
+      task.executionReceipt &&
+      !["asking_reason", "maybe_later"].includes(
+        task.negotiation?.state || task.status,
+      )
+    )
+      return e.receipts[task.executionReceipt] || null;
+    const explanation =
+      (task.negotiation?.state || task.status) === "asking_reason"
+        ? this.npcBringExplanation(task, actor.id)
+        : null;
+    const fields = explanation || taskAction(e, task, actor.id);
     if (!fields) {
       task.status = "awaiting_report";
       task.outcome = {
@@ -564,6 +624,9 @@ export default class StrategicTaskSystem {
       subjectId,
       claimId,
       eventId,
+      explanationMode: fields.explanationMode,
+      line: fields.line,
+      speechAct: fields.explanationMode ? "Tell" : undefined,
       planTargetId: task.primaryTargetId,
       primaryTargetId: task.primaryTargetId,
       requesterId: task.requesterId,
@@ -688,7 +751,7 @@ export default class StrategicTaskSystem {
         stance: reported,
         mode: falseReport ? "deliberate_lie" : "truthful",
         delegationId: task.id,
-        proposition: line,
+        proposition: reportProposition(task, reported, line, falseReport),
       },
       random,
     );
@@ -743,6 +806,48 @@ export default class StrategicTaskSystem {
       line,
       day: e.gm.day,
     });
+    // The report can transmit answers the delegate actually heard. A false
+    // success never invents a target conversation or gains its evidence.
+    if (!falseReport)
+      for (const id of task.outcome?.claimIds || []) {
+        const answer = e.knowledge(delegateId).find((k) => k.id === id);
+        if (
+          !answer ||
+          (["recruit", "verify_vote", "gather", "check_loyalty"].includes(
+            task.purpose,
+          ) &&
+            ["target", "commitment"].includes(answer.topic))
+        )
+          continue;
+        e.statement(
+          a,
+          {
+            speakerId: delegateId,
+            listenerIds: [requester],
+            subjectId: answer.subjectId,
+            topic: answer.topic,
+            stance: answer.stance,
+            mode: "hearsay",
+            attributedId: answer.attributedId || answer.speakerId,
+            sourceChain: [
+              ...new Set([
+                ...(answer.sourceChain || []),
+                task.targetId,
+                delegateId,
+              ]),
+            ],
+            evidenceIds: [answer.id],
+            proposition: answer.proposition,
+            conditions: answer.conditions,
+            refutesClaimId:
+              answer.refutesClaimId === task.claimId
+                ? task.requestedClaimId
+                : answer.refutesClaimId,
+            delegationId: task.id,
+          },
+          random,
+        );
+      }
     this.rememberStatus(task, requester, `reported:${reported}`);
     this.rememberStatus(
       task,
@@ -760,7 +865,8 @@ export default class StrategicTaskSystem {
       e.trust(requester, delegateId, -1, "admitted_unfinished_request");
       task.reportConsequence = true;
     }
-    if (!["pending", "coming"].includes(reported)) task.status = "reported";
+    if (!["pending", "coming", "ask_why", "later"].includes(reported))
+      task.status = "reported";
     e.objectives.invalidate(requester);
     return { line, stance: reported };
   }
@@ -788,11 +894,22 @@ export default class StrategicTaskSystem {
       subjectId: spoken?.subjectId || null,
       evidenceId: spoken?.id || null,
       conditions: copy(spoken?.conditions || []),
+      claimIds: e
+        .knowledge(a.speakerId)
+        .filter((k) => k.id.startsWith(`${a.actionId}:claim:${t.targetId}:`))
+        .map((k) => k.id),
     };
     t.status =
-      t.purpose === "bring" && response?.stance === "coming"
-        ? "ready_to_walk"
+      t.purpose === "bring"
+        ? {
+            coming: "ready_to_walk",
+            ask_why: "asking_reason",
+            later: "maybe_later",
+          }[response?.stance] || "awaiting_report"
         : "awaiting_report";
+    if (t.purpose === "bring")
+      t.negotiation = { ...(t.negotiation || {}), state: t.status };
+    if (t.status === "maybe_later") t.retryAfter = e.gm.dayTimer - 180;
     this.rememberStatus(
       t,
       a.speakerId,
@@ -821,15 +938,103 @@ export default class StrategicTaskSystem {
           same(k.subjectId, listenerId) &&
           (same(k.speakerId, requesterId) || same(k.attributedId, requesterId)),
       );
-    const score =
+    const task =
+      this.get(a.delegationId) ||
+      Object.values(this.records).find(
+        (t) =>
+          t.purpose === "bring" &&
+          same(t.delegateId, a.speakerId) &&
+          same(t.targetId, listenerId) &&
+          same(t.requesterId, a.subjectId) &&
+          t.publicStatus === "accepted",
+      );
+    if (a.explanationMode && task) {
+      if (a.explanationMode === "back_off")
+        return { line: "All right. We can leave it there.", stance: "later" };
+      const option = this.bringOptions(task, a.speakerId).find(
+        (x) => x.explanationMode === a.explanationMode,
+      );
+      if (!option)
+        return {
+          line: "That is not something you actually know about this request.",
+          stance: "ask_why",
+        };
+      e.statement(
+        a,
+        {
+          speakerId: a.speakerId,
+          listenerIds: [listenerId],
+          subjectId: requesterId,
+          topic: "bring_reason",
+          stance: a.explanationMode,
+          proposition: option.line,
+          delegationId: task.id,
+          mode: a.explanationMode === "bluff" ? "deliberate_lie" : "truthful",
+          evidenceIds: option.claimId ? [option.claimId] : [],
+        },
+        random,
+      );
+      if (["known", "reveal"].includes(a.explanationMode) && option.claimId) {
+        const information = e
+          .knowledge(a.speakerId)
+          .find((k) => k.id === option.claimId);
+        e.statement(
+          a,
+          {
+            speakerId: a.speakerId,
+            listenerIds: [listenerId],
+            subjectId: information.subjectId,
+            topic: information.topic,
+            stance: information.stance,
+            proposition: information.proposition,
+            mode: "hearsay",
+            attributedId: information.attributedId || information.speakerId,
+            sourceChain: information.sourceChain,
+            evidenceIds: [information.id],
+          },
+          random,
+        );
+        e.noteSecretUse(
+          { ...a, type: "share", keepSourcePrivate: false },
+          information,
+        );
+      }
+    }
+    const base =
+      (a.explanationMode ? task?.negotiation?.baseScore : null) ??
       trust * 0.4 +
-      requesterTrust * 0.3 +
-      affinity * 0.2 +
-      p.visibilityTolerance * 0.15 -
-      p.paranoiaDrive * 0.08 -
-      (warning ? 0.4 : 0) -
-      (a.listenerIds.length > 1 ? 0.07 : 0) -
-      random() * 0.04;
+        requesterTrust * 0.3 +
+        affinity * 0.2 +
+        p.visibilityTolerance * 0.15 -
+        p.paranoiaDrive * 0.08 -
+        (warning ? 0.4 : 0) -
+        (a.listenerIds.length > 1 ? 0.07 : 0) -
+        random() * 0.04;
+    if (task)
+      task.negotiation = {
+        ...(task.negotiation || {}),
+        baseScore: base,
+        lastAnswer: a.explanationMode || null,
+        answeredModes: a.explanationMode
+          ? [
+              ...new Set([
+                ...(task.negotiation?.answeredModes || []),
+                a.explanationMode,
+              ]),
+            ]
+          : [],
+      };
+    const score =
+      base +
+      ({
+        known: 0.12,
+        vague: 0.06,
+        uncertain: 0.01,
+        respect_secret: 0.04,
+        reassure: 0.09,
+        bluff: trust * 0.12,
+        reveal: 0.12,
+      }[a.explanationMode] || 0);
     if (score >= 0.4)
       return {
         line: `All right. I’ll come with you to talk to ${e.name(requesterId)}.`,
@@ -849,6 +1054,100 @@ export default class StrategicTaskSystem {
       line: "No. I am staying here. Tell them to come to me.",
       stance: "refused",
     };
+  }
+  bringOptions(task, speakerId) {
+    const e = this.engine,
+      base = {
+        type: "come_with_me",
+        taskContext: true,
+        delegationId: task.id,
+        subjectId: task.requesterId,
+      };
+    const options = [],
+      add = (mode, label, line, extra = {}) =>
+        options.push({ ...base, explanationMode: mode, label, line, ...extra });
+    if (task.reasonLine)
+      add(
+        "known",
+        task.keepSourcePrivate
+          ? "Reveal the reason they asked you to keep private"
+          : "Tell the reason they gave you",
+        task.reasonLine,
+        { claimId: task.requestClaimId },
+      );
+    add(
+      "vague",
+      "Say they asked you to come find them",
+      `${e.name(task.requesterId)} asked me to come find you so you could talk.`,
+    );
+    if (!task.reasonLine)
+      add(
+        "uncertain",
+        "Admit you don’t know exactly",
+        "They did not tell me exactly why.",
+      );
+    if (task.secrecy?.requested || task.keepSourcePrivate)
+      add(
+        "respect_secret",
+        "Respect the requester's secrecy",
+        "They asked me not to say more. You can ask them yourself.",
+      );
+    const reassurance = e
+      .knowledge(speakerId)
+      .find(
+        (k) =>
+          same(k.subjectId, task.targetId) &&
+          k.topic === "safety" &&
+          k.stance === "yes",
+      );
+    if (reassurance)
+      add(
+        "reassure",
+        "Tell them what you heard about their safety",
+        "What I heard was that you were safe. I cannot guarantee it.",
+        { claimId: reassurance.id },
+      );
+    const more =
+      e.knowledge(speakerId).find((k) => k.id === task.reasonClaimId) ||
+      e
+        .knowledge(speakerId)
+        .find(
+          (k) =>
+            same(k.speakerId, task.requesterId) &&
+            ["target", "commitment"].includes(k.topic),
+        );
+    if (more)
+      add(
+        "reveal",
+        "Reveal more of what you know",
+        `There has been talk about ${e.name(more.subjectId)}.`,
+        { claimId: more.id },
+      );
+    add("bluff", "Bluff: say it is nothing serious", "It is nothing serious.", {
+      truthMode: "fabrication",
+    });
+    add("back_off", "Back off for now", "Never mind. We can leave it for now.");
+    return options.filter(
+      (option) =>
+        task.negotiation?.state !== "asking_reason" ||
+        !task.negotiation?.answeredModes?.includes(option.explanationMode),
+    );
+  }
+  npcBringExplanation(task, speakerId) {
+    const p = conversationCharacter(this.engine.person(speakerId)),
+      options = this.bringOptions(task, speakerId);
+    const mode = task.keepSourcePrivate
+      ? "respect_secret"
+      : task.reasonLine
+        ? "known"
+        : p.coverDrive > 0.6 && p.honesty < 0.5
+          ? "bluff"
+          : "uncertain";
+    return (
+      options.find((x) => x.explanationMode === mode) ||
+      options.find((x) => x.explanationMode === "vague") ||
+      options.find((x) => x.explanationMode === "back_off")
+    );
   }
   beginBring(id, delegateId) {
     const t = this.get(id),
@@ -913,6 +1212,52 @@ export default class StrategicTaskSystem {
       return r;
     }
   }
+  verifyReport(a, targetId, report, random) {
+    const e = this.engine,
+      contradiction = evaluateReportEvidence(e, targetId, report);
+    if (!contradiction)
+      return {
+        line: "That is not an account I can verify.",
+        stance: "unknown",
+      };
+    const p = conversationCharacter(e.person(targetId));
+    const cover =
+      !contradiction.consistent &&
+      p.coverDrive > 0.65 &&
+      random() < p.coverDrive * 0.3;
+    const line =
+      contradiction.consistent || cover
+        ? report.proposition.subjective
+          ? "We did talk. How it felt is their interpretation."
+          : "That matches what I remember."
+        : contradiction.assertion === "source_protected"
+          ? "They used the requester's name when they told me."
+          : contradiction.assertion === "contact"
+            ? "They did not speak to me about that."
+            : "That is not what happened in our conversation.";
+    e.statement(
+      a,
+      {
+        speakerId: targetId,
+        listenerIds: a.listenerIds
+          .filter((id) => !same(id, targetId))
+          .concat(a.speakerId),
+        subjectId: targetId,
+        topic: "task_report_confirmation",
+        stance: contradiction.consistent || cover ? "confirmed" : "denied",
+        refutesClaimId: !contradiction.consistent && !cover ? report.id : null,
+        proposition: { assertion: contradiction.assertion || "contact", line },
+        delegationId: report.delegationId,
+        evidenceIds: contradiction.evidenceIds,
+        mode: cover ? "deliberate_lie" : "truthful",
+      },
+      random,
+    );
+    return {
+      line,
+      stance: contradiction.consistent || cover ? "confirmed" : "denied",
+    };
+  }
   learnReportEvidence(ownerId) {
     const e = this.engine,
       owned = e.knowledge(ownerId);
@@ -922,19 +1267,68 @@ export default class StrategicTaskSystem {
       const reported = owned.find(
         (k) =>
           k.delegationId === t.id &&
-          k.topic === "commitment" &&
-          same(k.speakerId, t.delegateId),
+          ["commitment", "task_report"].includes(k.topic) &&
+          same(k.speakerId, t.delegateId) &&
+          owned.some(
+            (d) => d.refutesClaimId === k.id && same(d.speakerId, t.targetId),
+          ),
       );
       const denial =
         reported &&
-        owned.find(
-          (k) =>
-            k.refutesClaimId === reported.id && same(k.speakerId, t.targetId),
-        );
-      if (!denial || t.disputedBy?.includes(String(ownerId))) continue;
-      (t.disputedBy ||= []).push(String(ownerId));
-      this.rememberStatus(t, ownerId, "report_disputed");
-      e.trust(ownerId, t.delegateId, -2, "contradicted_task_report");
+        owned
+          .filter(
+            (k) =>
+              k.refutesClaimId === reported.id && same(k.speakerId, t.targetId),
+          )
+          .sort(
+            (a, b) =>
+              Number(b.provenance === "direct_statement") -
+                Number(a.provenance === "direct_statement") ||
+              b.confidence - a.confidence,
+          )[0];
+      if (!denial) continue;
+      const confidence =
+        denial.provenance === "direct_statement"
+          ? Math.min(0.8, 0.2 + (denial.confidence || 0))
+          : Math.min(0.6, denial.confidence || 0);
+      const previous = t.disputeConfidence?.[String(ownerId)] || 0;
+      if (previous >= confidence) continue;
+      (t.disputeConfidence ||= {})[String(ownerId)] = confidence;
+      if (!t.disputedBy?.includes(String(ownerId)))
+        (t.disputedBy ||= []).push(String(ownerId));
+      this.rememberStatus(
+        t,
+        ownerId,
+        confidence >= 0.65 ? "report_disputed" : "report_uncertain",
+      );
+      const classification =
+        confidence >= 0.65
+          ? "credible_contradiction"
+          : "suspicious_inconsistency";
+      if (confidence >= 0.65 && previous < 0.65)
+        e.trust(ownerId, t.delegateId, -2, "contradicted_task_report");
+      e.memory.recordCampClaim({
+        id: `${t.id}:dispute:${ownerId}:${denial.id}`,
+        speakerId: ownerId,
+        listenerIds: [],
+        subjectId: t.delegateId,
+        topic: "task_report_dispute",
+        stance: "uncertain",
+        origin: "inference",
+        confidence,
+        evidenceIds: [reported.id, denial.id],
+        delegationId: t.id,
+        day: e.gm.day,
+        campTime: e.gm.dayTimer,
+        proposition: {
+          classification,
+          confidence,
+          delegateId: t.delegateId,
+          targetId: t.targetId,
+          reportId: reported.id,
+          line: t.reports.at(-1)?.line,
+        },
+      });
       e.memory.recordConversationHistory({
         id: `${t.id}:disputed:${ownerId}`,
         participantIds: [ownerId],
@@ -954,7 +1348,13 @@ export default class StrategicTaskSystem {
     for (const t of Object.values(this.records))
       if (
         same(t.delegateId, a.speakerId) &&
-        ["queued", "finding", "ignored"].includes(t.status) &&
+        [
+          "queued",
+          "finding",
+          "ignored",
+          "asking_reason",
+          "maybe_later",
+        ].includes(t.status) &&
         a.listenerIds.some((id) => same(id, t.targetId)) &&
         matchesTask(this.engine, t, a)
       )

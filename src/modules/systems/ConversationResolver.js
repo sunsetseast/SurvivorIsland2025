@@ -109,6 +109,7 @@ export default class ConversationResolver {
           "betrayal",
           "public_conflict",
           "confirmed_lie",
+          "task_report_dispute",
           "vote_attribution",
           "deal_breach",
           "alliance_exclusion",
@@ -194,6 +195,20 @@ export default class ConversationResolver {
       return "no_idol";
     if (a.type === "conditional" && !(a.conditions || []).length)
       return "missing_condition";
+    if (a.type === "come_with_me" && a.explanationMode) {
+      const task = this.tasks.get(a.delegationId);
+      if (
+        !task ||
+        task.purpose !== "bring" ||
+        !same(task.delegateId, a.speakerId) ||
+        !same(task.requesterId, a.subjectId) ||
+        !a.listenerIds.some((id) => same(id, task.targetId)) ||
+        !this.tasks
+          .bringOptions(task, a.speakerId)
+          .some((option) => option.explanationMode === a.explanationMode)
+      )
+        return "invalid_bring_explanation";
+    }
     if (
       a.type === "bluff" &&
       (!this.person(a.allegedSourceId) || same(a.allegedSourceId, a.speakerId))
@@ -445,6 +460,12 @@ export default class ConversationResolver {
     } else if (a.type === "come_with_me") {
       for (const id of a.listenerIds) {
         const r = this.tasks.invite(a, id, random);
+        emit(id, a.subjectId, {
+          topic: "bring_response",
+          stance: r.stance,
+          proposition: r.line,
+          delegationId: a.delegationId,
+        });
         say(id, r.line, r.stance);
       }
     } else if (["delegate", "bring"].includes(a.type)) {
@@ -454,6 +475,7 @@ export default class ConversationResolver {
         proposition: {
           purpose: a.requestedAction || "bring",
           targetId: a.subjectId,
+          ...(a.reasonLine ? { reasonLine: a.reasonLine } : {}),
           voteTargetId: ["recruit", "decoy", "backup", "split"].includes(
             a.requestedAction,
           )
@@ -533,6 +555,7 @@ export default class ConversationResolver {
               : "relationship_repair",
         stance: a.type,
         evidenceIds: [event.id],
+        proposition: event.proposition,
       });
       for (const id of a.listenerIds) {
         const p = conversationCharacter(this.person(id)),
@@ -1268,6 +1291,20 @@ export default class ConversationResolver {
           : "I do not have enough confirmed names to count yet.",
       );
     } else if (a.type === "safety" || a.type === "warn") {
+      if (a.type === "warn" && heard && same(heard.subjectId, a.subjectId)) {
+        emit(a.speakerId, a.subjectId, {
+          topic: "safety",
+          stance: "warned",
+          mode: a.truthMode === "fabrication" ? "deliberate_lie" : "hearsay",
+          attributedId: a.keepSourcePrivate
+            ? a.speakerId
+            : heard.attributedId || heard.speakerId,
+          sourceChain: a.keepSourcePrivate ? [a.speakerId] : heard.sourceChain,
+          evidenceIds: [heard.id],
+        });
+        say(id, "I need to check what that means for me.");
+        return;
+      }
       const subject =
           a.type === "safety" ? a.speakerId : a.subjectId || a.listenerIds[0],
         e = owned.find(
@@ -1308,6 +1345,14 @@ export default class ConversationResolver {
       });
       say(id, "I hear you. I still need to check with people.");
     } else if (a.type === "verify") {
+      if (
+        heard.topic === "task_report" &&
+        heard.proposition?.kind === "task_result"
+      ) {
+        const response = this.tasks.verifyReport(a, id, heard, random);
+        say(id, response.line, response.stance);
+        return;
+      }
       if (!same(heard.attributedId || heard.speakerId, id)) {
         const corroboration = owned.find(
           (k) =>
@@ -1667,7 +1712,8 @@ export default class ConversationResolver {
         (p.claimId === claim.id ||
           p.claimId === claim.activityId ||
           claim.id.startsWith(`${p.claimId}:claim`)) &&
-        a.listenerIds.some((id) => !p.allowedIds?.some((x) => same(x, id)))
+        (a.listenerIds.some((id) => !p.allowedIds?.some((x) => same(x, id))) ||
+          (p.useWithoutName && !a.keepSourcePrivate))
       )
         p.status = "violated";
   }
@@ -1689,7 +1735,7 @@ export default class ConversationResolver {
                 (p) =>
                   p.kind === "secrecy" &&
                   p.requesterId === ownerId &&
-                  e.id.startsWith(`${p.claimId}:claim`),
+                  (e.id === p.claimId || e.id.startsWith(`${p.claimId}:claim`)),
               )) &&
           e.topic === returned.topic &&
           same(e.subjectId, returned.subjectId) &&
@@ -1753,6 +1799,27 @@ export default class ConversationResolver {
   }
   sentence(a) {
     const name = this.name(a.subjectId);
+    const incident = this.events(a.speakerId).find((k) => k.id === a.eventId);
+    if (
+      incident?.proposition?.reportId &&
+      same(incident.proposition.delegateId, a.speakerId)
+    ) {
+      if (a.type === "admit")
+        return "My report was wrong. I should have told you what actually happened.";
+      if (a.type === "deny")
+        return "I stand by what I told you. That was my understanding.";
+      if (a.type === "apologize")
+        return "I am sorry for giving you that report. You needed an accurate answer.";
+    }
+    if (a.type === "confront" && incident?.topic === "task_report_dispute")
+      return `You told me: “${incident.proposition.line}” I heard a different account from ${this.name(incident.proposition.targetId)}. What happened?`;
+    if (a.type === "come_with_me" && a.explanationMode)
+      return (
+        this.tasks
+          .bringOptions(this.tasks.get(a.delegationId), a.speakerId)
+          .find((x) => x.explanationMode === a.explanationMode)?.line ||
+        "I do not know more about the request."
+      );
     if (
       this.gm.gamePhase !== "postChallenge" &&
       ["promise", "cover_promise", "ask_vote", "press", "conditional"].includes(
@@ -1771,7 +1838,10 @@ export default class ConversationResolver {
         verify_vote: `find out where ${name} is voting`,
         verify_rumor: `check this story with ${name}`,
         warn: `warn ${name} that their name is coming up`,
-        reassure: `reassure ${name}`,
+        reassure:
+          a.requestedTruthMode === "fabrication"
+            ? `tell ${name} they are safe, even if you are not sure`
+            : `reassure ${name}`,
         decoy: `give ${name} the ${this.name(a.planTargetId)} cover story`,
         gather: `find out what ${name} has heard`,
         bring: `go get ${name} and bring them here`,
@@ -1783,7 +1853,7 @@ export default class ConversationResolver {
         leak: `pass this story to ${name}`,
         protect_source: `share this with ${name}, keeping the source private`,
       };
-      return `Can you ${purposes[a.requestedAction] || `talk to ${name}`}? ${a.keepSourcePrivate ? "Keep my name out of it." : ""}`;
+      return `Can you ${purposes[a.requestedAction] || `talk to ${name}`}? ${a.reasonLine || ""} ${a.keepSourcePrivate ? "Keep my name out of it." : ""}`;
     }
     return (
       {
@@ -1855,6 +1925,13 @@ export default class ConversationResolver {
       return ["source", "why", "evidence", "who_knows", ...base];
     if (a.type === "delegate" || a.type === "follow_task")
       return ["follow_task", "pitch", "backup", ...base];
+    if (
+      a.type === "confront" &&
+      this.events(a.speakerId).some(
+        (e) => e.id === a.eventId && e.topic === "task_report_dispute",
+      )
+    )
+      return ["admit", "deny", "event", "apologize", ...base];
     if (["apologize", "repair", "confront"].includes(a.type))
       return ["why", "loyalty", "secrecy", ...base];
     return ["check_in", "personal", ...base];

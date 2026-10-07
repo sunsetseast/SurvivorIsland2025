@@ -369,7 +369,9 @@ export function actionSubjects(engine, type, speakerId, listenerIds = []) {
       .filter(
         (e) =>
           !["apologize", "admit"].includes(type) ||
-          (samePerson(e.speakerId, speakerId) &&
+          ((samePerson(e.speakerId, speakerId) ||
+            (["task_report_dispute", "public_conflict"].includes(e.topic) &&
+              samePerson(e.proposition?.delegateId, speakerId))) &&
             [
               "betrayal",
               "public_conflict",
@@ -378,6 +380,7 @@ export function actionSubjects(engine, type, speakerId, listenerIds = []) {
               "deal_breach",
               "alliance_exclusion",
               "broken_promise",
+              "task_report_dispute",
             ].includes(e.topic)),
       );
   if (def?.subject === "task")
@@ -444,6 +447,19 @@ export function suggestedConversationActions(engine, speakerId, listenerIds) {
     const d = available.find((d) => d.type === type);
     if (d) suggestions.push({ ...d, label: label || d.label, ...extras });
   };
+  const dispute = engine
+    .events(speakerId)
+    .find(
+      (k) =>
+        k.topic === "task_report_dispute" &&
+        samePerson(k.proposition?.delegateId, first),
+    );
+  if (dispute)
+    add(
+      "confront",
+      `Challenge their report about ${engine.name(dispute.proposition.targetId)}`,
+      { eventId: dispute.id },
+    );
   const incoming = engine.tasks
     .knownTasks(speakerId)
     .find(

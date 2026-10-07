@@ -319,7 +319,9 @@ export default class CampActivitySystem {
         activity: { ...shared, endsAt: at }, random: this.random });
       shared.socialResolved = true;
     }
-    const strategyResolved = this.post && !activity.external && this.strategy?.resolveActivity?.(actor, activity, at);
+    const strategyResolved = !activity.external && (this.post
+      ? this.strategy?.resolveActivity?.(actor, activity, at)
+      : this.resolveStrategicWork(actor, activity));
     this.resolved.add(activity.id);
     if (actor.campActivity === activity) actor.campActivity = null;
     const companion = activity.participantIds?.length && this.npcs().find(s => same(s.id, activity.participantIds[0]));
@@ -375,6 +377,29 @@ export default class CampActivitySystem {
     return true;
   }
   present(person, place) { return isCampPhysicallyPresent(person, this.locations, place, this.gm); }
+  resolveStrategicWork(actor, activity) {
+    // The same semantic task/objective executor also handles future-oriented
+    // camp work. Ordinary camp exchanges keep their existing resolver.
+    if (!activity.objectiveId && !activity.taskId) return false;
+    const engine = this.gm.systems.conversationSystem?.engine;
+    const target = this.members().find(s => same(s.id, activity.targetId));
+    if (!engine || !target || !this.present(target, activity.location)) return false;
+    if (target.isPlayer) {
+      if (this.conversation || this.gm.flags?.campEventActive) return true;
+      // Arrival has finished; release its non-interruptible travel/approach
+      // block before the ordinary conversation reservation takes ownership.
+      if (actor.campActivity === activity) actor.campActivity = null;
+      if (!this.beginConversation(actor, { location: activity.location })) return false;
+      this.gm.systems.conversationSystem.startNpcConversation(actor, 'strategic_request', {
+        initiatedByNpc: true, location: activity.location,
+        context: { phase: 'pre', agenda: activity.agenda, location: activity.location },
+      });
+      return true;
+    }
+    const result = activity.taskId ? engine.tasks.execute(actor, target, activity)
+      : engine.objectives.execute(actor, target, activity);
+    return Boolean(result && !result.invalid);
+  }
   recordPhysicalMovement(actor, activity, type, at) {
     const place = type === 'departed' ? activity.fromLocation : activity.location;
     if (!place) return;
