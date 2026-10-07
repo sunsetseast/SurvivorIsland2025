@@ -314,6 +314,31 @@
 .scramble-participant.speaking {
   color: #fff0d2;
 }
+/* The semantic conversation audience stays visible without a horizontal rail. */
+#conversation-overlay.semantic-conversation .scramble-participants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  overflow: visible;
+}
+#conversation-overlay.semantic-conversation .scramble-participants:has(.scramble-participant:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+#conversation-overlay.semantic-conversation .scramble-participant {
+  min-width: 0;
+  font-size: 12px;
+}
+#conversation-overlay.semantic-conversation .scramble-participant > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#conversation-overlay.semantic-conversation .scramble-participant img {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
 .scramble-participant * {
   font: inherit;
   color: inherit;

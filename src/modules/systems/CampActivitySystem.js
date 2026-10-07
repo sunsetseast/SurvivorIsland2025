@@ -171,6 +171,11 @@ export default class CampActivitySystem {
   }
   chooseNext(npc, now) {
     if (this.absent(npc) || npc.isPlayer) return null;
+    const strategicPlan = this.gm.systems.conversationSystem?.engine?.objectives.plan(npc, now);
+    if (strategicPlan) {
+      const route = routeBetween(this.locations?.getLocation?.(npc.id), strategicPlan.location);
+      return this.start(npc, route.length ? { type: 'travel', location: route[0], route: route.slice(1), goal: strategicPlan } : strategicPlan, now);
+    }
     if (this.post && !this.strategy?.playerTribeSafe) {
       const choice = this.strategy?.planActivity?.(npc, now);
       if (!choice) return null;
@@ -195,7 +200,10 @@ export default class CampActivitySystem {
       const free = partner && (!partner.campActivity || ['rest', 'idle_at_camp', 'observe'].includes(partner.campActivity.type));
       // A route is a plan, not a reservation of a remote contestant. If the
       // intended listener is gone/busy on arrival, regroup instead of talking alone.
-      if (!free || !this.present(partner, plan.location)) plan = { type: 'observe', location: plan.location, duration: 120 };
+      if (!free || !this.present(partner, plan.location)) {
+        if (plan.taskId) this.gm.systems.conversationSystem?.engine.tasks.defer(plan.taskId);
+        plan = { type: 'observe', location: plan.location, duration: 120 };
+      }
     }
     if (actor.campActivity) this.interrupt(actor, 'new_priority', now);
     const duration = plan.duration || (plan.type === 'travel' ? 45 : WORK[plan.type]?.duration ||
@@ -207,7 +215,7 @@ export default class CampActivitySystem {
       route: plan.route || null, travelWithId: plan.travelWithId || null,
       goal: plan.goal || null, privacy: ['strategy_conversation', 'alliance_meeting', 'idol_hunt'].includes(plan.type) ? 'private' : 'visible',
       interruptible: !['private_conversation', 'strategy_conversation_player', 'meeting_wait', 'alliance_meeting', 'approach_player', 'approach_wait'].includes(plan.type),
-      external: Boolean(plan.external), ...(plan.meetingId ? { meetingId: plan.meetingId } : {}),
+      external: Boolean(plan.external), ...(plan.taskId ? { taskId: plan.taskId, taskReporting: Boolean(plan.taskReporting) } : {}), ...(plan.objectiveId ? { objectiveId: plan.objectiveId } : {}), ...(plan.meetingId ? { meetingId: plan.meetingId } : {}),
       ...(plan.purpose ? { purpose: plan.purpose } : {}), ...(plan.agenda ? { agenda: plan.agenda } : {}) };
     actor.campActivity = activity;
     if (!actor.isPlayer) this.locations?.updateNpcLocation?.(actor.id, plan.location, { reason: `activity:${plan.type}`, publish: false });
@@ -504,7 +512,7 @@ export default class CampActivitySystem {
     if (!this.active) this.ensureStarted();
     const player = this.gm.getPlayerSurvivor?.();
     const place = physicalCampLocation(location) || location;
-    if (this.post && this.conversation && same(this.conversation.npcId, npc?.id)) return true;
+    if (this.conversation && same(this.conversation.npcId, npc?.id)) return true;
     if (!this.active || !npc || !player || !place || this.conversation || this.gm.flags?.campEventActive ||
       !this.present(npc, place) || !this.present(player, place) || npc.campActivity?.interruptible === false) return false;
     const prior = npc.campActivity && WORK[npc.campActivity.type] ? { type: npc.campActivity.type,
@@ -516,7 +524,7 @@ export default class CampActivitySystem {
     activity.interruptible = false; activity.endsAt = 0;
     player.campActivity = { ...activity, actorId: player.id, participantIds: [npc.id] };
     this.conversation = { npcId: npc.id, activityId: activity.id, location: place, strategy, prior };
-    if (this.post) this.strategy?.reasoning?.checkpoint(this.conversation);
+    this.strategy?.reasoning?.checkpoint(this.conversation);
     return true;
   }
   moveTogether(actor, companion, destination) {
@@ -646,14 +654,14 @@ export default class CampActivitySystem {
   }
   serialize() { return { phaseId: this.phaseId, nextId: this.nextId, resolved: [...this.resolved].slice(-500),
     reputationEvents: [...this.reputationEvents].slice(-500), effort: this.effort, initialNeeds: this.initialNeeds,
-    conversation: this.post ? this.conversation : null, lastLogIndex: this.lastLogIndex, departures: this.departures, lastUrgentTime: this.lastUrgentTime }; }
+    conversation: this.conversation, lastLogIndex: this.lastLogIndex, departures: this.departures, lastUrgentTime: this.lastUrgentTime }; }
   deserialize(p) {
     this.phaseId = p?.phaseId || null; this.nextId = Number.isInteger(p?.nextId) ? p.nextId : 1;
     this.resolved = new Set(p?.resolved || []); this.reputationEvents = new Set(p?.reputationEvents || []);
     this.effort = p?.effort || {}; this.initialNeeds = p?.initialNeeds || {};
     this.lastLogIndex = Math.min(this.gm.campLog?.length || 0, Math.max(0, p?.lastLogIndex || 0));
     this.departures = p?.departures || {}; this.lastUrgentTime = p?.lastUrgentTime || {};
-    this.conversation = this.post ? p?.conversation || null : null;
+    this.conversation = p?.conversation || null;
     for (const s of this.tribe?.members || []) {
       const a = s.campActivity;
       if (a?.type === 'travel' && !a.fromLocation) {
@@ -664,7 +672,7 @@ export default class CampActivitySystem {
       const companion = a?.external && ['socialize', 'strategy_conversation', 'alliance_meeting', 'travel'].includes(a.type) &&
         this.npcs().some(owner => owner.campActivity?.id === a.id && !owner.campActivity.external &&
           owner.campActivity.participantIds?.some(id => same(id, s.id)));
-      const reservation = this.post && (a?.id === this.conversation?.activityId ||
+      const reservation = (a?.id === this.conversation?.activityId ||
         a?.type === 'approach_wait' && a.id === this.strategy?.scramble?.invitation?.activityId);
       if (this.absent(s) || a?.external && !companion && !reservation ||
           a && (!Number.isFinite(a.endsAt) || !a.location || this.resolved.has(a.id)))

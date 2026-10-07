@@ -1,0 +1,56 @@
+{
+  "baseline": "c16b7afa18f8a1637c87da4f80a266ec787189df",
+  "node": "24.19.0",
+  "chromium": "153.0.8010.0",
+  "automated": {
+    "command": "npm test -- --test-reporter=tap",
+    "tests": 733,
+    "pass": 733,
+    "fail": 0,
+    "skipped": 0,
+    "newTests": 51,
+    "durationMs": 61243.557938
+  },
+  "targeted": {
+    "command": "node --test test/ConversationSemantics.test.mjs test/ConversationDelegation.test.mjs test/ConversationIntegration.test.mjs",
+    "tests": 51,
+    "pass": 51,
+    "fail": 0,
+    "skipped": 0
+  },
+  "rendered": {
+    "conversation": {
+      "command": "npm run qa:conversations:rendered",
+      "checks": 48,
+      "errors": 0
+    },
+    "scramble": {
+      "command": "npm run qa:scramble:rendered",
+      "checks": 89,
+      "errors": 0,
+      "timedPlaythroughs": 6
+    },
+    "viewports": [
+      [
+        375,
+        812
+      ],
+      [
+        430,
+        932
+      ],
+      [
+        844,
+        390
+      ],
+      [
+        1280,
+        800
+      ]
+    ]
+  },
+  "limits": [
+    "Controlled production fixtures and timed camp playthroughs, not exhaustive season narrative certification.",
+    "Finite generated semantic dialogue; autonomous objectives are bounded round plans."
+  ]
+}

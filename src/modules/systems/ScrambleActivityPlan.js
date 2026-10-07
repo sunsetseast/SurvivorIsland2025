@@ -152,8 +152,13 @@ export default class ScrambleActivityPlan {
       const result = this.gm.systems.allianceSystem.resolveMeeting(meeting.allianceId, [actor, ...listeners], activity, () => this.random());
       if (result.targetId) this.strategy.allianceTargets.set(meeting.allianceId, result.targetId);
       meeting.outcome = result; meeting.status = 'completed'; this.strategy.completedAllianceMeetings.add(meeting.id);
-    } else for (const listener of listeners)
-      this.strategy.reasoning.resolveAgenda(actor, listener, activity, () => this.random());
+    } else for (const listener of listeners) {
+      const engine = this.gm.systems.conversationSystem?.engine;
+      if (engine && activity.taskId) engine.tasks.execute(actor, listener, activity);
+      else if (engine && activity.objectiveId) engine.objectives.execute(actor, listener, activity);
+      else if (engine) engine.executeAgenda(actor, listener, activity, () => this.random());
+      else this.strategy.reasoning.resolveAgenda(actor, listener, activity, () => this.random());
+    }
     this.note('conversation_resolved', { activityId: activity.id, actorId: actor.id, participantIds: listeners.map(s => s.id) });
     return true;
   }

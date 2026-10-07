@@ -1,4 +1,5 @@
 import eventManager from "../src/modules/core/EventManager.js";
+import { ACTION_DEFINITIONS } from "../src/modules/systems/ConversationActionCatalog.js";
 import {
   buildPlayerScrambleRead,
   buildNearbyScramble,
@@ -245,13 +246,23 @@ window.experienceQa = {
     }
     if (["knowledge", "contradiction"].includes(name)) renderer.notebook.open();
     if (name === "verification")
-      document.querySelectorAll("#conversation-overlay button").forEach((b) => {
-        if (b.textContent.startsWith("Did you mention")) b.click();
-      });
+      gm.systems.conversationSystem.view.choose(
+        a,
+        { location: "beach" },
+        ACTION_DEFINITIONS.verify,
+        { claimId: "qa:plan", subjectId: b.id },
+      );
     if (name === "warning")
-      document.querySelectorAll("#conversation-overlay button").forEach((b) => {
-        if (b.textContent === "I heard my name is coming up.") b.click();
-      });
+      gm.systems.conversationSystem.view.choose(
+        a,
+        { location: "beach" },
+        ACTION_DEFINITIONS.share,
+        {
+          claimId: "qa:warning",
+          subjectId: gm.player.id,
+          keepSourcePrivate: false,
+        },
+      );
     if (name === "alliances") window.openAlliancesOverlay();
     return { name, timer: gm.dayTimer };
   },
