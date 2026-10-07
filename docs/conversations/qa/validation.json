@@ -3,54 +3,57 @@
   "node": "24.19.0",
   "chromium": "153.0.8010.0",
   "automated": {
-    "command": "npm test -- --test-reporter=tap",
-    "tests": 733,
-    "pass": 733,
+    "command": "node --test",
+    "tests": 826,
+    "pass": 826,
     "fail": 0,
     "skipped": 0,
-    "newTests": 51,
-    "durationMs": 61243.557938
+    "newTests": 144,
+    "hardeningTests": 93,
+    "durationMs": 57825.987567
   },
   "targeted": {
-    "command": "node --test test/ConversationSemantics.test.mjs test/ConversationDelegation.test.mjs test/ConversationIntegration.test.mjs",
-    "tests": 51,
-    "pass": 51,
+    "command": "node --test test/ConversationSemantics.test.mjs test/ConversationDelegation.test.mjs test/ConversationIntegration.test.mjs test/PlayerStrategicRequests.test.mjs test/ConversationParityCompatibility.test.mjs test/ConversationRemovalParity.test.mjs",
+    "tests": 144,
+    "pass": 144,
     "fail": 0,
-    "skipped": 0
+    "skipped": 0,
+    "durationMs": 854.457201,
+    "breakdown": {
+      "originalConversation": 51,
+      "playerStrategicRequests": 77,
+      "parityCompatibility": 15,
+      "removalAudit": 1
+    },
+    "taskPurposes": 15
   },
   "rendered": {
     "conversation": {
       "command": "npm run qa:conversations:rendered",
-      "checks": 48,
-      "errors": 0
+      "checks": 76,
+      "errors": 0,
+      "report": "request-rendered-report.json"
     },
     "scramble": {
       "command": "npm run qa:scramble:rendered",
       "checks": 89,
       "errors": 0,
-      "timedPlaythroughs": 6
+      "timedPlaythroughs": 6,
+      "report": "scramble-rendered-report.json"
     },
     "viewports": [
-      [
-        375,
-        812
-      ],
-      [
-        430,
-        932
-      ],
-      [
-        844,
-        390
-      ],
-      [
-        1280,
-        800
-      ]
+      [375, 812],
+      [430, 932],
+      [844, 390],
+      [1280, 800]
     ]
   },
   "limits": [
     "Controlled production fixtures and timed camp playthroughs, not exhaustive season narrative certification.",
     "Finite generated semantic dialogue; autonomous objectives are bounded round plans."
-  ]
+  ],
+  "checks": {
+    "removalReferenceAudit": "passed",
+    "gitDiffCheck": "passed"
+  }
 }

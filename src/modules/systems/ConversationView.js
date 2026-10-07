@@ -24,7 +24,10 @@ const GROUPS = {
         "leader",
       ],
     ],
-    ["Votes and safety", ["vote_read", "safety", "numbers", "loyalty", "strategy_style"]],
+    [
+      "Votes and safety",
+      ["vote_read", "safety", "numbers", "loyalty", "strategy_style"],
+    ],
     [
       "Information and sources",
       ["share", "verify", "source", "why", "evidence", "who_knows"],
@@ -49,7 +52,10 @@ const GROUPS = {
       "Deception and leverage",
       ["decoy", "bluff", "speculate", "threaten", "leak_test", "leak"],
     ],
-    ["Ask someone to help", ["delegate", "follow_task", "report", "bring", "come_with_me"]],
+    [
+      "Ask someone to help",
+      ["delegate", "follow_task", "report", "bring", "come_with_me"],
+    ],
   ],
   idol: [
     [
@@ -112,7 +118,8 @@ export default class ConversationView {
       h.nodeSession.transcript = JSON.parse(
         JSON.stringify(cp.semanticTranscript),
       );
-    else if(cp?.lastLine&&!h.nodeSession.transcript.length)h.nodeSession.addNpc(cp.lastLine);
+    else if (cp?.lastLine && !h.nodeSession.transcript.length)
+      h.nodeSession.addNpc(cp.lastLine);
     return h.nodeSession;
   }
   show(npc, context = {}) {
@@ -136,7 +143,7 @@ export default class ConversationView {
         (t) =>
           same(t.delegateId, player.id) &&
           same(t.requesterId, npc.id) &&
-          ['pending','hedged'].includes(t.publicStatus),
+          ["pending", "hedged"].includes(t.publicStatus),
       );
     const buttons = [];
     const offer = this.gm.systems.dealSystem
@@ -169,16 +176,56 @@ export default class ConversationView {
           label: "Decline the request",
           onClick: () => this.respondToTask(npc, context, incoming, false),
         },
-        {label:'Maybe — don’t count on me yet',onClick:()=>this.respondToTask(npc,context,incoming,'hedge')},
+        {
+          label: "Maybe — don’t count on me yet",
+          onClick: () => this.respondToTask(npc, context, incoming, "hedge"),
+        },
       );
     }
-    const meeting=this.engine.tasks.playerRequests(player.id).find(t=>t.meetingIds.includes(npc.id)&&t.meetingIds.every(id=>this.engine.together(player.id,id))&&!this.reservation.groupIds?.some(id=>same(id,t.targetId)));
-    if(meeting)buttons.push({label:`Talk together with ${this.engine.name(meeting.targetId)}`,onClick:()=>{this.engine.camp.reserveConversationGroup([meeting.targetId]);if(this.host.activeOverlay)this.host._renderScrambleParticipants(this.host.activeOverlay,npc);this.show(npc,context);}});
-    const walk=this.engine.tasks.playerRequests(player.id).find(t=>t.canWalk&&same(t.targetId,npc.id));
-    if(walk)buttons.push({label:`Walk with ${this.engine.name(npc.id)}`,onClick:()=>{this.reservation.followWithId=npc.id;this.host.endConversation();this.engine.tasks.beginBring(walk.id,player.id);}});
-    const priority=suggestions.filter(d=>d.taskContext||d.type==='report');
-    if(context.reportTaskId)priority.sort((a,b)=>Number(b.delegationId===context.reportTaskId)-Number(a.delegationId===context.reportTaskId));
-    for(const d of priority)buttons.push({label:d.label,onClick:()=>this.choose(npc,context,d,d)});
+    const meeting = this.engine.tasks
+      .playerRequests(player.id)
+      .find(
+        (t) =>
+          t.meetingIds.includes(npc.id) &&
+          t.meetingIds.every((id) => this.engine.together(player.id, id)) &&
+          !this.reservation.groupIds?.some((id) => same(id, t.targetId)),
+      );
+    if (meeting)
+      buttons.push({
+        label: `Talk together with ${this.engine.name(meeting.targetId)}`,
+        onClick: () => {
+          this.engine.camp.reserveConversationGroup([meeting.targetId]);
+          if (this.host.activeOverlay)
+            this.host._renderScrambleParticipants(this.host.activeOverlay, npc);
+          this.show(npc, context);
+        },
+      });
+    const walk = this.engine.tasks
+      .playerRequests(player.id)
+      .find((t) => t.canWalk && same(t.targetId, npc.id));
+    if (walk)
+      buttons.push({
+        label: `Walk with ${this.engine.name(npc.id)}`,
+        onClick: () => {
+          this.reservation.followWithId = npc.id;
+          this.host.endConversation();
+          this.engine.tasks.beginBring(walk.id, player.id);
+        },
+      });
+    const priority = suggestions.filter(
+      (d) => d.taskContext || d.type === "report",
+    );
+    if (context.reportTaskId)
+      priority.sort(
+        (a, b) =>
+          Number(b.delegationId === context.reportTaskId) -
+          Number(a.delegationId === context.reportTaskId),
+      );
+    for (const d of priority)
+      buttons.push({
+        label: d.label,
+        onClick: () => this.choose(npc, context, d, d),
+      });
     const last = this.reservation.checkpoint?.semanticLast;
     for (const type of (last?.followUps || [])
       .filter((t) => ACTION_DEFINITIONS[t])
@@ -199,7 +246,9 @@ export default class ConversationView {
         });
     }
     if (!buttons.length)
-      for (const d of suggestions.filter(d=>!d.taskContext&&d.type!=='report'))
+      for (const d of suggestions.filter(
+        (d) => !d.taskContext && d.type !== "report",
+      ))
         buttons.push({
           label: d.label,
           onClick: () => this.choose(npc, context, d, d),
@@ -314,7 +363,20 @@ export default class ConversationView {
       );
       return;
     }
-    if(def.type==='person_read'&&!fields.readAngle){this.render(npc,this.session(npc,context),PERSON_READ_ANGLES.map(([readAngle,label])=>({label,onClick:()=>this.choose(npc,context,def,{...fields,readAngle})})),back,'What do you want to ask about them?');return;}
+    if (def.type === "person_read" && !fields.readAngle) {
+      this.render(
+        npc,
+        this.session(npc, context),
+        PERSON_READ_ANGLES.map(([readAngle, label]) => ({
+          label,
+          onClick: () =>
+            this.choose(npc, context, def, { ...fields, readAngle }),
+        })),
+        back,
+        "What do you want to ask about them?",
+      );
+      return;
+    }
     if (def.type === "conditional" && !fields.conditions) {
       const candidates = actionSubjects(
         e,
@@ -571,14 +633,28 @@ export default class ConversationView {
               this.choose(npc, context, def, { ...fields, truthMode: "truth" }),
           },
           {
-            label: e.tasks.get(fields.delegationId)?.purpose==='recruit'?"Bluff: say they committed":"Bluff: say it went well",
+            label:
+              e.tasks.get(fields.delegationId)?.purpose === "recruit"
+                ? "Bluff: say they committed"
+                : "Bluff: say it went well",
             onClick: () =>
               this.choose(npc, context, def, {
                 ...fields,
                 truthMode: "fabrication",
               }),
           },
-          ...[['not_done','Admit you did not do it'],['unreached','Say you could not reach them']].map(([reportStance,label])=>({label,onClick:()=>this.choose(npc,context,def,{...fields,truthMode:'truth',reportStance})})),
+          ...[
+            ["not_done", "Admit you did not do it"],
+            ["unreached", "Say you could not reach them"],
+          ].map(([reportStance, label]) => ({
+            label,
+            onClick: () =>
+              this.choose(npc, context, def, {
+                ...fields,
+                truthMode: "truth",
+                reportStance,
+              }),
+          })),
         ],
         back,
         "What will you tell them?",
@@ -663,15 +739,26 @@ export default class ConversationView {
   respondToTask(npc, context, task, accept) {
     if (this.engine.tasks.respond(task.id, this.gm.player.id, accept)) {
       const s = this.session(npc, context);
-      s.addYou(accept==='hedge'?"Maybe. I can’t promise.":accept?"I’ll do it.":"I cannot take that on.");
+      s.addYou(
+        accept === "hedge"
+          ? "Maybe. I can’t promise."
+          : accept
+            ? "I’ll do it."
+            : "I cannot take that on.",
+      );
       this.engine.memory.recordConversationHistory({
         id: `${task.id}:response`,
         participantIds: [this.gm.player.id, npc.id],
         speakerId: this.gm.player.id,
         subjectId: task.targetId,
-        type: accept==='hedge'?"task_hedged":accept ? "task_accepted" : "task_refused",
+        type:
+          accept === "hedge"
+            ? "task_hedged"
+            : accept
+              ? "task_accepted"
+              : "task_refused",
         topic: "delegation",
-        line: accept==='hedge'?"hedged":accept ? "accepted" : "refused",
+        line: accept === "hedge" ? "hedged" : accept ? "accepted" : "refused",
         day: this.gm.day,
         campTime: this.gm.dayTimer,
         location: this.gm.player.location,

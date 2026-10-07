@@ -8,7 +8,7 @@ This change starts at current main `c16b7afa` (#355). Living Camp, formal allian
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ConversationSystem                          | Start/resume/end, physical reservations, group identity, accessibility, transcript and DOM orchestration. Existing alliance dialog remains routed here.  |
 | ConversationView                            | Suggestions, categories, intent groups, subject/condition/purpose/source selection, navigation and resolved transcript rendering.                        |
-| ConversationActionCatalog                   | 72 reusable capabilities, valid subjects and phase/context availability.                                                                                 |
+| ConversationActionCatalog                   | 74 reusable capabilities, valid subjects and phase/context availability.                                                                                 |
 | ConversationActionHandlers                  | Independent resolver coverage; missing, duplicate and unreachable semantics fail validation.                                                             |
 | ConversationResolver                        | Resolve one utterance, individual reactions, semantic effects, logical follow-ups and durable action receipts.                                           |
 | ConversationCharacter                       | Interpret existing production ratings and gameplay style without retuning contestant data.                                                               |
@@ -56,7 +56,7 @@ An objective stores owner, goal/target/rationale, desired outcome, believed indi
 
 Evaluation runs at semantic activity boundaries, with a 120-second cache and relevant-event invalidation. It processes a failure report once, prioritizes voters required by conditional support, uses owned idol/leak concerns and can abandon an incompatible move. New spontaneous planning requires a concrete intention and personally heard support so it does not displace the established early scramble agenda. Explicit goals can start earlier. Candidate sets are tribe-bounded; there are no per-frame all-pairs loops.
 
-The planner never writes a ballot. Its steps are real conversations. It can recruit, delegate through a trusted committed ally, wait for reports, wait to reduce visibility, propose insurance, or test the return of information. Existing alliance meetings still coordinate independently negotiated split assignments and backup activation.
+The planner never writes a ballot. Its steps are real conversations. It can recruit, compare personal work with NPC and human intermediaries, wait for reports, wait to reduce visibility, propose insurance, or test the return of information. Existing alliance meetings still coordinate independently negotiated split assignments and backup activation.
 
 Task lifecycle:
 
@@ -88,3 +88,21 @@ At expiry, #353–#354 still reconsider and converge each individual's actual st
 ## Review scope
 
 Dialogue is a finite semantic vocabulary with generated templates, not unrestricted natural-language input. Objectives are bounded round plans rather than a search of every possible future season. Source inference remains uncertain; controlled tests prove mechanisms and isolation, while full-season emergent story quality remains a playtest judgment. No camp rebuild, continuous movement, new UI framework, contestant-data retuning or replacement vote solver is included.
+
+## Human strategic requests (draft hardening)
+
+`StrategicTaskActions` is a purpose policy, not another task store. It maps all 15 purposes to real semantic actions, task-specific suggestions and strict equivalent-action matching. Recipient, vote subject, owned story/evidence and protected-source requirements matter; a UI route or button ID does not.
+
+The planner evaluates human and NPC intermediaries using the requester's owned support, trust, alliance affinity, observed target connections, public workload, known refusal/history, source reliability and character/visibility needs. It may use an NPC, ask the human, act personally or wait. It never consults a human advantage flag or auto-answers a request. A planned human request first travels through Living Camp's `approach_player` route and invitation. Only the actual co-present opening creates a pending task.
+
+The player explicitly agrees, declines or hedges. A hedge remains unresolved and can be asked again. An NPC hedge is reevaluated in a later real follow-up. Accepted requests appear through the existing TaskSystem/CampScreen task dialog under **Strategic Requests**. Requests assigned by the human have a separate requester-owned view. Neither projection shows hidden execution mode, objective confidence or secret target decisions.
+
+**Leave undone** records a private decision, preserving the requester's accepted view. Simply doing nothing also works. Phase/deadline expiry changes the delegate's private status; the requester discovers failure only through a report, direct evidence or elapsed-time follow-up. Public refusal is heard immediately. Reliability uses those owned obligations/reports, not hidden task status. A refusal by the intended target is not automatically blamed on the delegate.
+
+When talking to the right target, the task action ranks ahead of general suggestions and previous-response follow-ups. A semantically equivalent ordinary action records the same receipt/outcome. Truthful reporting, admitting no attempt/unreachability and explicit fabricated success are choices; a fake report is an attributed claim and cannot invent a target conversation or change that target's vote. Direct later contradiction can damage reliability without revealing omniscient truth.
+
+A bring request stores the requester's location at the real request, without revealing their unspoken vote objective. The target independently evaluates the invitation. The player chooses **Walk with…**; the existing graph scheduler advances a shared activity ID across real route hops. Only final physical arrival checks whether the requester is still there. A moved requester is not followed magically. Actual arrival can be acknowledged and a group meeting offered; attendance never forces a vote. Human-led task travel is scheduled, non-interruptible by ordinary player time-block bookkeeping, and restores its companion/task/route identically.
+
+Only one post-immunity invitation owns a waiting reservation. A second physical arrival waits locally instead of overwriting it and stranding the first speaker. This fixes uninterrupted/reloaded multi-round trajectory parity. Planner invalidations are persisted alongside objective records.
+
+The resolver, as well as the menu, rejects idol-protection agreements without a usable idol, including the generic deal alias. Pre-immunity strategy retains future-oriented “if we lose” copy. Explicit strategy-style questions and specific-person social read angles preserve useful #355 capabilities with owned evidence. See [REMOVAL-PARITY-AUDIT.md](REMOVAL-PARITY-AUDIT.md).

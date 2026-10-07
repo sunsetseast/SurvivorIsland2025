@@ -302,6 +302,205 @@ try {
     await capture("many-targets", viewport);
     await page.locator(".conversation-options-region button").last().click();
     await button("End chat").click();
+    // Actual request semantics rendered through the existing conversation and task UI.
+    await page.evaluate(() => {
+      window.experienceQa.scene("conversation");
+      const { gm, activity } = window.scrambleQa,
+        h = gm.systems.conversationSystem,
+        e = h.engine;
+      h.closeConversation("incoming-request");
+      e.deserialize();
+      const sand = activity.npcs().find((p) => p.firstName === "Sandra"),
+        target = activity.npcs().find((p) => p.firstName === "Wendell");
+      target.firstName = "Michele Alexandria Montgomery-Wellington";
+      const o = e.objectives.establish(sand.id, {
+        type: "blindside",
+        targetId: activity.npcs().find((p) => p.firstName === "Tony").id,
+        explicit: true,
+      });
+      h.startPlayerConversation({
+        npcId: sand.id,
+        phase: "post",
+        context: { location: "beach" },
+      });
+      h.view.startNpc(sand, {
+        agenda: {
+          purpose: "objective_delegate",
+          objectiveId: o.id,
+          delegateTargetId: target.id,
+          requestedAction: "bring",
+        },
+      });
+      window.requestQa = {
+        sandId: sand.id,
+        targetId: target.id,
+        taskId: Object.keys(e.tasks.records)[0],
+      };
+    });
+    await capture("incoming-request", viewport);
+    assert.equal(await button("Agree to the request").count(), 1);
+    assert.equal(await button("Decline the request").count(), 1);
+    await button("Agree to the request").click();
+    await button("End chat").click();
+    await page.evaluate(() => {
+      const { gm, activity, screen } = window.scrambleQa,
+        e = gm.systems.conversationSystem.engine;
+      for (const name of ["Jeremy", "Parvati"]) {
+        const requester = activity.npcs().find((p) => p.firstName === name);
+        e.resolve(
+          e.action("delegate", {
+            speakerId: requester.id,
+            listenerIds: [gm.player.id],
+            subjectId: window.requestQa.targetId,
+            requestedAction: name === "Jeremy" ? "verify_vote" : "recruit",
+            planTargetId: activity.npcs().find((p) => p.firstName === "Tony")
+              .id,
+          }),
+        );
+        const t = Object.values(e.tasks.records).at(-1);
+        e.tasks.respond(t.id, gm.player.id, true);
+      }
+      screen.ensureTaskIcon();
+      screen.openTaskOverlay();
+    });
+    const taskCapture = async (scene) => {
+      await page.waitForFunction(() =>
+        document
+          .querySelector("#task-panel")
+          ?.classList.contains("task-panel-open"),
+      );
+      await page.evaluate(() => {
+        getComputedStyle(document.querySelector("#task-panel")).transform;
+        document.getAnimations().forEach((a) => a.finish());
+      });
+      const geometry = await page.locator("#task-panel").evaluate((panel) => {
+        const r = panel.getBoundingClientRect(),
+          close = panel
+            .querySelector("#task-close-hit")
+            .getBoundingClientRect();
+        return {
+          overflow: document.body.scrollWidth > innerWidth + 1,
+          fits: r.top >= -1 && r.bottom <= innerHeight + 1,
+          closeVisible: close.top >= 0 && close.bottom <= innerHeight,
+          requests: panel.querySelectorAll(".strategic-request-card").length,
+        };
+      });
+      assert.equal(geometry.overflow, false, scene + " overflow");
+      assert.equal(geometry.fits, true, scene + " viewport");
+      assert.equal(geometry.closeVisible, true, scene + " close");
+      const controls = page.locator("#task-panel button");
+      for (let i = 0; i < (await controls.count()); i++) {
+        await controls
+          .nth(i)
+          .evaluate((b) => b.scrollIntoView({ block: "center" }));
+        const control = await controls.nth(i).evaluate((b) => {
+          const r = b.getBoundingClientRect(),
+            p = b.closest("#task-panel").getBoundingClientRect(),
+            close = b
+              .closest("#task-panel")
+              .querySelector("#task-close-hit")
+              .getBoundingClientRect();
+          return {
+            text: b.textContent,
+            width: r.width,
+            height: r.height,
+            top: r.top,
+            bottom: r.bottom,
+            panelTop: p.top,
+            panelBottom: p.bottom,
+            closeTop: close.top,
+            valid:
+              // Chromium can report a 44px target as 43.999969 after the
+              // panel transform. Allow subpixel rounding, not smaller controls.
+              r.width >= 44 - 0.01 &&
+              r.height >= 44 - 0.01 &&
+              r.top >= p.top - 1 &&
+              r.bottom <= p.bottom + 1 &&
+              (b.id === "task-close-hit" || r.bottom <= close.top + 1),
+          };
+        });
+        if (!control.valid)
+          await page.screenshot({
+            path: path.join(output, `failure-${scene}-${viewport.width}.png`),
+          });
+        assert.ok(
+          control.valid,
+          scene +
+            " reachable control " +
+            JSON.stringify({ viewport, i, ...control }),
+        );
+      }
+      await page.locator("#task-panel").evaluate((p) => (p.scrollTop = 0));
+      await page.screenshot({
+        path: path.join(output, `${scene}-${viewport.width}.png`),
+      });
+      checks.push({ scene, viewport, ...geometry });
+    };
+    await taskCapture("strategic-requests");
+    await page
+      .locator(".strategic-request-card")
+      .nth(1)
+      .getByRole("button", { name: "Leave undone", exact: true })
+      .click();
+    assert.ok(
+      (await page.locator("#task-panel").innerText()).includes("Left undone"),
+    );
+    await taskCapture("request-left-undone");
+    await page
+      .getByRole("button", { name: "Close camp responsibilities", exact: true })
+      .click();
+    await page.evaluate(() => {
+      window.scrambleQa.gm.systems.conversationSystem.startPlayerConversation({
+        npcId: window.requestQa.targetId,
+        phase: "post",
+        context: { location: "beach" },
+      });
+    });
+    assert.match(
+      await page
+        .locator(".conversation-options-region button")
+        .first()
+        .innerText(),
+      /Sandra wants to talk/,
+    );
+    await capture("task-context-first", viewport);
+    await page.locator(".conversation-options-region button").first().click();
+    await capture("bring-response", viewport);
+    await button("End chat").click();
+    await page.evaluate(() => {
+      const { gm, screen } = window.scrambleQa,
+        e = gm.systems.conversationSystem.engine,
+        t = Object.values(e.tasks.records).find((t) => t.purpose === "recruit");
+      e.resolve(
+        e.action("ask_vote", {
+          speakerId: gm.player.id,
+          listenerIds: [t.targetId],
+          subjectId: t.subjectId,
+        }),
+      );
+      screen.openTaskOverlay();
+    });
+    assert.ok(
+      (await page.locator("#task-panel").innerText()).includes(
+        "Ready to report",
+      ),
+    );
+    await taskCapture("request-ready-report");
+    await page
+      .getByRole("button", { name: "Close camp responsibilities", exact: true })
+      .click();
+    await page.evaluate(() => {
+      window.scrambleQa.gm.systems.conversationSystem.startPlayerConversation({
+        npcId: window.requestQa.targetId,
+        phase: "post",
+        context: {
+          location: "beach",
+          groupParticipantIds: [window.requestQa.sandId],
+        },
+      });
+    });
+    await capture("group-active-request", viewport);
+    await button("End chat").click();
   }
   assert.deepEqual(errors, []);
   fs.writeFileSync(

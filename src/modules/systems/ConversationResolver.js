@@ -187,7 +187,8 @@ export default class ConversationResolver {
     )
       return "unowned_event";
     if (
-      (["idol_reveal","idol_protect"].includes(a.type) || a.type==='deal' && a.dealType==='IDOL_PROTECTION') &&
+      (["idol_reveal", "idol_protect"].includes(a.type) ||
+        (a.type === "deal" && a.dealType === "IDOL_PROTECTION")) &&
       !ownsUsableIdol(this.person(a.speakerId), this.gm.systems.idolSystem)
     )
       return "no_idol";
@@ -269,6 +270,21 @@ export default class ConversationResolver {
         proposition: heard.proposition,
         conditions: heard.conditions,
       });
+      if (heard.topic === "delegation" && heard.proposition?.voteTargetId) {
+        // Sharing a request conveys the named proposal, not an invented promise
+        // or access to the requester's unspoken objective.
+        emit(a.speakerId, heard.proposition.voteTargetId, {
+          topic: "target",
+          stance: "consider",
+          mode: "hearsay",
+          attributedId: source,
+          sourceChain: a.keepSourcePrivate
+            ? [a.speakerId]
+            : [...(heard.sourceChain || []), a.speakerId],
+          evidenceIds: [heard.id],
+          proposition: heard.proposition.line,
+        });
+      }
       this.noteSecretUse(a, heard);
       for (const id of a.listenerIds)
         say(id, "I hear you. Who else has checked that?");
@@ -426,13 +442,25 @@ export default class ConversationResolver {
           id,
           "I’ll keep that in mind. I want to hear more before I rely on it.",
         );
-    } else if(a.type==='come_with_me') {
-      for(const id of a.listenerIds){const r=this.tasks.invite(a,id,random);say(id,r.line,r.stance);}
+    } else if (a.type === "come_with_me") {
+      for (const id of a.listenerIds) {
+        const r = this.tasks.invite(a, id, random);
+        say(id, r.line, r.stance);
+      }
     } else if (["delegate", "bring"].includes(a.type)) {
       emit(a.speakerId, a.subjectId, {
         topic: "delegation",
         stance: "requested",
-        proposition: a.requestedAction || "bring",
+        proposition: {
+          purpose: a.requestedAction || "bring",
+          targetId: a.subjectId,
+          voteTargetId: ["recruit", "decoy", "backup", "split"].includes(
+            a.requestedAction,
+          )
+            ? a.planTargetId || this.ownTarget(a.speakerId)
+            : null,
+          line: result.playerLine,
+        },
       });
       for (const id of a.listenerIds) {
         const task = this.tasks.create(
@@ -687,7 +715,12 @@ export default class ConversationResolver {
       ].includes(a.type)
     ) {
       for (const id of a.listenerIds) {
-        const read=a.type==='strategy_style'?this.strategyStyleRead(id):a.type==='person_read'&&a.readAngle?this.personRead(id,a):this.socialRead(id,a.type,a.subjectId);
+        const read =
+          a.type === "strategy_style"
+            ? this.strategyStyleRead(id)
+            : a.type === "person_read" && a.readAngle
+              ? this.personRead(id, a)
+              : this.socialRead(id, a.type, a.subjectId);
         say(id, read.line);
         if (read.subjectId)
           emit(id, read.subjectId, {
@@ -749,7 +782,8 @@ export default class ConversationResolver {
       this.camp.conversation.topics = `${this.camp.conversation.topics || ""} ${a.topic}`;
     }
     this.tasks.playerResponse(a, result);
-    for(const id of [a.speakerId,...a.listenerIds])this.tasks.learnReportEvidence(id);
+    for (const id of [a.speakerId, ...a.listenerIds])
+      this.tasks.learnReportEvidence(id);
     this.refreshConditions();
     for (const id of participants) {
       this.learnPromiseHistory(id);
@@ -1396,34 +1430,116 @@ export default class ConversationResolver {
     }
   }
   strategyStyleRead(ownerId) {
-    if(this.person(ownerId)?.isPlayer)return {line:'Choose what you want to say about your game.',evidenceIds:[]};
-    const p=conversationCharacter(this.person(ownerId));
-    return {line:p.consensusNeed>.65?'I want people to feel good working with me. I need to know who we can really trust.':
-      p.visibilityTolerance<.25?'I prefer quiet one-on-one talks. I don’t need everyone seeing me make a move.':
-      p.pressureDrive>.4?'I want clear numbers and people who keep their word. I would rather hear a direct answer.':
-      p.shieldValue>.2?'I want to keep the tribe strong, but I also need people who protect my place here.':
-      p.flexibility>.7?'I like having options. Sometimes the unexpected group makes the most sense.':'Relationships give me options. I want to hear people out before showing all my cards.',evidenceIds:[]};
+    if (this.person(ownerId)?.isPlayer)
+      return {
+        line: "Choose what you want to say about your game.",
+        evidenceIds: [],
+      };
+    const p = conversationCharacter(this.person(ownerId));
+    return {
+      line:
+        p.consensusNeed > 0.65
+          ? "I want people to feel good working with me. I need to know who we can really trust."
+          : p.visibilityTolerance < 0.25
+            ? "I prefer quiet one-on-one talks. I don’t need everyone seeing me make a move."
+            : p.pressureDrive > 0.4
+              ? "I want clear numbers and people who keep their word. I would rather hear a direct answer."
+              : p.shieldValue > 0.2
+                ? "I want to keep the tribe strong, but I also need people who protect my place here."
+                : p.flexibility > 0.7
+                  ? "I like having options. Sometimes the unexpected group makes the most sense."
+                  : "Relationships give me options. I want to hear people out before showing all my cards.",
+      evidenceIds: [],
+    };
   }
-  personRead(ownerId,a) {
-    const angle=a.readAngle,subject=a.subjectId,owned=this.knowledge(ownerId),name=this.name(subject);
-    if(['trustworthy','dangerous','lazy','suspicious'].includes(angle))return this.socialRead(ownerId,angle,subject);
-    const evidence=owned.filter(k=>same(k.subjectId,subject));
-    if(angle==='idol') {
-      const claim=evidence.find(k=>['idol_possession','idol_suspicion','idol_search_seen'].includes(k.topic));
-      return claim?{line:`What I heard about ${name} was ${claim.topic==='idol_search_seen'?'an idol search':claim.stance==='no'?'a denial':'possible protection'}. That is an account, not proof of possession.`,subjectId:subject,evidenceIds:[claim.id]}:{line:`Nobody has told me anything concrete about ${name} having an idol.`,evidenceIds:[]};
+  personRead(ownerId, a) {
+    const angle = a.readAngle,
+      subject = a.subjectId,
+      owned = this.knowledge(ownerId),
+      name = this.name(subject);
+    if (["trustworthy", "dangerous", "lazy", "suspicious"].includes(angle))
+      return this.socialRead(ownerId, angle, subject);
+    const evidence = owned.filter((k) => same(k.subjectId, subject));
+    if (angle === "idol") {
+      const claim = evidence.find((k) =>
+        ["idol_possession", "idol_suspicion", "idol_search_seen"].includes(
+          k.topic,
+        ),
+      );
+      return claim
+        ? {
+            line: `What I heard about ${name} was ${claim.topic === "idol_search_seen" ? "an idol search" : claim.stance === "no" ? "a denial" : "possible protection"}. That is an account, not proof of possession.`,
+            subjectId: subject,
+            evidenceIds: [claim.id],
+          }
+        : {
+            line: `Nobody has told me anything concrete about ${name} having an idol.`,
+            evidenceIds: [],
+          };
     }
-    if(angle==='name_mention') {
-      const claim=owned.find(k=>same(k.subjectId,a.speakerId)&&(same(k.speakerId,subject)||same(k.attributedId,subject))&&['target','safety','name_mention'].includes(k.topic));
-      return claim?{line:this.protectedClaim(ownerId,claim)?'I have heard your name, but I promised not to name that source.':`${this.name(claim.speakerId)} ${same(claim.speakerId,subject)?'mentioned':'told me about'} your name. I would check exactly what they meant.`,subjectId:subject,evidenceIds:[claim.id]}:{line:`I have not heard ${name} bring up your name. That does not mean nobody has.`,evidenceIds:[]};
+    if (angle === "name_mention") {
+      const claim = owned.find(
+        (k) =>
+          same(k.subjectId, a.speakerId) &&
+          (same(k.speakerId, subject) || same(k.attributedId, subject)) &&
+          ["target", "safety", "name_mention"].includes(k.topic),
+      );
+      return claim
+        ? {
+            line: this.protectedClaim(ownerId, claim)
+              ? "I have heard your name, but I promised not to name that source."
+              : `${this.name(claim.speakerId)} ${same(claim.speakerId, subject) ? "mentioned" : "told me about"} your name. I would check exactly what they meant.`,
+            subjectId: subject,
+            evidenceIds: [claim.id],
+          }
+        : {
+            line: `I have not heard ${name} bring up your name. That does not mean nobody has.`,
+            evidenceIds: [],
+          };
     }
-    if(angle==='challenge_value') {
-      const claim=evidence.find(k=>['challenge_performance','challenge_result'].includes(k.topic));
-      return claim?{line:`My evidence about ${name} is ${this.describeEvent(claim)}. I would still separate one result from their value over time.`,subjectId:subject,evidenceIds:[claim.id]}:{line:`I do not have enough individual challenge evidence about ${name} to give you a confident answer.`,evidenceIds:[]};
+    if (angle === "challenge_value") {
+      const claim = evidence.find((k) =>
+        ["challenge_performance", "challenge_result"].includes(k.topic),
+      );
+      return claim
+        ? {
+            line: `My evidence about ${name} is ${this.describeEvent(claim)}. I would still separate one result from their value over time.`,
+            subjectId: subject,
+            evidenceIds: [claim.id],
+          }
+        : {
+            line: `I do not have enough individual challenge evidence about ${name} to give you a confident answer.`,
+            evidenceIds: [],
+          };
     }
-    const company=this.memory.getCampObservations(ownerId).find(k=>k.type==='seen_together'&&(same(k.actorId,subject)||(k.participantIds||[]).some(id=>same(id,subject))));
-    const alliance=owned.find(k=>k.topic==='alliance_disclosure'&&k.memberIds?.some(id=>same(id,subject)));
-    const others=company?[company.actorId,...(company.participantIds||[])].filter(id=>!same(id,subject)):alliance?.memberIds.filter(id=>!same(id,subject))||[];
-    return others.length?{line:`I have ${company?'seen':'heard about'} ${name} spending time with ${others.map(id=>this.name(id)).join(' and ')}. Being seen together does not prove a voting agreement.`,subjectId:subject,evidenceIds:[company?.id||alliance.id]}:{line:`I have not seen enough of ${name}'s private connections to name a partner.`,evidenceIds:[]};
+    const company = this.memory
+      .getCampObservations(ownerId)
+      .find(
+        (k) =>
+          k.type === "seen_together" &&
+          (same(k.actorId, subject) ||
+            (k.participantIds || []).some((id) => same(id, subject))),
+      );
+    const alliance = owned.find(
+      (k) =>
+        k.topic === "alliance_disclosure" &&
+        k.memberIds?.some((id) => same(id, subject)),
+    );
+    const others = company
+      ? [company.actorId, ...(company.participantIds || [])].filter(
+          (id) => !same(id, subject),
+        )
+      : alliance?.memberIds.filter((id) => !same(id, subject)) || [];
+    return others.length
+      ? {
+          line: `I have ${company ? "seen" : "heard about"} ${name} spending time with ${others.map((id) => this.name(id)).join(" and ")}. Being seen together does not prove a voting agreement.`,
+          subjectId: subject,
+          evidenceIds: [company?.id || alliance.id],
+        }
+      : {
+          line: `I have not seen enough of ${name}'s private connections to name a partner.`,
+          evidenceIds: [],
+        };
   }
   socialRead(ownerId, type, subjectId) {
     const p = conversationCharacter(this.person(ownerId)),
@@ -1637,18 +1753,42 @@ export default class ConversationResolver {
   }
   sentence(a) {
     const name = this.name(a.subjectId);
-    if(this.gm.gamePhase!=='postChallenge'&&['promise','cover_promise','ask_vote','press','conditional'].includes(a.type)) {
-      if(a.type==='conditional')return `If we lose, I’ll vote ${name} if ${(a.conditions||[]).map(c=>`${this.name(c.voterId)} is in`).join(' and ')}.`;
-      return ['promise','cover_promise'].includes(a.type)?`If we lose, I would be willing to vote ${name}.`:`If we lose, would you vote ${name} with me?`;
+    if (
+      this.gm.gamePhase !== "postChallenge" &&
+      ["promise", "cover_promise", "ask_vote", "press", "conditional"].includes(
+        a.type,
+      )
+    ) {
+      if (a.type === "conditional")
+        return `If we lose, I’ll vote ${name} if ${(a.conditions || []).map((c) => `${this.name(c.voterId)} is in`).join(" and ")}.`;
+      return ["promise", "cover_promise"].includes(a.type)
+        ? `If we lose, I would be willing to vote ${name}.`
+        : `If we lose, would you vote ${name} with me?`;
     }
-    if(a.type==='delegate') {
-      const purposes={recruit:`try to get ${name} on ${this.name(a.planTargetId)}`,verify_vote:`find out where ${name} is voting`,verify_rumor:`check this story with ${name}`,warn:`warn ${name} that their name is coming up`,reassure:`reassure ${name}`,decoy:`give ${name} the ${this.name(a.planTargetId)} cover story`,gather:`find out what ${name} has heard`,bring:`go get ${name} and bring them here`,repair:`repair things with ${name}`,pass_info:`pass this information to ${name}`,check_loyalty:`check where ${name} stands`,backup:`discuss ${this.name(a.planTargetId)} as a backup with ${name}`,split:`discuss the split with ${name}`,leak:`pass this story to ${name}`,protect_source:`share this with ${name}, keeping the source private`};
-      return `Can you ${purposes[a.requestedAction]||`talk to ${name}`}? ${a.keepSourcePrivate?'Keep my name out of it.':''}`;
+    if (a.type === "delegate") {
+      const purposes = {
+        recruit: `try to get ${name} on ${this.name(a.planTargetId)}`,
+        verify_vote: `find out where ${name} is voting`,
+        verify_rumor: `check this story with ${name}`,
+        warn: `warn ${name} that their name is coming up`,
+        reassure: `reassure ${name}`,
+        decoy: `give ${name} the ${this.name(a.planTargetId)} cover story`,
+        gather: `find out what ${name} has heard`,
+        bring: `go get ${name} and bring them here`,
+        repair: `repair things with ${name}`,
+        pass_info: `pass this information to ${name}`,
+        check_loyalty: `check where ${name} stands`,
+        backup: `discuss ${this.name(a.planTargetId)} as a backup with ${name}`,
+        split: `discuss the split with ${name}`,
+        leak: `pass this story to ${name}`,
+        protect_source: `share this with ${name}, keeping the source private`,
+      };
+      return `Can you ${purposes[a.requestedAction] || `talk to ${name}`}? ${a.keepSourcePrivate ? "Keep my name out of it." : ""}`;
     }
     return (
       {
-        come_with_me:`${name} wants to talk to us. Come with me?`,
-        strategy_style:"How do you want to play this game?",
+        come_with_me: `${name} wants to talk to us. Come with me?`,
+        strategy_style: "How do you want to play this game?",
         pitch: `What if we vote ${name}?`,
         check_in: "How are you holding up?",
         personal: "What has being out here been like for you?",

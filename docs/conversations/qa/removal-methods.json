@@ -1,0 +1,3998 @@
+{
+  "baseline": "c16b7afa18f8a1637c87da4f80a266ec787189df",
+  "baselineDefinitions": 421,
+  "headDefinitions": 116,
+  "removedDefinitions": 305,
+  "removedUnique": 304,
+  "retained": [
+    "constructor",
+    "_campGameplayTimestamp",
+    "_createConvoContext",
+    "_resetConvoContext",
+    "_isVoteReadContextFresh",
+    "initialize",
+    "_getConversationSystems",
+    "_getPairTrust",
+    "_getRelationshipValue",
+    "_clampStat",
+    "_ensureConversationStyles",
+    "_scrambleModel",
+    "_scrambleRandom",
+    "_fmtNpcLine",
+    "_fmtPlayerLine",
+    "_fmtNarration",
+    "_formatMenuBody",
+    "_renderMenu",
+    "_initTranscript",
+    "_buildTranscriptBody",
+    "_ensureTranscriptHelpers",
+    "_addTranscriptEntry",
+    "_coerceTranscriptEntry",
+    "_renderTranscriptHtml",
+    "_formatTranscriptEntry",
+    "_wrapTranscriptHtml",
+    "_isNearBottom",
+    "_scrollToBottom",
+    "_getTranscriptScrollElement",
+    "_refreshTranscriptUI",
+    "_maybeAutoScrollTranscript",
+    "_buildChoiceButton",
+    "_renderParchmentLayout",
+    "_getActiveTranscriptSession",
+    "_runConversationNode",
+    "startNpcConversation",
+    "startConversation",
+    "startAllianceConversation",
+    "_renderAllianceConversation",
+    "_renderScrambleParticipants",
+    "startPlayerConversation",
+    "reset",
+    "serialize",
+    "deserialize",
+    "_handleNpcConfrontation",
+    "_handlePhaseChange",
+    "_handleCampViewLoaded",
+    "_pauseForCampEvent",
+    "_resumeAfterCampEvent",
+    "_queuePhaseInvitations",
+    "_scheduleMeetingInvitation",
+    "_pickConversationNpc",
+    "_showInvitationToast",
+    "_showTopicSelection",
+    "getMainTopics",
+    "_renderMainMenu",
+    "_buildMainTopics",
+    "decideNpcApproachPurpose",
+    "_startNpcInitiatedConversation",
+    "_resolveNpcIntentCounter",
+    "_resolveNpcAllianceIntentState",
+    "_logConversationStart",
+    "_validateConversationTreeOnStart",
+    "_buildStrategyNodes",
+    "_createDeal",
+    "_getTrustScore",
+    "_showNpcApproachOverlay",
+    "_handleApproachDeclined",
+    "_startConversation",
+    "_safeClick",
+    "_normalizeConversationContext",
+    "_getConversationContent",
+    "_clearConversationContent",
+    "_createChoiceButton",
+    "closeConversation",
+    "endConversation",
+    "_getTrustScore",
+    "_buildOverlayShell",
+    "_buildParchment",
+    "_isConversationDebugEnabled",
+    "_debugLog",
+    "_debugBanner",
+    "_getConversationPhase",
+    "_normalizePhase",
+    "validate",
+    "validateConversationNodes",
+    "validateMenus",
+    "runSelfTest",
+    "_runConversationQA",
+    "_isPlayerTribeSafeTonight",
+    "_pickIntelTarget",
+    "_getBestIntelForTarget",
+    "_pickAlliesForTarget",
+    "_pickTargetName",
+    "_determinePreferredTarget",
+    "_relationshipBetween",
+    "_getVoteTogetherContextBonus",
+    "_evaluateDealResponse",
+    "_getSurvivorByName",
+    "_getRelationshipScore",
+    "_clamp01",
+    "scoreStrategicApproach",
+    "_computeNpcStance",
+    "_choiceKey",
+    "_shiftMood",
+    "_highlightNpcIcon",
+    "_clearPendingMeetings",
+    "_applyMissedMeetingConsequence",
+    "_getSurvivorById",
+    "_debugStartNpcApproach",
+    "_clearOverlay",
+    "_clearApproachTimer",
+    "_formatLocation",
+    "_normalizeLocationKey",
+    "_injectConversationStyles",
+    "_isInCamp"
+  ],
+  "removed": [
+    {
+      "name": "_bumpConvoTurn",
+      "line": 261,
+      "endLine": 268,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_markVoteReadContext",
+      "line": 270,
+      "endLine": 281,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "adjustTrust",
+      "line": 318,
+      "endLine": 321,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyTrustDelta",
+      "line": 350,
+      "endLine": 353,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyRelationshipDelta",
+      "line": 355,
+      "endLine": 361,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applySuspicionDelta",
+      "line": 363,
+      "endLine": 368,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyThreatDelta",
+      "line": 370,
+      "endLine": 373,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyParanoiaDelta",
+      "line": 375,
+      "endLine": 378,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getNpcMemory",
+      "line": 380,
+      "endLine": 391,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_recordIntel",
+      "line": 393,
+      "endLine": 412,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_setIntelFlag",
+      "line": 414,
+      "endLine": 418,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "decideNpcStance",
+      "line": 420,
+      "endLine": 530,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_selectNpcReply",
+      "line": 532,
+      "endLine": 539,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyStanceEffects",
+      "line": 541,
+      "endLine": 559,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_hasRecentEvent",
+      "line": 561,
+      "endLine": 563,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getTribeMembers",
+      "line": 565,
+      "endLine": 573,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_pickWorstStat",
+      "line": 575,
+      "endLine": 591,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_scrambleInt",
+      "line": 691,
+      "endLine": 691,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_renderScrambleContext",
+      "line": 692,
+      "endLine": 700,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_renderPickList",
+      "line": 751,
+      "endLine": 810,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_appendTranscriptLine",
+      "line": 822,
+      "endLine": 827,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_cleanChoiceLabel",
+      "line": 849,
+      "endLine": 854,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_isQuestionLike",
+      "line": 856,
+      "endLine": 860,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_looksLikeNameRequest",
+      "line": 863,
+      "endLine": 880,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_namePickPromptForReply",
+      "line": 882,
+      "endLine": 887,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_shouldPromptForNamePick",
+      "line": 889,
+      "endLine": 894,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_routeToNamePick",
+      "line": 896,
+      "endLine": 929,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_runPickFlow",
+      "line": 931,
+      "endLine": 978,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyExchangeEffects",
+      "line": 1147,
+      "endLine": 1169,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_renderSubMenu",
+      "line": 1889,
+      "endLine": 1914,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "getNpcApproachOpener",
+      "line": 2121,
+      "endLine": 2158,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "buildNpcApproachResponses",
+      "line": 2160,
+      "endLine": 2260,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "routeNpcApproachIntoTree",
+      "line": 2263,
+      "endLine": 2316,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_runNpcApproachPickNode",
+      "line": 2318,
+      "endLine": 2378,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "buildNpcConversationIntent",
+      "line": 2427,
+      "endLine": 2468,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolveNpcIntentType",
+      "line": 2470,
+      "endLine": 2505,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_normalizeNpcIntentType",
+      "line": 2507,
+      "endLine": 2532,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_weightedPick",
+      "line": 2534,
+      "endLine": 2544,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_topicForNpcIntentType",
+      "line": 2546,
+      "endLine": 2556,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getAvailableNpcIntentTargets",
+      "line": 2558,
+      "endLine": 2569,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_chooseNpcIntentTarget",
+      "line": 2571,
+      "endLine": 2614,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_isValidNpcIntentTarget",
+      "line": 2616,
+      "endLine": 2627,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_describeNpcIntentReason",
+      "line": 2629,
+      "endLine": 2645,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNpcAlliancePlan",
+      "line": 2647,
+      "endLine": 2669,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNpcInfoNeed",
+      "line": 2671,
+      "endLine": 2683,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNpcIntentOpeningLine",
+      "line": 2685,
+      "endLine": 2705,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNpcIntentResponses",
+      "line": 2707,
+      "endLine": 2756,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNpcIntentButtons",
+      "line": 2758,
+      "endLine": 2763,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handleNpcIntentResponse",
+      "line": 2765,
+      "endLine": 2796,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolveNpcIntentOutcome",
+      "line": 2798,
+      "endLine": 2837,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNpcIntentFollowupButtons",
+      "line": 2839,
+      "endLine": 2858,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showNpcIntentCounterPicker",
+      "line": 2860,
+      "endLine": 2875,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyNpcIntentConsequences",
+      "line": 2925,
+      "endLine": 2988,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_recordNpcIntentStarted",
+      "line": 3006,
+      "endLine": 3032,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_selectNpcApproachOpenerRoute",
+      "line": 3034,
+      "endLine": 3058,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_openingLineAllowsImmediatePick",
+      "line": 3060,
+      "endLine": 3063,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_nodeRequiresImmediatePick",
+      "line": 3065,
+      "endLine": 3072,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveNpcOpeningLine",
+      "line": 3073,
+      "endLine": 3085,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildNpcOpeningFallbackNode",
+      "line": 3087,
+      "endLine": 3102,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_hasNegativeIntelAboutPlayer",
+      "line": 3104,
+      "endLine": 3120,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "chooseNpcOpeningNode",
+      "line": 3122,
+      "endLine": 3181,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_reportLegacyMenuUsage",
+      "line": 3252,
+      "endLine": 3254,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildBuildConnectionNodes",
+      "line": 3256,
+      "endLine": 3400,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildVibeCheckNodes",
+      "line": 3402,
+      "endLine": 3719,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildGossipNodes",
+      "line": 3721,
+      "endLine": 4006,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildIdolTalkNodes",
+      "line": 4008,
+      "endLine": 4126,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontNodes",
+      "line": 4245,
+      "endLine": 4347,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showTalkAboutSomeoneSelect",
+      "line": 4349,
+      "endLine": 4363,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showTalkAboutSomeoneAngles",
+      "line": 4365,
+      "endLine": 4390,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildTalkAboutSomeoneNode",
+      "line": 4392,
+      "endLine": 4589,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showNameSourceFollowup",
+      "line": 4591,
+      "endLine": 4656,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_pickLikelyDuo",
+      "line": 4658,
+      "endLine": 4674,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showTargetPitchMenu",
+      "line": 4676,
+      "endLine": 4716,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showDealTypeMenu",
+      "line": 4718,
+      "endLine": 4755,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolveDealOutcome",
+      "line": 4757,
+      "endLine": 4812,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showAllianceMenu",
+      "line": 4930,
+      "endLine": 4932,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showAllianceDoubtMenu",
+      "line": 4934,
+      "endLine": 4978,
+      "category": "A",
+      "family": "alliance",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveAllianceDoubt",
+      "line": 4980,
+      "endLine": 5001,
+      "category": "A",
+      "family": "alliance",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_showApologyMenu",
+      "line": 5003,
+      "endLine": 5034,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolveApology",
+      "line": 5036,
+      "endLine": 5054,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showCategoryMenu",
+      "line": 5056,
+      "endLine": 5221,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showPreChallengeCategoryMenu",
+      "line": 5223,
+      "endLine": 5299,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showPreChallengeSpecificMenu",
+      "line": 5301,
+      "endLine": 5342,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handlePreChallengeChoice",
+      "line": 5344,
+      "endLine": 5434,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "runConversationExchange",
+      "line": 5436,
+      "endLine": 5469,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_runExchangeStep",
+      "line": 5471,
+      "endLine": 5600,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_showFollowupOptions",
+      "line": 5602,
+      "endLine": 5650,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_showExchangeOutcome",
+      "line": 5652,
+      "endLine": 5671,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_initializeExchangeState",
+      "line": 5673,
+      "endLine": 5714,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_getPreChallengeChoiceById",
+      "line": 5716,
+      "endLine": 5722,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_isExchangeChoiceEligible",
+      "line": 5724,
+      "endLine": 5732,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildFollowupPlayerLine",
+      "line": 5734,
+      "endLine": 5747,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_applyFollowupActionEffects",
+      "line": 5749,
+      "endLine": 5784,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveExchangeResponse",
+      "line": 5786,
+      "endLine": 5817,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveExchangeIntel",
+      "line": 5819,
+      "endLine": 5863,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveIntelQuality",
+      "line": 5865,
+      "endLine": 5876,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_upgradeIntelQuality",
+      "line": 5878,
+      "endLine": 5883,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildConcreteIntel",
+      "line": 5885,
+      "endLine": 5923,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_getPivotIntelPacket",
+      "line": 5925,
+      "endLine": 5940,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveFollowupDeltas",
+      "line": 5942,
+      "endLine": 5986,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_mergeExchangeDeltas",
+      "line": 5988,
+      "endLine": 5994,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_applyExchangeStepEffects",
+      "line": 5996,
+      "endLine": 6066,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_formatExchangeOutcome",
+      "line": 6068,
+      "endLine": 6078,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_shouldOfferFollowup",
+      "line": 6080,
+      "endLine": 6085,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_shouldBackfirePress",
+      "line": 6087,
+      "endLine": 6094,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_shouldCave",
+      "line": 6096,
+      "endLine": 6133,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_registerPress",
+      "line": 6135,
+      "endLine": 6147,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_logExchangeDebug",
+      "line": 6149,
+      "endLine": 6156,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_showPreChallengeSequence",
+      "line": 6158,
+      "endLine": 6186,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolveChoiceActionLabel",
+      "line": 6240,
+      "endLine": 6279,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_makeButtonLabelFromLine",
+      "line": 6205,
+      "endLine": 6229,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolvePlayerLine",
+      "line": 6231,
+      "endLine": 6237,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getPreChallengeIntel",
+      "line": 6281,
+      "endLine": 6350,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolvePreChallengeEffects",
+      "line": 6352,
+      "endLine": 6597,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyConversationEffects",
+      "line": 6599,
+      "endLine": 6660,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolveNpcResponseMode",
+      "line": 6662,
+      "endLine": 6735,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNpcResponseLine",
+      "line": 6737,
+      "endLine": 6859,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_formatPreChallengeOutcome",
+      "line": 6861,
+      "endLine": 6911,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildRiskLine",
+      "line": 6913,
+      "endLine": 6919,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getNpcStyleKey",
+      "line": 6925,
+      "endLine": 6934,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_pickNpcVerb",
+      "line": 6936,
+      "endLine": 6948,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_pickFromArray",
+      "line": 6950,
+      "endLine": 6953,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_clampMetric",
+      "line": 6955,
+      "endLine": 6958,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_updatePlayerReputation",
+      "line": 6960,
+      "endLine": 6969,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_isChoiceSpammy",
+      "line": 6971,
+      "endLine": 6977,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_isCategoryRepeated",
+      "line": 6979,
+      "endLine": 6985,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_updateLastTopics",
+      "line": 6987,
+      "endLine": 7002,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showApproachMenu",
+      "line": 7004,
+      "endLine": 7062,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "promptSurvivorPicker",
+      "line": 7064,
+      "endLine": 7099,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showSpecificTopicMenu",
+      "line": 7101,
+      "endLine": 7168,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showChallengePerformanceMenu",
+      "line": 7170,
+      "endLine": 7237,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_showDeflectMenu",
+      "line": 7239,
+      "endLine": 7290,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showVerifyStoryMenu",
+      "line": 7292,
+      "endLine": 7326,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showChallengeDebriefMenu",
+      "line": 7328,
+      "endLine": 7449,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showIdolTalkMenu",
+      "line": 7451,
+      "endLine": 7573,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_showSplitVoteMenu",
+      "line": 7575,
+      "endLine": 7629,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_playerHasRecentNegativeAction",
+      "line": 7631,
+      "endLine": 7640,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_promptTargetSelection",
+      "line": 7642,
+      "endLine": 7692,
+      "category": "A",
+      "family": "strategy",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_showDealMenu",
+      "line": 7694,
+      "endLine": 7790,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_promptRecruitSelection",
+      "line": 7792,
+      "endLine": 7842,
+      "category": "A",
+      "family": "alliance",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildDealContext",
+      "line": 7844,
+      "endLine": 7867,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_startNodeConversation",
+      "line": 7987,
+      "endLine": 8028,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_startNodeFlowConversation",
+      "line": 8030,
+      "endLine": 8080,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_isDeterministicIntent",
+      "line": 8082,
+      "endLine": 8084,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_startDeterministicConversation",
+      "line": 8086,
+      "endLine": 8104,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_startDeterministicNodeConversation",
+      "line": 8106,
+      "endLine": 8156,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildDeterministicNodes",
+      "line": 8158,
+      "endLine": 8215,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_renderActiveConversation",
+      "line": 8217,
+      "endLine": 8281,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "advanceConversation",
+      "line": 8283,
+      "endLine": 8339,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyDeterministicIntent",
+      "line": 8341,
+      "endLine": 8380,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_generateDeterministicResponse",
+      "line": 8382,
+      "endLine": 8712,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "getDisclosureMode",
+      "line": 8714,
+      "endLine": 8734,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_countRepeatedIntent",
+      "line": 8736,
+      "endLine": 8740,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getClosestDuo",
+      "line": 8742,
+      "endLine": 8784,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_pickAlternateName",
+      "line": 8786,
+      "endLine": 8791,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_initNodeSession",
+      "line": 8793,
+      "endLine": 8810,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_createNodeId",
+      "line": 8812,
+      "endLine": 8815,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_registerNode",
+      "line": 8817,
+      "endLine": 8840,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getNpcMemoryEntry",
+      "line": 8857,
+      "endLine": 8874,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_npcDisplayName",
+      "line": 8892,
+      "endLine": 8894,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_verbAgree",
+      "line": 8896,
+      "endLine": 8899,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_npcSays",
+      "line": 8901,
+      "endLine": 8910,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "formatNarration",
+      "line": 8912,
+      "endLine": 8915,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "formatDialogue",
+      "line": 8917,
+      "endLine": 8941,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "composeExchange",
+      "line": 8943,
+      "endLine": 8958,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "formatExchange",
+      "line": 8960,
+      "endLine": 8971,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_parseNpcLine",
+      "line": 8973,
+      "endLine": 8998,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_formatNpcExchange",
+      "line": 9000,
+      "endLine": 9025,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_npcDoes",
+      "line": 9027,
+      "endLine": 9032,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_normalizeNpcVerbAgreement",
+      "line": 9034,
+      "endLine": 9095,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_escapeRegExp",
+      "line": 9097,
+      "endLine": 9099,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_normalizeSelfReferenceInQuotes",
+      "line": 9101,
+      "endLine": 9114,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_normalizeLegacyNodeText",
+      "line": 9116,
+      "endLine": 9127,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getNpcSayVerb",
+      "line": 9129,
+      "endLine": 9133,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_composeMenuText",
+      "line": 9135,
+      "endLine": 9150,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_formatPlayerNarration",
+      "line": 9152,
+      "endLine": 9166,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_fallbackPlayerNarration",
+      "line": 9168,
+      "endLine": 9182,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_formatNpcResponse",
+      "line": 9184,
+      "endLine": 9188,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_getNpcFallbackDialogue",
+      "line": 9190,
+      "endLine": 9202,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handleConversationError",
+      "line": 9204,
+      "endLine": 9231,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_renderRecoveryNode",
+      "line": 9233,
+      "endLine": 9258,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_renderConversationOverlay",
+      "line": 9299,
+      "endLine": 9308,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_renderNode",
+      "line": 9310,
+      "endLine": 9412,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_debugValidateRenderedNode",
+      "line": 9414,
+      "endLine": 9446,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handleNodeChoice",
+      "line": 9448,
+      "endLine": 9680,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_transitionToNode",
+      "line": 9682,
+      "endLine": 9718,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_goBackNode",
+      "line": 9720,
+      "endLine": 9724,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_endNodeConversation",
+      "line": 9801,
+      "endLine": 9803,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNodeFromMenu",
+      "line": 9805,
+      "endLine": 9828,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyNodeEffects",
+      "line": 9830,
+      "endLine": 9849,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handleNodeAction",
+      "line": 9851,
+      "endLine": 9977,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildDefaultFollowupChoices",
+      "line": 9979,
+      "endLine": 9998,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildAutoContinuationChoices",
+      "line": 10000,
+      "endLine": 10023,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildTradeInfoNode",
+      "line": 10025,
+      "endLine": 10057,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_promptFloatName",
+      "line": 10059,
+      "endLine": 10100,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_promptTrustedAlly",
+      "line": 10102,
+      "endLine": 10159,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_promptPlayerNamedTarget",
+      "line": 10161,
+      "endLine": 10210,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildDetailNode",
+      "line": 10212,
+      "endLine": 10331,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolveDisclosure",
+      "line": 10337,
+      "endLine": 10426,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildRumorPayload",
+      "line": 10428,
+      "endLine": 10486,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildWarningProofLine",
+      "line": 10488,
+      "endLine": 10514,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildTalkSpecificDetailLine",
+      "line": 10516,
+      "endLine": 10558,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildIntelDetailLine",
+      "line": 10560,
+      "endLine": 10581,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "getDisclosureBehavior",
+      "line": 10583,
+      "endLine": 10612,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getFallbackNpcResponseLine",
+      "line": 10614,
+      "endLine": 10639,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_logResponseFallback",
+      "line": 10641,
+      "endLine": 10655,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildFallbackResponseMenu",
+      "line": 10657,
+      "endLine": 10672,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handleResponse",
+      "line": 10674,
+      "endLine": 11114,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_evaluateCounterPitch",
+      "line": 11116,
+      "endLine": 11181,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handleCounterTarget",
+      "line": 11183,
+      "endLine": 11320,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyCounterCommit",
+      "line": 11322,
+      "endLine": 11364,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyCounterLeaveOpen",
+      "line": 11366,
+      "endLine": 11416,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "computeAllianceAcceptChance",
+      "line": 11418,
+      "endLine": 11464,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_handleAllianceInviteResponse",
+      "line": 11466,
+      "endLine": 11468,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildAllianceInviteDialogue",
+      "line": 11470,
+      "endLine": 11492,
+      "category": "A",
+      "family": "alliance",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_generateAllianceName",
+      "line": 11494,
+      "endLine": 11504,
+      "category": "A",
+      "family": "alliance",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildDialogue",
+      "line": 11714,
+      "endLine": 11913,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_selectIntentResponses",
+      "line": 11915,
+      "endLine": 11920,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveConversationFlow",
+      "line": 11922,
+      "endLine": 11927,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_startConversationFlow",
+      "line": 11929,
+      "endLine": 11990,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_renderConversationStep",
+      "line": 11992,
+      "endLine": 12249,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_advanceConversation",
+      "line": 12251,
+      "endLine": 12279,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_applyFlowChoiceEffects",
+      "line": 12281,
+      "endLine": 12431,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_appendConversationHistory",
+      "line": 12433,
+      "endLine": 12459,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_safeBuildNpcLine",
+      "line": 12461,
+      "endLine": 12490,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_safeFormatConversationLine",
+      "line": 12492,
+      "endLine": 12506,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_formatConversationLine",
+      "line": 12508,
+      "endLine": 12525,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_wasLastHistoryEntry",
+      "line": 12527,
+      "endLine": 12531,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildDefaultNpcResponse",
+      "line": 12533,
+      "endLine": 12637,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getSessionNpcStance",
+      "line": 12639,
+      "endLine": 12653,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontNodeRoot",
+      "line": 12655,
+      "endLine": 12743,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontWhyNameNode",
+      "line": 12745,
+      "endLine": 12822,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontSourceResponse",
+      "line": 12824,
+      "endLine": 12900,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontRefusalNode",
+      "line": 12902,
+      "endLine": 12967,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildConfrontFollowupChoices",
+      "line": 12969,
+      "endLine": 13019,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNameDropNodeRoot",
+      "line": 13021,
+      "endLine": 13055,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontEscalateNode",
+      "line": 13057,
+      "endLine": 13086,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNameDropDetailNode",
+      "line": 13088,
+      "endLine": 13165,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNameMentionedPlayerNode",
+      "line": 13167,
+      "endLine": 13306,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildWarningNodeRoot",
+      "line": 13308,
+      "endLine": 13387,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildWarningProofNode",
+      "line": 13389,
+      "endLine": 13442,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildWarningProofDetail",
+      "line": 13444,
+      "endLine": 13495,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_npcHasMentionedPlayer",
+      "line": 13497,
+      "endLine": 13503,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontQuestionLine",
+      "line": 13942,
+      "endLine": 13954,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildConfrontResolutionLine",
+      "line": 13956,
+      "endLine": 13996,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildNameDropReaction",
+      "line": 13998,
+      "endLine": 14009,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNameDropDetailQuestion",
+      "line": 14011,
+      "endLine": 14014,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildNameDropSourceResolution",
+      "line": 14016,
+      "endLine": 14023,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildNameDropRefusalResolution",
+      "line": 14025,
+      "endLine": 14028,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildNameDropCautionResolution",
+      "line": 14030,
+      "endLine": 14033,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildNameDropSupportResolution",
+      "line": 14035,
+      "endLine": 14038,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildNameDropDetailResolution",
+      "line": 14040,
+      "endLine": 14050,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveSnitchImpact",
+      "line": 14052,
+      "endLine": 14061,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_logStrategicMemory",
+      "line": 14063,
+      "endLine": 14076,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_recordStructuredSocialEvent",
+      "line": 14078,
+      "endLine": 14108,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_pickIntentTemplate",
+      "line": 14110,
+      "endLine": 14120,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildRubbingWrongResponse",
+      "line": 14122,
+      "endLine": 14173,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildAskIntelDialogue",
+      "line": 14175,
+      "endLine": 14314,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildTalkSpecificDialogue",
+      "line": 14316,
+      "endLine": 14602,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildPitchTargetDialogue",
+      "line": 14604,
+      "endLine": 14669,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildDeflectDialogue",
+      "line": 14671,
+      "endLine": 14711,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildVerifyStoryDialogue",
+      "line": 14713,
+      "endLine": 14764,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildChallengeDebriefDialogue",
+      "line": 14766,
+      "endLine": 14834,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildIdolTalkDialogue",
+      "line": 14836,
+      "endLine": 14968,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildSplitVoteDialogue",
+      "line": 14970,
+      "endLine": 14991,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildChallengePerformanceDialogue",
+      "line": 14993,
+      "endLine": 15026,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildTargetingDialogue",
+      "line": 15028,
+      "endLine": 15083,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_classifyStyle",
+      "line": 15085,
+      "endLine": 15093,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getAvailableTargetNames",
+      "line": 15095,
+      "endLine": 15099,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_isTooEarlyForVoteTalk",
+      "line": 15116,
+      "endLine": 15119,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getChallengePerformanceTag",
+      "line": 15185,
+      "endLine": 15196,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildHardStrategyLine",
+      "line": 15198,
+      "endLine": 15215,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_buildHardStrategyResponses",
+      "line": 15217,
+      "endLine": 15233,
+      "category": "A",
+      "family": "strategy",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_pickTrustedAllyName",
+      "line": 15259,
+      "endLine": 15288,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_describeDeal",
+      "line": 15290,
+      "endLine": 15309,
+      "category": "A",
+      "family": "alliance",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_isDealIntent",
+      "line": 15311,
+      "endLine": 15319,
+      "category": "B",
+      "family": "alliance",
+      "replacement": "AllianceConversation / AllianceSystem; DealSystem for non-alliance obligations",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/AllianceHarness.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_getMood",
+      "line": 15461,
+      "endLine": 15463,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_recordMention",
+      "line": 15465,
+      "endLine": 15499,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_recordStrategicContext",
+      "line": 15501,
+      "endLine": 15510,
+      "category": "B",
+      "family": "strategy",
+      "replacement": "ConversationResolver → ScrambleStrategy; semantic follow-ups in ConversationView",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/ConversationSemantics.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_logSocialEvent",
+      "line": 15512,
+      "endLine": 15523,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_npcHonestyCheck",
+      "line": 15525,
+      "endLine": 15535,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyApproachStanceBias",
+      "line": 15542,
+      "endLine": 15549,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_resolveApproachInfluence",
+      "line": 15635,
+      "endLine": 15650,
+      "category": "A",
+      "family": "npc",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_getIntentRelationshipDelta",
+      "line": 15687,
+      "endLine": 15709,
+      "category": "B",
+      "family": "memory",
+      "replacement": "ConversationResolver → SocialMemorySystem / CampKnowledge",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationIntegration.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_ensureNpcReplyLine",
+      "line": 15711,
+      "endLine": 15729,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_pickNpcResponse",
+      "line": 15731,
+      "endLine": 15756,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_resolvePlayerNarration",
+      "line": 15758,
+      "endLine": 15766,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_inferNarrationFromLabel",
+      "line": 15768,
+      "endLine": 15782,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_logEndConversationClick",
+      "line": 15790,
+      "endLine": 15796,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_isEndConversationChoice",
+      "line": 15798,
+      "endLine": 15807,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_wrapNavHandler",
+      "line": 15809,
+      "endLine": 15819,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildEndConversationHandler",
+      "line": 15821,
+      "endLine": 15835,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_isNavChoice",
+      "line": 15837,
+      "endLine": 15840,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNavChoices",
+      "line": 15842,
+      "endLine": 15876,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_dedupeChoices",
+      "line": 15878,
+      "endLine": 15888,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_appendNavChoices",
+      "line": 15890,
+      "endLine": 15904,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_appendNavButtonsToColumn",
+      "line": 15906,
+      "endLine": 15950,
+      "category": "B",
+      "family": "ui",
+      "replacement": "ConversationView → retained ConversationSystem session/navigation renderer",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "qa/ConversationRenderedQA.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_buildNavOptions",
+      "line": 15952,
+      "endLine": 15954,
+      "category": "A",
+      "family": "ui",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    },
+    {
+      "name": "_rememberConversation",
+      "line": 15961,
+      "endLine": 15974,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_applyStrategicApproachOutcome",
+      "line": 15976,
+      "endLine": 16043,
+      "category": "B",
+      "family": "npc",
+      "replacement": "ConversationResolver.executeAgenda / StrategicObjectivePlanner → ConversationView.startNpc",
+      "coverage": [
+        "test/ConversationIntegration.test.mjs",
+        "test/PlayerStrategicRequests.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_logConversationOutcome",
+      "line": 16045,
+      "endLine": 16517,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_logIntelPayload",
+      "line": 16519,
+      "endLine": 16588,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_survivorHasIdol",
+      "line": 16658,
+      "endLine": 16664,
+      "category": "B",
+      "family": "social",
+      "replacement": "ConversationActionCatalog → ConversationResolver (owned social reads / event-specific repair / idol evidence)",
+      "coverage": [
+        "test/ConversationSemantics.test.mjs",
+        "test/ConversationParityCompatibility.test.mjs"
+      ],
+      "evidence": "Capability or internal helper replaced by semantic routing; see REMOVAL-PARITY-AUDIT.md. No external ConversationSystem caller."
+    },
+    {
+      "name": "_findIdolHolderInTribe",
+      "line": 16666,
+      "endLine": 16670,
+      "category": "A",
+      "family": "social",
+      "replacement": null,
+      "coverage": [
+        "test/ConversationRemovalParity.test.mjs"
+      ],
+      "evidence": "Baseline conservative member-reference traversal: no reachable entry; BASELINE-AUDIT.md table."
+    }
+  ],
+  "externalConversationReferences": [],
+  "referenceMethod": "git grep each removed name at baseline/head across src/test/qa; manually identify actual owner; search qualified/bracket/dynamic dispatch separately."
+}
