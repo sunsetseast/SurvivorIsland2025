@@ -135,9 +135,13 @@ export default class ScrambleActivityPlan {
     if (activity.type === 'meeting_wait') return true;
     if (activity.type === 'approach_player') {
       const player = this.gm.getPlayerSurvivor?.();
-      if (this.present(player, activity.location)) {
+      if (this.present(player, activity.location) && !this.invitation && !this.camp.conversation) {
         actor.campActivity = { ...activity, id: `${activity.id}:waiting`, type: 'approach_wait', endsAt: 0, external: true, interruptible: false };
         this.invitation = { npcId: actor.id, purpose: activity.purpose, agenda: activity.agenda, activityId: actor.campActivity.id, expiresAt: at - 180 };
+      } else {
+        // A second arrival cannot overwrite the invitation and strand its speaker.
+        actor.campActivity=null;
+        this.camp.start(actor,{type:'observe',location:activity.location,duration:120},at);
       }
       return true;
     }

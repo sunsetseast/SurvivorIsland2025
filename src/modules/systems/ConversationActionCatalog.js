@@ -12,7 +12,16 @@ export const CONVERSATION_CATEGORIES = Object.freeze([
   ["person", "Talk About Someone"],
 ]);
 // Definitions are capabilities, not sentence trees. Subject selection is a UI concern.
+export const PERSON_READ_ANGLES = Object.freeze([
+ ['trustworthy','Do you trust them?'],['close','Who are they close with?'],['dangerous','How dangerous are they?'],['lazy','Are they helping around camp?'],
+ ['challenge_value','What do they bring to challenges?'],['suspicious','Are they acting suspiciously?'],['idol','Have they been searching for an idol?'],
+ ['name_mention','Have they brought up my name?'],['working_with','Who are they working with?']]);
+export const PRE_CAMP_LABELS = Object.freeze({vote_read:'Who might be vulnerable if we lose?',safety:'Would I be vulnerable if we lose?',ask_vote:'Ask about voting together if we lose',
+ press:'Ask for a clear answer if we lose',promise:'Promise a vote if we lose',conditional:'Make a conditional vote promise if we lose',cover_promise:'Bluff: promise a vote if we lose',
+ numbers:'Who could we work with if we lose?',decoy:'Plant a possible target',backup:'Discuss a backup if we lose',split:'Discuss a possible split if we lose'});
 const definitions = [
+ ['strategy_style','read','How do you want to play?','Ask','strategy_style'],
+ ['come_with_me','move','Ask them to come with you','Propose','invitation','person'],
   ["check_in", "connect", "Check in", "Ask", "relationship"],
   [
     "personal",
@@ -384,6 +393,7 @@ export function conversationCapabilities(engine, speakerId, listenerIds) {
         ((d.type !== "backup" && d.type !== "split") ||
           engine.ownTarget(speakerId)),
     )
+    .map(d=>engine.gm.gamePhase!=="postChallenge"&&PRE_CAMP_LABELS[d.type]?{...d,label:PRE_CAMP_LABELS[d.type]}:d)
     .map((d) =>
       engine.person(speakerId)?.isPlayer && d.type === "idol_deny" && idol
         ? { ...d, label: "Lie: deny having an idol" }
@@ -395,11 +405,13 @@ export function conversationCapabilities(engine, speakerId, listenerIds) {
 export function suggestedConversationActions(engine, speakerId, listenerIds) {
   const available = conversationCapabilities(engine, speakerId, listenerIds),
     first = listenerIds[0],
-    suggestions = [];
+    suggestions = [...engine.tasks.suggestions(speakerId,listenerIds)];
   const add = (type, label, extras = {}) => {
     const d = available.find((d) => d.type === type);
     if (d) suggestions.push({ ...d, label: label || d.label, ...extras });
   };
+  const incoming=engine.tasks.knownTasks(speakerId).find(t=>samePerson(t.delegateId,speakerId)&&samePerson(t.requesterId,first)&&t.publicStatus==='accepted'&&!t.report);
+  if(incoming)add('report',`Update ${engine.name(first)} about ${engine.name(incoming.targetId)}`,{delegationId:incoming.id});
   const tasks = engine.tasks
     .knownTasks(speakerId)
     .filter(

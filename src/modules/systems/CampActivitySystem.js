@@ -68,6 +68,7 @@ export default class CampActivitySystem {
     const assignments = this.gm.systems?.taskSimulationSystem?.getAssignmentsFromPlanOrTasks?.(this.gm, this.tribe) || {};
     return Object.keys(assignments).find(role => assignments[role]?.some(id => same(id, s.id))) || null;
   }
+  scheduledActors() {return this.members().filter(s=>!s.isPlayer||s.campActivity?.type==='travel'&&s.campActivity.taskId&&!s.campActivity.external);}
   ensureStarted(now = this.gm.dayTimer) {
     if (!['preChallenge', 'postChallenge'].includes(this.gm.gamePhase) || this.post && !this.strategy?.isActive || (this.gm.gameState && this.gm.gameState !== 'camp') ||
       this.gm.flags?.campEventActive || !this.tribe) return false;
@@ -218,6 +219,7 @@ export default class CampActivitySystem {
       external: Boolean(plan.external), ...(plan.taskId ? { taskId: plan.taskId, taskReporting: Boolean(plan.taskReporting) } : {}), ...(plan.objectiveId ? { objectiveId: plan.objectiveId } : {}), ...(plan.meetingId ? { meetingId: plan.meetingId } : {}),
       ...(plan.purpose ? { purpose: plan.purpose } : {}), ...(plan.agenda ? { agenda: plan.agenda } : {}) };
     actor.campActivity = activity;
+    if(actor.isPlayer&&plan.type==='travel'&&plan.taskId)activity.interruptible=false;
     if (!actor.isPlayer) this.locations?.updateNpcLocation?.(actor.id, plan.location, { reason: `activity:${plan.type}`, publish: false });
     if (plan.type === 'travel' && plan.travelWithId) {
       const companion = this.npcs().find(s => same(s.id, plan.travelWithId));
@@ -237,7 +239,7 @@ export default class CampActivitySystem {
         activity.participantIds = [target.id];
       }
     }
-    if (!actor.isPlayer && plan.type === 'travel' && from && from !== plan.location)
+    if (plan.type === 'travel' && from && from !== plan.location)
       this.recordPhysicalMovement(actor, activity, 'departed', now);
     eventManager.publish('camp:activityChanged', { activityId: activity.id });
     return activity;
@@ -273,14 +275,14 @@ export default class CampActivitySystem {
     }
     let cursor = before, guard = 0;
     while (cursor > after && guard++ < 3000) {
-      const due = this.npcs().map(s => s.campActivity).filter(a => a && !a.external && a.endsAt < cursor && a.endsAt >= after);
+      const due = this.scheduledActors().map(s => s.campActivity).filter(a => a && !a.external && a.endsAt < cursor && a.endsAt >= after);
       const scheduled = this.post ? this.strategy?.nextActivityBoundaries?.(cursor, after) || [] : [];
       if (!due.length && !scheduled.length) break;
       const boundary = Math.max(...due.map(a => a.endsAt), ...scheduled);
       elapsed(cursor - boundary); cursor = boundary; this.gm.dayTimer = boundary;
       // Settle every arrival at this boundary before collecting witnesses or
       // starting another route step. Pair companions are cleared atomically.
-      const arriving = this.npcs().filter(npc => npc.campActivity?.endsAt === boundary &&
+      const arriving = this.scheduledActors().filter(npc => npc.campActivity?.endsAt === boundary &&
         npc.campActivity.type === 'travel' && !npc.campActivity.external)
         .map(actor => ({ actor, activity: actor.campActivity }));
       const landed = arriving.filter(({ actor, activity }) => this.settleTravel(actor, activity, boundary));
@@ -394,8 +396,11 @@ export default class CampActivitySystem {
       if (companion?.campActivity?.id === activity.id) companion.campActivity = null;
     }
     // Refresh location residency/returned-target eligibility at actual arrival.
-    for (const id of [actor.id, ...(activity.participantIds || [])])
-      this.locations?.updateNpcLocation?.(id, activity.location, { reason: 'activity:arrival', publish: false });
+    for(const id of [actor.id,...(activity.participantIds||[])]) {
+      const member=this.members().find(s=>same(s.id,id));if(member?.isPlayer)member.location=activity.location;
+      else this.locations?.updateNpcLocation?.(id,activity.location,{reason:'activity:arrival',publish:false});
+    }
+    if(activity.taskId&&!activity.route?.length)this.gm.systems.conversationSystem?.engine.tasks.arrived(actor,activity);
     return true;
   }
   continueTravel(actor, activity, at) {
@@ -404,12 +409,16 @@ export default class CampActivitySystem {
     // the stale, already completed travel object.
     if (actor.campActivity) return;
     if (activity.route?.length) this.start(actor, { type: 'travel', location: activity.route[0],
-      route: activity.route.slice(1), goal: activity.goal, travelWithId: activity.travelWithId }, at);
+      route: activity.route.slice(1), goal: activity.goal, travelWithId: activity.travelWithId, taskId:activity.taskId }, at);
     else if (activity.goal) this.start(actor, activity.goal, at);
     const companion = this.npcs().find(s => same(s.id, activity.travelWithId));
-    if (companion && !companion.campActivity && at > 0) this.chooseNext(companion, at);
-    if (!actor.campActivity && at > 0 && !activity.external) this.chooseNext(actor, at);
+    if(companion&&!companion.campActivity&&at>0) {
+      if(actor.isPlayer&&activity.taskId&&!activity.route?.length)this.start(companion,{type:'idle_at_camp',location:activity.location,duration:120},at);
+      else this.chooseNext(companion,at);
+    }
+    if (!actor.isPlayer && !actor.campActivity && at > 0 && !activity.external) this.chooseNext(actor, at);
     eventManager.publish('camp:activityChanged', { activityId: activity.id });
+    if(actor.isPlayer&&activity.taskId)eventManager.publish('camp:playerPairedArrival',{location:activity.location});
   }
   resolveWork(actor, activity, at) {
     const tribe = this.tribe, rule = WORK[activity.type];
@@ -527,14 +536,13 @@ export default class CampActivitySystem {
     this.strategy?.reasoning?.checkpoint(this.conversation);
     return true;
   }
-  moveTogether(actor, companion, destination) {
-    if (!this.active || this.absent(actor) || this.absent(companion) || actor.isPlayer || companion.isPlayer ||
-      actor.campActivity?.interruptible === false || companion.campActivity?.interruptible === false) return false;
-    const from = this.locations?.getLocation?.(actor.id), route = routeBetween(from, destination);
-    if (!this.present(actor, from) || !this.present(companion, from) || !route.length || route.length > 2) return false;
-    const goal = { type: 'strategy_conversation', location: destination, targetId: companion.id };
-    return this.start(actor, { type: 'travel', location: route[0], route: route.slice(1),
-      goal, travelWithId: companion.id });
+  moveTogether(actor,companion,destination,{taskId=null}={}) {
+    if(!this.active||this.absent(actor)||this.absent(companion)||companion.isPlayer||actor.isPlayer&&!taskId||
+      actor.campActivity?.interruptible===false||companion.campActivity?.interruptible===false)return false;
+    const from=actor.isPlayer?actor.location:this.locations?.getLocation?.(actor.id),route=routeBetween(from,destination);
+    if(!this.present(actor,from)||!this.present(companion,from)||!route.length||!taskId&&route.length>2)return false;
+    const goal=taskId?{type:'observe',location:destination,duration:120}:{type:'strategy_conversation',location:destination,targetId:companion.id};
+    return this.start(actor,{type:'travel',location:route[0],route:route.slice(1),goal,travelWithId:companion.id,taskId});
   }
   reserveConversationGroup(ids = []) {
     if (!this.conversation) return false;
@@ -601,7 +609,7 @@ export default class CampActivitySystem {
       const meeting = this.strategy?.scramble?.meetings.find(m => m.id === current.meetingId);
       if (meeting) { meeting.status = 'completed'; this.strategy.completedAllianceMeetings.add(meeting.id); }
     }
-    if (npc && this.gm.dayTimer > 0 && this.active) {
+    if (npc && !same(npc.id,current.followWithId) && this.gm.dayTimer > 0 && this.active) {
       if (current.prior && !(strategy || current.strategy)) this.start(npc, current.prior, this.gm.dayTimer);
       else this.chooseNext(npc, this.gm.dayTimer);
     }
@@ -670,7 +678,7 @@ export default class CampActivitySystem {
         this.memory?.removePrematureCampArrival?.(a.id, a.endsAt);
       }
       const companion = a?.external && ['socialize', 'strategy_conversation', 'alliance_meeting', 'travel'].includes(a.type) &&
-        this.npcs().some(owner => owner.campActivity?.id === a.id && !owner.campActivity.external &&
+        this.members().some(owner => owner.campActivity?.id === a.id && !owner.campActivity.external &&
           owner.campActivity.participantIds?.some(id => same(id, s.id)));
       const reservation = (a?.id === this.conversation?.activityId ||
         a?.type === 'approach_wait' && a.id === this.strategy?.scramble?.invitation?.activityId);

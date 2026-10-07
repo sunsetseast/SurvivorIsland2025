@@ -3,16 +3,35 @@ import {
   samePerson as same,
 } from "./ConversationActionCatalog.js";
 import { conversationCharacter } from "./ConversationCharacter.js";
+import { TASK_ACTIONS, taskAction } from './StrategicTaskActions.js';
 const copy = (x) => JSON.parse(JSON.stringify(x));
 // A planner influences conversations only. It never writes ballots or creates a vote solver.
 export default class StrategicObjectivePlanner {
   constructor(engine, payload = {}) {
     this.engine = engine;
     this.records = payload?.records || {};
-    this.dirty = new Set();
+    this.dirty = new Set(payload?.dirty || []);
   }
   invalidate(...ids) {
     ids.forEach((id) => this.dirty.add(String(id)));
+  }
+  intermediary(owner,target,objective,candidates) {
+    const e=this.engine,p=conversationCharacter(owner),known=e.knowledge(owner.id);
+    const connection=person=>{
+      const observations=e.memory.getCampObservations(owner.id).filter(k=>(same(k.actorId,person.id)&&(k.participantIds||[]).some(id=>same(id,target.id)))||(same(k.actorId,target.id)&&(k.participantIds||[]).some(id=>same(id,person.id))));
+      const reported=known.some(k=>k.memberIds?.some(id=>same(id,person.id))&&k.memberIds?.some(id=>same(id,target.id))&&k.confidence>=.5);
+      return Math.min(1,observations.length*.3+(reported?.4:0));
+    };
+    const scores=candidates.filter(x=>!same(x.id,target.id)).map(person=>{
+      const trust=(e.gm.getTrust?.(owner.id,person.id)??50)/100,affinity=e.gm.systems.allianceSystem?.getAllianceAffinity(owner.id,person.id)||0,
+        support=objective.believedVotes.find(v=>same(v.voterId,person.id)),alignment=support?.status==='committed'?1:support?.5:0,
+        relation=connection(person),reliability=e.tasks.reliability(owner.id,person.id),risk=known.some(k=>same(k.speakerId,person.id)&&k.topic==='alliance_doubt')?.25:0,
+        priorRefusal=e.tasks.knownTasks(owner.id).some(t=>same(t.delegateId,person.id)&&same(t.targetId,target.id)&&t.publicStatus==='refused'&&t.day===e.gm.day),
+        workload=e.tasks.knownTasks(owner.id).filter(t=>same(t.delegateId,person.id)&&t.publicStatus==='accepted'&&!t.report).length;
+      return {person,connection:relation,score:trust*.35+affinity*.15+alignment*.18+relation*.25+reliability*.55+p.delegationDrive*.14-risk-workload*.18-(priorRefusal?.5:0)};
+    }).filter(x=>x.score>=.52&&!e.model.recent(owner.id,x.person.id,180)).sort((a,b)=>b.score-a.score||String(a.person.id).localeCompare(String(b.person.id)));
+    const best=scores[0],self=.45+(e.gm.getTrust?.(owner.id,target.id)??50)/100*.16+p.visibilityTolerance*.12-(objective.secrecy?(1-p.visibilityTolerance)*.13:0);
+    return best&&best.score>self?best:null;
   }
   objective(ownerId) {
     return (
@@ -32,6 +51,7 @@ export default class StrategicObjectivePlanner {
       rationale = "Improve my position",
       backupTargetId = null,
       explicit = false,
+      work = null,
     } = {},
   ) {
     const e = this.engine;
@@ -55,6 +75,7 @@ export default class StrategicObjectivePlanner {
       type,
       targetId,
       explicit,
+      work:work?copy(work):null,
       rationale,
       desiredOutcome: "a viable individual voting plan",
       requiredVotes: Math.floor(conversationMembers(e.gm).length / 2) + 1,
@@ -132,6 +153,8 @@ export default class StrategicObjectivePlanner {
     const reports = owned.filter(
       (k) => k.topic === "task_report" && o.taskIds.includes(k.delegationId),
     );
+    for(const task of e.tasks.knownTasks(ownerId).filter(t=>o.taskIds.includes(t.id)&&t.publicStatus==='refused')){
+      o.processedRefusals||=[];if(!o.processedRefusals.includes(task.id)){o.processedRefusals.push(task.id);o.revision++;}}
     o.processedReports ||= [];
     for (const report of reports)
       if (!o.processedReports.includes(report.id)) {
@@ -192,12 +215,13 @@ export default class StrategicObjectivePlanner {
       known = e.knowledge(actor.id),
       free = conversationMembers(e.gm).filter(
         (x) =>
-          !x.isPlayer &&
           !same(x.id, actor.id) &&
           !same(x.id, o.targetId) &&
           (!x.campActivity ||
             ["rest", "idle_at_camp", "observe"].includes(x.campActivity.type)),
       );
+    const follow=e.tasks.knownTasks(actor.id).find(t=>same(t.requesterId,actor.id)&&['accepted','hedged'].includes(t.publicStatus)&&!t.report&&now<(e.tasks.get(t.id).lastFollowupAt??e.tasks.get(t.id).createdAt)-(t.purpose==='bring'?900:300));
+    if(follow){const listener=e.person(follow.delegateId);if(listener)return {type:listener.isPlayer?'approach_player':'strategy_conversation',location:e.place(listener.id),targetId:listener.id,duration:listener.isPlayer?45:120,objectiveId:o.id,purpose:'objective_followup',agenda:{purpose:'objective_followup',objectiveId:o.id,followTaskId:follow.id,primarySubject:follow.targetId}};}
     const unknown = free.filter(
       (x) =>
         !o.believedVotes.some(
@@ -212,36 +236,26 @@ export default class StrategicObjectivePlanner {
     const candidates = unknown.filter(
       (x) => !failed.has(String(x.id)) && !e.model.recent(actor.id, x.id, 420),
     );
-    if (!candidates.length) return null;
-    const ally = free
-      .filter(
-        (x) =>
-          !same(x.id, o.targetId) &&
-          o.believedVotes.some(
-            (v) => same(v.voterId, x.id) && v.status === "committed",
-          ),
-      )
-      .sort(
-        (a, b) =>
-          (e.gm.getTrust?.(actor.id, b.id) ?? 50) -
-          (e.gm.getTrust?.(actor.id, a.id) ?? 50),
-      )[0];
+    const plannedWork=o.work&&TASK_ACTIONS[o.work.purpose]&&(!o.work.claimId||known.some(k=>k.id===o.work.claimId))&&(!o.work.eventId||e.events(actor.id).some(k=>k.id===o.work.eventId))?o.work:null;
+    if(!candidates.length&&!plannedWork)return null;
     const pending = o.taskIds.some((id) => {
       const task = e.tasks.knownTasks(actor.id).find((t) => t.id === id);
       return task && !task.report && task.publicStatus === "accepted";
     });
-    const target = candidates.sort(
+    const target = e.person(plannedWork?.targetId) || candidates.sort(
       (a, b) =>
         Number(o.requiredPeople.some((id) => same(id, b.id))) -
           Number(o.requiredPeople.some((id) => same(id, a.id))) ||
         (e.gm.getTrust?.(actor.id, b.id) ?? 50) -
           (e.gm.getTrust?.(actor.id, a.id) ?? 50),
     )[0];
+    if(!target)return null;
     const publicAudience = conversationMembers(e.gm).filter(
       (x) => e.together(actor.id, x.id) && !same(x.id, actor.id),
     ).length;
     if (pending && p.visibilityTolerance < 0.6)
       return { type: "observe", location: e.place(actor.id), duration: 120 };
+    const intermediary=this.intermediary(actor,target,o,free),ally=intermediary?.person;
     const delegate =
       ally &&
       p.delegationDrive > 0.55 &&
@@ -264,10 +278,11 @@ export default class StrategicObjectivePlanner {
       p.coverDrive > 0.5 &&
       !o.steps.some((s) => s.type === "leak_test");
     return {
-      type: "strategy_conversation",
+      type: listener.isPlayer?"approach_player":"strategy_conversation",
       location: e.place(listener.id),
       targetId: listener.id,
-      duration: 120,
+      duration: listener.isPlayer?45:120,
+      purpose:delegate?"objective_delegate":"objective_recruit",
       objectiveId: o.id,
       agenda: {
         purpose: contingency
@@ -278,8 +293,10 @@ export default class StrategicObjectivePlanner {
               ? "objective_delegate"
               : "objective_recruit",
         objectiveId: o.id,
-        primarySubject: o.targetId,
+        primarySubject: plannedWork?.subjectId || o.targetId,
         delegateTargetId: target.id,
+        requestedAction:plannedWork?.purpose||(delegate&&o.secrecy&&intermediary.connection>=.5&&p.visibilityTolerance<.4?'bring':'recruit'),
+        claimId:plannedWork?.claimId,eventId:plannedWork?.eventId,
       },
     };
   }
@@ -289,33 +306,38 @@ export default class StrategicObjectivePlanner {
     if (!o || !e.together(actor.id, listener.id)) return null;
     const purpose = activity.agenda?.purpose,
       delegate = purpose === "objective_delegate",
+      personalWork=purpose==='objective_recruit'&&o.work?taskAction(e,{...o.work,delegateId:actor.id,requesterId:actor.id,primaryTargetId:o.targetId},actor.id):null,
       type =
-        purpose === "objective_backup"
+        purpose === 'objective_followup' ? 'follow_task' : purpose === "objective_backup"
           ? "backup"
           : purpose === "objective_leak_test"
             ? "leak_test"
             : delegate
               ? "delegate"
-              : "ask_vote";
+              : personalWork?.type || "ask_vote";
     const subjectId =
       type === "backup"
         ? e.model.alternateTarget(actor.id, [actor.id, listener.id, o.targetId])
         : delegate
           ? activity.agenda.delegateTargetId
-          : o.targetId;
-    if (subjectId == null) return null;
+          : personalWork ? personalWork.subjectId : o.targetId;
+    if (subjectId == null && !personalWork) return null;
     const a = e.action(type, {
+      ...(personalWork || {}),
       actionId: `${activity.id}:objective`,
       speakerId: actor.id,
       listenerIds: [listener.id],
       subjectId,
-      planTargetId: o.targetId,
-      requestedAction: "recruit",
+      planTargetId:activity.agenda?.primarySubject || o.targetId,
+      primaryTargetId:o.targetId,claimId:activity.agenda?.claimId,eventId:activity.agenda?.eventId,
+      requestedAction:activity.agenda?.requestedAction||'recruit',delegationId:activity.agenda?.followTaskId,
       objectiveId: o.id,
       activityId: activity.id,
-      keepSourcePrivate: o.secrecy,
+      keepSourcePrivate:o.secrecy&&activity.agenda?.requestedAction!=='bring',
+      line:type==='follow_task'?`Did you talk to ${e.name(e.tasks.get(activity.agenda.followTaskId)?.targetId)}?`:undefined,
     });
     const r = e.resolve(a);
+    if(type==='follow_task'&&!r.invalid){const task=e.tasks.get(a.delegationId);if(task)task.lastFollowupAt=e.gm.dayTimer;}
     if (!r.invalid) {
       e.model.contact([actor.id, listener.id]);
       o.steps.push({
@@ -331,10 +353,10 @@ export default class StrategicObjectivePlanner {
     return r;
   }
   serialize() {
-    return copy({ records: this.records });
+    return copy({ records: this.records, dirty:[...this.dirty] });
   }
   deserialize(p = {}) {
     this.records = p?.records || {};
-    this.dirty = new Set();
+    this.dirty = new Set(p?.dirty || []);
   }
 }
