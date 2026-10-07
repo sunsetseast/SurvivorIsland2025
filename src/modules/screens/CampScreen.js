@@ -177,6 +177,8 @@ export default class CampScreen {
         container: getElement('camp-content')
       });
     });
+    this.unsubscribeStrategicRequests=eventManager.subscribe('camp:readUpdated',()=>{if(this.taskOverlayOpen)this.renderTasksIntoOverlay();});
+    this.unsubscribePairedArrival=eventManager.subscribe('camp:playerPairedArrival',({location})=>{if(this.isActive)this.loadView(location,{travelPaid:true});});
     this.unsubscribeFromCampCheckpoint = eventManager.subscribe('camp:checkpoint', ({ report }) => {
       if (this.isActive && report?.uiIntent) runPart2FromCheckpointReport?.(report);
     });
@@ -356,6 +358,8 @@ export default class CampScreen {
   }
 
   loadView(viewName, { travelPaid = false, help = null } = {}) {
+    const walking=gameManager.player?.campActivity;
+    if(!travelPaid&&walking?.type==='travel'&&walking.taskId&&!walking.external){gameManager.systems.dialogueSystem?.showNotification?.('You are still walking together.','info');return;}
     this.campHelp = help; // Only a transient entry hint; never part of a save.
     const viewContainer = getElement('camp-content');
     const normalizedViewName = normalizeCampViewKey(viewName);
@@ -690,7 +694,7 @@ export default class CampScreen {
     this.taskOverlayOpen = true;
     overlay.onkeydown = event => {
       if (event.key === 'Escape') { event.preventDefault(); this.closeTaskOverlay(); }
-      if (event.key === 'Tab') { event.preventDefault(); panel?.querySelector('#task-close-hit')?.focus?.(); }
+      if(event.key==='Tab'){const buttons=[...panel.querySelectorAll('button:not(:disabled)')];const i=buttons.indexOf(document.activeElement);event.preventDefault();buttons[(i+(event.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();}
     };
     panel?.querySelector('#task-close-hit')?.focus?.();
   }
@@ -738,6 +742,32 @@ export default class CampScreen {
         line.appendChild(check);
       }
     });
+    panel.querySelector('.strategic-request-sections')?.remove();
+    const requests=taskData.strategicRequests||[],assigned=taskData.assignedRequests||[];
+    panel.classList.toggle('task-panel-with-requests',Boolean(requests.length||assigned.length));
+    const close=panel.querySelector('#task-close-hit');close.textContent=requests.length||assigned.length?'Close':'';
+    if(!requests.length&&!assigned.length)return;
+    const content=document.createElement('div');content.className='strategic-request-sections';
+    const engine=gameManager.systems.conversationSystem.engine,tasks=engine.tasks;
+    const addButton=(card,label,onClick,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=disabled;b.addEventListener('click',onClick);card.appendChild(b);};
+    const section=title=>{const el=document.createElement('section'),h=document.createElement('h2');h.textContent=title;el.appendChild(h);content.appendChild(el);return el;};
+    const talk=(id,context)=>{this.closeTaskOverlay();gameManager.systems.conversationSystem.startPlayerConversation({npcId:id,phase:gameManager.gamePhase==='postChallenge'?'post':'pre',context});};
+    if(requests.length){const list=section('Strategic Requests');for(const request of requests){
+      const card=document.createElement('article');card.className='strategic-request-card';card.dataset.requestId=request.id;
+      for(const [tag,text] of [['strong',request.requester],['p',request.description],['span',request.status]]){const el=document.createElement(tag);el.textContent=text;if(tag==='span')el.className='strategic-request-status';card.appendChild(el);}
+      addButton(card,'View',()=>{let detail=card.querySelector('.strategic-request-detail');if(detail){detail.remove();return;}detail=document.createElement('p');detail.className='strategic-request-detail';detail.textContent=request.reportLine||`Talk to ${engine.name(request.targetId)} in camp, then update ${request.requester}.`;card.appendChild(detail);});
+      if(request.canIgnore)addButton(card,'Leave undone',()=>{tasks.ignore(request.id,gameManager.player.id);this.renderTasksIntoOverlay();});
+      if(request.canWalk)addButton(card,`Walk with ${engine.name(request.targetId)}`,()=>{this.closeTaskOverlay();tasks.beginBring(request.id,gameManager.player.id);},!engine.together(gameManager.player.id,request.targetId));
+      if(request.canReport)addButton(card,'Report back',()=>talk(request.requesterId,{reportTaskId:request.id}),!engine.together(gameManager.player.id,request.requesterId));
+      if(request.meetingIds?.length&&request.meetingIds.every(id=>engine.together(gameManager.player.id,id)))addButton(card,'Talk together',()=>talk(request.requesterId,{groupParticipantIds:[request.targetId]}));
+      list.appendChild(card);
+    }}
+    if(assigned.length){const list=section('Requests you made');for(const request of assigned){
+      const card=document.createElement('article');card.className='strategic-request-card';const p=document.createElement('p');p.textContent=`${request.delegate}: ${request.description}`;card.appendChild(p);
+      const status=document.createElement('span');status.textContent=request.status;card.appendChild(status);
+      addButton(card,'Follow up',()=>talk(request.delegateId,{followTaskId:request.id}),!engine.together(gameManager.player.id,request.delegateId));list.appendChild(card);
+    }}
+    panel.insertBefore(content,close);
   }
 
   handleClaimTask(taskId) {

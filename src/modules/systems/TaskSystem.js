@@ -829,12 +829,14 @@ export default class TaskSystem {
 
   getVisibleTasksForPlayer(gameManager) {
     const gm = gameManager || this.gameManager;
+    const player=gm?.getPlayerSurvivor?.()||gm?.player,tasks=gm?.systems?.conversationSystem?.engine.tasks;
+    const strategic={strategicRequests:player?tasks?.playerRequests(player.id)||[]:[],assignedRequests:player?tasks?.assignedRequests(player.id)||[]:[]};
     const tribe = gm?.getPlayerTribe?.();
     const state = this.ensureTribeTaskState(tribe);
-    if (!state) return { lines: ['', '', '', ''], tasksForUI: [] };
+    if (!state) return { lines: ['', '', '', ''], tasksForUI: [], ...strategic };
 
     const playerId = gm?.getPlayerSurvivor?.()?.id || gm?.player?.id;
-    if (!playerId) return { lines: ['', '', '', ''], tasksForUI: [] };
+    if (!playerId) return { lines: ['', '', '', ''], tasksForUI: [], ...strategic };
 
     this.ingestCampLogForTribe(gm, tribe);
     (state.tasks || []).filter(task => task.status === 'complete' && !task.meta?.claimed).forEach(task => {
@@ -879,7 +881,7 @@ export default class TaskSystem {
     const lines = tasksForUI.map(t => t.titleLine).slice(0, 4);
     while (lines.length < 4) lines.push('');
 
-    return { lines, tasksForUI };
+    return { lines, tasksForUI, ...strategic };
   }
 
   progressSummary(task) {
