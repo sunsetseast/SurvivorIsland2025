@@ -11,6 +11,11 @@ export function resolveNpcCampExchange({ gm, memory, speaker, listener, activity
   if (gm.systems?.npcLocationSystem &&
     (!isCampPhysicallyPresent(speaker, gm.systems.npcLocationSystem, activity.location, gm) ||
       !isCampPhysicallyPresent(listener, gm.systems.npcLocationSystem, activity.location, gm))) return null;
+  const semantic = gm.systems?.conversationSystem?.engine;
+  if (semantic) {
+    if (gm.gamePhase === 'postChallenge' && semantic.model) return semantic.executeAgenda(speaker, listener, activity, random);
+    return semantic.resolveCampAgenda(speaker, listener, activity);
+  }
   if (gm.gamePhase === 'postChallenge' && gm.systems.strategyPhaseSystem?.isActive && !gm.systems.strategyPhaseSystem.playerTribeSafe)
     return gm.systems.strategyPhaseSystem.reasoning.resolveAgenda(speaker, listener, activity, random);
   const day = gm.day || 1, campTime = activity.endsAt;

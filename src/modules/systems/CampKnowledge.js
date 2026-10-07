@@ -19,6 +19,7 @@ export function ownedCampKnowledge(memory, ownerId, day = 1) {
     id: entry.id, ownerId, kind, subjectId: kind === 'claim' ? entry.subjectId : entry.actorId,
     speakerId: entry.speakerId ?? entry.actorId, attributedId: entry.attributedId ?? entry.speakerId,
     allianceId: entry.allianceId ?? null, memberIds: [...(entry.memberIds || [])], objectiveReference: entry.objectiveReference ?? null, evidenceIds: [...(entry.evidenceIds || [])],
+    proposition: entry.proposition ?? null, conditions: JSON.parse(JSON.stringify(entry.conditions || [])), commitmentStatus: entry.commitmentStatus ?? null, secrecy: entry.secrecy ?? null, delegationId: entry.delegationId ?? null, location: entry.location ?? null, activityId: entry.activityId ?? null,
     refutesClaimId:entry.refutesClaimId, speechAct: entry.speechAct, audienceIds: [...(entry.audienceIds || [])], topic: entry.topic ?? entry.type, stance: entry.stance,
     sourceId: entry.sourceId ?? null, sourceChain: [...(entry.sourceChain || [])],
     provenance: campProvenance(entry), confidence: campEvidenceConfidence(entry),

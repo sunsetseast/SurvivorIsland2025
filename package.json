@@ -14,6 +14,7 @@
     "qa:strategy": "node qa/StrategicBehaviorHarness.mjs",
     "qa:convergence": "node qa/VoteConvergenceHarness.mjs",
     "qa:strategy:rendered": "node qa/StrategicBehaviorRenderedQA.mjs",
-    "qa:scramble:rendered": "node qa/ScrambleExperienceRenderedQA.mjs"
+    "qa:scramble:rendered": "node qa/ScrambleExperienceRenderedQA.mjs",
+    "qa:conversations:rendered": "node qa/ConversationRenderedQA.mjs"
   }
 }

@@ -1,0 +1,93 @@
+{
+  "baseline": "c16b7afa18f8a1637c87da4f80a266ec787189df",
+  "baselineChecked": true,
+  "baselineDefinitions": 421,
+  "headDefinitions": 116,
+  "removedDefinitions": 305,
+  "removedUnique": 304,
+  "obsolete": 83,
+  "replaced": 221,
+  "unrelatedReferences": [
+    {
+      "file": "src/modules/events/JourneyReturnCampEvent.js",
+      "line": 529,
+      "method": "adjustTrust"
+    },
+    {
+      "file": "src/modules/events/JourneyReturnCampEvent.js",
+      "line": 531,
+      "method": "adjustTrust"
+    },
+    {
+      "file": "src/modules/events/JourneyReturnCampEvent.js",
+      "line": 531,
+      "method": "adjustTrust"
+    },
+    {
+      "file": "src/modules/events/JourneyReturnCampEvent.js",
+      "line": 833,
+      "method": "adjustTrust"
+    },
+    {
+      "file": "src/modules/events/JourneyReturnCampEvent.js",
+      "line": 841,
+      "method": "adjustTrust"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 41,
+      "method": "_applyTrustDelta"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 51,
+      "method": "_applyTrustDelta"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 65,
+      "method": "_applyTrustDelta"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 74,
+      "method": "_applyTrustDelta"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 75,
+      "method": "_applySuspicionDelta"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 76,
+      "method": "_applySuspicionDelta"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 79,
+      "method": "_applyTrustDelta"
+    },
+    {
+      "file": "src/modules/systems/DealConsequencesSystem.js",
+      "line": 92,
+      "method": "_applySuspicionDelta"
+    },
+    {
+      "file": "src/modules/systems/SocialEngine.js",
+      "line": 86,
+      "method": "_applyConversationEffects"
+    },
+    {
+      "file": "src/modules/systems/SocialEngine.js",
+      "line": 598,
+      "method": "_applyConversationEffects"
+    },
+    {
+      "file": "src/modules/systems/SocialMemorySystem.js",
+      "line": 76,
+      "method": "adjustTrust"
+    }
+  ],
+  "errors": []
+}

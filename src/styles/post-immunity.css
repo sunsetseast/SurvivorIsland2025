@@ -314,6 +314,31 @@
 .scramble-participant.speaking {
   color: #fff0d2;
 }
+/* The semantic conversation audience stays visible without a horizontal rail. */
+#conversation-overlay.semantic-conversation .scramble-participants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  overflow: visible;
+}
+#conversation-overlay.semantic-conversation .scramble-participants:has(.scramble-participant:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+#conversation-overlay.semantic-conversation .scramble-participant {
+  min-width: 0;
+  font-size: 12px;
+}
+#conversation-overlay.semantic-conversation .scramble-participant > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#conversation-overlay.semantic-conversation .scramble-participant img {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
 .scramble-participant * {
   font: inherit;
   color: inherit;
@@ -863,3 +888,19 @@ body:has(.scramble-camp) #manage-alliance-panel {
     ) !important;
   }
 }
+
+/* Strategic requests share the existing camp task dialog. */
+.task-panel-with-requests#task-panel {width:min(580px,calc(100vw - 24px));height:auto;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;padding:16px;box-sizing:border-box;background:#f4e3ba;color:#352915;border:1px solid #99743f;border-radius:12px;overflow:auto;font-family:system-ui,sans-serif;}
+.task-panel-with-requests .task-line {position:static;width:auto;font:inherit;text-transform:none;margin:3px 0;}
+.task-panel-with-requests .task-line:empty {display:none;}
+.task-panel-with-requests#task-panel #task-close-hit {position:sticky;bottom:0;flex:0 0 auto;width:100%;min-height:44px;background:#e3cba0;border:1px solid #99743f;border-radius:6px;font:inherit;color:inherit;}
+.strategic-request-sections {min-width:0;}
+.strategic-request-sections h2 {font-size:18px;margin:12px 0 8px;}
+.strategic-request-card {padding:10px 0;border-top:1px solid #cbb48a;overflow-wrap:anywhere;}
+.strategic-request-card p {margin:6px 0;line-height:1.35;}
+.strategic-request-card span {display:block;margin:6px 0;font-size:14px;}
+.strategic-request-card button {min-height:44px;min-width:44px;padding:8px 12px;margin:4px 5px 4px 0;border:1px solid #99743f;border-radius:6px;background:#fff4dc;color:#352915;font:inherit;max-width:100%;}
+.strategic-request-card button:disabled {opacity:.6;}
+.strategic-request-card button:focus-visible {outline:3px solid #335a46;outline-offset:2px;}
+#task-panel.task-panel-with-requests .strategic-request-sections,#task-panel.task-panel-with-requests .strategic-request-sections * {font-family:system-ui,sans-serif!important;text-transform:none!important;letter-spacing:normal!important;text-shadow:none!important;}
+#task-panel.task-panel-with-requests .strategic-request-card p,#task-panel.task-panel-with-requests .strategic-request-card button {font-size:15px!important;font-weight:400!important;}

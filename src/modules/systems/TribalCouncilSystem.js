@@ -7,6 +7,7 @@ import { GameEvents } from '../core/EventManager.js';
 import { eligibleRockDrawers, resolveFireMaking, resolveMultiWayFireMaking } from './TribalDeadlock.js';
 import TribalKnowledgeModel from './TribalKnowledgeModel.js';
 import { decideNpcIdolPlay } from './TribalIdolPerception.js';
+import { promisedIdolProtectionTarget } from './ConversationProtection.js';
 
 export const TRIBAL_CONSENSUS_REFUSAL = 'REFUSE_CONSENSUS';
 
@@ -564,12 +565,13 @@ export default class TribalCouncilSystem {
       if (!this._hasIdol(survivor) || survivor.isPlayer) continue;
 
       const decision = decideNpcIdolPlay(survivor, knowledge);
-      const shouldPlay = decision.play;
+      const protectedId = promisedIdolProtectionTarget(this.gameManager,survivor,{selfDanger:decision.perceivedDanger});
+      const shouldPlay = decision.play || protectedId != null;
       this._debug('NPC idol perception', { survivorId: survivor.id, ...decision });
 
       if (shouldPlay) {
         if (!this.idolRegistrations.some(play => this._idsEqual(play.playedById, survivor.id))) {
-          this.idolRegistrations.push({ playedById: survivor.id, playedOnId: survivor.id });
+          this.idolRegistrations.push({ playedById: survivor.id, playedOnId: protectedId ?? survivor.id });
         }
       }
     }

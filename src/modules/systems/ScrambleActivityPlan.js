@@ -135,9 +135,13 @@ export default class ScrambleActivityPlan {
     if (activity.type === 'meeting_wait') return true;
     if (activity.type === 'approach_player') {
       const player = this.gm.getPlayerSurvivor?.();
-      if (this.present(player, activity.location)) {
+      if (this.present(player, activity.location) && !this.invitation && !this.camp.conversation) {
         actor.campActivity = { ...activity, id: `${activity.id}:waiting`, type: 'approach_wait', endsAt: 0, external: true, interruptible: false };
         this.invitation = { npcId: actor.id, purpose: activity.purpose, agenda: activity.agenda, activityId: actor.campActivity.id, expiresAt: at - 180 };
+      } else {
+        // A second arrival cannot overwrite the invitation and strand its speaker.
+        actor.campActivity=null;
+        this.camp.start(actor,{type:'observe',location:activity.location,duration:120},at);
       }
       return true;
     }
@@ -152,8 +156,13 @@ export default class ScrambleActivityPlan {
       const result = this.gm.systems.allianceSystem.resolveMeeting(meeting.allianceId, [actor, ...listeners], activity, () => this.random());
       if (result.targetId) this.strategy.allianceTargets.set(meeting.allianceId, result.targetId);
       meeting.outcome = result; meeting.status = 'completed'; this.strategy.completedAllianceMeetings.add(meeting.id);
-    } else for (const listener of listeners)
-      this.strategy.reasoning.resolveAgenda(actor, listener, activity, () => this.random());
+    } else for (const listener of listeners) {
+      const engine = this.gm.systems.conversationSystem?.engine;
+      if (engine && activity.taskId) engine.tasks.execute(actor, listener, activity);
+      else if (engine && activity.objectiveId) engine.objectives.execute(actor, listener, activity);
+      else if (engine) engine.executeAgenda(actor, listener, activity, () => this.random());
+      else this.strategy.reasoning.resolveAgenda(actor, listener, activity, () => this.random());
+    }
     this.note('conversation_resolved', { activityId: activity.id, actorId: actor.id, participantIds: listeners.map(s => s.id) });
     return true;
   }

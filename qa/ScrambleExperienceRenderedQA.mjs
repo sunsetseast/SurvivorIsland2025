@@ -76,7 +76,15 @@ const scenes = [
   "bottom",
 ];
 try {
-  browser = await browsers[engine].launch({ headless: true });
+  browser = await browsers[engine].launch({
+    headless: true,
+    ...(engine === "chromium" && process.env.CAMP_QA_EXECUTABLE
+      ? {
+          executablePath: process.env.CAMP_QA_EXECUTABLE,
+          args: ["--no-sandbox"],
+        }
+      : {}),
+  });
   const page = await browser.newPage();
   page.on("pageerror", (e) => {
     errors.push(e.message);
@@ -305,9 +313,15 @@ try {
     checks.push({ type: "group-checkpoint-resume", viewport });
     await page.evaluate(() => window.experienceQa.scene("conversation"));
     await page
-      .getByRole("button", { name: /^I’m voting / })
-      .first()
+      .getByRole("button", { name: "Make a Move", exact: true })
       .click();
+    await page
+      .getByRole("button", { name: "Votes and promises", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Promise your vote", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Jeremy", exact: true }).click();
     assert.ok(
       (await page.locator(".camp-observable-beat").innerText()).includes(
         "Promise remembered",
@@ -326,9 +340,10 @@ try {
       ),
       cp,
     );
-    assert.equal(
-      await page.getByRole("button", { name: /^I’m voting / }).count(),
-      0,
+    assert.ok(
+      (await page.locator(".conversation-transcript").innerText()).includes(
+        "I’m voting Jeremy",
+      ),
     );
     await shot(`resume-dialogue-${viewport.width}`);
     await page.keyboard.press("Escape");
@@ -453,6 +468,42 @@ try {
         else await talk.click();
         const overlay = page.locator("#conversation-overlay");
         if (await overlay.count()) {
+          if (
+            (await overlay.getAttribute("data-conversation-menu")) ===
+            "semantic"
+          ) {
+            if (["strategic player", "player in danger"].includes(policy)) {
+              await overlay
+                .getByRole("button", { name: "Make a Move", exact: true })
+                .click();
+              await overlay
+                .getByRole("button", {
+                  name: "Votes and promises",
+                  exact: true,
+                })
+                .click();
+              await overlay
+                .getByRole("button", {
+                  name:
+                    policy === "strategic player"
+                      ? "Ask for their vote"
+                      : "Pitch a target",
+                  exact: true,
+                })
+                .click();
+              await overlay
+                .locator(".conversation-options-region button")
+                .first()
+                .click();
+            } else if (policy === "social player") {
+              await overlay
+                .getByRole("button", { name: "Connect", exact: true })
+                .click();
+              await overlay
+                .getByRole("button", { name: "Check in", exact: true })
+                .click();
+            }
+          }
           const option =
             policy === "strategic player"
               ? overlay.getByRole("button", { name: /^I’m voting / }).first()

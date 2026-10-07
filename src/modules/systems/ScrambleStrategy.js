@@ -229,7 +229,7 @@ export default class ScrambleStrategy {
       skeptical.paranoiaDrive*.12-(contrary?.22:0)-(mode==='speculation'?.12:0));
   }
   statement({id,speakerId,listenerIds=[],subjectId,topic='target',stance='consider',mode='truthful',
-    attributedId=null,sourceChain=null,refutesClaimId=null,allianceId=null,memberIds=[],evidenceIds=[],random=()=>this.strategy.random()}) {
+    attributedId=null,sourceChain=null,refutesClaimId=null,allianceId=null,memberIds=[],evidenceIds=[],conditions=[],commitmentStatus=null,secrecy=null,delegationId=null,location=null,activityId=null,proposition=null,speechAct=null,leakTest=false,random=()=>this.strategy.random()}) {
     if (this.resolved[id]) return this.resolved[id];
     const speaker=this.person(speakerId); if (!id || !speaker || !this.person(subjectId) ||
       ['target','commitment','split_assignment'].includes(topic) && !this.strategy.isTargetIdAvailable(subjectId)) return null;
@@ -242,7 +242,7 @@ export default class ScrambleStrategy {
     this.memory.recordCampClaim({id,speakerId,listenerIds:listeners.map(p=>p.id),subjectId,topic,stance,
       origin:mode==='speculation'||mode==='inference'?'inference':mode==='hearsay'?'hearsay':'participant',
       attributedId:attributedId??speakerId, sourceChain:[...(sourceChain||[attributedId??speakerId]),speakerId].filter((v,i,a)=>!same(v,a[i-1])).slice(-5),
-      speechAct:topic,refutesClaimId,allianceId,memberIds:[...memberIds],evidenceIds:[...evidenceIds],confidence:.8,confidenceByListener:confidences,
+      speechAct:speechAct||topic,conditions,commitmentStatus,secrecy,delegationId,location,activityId,proposition,leakTest,refutesClaimId,allianceId,memberIds:[...memberIds],evidenceIds:[...evidenceIds],confidence:.8,confidenceByListener:confidences,
       day:this.gm.day,campTime:this.gm.dayTimer,salience:'high',...(hiddenFalse?{truthfulness:false}:{})});
     const state=this.state(speakerId);
     for (const listener of listeners) { state.pitchesByAudience[String(listener.id)]={id,subjectId,topic,stance,mode};

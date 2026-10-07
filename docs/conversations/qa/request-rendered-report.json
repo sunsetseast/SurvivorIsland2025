@@ -1,0 +1,3489 @@
+{
+  "checks": [
+    {
+      "scene": "suggestions",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "intent-groups",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Votes and promises",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Plans and protection",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Deception and leverage",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Ask someone to help",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "person-selection",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-selection",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Only if Jeremy commits",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Only if Sandra commits",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Only if Wendell commits",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Only if Kelley commits",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-transcript",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "delegation-attribution",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Don’t use my name",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Tell them I sent you",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Only tell them if necessary",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "save-resume",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on an assignment",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-long-transcript",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on Sandra",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Where is the vote?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-reactions",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "pre-bonding",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "pre-idol-follow-ups",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Who told you?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Ask why",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "What exactly did you hear?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "many-targets",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 0",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 1",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 2",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 3",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 4",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 5",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 6",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 7",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 8",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 9",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "incoming-request",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Agree to the request",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Decline the request",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Maybe — don’t count on me yet",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "strategic-requests",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "request-left-undone",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "task-context-first",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Sandra wants to talk — ask Michele Alexandria Montgomery-Wellington to come with you",
+          "width": 282,
+          "height": 87
+        },
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 282,
+          "height": 87
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "bring-response",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 282,
+          "height": 87
+        },
+        {
+          "text": "Check in",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "request-ready-report",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "group-active-request",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 282,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 282,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "suggestions",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "intent-groups",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Votes and promises",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Plans and protection",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Deception and leverage",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Ask someone to help",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "person-selection",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-selection",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Only if Jeremy commits",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Only if Sandra commits",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Only if Wendell commits",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Only if Kelley commits",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-transcript",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "delegation-attribution",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Don’t use my name",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Tell them I sent you",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Only tell them if necessary",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "save-resume",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on an assignment",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-long-transcript",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on Sandra",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Where is the vote?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-reactions",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "pre-bonding",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "pre-idol-follow-ups",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Who told you?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Ask why",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "What exactly did you hear?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "many-targets",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 0",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 1",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 2",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 3",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 4",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 5",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 6",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 7",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 8",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 9",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "incoming-request",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Agree to the request",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Decline the request",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Maybe — don’t count on me yet",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "strategic-requests",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "request-left-undone",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "task-context-first",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Sandra wants to talk — ask Michele Alexandria Montgomery-Wellington to come with you",
+          "width": 337,
+          "height": 87
+        },
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 337,
+          "height": 87
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "bring-response",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 337,
+          "height": 87
+        },
+        {
+          "text": "Check in",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "request-ready-report",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "group-active-request",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 337,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 337,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "suggestions",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "intent-groups",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Votes and promises",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Plans and protection",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Deception and leverage",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Ask someone to help",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "person-selection",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-selection",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Only if Jeremy commits",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Only if Sandra commits",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Only if Wendell commits",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Only if Kelley commits",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-transcript",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "delegation-attribution",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Don’t use my name",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Tell them I sent you",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Only tell them if necessary",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "save-resume",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on an assignment",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-long-transcript",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on Sandra",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Where is the vote?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-reactions",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "pre-bonding",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "pre-idol-follow-ups",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Who told you?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Ask why",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "What exactly did you hear?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "many-targets",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 0",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 1",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 2",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 3",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 4",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 5",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 6",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 7",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 8",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 9",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "incoming-request",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Agree to the request",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Decline the request",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Maybe — don’t count on me yet",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "strategic-requests",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "request-left-undone",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "task-context-first",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Sandra wants to talk — ask Michele Alexandria Montgomery-Wellington to come with you",
+          "width": 589,
+          "height": 66
+        },
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 589,
+          "height": 66
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "bring-response",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 589,
+          "height": 66
+        },
+        {
+          "text": "Check in",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "request-ready-report",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "group-active-request",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 589,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 589,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "suggestions",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "intent-groups",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Votes and promises",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Plans and protection",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Deception and leverage",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Ask someone to help",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "person-selection",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-selection",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Only if Jeremy commits",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Only if Sandra commits",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Only if Wendell commits",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Only if Kelley commits",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "conditional-transcript",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "delegation-attribution",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Don’t use my name",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Tell them I sent you",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Only tell them if necessary",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "save-resume",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on an assignment",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-long-transcript",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Follow up on Sandra",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Where is the vote?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "group-reactions",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "pre-bonding",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Check in",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "pre-idol-follow-ups",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Who told you?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Ask why",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "What exactly did you hear?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": true
+    },
+    {
+      "scene": "many-targets",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Jeremy",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Tony",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Sandra",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Wendell",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Kelley",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 0",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 1",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 2",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 3",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 4",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 5",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 6",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 7",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 8",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Contestant with a long name 9",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "incoming-request",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Agree to the request",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Decline the request",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Maybe — don’t count on me yet",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Pitch a target",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "strategic-requests",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "request-left-undone",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "task-context-first",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Sandra wants to talk — ask Michele Alexandria Montgomery-Wellington to come with you",
+          "width": 581,
+          "height": 66
+        },
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 581,
+          "height": 66
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "bring-response",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Parvati wants Michele Alexandria Montgomery-Wellington on Tony — ask for their vote",
+          "width": 581,
+          "height": 66
+        },
+        {
+          "text": "Check in",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Have a personal conversation",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    },
+    {
+      "scene": "request-ready-report",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "closeVisible": true,
+      "requests": 3
+    },
+    {
+      "scene": "group-active-request",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "fits": true,
+      "endVisible": true,
+      "buttons": [
+        {
+          "text": "Where is the vote?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Is my name coming up?",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Connect",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Read the Game",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Make a Move",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Relationships",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Idols & Advantages",
+          "width": 581,
+          "height": 45
+        },
+        {
+          "text": "Talk About Someone",
+          "width": 581,
+          "height": 45
+        }
+      ],
+      "transcriptScrollable": false
+    }
+  ],
+  "errors": []
+}
