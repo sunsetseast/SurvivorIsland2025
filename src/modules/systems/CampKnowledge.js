@@ -23,7 +23,7 @@ export function ownedCampKnowledge(memory, ownerId, day = 1) {
     refutesClaimId:entry.refutesClaimId, speechAct: entry.speechAct, audienceIds: [...(entry.audienceIds || [])], topic: entry.topic ?? entry.type, stance: entry.stance,
     sourceId: entry.sourceId ?? null, sourceChain: [...(entry.sourceChain || [])],
     provenance: campProvenance(entry), confidence: campEvidenceConfidence(entry),
-    challenged: Boolean(entry.challenged), day: entry.day, campTime: entry.campTime,
+    challenged: Boolean(entry.challenged), day: entry.day, campTime: entry.campTime, semanticOrder: entry.semanticOrder ?? null, phase: entry.phase ?? null,
     salience: entry.salience, visibility: entry.visibility || 'private',
     recency: Math.pow(.8, Math.max(0, day - (entry.day ?? day)))
     // Deliberate lie truthfulness and private transcript details never leave the store.

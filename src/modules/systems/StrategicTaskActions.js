@@ -17,6 +17,30 @@ export const TASK_ACTIONS = Object.freeze({
   leak: ["leak"],
   protect_source: ["share", "secrecy"],
 });
+// Identity is the question/proposal, not merely the pair of people. Refusal
+// revisions are deliberately absent: a worker saying no is not new evidence.
+export function strategicWorkKey(objectiveId, work, primaryTargetId = null) {
+  return JSON.stringify([
+    objectiveId || null, work.purpose, String(work.targetId),
+    work.subjectId == null ? null : String(work.subjectId),
+    work.primaryTargetId == null ? primaryTargetId : work.primaryTargetId,
+    work.requestedClaimId || work.claimId || null, work.eventId || null,
+    work.conditions || [], work.dependencyIds || [],
+  ]);
+}
+// Stored in canonical participant history; contains only the spoken semantics.
+// No executionMode, success flag, hidden intention or listener belief is copied.
+export function taskSpeechEvidence(e, a) {
+  const claim = e.knowledge(a.speakerId).find((k) => k.id === a.claimId);
+  return {
+    listenerIds: [...a.listenerIds], primaryTargetId: a.primaryTargetId || null,
+    eventId: a.eventId || null, keepSourcePrivate: Boolean(a.keepSourcePrivate),
+    information: claim ? {
+      topic: claim.topic, subjectId: claim.subjectId, stance: claim.stance,
+      proposition: claim.proposition ?? null,
+    } : null,
+  };
+}
 export function taskDescription(e, t) {
   const target = e.name(t.targetId),
     subject = e.name(t.subjectId);
