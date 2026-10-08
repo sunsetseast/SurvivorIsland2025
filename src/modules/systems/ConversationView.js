@@ -227,7 +227,43 @@ export default class ConversationView {
         onClick: () => this.choose(npc, context, d, d),
       });
     const last = this.reservation.checkpoint?.semanticLast;
+    const reportChallenge =
+      last?.type === "confront" &&
+      this.engine
+        .events(player.id)
+        .find(
+          (event) =>
+            event.proposition?.delegateId != null &&
+            same(event.proposition.delegateId, player.id) &&
+            event.proposition.reportId &&
+            event.evidenceIds?.length &&
+            same(event.speakerId, npc.id),
+        );
+    if (reportChallenge) {
+      for (const [type, label] of [
+        ["admit", "Admit your report was wrong"],
+        ["deny", "Stand by your report"],
+        ["event", "Explain a possible misunderstanding"],
+        ["apologize", "Apologize for the report"],
+      ]) {
+        const def = capabilities.find((d) => d.type === type);
+        if (def)
+          buttons.push({
+            label,
+            onClick: () =>
+              this.choose(npc, context, def, {
+                eventId: reportChallenge.id,
+                subjectId: reportChallenge.subjectId,
+                line:
+                  type === "event"
+                    ? "I may have misunderstood what they told me."
+                    : undefined,
+              }),
+          });
+      }
+    }
     for (const type of (last?.followUps || [])
+      .filter(() => !reportChallenge)
       .filter((t) => ACTION_DEFINITIONS[t])
       .slice(0, 3)) {
       const def = capabilities.find((d) => d.type === type);

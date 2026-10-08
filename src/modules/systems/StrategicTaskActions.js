@@ -76,7 +76,10 @@ export function taskAction(e, t, speakerId = t.delegateId) {
     primaryTargetId: t.primaryTargetId,
     conditions: t.conditions || [],
     keepSourcePrivate: t.purpose === "protect_source" || t.keepSourcePrivate,
-    truthMode: t.purpose === "decoy" ? "fabrication" : "truth",
+    truthMode:
+      t.deliveryTruthMode ||
+      t.truthMode ||
+      (t.purpose === "decoy" ? "fabrication" : "truth"),
   };
 }
 export function taskSuggestion(e, t) {
@@ -84,7 +87,7 @@ export function taskSuggestion(e, t) {
   if (!a) return null;
   const requester = e.name(t.requesterId),
     target = e.name(t.targetId);
-  return {
+  const suggestion = {
     ...a,
     taskContext: true,
     label:
@@ -94,6 +97,9 @@ export function taskSuggestion(e, t) {
           ? `${requester} wants ${target} on ${e.name(t.subjectId)} — ask for their vote`
           : `${requester} asked you: ${taskDescription(e, t)}`,
   };
+  if (e.person(t.delegateId)?.isPlayer && a.truthMode === "fabrication")
+    suggestion.label = `Bluff: ${suggestion.label}`;
+  return suggestion;
 }
 export function matchesTask(e, t, a) {
   if (

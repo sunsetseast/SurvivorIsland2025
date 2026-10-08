@@ -329,6 +329,13 @@ export default class ScrambleStrategy {
     }
     return true;
   }
+  // Read-only version of the opposition/minimum arithmetic used by group
+  // coordination below. Callers supply their own confirmed coalition evidence.
+  splitCapacity(confirmedIds, secondaryTargetId) {
+    const voters=[...new Set(confirmedIds.map(String))].filter(id=>this.person(id)&&!same(id,secondaryTargetId));
+    const opposition=this.members.length-voters.length, minimum=opposition+1, mainCount=voters.length-minimum;
+    return {viable:mainCount>=minimum,minimum,mainCount,voterIds:voters};
+  }
   split(ownerId,primaryTargetId,secondaryTargetId,assignments,fullKnowledgeIds=[ownerId]) {
     if(!this.strategy.isTargetIdAvailable(primaryTargetId)||!this.strategy.isTargetIdAvailable(secondaryTargetId)||same(primaryTargetId,secondaryTargetId))return null;
     const valid=Object.entries(assignments).filter(([id,target])=>this.person(id)&&(same(id,ownerId)||this.together(this.person(ownerId),this.person(id)))&&!same(id,target)&&[primaryTargetId,secondaryTargetId].some(t=>same(t,target)));
