@@ -26,7 +26,7 @@ export const CONVERSATION_HANDLERS = Object.freeze({
   ],
   information: ["share", "leak", "idol_rumor"],
   negotiate: ["pitch", "ask_vote", "press", "negotiate"],
-  promise: ["promise", "conditional", "cover_promise", "withdraw"],
+  promise: ["promise", "conditional", "cover_promise", "withdraw", "reply"],
   plan: ["backup", "split"],
   deception: [
     "decoy",

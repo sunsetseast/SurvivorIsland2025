@@ -49,6 +49,10 @@ function clean() {
   renderer.livePresentationCue = null;
   renderer.lastCountdownTier = null;
   renderer.readCueKeys = null;
+  gm.systems.conversationSystem.engine.initiative.deserialize();
+  // These are controlled presentation scenes; natural() restores routine motive generation.
+  const initiative=gm.systems.conversationSystem.engine.initiative;
+  initiative.candidates=()=>[];
   strategy.scramble.nextApproachAt = -1;
   strategy.scramble.meetings = [];
   for (const p of activity.npcs()) {
@@ -158,8 +162,9 @@ window.experienceQa = {
     )
       dense();
     if (name === "invitation") {
-      strategy.scramble.nextApproachAt = 3600;
-      strategy.onActivityBoundary(3600);
+      const coordinator=gm.systems.conversationSystem.engine.initiative;
+      coordinator.create(a,gm.player.id,{type:'check_in',key:'qa:invitation',reason:'connection',private:true});
+      activity.interrupt(a,'qa meaningful approach');activity.chooseNext(a,gm.dayTimer);
       window.scrambleQa.wait(45);
     }
     if (name === "meeting" || name === "group-dialogue") {
@@ -283,6 +288,7 @@ window.experienceQa = {
   },
   natural(seed) {
     clean();
+    const initiative=gm.systems.conversationSystem.engine.initiative;delete initiative.candidates;
     window.scrambleQa.natural(seed);
   },
   snapshot() {

@@ -168,19 +168,6 @@ class ConversationSystem {
       GameEvents.CAMP_EVENT_ENDED,
       this._resumeAfterCampEvent.bind(this),
     );
-    eventManager.subscribe("camp:timeAdvanced", ({ before, after, phase }) => {
-      const key = `${this.gameManager.day}:pre:mid`;
-      if (
-        phase !== GamePhase.PRE_CHALLENGE ||
-        before <= 4800 ||
-        after > 4800 ||
-        this._lastCampInvitationKey === key
-      )
-        return;
-      this._lastCampInvitationKey = key;
-      if (!this.gameManager.flags?.campEventActive)
-        this._scheduleMeetingInvitation(phase, "midPhase");
-    });
     if (typeof window !== "undefined") {
       window.runConversationQA = () => this._runConversationQA();
       window.ConversationSystem = window.ConversationSystem || {};
@@ -698,6 +685,7 @@ class ConversationSystem {
     )
       return;
     if (
+      (!options.initiatedByNpc || options.context?.approachAccepted || options.approachAccepted) &&
       this.gameManager.gamePhase === GamePhase.POST_CHALLENGE &&
       !isCampPhysicallyPresent(
         survivor,
@@ -707,35 +695,19 @@ class ConversationSystem {
       )
     )
       return;
-    const rawView =
-      typeof window !== "undefined" ? window.campScreen?.currentView : null;
-    const view = physicalCampLocation(rawView) || rawView;
-    const locations = this.gameManager.systems?.npcLocationSystem;
-    if (
-      view &&
-      locations?.phaseAssigned &&
-      !isCampPhysicallyPresent(survivor, locations, view, this.gameManager) &&
-      !options.context?.scripted
-    ) {
-      if (
-        this.gameManager.systems?.campActivitySystem?.active &&
-        !this.gameManager.systems.campActivitySystem.approachPlayer(
-          survivor,
-          view,
-        )
-      )
-        return;
-      locations.reserveNpcForMeeting?.(survivor.id, view, {
-        reason: "npc_approach",
+    if (options.initiatedByNpc && !options.context?.approachAccepted && !options.approachAccepted) {
+      const initiative=this.engine.initiative;
+      const existing=initiative.active(survivor.id);
+      const incident=type==='confrontation'?this.engine.events(survivor.id).find(k=>
+        k.subjectId===this.gameManager.player.id||k.speakerId===this.gameManager.player.id):null;
+      if (!existing) initiative.create(survivor,this.gameManager.player.id, {
+        type: incident ? 'confront' : type === 'confrontation' ? 'loyalty' : 'check_in',
+        key:`external:${type}:${this.gameManager.player.id}`,reason:type,
+        agenda:options.context?.agenda,fields:incident?{eventId:incident.id,subjectId:this.gameManager.player.id}:{},private:type==='confrontation',
       });
-      this.gameManager.campLog ||= [];
-      this.gameManager.campLog.push({
-        type: "camp_npc_approach",
-        day: this.gameManager.day,
-        actorId: survivor.id,
-        location: view,
-        narration: `${survivor.firstName || survivor.name} came over to talk.`,
-      });
+      const camp=this.gameManager.systems.campActivitySystem;
+      if(survivor.campActivity?.interruptible!==false) { camp.interrupt(survivor,'social initiative');camp.chooseNext(survivor,this.gameManager.dayTimer); }
+      return;
     }
     this.startConversation({
       npcId: survivor.id,
@@ -744,6 +716,7 @@ class ConversationSystem {
       context: {
         ...(options.context || {}),
         initiatedByNpc: options.initiatedByNpc,
+        approachAccepted: options.approachAccepted || options.context?.approachAccepted,
         location:
           options.location ||
           (typeof window !== "undefined"
@@ -1209,40 +1182,10 @@ class ConversationSystem {
     }
   }
 
-  _handleCampViewLoaded({ viewName }) {
-    if (!this._isInCamp() || this.gameManager.flags?.campEventActive) return;
-
-    const normalizedView = this._normalizeLocationKey(viewName);
-    const meeting = this.pendingMeetings.find(
-      (item) =>
-        item.normalizedLocation === normalizedView && !item.hasTriggered,
-    );
-    if (meeting) {
-      meeting.hasTriggered = true;
-      const survivor = this._getSurvivorById(meeting.npcId);
-      if (survivor) {
-        this.gameManager.systems?.npcLocationSystem?.releaseNpcMeetingReservation?.(
-          survivor.id,
-          {
-            reason: "conversation_started",
-          },
-        );
-        this._startConversation(survivor, {
-          isPurpose: true,
-          meeting,
-          location: viewName,
-          context: {
-            initiator: "npc",
-            initiatedByNpc: true,
-            location: meeting.location || viewName || null,
-            phase: this._normalizePhase(meeting.phase),
-            socialType: meeting.socialType || null,
-            targetId: meeting.targetId || null,
-            lastChallengeSummary: this.gameManager.lastChallengeSummary || null,
-          },
-        });
-      }
-    }
+  _handleCampViewLoaded() {
+    // Screen navigation reveals nearby encounters; it never generates or
+    // starts an NPC invitation. The camp coordinator owns selected intentions.
+    if(this._isInCamp())eventManager.publish('camp:readUpdated');
   }
 
   _pauseForCampEvent() {
@@ -1261,100 +1204,12 @@ class ConversationSystem {
     this._queuePhaseInvitations(this.gameManager.gamePhase);
   }
 
-  _queuePhaseInvitations(phase) {
-    if (this.gameManager.flags?.campEventActive) return;
-    const phaseType = this._normalizePhase(phase);
-    const activity = this.gameManager.systems?.campActivitySystem;
-    if (phase === GamePhase.POST_CHALLENGE) return; // Scramble plans physical invitations; no wall-time chatter.
-    if (phase === GamePhase.PRE_CHALLENGE) {
-      activity?.ensureStarted?.();
-      const introKey = `${this.gameManager.day}:pre:intro`;
-      if (this._lastCampIntroKey === introKey) return;
-      this._lastCampIntroKey = introKey;
-    }
-    if (!(phase === GamePhase.PRE_CHALLENGE && activity?.active))
-      socialEngine?.runOffscreenNpcChatter?.({
-        phaseType,
-        beatId: "phaseIntro",
-      });
-    this._scheduleMeetingInvitation(phase, "phaseIntro");
-
-    if (this.midPhaseTimerId) {
-      timerManager.clearTimeout(this.midPhaseTimerId);
-    }
-
-    return;
+  _queuePhaseInvitations() {
+    // Screen navigation is not a social motivation. Semantic camp decisions own initiation.
+    this.gameManager.systems.campActivitySystem?.ensureStarted?.();
   }
 
-  _scheduleMeetingInvitation(phase, type) {
-    if (phase === GamePhase.POST_CHALLENGE || phase === "post") return;
-    if (this.gameManager.flags?.campEventActive) return;
-    const phaseType = this._normalizePhase(phase);
-    const currentView =
-      typeof window !== "undefined" ? window?.campScreen?.currentView : null;
-    const plannedIntent = socialEngine?.shouldTriggerBeatNow?.({ phaseType })
-      ? socialEngine?.pickBestIntentForPlayer?.({ phaseType, currentView })
-      : null;
-    const candidate = plannedIntent?.npcId
-      ? this._getSurvivorById(plannedIntent.npcId)
-      : null;
-    const activityDriven =
-      phase === GamePhase.PRE_CHALLENGE &&
-      this.gameManager.systems?.campActivitySystem?.active;
-    const busy =
-      candidate?.campActivity &&
-      !["idle_at_camp", "rest", "socialize", "observe"].includes(
-        candidate.campActivity.type,
-      );
-    const npc =
-      activityDriven && busy
-        ? this._pickConversationNpc()
-        : candidate || this._pickConversationNpc();
-    if (!npc) return;
-
-    const locationSystem = this.gameManager.systems?.npcLocationSystem || null;
-    const fallbackLocation =
-      locationSystem?.getBestMeetingLocation?.(npc.id, { currentView }) ||
-      CAMP_LOCATIONS[getRandomInt(0, CAMP_LOCATIONS.length - 1)];
-    const location =
-      locationSystem?.getBestMeetingLocation?.(npc.id, {
-        preferredLocation: plannedIntent?.location || null,
-        currentView,
-      }) ||
-      plannedIntent?.location ||
-      fallbackLocation;
-    const normalizedLocation = this._normalizeLocationKey(location);
-    const reservedLocation = activityDriven
-      ? locationSystem?.getLocation?.(npc.id) || normalizedLocation
-      : locationSystem?.reserveNpcForMeeting?.(npc.id, normalizedLocation, {
-          reason: "conversation_meeting",
-          ttlMs: type === "phaseIntro" ? 240000 : 180000,
-        }) || normalizedLocation;
-    const meeting = {
-      phase: phaseType,
-      npcId: npc.id,
-      location: reservedLocation,
-      normalizedLocation: this._normalizeLocationKey(reservedLocation),
-      hasTriggered: false,
-      type,
-      socialType:
-        candidate?.id === npc.id ? plannedIntent?.intent || null : "bonding",
-      targetId:
-        candidate?.id === npc.id ? plannedIntent?.targetId || null : null,
-    };
-
-    this.pendingMeetings.push(meeting);
-    this._highlightNpcIcon(npc.id, true);
-    this._showInvitationToast(npc, reservedLocation, type);
-
-    if (
-      this._normalizeLocationKey(currentView) === meeting.normalizedLocation &&
-      this._isInCamp() &&
-      !this.gameManager.flags?.campEventActive
-    ) {
-      this._handleCampViewLoaded({ viewName: reservedLocation });
-    }
-  }
+  _scheduleMeetingInvitation() { this._queuePhaseInvitations(); }
 
   _pickConversationNpc() {
     const tribe = this.gameManager.getPlayerTribe?.() || null;
@@ -1770,113 +1625,17 @@ class ConversationSystem {
   }
 
   _showNpcApproachOverlay(survivor, location, onAccept) {
-    if (this.gameManager.flags?.campEventActive) return;
-    this._highlightNpcIcon(survivor.id, true);
-    const overlay = this._buildOverlayShell(survivor, { reuse: true });
-    const content = this._getConversationContent(overlay);
-    this._clearConversationContent(content);
-    const locationLabel = this._formatLocation(location);
-
-    const parchment = this._buildParchment(
-      `${survivor.firstName} approaches you${locationLabel ? ` from the ${locationLabel}` : ""}. They want a word.`,
-    );
-    parchment.classList.add("conversation-invitation");
-
-    const prompt = createElement(
-      "div",
-      {
-        style: {
-          marginTop: "6px",
-          color: "#2b190a",
-          fontFamily: "Survivant, sans-serif",
-          lineHeight: 1.4,
-        },
-      },
-      "You can talk now or wave them off—but they might take it personally.",
-    );
-    parchment.appendChild(prompt);
-
-    const buttons = createElement("div", {
-      className: "conversation-approach-actions",
-      style: {
-        display: "flex",
-        gap: "10px",
-        marginTop: "12px",
-        justifyContent: "center",
-      },
-    });
-
-    const accept = () => {
-      this._clearApproachTimer();
-      onAccept();
-    };
-
-    const talkBtn = this._createChoiceButton({
-      label: "Talk now",
-      onClick: accept,
-      fallback: { npc: survivor },
-    });
-
-    const dismissBtn = this._createChoiceButton({
-      label: "Maybe later",
-      alt: true,
-      onClick: () => this._handleApproachDeclined(survivor),
-      fallback: { npc: survivor },
-    });
-
-    buttons.appendChild(talkBtn);
-    buttons.appendChild(dismissBtn);
-    parchment.appendChild(buttons);
-    content.appendChild(parchment);
-
-    this._clearApproachTimer();
-    if (this.gameManager.gamePhase !== GamePhase.POST_CHALLENGE)
-      this.approachTimerId = timerManager.setTimeout(
-        `npc-approach-${survivor.id}`,
-        accept,
-        1800,
-      );
+    // Compatibility for explicit callers: never accept on elapsed wall time.
+    this._renderMenu(survivor, `${survivor.firstName}: “Do you have a second?”`, [
+      {label:'Talk now',onClick:onAccept},
+      {label:'Give me a minute',onClick:()=>{this.engine.initiative.respond('defer');this.closeConversation('approach_deferred');}},
+      {label:'Not right now',onClick:()=>this._handleApproachDeclined(survivor)},
+    ],{showEnd:false,onBack:null});
   }
 
-  _handleApproachDeclined(survivor) {
-    if (this.gameManager.gamePhase === GamePhase.POST_CHALLENGE)
-      this.gameManager.systems.strategyPhaseSystem?.scramble?.clearInvitation();
-    const player = this.gameManager.getPlayerSurvivor?.();
-    const relationshipSystem = this.gameManager.systems?.relationshipSystem;
-    if (
-      player &&
-      relationshipSystem &&
-      typeof relationshipSystem.changeRelationship === "function"
-    ) {
-      relationshipSystem.changeRelationship(player.id, survivor.id, -2);
-    }
-
-    this._shiftMood(survivor.id, "irritated");
-    this._highlightNpcIcon(survivor.id, false);
-
-    this.nodeSession = {
-      npcId: survivor.id,
-      context: { initiator: "npc", declinedAtApproach: true },
-      menuStack: [],
-      transcript: [],
-    };
-    this._initTranscript(this.nodeSession);
-    this.nodeSession.addNpc?.("I wanted a quick word.");
-    this.nodeSession.addYou?.("Not now.");
-    this.nodeSession.addNpc?.("Okay. We’ll catch up later.");
-    this.nodeSession.addNarration?.("(They back off and head back to camp.)");
-
-    this._renderMenu(
-      survivor,
-      this._buildTranscriptBody({ session: this.nodeSession }),
-      [
-        {
-          label: "Close",
-          onClick: () => this.closeConversation("approach_overlay_declined"),
-        },
-      ],
-      { onBack: null, showEnd: false },
-    );
+  _handleApproachDeclined() {
+    this.engine.initiative.respond('decline');
+    this._clearOverlay();
   }
 
   _startConversation(

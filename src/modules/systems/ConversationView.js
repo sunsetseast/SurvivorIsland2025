@@ -226,6 +226,19 @@ export default class ConversationView {
         label: d.label,
         onClick: () => this.choose(npc, context, d, d),
       });
+    for (const choice of this.engine.initiative.dialogueChoices(npc)) {
+      buttons.push({ label: choice.label, onClick: () => {
+        if (choice.conditionPicker) {
+          const people = this.engine.camp.members().filter(p =>
+            !same(p.id, player.id) && !same(p.id, choice.subjectId));
+          this.render(npc, session, people.map(p => ({
+            label: `Only if ${p.firstName} is in`,
+            onClick: () => this.choose(npc, context, ACTION_DEFINITIONS.conditional,
+              { subjectId: choice.subjectId, conditions: [{kind:'known_commitment',voterId:p.id,targetId:choice.subjectId}] }),
+          })), () => this.show(npc,context), 'Whose support do you need?');
+        } else this.choose(npc, context, ACTION_DEFINITIONS[choice.type], choice);
+      }});
+    }
     const last = this.reservation.checkpoint?.semanticLast;
     const reportChallenge =
       last?.type === "confront" &&
@@ -754,6 +767,12 @@ export default class ConversationView {
       return;
     }
     this.append(npc, context, result);
+    const follow = e.initiative.afterPlayerAction(npc, action, result);
+    if (follow && !follow.invalid && !follow.replay) {
+      const s=this.session(npc,context);
+      s.transcript.push({speaker:'NPC',name:npc.firstName,text:follow.playerLine});
+      this.reservation.checkpoint.semanticTranscript=JSON.parse(JSON.stringify(s.transcript));
+    }
     this.show(npc, context);
   }
   append(npc, context, result) {
@@ -864,7 +883,11 @@ export default class ConversationView {
       });
     }
     let result;
-    if (activity.taskId) result = e.tasks.execute(npc, player, activity);
+    const initiative = e.initiative.intentions.find(i=>i.id===context.initiativeId) || e.initiative.active(npc.id);
+    if (initiative?.type && !context.agenda) result=e.resolve(e.action(initiative.type,{
+      ...initiative.fields,actionId:`${activity.id}:opening`,speakerId:npc.id,listenerIds:[player.id],
+    }));
+    else if (activity.taskId) result = e.tasks.execute(npc, player, activity);
     else if (context.agenda?.objectiveId)
       result = e.objectives.execute(npc, player, {
         ...activity,
@@ -879,6 +902,7 @@ export default class ConversationView {
           counter_pitch: "pitch",
           warn_ally: "warn",
           reassure_target: "reassure",
+          spread_decoy: "decoy",
           establish_backup: "backup",
           verify_story: "verify",
           share_intel: "share",
@@ -903,6 +927,7 @@ export default class ConversationView {
           listenerIds: [player.id],
           subjectId,
           claimId: claim?.id,
+          truthMode: agenda.cover || ['decoy','reassurance_lie'].includes(agenda.messageMode) ? 'fabrication' : 'truth',
         }),
       );
     } else {
@@ -965,6 +990,7 @@ export default class ConversationView {
         JSON.stringify(s.transcript),
       );
     }
+    e.initiative.dialogueOpening(npc, result, context);
     return this.show(npc, context);
   }
   render(npc, session, buttons, back, narration) {

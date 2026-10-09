@@ -157,7 +157,7 @@ try {
         );
       if (scene === "invitation")
         assert.ok(
-          await page.getByRole("button", { name: /wants to talk/ }).count(),
+          await page.getByRole("button", { name: /Talk now/ }).count(),
         );
       if (scene === "group-dialogue") {
         assert.ok((await page.locator(".scramble-participant").count()) >= 3);
@@ -447,7 +447,7 @@ try {
         restores++;
       }
       const invite = page
-          .getByRole("button", { name: /wants to talk/ })
+          .getByRole("button", { name: /Talk now/ })
           .first(),
         join = page
           .getByRole("button", { name: "Join alliance meeting", exact: true })

@@ -16,6 +16,9 @@ export function makeConversationStrategyQa() {
     const by = (name) => s.activity.members().find((p) => p.firstName === name),
       e = s.conversation.engine;
     const names = ["Sandra", "Jeremy", "Michele", "Tony", "Parvati"];
+    // Controlled semantic/task fixtures hold unrelated routine initiatives;
+    // objective/task planning and physical execution remain production code.
+    e.initiative.candidates = () => [];
     for (const person of s.activity.npcs())
       for (const other of s.activity.members())
         if (person.id !== other.id) {

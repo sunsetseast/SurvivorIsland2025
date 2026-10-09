@@ -37,12 +37,12 @@ test("pre-immunity delegated social work physically arrives, reserves the conver
     s.activity.interrupt(S, "new-social-need");
     s.activity.chooseNext(S, s.gm.dayTimer);
     assert.equal(S.campActivity.type, "travel");
-    for (let i = 0; i < 12 && !s.acceptApproach; i++) s.wait(45);
+    for (let i = 0; i < 12 && !s.e.initiative.invitation; i++) s.wait(45);
     assert.ok(s.e.together(S.id, player.id));
-    assert.ok(s.acceptApproach);
+    assert.ok(s.e.initiative.invitation);
     assert.equal(Object.keys(s.e.tasks.records).length, 0);
-    assert.equal(s.activity.conversation.npcId, S.id);
-    s.acceptApproach();
+    assert.equal(s.activity.conversation, null);
+    assert.ok(s.e.initiative.respond("accept"));
     assert.equal(s.task().publicStatus, "pending");
     assert.ok(s.buttons.some((b) => b.label === "Agree to the request"));
   }));
@@ -274,6 +274,10 @@ test("pre-immunity social work reaches the real semantic executor and avoids imm
     s.activity.phaseId = s.activity.phase;
     s.e.objectives.deserialize();
     s.gm.dayTimer = 6000;
+    for(const person of s.activity.members())s.memory.recordCampObservation({
+      id:`qa:known-location:${person.id}`,actorId:person.id,witnessIds:[S.id],type:'arrived',
+      location:s.e.place(person.id),day:s.gm.day,campTime:s.gm.dayTimer,
+    });
     const plan = s.e.objectives.plan(S, s.gm.dayTimer);
     assert.equal(plan.agenda.requestedAction, "check_loyalty");
     const candidates = s.e.objectives.workPlanner.candidates(

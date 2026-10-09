@@ -19,6 +19,7 @@ export function runViableCounterplay({seed=73,reload=false,npcBottom=false}={}) 
   s.strategy.seedNpcIntentTargetsForPhase();s.activity.ensureStarted();s.idle();
   const people=s.activity.npcs(),[opponent,ally,swing,target,other,extra]=people;
   const endangered=npcBottom?extra:gm.player;
+  if(!npcBottom)s.conversation.engine.initiative.candidates=()=>[];
   const lean=(p,t)=>{s.strategy.updateNpcIntentTarget(p.id,t.id,{reason:'personal_preference',absoluteConfidence:.2,intentStatus:'lean'});s.strategy.reasoning.state(p.id).preferredTargetId=t.id;};
   for(const p of [opponent,swing,other])lean(p,endangered);
   lean(ally,target);if(npcBottom)lean(endangered,opponent);
@@ -71,6 +72,7 @@ export function runViableCounterplay({seed=73,reload=false,npcBottom=false}={}) 
   }
   const m=s.strategy.reasoning,final=captureConvergence(m,[ally.id,swing.id,endangered.id]);
   return {seed,npcBottom,actions,milestones,final,swingId:swing.id,allyId:ally.id,targetId:target.id,endangeredId:endangered.id,
+    initiativeTrace:s.conversation.engine.initiative.history,
     swingMoved:same(final[swing.id].targetId,target.id),remaining:gm.dayTimer,rngState:rng.state(),
     projection:semantic({strategy:s.strategy.serialize(),memory:s.memory.serialize(),alliances:A.serialize(),camp:s.activity.serialize()})};
  }));

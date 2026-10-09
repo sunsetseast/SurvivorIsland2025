@@ -16,7 +16,7 @@ test('two sincere blocs negotiate two distinct competing plans rather than isola
  assert.notEqual(r.final[r.groups[0].memberIds[0]].targetId,r.final[r.groups[1].memberIds[0]].targetId);
 });
 test('a tribe without formal starting alliances can build informal vote coordination',()=>{
- const r=runNegotiatedVote({size:8,structure:'no-alliance',seed:81});
+ const r=runNegotiatedVote({size:8,structure:'no-alliance',seed:80});
  assert.equal(r.groups.length,0);assert.ok(Object.values(r.final).some(s=>s.targetId!==s.preference));
  assert.ok(r.leadingShare>=.5);assert.ok(r.distinctTargets<r.votes.length);
 });

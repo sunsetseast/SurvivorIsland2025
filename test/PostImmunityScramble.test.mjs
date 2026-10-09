@@ -14,6 +14,16 @@ function controlled() {
   const s = makeScrambleQa(); s.strategy.scramble.meetings = []; s.strategy.scramble.nextApproachAt = -1; s.idle();
   return { ...s, a: s.activity.npcs()[0], b: s.activity.npcs()[1], c: s.activity.npcs()[2] };
 }
+function motivatedApproach(s) {
+  const engine=s.conversation.engine, coordinator=engine.initiative;
+  // Configure a real, owned need rather than the removed 600-second scheduler.
+  s.memory.recordCampClaim({id:'qa:owned-warning',speakerId:s.b.id,listenerIds:[s.a.id],
+    subjectId:s.gm.player.id,topic:'target',stance:'proposed',confidence:.8,day:s.gm.day,campTime:s.gm.dayTimer});
+  const candidate=coordinator.candidates(s.a).find(c=>c.targetId===s.gm.player.id);
+  assert.ok(candidate, 'an owned strategic motive exists');
+  coordinator.create(s.a,s.gm.player.id,candidate);
+  s.activity.interrupt(s.a,'new owned motive');s.activity.chooseNext(s.a,s.gm.dayTimer);
+}
 function dialogue(s) {
   s.conversation._validateConversationTreeOnStart = () => {};
   s.conversation._showTopicSelection = () => {};
@@ -156,17 +166,20 @@ test('player immunity remains excluded while the player can still participate', 
   finally { s.gm.hasImmunity = old; }
 });
 test('NPC approach uses real routes before an invitation exists', () => {
-  const s = controlled(); s.strategy.scramble.nextApproachAt = 3600; s.gm.player.location = 'waterWell'; window.campScreen.currentView = 'waterWell';
-  s.strategy.onActivityBoundary(3600); const npc = s.activity.npcs().find(p => p.campActivity?.goal?.type === 'approach_player');
+  const s = controlled(); s.gm.player.location = 'waterWell'; window.campScreen.currentView = 'waterWell';
+  s.memory.recordCampObservation({id:'qa:recent-sighting',actorId:s.gm.player.id,witnessIds:[s.a.id],
+    type:'arrived',location:'waterWell',day:s.gm.day,campTime:s.gm.dayTimer});
+  motivatedApproach(s); const npc = s.activity.npcs().find(p => p.campActivity?.goal?.type === 'approach_player');
   assert.ok(npc); assert.equal(npc.campActivity.type, 'travel'); assert.equal(s.strategy.scramble.invitation, null);
   s.wait(45); assert.equal(s.strategy.scramble.invitation, null);
-  s.wait(300); assert.ok(s.strategy.scramble.history.some(h => h.type === 'npc_approach'));
+  s.wait(300); assert.ok(s.conversation.engine.initiative.history.some(h=>h.stage==='invitation_offered'));
 });
 test('only physically present approach wait can launch the preserved NPC dialogue', () => {
-  const s = controlled(); dialogue(s); s.strategy.scramble.nextApproachAt = 3600; s.strategy.onActivityBoundary(3600); s.wait(45);
+  const s = controlled(); dialogue(s); motivatedApproach(s); s.wait(45);
   const invite = s.strategy.scramble.invitation; assert.ok(invite);
   const npc = s.activity.npcs().find(p => p.id === invite.npcId);
-  s.conversation.startNpcConversation(npc, invite.purpose, { initiatedByNpc: true, context: { phase: 'post' }, location: 'beach' });
+  assert.equal(s.activity.conversation,null);
+  assert.equal(s.conversation.engine.initiative.respond('accept'),true);
   assert.equal(s.activity.conversation.npcId, npc.id); assert.equal(s.strategy.scramble.invitation, null);
 });
 test('closing/canceling dialogue releases every participant and player reservation', () => {
@@ -256,7 +269,7 @@ test('alliance scheduling does not overwrite disagreeing individual preferences'
   assert.ok(new Set(members.map(id => s.strategy.getNpcTargetIntent(id).targetId)).size > 1);
 });
 test('pending NPC invitation and its reservation restore without wall timeout', () => {
-  const s = controlled(); s.strategy.scramble.nextApproachAt = 3600; s.strategy.onActivityBoundary(3600); s.wait(45);
+  const s = controlled(); motivatedApproach(s); s.wait(45);
   const invite = structuredClone(s.strategy.scramble.invitation); s.restore(); assert.deepEqual(s.strategy.scramble.invitation, invite);
   assert.equal(s.activity.npcs().find(p => p.id === invite.npcId).campActivity.id, invite.activityId);
 });

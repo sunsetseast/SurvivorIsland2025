@@ -37,6 +37,7 @@ export const PRE_CAMP_LABELS = Object.freeze({
   split: "Discuss a possible split if we lose",
 });
 const definitions = [
+  ["reply", "move", "Answer their proposal", "Tell", "commitment", "target"],
   [
     "strategy_style",
     "read",
@@ -412,6 +413,7 @@ export function conversationCapabilities(engine, speakerId, listenerIds) {
   return Object.values(ACTION_DEFINITIONS)
     .filter(
       (d) =>
+        (d.type !== "reply" || engine.camp?.conversation?.checkpoint?.npcNegotiation) &&
         (d.type !== "idol_reveal" || idol) &&
         (d.type !== "idol_protect" || idol) &&
         (d.type !== "idol_bluff" || !idol) &&

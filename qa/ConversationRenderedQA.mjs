@@ -450,6 +450,11 @@ try {
       .getByRole("button", { name: "Close camp responsibilities", exact: true })
       .click();
     await page.evaluate(() => {
+      const {activity}=window.scrambleQa;
+      for(const id of [window.requestQa.targetId,window.requestQa.sandId]){
+        const p=activity.npcs().find(p=>p.id===id);p.campActivity=null;
+        activity.start(p,{type:'idle_at_camp',location:'beach',duration:3000});
+      }
       window.scrambleQa.gm.systems.conversationSystem.startPlayerConversation({
         npcId: window.requestQa.targetId,
         phase: "post",
@@ -490,6 +495,11 @@ try {
       .getByRole("button", { name: "Close camp responsibilities", exact: true })
       .click();
     await page.evaluate(() => {
+      const {activity}=window.scrambleQa;
+      for(const id of [window.requestQa.targetId,window.requestQa.sandId]){
+        const p=activity.npcs().find(p=>p.id===id);p.campActivity=null;
+        activity.start(p,{type:'idle_at_camp',location:'beach',duration:3000});
+      }
       window.scrambleQa.gm.systems.conversationSystem.startPlayerConversation({
         npcId: window.requestQa.targetId,
         phase: "post",
