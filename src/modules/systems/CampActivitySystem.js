@@ -268,6 +268,7 @@ export default class CampActivitySystem {
     if (!this.ensureStarted(before)) { elapsed(before - after); return; }
     this.initiative?.boundary(before);
     for (const npc of this.npcs()) {
+      if(this.initiative?.reprioritize(npc,before))continue;
       const current=npc.campActivity;
       const active=this.initiative?.active(npc.id);
       if(!current?.interruptible||current.type==='travel'||current.startedAt-before<90||active?.urgent||active?.basePlan)continue;
@@ -583,11 +584,18 @@ export default class CampActivitySystem {
     this.strategy?.reasoning?.checkpoint(this.conversation);
     return true;
   }
-  moveTogether(actor,companion,destination,{taskId=null,initiativeId=null}={}) {
-    if(!this.active||this.absent(actor)||this.absent(companion)||companion.isPlayer||actor.isPlayer&&!taskId&&!initiativeId||
-      actor.campActivity?.interruptible===false||companion.campActivity?.interruptible===false)return false;
+  canMoveTogether(actor,companion,destination,{taskId=null,initiativeId=null,releaseActivityId=null}={}) {
+    const releasing=companion?.campActivity?.type==='approach_wait' && companion.campActivity.id===releaseActivityId &&
+      this.initiative?.invitation?.activityId===releaseActivityId && this.initiative.invitation.intentionId===initiativeId;
+    if(!this.active||!actor||!companion||this.absent(actor)||this.absent(companion)||companion.isPlayer||actor.isPlayer&&!taskId&&!initiativeId||
+      actor.campActivity?.interruptible===false||companion.campActivity?.interruptible===false&&!releasing)return false;
     const from=actor.isPlayer?actor.location:this.locations?.getLocation?.(actor.id),route=routeBetween(from,destination);
-    if(!this.present(actor,from)||!this.present(companion,from)||!route.length||!taskId&&!initiativeId&&route.length>2)return false;
+    return Boolean(this.present(actor,from)&&this.present(companion,from)&&route.length&&(taskId||initiativeId||route.length<=2)&&
+      this.minimumTravelSeconds(from,destination)<this.gm.dayTimer);
+  }
+  moveTogether(actor,companion,destination,{taskId=null,initiativeId=null}={}) {
+    if(!this.canMoveTogether(actor,companion,destination,{taskId,initiativeId}))return false;
+    const from=actor.isPlayer?actor.location:this.locations?.getLocation?.(actor.id),route=routeBetween(from,destination);
     const goal=taskId||initiativeId?{type:'observe',location:destination,duration:120}:{type:'strategy_conversation',location:destination,targetId:companion.id};
     return this.start(actor,{type:'travel',location:route[0],route:route.slice(1),goal,travelWithId:companion.id,taskId,initiativeId});
   }

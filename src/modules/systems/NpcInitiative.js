@@ -1,6 +1,12 @@
 import { conversationCharacter } from "./ConversationCharacter.js";
 import { LocationKeys } from "../core/LocationKeys.js";
 import eventManager from "../core/EventManager.js";
+import {
+  openNegotiation,
+  negotiationChoices,
+  continueNegotiation,
+  negotiateNpcMeeting,
+} from "./NpcNegotiation.js";
 
 const same = (a, b) => a != null && b != null && String(a) === String(b);
 const copy = (x) => JSON.parse(JSON.stringify(x));
@@ -331,13 +337,16 @@ export default class NpcInitiative {
     this.note(i, "target_chosen");
     return i;
   }
+  planKey(plan) {
+    return `${plan.purpose}:${plan.targetId}:${plan.agenda?.work?.key || plan.agenda?.requestedAction || ""}:${plan.agenda?.primarySubject || ""}:${plan.agenda?.claimId || plan.agenda?.followTaskId || ""}`;
+  }
   adopt(actor, plan) {
     if (
       !plan?.targetId ||
       !["approach_player", "strategy_conversation"].includes(plan.type)
     )
       return plan;
-    const key = `${plan.purpose}:${plan.targetId}:${plan.agenda?.work?.key || plan.agenda?.requestedAction || ""}:${plan.agenda?.primarySubject || ""}:${plan.agenda?.claimId || plan.agenda?.followTaskId || ""}`;
+    const key = this.planKey(plan);
     if (
       this.recent(
         actor.id,
@@ -495,6 +504,90 @@ export default class NpcInitiative {
       initiativeId: i.id,
     };
   }
+  reprioritize(actor, now) {
+    const current = actor.campActivity,
+      active = this.active(actor.id);
+    if (
+      !current?.interruptible ||
+      ["travel", "strategy_conversation", "social_conversation"].includes(
+        current.type,
+      ) ||
+      current.startedAt - now < 90 ||
+      active?.urgent ||
+      active?.basePlan
+    )
+      return false;
+    const e = this.engine;
+    const latest = e.memory.memory?.[String(actor.id)]?.campClaims?.at(-1);
+    const checkpoint = `${Math.floor(now / 60)}:${latest?.id || ""}:${e.tasks.sequence}`;
+    if (this.priorityClock?.[actor.id] === checkpoint) return false;
+    (this.priorityClock ||= {})[actor.id] = checkpoint;
+    const fresh = e
+      .knowledge(actor.id)
+      .filter(
+        (k) =>
+          k.day === this.gm.day &&
+          k.campTime < current.startedAt &&
+          k.confidence >= 0.5 &&
+          [
+            "commitment",
+            "safety",
+            "idol_possession",
+            "idol_suspicion",
+            "task_report",
+            "task_report_dispute",
+          ].includes(k.topic),
+      );
+    const tasks = e.tasks
+      .knownTasks(actor.id)
+      .filter(
+        (t) =>
+          t.publicStatus === "accepted" &&
+          !t.report &&
+          (same(t.delegateId, actor.id) || same(t.requesterId, actor.id)),
+      );
+    const signature = [
+      ...fresh.map((k) => k.id),
+      ...tasks.map((t) => `${t.id}:${t.publicStatus}`),
+    ].join("|");
+    if (
+      !signature ||
+      active?.priorityEvidence === signature ||
+      this.priorityChecks?.[actor.id] === signature
+    )
+      return false;
+    (this.priorityChecks ||= {})[actor.id] = signature;
+    const plan = e.objectives.plan(actor, now);
+    if (
+      !plan ||
+      !["strategy_conversation", "approach_player", "travel"].includes(
+        plan.type,
+      )
+    )
+      return false;
+    // Reprioritization must not bypass the same semantic retry guard used by
+    // ordinary planning. Keep useful current work if the proposed retry is stale.
+    if (
+      ["strategy_conversation", "approach_player"].includes(plan.type) &&
+      this.recent(
+        actor.id,
+        plan.targetId,
+        this.planKey(plan),
+        Boolean(plan.agenda?.followTaskId),
+      )
+    )
+      return false;
+    if (active) this.finish(active, "abandoned", "new owned strategic work");
+    this.camp.interrupt(actor, "new owned strategic work", now);
+    const selected = this.adopt(actor, plan);
+    if (selected?.id) selected.priorityEvidence = signature;
+    this.camp.start(
+      actor,
+      selected?.id ? this.plan(actor, now, { objectives: false }) : plan,
+      now,
+    );
+    return true;
+  }
   starting(actor, plan) {
     const id = plan.initiativeId || plan.goal?.initiativeId,
       i = this.intentions.find((x) => x.id === id);
@@ -514,8 +607,24 @@ export default class NpcInitiative {
       (target.isPlayer && !this.playerAvailable()) ||
       (!target.isPlayer && !this.canListen(target, actor.id))
     ) {
+      const nearby = target && this.engine.present(target.id, plan.location);
+      const remaining =
+        nearby && target.campActivity && !target.campActivity.external
+          ? this.gm.dayTimer - target.campActivity.endsAt
+          : null;
+      const wait =
+        Number.isFinite(remaining) && remaining > 0 && remaining <= 120
+          ? remaining
+          : 60;
       i.status = "waiting";
-      i.nextAt = this.gm.dayTimer - 60;
+      i.nextAt = this.gm.dayTimer - wait;
+      i.localWaits = (i.localWaits || 0) + 1;
+      if (
+        nearby &&
+        i.localWaits <= 2 &&
+        (i.urgent || i.basePlan || remaining <= 120)
+      )
+        i.attempts = Math.max(0, i.attempts - 1);
       this.note(i, "opportunity_missed", {
         reason:
           target && this.engine.present(target.id, plan.location)
@@ -525,7 +634,7 @@ export default class NpcInitiative {
       return {
         type: "initiative_wait",
         location: plan.location,
-        duration: 60,
+        duration: Math.min(wait, this.gm.dayTimer),
         initiativeId: i.id,
         targetId: i.targetId,
       };
@@ -540,6 +649,14 @@ export default class NpcInitiative {
     // An interruptible waiting block is not a second ongoing conversation.
     return (
       idle(target) ||
+      (target?.campActivity?.interruptible !== false &&
+        [
+          "initiative_wait",
+          "gather_food",
+          "collect_water",
+          "tend_fire",
+        ].includes(target?.campActivity?.type) &&
+        this.engine.together(actorId, target.id)) ||
       (target?.campActivity?.type === "initiative_wait" &&
         same(this.active(target.id)?.targetId, actorId))
     );
@@ -654,10 +771,45 @@ export default class NpcInitiative {
       if (result && !result.invalid) {
         meaningful++;
         this.note(i, "semantic_action");
+        if (!activity.taskId) {
+          const negotiation = negotiateNpcMeeting(
+            this.engine,
+            actor,
+            target,
+            result,
+            { activityId: activity.id, initiativeId: i.id },
+          );
+          if (negotiation) {
+            (i.negotiations ||= {})[target.id] = {
+              status: negotiation.status,
+              outcome: negotiation.outcome,
+              subjectId: negotiation.subjectId,
+              originalSubjectId: negotiation.originalSubjectId,
+              proposals: negotiation.proposals,
+              conditions: negotiation.conditions,
+              round: negotiation.round,
+              counteroffers: negotiation.counteroffers,
+            };
+            if (negotiation.status === "condition_pending") {
+              i.conditions = copy(negotiation.conditions);
+              i.followupSubjectId = negotiation.subjectId;
+              this.note(i, "followup_needed", {
+                conditions: negotiation.conditions,
+              });
+            }
+            this.note(i, "proposal_negotiated", {
+              status: negotiation.status,
+              counteroffers: negotiation.counteroffers,
+              subjectId: negotiation.subjectId,
+            });
+          }
+        }
         this.note(i, "response_obtained", {
           responses:
-            result.responses?.map((r) => ({ id: r.id, status: r.status })) ||
-            [],
+            result.responses?.map((r) => ({
+              id: r.speakerId,
+              status: r.stance,
+            })) || [],
         });
       }
       if (
@@ -685,6 +837,29 @@ export default class NpcInitiative {
         ) {
           // A threatened initiator can use the same actual meeting to propose
           // their supported alternative after hearing the listener's answer.
+          const support = this.engine.model
+            .planSupport(actor.id)
+            .accounts.filter(
+              (k) =>
+                same(k.targetId, counter) &&
+                k.weight >= 0.3 &&
+                !same(k.voterId, target.id),
+            )
+            .sort((a, b) => b.weight - a.weight)[0];
+          const claim =
+            support &&
+            this.engine
+              .knowledge(actor.id)
+              .find((k) => k.id === support.claim.id);
+          if (claim && !this.engine.protectedClaim(actor.id, claim))
+            this.engine.resolve(
+              this.engine.action("share", {
+                actionId: `${activity.id}:counter-evidence:${target.id}`,
+                speakerId: actor.id,
+                listenerIds: [target.id],
+                claimId: claim.id,
+              }),
+            );
           const follow = this.engine.resolve(
             this.engine.action("ask_vote", {
               actionId: `${activity.id}:counter-followup:${target.id}`,
@@ -721,7 +896,11 @@ export default class NpcInitiative {
     this.finish(
       i,
       meaningful ? "resolved" : "abandoned",
-      meaningful ? outcome : "proposal no longer valid",
+      meaningful
+        ? i.conditions?.length
+          ? "condition_pending"
+          : outcome
+        : "proposal no longer valid",
     );
     return true;
   }
@@ -753,30 +932,50 @@ export default class NpcInitiative {
       return false;
     if (["accept", "private"].includes(choice) && !this.playerAvailable())
       return false;
-    this.clearInvitation("player response");
-    if (i) this.note(i, `invitation_${choice}`);
-    if (choice === "private" && i) {
-      const destination = [LocationKeys.SHELTER, LocationKeys.WATER_WELL].find(
-        (loc) =>
-          loc !== this.gm.player.location &&
-          this.camp.minimumTravelSeconds(this.gm.player.location, loc) <= 180 &&
-          this.camp.minimumTravelSeconds(this.gm.player.location, loc) + 90 <
-            this.gm.dayTimer,
-      );
-      if (!destination) return false;
-      i.status = "relocating";
-      i.destination = destination;
+    if (choice === "private") {
+      const destination =
+        i &&
+        [LocationKeys.SHELTER, LocationKeys.WATER_WELL].find(
+          (loc) =>
+            loc !== this.gm.player.location &&
+            this.camp.minimumTravelSeconds(this.gm.player.location, loc) <=
+              180 &&
+            this.camp.minimumTravelSeconds(this.gm.player.location, loc) + 90 <
+              this.gm.dayTimer &&
+            this.camp.canMoveTogether(this.gm.player, actor, loc, {
+              initiativeId: i.id,
+              releaseActivityId: invite.activityId,
+            }),
+        );
+      if (!destination) {
+        invite.reply =
+          "We can’t get somewhere private in time. We can talk here if you want.";
+        eventManager.publish("camp:readUpdated");
+        return false;
+      }
+      const priorActivity = actor.campActivity,
+        priorState = { status: i.status, nextAt: i.nextAt };
+      this.clearInvitation("private relocation committed");
       if (
         !this.camp.moveTogether(this.gm.player, actor, destination, {
           initiativeId: i.id,
         })
       ) {
-        i.status = "seeking";
+        actor.campActivity = priorActivity;
+        Object.assign(i, priorState);
+        this.invitation = invite;
+        invite.reply = "Let’s stay here for now.";
+        eventManager.publish("camp:readUpdated");
         return false;
       }
+      i.status = "relocating";
+      i.destination = destination;
+      this.note(i, "invitation_private");
       this.note(i, "privacy_relocation");
       return true;
     }
+    this.clearInvitation("player response");
+    if (i) this.note(i, `invitation_${choice}`);
     if (choice === "accept") {
       if (
         !this.camp.beginConversation(actor, {
@@ -933,6 +1132,56 @@ export default class NpcInitiative {
     )) {
       const actor = this.person(prior.actorId);
       if (
+        actor &&
+        !actor.isOut &&
+        !this.active(actor.id) &&
+        now > 180 &&
+        prior.conditions?.length
+      ) {
+        const missing = prior.conditions.find(
+          (c) =>
+            c.kind === "known_commitment" &&
+            !same(c.voterId, actor.id) &&
+            !this.engine.conditionTrue(actor.id, c) &&
+            !prior.prerequisitesAsked?.includes(String(c.voterId)),
+        );
+        const heard =
+          missing &&
+          this.engine
+            .knowledge(actor.id)
+            .some(
+              (k) =>
+                k.confidence >= 0.45 &&
+                k.conditions?.some(
+                  (c) =>
+                    c.kind === missing.kind &&
+                    same(c.voterId, missing.voterId) &&
+                    same(c.targetId, missing.targetId),
+                ),
+            );
+        if (
+          missing &&
+          heard &&
+          (prior.prerequisitesAsked?.length || 0) < 2 &&
+          this.person(missing.voterId)
+        ) {
+          (prior.prerequisitesAsked ||= []).push(String(missing.voterId));
+          this.create(actor, missing.voterId, {
+            type: "vote_read",
+            fields: { subjectId: missing.targetId },
+            key: `check-condition:${prior.id}:${missing.voterId}`,
+            reason: "check a condition before counting support",
+            urgent: Boolean(this.engine.model),
+            private: true,
+            parentIntentionId: prior.id,
+          });
+          this.note(prior, "prerequisite_followup", {
+            voterId: missing.voterId,
+            subjectId: missing.targetId,
+          });
+        }
+      }
+      if (
         !actor ||
         actor.isOut ||
         this.active(actor.id) ||
@@ -1011,14 +1260,37 @@ export default class NpcInitiative {
     }
     this.note(
       i,
-      n?.status === "settled" ? "goal_responded" : "goal_unresolved",
+      n?.outcome === "agreed"
+        ? "goal_advanced"
+        : ["refused", "withheld", "counter_resisted"].includes(n?.outcome)
+          ? "goal_resisted"
+          : "goal_unresolved",
+      { spokenOutcome: n?.outcome, subjectId: n?.subjectId },
     );
+    if (n)
+      i.negotiationSummary = {
+        subjectId: n.subjectId,
+        originalSubjectId: n.originalSubjectId,
+        status: n.status,
+        outcome: n.outcome,
+        proposals: copy(n.proposals || []),
+      };
     this.finish(i, "resolved", n?.status || "discussion ended");
   }
   dialogueOpening(npc, result, context = {}) {
     const cp = this.camp.conversation?.checkpoint;
     if (!cp || !result || result.invalid) return;
-    if (cp.npcNegotiation) return;
+    if (cp.npcNegotiation) {
+      const old = cp.npcNegotiation;
+      if (!old.proposals)
+        cp.npcNegotiation = {
+          ...openNegotiation(this.engine, npc, this.gm.player.id, result, {
+            activityId: cp.activityId,
+          }),
+          ...old,
+        };
+      return;
+    }
     const initiative = this.active(npc.id);
     if (initiative) {
       this.camp.conversation.initiativeId = initiative.id;
@@ -1029,158 +1301,74 @@ export default class NpcInitiative {
     if (initiative && this.engine.model && initiative.key)
       (this.engine.model.state(npc.id).motiveReceipts ||= {})[initiative.key] =
         { day: this.gm.day, at: this.gm.dayTimer };
-    cp.npcNegotiation = {
-      npcId: npc.id,
-      subjectId: result.subjectId,
-      type: result.type,
-      status: "awaiting_response",
-      round: 0,
-      initiativeId: context.initiativeId || initiative?.id,
-      proposal: ["pitch", "ask_vote", "press", "negotiate"].includes(
-        result.type,
-      ),
-      question: ["vote_read", "loyalty", "verify", "idol_ask", "vibe"].includes(
-        result.type,
-      ),
-    };
+    cp.npcNegotiation = openNegotiation(
+      this.engine,
+      npc,
+      this.gm.player.id,
+      result,
+      {
+        initiativeId: context.initiativeId || initiative?.id,
+        activityId: cp.activityId,
+      },
+    );
     if (initiative) {
       this.note(initiative, "semantic_action");
     }
   }
   dialogueChoices(npc) {
     const n = this.camp.conversation?.checkpoint?.npcNegotiation;
-    if (
-      !n ||
-      same(n.npcId, npc.id) === false ||
-      ["settled", "unresolved", "condition_pending"].includes(n.status)
-    )
-      return [];
-    const subject = n.subjectId,
-      name = this.engine.name(subject),
-      future = !this.engine.model;
-    const agree = future
-      ? `If we lose, I’d be willing to vote ${name}`
-      : `I’ll vote ${name}`;
-    if (n.proposal && subject != null)
-      return [
-        { type: "why", label: `Why ${name}?`, subjectId: subject },
-        {
-          type: "numbers",
-          label: "Who else do we actually have?",
-          subjectId: subject,
-        },
-        { type: "promise", label: agree, subjectId: subject },
-        {
-          type: "conditional",
-          label: "Only if someone else is really in",
-          subjectId: subject,
-          conditionPicker: true,
-        },
-        {
-          type: "reply",
-          label: "I’ll consider it — no promise",
-          subjectId: subject,
-          stance: "consider",
-          line: "I’ll consider it. I’m not promising.",
-        },
-        {
-          type: "reply",
-          label: `I’m not voting ${name}`,
-          subjectId: subject,
-          stance: "refused",
-          line: `I’m not voting ${name}.`,
-        },
-        {
-          type: "cover_promise",
-          label: `Bluff: agree to ${name}`,
-          subjectId: subject,
-        },
-      ];
-    if (n.question)
-      return [
-        { type: "share", label: "Tell them something you actually heard" },
-        { type: "speculate", label: "Offer your own read" },
-        {
-          type: "reply",
-          label: "Keep your plans private",
-          subjectId: null,
-          stance: "withheld",
-          line: "I’m keeping my plans to myself for now.",
-        },
-      ];
-    return [];
+    return n && same(n.npcId, npc.id) ? negotiationChoices(this.engine, n) : [];
   }
   afterPlayerAction(npc, action, result) {
-    const cp = this.camp.conversation?.checkpoint,
-      n = cp?.npcNegotiation;
-    if (
-      !n ||
-      ["settled", "unresolved"].includes(n.status) ||
-      !result ||
-      result.invalid ||
-      result.replay
-    )
-      return null;
-    const i = this.intentions.find((x) => x.id === n.initiativeId);
-    if (i) this.note(i, "response_obtained", { type: action.type });
-    n.round++;
-    if (["promise", "cover_promise"].includes(action.type)) {
-      n.status = "settled";
-      return null;
-    }
-    if (action.type === "conditional") {
-      n.status = "condition_pending";
-      n.conditions = copy(action.conditions);
-      if (i) this.note(i, "followup_needed", { conditions: action.conditions });
-      return null;
-    }
-    if (action.type === "reply" && action.stance === "refused") {
-      const p = conversationCharacter(npc);
-      n.status = "settled";
-      // One concession is spoken, never an imposed alternative vote.
-      if (p.flexibility > 0.55 && n.round <= 2 && this.engine.model) {
-        const alt = this.engine.model.alternateTarget(npc.id, [
-          npc.id,
+    const n = this.camp.conversation?.checkpoint?.npcNegotiation;
+    if (!n || !same(n.npcId, npc.id)) return null;
+    if (!n.proposals)
+      Object.assign(n, {
+        ...openNegotiation(
+          this.engine,
+          npc,
           this.gm.player.id,
-          n.subjectId,
-        ]);
-        if (alt)
-          return this.engine.resolve(
-            this.engine.action("pitch", {
-              actionId: `${cp.activityId}:npc-concession:${n.round}`,
-              speakerId: npc.id,
-              listenerIds: [this.gm.player.id],
-              subjectId: alt,
-              line: `Then would ${this.engine.name(alt)} make more sense for you?`,
-            }),
-          );
-      }
-      return null;
-    }
-    if (n.round >= 3) {
-      n.status = "unresolved";
-      return null;
-    }
-    if (
-      n.proposal &&
-      ["why", "source", "evidence", "numbers", "reply"].includes(action.type)
-    ) {
-      // The normal resolver already answered from owned information. The
-      // initiator now asks a real follow-up rather than disappearing into menus.
-      return this.engine.resolve(
-        this.engine.action("ask_vote", {
-          actionId: `${cp.activityId}:npc-followup:${n.round}`,
-          speakerId: npc.id,
-          listenerIds: [this.gm.player.id],
-          subjectId: n.subjectId,
-          line:
-            action.type === "numbers"
-              ? "Would confirming those people get you there?"
-              : `What would make ${this.engine.name(n.subjectId)} work for you?`,
-        }),
+          { type: n.type, subjectId: n.subjectId },
+          { activityId: this.camp.conversation.activityId },
+        ),
+        ...n,
+      });
+    const prior = n.responses.length;
+    const follow = continueNegotiation(this.engine, n, action, result);
+    if (n.responses.length === prior) return follow;
+    const i = this.intentions.find((x) => x.id === n.initiativeId);
+    if (i) {
+      this.note(i, "response_obtained", {
+        type: action.type,
+        subjectId: action.subjectId,
+        stance: action.stance,
+      });
+      this.note(
+        i,
+        [
+          "promise",
+          "cover_promise",
+          "conditional",
+          "why",
+          "evidence",
+          "numbers",
+          "pitch",
+        ].includes(action.type)
+          ? "player_engaged"
+          : "player_resisted",
+        { type: action.type, subjectId: action.subjectId },
       );
+      if (n.status === "condition_pending")
+        this.note(i, "followup_needed", { conditions: n.conditions });
+      if (follow)
+        this.note(i, "negotiation_followup", {
+          type: follow.type,
+          subjectId: follow.subjectId,
+          counteroffer: n.counteroffers,
+          status: n.status,
+        });
     }
-    return null;
+    return follow;
   }
   serialize() {
     return copy({
@@ -1190,6 +1378,7 @@ export default class NpcInitiative {
       invitation: this.invitation,
       history: this.history,
       metrics: this.metrics,
+      priorityChecks: this.priorityChecks,
     });
   }
   deserialize(p = {}) {
@@ -1199,5 +1388,7 @@ export default class NpcInitiative {
     this.invitation = p.invitation || null;
     this.history = p.history || [];
     this.metrics = p.metrics || {};
+    this.priorityChecks = p.priorityChecks || {};
+    this.priorityClock = {};
   }
 }

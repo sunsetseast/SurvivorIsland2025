@@ -227,17 +227,43 @@ export default class ConversationView {
         onClick: () => this.choose(npc, context, d, d),
       });
     for (const choice of this.engine.initiative.dialogueChoices(npc)) {
-      buttons.push({ label: choice.label, onClick: () => {
-        if (choice.conditionPicker) {
-          const people = this.engine.camp.members().filter(p =>
-            !same(p.id, player.id) && !same(p.id, choice.subjectId));
-          this.render(npc, session, people.map(p => ({
-            label: `Only if ${p.firstName} is in`,
-            onClick: () => this.choose(npc, context, ACTION_DEFINITIONS.conditional,
-              { subjectId: choice.subjectId, conditions: [{kind:'known_commitment',voterId:p.id,targetId:choice.subjectId}] }),
-          })), () => this.show(npc,context), 'Whose support do you need?');
-        } else this.choose(npc, context, ACTION_DEFINITIONS[choice.type], choice);
-      }});
+      buttons.push({
+        label: choice.label,
+        onClick: () => {
+          if (choice.counterPicker) {
+            this.choose(npc, context, ACTION_DEFINITIONS.pitch, {
+              negotiationCounter: true,
+            });
+          } else if (choice.conditionPicker) {
+            const people = this.engine.camp
+              .members()
+              .filter(
+                (p) => !same(p.id, player.id) && !same(p.id, choice.subjectId),
+              );
+            this.render(
+              npc,
+              session,
+              people.map((p) => ({
+                label: `Only if ${p.firstName} is in`,
+                onClick: () =>
+                  this.choose(npc, context, ACTION_DEFINITIONS.conditional, {
+                    subjectId: choice.subjectId,
+                    conditions: [
+                      {
+                        kind: "known_commitment",
+                        voterId: p.id,
+                        targetId: choice.subjectId,
+                      },
+                    ],
+                  }),
+              })),
+              () => this.show(npc, context),
+              "Whose support do you need?",
+            );
+          } else
+            this.choose(npc, context, ACTION_DEFINITIONS[choice.type], choice);
+        },
+      });
     }
     const last = this.reservation.checkpoint?.semanticLast;
     const reportChallenge =
@@ -381,7 +407,11 @@ export default class ConversationView {
           : def.subject === "task"
             ? "delegationId"
             : "subjectId";
-    if (def.subject && !fields[key]) {
+    if (
+      def.subject &&
+      !fields[key] &&
+      !(def.type === "reply" && fields.stance === "withheld")
+    ) {
       const candidates = actionSubjects(e, def.type, player.id, listeners);
       this.render(
         npc,
@@ -769,9 +799,26 @@ export default class ConversationView {
     this.append(npc, context, result);
     const follow = e.initiative.afterPlayerAction(npc, action, result);
     if (follow && !follow.invalid && !follow.replay) {
-      const s=this.session(npc,context);
-      s.transcript.push({speaker:'NPC',name:npc.firstName,text:follow.playerLine});
-      this.reservation.checkpoint.semanticTranscript=JSON.parse(JSON.stringify(s.transcript));
+      const s = this.session(npc, context);
+      s.transcript.push({
+        speaker: "NPC",
+        name: e.name(npc.id),
+        text: follow.playerLine,
+      });
+      for (const response of follow.responses || []) {
+        if (
+          !e.person(response.speakerId)?.isPlayer &&
+          response.stance !== "pending"
+        )
+          s.transcript.push({
+            speaker: "NPC",
+            name: e.name(response.speakerId),
+            text: response.line,
+          });
+      }
+      this.reservation.checkpoint.semanticTranscript = JSON.parse(
+        JSON.stringify(s.transcript),
+      );
     }
     this.show(npc, context);
   }
@@ -883,10 +930,18 @@ export default class ConversationView {
       });
     }
     let result;
-    const initiative = e.initiative.intentions.find(i=>i.id===context.initiativeId) || e.initiative.active(npc.id);
-    if (initiative?.type && !context.agenda) result=e.resolve(e.action(initiative.type,{
-      ...initiative.fields,actionId:`${activity.id}:opening`,speakerId:npc.id,listenerIds:[player.id],
-    }));
+    const initiative =
+      e.initiative.intentions.find((i) => i.id === context.initiativeId) ||
+      e.initiative.active(npc.id);
+    if (initiative?.type && !context.agenda)
+      result = e.resolve(
+        e.action(initiative.type, {
+          ...initiative.fields,
+          actionId: `${activity.id}:opening`,
+          speakerId: npc.id,
+          listenerIds: [player.id],
+        }),
+      );
     else if (activity.taskId) result = e.tasks.execute(npc, player, activity);
     else if (context.agenda?.objectiveId)
       result = e.objectives.execute(npc, player, {
@@ -927,7 +982,11 @@ export default class ConversationView {
           listenerIds: [player.id],
           subjectId,
           claimId: claim?.id,
-          truthMode: agenda.cover || ['decoy','reassurance_lie'].includes(agenda.messageMode) ? 'fabrication' : 'truth',
+          truthMode:
+            agenda.cover ||
+            ["decoy", "reassurance_lie"].includes(agenda.messageMode)
+              ? "fabrication"
+              : "truth",
         }),
       );
     } else {

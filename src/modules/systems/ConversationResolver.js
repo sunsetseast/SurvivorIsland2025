@@ -149,7 +149,12 @@ export default class ConversationResolver {
       !this.person(a.speakerId)
     )
       return "invalid_action";
-    if(a.type === "reply" && a.stance && !["refused","consider","withheld"].includes(a.stance))return "invalid_reply";
+    if (
+      a.type === "reply" &&
+      a.stance &&
+      !["refused", "consider", "withheld"].includes(a.stance)
+    )
+      return "invalid_reply";
     const ids = [...new Set((a.listenerIds || []).map(String))];
     if (
       !ids.length ||
@@ -279,11 +284,31 @@ export default class ConversationResolver {
     if (a.type === "reply") {
       // A spoken lean/refusal informs the listener, without manufacturing a
       // commitment or changing the human's ballot. Firm answers use promise.
-      emit(a.speakerId, a.subjectId, { topic: a.stance === 'withheld' ? 'information' : "commitment", stance: a.stance || "consider",
-        commitmentStatus: a.stance === "refused" ? "refused" : "considering" });
-      for (const id of a.listenerIds) say(id, a.stance === "refused"
-        ? "I hear you. I’ll have to work out another route." : "Fair. What would you need to know?",
-        a.stance === "refused" ? "refused" : "open");
+      const withheld = a.stance === "withheld";
+      emit(a.speakerId, withheld ? a.speakerId : a.subjectId, {
+        topic: withheld ? "information" : "commitment",
+        stance: a.stance || "consider",
+        proposition: withheld ? "refused to disclose voting plans" : null,
+        commitmentStatus: withheld
+          ? null
+          : a.stance === "refused"
+            ? "refused"
+            : "considering",
+      });
+      for (const id of a.listenerIds) {
+        const character = conversationCharacter(this.person(id));
+        say(
+          id,
+          withheld
+            ? character.pressureDrive > 0.5
+              ? "All right. I can’t count on information you aren’t willing to share."
+              : "You don’t have to tell me. I’ll make my own decisions."
+            : a.stance === "refused"
+              ? "I hear you. I’ll have to work out another route."
+              : "Fair. What would you need to know?",
+          a.stance === "refused" ? "refused" : "open",
+        );
+      }
     } else if (["share", "leak", "idol_rumor"].includes(a.type)) {
       const source = a.keepSourcePrivate
         ? a.speakerId
@@ -353,6 +378,8 @@ export default class ConversationResolver {
           random,
         );
         say(id, r.line, r.stance);
+        if (r.conditions)
+          result.responses.at(-1).conditions = clone(r.conditions);
       }
     } else if (["promise", "conditional", "cover_promise"].includes(a.type)) {
       this.makePromise(
@@ -1046,6 +1073,7 @@ export default class ConversationResolver {
       );
       return {
         line: `I’ll vote ${this.name(a.subjectId)} if ${this.name(required.id)} is actually in. Check that with them.`,
+        conditions,
         stance: "conditional",
       };
     }
@@ -1243,6 +1271,34 @@ export default class ConversationResolver {
   }
   answer(a, id, emit, say, random, heard) {
     if (this.person(id)?.isPlayer) {
+      // A human controls the answer, not whether the NPC's warning/reassurance
+      // was actually spoken. Deliver the proposition before awaiting consent.
+      if (a.type === "warn") {
+        const privateSource =
+          a.keepSourcePrivate ||
+          (heard && this.protectedClaim(a.speakerId, heard));
+        emit(a.speakerId, a.subjectId || id, {
+          topic: "safety",
+          stance: "warned",
+          mode:
+            a.truthMode === "fabrication"
+              ? "deliberate_lie"
+              : heard
+                ? "hearsay"
+                : "speculation",
+          attributedId: privateSource
+            ? a.speakerId
+            : heard?.attributedId || heard?.speakerId || a.speakerId,
+          sourceChain: privateSource ? [a.speakerId] : heard?.sourceChain,
+          evidenceIds: heard ? [heard.id] : [],
+        });
+      } else if (a.type === "reassure")
+        emit(a.speakerId, id, {
+          topic: "safety",
+          stance: "yes",
+          mode:
+            a.truthMode === "fabrication" ? "reassurance_lie" : "speculation",
+        });
       say(id, "Choose how much you want to tell them.", "pending");
       return;
     }
@@ -1402,26 +1458,34 @@ export default class ConversationResolver {
           );
         return;
       }
-      const taskAccount = heard.delegationId && this.knowledge(a.speakerId).find(
-        (k) => k.topic === "task_report" && k.delegationId === heard.delegationId &&
-          k.proposition?.kind === "task_result",
-      );
+      const taskAccount =
+        heard.delegationId &&
+        this.knowledge(a.speakerId).find(
+          (k) =>
+            k.topic === "task_report" &&
+            k.delegationId === heard.delegationId &&
+            k.proposition?.kind === "task_result",
+        );
       const priorAccounts = (this.memory.getCampClaims(id) || []).filter(
         (e) =>
           same(e.speakerId, id) &&
           same(e.subjectId, heard.subjectId) &&
           e.topic === heard.topic &&
           e.day === heard.day &&
-          (!taskAccount || withinReportWindow(e, taskAccount.proposition, taskAccount)),
+          (!taskAccount ||
+            withinReportWindow(e, taskAccount.proposition, taskAccount)),
       );
       // An attributed task report describes historical speech, not today's vote.
       // Prefer the matching statement; a later withdrawal cannot erase it.
       const prior = taskAccount
-        ? priorAccounts.find((k) => k.stance === heard.stance) || priorAccounts.at(-1)
+        ? priorAccounts.find((k) => k.stance === heard.stance) ||
+          priorAccounts.at(-1)
         : priorAccounts[0];
       const fabricate =
         !prior && p.coverDrive > 0.55 && random() < p.coverDrive;
-      const refuted = !fabricate && (!prior || (taskAccount && prior.stance !== heard.stance));
+      const refuted =
+        !fabricate &&
+        (!prior || (taskAccount && prior.stance !== heard.stance));
       emit(id, heard.subjectId, {
         topic: heard.topic,
         stance: prior?.stance || (fabricate ? heard.stance : "denied"),
@@ -1463,6 +1527,42 @@ export default class ConversationResolver {
           ? "Yes. Keep that between us."
           : "Nothing I am ready to show you.",
       );
+    } else if (a.type === "why" && a.subjectId != null) {
+      const evidence = owned
+        .filter(
+          (k) =>
+            same(k.subjectId, a.subjectId) &&
+            !same(k.speakerId, id) &&
+            !this.protectedClaim(id, k),
+        )
+        .at(-1);
+      const trust = this.gm.getTrust?.(id, a.subjectId) ?? 50;
+      let line;
+      if (evidence) {
+        line = `${this.name(evidence.speakerId)} ${evidence.provenance === "hearsay" ? "passed on a story about" : "raised concerns about"} ${this.name(a.subjectId)}. That makes me want to check where they stand.`;
+        emit(id, a.subjectId, {
+          topic: evidence.topic,
+          stance: evidence.stance,
+          mode: "hearsay",
+          attributedId: evidence.attributedId || evidence.speakerId,
+          sourceChain: evidence.sourceChain,
+          evidenceIds: [evidence.id],
+        });
+      } else {
+        line =
+          trust < 45
+            ? `I don’t trust ${this.name(a.subjectId)} enough to leave my game in their hands. That’s my read, not proof of a plot.`
+            : same(own?.intendedVoteId, a.subjectId)
+              ? `I think ${this.name(a.subjectId)} is an option that helps my position. I don’t have proof they’re targeting you.`
+              : `I’m weighing ${this.name(a.subjectId)} as an option. I can’t give you evidence that they’re targeting you.`;
+        emit(id, a.subjectId, {
+          topic: "trust",
+          stance: "concern",
+          mode: "speculation",
+          proposition: line,
+        });
+      }
+      say(id, line);
     } else {
       const claim =
         owned.find((e) => e.id === a.claimId) ||
@@ -1471,36 +1571,54 @@ export default class ConversationResolver {
           .find(
             (e) =>
               same(e.subjectId, a.subjectId || last?.subjectId) &&
-              e.kind === "claim",
+              e.kind === "claim" &&
+              (!same(e.speakerId, id) || e.origin === "firsthand"),
           );
       if (!claim) {
         say(id, "I do not have a solid source for that.");
         return;
       }
-      if (a.type === "source" && this.protectedClaim(id, claim))
-        say(id, "I promised to keep that source private.");
-      else if (
+      if (
+        ["source", "evidence"].includes(a.type) &&
+        this.protectedClaim(id, claim)
+      ) {
+        say(
+          id,
+          "I promised to keep that source private. I can try to verify it without naming them.",
+        );
+      } else if (
         a.type === "source" &&
         same(claim.speakerId, id) &&
         !claim.sourceId
-      )
+      ) {
         say(id, "That is my own read from what I have seen.");
-      else if (a.type === "source")
+      } else if (["source", "evidence"].includes(a.type)) {
+        const source = claim.sourceId || claim.speakerId;
+        emit(id, claim.subjectId, {
+          topic: claim.topic,
+          stance: claim.stance,
+          mode: "hearsay",
+          attributedId: claim.attributedId || source,
+          sourceChain: claim.sourceChain,
+          evidenceIds: [claim.id],
+          proposition: claim.proposition,
+          conditions: claim.conditions,
+        });
         say(
           id,
-          `I heard it from ${this.name(claim.sourceId || claim.speakerId)}${claim.provenance === "hearsay" ? ". That was secondhand." : "."}`,
+          `I heard it from ${this.name(source)}${claim.provenance === "hearsay" ? ". That was secondhand." : ". It is what they told me, not something I can prove myself."}`,
         );
-      else if (a.type === "who_knows")
+      } else if (a.type === "who_knows") {
         say(
           id,
           claim.audienceIds?.length
             ? `I know ${claim.audienceIds.map((x) => this.name(x)).join(" and ")} heard that exchange. I cannot say who heard it later.`
             : "I do not know who else was told.",
         );
-      else
+      } else
         say(
           id,
-          `${this.name(claim.speakerId)} ${claim.provenance === "inference" ? "suspected" : "said"} ${this.name(claim.subjectId)} was involved. I do not have more proof than that.`,
+          `${this.name(claim.speakerId)} mentioned ${this.name(claim.subjectId)}. I do not have more proof than that.`,
         );
     }
   }
@@ -1843,6 +1961,14 @@ export default class ConversationResolver {
     }
     if (a.type === "confront" && incident?.topic === "task_report_dispute")
       return `You told me: “${incident.proposition.line}” I heard a different account from ${this.name(incident.proposition.targetId)}. What happened?`;
+    if (a.type === "reply")
+      return a.stance === "withheld"
+        ? "I’m keeping my plans to myself for now."
+        : a.stance === "refused"
+          ? this.gm.gamePhase === "postChallenge"
+            ? `I’m not voting ${name}.`
+            : `If we lose, I’m not ready to vote ${name}.`
+          : `I’ll consider ${name}, but I’m not making a promise.`;
     if (a.type === "come_with_me" && a.explanationMode)
       return (
         this.tasks
@@ -1979,6 +2105,45 @@ export default class ConversationResolver {
       { ...activity, agenda },
       random,
     );
+    // Preserve the certified agenda's single adoption result. Give its actual
+    // answer semantic speech, then let the exchange coordinator negotiate it.
+    // This is not a second roll of the opening's response.
+    if (
+      result &&
+      ["counter_pitch", "recruit_swing"].includes(agenda.purpose) &&
+      result.outcome
+    ) {
+      const stance =
+        result.outcome === "commit"
+          ? "committed"
+          : result.outcome === "refuse"
+            ? "refused"
+            : "leaning";
+      const line =
+        stance === "committed"
+          ? `You can count me for ${this.name(agenda.primarySubject)}.`
+          : stance === "refused"
+            ? `I’m not voting ${this.name(agenda.primarySubject)}.`
+            : `I can consider ${this.name(agenda.primarySubject)}, but that isn't a promise.`;
+      if (stance !== "committed")
+        this.resolve(
+          this.action("reply", {
+            actionId: `${activity.id}:agenda-reply:${listener.id}`,
+            speakerId: listener.id,
+            listenerIds: [actor.id],
+            subjectId: agenda.primarySubject,
+            stance: stance === "refused" ? "refused" : "consider",
+            line,
+          }),
+        );
+      Object.assign(result, {
+        actionId: `${activity.id}:agenda:${listener.id}`,
+        type: agenda.purpose === "counter_pitch" ? "pitch" : "ask_vote",
+        subjectId: agenda.primarySubject,
+        playerLine: `Will you vote ${this.name(agenda.primarySubject)}?`,
+        responses: [{ speakerId: listener.id, stance, line }],
+      });
+    }
     if (result)
       this.memory.recordConversationHistory({
         id: `${activity.id}:agenda-history:${listener.id}`,

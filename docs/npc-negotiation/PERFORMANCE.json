@@ -1,0 +1,348 @@
+{
+  "method": "Ten serial paired cases, one per family, active knowledge-limited player policy, alternating source order; each case compares uninterrupted and production JSON restore; no other QA runners intentionally scheduled during benchmark.",
+  "cases": 10,
+  "scrambles": 40,
+  "replayComparisons": 20,
+  "results": [
+    {
+      "job": {
+        "family": "stable-majority",
+        "seed": 359002,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "baseline": {
+        "runtimeMs": 938.1827529999999,
+        "saveBytes": 410713,
+        "plannerCalls": 90,
+        "candidateCalls": 0,
+        "candidateCount": 0,
+        "commandMs": 2345.9263810000266,
+        "restoreMs": 4.00668200000041,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      },
+      "candidate": {
+        "runtimeMs": 1024.3635219999999,
+        "saveBytes": 431955,
+        "plannerCalls": 85,
+        "candidateCalls": 0,
+        "candidateCount": 0,
+        "commandMs": 2369.033959999797,
+        "restoreMs": 4.125662000000375,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      }
+    },
+    {
+      "job": {
+        "family": "fragile-majority",
+        "seed": 359102,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "candidate": {
+        "runtimeMs": 1389.987515,
+        "saveBytes": 578333,
+        "plannerCalls": 115,
+        "candidateCalls": 8,
+        "candidateCount": 40,
+        "commandMs": 3211.770959000205,
+        "restoreMs": 5.069594999999481,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      },
+      "baseline": {
+        "runtimeMs": 1265.403636,
+        "saveBytes": 540370,
+        "plannerCalls": 123,
+        "candidateCalls": 12,
+        "candidateCount": 60,
+        "commandMs": 3149.0838010004154,
+        "restoreMs": 6.929719000000205,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      }
+    },
+    {
+      "job": {
+        "family": "divided-tribe",
+        "seed": 359202,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "baseline": {
+        "runtimeMs": 884.5967489999999,
+        "saveBytes": 402989,
+        "plannerCalls": 64,
+        "candidateCalls": 8,
+        "candidateCount": 40,
+        "commandMs": 2201.322419999997,
+        "restoreMs": 4.493658000000323,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      },
+      "candidate": {
+        "runtimeMs": 739.035263,
+        "saveBytes": 381792,
+        "plannerCalls": 59,
+        "candidateCalls": 0,
+        "candidateCount": 0,
+        "commandMs": 1735.5894470001658,
+        "restoreMs": 4.232924999999909,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      }
+    },
+    {
+      "job": {
+        "family": "fluid",
+        "seed": 359302,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "candidate": {
+        "runtimeMs": 1006.6836410000001,
+        "saveBytes": 384471,
+        "plannerCalls": 110,
+        "candidateCalls": 0,
+        "candidateCount": 0,
+        "commandMs": 2303.310154999963,
+        "restoreMs": 3.5762170000002698,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      },
+      "baseline": {
+        "runtimeMs": 921.5369259999999,
+        "saveBytes": 350568,
+        "plannerCalls": 102,
+        "candidateCalls": 0,
+        "candidateCount": 0,
+        "commandMs": 2039.6870079994187,
+        "restoreMs": 3.2831070000002,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      }
+    },
+    {
+      "job": {
+        "family": "secret-coalition",
+        "seed": 359402,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "baseline": {
+        "runtimeMs": 1229.4049140000002,
+        "saveBytes": 551266,
+        "plannerCalls": 129,
+        "candidateCalls": 16,
+        "candidateCount": 80,
+        "commandMs": 3172.2077759995955,
+        "restoreMs": 6.056996999999683,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      },
+      "candidate": {
+        "runtimeMs": 1692.6823100000001,
+        "saveBytes": 597544,
+        "plannerCalls": 125,
+        "candidateCalls": 11,
+        "candidateCount": 55,
+        "commandMs": 3816.046073000507,
+        "restoreMs": 6.694927999999663,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      }
+    },
+    {
+      "job": {
+        "family": "idol-concern",
+        "seed": 359502,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "candidate": {
+        "runtimeMs": 834.6831540000001,
+        "saveBytes": 432930,
+        "plannerCalls": 68,
+        "candidateCalls": 13,
+        "candidateCount": 61,
+        "commandMs": 2004.5299830007934,
+        "restoreMs": 4.478846000000203,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      },
+      "baseline": {
+        "runtimeMs": 801.350477,
+        "saveBytes": 391602,
+        "plannerCalls": 62,
+        "candidateCalls": 11,
+        "candidateCount": 51,
+        "commandMs": 1872.712006999791,
+        "restoreMs": 3.880405999999766,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      }
+    },
+    {
+      "job": {
+        "family": "betrayal-leaking",
+        "seed": 359602,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "baseline": {
+        "runtimeMs": 1431.641357,
+        "saveBytes": 599676,
+        "plannerCalls": 90,
+        "candidateCalls": 27,
+        "candidateCount": 135,
+        "commandMs": 3394.6361569996952,
+        "restoreMs": 6.158850999999686,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      },
+      "candidate": {
+        "runtimeMs": 1325.315007,
+        "saveBytes": 580716,
+        "plannerCalls": 91,
+        "candidateCalls": 19,
+        "candidateCount": 95,
+        "commandMs": 3062.132045999533,
+        "restoreMs": 5.387009999999691,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      }
+    },
+    {
+      "job": {
+        "family": "time-pressure",
+        "seed": 359702,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "candidate": {
+        "runtimeMs": 368.208298,
+        "saveBytes": 277832,
+        "plannerCalls": 41,
+        "candidateCalls": 0,
+        "candidateCount": 0,
+        "commandMs": 960.4393139998137,
+        "restoreMs": 4.009721000000127,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      },
+      "baseline": {
+        "runtimeMs": 386.887961,
+        "saveBytes": 276186,
+        "plannerCalls": 37,
+        "candidateCalls": 0,
+        "candidateCount": 0,
+        "commandMs": 1107.3542439999073,
+        "restoreMs": 5.451806999999917,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      }
+    },
+    {
+      "job": {
+        "family": "player-bottom",
+        "seed": 359802,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "baseline": {
+        "runtimeMs": 1287.613501,
+        "saveBytes": 417142,
+        "plannerCalls": 70,
+        "candidateCalls": 14,
+        "candidateCount": 69,
+        "commandMs": 2785.4088929998397,
+        "restoreMs": 5.136604000000034,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      },
+      "candidate": {
+        "runtimeMs": 892.876441,
+        "saveBytes": 414442,
+        "plannerCalls": 56,
+        "candidateCalls": 11,
+        "candidateCount": 54,
+        "commandMs": 1988.2106330005627,
+        "restoreMs": 3.26290599999993,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      }
+    },
+    {
+      "job": {
+        "family": "conflicted-loyalties",
+        "seed": 359902,
+        "policy": "active",
+        "approachQa": true,
+        "approachResponse": "participate",
+        "traceLimit": 0
+      },
+      "candidate": {
+        "runtimeMs": 1009.89027,
+        "saveBytes": 564745,
+        "plannerCalls": 125,
+        "candidateCalls": 36,
+        "candidateCount": 180,
+        "commandMs": 2536.812700000155,
+        "restoreMs": 5.744656999999734,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "559bae0061bace905aa376af7be489156485dc2082ee252566d0e20bc6da7fe1"
+      },
+      "baseline": {
+        "runtimeMs": 1217.235755,
+        "saveBytes": 499386,
+        "plannerCalls": 96,
+        "candidateCalls": 8,
+        "candidateCount": 40,
+        "commandMs": 3093.645275000199,
+        "restoreMs": 7.678799000000254,
+        "restoreEquivalent": true,
+        "sourceFingerprint": "9a43940bb20abdc2e7aa99cbf97234152f16e87f27547debd13a3b722046e05c"
+      }
+    }
+  ],
+  "baseline": {
+    "runtimeMs": 1036.3854029,
+    "saveBytes": 443989.8,
+    "plannerCalls": 86.3,
+    "commandMs": 2516.1983961998885,
+    "restoreMs": 5.307663000000048,
+    "candidateCalls": 9.6,
+    "candidateCount": 47.5,
+    "replayEquivalent": 10
+  },
+  "candidate": {
+    "runtimeMs": 1028.3725421,
+    "saveBytes": 464476.0,
+    "plannerCalls": 87.5,
+    "commandMs": 2398.7875270001496,
+    "restoreMs": 4.658246699999938,
+    "candidateCalls": 9.8,
+    "candidateCount": 48.5,
+    "replayEquivalent": 10
+  }
+}
