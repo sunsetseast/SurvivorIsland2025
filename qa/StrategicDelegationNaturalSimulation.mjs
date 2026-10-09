@@ -1,9 +1,9 @@
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import { createHash } from 'node:crypto';
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { spawn } from 'node:child_process';
+import { spawn } from "node:child_process";
 
 // One QA policy/observer, two source roots. Every game decision uses that root's
 // production systems; no purpose, objective, intention, promise or ballot is seeded.
@@ -30,7 +30,7 @@ export function semanticProjection(x) {
 }
 const hash = (x) => createHash('sha256').update(JSON.stringify(semanticProjection(x))).digest('hex');
 const count = (obj, key, n = 1) => { obj[key] = (obj[key] || 0) + n; };
-function sourceFingerprint(root) {
+export function sourceFingerprint(root) {
   const digest = createHash('sha256');
   const visit = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -43,23 +43,42 @@ function sourceFingerprint(root) {
 }
 const SOURCE_FINGERPRINT = sourceFingerprint(ROOT);
 
-export function runNaturalDelegation({ family = 'fluid', policy = 'passive', seed = 1, reload = false, traceLimit = 300, approachQa = false, approachResponse = 'participate' } = {}) {
+export function runNaturalDelegation({
+  family = "fluid",
+  policy = "passive",
+  seed = 1,
+  reload = false,
+  traceLimit = 300,
+  approachQa = false,
+  approachResponse = "participate",
+} = {}) {
   if (!FAMILIES.includes(family) || !POLICIES.includes(policy)) throw Error('Unknown natural scenario/policy');
   const began = performance.now(), rng = seeded(seed);
-  return quiet(() => withQaRandom(rng, () => {
-    const oldNow = Date.now; Date.now = () => 1800000000000 + seed;
-    try {
+  return quiet(() =>
+    withQaRandom(rng, () => {
+      const oldNow = Date.now;
+      Date.now = () => 1800000000000 + seed;
+      try {
       const size = [6, 8, 10][seed % 3], offset = seed % CAST.length;
       const names = Array.from({ length: size }, (_, i) => CAST[(offset + i * 5) % CAST.length].firstName);
       assert.equal(new Set(names).size, size, 'a natural tribe has unique contestants');
       const s = makeScrambleQa({ seed, start: false, names }), gm = s.gm;
       const e = s.conversation.engine, A = gm.systems.allianceSystem;
-      let player = gm.player;
-      gm.day = 7; gm.isMerged = false; gm.gamePhase = 'preChallenge'; gm.dayTimer = 1200;
-      gm.flags = {}; gm.gameHistory = { tribals: [] }; gm.jury = [];
-      gm._completedTribalKeys = new Set(); gm._tribalCompletionStages = new Map(); gm._tribalCompletionInFlight = new Set();
+        let player = gm.player;
+        gm.day = 7;
+        gm.isMerged = false;
+        gm.gamePhase = "preChallenge";
+        gm.dayTimer = 1200;
+        gm.flags = {};
+        gm.gameHistory = { tribals: [] };
+        gm.jury = [];
+        gm._completedTribalKeys = new Set();
+        gm._tribalCompletionStages = new Map();
+        gm._tribalCompletionInFlight = new Set();
       gm.systems.dealConsequencesSystem = new DealConsequencesSystem(gm);
-      A.reset(); s.memory.deserialize({}); e.deserialize();
+        A.reset();
+        s.memory.deserialize({});
+        e.deserialize();
       let npcs = s.activity.npcs(), members = s.activity.members();
       const initial = { family, policy, seed, cast: members.map(p => ({ id: p.id, name: p.firstName,
         style: p.gameplayStyle })), alliances: [], information: [], relationships: 'seeded social history, not vote plans', idols: [] };
@@ -92,8 +111,8 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
         gm.systems.relationshipSystem.setRelationship(a.id, b.id,
           family === 'player-bottom' && (a.isPlayer || b.isPlayer) ? 16 + Math.floor(rng() * 20) : trust);
       }
-      // Initial information is explicitly seeded, owner-specific and fallible.
-      // It is never an injected objective, requested work, commitment or outcome.
+        // Initial information is explicitly seeded, owner-specific and fallible.
+        // It is never an injected objective, requested work, commitment or outcome.
       if (family === 'idol-concern') {
         const holder = npcs.at(-1), observer = npcs[0], strong = seed % 2 === 0;
         holder.hasIdol = strong;
@@ -111,8 +130,9 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
           day: gm.day, campTime: gm.dayTimer };
         s.memory.recordCampClaim(claim); initial.information.push(claim);
       }
-      s.conversation._renderMenu = () => {}; s.conversation._clearOverlay = () => {};
-      s.conversation._showNpcApproachOverlay = () => {};
+        s.conversation._renderMenu = () => {};
+        s.conversation._clearOverlay = () => {};
+        s.conversation._showNpcApproachOverlay = () => {};
       const trace = [], metrics = { generated: {}, selected: {}, executed: {}, self: {}, npcDelegation: {}, playerDelegation: {},
         responses: {}, reports: {}, status: {}, style: {}, plannerCalls: 0, candidateCalls: 0, candidateCount: 0,
         maxQueue: 0, maxCandidateSet: 0, movement: 0, impossibleTravel: 0, nonPresentActions: 0, repeatedRequests: 0,
@@ -120,25 +140,64 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
         disputes: 0, reassignments: 0, objectiveAbandoned: 0, followups: 0, reportsDelivered: 0, quietPlannerCalls: 0,
         initialObjectives: 0, targetFlips: 0, saveBytes: 0, restoreMs: 0, restoreBoundaries: [] };
       let restoreCount = 0, turn = 0, traceOmitted = 0, incomingActorId=null;
-      const approaches={funnel:{},observed:{},styles:{},maxPending:0,interruptions:0};
-      const approachTrace=[];
+        const approaches = {
+          funnel: {},
+          observed: {},
+          styles: {},
+          maxPending: 0,
+          interruptions: 0,
+          quality: {},
+          unique: {},
+        };
+        const uniqueStages = new Set(),
+          incomingLinks = new Map();
+        const approachTrace = [];
       const observeApproach=(stage,actorId,targetId,detail={})=>{
         if(!approachQa)return;
         const direction=e.person(targetId)?.isPlayer?'player':'npc',key=`${gm.gamePhase}:${direction}:${stage}`;
         count(approaches.observed,key);
         if(approachTrace.length<traceLimit)approachTrace.push({stage,actorId,targetId,phase:gm.gamePhase,campTime:gm.dayTimer,...copy(detail)});
       };
-      if(approachQa&&e.initiative){
+        if (approachQa && e.initiative) {
         const originalNote=e.initiative.note.bind(e.initiative);
-        e.initiative.note=(i,stage,detail)=>{originalNote(i,stage,detail);
+          e.initiative.note = (i, stage, detail) => {
+            originalNote(i, stage, detail);
           count(approaches.funnel,`${gm.gamePhase}:${e.person(i.targetId)?.isPlayer?'player':'npc'}:${stage}`);
-          const style=approaches.styles[e.person(i.actorId)?.gameplayStyle] ||= {};count(style,stage);
+          const style=approaches.styles[e.person(i.actorId)?.gameplayStyle] ||= {};
+            count(style, stage);
+            const uniqueKey = `${i.id}:${stage}`,
+              direction = `${gm.gamePhase}:${e.person(i.targetId)?.isPlayer ? "player" : "npc"}`;
+            if (!uniqueStages.has(uniqueKey)) {
+              uniqueStages.add(uniqueKey);
+              count(approaches.unique, `${direction}:${stage}`);
+            }
+            if (
+              [
+                "proposal_negotiated",
+                "negotiation_followup",
+                "player_engaged",
+                "player_resisted",
+                "goal_advanced",
+                "goal_resisted",
+                "followup_needed",
+                "opportunity_missed",
+              ].includes(stage)
+            ) {
+              count(approaches.quality, `${direction}:${stage}`);
+              if (detail?.status)
+                count(
+                  approaches.quality,
+                  `${direction}:status:${detail.status}`,
+                );
+              if (detail?.counteroffers || detail?.counteroffer)
+                count(approaches.quality, `${direction}:counteroffer`);
+            }
           if(stage==='invitation_offered')approaches.interruptions++;
           if(approachTrace.length<traceLimit)approachTrace.push({stage,intentionId:i.id,actorId:i.actorId,targetId:i.targetId,
             phase:gm.gamePhase,campTime:gm.dayTimer,reason:i.reason,evidenceIds:i.evidenceIds||i.agenda?.knownEvidence||[],...copy(detail||{})});
-        };
-      }
-      const seenInvitations=new Set();
+          };
+        }
+        const seenInvitations = new Set();
       const observeInvitation=()=>{
         if(!approachQa)return;
         const invitation=e.initiative?.invitation||s.strategy.scramble?.invitation;
@@ -158,7 +217,7 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
           return result;
         };
       }
-      const pendingCheckpoints = new Set();
+        const pendingCheckpoints = new Set();
       const emit = (type, detail = {}) => { if (trace.length < traceLimit) trace.push({ type, day: gm.day, campTime: gm.dayTimer, ...copy(detail) }); else traceOmitted++; };
       const snapshot = () => {
         const payload = copy(gm.createSavePayload()), game = payload.gameManager;
@@ -194,7 +253,7 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
         return candidates;
       };
       const originalPlan = e.objectives.plan.bind(e.objectives);
-      const agendaKeys = new Map();
+        const agendaKeys = new Map();
       e.objectives.plan = (actor, now) => {
         metrics.plannerCalls++; const result = originalPlan(actor, now);
         if (!result) metrics.quietPlannerCalls++;
@@ -216,8 +275,8 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
         }
         return result;
       };
-      const originalResolve = e.resolve.bind(e);
-      const seenRequests = new Map();
+        const originalResolve = e.resolve.bind(e);
+        const seenRequests = new Map();
       e.resolve = (a) => {
         const r = originalResolve(a);
         if (r.replay || r.invalid) return r;
@@ -263,14 +322,63 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
         }
         return a;
       };
-      const act = (type, listener, fields = {}) => {
+        const act = (type, listener, fields = {}) => {
         const action=e.action(type, { speakerId: player.id, listenerIds: [listener.id], ...fields });
-        const r = e.resolve(action);
-        if(approachQa)e.initiative?.afterPlayerAction(listener,action,r);
+          const r = e.resolve(action);
+          if (approachQa) {
+            const n = s.activity.conversation?.checkpoint?.npcNegotiation;
+            const before = n
+              ? copy({
+                  status: n.status,
+                  subjectId: n.subjectId,
+                  counteroffers: n.counteroffers || 0,
+                })
+              : null;
+            e.initiative?.afterPlayerAction(listener,action,r);
+            if (n && !r.invalid) {
+              const category = ["promise", "cover_promise"].includes(type)
+                ? "spoken_agreement"
+                : type === "conditional"
+                  ? "condition_established"
+                  : type === "reply" && fields.stance === "refused"
+                    ? "refusal"
+                    : type === "reply" && fields.stance === "withheld"
+                      ? "withheld"
+                      : ["why", "evidence", "numbers", "source"].includes(type)
+                        ? "question"
+                        : "considered";
+              count(approaches.quality, `${gm.gamePhase}:player:${category}`);
+              if ((n.counteroffers || 0) > (before?.counteroffers || 0))
+                count(
+                  approaches.quality,
+                  `${gm.gamePhase}:player:counteroffer`,
+                );
+              if (before && !same(before.subjectId, n.subjectId))
+                count(
+                  approaches.quality,
+                  `${gm.gamePhase}:player:active_alternative`,
+                );
+              incomingLinks.set(String(n.subjectId), {
+                intentionId: n.initiativeId,
+                actionId: action.actionId,
+                npcId: listener.id,
+              });
+            } else if (
+              !r.invalid &&
+              incomingLinks.has(String(fields.subjectId)) &&
+              ["verify", "ask_vote", "pitch", "delegate"].includes(type)
+            ) {
+              count(
+                approaches.quality,
+                `${gm.gamePhase}:player:subsequent_related_action`,
+              );
+              // Explicit shared subject is observable correlation, never a causal assertion.
+            }
+          }
         if(!r.invalid&&approachQa&&same(listener.id,incomingActorId))observeApproach('response_obtained',listener.id,player.id,{action:type});
         if (!r.invalid) { metrics.playerActions++; if (['pitch', 'ask_vote', 'delegate'].includes(type)) metrics.counterAttempts++; }
-        return r;
-      };
+          return r;
+        };
       const finish = () => { incomingActorId=null;if (s.activity.conversation) s.activity.finishConversation({ strategy: true, turns: 1 }); s.conversation.nodeSession = null; };
       const speak = (npc, operation) => {
         if (!npc || !e.together(player.id, npc.id) || !s.activity.beginConversation(npc, { location: player.location, strategy: true })) return false;
@@ -285,33 +393,96 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
           !initial.alliances.some(a => a.memberIds.includes(player.id) && a.memberIds.includes(p.id)))?.id || pool[0]?.id
           : mentioned?.subjectId || pool[0]?.id;
       };
-      const stepPlayer = () => {
+        const stepPlayer = () => {
         if (policy === 'passive' || (!s.strategy.isActive&&!approachQa) || gm.dayTimer < 150 || s.activity.conversation || player.campActivity?.type === 'travel') return;
         const invitation = e.initiative?.invitation || s.strategy.scramble?.invitation;
-        if (invitation && e.together(player.id, invitation.npcId)) {
-          const npc = e.person(invitation.npcId);
+          if (invitation && e.together(player.id, invitation.npcId)) {
+            const npc = e.person(invitation.npcId);
           if(approachQa&&approachResponse!=='participate'&&e.initiative){
             e.initiative.respond(approachResponse==='reject'?'decline':'defer');return;
           }
           const accepted=approachQa&&e.initiative ? e.initiative.respond('accept') :
             (s.strategy.scramble.clearInvitation(),s.activity.beginConversation(npc,{location:player.location,strategy:true}));
-          if(accepted) {
-            incomingActorId=npc.id;
+            if (accepted) {
+              incomingActorId = npc.id;
             observeApproach('invitation_accepted',npc.id,player.id);
             observeApproach('conversation_started',npc.id,player.id);
-            (()=>{
-            // Production NPC presentation executes the real offered action,
-            // but only this policy chooses the human's response.
+              (() => {
+                // Production NPC presentation executes the real offered action,
+                // but only this policy chooses the human's response.
             if(!(approachQa&&e.initiative))s.conversation.view.startNpc(npc, { agenda: invitation.agenda });
-            if(approachQa&&e.initiative){
+                if (approachQa && e.initiative) {
               const checkpoint=s.activity.conversation?.checkpoint,negotiation=checkpoint?.npcNegotiation||checkpoint?.semanticLast;
-              if((negotiation?.proposal||['pitch','ask_vote','press'].includes(negotiation?.type))&&negotiation.subjectId){
-                if(policy==='deceptive')act('cover_promise',npc,{subjectId:negotiation.subjectId});
-                else if(policy==='counter')act('reply',npc,{subjectId:negotiation.subjectId,stance:'refused'});
-                else {act('numbers',npc,{subjectId:negotiation.subjectId});
-                  act('reply',npc,{subjectId:negotiation.subjectId,stance:'consider'});}
-              }
-            }
+                  if (
+                    (negotiation?.proposal ||
+                      ["pitch", "ask_vote", "press"].includes(
+                        negotiation?.type,
+                      )) &&
+                    negotiation.subjectId
+                  ) {
+                    if (policy === "deceptive")
+                      act('cover_promise',npc,{subjectId:negotiation.subjectId});
+                    else if (policy === "counter")
+                      act('reply',npc,{subjectId:negotiation.subjectId,stance:'refused'});
+                    else {
+                      act('numbers',npc,{subjectId:negotiation.subjectId});
+                      if (
+                        policy === "loyal" &&
+                        gm.systems.allianceSystem.getAllianceAffinity(
+                          player.id,
+                          npc.id,
+                        ) > 0.35
+                      )
+                        act("promise", npc, {
+                          subjectId: negotiation.subjectId,
+                        });
+                      else if (policy === "active") {
+                        act("evidence", npc, {
+                          subjectId: negotiation.subjectId,
+                        });
+                        const known = e
+                          .knowledge(player.id)
+                          .find(
+                            (k) =>
+                              ["commitment", "target"].includes(k.topic) &&
+                              same(k.subjectId, negotiation.subjectId) &&
+                              ![player.id, npc.id, negotiation.subjectId].some(
+                                (id) => same(id, k.attributedId || k.speakerId),
+                              ),
+                          );
+                        if (known)
+                          act("conditional", npc, {
+                            subjectId: negotiation.subjectId,
+                            conditions: [
+                              {
+                                kind: "known_commitment",
+                                voterId: known.attributedId || known.speakerId,
+                                targetId: negotiation.subjectId,
+                              },
+                            ],
+                          });
+                        else
+                  act('reply',npc,{subjectId:negotiation.subjectId,stance:'consider'});
+                      } else
+                  act('reply',npc,{subjectId:negotiation.subjectId,stance:'consider'});
+                    }
+                    const next = checkpoint?.npcNegotiation;
+                    if (
+                      policy === "counter" &&
+                      next?.status === "awaiting_response" &&
+                      !same(
+                        next.subjectId,
+                        negotiation.originalSubjectId || negotiation.subjectId,
+                      )
+                    ) {
+                      act("why", npc, { subjectId: next.subjectId });
+                      act("reply", npc, {
+                        subjectId: next.subjectId,
+                        stance: "consider",
+                      });
+                    }
+                  }
+                }
             const request = Object.values(e.tasks.records).findLast(t => same(t.delegateId, player.id) && t.publicStatus === 'pending');
             if (request) {
               const response = policy === 'counter' ? false : policy === 'active' && turn % 3 === 0 ? 'hedge' : true;
@@ -323,11 +494,13 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
             }
             const report = e.tasks.knownTasks(player.id).find(t => same(t.requesterId, npc.id) && t.publicStatus === 'accepted' && !t.report);
             if (report && ['deceptive', 'unreliable'].includes(policy)) act('report', npc, { delegationId: report.id, truthMode: 'fabrication' });
-            })();finish();return;
+              })();
+              finish();
+              return;
+            }
           }
-        }
-        if(!s.strategy.isActive)return;
-        const tasks = e.tasks.playerRequests(player.id);
+          if (!s.strategy.isActive) return;
+          const tasks = e.tasks.playerRequests(player.id);
         const ready = tasks.find(t => t.canReport && e.together(player.id, t.requesterId));
         if (ready && speak(e.person(ready.requesterId), n => act('report', n, { delegationId: ready.id,
           ...(policy === 'deceptive' ? { truthMode: 'fabrication' } : {}) }))) return;
@@ -356,10 +529,10 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
             return;
           }
         }
-        if (turn % 4 !== 0 || gm.dayTimer < 300) return;
+          if (turn % 4 !== 0 || gm.dayTimer < 300) return;
         const nearby = npcs.filter(n => e.together(player.id, n.id) && n.campActivity?.interruptible !== false);
         const npc = nearby[(turn / 4 + seed) % Math.max(1, nearby.length)];
-        if (!npc) return;
+          if (!npc) return;
         speak(npc, n => {
           const target = ownedTarget(['counter', 'survival'].includes(policy));
           if (turn % 8 === 0) act('vote_read', n);
@@ -374,27 +547,35 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
             else act('ask_vote', n, { subjectId: target });
           } else act('ask_vote', n, { subjectId: target });
         });
-      };
-      // Natural pre-immunity camp creates observations and social history.
-      s.activity.phaseId = s.activity.phase;
-      s.activity.ensureStarted();
+        };
+        // Natural pre-immunity camp creates observations and social history.
+        s.activity.phaseId = s.activity.phase;
+        s.activity.ensureStarted();
       while (gm.dayTimer > 0) {
         observeInvitation();if(approachQa)stepPlayer();
         gm.consumeCampTime(Math.min(60, gm.dayTimer), { source: 'natural_pre_wait' });
         if(approachQa)approaches.maxPending=Math.max(approaches.maxPending,e.initiative?.intentions.filter(i=>!['resolved','expired','abandoned'].includes(i.status)).length||0);
       }
-      gm.gamePhase = 'postChallenge'; gm.dayTimer = family === 'time-pressure' ? 360 : 3600;
-      gm.flags = {}; s.strategy.reset(); s.strategy.isActive = true; s.strategy.playerTribeSafe = false;
-      s.strategy.startedForPhaseKey = `${gm.day}-postChallenge`; s.strategy.scrambleState = ScrambleState.ACTIVE;
+        gm.gamePhase = "postChallenge";
+        gm.dayTimer = family === 'time-pressure' ? 360 : 3600;
+        gm.flags = {};
+        s.strategy.reset();
+        s.strategy.isActive = true;
+        s.strategy.playerTribeSafe = false;
+      s.strategy.startedForPhaseKey = `${gm.day}-postChallenge`;
+        s.strategy.scrambleState = ScrambleState.ACTIVE;
       s.strategy.scramble = new ScrambleActivityPlan(gm, s.strategy, { rngState: seed });
-      s.activity.phaseId = s.activity.phase; s.activity.conversation = null;
+        s.activity.phaseId = s.activity.phase;
+        s.activity.conversation = null;
       for (const p of members) { p.campActivity = null; p.hasVote = true; p.hasImmunity = false; }
-      e.tasks.expire(); e.objectives.deserialize();
-      s.strategy.seedNpcIntentTargetsForPhase(); // Certified production selection, not QA-written targets.
-      checkpoint('objective-start');
+        e.tasks.expire();
+        e.objectives.deserialize();
+        s.strategy.seedNpcIntentTargetsForPhase(); // Certified production selection, not QA-written targets.
+        checkpoint("objective-start");
       const initialIntents = Object.fromEntries(npcs.map(p => [p.id, s.strategy.reasoning.state(p.id).intendedVoteId]));
-      s.activity.ensureStarted(); s.strategy.scramble.scheduleAlliances();
-      let previous = initialIntents;
+        s.activity.ensureStarted();
+        s.strategy.scramble.scheduleAlliances();
+        let previous = initialIntents;
       while (gm.dayTimer > 0 && turn++ < 180) {
         observeInvitation();stepPlayer();
         if(approachQa)approaches.maxPending=Math.max(approaches.maxPending,e.initiative?.intentions.filter(i=>!['resolved','expired','abandoned'].includes(i.status)).length||0);
@@ -417,16 +598,17 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
         }
         previous = intents;
       }
-      assert.equal(gm.dayTimer, 0); checkpoint('before-Tribal');
+        assert.equal(gm.dayTimer, 0);
+        checkpoint("before-Tribal");
       const finalIntent = Object.fromEntries(npcs.map(p => [p.id, s.strategy.reasoning.state(p.id).intendedVoteId]));
       const playerTarget = ownedTarget(['counter', 'survival'].includes(policy));
       const tribal = new TribalCouncilSystem(gm, { publish() {} });
       const summary = finishTribal({ gm, tribal, members }, { playerTargetId: playerTarget });
       emit('Tribal', { votes: summary.initialVotes, eliminatedId: summary.eliminatedId });
-      checkpoint('after-Tribal');
+        checkpoint("after-Tribal");
       const ballots = summary.initialVotes.map(v => ({ voterId: v.voterId, targetId: v.targetId }));
-      e.tasks.expire();
-      const tasks = Object.values(e.tasks.records);
+        e.tasks.expire();
+        const tasks = Object.values(e.tasks.records);
       metrics.attemptedTasks = tasks.filter(t => t.executionReceipt).length;
       metrics.reportedTasks = tasks.filter(t => t.reports.length).length;
       const taskResults = tasks.map(t => ({ id: t.id, purpose: t.purpose, requesterId: t.requesterId,
@@ -444,14 +626,15 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
       }
       const objectives = Object.values(e.objectives.records);
       metrics.objectiveAbandoned = objectives.filter(o => o.status === 'abandoned').length;
-      metrics.initialObjectives = objectives.length;
-      const votes = {}; ballots.forEach(v => count(votes, v.targetId));
+        metrics.initialObjectives = objectives.length;
+        const votes = {};
+        ballots.forEach((v) => count(votes, v.targetId));
       const actualNpc = ballots.filter(v => !same(v.voterId, player.id));
       const tribalIntent = Object.fromEntries(npcs.map(p => [p.id, s.strategy.reasoning.state(p.id).intendedVoteId]));
       const aligned = actualNpc.filter(v => same(v.targetId, tribalIntent[v.voterId])).length;
       const plans = Object.values(s.strategy.reasoning.plans);
       metrics.strategy = copy(s.strategy.reasoning.metrics);
-      metrics.obligations = {};
+        metrics.obligations = {};
       for (const person of members) for (const obligation of s.memory.getConversationObligations(person.id))
         count(metrics.obligations, `${obligation.kind}:${obligation.status}`);
       const result = { family, policy, seed, initial, metrics, initialIntents, finalIntent, tribalIntent, ballots,
@@ -461,10 +644,14 @@ export function runNaturalDelegation({ family = 'fluid', policy = 'passive', see
           npcIntentAlignment: aligned, npcBallots: actualNpc.length, backups: plans.filter(p => p.id.startsWith('backup:')).length,
           splits: plans.filter(p => p.assignments).length, competingObjectives: new Set(objectives.map(o => o.targetId)).size },
         ...(approachQa?{approaches,approachTrace,approachResponse}:{}),taskResults, trace, traceOmitted, restoreCount, projection: snapshot(), rngState: rng.state() };
-      result.stateHash = hash(result.projection); result.metrics.runtimeMs = performance.now() - began;
-      return result;
-    } finally { Date.now = oldNow; }
-  }));
+        result.stateHash = hash(result.projection);
+        result.metrics.runtimeMs = performance.now() - began;
+        return result;
+      } finally {
+        Date.now = oldNow;
+      }
+    }),
+  );
 }
 
 export async function certifyNatural({ seedsPerFamily = 40, baselineRoot, outputDir, workers = 4 } = {}) {

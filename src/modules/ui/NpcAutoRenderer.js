@@ -187,12 +187,13 @@ export class NpcAutoRenderer {
         const person = this.interactions.person(invitation.npcId);
         const notice = createElement('div', {className:'scramble-invitation'});
         notice.appendChild(createElement('strong', {}, `${person.firstName} came looking for you`));
-        notice.appendChild(createElement('p', {}, invitation.private?'“Could we have a quiet word?”':'“Can we talk?”'));
+        notice.appendChild(createElement('p', {}, invitation.reply || (invitation.private?'“Could we have a quiet word?”':'“Can we talk?”')));
         notice.classList.add('npc-initiative-notice');notice.setAttribute('aria-live','polite');
         for(const [choice,label] of [['accept','Talk now'],...(invitation.private?[['private','Go somewhere quiet']]:[]),['defer','Give me a minute'],['decline','Not right now']]) {
           const button=this.action(label,`${choice}:${invitation.activityId}`,()=>{
             this.closeSheet(false);
-            if(initiative?.respond(choice)){if(choice==='accept')this.focusConversation();this.signature=null;this.refresh();}
+            const accepted=initiative?.respond(choice);
+            if(accepted || choice==='private'){if(accepted&&choice==='accept')this.focusConversation();this.signature=null;this.refresh();}
           });
           button.setAttribute('aria-label',`${label} · ${person.firstName}`);notice.appendChild(button);
         }

@@ -3,7 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { FAMILIES, POLICIES } from "./StrategicDelegationNaturalSimulation.mjs";
+import {
+  FAMILIES,
+  POLICIES,
+  sourceFingerprint,
+} from "./StrategicDelegationNaturalSimulation.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 // The #358 harness supplies production camp, conversations, objectives, tasks,
 // knowledge and actual Tribal ballots. This runner adds observers and explicit,
@@ -30,6 +34,10 @@ export async function certifyInitiative({
   let next = 0,
     completed = 0;
   const pairs = [];
+  const fingerprints = {
+    baseline: sourceFingerprint(baselineRoot),
+    candidate: sourceFingerprint(root),
+  };
   const worker = async () => {
     while (next < jobs.length) {
       const job = jobs[next++],
@@ -39,6 +47,20 @@ export async function certifyInitiative({
         candidate: root,
       })) {
         const destination = path.join(outputDir, `${version}-${job.seed}.json`);
+        if (fs.existsSync(destination)) {
+          const cached = JSON.parse(fs.readFileSync(destination, "utf8"));
+          if (
+            cached.sourceFingerprint === fingerprints[version] &&
+            cached.restoreEquivalent &&
+            cached.approaches?.quality &&
+            cached.seed === job.seed &&
+            cached.policy === job.policy &&
+            cached.approachResponse === job.approachResponse
+          ) {
+            pair[version] = cached;
+            continue;
+          }
+        }
         await new Promise((resolve, reject) => {
           const child = spawn(
             process.execPath,
@@ -83,7 +105,9 @@ export async function certifyInitiative({
     const observed = {},
       funnel = {},
       style = {},
-      families = {};
+      families = {},
+      quality = {},
+      unique = {};
     let restored = 0,
       runtime = 0,
       survived = 0,
@@ -93,6 +117,8 @@ export async function certifyInitiative({
     for (const r of records) {
       add(observed, r.approaches.observed);
       add(funnel, r.approaches.funnel);
+      add(quality, r.approaches.quality);
+      add(unique, r.approaches.unique);
       restored += r.restoreEquivalent ? 1 : 0;
       runtime += r.metrics.runtimeMs;
       survived += r.outcome.playerSurvived ? 1 : 0;
@@ -130,6 +156,13 @@ export async function certifyInitiative({
       style,
       families,
       maxPending,
+      quality,
+      unique,
+      meanSaveBytes:
+        records.reduce((n, r) => n + r.metrics.saveBytes, 0) / records.length,
+      meanPlannerCalls:
+        records.reduce((n, r) => n + r.metrics.plannerCalls, 0) /
+        records.length,
       meanRuntimeMs: runtime / records.length,
       playerSurvived: survived,
       npcIntentAlignment: alignment,
@@ -165,6 +198,8 @@ export async function certifyInitiative({
         job: p.job,
         initial: p.candidate.initial,
         trace: p.candidate.approachTrace,
+        strategicTrace: p.candidate.trace,
+        traceOmitted: p.candidate.traceOmitted,
       })),
   };
   fs.writeFileSync(
