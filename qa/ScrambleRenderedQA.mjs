@@ -40,7 +40,7 @@ try {
       const g = await geometry(); assert.equal(g.overflow, false); assert.ok(g.rail.y + g.rail.h <= viewport.height);
       for (const button of g.buttons) assert.ok(button.w >= 44 && button.h >= 44);
       assert.equal(await page.locator('.camp-cluster.quiet').count(), 1);
-      assert.equal(await page.getByRole('button', { name: 'Wait · 1 minute', exact: true }).count(), 1);
+      assert.equal(await page.getByRole('button', { name: 'Observe camp · 1 minute', exact: true }).count(), 1);
       await shot(`${view}-${viewport.width}`); checks.push({ view, viewport, type: 'nearby' });
     }
     const npc = await page.evaluate(() => window.scrambleQa.local('beach'));
@@ -65,18 +65,23 @@ try {
     assert.ok(await page.evaluate(() => window.scrambleQa.gm.dayTimer < 3600 && !window.scrambleQa.activity.conversation));
     checks.push({ viewport, type: 'conversation-reading-and-close' });
     await page.evaluate(() => window.scrambleQa.intelligence());
-    await page.getByRole('button', { name: 'More…', exact: true }).click();
-    await page.getByRole('button', { name: 'Confront', exact: true }).click();
-    await page.getByRole('button', { name: /^Bluff:/ }).first().click();
+    // #356 replaced the legacy More/Confront tree; exercise the equivalent
+    // semantic bluff and counter-pitch, preserving replay/focus/billing checks.
+    const option = label => overlay.getByRole('button', { name: label, exact: true });
+    await option('Make a Move').click(); await option('Deception and leverage').click();
+    await option('Bluff: say somebody committed').click();
+    await overlay.locator('.conversation-options-region button').first().click();
+    await overlay.getByRole('button', { name: /^Bluff: say .* committed$/ }).first().click();
     await shot(`bluff-${viewport.width}`);
     assert.ok(await overlay.evaluate(e => e.contains(document.activeElement)), 'focus retained after resolving bluff');
     assert.equal(await page.evaluate(() => window.scrambleQa.gm.dayTimer), 3600);
-    const resolvedCounterLabel = await page.getByRole('button', { name: /^What if we do/ }).first().innerText();
-    await page.getByRole('button', { name: resolvedCounterLabel, exact: true }).click();
+    await option('Make a Move').click(); await option('Votes and promises').click();await option('Pitch a target').click();
+    await overlay.locator('.conversation-options-region button').first().click();
     const resolved = await page.evaluate(() => JSON.stringify(window.scrambleQa.activity.conversation.checkpoint));
+    const receiptCount = await page.evaluate(() => Object.keys(window.scrambleQa.gm.systems.conversationSystem.engine.receipts).length);
     await page.evaluate(() => window.scrambleQa.restore());
     await page.getByRole('button', { name: 'Resume conversation', exact: true }).click();
-    assert.equal(await page.getByRole('button', { name: resolvedCounterLabel, exact: true }).count(), 0, 'that resolved counter hidden on restore');
+    assert.equal(await page.evaluate(() => Object.keys(window.scrambleQa.gm.systems.conversationSystem.engine.receipts).length), receiptCount, 'restore does not execute a second spoken counter');
     assert.equal(await page.evaluate(() => JSON.stringify(window.scrambleQa.activity.conversation.checkpoint)), resolved, 'resolved choice cannot replay after production restore');
     await shot(`resumed-${viewport.width}`);
     await page.setViewportSize({ width: viewport.height, height: viewport.width });
@@ -90,7 +95,7 @@ try {
     await page.waitForTimeout(2100); assert.equal(await page.locator('#conversation-overlay').count(), 0, 'no wall-time autoaccept');
     assert.equal(await page.evaluate(() => window.scrambleQa.gm.dayTimer), beforeInvite, 'reading invitation does not tick');
     await shot(`invitation-${viewport.width}`);
-    await page.getByRole('button', { name: /wants to talk/ }).click();
+    await page.getByRole('button', { name: /^Talk now ·/ }).click();
     assert.ok(await page.evaluate(() => !!window.scrambleQa.activity.conversation)); await page.keyboard.press('Escape');
     checks.push({ viewport, type: 'physical-npc-approach' });
     const meeting = await page.evaluate(() => window.scrambleQa.meeting()); assert.equal(meeting.status, 'active');
@@ -139,7 +144,7 @@ try {
   assert.equal(await page.locator('.camp-person').first().evaluate(e => getComputedStyle(e).animationName), 'none');
   await page.evaluate(() => window.scrambleQa.wait(3600));
   assert.equal(await page.locator('.post-challenge-summary').count(), 1); await shot('summary-375');
-  assert.equal(await page.getByRole('button', { name: 'Wait · 1 minute', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Observe camp · 1 minute', exact: true }).count(), 0);
   assert.deepEqual(errors, []);
   const report = { engine, version: browser.version(), checks, playtests, errors, actualIOS: false };
   fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify(report, null, 2));

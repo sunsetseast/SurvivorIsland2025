@@ -70,6 +70,7 @@ export default function renderBeach(container) {
 
   const actionPopup = createElement('div', {
     id: 'beach-action-popup',
+    role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Beach actions',
     style: `
       display: none;
       position: fixed;
@@ -123,15 +124,33 @@ export default function renderBeach(container) {
     openIdolHuntOptions(container, LocationKeys.BEACH);
   });
 
+  let returnFocus = null;
+  const closeActions = () => {
+    actionPopup.style.display = 'none';
+    returnFocus?.focus({ preventScroll: true });
+  };
+  const closeButton = createElement('button', {
+    type: 'button', className: 'rect-button alt', onclick: closeActions,
+  }, 'Back to camp');
+  actionPopup.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { event.preventDefault(); closeActions(); }
+    if (event.key === 'Tab') {
+      const buttons = [...actionPopup.querySelectorAll('button')];
+      const first = buttons[0], last = buttons.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
   popupContent.appendChild(popupTitle);
   popupContent.appendChild(fishingButton);
   popupContent.appendChild(huntButton);
+  popupContent.appendChild(closeButton);
   actionPopup.appendChild(popupContent);
   container.appendChild(actionPopup);
 
   actionPopup.addEventListener('click', (event) => {
     if (event.target === actionPopup) {
-      actionPopup.style.display = 'none';
+      closeActions();
     }
   });
 
@@ -182,8 +201,11 @@ export default function renderBeach(container) {
     });
 
     const blankButton = createIconButton('Assets/Buttons/blank.png', 'Blank', () => {
+      returnFocus = document.activeElement;
       actionPopup.style.display = actionPopup.style.display === 'none' ? 'flex' : 'none';
+      if (actionPopup.style.display === 'flex') fishingButton.focus({ preventScroll: true });
     });
+    blankButton.setAttribute('aria-label', 'Beach actions');
 
     const rightButton = createIconButton('Assets/Buttons/right.png', 'Right', () => {
       loadCampView(LocationKeys.TRIBE_FLAG);

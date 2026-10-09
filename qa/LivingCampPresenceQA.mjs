@@ -16,7 +16,7 @@ export async function presenceQa(page,output) {
       },paired);
       assert.equal(await page.locator('.camp-witnessed-departure').count(),1);
       assert.match(await page.locator('.camp-witnessed-departure').innerText(),/Tony/);
-      const follow=page.getByRole('button',{name:'Follow Tony',exact:true});assert.ok(await follow.isVisible());
+      const follow=page.getByRole('button',{name:'Follow Tony · 2 min',exact:true});assert.ok(await follow.isVisible());
       await page.screenshot({path:path.join(output,`presence-beach-${paired?'pair':'solo'}-${viewport.width}.png`)});
       await qa(()=>campQa.screen.loadView('campfire'));
       assert.equal(await page.locator('.camp-witnessed-departure').count(),0);
@@ -62,7 +62,7 @@ export async function presenceQa(page,output) {
       const p=campQa.activity.npcs(),actor=p.find(p=>p.firstName==='Tony');
       campQa.activity.start(actor,{type:'travel',location:'jungleTrail',duration:180,goal:{type:'idol_hunt',location:'jungleTrail'}});
     });
-    await page.getByRole('button',{name:'Follow Tony',exact:true}).click();
+    await page.getByRole('button',{name:'Follow Tony · 2 min',exact:true}).click();
     assert.match(await page.locator('dialog').innerText(),/lose sight/);
     assert.ok(await page.locator('dialog').evaluate(d=>d.contains(document.activeElement)));
     assert.ok(await page.locator('dialog').getByRole('button',{name:'Back to camp',exact:true}).isVisible());
