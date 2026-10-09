@@ -49,7 +49,8 @@ export default class StrategicObjectivePlanner {
       return Math.min(1, observations.length * 0.3 + (reported ? 0.4 : 0));
     };
     const scores = candidates
-      .filter((x) => !same(x.id, target.id))
+      .filter((x) => !same(x.id, target.id) &&
+        !e.tasks.refusedWork(owner.id, x.id, work || {}, objective.id, e.gm.dayTimer))
       .map((person) => {
         const trust = (e.gm.getTrust?.(owner.id, person.id) ?? 50) / 100,
           affinity =
@@ -68,15 +69,8 @@ export default class StrategicObjectivePlanner {
           )
             ? 0.25
             : 0,
-          priorRefusal = e.tasks
-            .knownTasks(owner.id)
-            .some(
-              (t) =>
-                same(t.delegateId, person.id) &&
-                same(t.targetId, target.id) &&
-                t.publicStatus === "refused" &&
-                t.day === e.gm.day,
-            ),
+          priorRefusal = e.tasks.refusedWork(owner.id, person.id,
+            work || {}, objective.id, e.gm.dayTimer),
           workload = e.tasks
             .knownTasks(owner.id)
             .filter(
@@ -445,7 +439,14 @@ export default class StrategicObjectivePlanner {
       free.filter((x) => !same(x.id, o.targetId)),
       work,
     );
-    const delegate = intermediary && !work.preferSelf && pending.length < 2;
+    // Lower-bound logistics, not a success estimate: a request, target exchange
+    // and report each need a real reservation. Near Tribal, act personally if
+    // the intermediary chain cannot possibly finish. Busy targets can still move.
+    const walk = (from, to) => e.camp.minimumTravelSeconds(e.place(from), e.place(to));
+    const delegateSeconds = intermediary ? walk(actor.id, intermediary.person.id) + 120 +
+      walk(intermediary.person.id, target.id) + 120 +
+      (work.purpose === "bring" ? walk(target.id, actor.id) : walk(target.id, actor.id) + 120) : Infinity;
+    const delegate = intermediary && !work.preferSelf && pending.length < 2 && delegateSeconds < now;
     if (
       publicAudience > 2 &&
       work.secrecyNeed &&
@@ -455,6 +456,7 @@ export default class StrategicObjectivePlanner {
     )
       return { type: "observe", location: e.place(actor.id), duration: 120 };
     const listener = delegate ? intermediary.person : target;
+    if (walk(actor.id, listener.id) + (listener.isPlayer ? 45 : 120) >= now) return null;
     return {
       type: listener.isPlayer ? "approach_player" : "strategy_conversation",
       location: e.place(listener.id),
@@ -539,6 +541,7 @@ export default class StrategicObjectivePlanner {
         : undefined,
       delegationId: activity.agenda?.followTaskId,
       objectiveId: o.id,
+      workKey: activity.agenda?.work?.key,
       activityId: activity.id,
       keepSourcePrivate:
         activity.agenda?.work?.keepSourcePrivate ??
@@ -561,7 +564,13 @@ export default class StrategicObjectivePlanner {
       const work = activity.agenda?.work;
       if (work?.key) {
         o.workReceipts ||= {};
-        o.workReceipts[work.key] = { day: e.gm.day, at: e.gm.dayTimer };
+        const task = Object.values(e.tasks.records).find((t) =>
+          t.workKey === work.key && t.requesterId === actor.id &&
+          t.requestClaimId?.startsWith(a.actionId));
+        o.workReceipts[work.key] = {
+          day: e.gm.day, at: e.gm.dayTimer,
+          kind: delegate ? "request" : "attempt", taskId: task?.id || null,
+        };
         o.selectedWork = copy(work);
       }
       o.steps.push({

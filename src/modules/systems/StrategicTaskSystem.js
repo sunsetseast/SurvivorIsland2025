@@ -9,6 +9,7 @@ import {
   taskAction,
   taskDescription,
   taskSuggestion,
+  strategicWorkKey,
 } from "./StrategicTaskActions.js";
 import {
   reportProposition,
@@ -42,6 +43,10 @@ export default class StrategicTaskSystem {
         publicStatus: t.publicStatus,
         day: t.day,
         objectiveId: t.objectiveId,
+        workKey: t.workKey,
+        requestedClaimId: t.requestedClaimId,
+        createdAt: t.createdAt,
+        responseAt: t.responseAt,
         report:
           (t.reports || []).filter((r) => same(r.listenerId, ownerId)).at(-1) ||
           null,
@@ -72,6 +77,18 @@ export default class StrategicTaskSystem {
         String(delegateId)
       ] ?? 0.75;
     return Math.max(-0.8, Math.min(0.6, value + (source - 0.75) * 0.5));
+  }
+  refusedWork(ownerId, delegateId, work, objectiveId, now) {
+    const key = work.key || strategicWorkKey(objectiveId, work);
+    return this.knownTasks(ownerId).some((t) =>
+      same(t.requesterId, ownerId) && same(t.delegateId, delegateId) &&
+      t.day === this.engine.gm.day && t.publicStatus === "refused" &&
+      (t.workKey === key || (!t.workKey && t.objectiveId === objectiveId &&
+        t.purpose === work.purpose && same(t.targetId, work.targetId))) &&
+      // A later materially different question has a different key. Otherwise
+      // give this worker a full semantic cooling-off period, not 45-second spam.
+      (t.responseAt ?? t.createdAt) - now < 900,
+    );
   }
   playerRequests(ownerId) {
     this.expire();
@@ -322,12 +339,21 @@ export default class StrategicTaskSystem {
       keepSourcePrivate: Boolean(a.keepSourcePrivate),
       attribution: a.attribution || "if_necessary",
       objectiveId: a.objectiveId || null,
+      workKey: a.workKey || strategicWorkKey(a.objectiveId, {
+        purpose: a.purpose, targetId: target.id,
+        subjectId: ["recruit", "decoy", "backup", "split"].includes(a.purpose)
+          ? a.planTargetId || e.ownTarget(requester.id) : null,
+        primaryTargetId: a.primaryTargetId || e.ownTarget(requester.id),
+        claimId: a.claimId, eventId: a.eventId,
+        conditions: a.conditions || [], dependencyIds: a.dependencyIds || [],
+      }),
       reasonLine: a.reasonLine || null,
       reasonClaimId: a.reasonClaimId || null,
       dependencyIds: copy(a.dependencyIds || []),
       day: e.gm.day,
       phase: e.gm.gamePhase,
       createdAt: e.gm.dayTimer,
+      createdOrder: a.semanticOrder,
       deadline: 0,
       status: publicStatus === "accepted" ? "queued" : publicStatus,
       publicStatus,
@@ -445,6 +471,7 @@ export default class StrategicTaskSystem {
     const answer =
       accept === "hedge" ? "hedged" : accept ? "accepted" : "refused";
     t.publicStatus = answer;
+    t.responseAt = this.engine.gm.dayTimer;
     t.status = answer === "accepted" ? "queued" : answer;
     for (const id of [t.delegateId, t.requesterId])
       this.rememberStatus(t, id, t.publicStatus);
@@ -634,7 +661,7 @@ export default class StrategicTaskSystem {
       delegationId: task.id,
       activityId: activity.id,
       keepSourcePrivate: fields.keepSourcePrivate,
-      truthMode: task.purpose === "decoy" ? "fabrication" : "truth",
+      truthMode: fields.truthMode || "truth",
     });
     const result = e.resolve(action);
     if (result.invalid) {
@@ -751,7 +778,9 @@ export default class StrategicTaskSystem {
         stance: reported,
         mode: falseReport ? "deliberate_lie" : "truthful",
         delegationId: task.id,
-        proposition: reportProposition(task, reported, line, falseReport),
+        proposition: reportProposition(task, reported, line, falseReport, {
+          day: e.gm.day, campTime: e.gm.dayTimer, order: a.semanticOrder,
+        }),
       },
       random,
     );
@@ -768,7 +797,8 @@ export default class StrategicTaskSystem {
           (k) =>
             same(k.speakerId, task.targetId) &&
             same(k.subjectId, reportedTargetId) &&
-            ["commitment", "target"].includes(k.topic),
+            ["commitment", "target"].includes(k.topic) &&
+            (!task.outcome?.evidenceId || k.id === task.outcome.evidenceId),
         )
         .at(-1);
       e.statement(
@@ -805,6 +835,7 @@ export default class StrategicTaskSystem {
       reported,
       line,
       day: e.gm.day,
+      campTime: e.gm.dayTimer,
     });
     // The report can transmit answers the delegate actually heard. A false
     // success never invents a target conversation or gains its evidence.
@@ -888,6 +919,12 @@ export default class StrategicTaskSystem {
     t.executionReceipt = a.actionId;
     t.completedAt = e.gm.dayTimer;
     t.outcome = {
+      contactOccurred: true,
+      assignedActionAttempted: matchesTask(e, t, a),
+      actionType: a.type,
+      actionReceipt: a.actionId,
+      day: e.gm.day,
+      campTime: e.gm.dayTimer,
       stance: response?.stance || "open",
       line: response?.line || "",
       listenerId: t.targetId,
@@ -1221,6 +1258,16 @@ export default class StrategicTaskSystem {
         stance: "unknown",
       };
     const p = conversationCharacter(e.person(targetId));
+    const history = e.memory.memory[String(targetId)]?.conversationHistory || [];
+    const incompleteMemory = contradiction.assessment === "not_recalled" &&
+      history.length >= 100 && history[0].campTime < report.proposition.requestTime;
+    if (incompleteMemory) {
+      const line = "I cannot clearly remember that earlier exchange.";
+      e.statement(a, { speakerId: targetId, listenerIds: [a.speakerId],
+        subjectId: targetId, topic: "task_report_confirmation", stance: "uncertain",
+        delegationId: report.delegationId, proposition: { line, classification: "uncertain_recollection" } }, random);
+      return { line, stance: "uncertain" };
+    }
     const cover =
       !contradiction.consistent &&
       p.coverDrive > 0.65 &&
@@ -1228,13 +1275,15 @@ export default class StrategicTaskSystem {
     const line =
       contradiction.consistent || cover
         ? report.proposition.subjective
-          ? "We did talk. How it felt is their interpretation."
+          ? "They did attempt that. How it felt is their interpretation."
           : "That matches what I remember."
         : contradiction.assertion === "source_protected"
           ? "They used the requester's name when they told me."
           : contradiction.assertion === "contact"
             ? "They did not speak to me about that."
-            : "That is not what happened in our conversation.";
+            : contradiction.assertion === "assigned_action_attempted"
+              ? "We talked, but they never did what you are describing."
+              : "That is not what happened in our conversation.";
     e.statement(
       a,
       {
@@ -1246,7 +1295,9 @@ export default class StrategicTaskSystem {
         topic: "task_report_confirmation",
         stance: contradiction.consistent || cover ? "confirmed" : "denied",
         refutesClaimId: !contradiction.consistent && !cover ? report.id : null,
-        proposition: { assertion: contradiction.assertion || "contact", line },
+        proposition: { assertion: contradiction.assertion || "contact", line,
+          classification: cover ? "reported_confirmation" : contradiction.assessment || "remembered_delivery",
+          reportTime: report.proposition.reportTime },
         delegationId: report.delegationId,
         evidenceIds: contradiction.evidenceIds,
         mode: cover ? "deliberate_lie" : "truthful",

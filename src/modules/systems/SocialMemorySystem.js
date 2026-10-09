@@ -1017,7 +1017,7 @@ class SocialMemorySystem {
     recordCampClaim({ id, speakerId, listenerIds = [], subjectId, topic, stance,
         origin = 'participant', sourceId = null, confidence = 0.8, day = 1, campTime = null,
         salience = 'medium', truthfulness = null, attributedId = null, sourceChain = null,
-        speechAct = null, refutesClaimId = null, confidenceByListener = null, allianceId = null, memberIds = [], objectiveReference = null, evidenceIds = [], proposition = null, conditions = [], commitmentStatus = null, secrecy = null, delegationId = null, location = null, activityId = null, leakTest = false } = {}) {
+        speechAct = null, refutesClaimId = null, confidenceByListener = null, allianceId = null, memberIds = [], objectiveReference = null, evidenceIds = [], proposition = null, conditions = [], commitmentStatus = null, secrecy = null, delegationId = null, location = null, activityId = null, leakTest = false, semanticOrder = null, phase = null } = {}) {
         if (!id || speakerId == null || subjectId == null || !topic || !stance) return false;
         const owners = [speakerId, ...listenerIds];
         let added = false;
@@ -1030,7 +1030,7 @@ class SocialMemorySystem {
             const entry = { id, speakerId, subjectId, topic, stance, day, campTime, salience, allianceId, memberIds: [...memberIds], objectiveReference, evidenceIds: [...evidenceIds],
                 proposition, conditions: JSON.parse(JSON.stringify(conditions)), commitmentStatus, secrecy: secrecy ? JSON.parse(JSON.stringify(secrecy)) : null, delegationId, location, activityId,
                 origin: speaker ? origin : attributedId != null && String(attributedId) !== String(speakerId) ? 'hearsay' : 'direct_statement', sourceId: speaker ? sourceId : speakerId,
-                attributedId: attributedId ?? speakerId, speechAct, refutesClaimId,
+                attributedId: attributedId ?? speakerId, speechAct, refutesClaimId, semanticOrder, phase,
                 audienceIds: speaker ? [...listenerIds] : [ownerId],
                 ...(origin === 'inference' ? { evidenceOrigin: 'inference' } : {}),
                 sourceChain: sourceChain ? [...sourceChain].slice(-5) : speaker ? [speakerId] : [sourceId, speakerId].filter(id => id != null),
@@ -1045,11 +1045,12 @@ class SocialMemorySystem {
         return added;
     }
 
-    recordConversationHistory({ id, participantIds, speakerId, subjectId, type, topic, line, day, campTime, location, objectiveId = null, delegationId = null }) {
+    recordConversationHistory({ id, participantIds, speakerId, subjectId, type, topic, line, day, campTime, location, objectiveId = null, delegationId = null, semantic = null, phase = null }) {
         for (const ownerId of new Set((participantIds || []).map(String))) {
             this.initNPC(ownerId); const mem = this.memory[ownerId]; mem.conversationHistory ||= [];
             if (mem.conversationHistory.some(e => e.id === id)) continue;
-            mem.conversationHistory.push({ id, speakerId, subjectId, type, topic, line, day, campTime, location, objectiveId, delegationId });
+            mem.conversationHistory.push({ id, speakerId, subjectId, type, topic, line, day, campTime, location, objectiveId, delegationId, phase,
+                ...(semantic ? { semantic: JSON.parse(JSON.stringify(semantic)) } : {}) });
             if (mem.conversationHistory.length > 100) mem.conversationHistory.shift();
         }
     }

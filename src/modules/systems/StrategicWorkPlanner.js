@@ -3,6 +3,7 @@ import {
   samePerson as same,
 } from "./ConversationActionCatalog.js";
 import { conversationCharacter } from "./ConversationCharacter.js";
+import { strategicWorkKey } from "./StrategicTaskActions.js";
 
 const negative = (k) =>
   ["no", "denied", "refused", "withdrawn", "unlikely"].includes(k.stance);
@@ -78,16 +79,22 @@ export default class StrategicWorkPlanner {
       })[purpose] || 0;
     const add = (purpose, targetId, value, reason, fields = {}) => {
       if (!e.person(targetId) || same(targetId, owner.id)) return;
+      const key = strategicWorkKey(objective.id, {
+        purpose, targetId, subjectId: null, primaryTargetId: target, ...fields,
+      });
+      const sameWork = (t) => t.workKey === key || (!t.workKey &&
+        t.objectiveId === objective.id && t.purpose === purpose &&
+        same(t.targetId, targetId) && same(t.subjectId, fields.subjectId ?? null) &&
+        (!fields.claimId || t.requestedClaimId === fields.claimId));
       if (
-        active.some((t) => same(t.targetId, targetId) && t.purpose === purpose)
+        active.some(sameWork)
       )
         return;
       const information = owned.find((k) => k.id === fields.claimId);
       if (
         tasks.some(
           (t) =>
-            t.purpose === purpose &&
-            same(t.targetId, targetId) &&
+            sameWork(t) &&
             ["open", "committed", "conditional", "leaning", "arrived"].includes(
               t.report?.reported,
             ) &&
@@ -103,15 +110,18 @@ export default class StrategicWorkPlanner {
         )
       )
         return;
-      const key = `${purpose}:${targetId}:${fields.subjectId ?? target}:${fields.claimId || fields.eventId || ""}`;
       const receipt = objective.workReceipts?.[key];
-      if (receipt?.day === e.gm.day && receipt.at - now < 900) return;
+      const rejectedWorker = receipt?.taskId && tasks.some(
+        (t) => t.id === receipt.taskId && t.publicStatus === "refused",
+      );
+      if (receipt?.day === e.gm.day && receipt.at - now < 900 && !rejectedWorker) return;
       if (
         tasks.some(
           (t) =>
-            t.purpose === purpose &&
-            same(t.targetId, targetId) &&
-            (t.publicStatus === "refused" || t.report?.reported === "refused"),
+            sameWork(t) && t.report?.reported === "refused" &&
+            // Countdown: larger remaining time happened earlier. A target's
+            // reported refusal discourages repetition, not a worker's refusal.
+            (t.report.campTime ?? t.createdAt) - now < 900,
         )
       )
         return;
@@ -131,14 +141,13 @@ export default class StrategicWorkPlanner {
         ...fields,
       });
     };
-    const risk = current.find(
+    const protectionRisk = current.find(
       (k) =>
         same(k.subjectId, target) &&
         !negative(k) &&
         !k.challenged &&
         k.confidence >= 0.3 &&
-        (["idol_possession", "idol_suspicion"].includes(k.topic) ||
-          (k.topic === "safety" && k.stance === "warned")),
+        ["idol_possession", "idol_suspicion", "advantage_possession"].includes(k.topic),
     );
     const suspect = current.find(
       (k) =>
@@ -149,6 +158,7 @@ export default class StrategicWorkPlanner {
     );
     const alternative =
       post && e.model?.alternateTarget(owner.id, [owner.id, target]);
+    const risk = protectionRisk || suspect;
     for (const k of current) {
       const alleged = k.attributedId || k.speakerId;
       if (
@@ -185,7 +195,7 @@ export default class StrategicWorkPlanner {
             (answer) =>
               answer.delegationId === t.id &&
               answer.topic === k.topic &&
-              answer.stance === k.stance &&
+              answer.campTime <= k.campTime &&
               !answer.challenged &&
               answer.confidence >= 0.5,
           ) &&
@@ -380,7 +390,11 @@ export default class StrategicWorkPlanner {
           .map((a) => a.voterId),
       ];
       const capacity = e.model.splitCapacity?.(confirmed, alternative);
-      if (ally && capacity?.viable && !own?.splitPlan)
+      // Exposure is not protection. Weak hearsay should be checked before
+      // precise distribution; urgent credible owned protection can proceed.
+      const credibleProtection = protectionRisk && protectionRisk.confidence >= 0.5 &&
+        (!protectionRisk.challenged);
+      if (ally && credibleProtection && capacity?.viable && !own?.splitPlan)
         add(
           "split",
           ally.id,

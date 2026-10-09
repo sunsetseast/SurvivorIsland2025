@@ -706,6 +706,81 @@ try {
       await button("End chat").click();
     }
   }
+  // Reliability scenes retain the existing renderer and real resolver. These
+  // are controlled presentation fixtures, not claims of emergent strategy.
+  for (const viewport of [{ width: 375, height: 812 }, { width: 430, height: 932 },
+    { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    for (const scene of ['reassigned-request', 'equivalent-reassurance', 'incomplete-report',
+      'task-verification', 'competing-requests', 'conditional-followup', 'group-after-work']) {
+      await page.evaluate((scene) => {
+        window.experienceQa.scene('conversation');
+        const { gm, activity } = window.scrambleQa, h = gm.systems.conversationSystem, e = h.engine;
+        h.closeConversation('task-reliability'); e.deserialize();
+        const sand = activity.npcs().find(p => p.firstName === 'Sandra'),
+          target = activity.npcs().find(p => p.firstName === 'Wendell'),
+          jeremy = activity.npcs().find(p => p.firstName === 'Jeremy'),
+          tony = activity.npcs().find(p => p.firstName === 'Tony');
+        target.firstName = 'Michele Alexandria Montgomery-Wellington';
+        const act = (type, speaker, listener, fields = {}) => e.resolve(e.action(type, {
+          speakerId: speaker.id, listenerIds: [listener.id], ...fields }));
+        if (scene === 'reassigned-request') {
+          gm.systems.trustSystem.ownedTrust[`${jeremy.id}>${sand.id}`] = 0;
+          act('delegate', sand, jeremy, { subjectId: target.id, requestedAction: 'verify_vote' });
+          const o = e.objectives.establish(sand.id, { type: 'build_majority', targetId: tony.id, explicit: true });
+          h.startPlayerConversation({ npcId: sand.id, phase: 'post', context: { location: 'beach' } });
+          h.view.startNpc(sand, { agenda: { purpose: 'objective_delegate', objectiveId: o.id,
+            delegateTargetId: target.id, requestedAction: 'verify_vote' } });
+          window.reliabilityTaskId = Object.values(e.tasks.records).at(-1).id;
+          return;
+        }
+        if (scene === 'task-verification') {
+          act('delegate', gm.player, jeremy, { subjectId: target.id, requestedAction: 'reassure' });
+          const t = Object.values(e.tasks.records).at(-1);
+          act('check_in', jeremy, target);
+          act('report', jeremy, gm.player, { delegationId: t.id, truthMode: 'fabrication' });
+          const claim = e.knowledge(gm.player.id).find(k => k.topic === 'task_report');
+          h.startPlayerConversation({ npcId: target.id, phase: 'post', context: { location: 'beach' } });
+          h.view.choose(target, {}, { type: 'verify' }, { claimId: claim.id });
+          return;
+        }
+        const purpose = ['equivalent-reassurance', 'task-verification'].includes(scene) ? 'reassure' : 'recruit';
+        act('delegate', sand, gm.player, { subjectId: target.id, requestedAction: purpose, planTargetId: tony.id });
+        const task = Object.values(e.tasks.records).at(-1); window.reliabilityTaskId = task.id;
+        if (scene !== 'reassigned-request') e.tasks.respond(task.id, gm.player.id, true);
+        let talkingTo = sand;
+        if (scene === 'equivalent-reassurance') {
+          talkingTo = target;
+        } else if (scene === 'competing-requests') {
+          act('delegate', jeremy, gm.player, { subjectId: target.id, requestedAction: 'warn' });
+          e.tasks.respond(Object.values(e.tasks.records).at(-1).id, gm.player.id, true);
+        } else if (scene === 'conditional-followup') {
+          act('conditional', gm.player, sand, { subjectId: tony.id,
+            conditions: [{ kind: 'known_commitment', voterId: jeremy.id, targetId: tony.id }] });
+        } else if (scene === 'group-after-work') {
+          act('ask_vote', gm.player, target, { subjectId: tony.id });
+          act('report', gm.player, sand, { delegationId: task.id });
+        }
+        h.startPlayerConversation({ npcId: talkingTo.id, phase: 'post', context: {
+          location: 'beach', ...(scene === 'group-after-work' ? { groupParticipantIds: [target.id, jeremy.id] } : {}) } });
+        if (scene === 'incomplete-report') h.view.choose(sand, {}, { type: 'report' }, { delegationId: task.id });
+        if (scene === 'equivalent-reassurance') h.view.choose(target, {}, { type: 'reassure' }, {});
+        if (scene === 'conditional-followup') h.view.choose(sand, {}, { type: 'numbers' }, { subjectId: tony.id });
+      }, scene);
+      if (scene === 'reassigned-request') {
+        assert.ok(await button('Agree to the request').isVisible());
+        assert.ok(await button('Decline the request').isVisible());
+        assert.match(await page.locator('.conversation-transcript').innerText(), /vote|voting|stands/);
+      }
+      if (scene === 'task-verification') assert.match(await page.locator('.conversation-transcript').innerText(), /never did|not speak|not what happened/);
+      await capture(scene, viewport);
+      if (scene === 'reassigned-request') {
+        await button('Agree to the request').click();
+        await capture('replacement-accepted', viewport);
+      }
+      await button('End chat').click();
+    }
+  }
   assert.deepEqual(errors, []);
   fs.writeFileSync(
     path.join(output, "report.json"),

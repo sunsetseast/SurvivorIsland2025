@@ -55,6 +55,9 @@ export default class CampActivitySystem {
   get tribe() { return this.gm.getPlayerTribe?.(); }
   get locations() { return this.gm.systems?.npcLocationSystem; }
   get memory() { return this.gm.systems?.socialMemorySystem; }
+  // Read-only feasibility query. Keeping route ownership here also avoids a
+  // planner -> camp-system -> conversation-system module initialization cycle.
+  minimumTravelSeconds(from, to) { return routeBetween(from, to).length * 45; }
   get phase() { return `${this.gm.day || 1}:${this.gm.gamePhase}`; }
   get post() { return this.gm.gamePhase === 'postChallenge'; }
   get strategy() { return this.gm.systems?.strategyPhaseSystem; }

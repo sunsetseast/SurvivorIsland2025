@@ -15,6 +15,8 @@ import { isCampPhysicallyPresent } from "../locations/CampPresence.js";
 import { ownsUsableIdol } from "./IdolPossession.js";
 import StrategicTaskSystem from "./StrategicTaskSystem.js";
 import StrategicObjectivePlanner from "./StrategicObjectivePlanner.js";
+import { taskSpeechEvidence } from "./StrategicTaskActions.js";
+import { withinReportWindow } from "./StrategicTaskReports.js";
 import {
   CONVERSATION_HANDLERS,
   CONVERSATION_RESOLVER_TYPES,
@@ -36,6 +38,7 @@ export default class ConversationResolver {
     this.gm = gm;
     this.receipts = payload.receipts || {};
     this.sequence = payload.sequence || 0;
+    this.exchangeSequence = payload.exchangeSequence || 0;
     this.tasks = new StrategicTaskSystem(this, payload.tasks);
     this.objectives = new StrategicObjectivePlanner(this, payload.objectives);
   }
@@ -242,6 +245,7 @@ export default class ConversationResolver {
     const invalid = this.validate(a);
     if (invalid)
       return { invalid, responses: [], followUps: ["change_topic", "end"] };
+    a.semanticOrder = this.exchangeSequence = (this.exchangeSequence || 0) + 1;
     const random = keyedRandom(
         `${this.camp?.conversation?.checkpoint?.seed || this.gm.seasonEngine?.state?.seed || "survivor"}:${a.actionId}`,
       ),
@@ -783,10 +787,12 @@ export default class ConversationResolver {
         topic: a.topic,
         line: result.playerLine,
         day: a.day,
+        phase: a.phase,
         campTime: a.campTime,
         location: a.location,
         objectiveId: a.objectiveId,
         delegationId: a.delegationId,
+        semantic: { ...taskSpeechEvidence(this, a), order: a.semanticOrder },
       });
     result.followUps = this.followUps(a, result);
     this.receipts[a.actionId] = clone(result);
@@ -841,6 +847,8 @@ export default class ConversationResolver {
       stance: "mentioned",
       mode: "truthful",
       speechAct: a.speechAct,
+      semanticOrder: a.semanticOrder,
+      phase: a.phase,
       leakTest: a.type === "leak_test",
       conditions: a.conditions || [],
       secrecy: a.secrecy,
@@ -1383,15 +1391,26 @@ export default class ConversationResolver {
           );
         return;
       }
-      const prior = (this.memory.getCampClaims(id) || []).find(
+      const taskAccount = heard.delegationId && this.knowledge(a.speakerId).find(
+        (k) => k.topic === "task_report" && k.delegationId === heard.delegationId &&
+          k.proposition?.kind === "task_result",
+      );
+      const priorAccounts = (this.memory.getCampClaims(id) || []).filter(
         (e) =>
           same(e.speakerId, id) &&
           same(e.subjectId, heard.subjectId) &&
           e.topic === heard.topic &&
-          e.day === heard.day,
+          e.day === heard.day &&
+          (!taskAccount || withinReportWindow(e, taskAccount.proposition, taskAccount)),
       );
+      // An attributed task report describes historical speech, not today's vote.
+      // Prefer the matching statement; a later withdrawal cannot erase it.
+      const prior = taskAccount
+        ? priorAccounts.find((k) => k.stance === heard.stance) || priorAccounts.at(-1)
+        : priorAccounts[0];
       const fabricate =
         !prior && p.coverDrive > 0.55 && random() < p.coverDrive;
+      const refuted = !fabricate && (!prior || (taskAccount && prior.stance !== heard.stance));
       emit(id, heard.subjectId, {
         topic: heard.topic,
         stance: prior?.stance || (fabricate ? heard.stance : "denied"),
@@ -1399,11 +1418,11 @@ export default class ConversationResolver {
           fabricate || prior?.truthfulness === false
             ? "deliberate_lie"
             : "truthful",
-        refutesClaimId: !prior && !fabricate ? heard.id : null,
+        refutesClaimId: refuted ? heard.id : null,
       });
       say(
         id,
-        prior || fabricate
+        !refuted
           ? "That is what I told them."
           : "I did not say that. Ask them where that came from.",
       );
@@ -2108,6 +2127,7 @@ export default class ConversationResolver {
     return clone({
       receipts: this.receipts,
       sequence: this.sequence,
+      exchangeSequence: this.exchangeSequence || 0,
       tasks: this.tasks.serialize(),
       objectives: this.objectives.serialize(),
     });
@@ -2115,6 +2135,7 @@ export default class ConversationResolver {
   deserialize(p = {}) {
     this.receipts = p?.receipts || {};
     this.sequence = p?.sequence || 0;
+    this.exchangeSequence = p?.exchangeSequence || 0;
     this.tasks.deserialize(p?.tasks);
     this.objectives.deserialize(p?.objectives);
   }
