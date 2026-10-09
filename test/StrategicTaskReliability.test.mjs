@@ -197,7 +197,10 @@ check('refusal recovery physically reaches a replacement human, then the voter a
   assert.equal(replacement.targetId, player.id);
   s.strategy.scramble.clearInvitation();
   s.activity.interrupt(S, 'replacement-opportunity'); s.activity.chooseNext(S, s.gm.dayTimer);
-  for (let i = 0; i < 14 && !s.strategy.scramble.invitation; i++) s.wait(45);
+  for (let i = 0; i < 30 && s.strategy.scramble.invitation?.npcId !== S.id; i++) {
+    if(s.strategy.scramble.invitation)s.e.initiative.respond("defer");
+    s.wait(45);
+  }
   const invitation = s.strategy.scramble.invitation;
   assert.equal(invitation?.npcId, S.id);
   assert.equal(invitation.agenda.purpose, 'objective_delegate', JSON.stringify(invitation));

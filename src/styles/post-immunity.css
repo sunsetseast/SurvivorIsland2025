@@ -215,6 +215,36 @@
   border-radius: 8px;
   color: #fff0d2;
 }
+.npc-initiative-notice {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px;
+  border-radius: 14px;
+  background: #263d32ee;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+}
+.npc-initiative-notice strong, .npc-initiative-notice p { grid-column: 1 / -1; overflow-wrap: anywhere; }
+#npc-layer .npc-initiative-notice p { color: #fff1d8; }
+.scramble-invitation.npc-initiative-notice button {
+  grid-column: auto;
+  grid-row: auto;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+  padding: 10px 8px;
+  font: 600 13px/1.3 Arial, sans-serif;
+  white-space: normal;
+  color: #fff1d8;
+  border: 1px solid #d7b36c70;
+  background: #ffffff0a;
+}
+.scramble-invitation.npc-initiative-notice button:first-of-type {
+  grid-column: 1 / -1;
+  background: #d7b36c;
+  color: #183125;
+}
+.npc-initiative-notice button:focus-visible { outline: 3px solid #fff1d8; outline-offset: 2px; }
 .scramble-invitation strong {
   font:
     600 15px/1.4 Georgia,
@@ -230,7 +260,7 @@
   grid-column: 2;
   grid-row: 1 / span 2;
 }
-.scramble-invitation button:last-child {
+.scramble-invitation:not(.npc-initiative-notice) button:last-child {
   grid-column: 1;
   grid-row: 3;
   background: transparent;

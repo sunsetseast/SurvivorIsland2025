@@ -17,6 +17,7 @@ import StrategicTaskSystem from "./StrategicTaskSystem.js";
 import StrategicObjectivePlanner from "./StrategicObjectivePlanner.js";
 import { taskSpeechEvidence } from "./StrategicTaskActions.js";
 import { withinReportWindow } from "./StrategicTaskReports.js";
+import NpcInitiative from "./NpcInitiative.js";
 import {
   CONVERSATION_HANDLERS,
   CONVERSATION_RESOLVER_TYPES,
@@ -41,6 +42,7 @@ export default class ConversationResolver {
     this.exchangeSequence = payload.exchangeSequence || 0;
     this.tasks = new StrategicTaskSystem(this, payload.tasks);
     this.objectives = new StrategicObjectivePlanner(this, payload.objectives);
+    this.initiative = new NpcInitiative(this, payload.initiative);
   }
   get memory() {
     return this.gm.systems.socialMemorySystem;
@@ -147,6 +149,7 @@ export default class ConversationResolver {
       !this.person(a.speakerId)
     )
       return "invalid_action";
+    if(a.type === "reply" && a.stance && !["refused","consider","withheld"].includes(a.stance))return "invalid_reply";
     const ids = [...new Set((a.listenerIds || []).map(String))];
     if (
       !ids.length ||
@@ -273,7 +276,15 @@ export default class ConversationResolver {
         },
         random,
       );
-    if (["share", "leak", "idol_rumor"].includes(a.type)) {
+    if (a.type === "reply") {
+      // A spoken lean/refusal informs the listener, without manufacturing a
+      // commitment or changing the human's ballot. Firm answers use promise.
+      emit(a.speakerId, a.subjectId, { topic: a.stance === 'withheld' ? 'information' : "commitment", stance: a.stance || "consider",
+        commitmentStatus: a.stance === "refused" ? "refused" : "considering" });
+      for (const id of a.listenerIds) say(id, a.stance === "refused"
+        ? "I hear you. I’ll have to work out another route." : "Fair. What would you need to know?",
+        a.stance === "refused" ? "refused" : "open");
+    } else if (["share", "leak", "idol_rumor"].includes(a.type)) {
       const source = a.keepSourcePrivate
         ? a.speakerId
         : heard.attributedId || heard.speakerId;
@@ -2130,6 +2141,7 @@ export default class ConversationResolver {
       exchangeSequence: this.exchangeSequence || 0,
       tasks: this.tasks.serialize(),
       objectives: this.objectives.serialize(),
+      initiative: this.initiative.serialize(),
     });
   }
   deserialize(p = {}) {
@@ -2138,6 +2150,7 @@ export default class ConversationResolver {
     this.exchangeSequence = p?.exchangeSequence || 0;
     this.tasks.deserialize(p?.tasks);
     this.objectives.deserialize(p?.objectives);
+    this.initiative.deserialize(p?.initiative);
   }
 }
 export { CONVERSATION_RESOLVER_TYPES };

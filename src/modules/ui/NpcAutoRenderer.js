@@ -97,7 +97,7 @@ export class NpcAutoRenderer {
     const minigame = handsOn || place === 'tribeFlag' || this.helping?.view === this.lastViewName;
     const expanded = this.expandedMinigameView === this.lastViewName;
     const cues = publicCampCues(groups, this.gm.getPlayerTribe?.());
-    const signature = JSON.stringify({ groups, scramble: post ? { invitation: projection.invitation, conversation: this.gm.systems.campActivitySystem.conversation?.activityId, tier: scrambleCountdown(this.gm.dayTimer).tier } : null, departures: departures.map(e => e.id), cues, width, minigame, expanded });
+    const signature = JSON.stringify({ groups, scramble: { invitation: this.gm.systems.conversationSystem?.engine?.initiative?.invitation || projection?.invitation, conversation: this.gm.systems.campActivitySystem.conversation?.activityId, tier: post ? scrambleCountdown(this.gm.dayTimer).tier : null }, departures: departures.map(e => e.id), cues, width, minigame, expanded });
     if (signature === this.signature && layer.firstChild) return;
     const focusKey = layer.contains(document.activeElement) ? document.activeElement?.dataset?.focusKey : null;
     const scrollTop = layer.querySelector('.camp-presence')?.scrollTop || 0;
@@ -176,18 +176,26 @@ export class NpcAutoRenderer {
       card.appendChild(actions); clusters.appendChild(card);
     }
     const strategy = this.gm.systems.strategyPhaseSystem;
-    if (!handsOn && strategy?.isActive && this.gm.gamePhase === 'postChallenge') {
-      const invitation = projection?.invitation;
-      if (invitation) {
+    if (!handsOn) {
+      const initiative=this.gm.systems.conversationSystem?.engine?.initiative;
+      const invitation = initiative?.invitation || projection?.invitation;
+      const incoming=initiative?.intentions.find(i=>i.targetId===this.gm.player.id&&i.status==='arrived'&&
+        this.interactions.visible(i.actorId));
+      if(incoming&&!invitation)rail.appendChild(createElement('p',{className:'camp-observable-beat'},
+        `${this.interactions.person(incoming.actorId).firstName} is nearby and looks ready to talk.`));
+      if (invitation && this.interactions.visible(invitation.npcId)) {
         const person = this.interactions.person(invitation.npcId);
         const notice = createElement('div', {className:'scramble-invitation'});
         notice.appendChild(createElement('strong', {}, `${person.firstName} came looking for you`));
-        notice.appendChild(createElement('p', {}, '“Can we talk?”'));
-        const talk = this.action('Talk', `invite:${invitation.activityId}`, () => {
-          this.closeSheet(false); this.gm.systems.conversationSystem.startNpcConversation(person, strategy.scramble.invitation?.purpose,
-            {initiatedByNpc:true, approachAccepted:true, context:{phase:'post',approachAccepted:true}, location:this.gm.player.location}); this.focusConversation();
-        }); talk.setAttribute('aria-label', `${person.firstName} wants to talk`); notice.appendChild(talk);
-        notice.appendChild(this.action('Not now', `decline:${invitation.activityId}`, () => { this.gm.systems.conversationSystem._handleApproachDeclined(person); this.focusConversation(); this.refresh(); }));
+        notice.appendChild(createElement('p', {}, invitation.private?'“Could we have a quiet word?”':'“Can we talk?”'));
+        notice.classList.add('npc-initiative-notice');notice.setAttribute('aria-live','polite');
+        for(const [choice,label] of [['accept','Talk now'],...(invitation.private?[['private','Go somewhere quiet']]:[]),['defer','Give me a minute'],['decline','Not right now']]) {
+          const button=this.action(label,`${choice}:${invitation.activityId}`,()=>{
+            this.closeSheet(false);
+            if(initiative?.respond(choice)){if(choice==='accept')this.focusConversation();this.signature=null;this.refresh();}
+          });
+          button.setAttribute('aria-label',`${label} · ${person.firstName}`);notice.appendChild(button);
+        }
         rail.appendChild(notice);
       }
       const reservation = this.gm.systems.campActivitySystem.conversation;

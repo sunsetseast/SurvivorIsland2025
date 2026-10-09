@@ -52,7 +52,7 @@ export function makeScrambleQa({ seed = 73, scenario = 'divided', start = true, 
     wait(seconds = 60) { return quiet(() => gm.consumeCampTime(seconds, { source: 'scramble_wait' })); },
     restore() { const payload = JSON.parse(JSON.stringify(gm.createSavePayload()));
       assert.ok(quiet(() => gm.restoreSavePayload(payload))); return payload; },
-    idle(place = 'beach') { for (const person of activity.npcs()) {
+    idle(place = 'beach') { if(!activity.active)activity.ensureStarted(); gm.systems.conversationSystem.engine.initiative.deserialize(); for (const person of activity.npcs()) {
       person.campActivity = null; activity.start(person, { type: 'idle_at_camp', location: place, duration: 3000 });
     } },
     move(place) {

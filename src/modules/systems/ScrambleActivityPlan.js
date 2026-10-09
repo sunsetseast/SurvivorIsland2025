@@ -13,10 +13,14 @@ export default class ScrambleActivityPlan {
     this.gm = gm; this.strategy = strategy;
     this.rngState = payload.rngState ?? (Math.random() * 4294967296) >>> 0;
     this.meetings = payload.meetings || [];
-    this.invitation = payload.invitation || null;
+    this._legacyInvitation = payload.invitation || null;
     this.nextApproachAt = payload.nextApproachAt ?? 3300;
     this.history = payload.history || [];
   }
+  get invitation() { const initiative=this.gm.systems.conversationSystem?.engine?.initiative;
+    return initiative ? initiative.invitation : this._legacyInvitation; }
+  set invitation(value) { const initiative=this.gm.systems.conversationSystem?.engine?.initiative;
+    if(initiative)initiative.invitation=value;else this._legacyInvitation=value; }
   random() {
     this.rngState = (Math.imul(1664525, this.rngState) + 1013904223) >>> 0;
     return this.rngState / 4294967296;
@@ -51,24 +55,20 @@ export default class ScrambleActivityPlan {
     }
   }
   plan(npc, now) {
+    // All individual social/strategic approaches are selected by initiative.
+    // Specialized alliance gatherings retain their existing authority below.
     this.strategy.reasoning.react(npc.id);
-    const other = this.strategy.reasoning.choosePartner(npc, this.members.filter(s => this.free(s)));
-    if (other) {
-      const agenda = this.strategy.reasoning.agenda(npc.id, other.id, { plan: true });
-      return { type: 'strategy_conversation', location: this.gm.systems.npcLocationSystem.getLocation(other.id),
-        targetId: other.id, duration: now<=300 && agenda.priority>=4 ? 120 : 240, purpose: agenda.purpose, agenda };
-    }
-    return { type: this.random() < .5 ? 'observe' : 'idle_at_camp',
-      location: this.gm.systems.npcLocationSystem.getLocation(npc.id) || LocationKeys.BEACH, duration: 120 };
+    return { type: this.random()<.5?'observe':'idle_at_camp', location: this.gm.systems.npcLocationSystem.getLocation(npc.id) || LocationKeys.BEACH, duration: 120 };
   }
   nextBoundary(cursor, after) {
     const times = this.meetings.flatMap(m => m.status === 'pending' ? [m.dueAt] : m.status === 'gathering' ? [m.deadline] : []);
     if (this.invitation) times.push(this.invitation.expiresAt);
-    else times.push(this.nextApproachAt);
+
     return times.filter(t => t < cursor && t >= after);
   }
   onBoundary(now) {
     if (!this.strategy.isActive || this.strategy.playerTribeSafe || this.gm.flags?.campEventActive) return;
+    this.gm.systems.conversationSystem?.engine?.initiative?.boundary(now);
     this.scheduleAlliances();
     this.gm.systems.allianceSystem?.reactToOwnedEvidence?.();
     if (now <= 600) this.strategy.scrambleState = ScrambleState.FINAL;
@@ -114,37 +114,12 @@ export default class ScrambleActivityPlan {
     }
     if (this.invitation && (now <= this.invitation.expiresAt ||
       !this.present(this.person(this.invitation.npcId), this.gm.player?.location))) this.clearInvitation();
-    if (!this.invitation && now <= this.nextApproachAt && now > 180 && !this.camp.conversation) {
-      this.nextApproachAt = now - 600;
-      const npc = this.members.filter(s => this.free(s)).map(npc => ({ npc, score: this.strategy.reasoning.candidateScore(npc.id, this.gm.player.id) }))
-          .filter(x => Number.isFinite(x.score)).sort((a,b) => b.score-a.score)[0]?.npc;
-      const player = this.gm.getPlayerSurvivor?.();
-      if (npc && this.present(player, player.location)) {
-        const agenda = this.strategy.reasoning.agenda(npc.id, player.id, { plan: true });
-        const purpose = agenda.purpose;
-        const goal = { type: 'approach_player', location: player.location, duration: 45, purpose, agenda };
-        const route = routeBetween(this.gm.systems.npcLocationSystem.getLocation(npc.id), player.location);
-        this.camp.start(npc, route.length ? { type: 'travel', location: route[0], route: route.slice(1), goal } : goal, now);
-        npc.campActivity.interruptible = false;
-        this.note('npc_approach', { actorId: npc.id, purpose });
-      }
-    }
+
   }
   resolve(actor, activity, at) {
     if (this.strategy.playerTribeSafe) return false;
     if (activity.type === 'meeting_wait') return true;
-    if (activity.type === 'approach_player') {
-      const player = this.gm.getPlayerSurvivor?.();
-      if (this.present(player, activity.location) && !this.invitation && !this.camp.conversation) {
-        actor.campActivity = { ...activity, id: `${activity.id}:waiting`, type: 'approach_wait', endsAt: 0, external: true, interruptible: false };
-        this.invitation = { npcId: actor.id, purpose: activity.purpose, agenda: activity.agenda, activityId: actor.campActivity.id, expiresAt: at - 180 };
-      } else {
-        // A second arrival cannot overwrite the invitation and strand its speaker.
-        actor.campActivity=null;
-        this.camp.start(actor,{type:'observe',location:activity.location,duration:120},at);
-      }
-      return true;
-    }
+    if (activity.type === 'approach_player') return Boolean(this.gm.systems.conversationSystem?.engine?.initiative?.resolve(actor,activity,at));
     if (!['strategy_conversation', 'alliance_meeting'].includes(activity.type)) return false;
     const listeners = (activity.participantIds || []).map(id => this.person(id)).filter(s => this.present(s, activity.location));
     if (!listeners.length) return true;
@@ -175,9 +150,9 @@ export default class ScrambleActivityPlan {
     }
   }
   clearInvitation() {
-    const npc = this.person(this.invitation?.npcId);
-    if (this.invitation && npc?.campActivity?.id === this.invitation.activityId && npc.campActivity.type === 'approach_wait') npc.campActivity = null;
-    this.invitation = null;
+    const initiative=this.gm.systems.conversationSystem?.engine?.initiative;
+    if(initiative)initiative.clearInvitation();
+    else { const npc=this.person(this._legacyInvitation?.npcId);if(npc?.campActivity?.type==='approach_wait')npc.campActivity=null;this._legacyInvitation=null; }
   }
   attend(meetingId) {
     const meeting = this.meetings.find(m => m.id === meetingId && m.status === 'active');

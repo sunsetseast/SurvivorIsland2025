@@ -329,7 +329,7 @@ export default class StrategicObjectivePlanner {
     const free = conversationMembers(e.gm).filter(
       (x) =>
         !same(x.id, actor.id) &&
-        (!x.campActivity ||
+        (!e.together(actor.id,x.id) || !x.campActivity ||
           ["rest", "idle_at_camp", "observe"].includes(x.campActivity.type)),
     );
     const dispute = e
@@ -344,7 +344,7 @@ export default class StrategicObjectivePlanner {
       if (listener && !e.model?.recent(actor.id, listener.id, 180))
         return {
           type: listener.isPlayer ? "approach_player" : "strategy_conversation",
-          location: e.place(listener.id),
+          location: e.initiative?.locate(actor.id,listener.id) || e.place(actor.id),
           targetId: listener.id,
           duration: listener.isPlayer ? 45 : 120,
           objectiveId: o.id,
@@ -373,7 +373,7 @@ export default class StrategicObjectivePlanner {
       if (listener)
         return {
           type: listener.isPlayer ? "approach_player" : "strategy_conversation",
-          location: e.place(listener.id),
+          location: e.initiative?.locate(actor.id,listener.id) || e.place(actor.id),
           targetId: listener.id,
           duration: listener.isPlayer ? 45 : 120,
           objectiveId: o.id,
@@ -442,7 +442,11 @@ export default class StrategicObjectivePlanner {
     // Lower-bound logistics, not a success estimate: a request, target exchange
     // and report each need a real reservation. Near Tribal, act personally if
     // the intermediary chain cannot possibly finish. Busy targets can still move.
-    const walk = (from, to) => e.camp.minimumTravelSeconds(e.place(from), e.place(to));
+    // The owner knows sightings, not remote live coordinates or calendars.
+    // Unknown routes reserve a conservative search allowance; camp later enforces arrival.
+    const located = id => e.initiative?.locate(actor.id,id) || (same(id,actor.id)?e.place(actor.id):null);
+    const walk = (from, to) => located(from)&&located(to)
+      ? e.camp.minimumTravelSeconds(located(from),located(to)) : 270;
     const delegateSeconds = intermediary ? walk(actor.id, intermediary.person.id) + 120 +
       walk(intermediary.person.id, target.id) + 120 +
       (work.purpose === "bring" ? walk(target.id, actor.id) : walk(target.id, actor.id) + 120) : Infinity;
@@ -459,7 +463,7 @@ export default class StrategicObjectivePlanner {
     if (walk(actor.id, listener.id) + (listener.isPlayer ? 45 : 120) >= now) return null;
     return {
       type: listener.isPlayer ? "approach_player" : "strategy_conversation",
-      location: e.place(listener.id),
+      location: e.initiative?.locate(actor.id,listener.id) || e.place(actor.id),
       targetId: listener.id,
       duration: listener.isPlayer ? 45 : 120,
       purpose: delegate ? "objective_delegate" : "objective_recruit",
