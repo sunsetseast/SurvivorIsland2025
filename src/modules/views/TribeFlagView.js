@@ -97,6 +97,7 @@ export default function renderTribeFlag(container) {
   const columns = isTwoTribeMode ? 3 : 2;
 
   const avatarGrid = createElement('div', {
+    className: 'tribe-avatar-grid',
     style: `
       position: absolute;
       top: ${topOffset};
@@ -128,7 +129,22 @@ export default function renderTribeFlag(container) {
       line-height: 1.3;
       text-align: center;
     `
-  }, 'Click a Survivor to see more information about them.');
+  }, 'Tap a Survivor to meet your tribe.');
+
+  if (gameManager.day === 1 && gameManager.gamePhase === 'preChallenge') {
+    bottomOverlay.className = 'first-day-camp-entry';
+    bottomOverlay.style.pointerEvents = 'auto';
+    bottomOverlay.style.background = 'rgba(15, 30, 20, .9)';
+    bottomOverlay.style.padding = '10px';
+    bottomOverlay.style.borderRadius = '12px';
+    bottomOverlay.appendChild(createElement('p', { style: 'margin:6px 0;font-family:sans-serif;color:#fff;' },
+      'Head to the beach to meet people, help around camp, or see who is talking.'));
+    bottomOverlay.appendChild(createElement('button', {
+      type: 'button', className: 'rect-button',
+      style: 'min-height:44px;width:100%;',
+      onclick: () => window.campScreen?.loadView?.(LocationKeys.BEACH),
+    }, 'Step into camp'));
+  }
 
   let activeOverlay = null;
 
@@ -166,8 +182,9 @@ export default function renderTribeFlag(container) {
   };
 
   playerTribe.members.forEach(member => {
-    const avatarWrapper = createElement('div', {
-      style: 'display: flex; flex-direction: column; align-items: center; cursor: pointer;'
+    const avatarWrapper = createElement('button', {
+      type: 'button', 'aria-label': `View ${member.firstName}`,
+      style: 'display: flex; flex-direction: column; align-items: center; cursor: pointer; border:0; background:transparent; padding:0;'
     });
 
     const avatar = createElement('img', {

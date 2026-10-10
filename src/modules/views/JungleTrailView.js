@@ -92,6 +92,7 @@ export default function renderJungleTrail(container) {
   // --- Resource Popup UI ---
   const resourcePopup = createElement('div', {
     id: 'resource-popup',
+    role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Jungle actions',
     style: `
       display: none;
       position: fixed;
@@ -116,6 +117,10 @@ export default function renderJungleTrail(container) {
       padding: 20px;
       gap: 12px;
       z-index: 1006;
+      max-height: calc(100dvh - 24px - env(safe-area-inset-bottom, 0px));
+      box-sizing: border-box;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     `
   });
 
@@ -156,15 +161,37 @@ export default function renderJungleTrail(container) {
     openIdolHuntOptions(container, LocationKeys.JUNGLE_TRAIL);
   });
 
+  let returnFocus = null;
+  const closeActions = () => {
+    resourcePopup.style.display = 'none';
+    returnFocus?.focus({ preventScroll: true });
+  };
+  const closeButton = createElement('button', {
+    type: 'button', className: 'rect-button alt', onclick: closeActions,
+  }, 'Back to camp');
+  resourcePopup.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { event.preventDefault(); closeActions(); }
+    if (event.key === 'Tab') {
+      const buttons = [...resourcePopup.querySelectorAll('button')];
+      const first = buttons[0], last = buttons.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
   popupContent.appendChild(huntButton);
+  popupContent.appendChild(closeButton);
+  for (const button of popupContent.querySelectorAll('button')) button.style.flexShrink = '0';
   resourcePopup.appendChild(popupContent);
-  uiLayer.appendChild(resourcePopup);
+  // Keep the dialog out of the scenery's z-index:1 stacking context. Nearby
+  // contestants render above scenery and must not cover resource controls.
+  container.appendChild(resourcePopup);
 
   // Allow closing when clicking the background, but not popup content
   resourcePopup.addEventListener('click', (e) => {
-    const content = document.getElementById('resource-popup-content');
-    if (!content.contains(e.target)) {
-      resourcePopup.style.display = 'none';
+    // A resource button can synchronously replace the view before its click
+    // bubbles here. The local content still owns that button after removal.
+    if (!popupContent.contains(e.target)) {
+      closeActions();
     }
   });
 
@@ -216,7 +243,9 @@ export default function renderJungleTrail(container) {
 
     const centerButton = createIconButton('Assets/Buttons/blank.png', 'Center', () => {
       const popup = document.getElementById('resource-popup');
+      returnFocus = document.activeElement;
       popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+      if (popup.style.display === 'flex') firewoodButton.focus({ preventScroll: true });
     });
 
     const downButton = createIconButton('Assets/Buttons/down.png', 'Down', () => {

@@ -192,7 +192,7 @@ export async function interactionQa(page, output) {
         const result=await page.evaluate(g=>campQa.renderer.interactions.approach(g),social);actions.push(`approach: ${result.text}`);
         if(result.join) {
           await page.evaluate(({g,context})=>campQa.renderer.interactions.join(g,context),{g:social,context:result.context});
-          await page.getByRole('button',{name:'Build Connection',exact:true}).click();
+          await page.getByRole('button',{name:'Connect',exact:true}).click();
           await page.locator('#conversation-overlay .conversation-options-region button:not(:disabled)').first().click();
           await page.screenshot({path:path.join(output,`playtest-${style}-conversation.png`)});
           const beforeChatEnd=await timer();await page.getByRole('button',{name:/^(End chat|Close)$/i}).click();

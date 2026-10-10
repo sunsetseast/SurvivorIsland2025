@@ -17,13 +17,17 @@ export async function certifyInitiative({
   outputDir,
   seedsPerFamily = 40,
   workers = 4,
+  families = FAMILIES,
+  firstDay = false,
+  seedBase = 359000,
 } = {}) {
   assert.ok(baselineRoot && outputDir);
   fs.mkdirSync(outputDir, { recursive: true });
-  const jobs = FAMILIES.flatMap((family, f) =>
+  const jobs = families.flatMap((family, f) =>
     Array.from({ length: seedsPerFamily }, (_, n) => ({
       family,
-      seed: 359000 + f * 100 + n,
+      seed: seedBase + f * 100 + n,
+      firstDay,
       policy: POLICIES[n % POLICIES.length],
       approachQa: true,
       approachResponse:
@@ -54,6 +58,8 @@ export async function certifyInitiative({
             cached.restoreEquivalent &&
             cached.approaches?.quality &&
             cached.seed === job.seed &&
+            cached.family === job.family &&
+            cached.firstDay === job.firstDay &&
             cached.policy === job.policy &&
             cached.approachResponse === job.approachResponse
           ) {
@@ -173,6 +179,7 @@ export async function certifyInitiative({
     method:
       "Shared #358 production harness; observer-only funnel; uninterrupted vs production JSON restore in each version.",
     seedsPerFamily,
+    firstDay,
     jobs: jobs.length,
     scrambles: jobs.length * 4,
     policies: POLICIES,

@@ -97,7 +97,7 @@ export class NpcAutoRenderer {
     const minigame = handsOn || place === 'tribeFlag' || this.helping?.view === this.lastViewName;
     const expanded = this.expandedMinigameView === this.lastViewName;
     const cues = publicCampCues(groups, this.gm.getPlayerTribe?.());
-    const signature = JSON.stringify({ groups, scramble: { invitation: this.gm.systems.conversationSystem?.engine?.initiative?.invitation || projection?.invitation, conversation: this.gm.systems.campActivitySystem.conversation?.activityId, tier: post ? scrambleCountdown(this.gm.dayTimer).tier : null }, departures: departures.map(e => e.id), cues, width, minigame, expanded });
+    const signature = JSON.stringify({ place, view: this.lastViewName, handsOn, groups, scramble: { invitation: this.gm.systems.conversationSystem?.engine?.initiative?.invitation || projection?.invitation, conversation: this.gm.systems.campActivitySystem.conversation?.activityId, tier: post ? scrambleCountdown(this.gm.dayTimer).tier : null }, departures: departures.map(e => e.id), cues, width, minigame, expanded });
     if (signature === this.signature && layer.firstChild) return;
     const focusKey = layer.contains(document.activeElement) ? document.activeElement?.dataset?.focusKey : null;
     const scrollTop = layer.querySelector('.camp-presence')?.scrollTop || 0;
@@ -234,13 +234,20 @@ export class NpcAutoRenderer {
       }
       rail.insertBefore(routes, clusters);
     }
+    if (!post && !handsOn && place !== 'tribeFlag') {
+      const tools = createElement('nav', { className: 'scramble-camp-tools', 'aria-label': 'Camp actions' });
+      if (!this.gm.systems.campActivitySystem.conversation)
+        tools.appendChild(this.action('Move around camp', 'camp:move', () => this.openMove()));
+      rail.appendChild(tools);
+    }
     if (post && !handsOn) {
       const tools = createElement('nav', { className:'scramble-camp-tools', 'aria-label':'Camp actions' });
       const reservation = this.gm.systems.campActivitySystem.conversation;
       if (!reservation) tools.appendChild(this.action('Move', 'scramble:move', () => this.openMove()));
       tools.appendChild(this.action('What I Know', 'scramble:read', () => this.notebook.open()));
-      if (!reservation) tools.appendChild(this.action('Wait · 1 minute', 'scramble:wait', () => { this.gm.consumeCampTime(60,{source:'scramble_wait'}); this.refresh(); }));
+      if (!reservation) tools.appendChild(this.action('Observe camp · 1 minute', 'scramble:wait', () => { this.gm.consumeCampTime(60,{source:'scramble_wait'}); this.refresh(); }));
       rail.appendChild(tools);
+      rail.appendChild(createElement('p', { className: 'camp-observation-hint' }, 'Time moves when you act or observe. Take your time reading.'));
     }
     rail.scrollTop = scrollTop;
     if (focusKey) {

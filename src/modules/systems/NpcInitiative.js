@@ -120,16 +120,26 @@ export default class NpcInitiative {
       p = conversationCharacter(actor),
       owned = e.knowledge(actor.id),
       out = [];
-    // Small tribes are bounded further to six relationship-relevant listeners.
+    const history = e.memory?.memory[String(actor.id)]?.conversationHistory || [];
+    const contacted = (targetId) => history.some((k) => k.day === this.gm.day &&
+      (same(k.speakerId, targetId) || (same(k.speakerId, actor.id) &&
+        k.semantic?.listenerIds?.some((id) => same(id, targetId)))));
+    // Full motive evaluation stays bounded to six listeners. Reserve room for
+    // unfamiliar people actually nearby, without giving the human preference.
     const relevance = (x) =>
       (this.gm.getTrust?.(actor.id, x.id) ?? 50) +
       (same(e.ownTarget(actor.id), x.id) ? 75 : 0) +
       (owned.some((k) => same(k.subjectId, x.id) && k.confidence >= 0.35)
         ? 50
         : 0);
-    const targets = this.members
+    const relevant = this.members
       .filter((x) => !same(x.id, actor.id))
-      .sort((a, b) => relevance(b) - relevance(a))
+      .sort((a, b) => relevance(b) - relevance(a));
+    const nearbyNew = relevant.filter((x) => !contacted(x.id) &&
+      e.together(actor.id, x.id) && (this.gm.getTrust?.(actor.id, x.id) ?? 50) >= 40 &&
+      this.canListen(x, actor.id)).slice(0, 2);
+    const targets = (e.model ? relevant : [...relevant.slice(0, 4), ...nearbyNew, ...relevant])
+      .filter((x, index, all) => all.findIndex((p) => same(p.id, x.id)) === index)
       .slice(0, 6);
     for (const target of targets) {
       const affinity =
@@ -260,15 +270,8 @@ export default class NpcInitiative {
             "observed private contact",
           );
       }
-      const last = this.engine.memory?.memory[
-        String(actor.id)
-      ]?.conversationHistory
-        ?.filter(
-          (k) =>
-            k.day === this.gm.day &&
-            (same(k.speakerId, target.id) || same(k.subjectId, target.id)),
-        )
-        .at(-1);
+      const last = e.model ? history.some((k) => k.day === this.gm.day &&
+        (same(k.speakerId, target.id) || same(k.subjectId, target.id))) : contacted(target.id);
       const effort = this.camp.effort[actor.id] || 0;
       if (
         !last &&

@@ -234,7 +234,7 @@ const JourneySelectionEvent = {
       await showBeatAndWait({
         background: 'Assets/jeff-screen.png',
         textLines: [
-        'Survivors… that was a hard-fought challenge. One tribe comes away with immunity — and safety tonight. But for the rest of you… the game doesn’t stop here.'
+        'Survivors… that was a hard-fought challenge. The winners come away with immunity — and safety tonight. But for the rest of you… the game doesn’t stop here.'
         ]
       });
       await showBeatAndWait({
