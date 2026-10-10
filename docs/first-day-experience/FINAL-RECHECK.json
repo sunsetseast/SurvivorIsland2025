@@ -1,0 +1,99 @@
+{
+  "scope": "Supplemental jungle dialog and journey copy; original 448-case matrix remains attributed to its published source.",
+  "fullNode": {
+    "passed": 1052,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 60393.143439
+  },
+  "focusedNode": {
+    "passed": 319,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 2508.997443
+  },
+  "rendered": {
+    "viewports": [
+      "375x812",
+      "430x932",
+      "844x390",
+      "1280x800"
+    ],
+    "firstDay": {
+      "checks": 20,
+      "errors": 0
+    },
+    "conversation": {
+      "checks": 136,
+      "errors": 0
+    },
+    "initiative": {
+      "checks": 56,
+      "errors": 0
+    },
+    "negotiation": {
+      "checks": 72,
+      "errors": 0
+    },
+    "scrambleExperience": {
+      "checks": 89,
+      "scenes": 20,
+      "playthroughs": 6,
+      "errors": 0
+    },
+    "scramble": {
+      "checks": 44,
+      "playtests": 3,
+      "errors": 0
+    },
+    "livingCamp": {
+      "scenes": 168,
+      "playtests": 5,
+      "errors": 0
+    }
+  },
+  "naturalSupplement": {
+    "family": "fluid",
+    "policy": "active",
+    "seed": 361000,
+    "firstDay": true,
+    "scrambles": 4,
+    "replayComparisons": 2,
+    "beforeSourceFingerprint": "3c62d3d941027f2e785dd89daa40e2a4eb544e8250df2175cbc9f339ee52416b",
+    "afterSourceFingerprint": "f80b328f5277f17d4f58512d20596d2548a025d24df8352df7a7a4363df4ca49",
+    "beforeStateHash": "2ef9c15fbba65dd55566c9223f2744dee0c743e4c90b36363e6885dd5d846b20",
+    "afterStateHash": "2ef9c15fbba65dd55566c9223f2744dee0c743e4c90b36363e6885dd5d846b20",
+    "sameRandomState": true,
+    "sameBallots": true,
+    "replayBefore": true,
+    "replayAfter": true
+  },
+  "deviceLimitations": [
+    "No physical iPhone",
+    "No native Safari",
+    "No independent human enjoyment test"
+  ],
+  "productionSupplement": {
+    "player": "Michele",
+    "tribe": "Tagi",
+    "tribeCount": 3,
+    "endpoint": "Day 4 after three natural immunity wins",
+    "acceptedApproaches": [
+      {
+        "day": 1,
+        "npc": "Carolyn"
+      },
+      {
+        "day": 2,
+        "npc": "Yul"
+      }
+    ],
+    "uncaughtErrorsBeforeFix": 5,
+    "uncaughtErrorsDuringSameSaveWorkRecheck": 0,
+    "workRecheck": [
+      "Firewood entry and return",
+      "Bamboo entry and return"
+    ],
+    "humanTribalReached": false
+  }
+}

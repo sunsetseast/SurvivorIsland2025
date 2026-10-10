@@ -26,6 +26,8 @@ The existing scramble graph picker is also available as **Move around camp** in 
 
 The first-challenge Tribal outro now passes a plain tribe name to JourneyBeatUI textLines; colored HTML remains in the panels that explicitly support it. This fixes visible markup without changing the shared text renderer or challenge outcome.
 
+The supplemental three-tribe playthrough also found journey copy claiming one winner after two tribes earned immunity. “The winners” preserves both formats without changing challenge results or journey choices. The jungle resource dialog is now outside the scenery's low stacking context, so an occupied nearby panel cannot cover its actions. It retains the same work/search handlers, with an explicit exit, focus recovery and scrolling for landscape. These are production-reproduced presentation/access defects, not new gameplay systems.
+
 The existing contextual responses and six durable categories already provide useful progressive disclosure. No additional menu layer or dialogue tree is warranted. Keep asking, considering, promising and explicitly bluffing as different existing actions; do not simplify them into one Agree button.
 
 A small deterministic template change gives the six existing gameplay styles distinct check-in openings/replies. Tense relationships retain the existing acknowledgement that things need time. A warning addressed to its subject says “Your name…” when the speaker owns relevant danger evidence, otherwise expresses concern. It does not identify a protected source or claim certainty. Semantic resolution and receipts remain unchanged.
