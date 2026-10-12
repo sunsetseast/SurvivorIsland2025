@@ -281,7 +281,8 @@ export default class CampScreen {
 
     if (phase === GamePhase.POST_CHALLENGE) {
       const strategy = gameManager.systems?.strategyPhaseSystem;
-      if (strategy?.startedForPhaseKey === `${gameManager.day}-${phase}`) {
+      if (strategy?.startedForPhaseKey === `${gameManager.day}-${phase}` &&
+          !(strategy.isActive && strategy.playerTribeSafe)) {
         this.loadView(strategy.isActive ? gameManager.player?.location || LocationKeys.BEACH : LocationKeys.STRATEGY_SUMMARY);
         this.renderClockUI(); return;
       }
@@ -992,9 +993,9 @@ export default class CampScreen {
     updateCampClockUI(timer, gameManager.getDay());
     console.info('[CampScreen] renderClockUI', { phase, timer });
 
-    if (phase === GamePhase.POST_CHALLENGE && timer <= 0) {
-      void this.ensurePostChallengeClockReady('renderClockUI');
-    }
+    // Painting the HUD is read-only. Return events own initial strategy startup;
+    // starting it here used to steal their in-flight slot and leave the old
+    // pre-challenge summary on screen after immunity.
 
     return clock;
   }

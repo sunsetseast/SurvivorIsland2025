@@ -49,8 +49,15 @@ window.scrambleQa = {
     screen.currentView = meeting.location; screen.loadView(meeting.location, { travelPaid: true }); renderer.refresh();
     return { id: meeting.id, status: meeting.status };
   },
-  invite() { this.reset(); strategy.scramble.meetings = []; strategy.scramble.nextApproachAt = 3600;
-    strategy.onActivityBoundary(3600); this.wait(45); renderer.refresh(); return strategy.scramble.invitation; },
+  invite() {
+    this.reset(); strategy.scramble.meetings=[];
+    const [npc,source]=activity.npcs(), e=gm.systems.conversationSystem.engine;
+    e.initiative.deserialize();
+    e.memory.recordCampClaim({id:'qa:incoming-danger',speakerId:source.id,listenerIds:[npc.id],subjectId:gm.player.id,topic:'target',stance:'possible',confidence:.8,day:gm.day,campTime:gm.dayTimer});
+    const candidate=e.initiative.candidates(npc).find(c=>c.targetId===gm.player.id);
+    e.initiative.create(npc,gm.player.id,candidate);activity.interrupt(npc);activity.chooseNext(npc,gm.dayTimer);
+    this.wait(45);renderer.refresh();return e.initiative.invitation;
+  },
   restore() { const save = JSON.parse(JSON.stringify(gm.createSavePayload())); gm.restoreSavePayload(save);
     screen.loadView(gm.player.location, { travelPaid: true }); renderer.signature = null; renderer.refresh(); }
 };

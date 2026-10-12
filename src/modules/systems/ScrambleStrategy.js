@@ -288,10 +288,10 @@ export default class ScrambleStrategy {
         intentStatus:outcome==='commit'?'committed':'provisional',lateVolatility:this.gm.dayTimer<=600});
     if(outcome==='commit')s.committedTargetId=target; if(outcome==='hedge'||outcome==='open')this.count('hedges'); return finish(outcome,'evaluated',score);
   }
-  commit({id,speakerId,listenerIds,targetId,lie=false,random}) {
+  commit({id,speakerId,listenerIds,targetId,lie=false,semanticOrder=null,phase=null,random}) {
     if(this.resolved[id])return this.resolved[id];
     if(!this.strategy.isTargetIdAvailable(targetId)||same(speakerId,targetId))return null;
-    const result=this.statement({id,speakerId,listenerIds,subjectId:targetId,topic:'commitment',stance:'yes',mode:lie?'deliberate_lie':'truthful',random});
+    const result=this.statement({id,speakerId,listenerIds,subjectId:targetId,topic:'commitment',stance:'yes',mode:lie?'deliberate_lie':'truthful',semanticOrder,phase,random});
     if(result&&!lie&&this.strategy.isTargetIdAvailable(targetId)&&!same(speakerId,targetId)) {
       this.gm.systems.allianceSystem?.recordPlanSupport?.(speakerId,targetId,listenerIds);
       const s=this.state(speakerId); s.committedTargetId=targetId;

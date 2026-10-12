@@ -16,6 +16,7 @@ import JourneyBeatUI from '../ui/JourneyBeatUI.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const getKey = (tribe) => tribe?.id ?? tribe?.name ?? tribe?.tribeName;
+export const firstContactTribeForKey = (tribes, key) => tribes.find(t => String(getKey(t)) === String(key));
 
 const renderTemplate = (str, ctx = {}) =>
   str
@@ -595,7 +596,7 @@ const FirstContactView = {
       const leaderPct = this.state.progressByTribe[leader] || 0;
       orderEl.innerHTML = '';
       order.forEach((k,idx) => {
-        const tribe = this.tribes.find(t => getKey(t)===k);
+        const tribe = firstContactTribeForKey(this.tribes, k);
         const name = tribe?.tribeName || tribe?.name || `Tribe ${tribe?.id}`;
         const gap = (leaderPct - (this.state.progressByTribe[k]||0))*100;
         const text = idx===0 ? `1) ${name}` : `${idx+1}) ${name}  ${gap>0?`+${gap.toFixed(1)}%`:''}`;
@@ -1398,7 +1399,7 @@ const FirstContactView = {
     const losers = (this.tribes || []).filter((tribe) => !winnerKeySet.has(String(getKey(tribe))));
     const loser = losers[0] || null;
     const loserLine = loser
-      ? `${tribeSpan(loser)}, I’ll see you tonight at Tribal Council — where someone will be the first Survivor voted out of the game.`
+      ? `${getTribeName(loser)}, I’ll see you tonight at Tribal Council — where someone will be the first Survivor voted out of the game.`
       : 'I’ll see the losing tribe tonight at Tribal Council — where someone will be the first Survivor voted out of the game.';
 
     const showBeat = (textLines) => new Promise((resolve) => {

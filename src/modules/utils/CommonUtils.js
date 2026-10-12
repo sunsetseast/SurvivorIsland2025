@@ -209,6 +209,7 @@ export function wait(ms) {
  * @param {number} [top=20] - The top offset in pixels
  */
 export function addDebugBanner(message, bgColor = 'rgba(0,0,0,0.8)', top = 20) {
+  if (!new URLSearchParams(globalThis.window?.location?.search || '').has('debug')) return;
   const banner = document.createElement('div');
   banner.textContent = message;
   banner.style.cssText = `

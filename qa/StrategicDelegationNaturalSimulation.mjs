@@ -51,6 +51,7 @@ export function runNaturalDelegation({
   traceLimit = 300,
   approachQa = false,
   approachResponse = "participate",
+  firstDay = false,
 } = {}) {
   if (!FAMILIES.includes(family) || !POLICIES.includes(policy)) throw Error('Unknown natural scenario/policy');
   const began = performance.now(), rng = seeded(seed);
@@ -65,10 +66,10 @@ export function runNaturalDelegation({
       const s = makeScrambleQa({ seed, start: false, names }), gm = s.gm;
       const e = s.conversation.engine, A = gm.systems.allianceSystem;
         let player = gm.player;
-        gm.day = 7;
+        gm.day = firstDay ? 1 : 7;
         gm.isMerged = false;
         gm.gamePhase = "preChallenge";
-        gm.dayTimer = 1200;
+        gm.dayTimer = firstDay ? 7200 : 1200;
         gm.flags = {};
         gm.gameHistory = { tribals: [] };
         gm.jury = [];
@@ -81,7 +82,7 @@ export function runNaturalDelegation({
         e.deserialize();
       let npcs = s.activity.npcs(), members = s.activity.members();
       const initial = { family, policy, seed, cast: members.map(p => ({ id: p.id, name: p.firstName,
-        style: p.gameplayStyle })), alliances: [], information: [], relationships: 'seeded social history, not vote plans', idols: [] };
+        style: p.gameplayStyle })), alliances: [], information: [], relationships: firstDay ? 'neutral strangers except explicitly seeded coalitions / isolation' : 'seeded social history, not vote plans', idols: [] };
       const form = (ids, secrecy = 'secret') => {
         initial.alliances.push({ id: `natural:${initial.alliances.length}`, memberIds: ids, secrecy });
       };
@@ -106,7 +107,7 @@ export function runNaturalDelegation({
       A.deserialize({ alliances: initial.alliances.map(a => ({ ...a, active: true, tribeId: 1, name: a.id, type: 'core' })) });
       for (const a of members) for (const b of members) if (!same(a.id, b.id)) {
         const allies = initial.alliances.some(x => x.memberIds.includes(a.id) && x.memberIds.includes(b.id));
-        const trust = allies ? 66 + Math.floor(rng() * 20) : 35 + Math.floor(rng() * 30);
+        const trust = allies ? 66 + Math.floor(rng() * 20) : firstDay ? 50 : 35 + Math.floor(rng() * 30);
         gm.systems.trustSystem.setTrust(a.id, b.id, trust);
         gm.systems.relationshipSystem.setRelationship(a.id, b.id,
           family === 'player-bottom' && (a.isPlayer || b.isPlayer) ? 16 + Math.floor(rng() * 20) : trust);
@@ -637,7 +638,7 @@ export function runNaturalDelegation({
         metrics.obligations = {};
       for (const person of members) for (const obligation of s.memory.getConversationObligations(person.id))
         count(metrics.obligations, `${obligation.kind}:${obligation.status}`);
-      const result = { family, policy, seed, initial, metrics, initialIntents, finalIntent, tribalIntent, ballots,
+      const result = { family, policy, seed, firstDay, initial, metrics, initialIntents, finalIntent, tribalIntent, ballots,
         sourceFingerprint: SOURCE_FINGERPRINT,
         outcome: { eliminatedId: summary.eliminatedId, playerSurvived: !same(summary.eliminatedId, player.id),
           distinctTargets: Object.keys(votes).length, leadingVotes: Math.max(...Object.values(votes)),

@@ -430,12 +430,12 @@ try {
           } else {
             await page.keyboard.press("Escape");
             await page
-              .getByRole("button", { name: "Wait · 1 minute", exact: true })
+              .getByRole("button", { name: "Observe camp · 1 minute", exact: true })
               .click();
           }
         } else
           await page
-            .getByRole("button", { name: "Wait · 1 minute", exact: true })
+            .getByRole("button", { name: "Observe camp · 1 minute", exact: true })
             .click();
         actions++;
         continue;
@@ -550,7 +550,7 @@ try {
         moves++;
       } else
         await page
-          .getByRole("button", { name: "Wait · 1 minute", exact: true })
+          .getByRole("button", { name: "Observe camp · 1 minute", exact: true })
           .click();
       actions++;
     }
@@ -610,7 +610,7 @@ try {
   await page.keyboard.press("Escape");
   while (await page.evaluate(() => window.experienceQa.gm.dayTimer > 0))
     await page
-      .getByRole("button", { name: "Wait · 1 minute", exact: true })
+      .getByRole("button", { name: "Observe camp · 1 minute", exact: true })
       .click();
   const beforeHandoff = await page.evaluate(() =>
     JSON.stringify([

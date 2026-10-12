@@ -1150,6 +1150,8 @@ export default class ConversationResolver {
     if (this.model && !conditions.length && !cover)
       this.model.commit({
         id: `${id}:actual`,
+        semanticOrder: a.semanticOrder,
+        phase: a.phase,
         speakerId,
         listenerIds,
         targetId,
@@ -1466,21 +1468,35 @@ export default class ConversationResolver {
             k.delegationId === heard.delegationId &&
             k.proposition?.kind === "task_result",
         );
+      // Authenticate the claimed recipient, not merely another matching speech.
+      // A disclosed chain identifies the earliest intermediary after the source.
+      const attributedSpeech = Boolean(taskAccount) ||
+        ['commitment', 'target', 'backup', 'split_assignment', 'bring_response'].includes(heard.topic);
+      const chain = heard.sourceChain || [];
+      const originIndex = chain.findIndex((personId) => same(personId, id));
+      const recipientId = taskAccount?.proposition?.delegateId ??
+        chain.slice(originIndex + 1).find((personId) => !same(personId, id)) ??
+        (same(heard.speakerId, id) ? a.speakerId : heard.speakerId);
       const priorAccounts = (this.memory.getCampClaims(id) || []).filter(
         (e) =>
           same(e.speakerId, id) &&
+          (!attributedSpeech || e.audienceIds?.some((personId) => same(personId, recipientId))) &&
           same(e.subjectId, heard.subjectId) &&
           e.topic === heard.topic &&
           e.day === heard.day &&
-          (!taskAccount ||
-            withinReportWindow(e, taskAccount.proposition, taskAccount)),
+          (taskAccount
+            ? withinReportWindow(e, taskAccount.proposition, taskAccount)
+            // Remaining time counts DOWN. Later speech cannot prove an earlier
+            // account. Semantic order disambiguates several exchanges in a tick.
+            : Number.isFinite(e.campTime) && Number.isFinite(heard.campTime) &&
+              e.campTime >= heard.campTime &&
+              (e.campTime !== heard.campTime || e.semanticOrder == null ||
+                heard.semanticOrder == null || e.semanticOrder <= heard.semanticOrder)),
       );
       // An attributed task report describes historical speech, not today's vote.
       // Prefer the matching statement; a later withdrawal cannot erase it.
-      const prior = taskAccount
-        ? priorAccounts.find((k) => k.stance === heard.stance) ||
-          priorAccounts.at(-1)
-        : priorAccounts[0];
+      const prior = priorAccounts.find((k) => k.stance === heard.stance) ||
+        priorAccounts.at(-1);
       const fabricate =
         !prior && p.coverDrive > 0.55 && random() < p.coverDrive;
       const refuted =
@@ -1498,7 +1514,7 @@ export default class ConversationResolver {
       say(
         id,
         !refuted
-          ? "That is what I told them."
+          ? attributedSpeech ? "That is what I told them." : "That matches what I know."
           : "I did not say that. Ask them where that came from.",
       );
     } else if (a.type === "idol_ask" || a.type === "idol_search") {
@@ -1915,6 +1931,14 @@ export default class ConversationResolver {
       tense = (this.gm.getTrust?.(id, speakerId) ?? 50) < 40;
     if (tense)
       return "I appreciate the check-in. Things between us still need time.";
+    if (type === "check_in") {
+      if (p.style.includes("social genius")) return "It’s good to have a moment together. How are you settling in?";
+      if (p.style.includes("power")) return "I’m doing all right. How’s camp treating you?";
+      if (p.style.includes("shadow")) return "I’m finding my feet. What have you made of everyone so far?";
+      if (p.style.includes("competitive")) return "A little tired, but I’m good. How are you holding up?";
+      if (p.style.includes("wild")) return "Still figuring this place out. You doing okay?";
+      if (p.style.includes("lethal")) return "I’m glad you came over. How are you doing out here?";
+    }
     return (
       {
         help: "Thanks. Come help me when we finish talking.",
@@ -1947,6 +1971,21 @@ export default class ConversationResolver {
   }
   sentence(a) {
     const name = this.name(a.subjectId);
+    if (a.type === "check_in" && !this.person(a.speakerId)?.isPlayer) {
+      const style = conversationCharacter(this.person(a.speakerId)).style;
+      if (style.includes("social genius")) return "Hey, how are you settling in?";
+      if (style.includes("power")) return "How’s camp treating you?";
+      if (style.includes("shadow")) return "Mind if I sit with you a minute? How are you doing?";
+      if (style.includes("competitive")) return "You holding up all right out here?";
+      if (style.includes("wild")) return "Hey, you doing okay? This place takes some getting used to.";
+      if (style.includes("lethal")) return "I wanted to catch up with you. How are you doing?";
+    }
+    if (a.type === "warn" && a.listenerIds.some((id) => same(id, a.subjectId))) {
+      const evidence = this.knowledge(a.speakerId).find((k) => k.id === a.claimId);
+      return evidence && same(evidence.subjectId, a.subjectId) && ["target", "commitment", "safety"].includes(evidence.topic)
+        ? "Your name came up. I don’t know how far it goes, but I’d be careful."
+        : "I’m worried you might be in trouble. I’d check where people stand.";
+    }
     const incident = this.events(a.speakerId).find((k) => k.id === a.eventId);
     if (
       incident?.proposition?.reportId &&
