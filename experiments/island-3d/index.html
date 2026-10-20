@@ -29,7 +29,7 @@ const sea=new THREE.Mesh(new THREE.PlaneGeometry(340,340),new THREE.MeshStandard
 const shape=new THREE.Shape();ISLAND_OUTLINE.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();
 const landGeo=new THREE.ExtrudeGeometry(shape,{depth:2,bevelEnabled:true,bevelSize:2,bevelThickness:.6,bevelSegments:1,curveSegments:1});
 landGeo.rotateX(-Math.PI/2);const land=new THREE.Mesh(landGeo,sand);land.position.y=0;scene.add(land);
-const jungle=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),green);jungle.scale.set(37,3,44);jungle.position.set(3,.8,12);scene.add(jungle);
+// Low jungle floor patches preserve visible trails. A giant raised sphere previously buried paths.\nfor(const [x,z,r] of [[0,12,20],[20,15,15],[-15,26,14],[3,40,12]]){\n const patch=new THREE.Mesh(new THREE.CircleGeometry(r,24),green);\n patch.rotation.x=-Math.PI/2;patch.position.set(x,2.08,z);scene.add(patch);\n}
 function cylinder(r1,r2,h,x,y,z,m){const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,7),m);o.position.set(x,y,z);scene.add(o);return o}
 function tree(x,z,s){cylinder(.28*s,.4*s,5*s,x,3.3*s,z,trunk);for(let i=0;i<5;i++){const a=i*6.283/5;const c=new THREE.Mesh(new THREE.ConeGeometry(2.1*s,5*s,5),frond);c.position.set(x+Math.cos(a)*1.2*s,6.5*s,z+Math.sin(a)*1.2*s);c.rotation.z=Math.cos(a)*.6;c.rotation.x=Math.sin(a)*.6;scene.add(c)}}
 let seed=2103;const rnd=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296};
@@ -39,17 +39,17 @@ if((x/39)**2+((z-12)/46)**2>1)continue;tree(x,z,.45+rnd()*.4)}
 const pathGroup=new THREE.Group();scene.add(pathGroup);
 for(const [a,b] of ISLAND_EDGES){const p=ISLAND_NODES[a],q=ISLAND_NODES[b],dx=q.x-p.x,dz=q.z-p.z;
 const length=Math.hypot(dx,dz);const strip=new THREE.Mesh(new THREE.BoxGeometry(1.8,.13,length),path);
-strip.position.set((p.x+q.x)/2,2.5,(p.z+q.z)/2);strip.rotation.y=Math.atan2(dx,dz);pathGroup.add(strip)}
+strip.position.set((p.x+q.x)/2,2.24,(p.z+q.z)/2);strip.rotation.y=Math.atan2(dx,dz);pathGroup.add(strip)}
 // Landmark markers and lightweight canvas text labels.
 const markers=[],labels=new THREE.Group();scene.add(labels);
 function labelTexture(text){const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');
 g.fillStyle='#14363bdd';g.fillRect(0,0,512,96);g.font='bold 32px sans-serif';g.fillStyle='#fff';g.textAlign='center';g.fillText(text,256,60);
 const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t}
-for(const [key,n] of Object.entries(ISLAND_NODES)){const m=cylinder(1.45,1.7,2,n.x,4,n.z,mat(n.source==='illustration'?'#f9a94b':'#bd82c8'));m.userData.key=key;markers.push(m);
-const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(n.label),depthTest:false}));sprite.position.set(n.x,10,n.z);sprite.scale.set(15,2.8,1);labels.add(sprite)}
+for(const [key,n] of Object.entries(ISLAND_NODES)){const m=cylinder(1.45,1.7,2,n.x,3.2,n.z,mat(n.source==='illustration'?'#f9a94b':'#bd82c8'));m.userData.key=key;markers.push(m);
+const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(n.label),depthTest:false}));sprite.position.set(n.x,9,n.z);sprite.scale.set(15,2.8,1);labels.add(sprite)}
 // Camp markers: fire, shelter and flag (placeholder geometry).
-const flame=new THREE.Mesh(new THREE.ConeGeometry(1.8,4,8),mat('#f77c2d'));flame.position.set(-9,5,-31);scene.add(flame);
-const hut=new THREE.Mesh(new THREE.ConeGeometry(7,5,4),mat('#a27a40'));hut.rotation.y=Math.PI/4;hut.position.set(12,7,-44);scene.add(hut);
+const flame=new THREE.Mesh(new THREE.ConeGeometry(1.8,4,8),mat('#f77c2d'));flame.position.set(-9,4.5,-31);scene.add(flame);
+const hut=new THREE.Mesh(new THREE.ConeGeometry(7,5,4),mat('#a27a40'));hut.rotation.y=Math.PI/4;hut.position.set(12,6.5,-44);scene.add(hut);
 const flagpole=cylinder(.2,.2,9,-24,7,-25,trunk);
 const flag=new THREE.Mesh(new THREE.PlaneGeometry(4,2.5),mat('#e4a02d'));flag.position.set(-22,10,-25);scene.add(flag);
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
