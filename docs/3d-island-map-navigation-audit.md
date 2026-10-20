@@ -62,3 +62,16 @@ The fork screens cannot be collapsed into one junction without changing player n
 ## Implementation boundary
 
 This document is a **layout audit**, not a claim that a playable 3D scene exists. The next development step is to reconcile the original image and conditional arrows and implement a self-contained playable vertical slice on this branch.
+
+
+## Visual inspection of user-supplied island illustration (2026-10-20)
+
+The user supplied an image visually depicting a compact, elongated tropical island (north at the top of the illustration is **assumed**, since no compass rose is shown). This image is treated as a visual reference to reconcile against `Assets/map.png`, not as proof of pixel identity with the repository file.
+
+**Visible, grounded layout:** northwest rocky outcrops and labelled Rocky Shore; Beach on the western/northwestern coast; bamboo and a campfire in the northwestern interior; thatched elevated shelter labelled Camp at the northern/northeastern end; Water Well west of the central jungle; dense palm forest covering central and southern island; Tree Mail with a banner at the southeastern coast. Turquoise ocean surrounds the island; waves break on the southwest coast. The image has no marked compass, scale, walking paths, elevation contours, challenge arena, Tribal Council, waterfall, or explicit mountain trail.
+
+**Implications:** retain shoreline and zone arrangement as a visual design anchor, not exact metric coordinates. Preserve beach–tribe flag–campfire–shelter–fork navigation topology. Locate unmarked tribe flag, three forks, mountain/waterfall trail and navigable connections using view artwork and arrows, recording assumptions. Do not place Water Well on the eastern coast merely because it connects to waterfall and jungle in code: it is visibly on the west side. Tree Mail is visibly southeast even though approached via Mountain Trail. Distinguish local camera-facing arrow directions from global compass bearings; conditional arrows on Mountain Trail/Jungle Trail are especially strong evidence that the player's facing changes.
+
+**3D design proposal (not confirmed geography):** northwestern beach/rocky shoreline, northern camp cluster, western well, central jungle with winding forked paths, southeastern Tree Mail. Place mountain and waterfall only after comparing their background scenes and path perspectives. Reserve challenge and Tribal Council locations for later rather than inventing them on this map.
+
+**Next verification:** inspect repository `Assets/map.png` visually and compare to supplied illustration; image bytes were not accessible through the GitHub text connector. Record any differences.
