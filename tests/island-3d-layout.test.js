@@ -25,3 +25,36 @@ test('map anchor geography is preserved in proposed coordinates',()=>{
  assert.ok(n.treeMail.x>n.shelter.x&&n.treeMail.z>n.shelter.z);
  assert.ok(n.beach.x<n.shelter.x);
 });
+
+function pointInPolygon([x,z],poly){
+ let inside=false;
+ for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+  const [xi,zi]=poly[i],[xj,zj]=poly[j];
+  if((zi>z)!==(zj>z)&&x<(xj-xi)*(z-zi)/(zj-zi)+xi)inside=!inside;
+ }
+ return inside;
+}
+test('every proposed landmark and path segment stays on the island',()=>{
+ for(const [key,n] of Object.entries(ISLAND_NODES))
+  assert.ok(pointInPolygon([n.x,n.z],ISLAND_OUTLINE),key+' is offshore');
+ for(const [a,b] of ISLAND_EDGES){
+  const p=ISLAND_NODES[a],q=ISLAND_NODES[b];
+  for(let i=0;i<=100;i++){
+   const t=i/100;
+   assert.ok(pointInPolygon([p.x+(q.x-p.x)*t,p.z+(q.z-p.z)*t],ISLAND_OUTLINE),a+' to '+b+' crosses ocean');
+  }
+ }
+});
+test('each directly navigable view arrow has a matching world route',()=>{
+ const expected=[
+ ['beach','rockyShore'],['beach','tribeFlag'],['tribeFlag','campfire'],
+ ['campfire','shelter'],['shelter','fork1'],['fork1','mountainTrail'],
+ ['fork1','jungleTrail'],['fork2','jungleTrail'],['fork2','mountainTrail'],
+ ['fork2','shelter'],['fork3','shelter'],['fork3','jungleTrail'],
+ ['fork3','mountainTrail'],['mountainTrail','treeMail'],
+ ['treeMail','waterfallTrail'],['waterfallTrail','waterWell'],
+ ['waterWell','jungleTrail']
+ ];
+ const edgeSet=new Set(ISLAND_EDGES.map(([a,b])=>[a,b].sort().join(':')));
+ for(const [a,b] of expected)assert.ok(edgeSet.has([a,b].sort().join(':')),a+' → '+b+' missing');
+});
