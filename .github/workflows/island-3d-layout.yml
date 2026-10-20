@@ -1,0 +1,17 @@
+name: Island 3D Blueprint Checks
+on:
+  pull_request:
+    paths:
+      - 'experiments/island-3d/**'
+      - 'tests/island-3d-layout.test.js'
+      - '.github/workflows/island-3d-layout.yml'
+  workflow_dispatch:
+jobs:
+  validate-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/island-3d-layout.test.js
